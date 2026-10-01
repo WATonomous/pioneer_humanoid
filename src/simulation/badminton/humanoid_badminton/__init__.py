@@ -1,12 +1,14 @@
 """mjlab (MuJoCo Warp) training tasks for the badminton receive env.
 
-Importing this package registers two tasks:
+Importing this package registers three tasks (bimanual: two arms, a racket
+in each hand, one arm assigned per shot):
 
   Mjlab-Badminton-Receive-Teacher   PPO on privileged observations (true
                                     shuttle state + true trajectory prior)
   Mjlab-Badminton-Receive-Student   distills the trained teacher into the
                                     student observation set (EKF-tracked
                                     shuttle + noisy trajectory prior)
+  Mjlab-Badminton-Receive-Student-PPO PPO fine-tune of the distilled student
 
 Run from the stationary/ directory (the package imports aero/launcher/
 perception_torch from there):
@@ -62,15 +64,15 @@ register_mjlab_task(
 
 register_mjlab_task(
     "Mjlab-Badminton-Receive-Student",
-    env_cfg=make_env_cfg(),
-    play_env_cfg=make_env_cfg(play=True),
+    env_cfg=make_env_cfg(assign_source="ekf"),
+    play_env_cfg=make_env_cfg(play=True, assign_source="ekf"),
     rl_cfg=make_distill_cfg(),
     runner_cls=BadmintonDistillationRunner,
 )
 
 register_mjlab_task(
     "Mjlab-Badminton-Receive-Student-PPO",
-    env_cfg=make_env_cfg(),
-    play_env_cfg=make_env_cfg(play=True),
+    env_cfg=make_env_cfg(assign_source="ekf"),
+    play_env_cfg=make_env_cfg(play=True, assign_source="ekf"),
     rl_cfg=make_student_ppo_cfg(),
 )

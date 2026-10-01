@@ -33,25 +33,35 @@ net:
 
 arm:
   base_y: -2.0           # m, arm base this far behind the net (net at y=0)
-  base_x: -0.245         # m, stand shifted so the right arm's swing plane
-                         # (laterally offset from the base by the chain's
-                         # y-offsets) passes through court center x=0;
-                         # = -(link6 y in the base frame at qpos 0), printed
-                         # by build_scene.py
+  base_x: 0.0            # m, stand centred on the court (x = 0): the two arms'
+                         # swing planes sit symmetric at x = +-0.25 (right
+                         # arm at +x). The single-arm env used -0.245 to put
+                         # the right arm's plane on x = 0.
   mount_height: 1.1997   # m, base_link origin above floor = stand height, so
                          # the stand foot rests on the floor
   mount_yaw_deg: 90.0    # deg, yaw of the base so the robot's front (+x base,
                          # the ego-camera direction) faces the net (+y world)
   urdf: ../../../assets/pioneer_bimanual_arm/urdf/pioneer_bimanual_arm.urdf  # relative to this package
-  # dual-arm model; only the right arm (joint1-6) is actuated. The left arm
-  # (joint1L-8l) and both grippers (joint7/8) are frozen at the zero pose.
+  # dual-arm model, both arms actuated, a racket in each hand. Grippers
+  # (joint7/8, joint7l/8l) are frozen with the fingers closed on the handles.
+  # Per-joint arrays below (damping, torques, gains, speed caps) are indexed
+  # by position within an arm and apply to both arms: the left arm carries
+  # the same motor per joint.
   joints: [joint1, joint2, joint3, joint4, joint5, joint6]
+  joints_left: [joint1L, joint2l, joint3l, joint4l, joint5l, joint6l]
+  # q_left = left_mirror * q_right gives the mirror-image pose across the
+  # robot's sagittal plane: every left joint axis is the reflected right
+  # axis with the sign flipped (URDF axes; build_scene.py checks the FK
+  # mirror on random configs). Left ranges, ready and rest poses are the
+  # right ones times this sign, clipped to the left URDF limits.
+  left_mirror: [-1, -1, -1, -1, -1, -1]
   # Rest pose the arm returns to after the hit (BadmintonAction overrides
   # the policy target once the face has met the shuttle): hanging straight
   # down with a slight elbow bend so the racket points down-forward and
   # clears the floor (face centre 0.18 m up, FK-checked). Same joint order.
   rest_joint_pos: [0.0, 0.0, 0.0, 0.5, 0.0, 0.0]
-  palm_body: link6       # gripper base; the racket welds here
+  palm_body: link6       # gripper base; the right racket welds here
+  palm_body_left: link6l
   # ledger: joint damping/armature below are additions for actuation stability,
   # not re-parameterizations of the arm kinematics/inertia. Per joint, scaled
   # to motor size: a uniform 0.1 was the original stability choice, but 0.1 on
@@ -100,6 +110,9 @@ racket:
   # grip point in the link6 (gripper base) frame: centered between the finger
   # pads (joint7 at y=+0.026, joint8 at y=-0.077), mid-finger depth
   grip_pos: [0.0, -0.0255, -0.15]
+  # same point in the link6l frame: the left fingers (joint7l y=-0.017,
+  # joint8l y=+0.086) are not the exact mirror of the right ones
+  grip_pos_left: [0.0, 0.0345, -0.15]
   handle_mass: 0.030
   face_mass: 0.060
 
@@ -122,7 +135,11 @@ launcher:
   max_launch_speed: 30.0         # m/s, reject anti-damped blowups
   net_margin: 0.05               # m, inbound clearance over the net
   sweet_point: [0.0, -1.6, 1.25] # m, central bias target for p*
-  sweet_sigma: 0.35              # m, gaussian bias width
+  # m, gaussian bias width per axis (x, y, z). x is 0.7 for the bimanual
+  # env (single-arm: 0.35 on every axis): 0.35 kept ~95% of p* inside each
+  # arm's own reach, so the second arm never mattered; 0.7 spreads p* over
+  # the W box (|x| < 1.16) and puts a share of shots out of one arm's reach.
+  sweet_sigma: [0.7, 0.35, 0.35]
 
 workspace:
   n_samples: 250000              # posture predicates reject more, sample more
@@ -206,3 +223,11 @@ control:
                          # enough to stay inside the natural-posture shell)
   landing_target: [0.0, 3.35]    # x, y on far court (mid-court, centered)
   return_net_clearance: 0.5      # m, required clearance for the return shot
+  # bimanual arm assignment (humanoid_badminton/perception_command.py): the
+  # arm on the side where the predicted flight crosses y = assign_strike_y
+  # (the mean of the launcher's p* y) takes the shot; the other arm holds
+  # its ready pose. The student's EKF-based choice is fixed after
+  # assign_latch_s (the EKF has converged ~5x by 0.5 s; t* >= 0.9 s leaves
+  # >= 0.6 s for the swing).
+  assign_strike_y: -1.6          # m
+  assign_latch_s: 0.3            # s

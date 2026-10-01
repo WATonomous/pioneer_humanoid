@@ -1,13 +1,23 @@
-# Badminton receive — stationary arm, RL
+# Badminton receive — stationary bimanual arm, RL
 
-MuJoCo simulation of the WATonomous arm receiving badminton serves, and the
-RL pipeline that trains the receive policy (mjlab / MuJoCo Warp, rsl_rl PPO).
+MuJoCo simulation of the WATonomous bimanual arm receiving badminton serves
+with a racket in each hand, and the RL pipeline that trains the receive
+policy (mjlab / MuJoCo Warp, rsl_rl PPO).
+
+Each serve is assigned to one arm: the arm on the side (x relative to the
+stand centre) where the predicted flight crosses the strike plane
+`control.assign_strike_y`. The teacher uses the true flight; the student
+uses its EKF estimate, which is fixed after `control.assign_latch_s`. The
+other arm holds its ready pose, so both rackets never go for the same
+shuttle. Racket/forearm contact between the arms is penalised and ends the
+episode.
 
 ## Setup
 
 ```bash
 uv sync --extra train          # Linux + NVIDIA GPU (CPU: --extra train-cpu, smoke tests only)
 uv run scripts/build_scene.py  # regenerate scene/badminton.xml after editing scene/params.yaml
+uv run python -c "import launcher; launcher.build_workspace()"   # both arms' reach -> scene/workspace_W.npz
 ```
 
 The arm is `assets/pioneer_bimanual_arm/urdf/pioneer_bimanual_arm.urdf` (repo
@@ -38,6 +48,20 @@ uv run scripts/train_rl.py Mjlab-Badminton-Receive-Student-PPO \
     --agent.resume True --agent.load-run init --agent.load-checkpoint model_0.pt
 ```
 
+Warm start from single-arm checkpoints: `scripts/widen_checkpoint.py` turns a
+right-arm PPO checkpoint into a bimanual one (the actor becomes two
+block-diagonal copies, right arm and mirrored left arm; see its docstring),
+then resume from it:
+
+```bash
+uv run scripts/widen_checkpoint.py --group teacher \
+    --old ../../../models/badminton_teacher/model_5996.pt \
+    --out logs/rsl_rl/badminton_teacher/init_bimanual/model_0.pt
+uv run scripts/train_rl.py Mjlab-Badminton-Receive-Teacher \
+    --agent.resume True --agent.load-run init_bimanual --agent.load-checkpoint model_0.pt
+# student PPO: --group student, the student_ppo model, Mjlab-Badminton-Receive-Student-PPO
+```
+
 Runs log to Weights & Biases (project `mjlab`); checkpoints land in
 `logs/rsl_rl/<experiment>/<timestamp>/`. rsl_rl opens a new timestamped
 directory on every launch, including resumes.
@@ -51,9 +75,11 @@ uv run scripts/play_rl.py Mjlab-Badminton-Receive-Student-PPO --viewer viser \
     --checkpoint-file <model.pt>                      # http://localhost:8080
 ```
 
-Baselines are checked in under `models/` (repo root):
+Single-arm baselines are checked in under `models/` (repo root):
 `models/badminton_student_ppo/model_4997.pt` (98.8% bank hits, 78% net
-clearance) and its teacher `models/badminton_teacher/model_5996.pt`.
+clearance) and its teacher `models/badminton_teacher/model_5996.pt`. They
+run on the bimanual env only after `scripts/widen_checkpoint.py`. The
+scripted baseline in `baseline/` drives the right arm only.
 
 ## Layout
 
@@ -65,7 +91,9 @@ scripts/         build_scene, mesh_prep, train_rl, student_to_ppo, eval_rl, play
 scene/           params.yaml, generated badminton.xml, meshes
 ```
 
-Policy I/O: 61 inputs at 50 Hz (joint pos/vel, racket face pose, last
-action, EKF shuttle state + 8-point trajectory prior, EKF uncertainty) →
-6 joint-position targets, rate-limited and low-passed like the hardware
-path; after the hit the arm returns to a rest pose.
+Policy I/O: 87 inputs at 50 Hz (12 joint pos/vel, both racket face poses,
+last action, arm-assignment one-hot, EKF shuttle state + 8-point trajectory
+prior, EKF uncertainty) → 12 joint-position targets (right arm first),
+rate-limited and low-passed like the hardware path; the unassigned arm's
+targets are replaced by its ready pose, and after the hit both arms return
+to their rest poses.

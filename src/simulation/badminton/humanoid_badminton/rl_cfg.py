@@ -17,6 +17,10 @@ from mjlab.rl.config import (RslRlBaseRunnerCfg, RslRlModelCfg,
                              RslRlOnPolicyRunnerCfg, RslRlPpoAlgorithmCfg)
 
 HIDDEN = (512, 256, 128)
+# bimanual actor: twice the single-arm width, so scripts/widen_checkpoint.py
+# can warm-start it as two block-diagonal copies of the single-arm actor
+# (right arm, mirrored left arm). The critic keeps HIDDEN.
+ACTOR_HIDDEN = (1024, 512, 256)
 
 
 def make_teacher_ppo_cfg() -> RslRlOnPolicyRunnerCfg:
@@ -27,7 +31,7 @@ def make_teacher_ppo_cfg() -> RslRlOnPolicyRunnerCfg:
         experiment_name="badminton_teacher",
         obs_groups={"actor": ("teacher",), "critic": ("teacher",)},
         actor=RslRlModelCfg(
-            hidden_dims=HIDDEN,
+            hidden_dims=ACTOR_HIDDEN,
             obs_normalization=True,
             distribution_cfg={"class_name": "GaussianDistribution",
                               "init_std": 0.5, "std_type": "scalar"}),
@@ -60,7 +64,7 @@ def make_student_ppo_cfg() -> RslRlOnPolicyRunnerCfg:
         experiment_name="badminton_student_ppo",
         obs_groups={"actor": ("student",), "critic": ("teacher",)},
         actor=RslRlModelCfg(
-            hidden_dims=HIDDEN,
+            hidden_dims=ACTOR_HIDDEN,
             obs_normalization=True,
             # init_std is overwritten by the distilled student's std (0.1)
             distribution_cfg={"class_name": "GaussianDistribution",
@@ -95,13 +99,13 @@ class RslRlDistillationRunnerCfg(RslRlBaseRunnerCfg):
     class_name: str = "DistillationRunner"
     student: RslRlModelCfg = field(
         default_factory=lambda: RslRlModelCfg(
-            hidden_dims=HIDDEN,
+            hidden_dims=ACTOR_HIDDEN,
             obs_normalization=True,
             distribution_cfg={"class_name": "GaussianDistribution",
                               "init_std": 0.1, "std_type": "scalar"}))
     teacher: RslRlModelCfg = field(
         default_factory=lambda: RslRlModelCfg(
-            hidden_dims=HIDDEN,
+            hidden_dims=ACTOR_HIDDEN,
             obs_normalization=True,
             distribution_cfg={"class_name": "GaussianDistribution",
                               "init_std": 0.5, "std_type": "scalar"}))

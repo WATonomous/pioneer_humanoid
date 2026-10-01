@@ -90,26 +90,40 @@ class BadmintonAction(JointPositionAction):
         # exploits a command channel the hardware does not have (runs 8/10:
         # every joint pinned at its torque clamp most of the episode).
         c = p["control"]
+        # per-joint caps, same motors on both arms (right first)
         self._step_max = torch.tensor(
-            c["target_velocity_max"], device=self.device) * env.step_dt
+            c["target_velocity_max"] * 2, device=self.device) * env.step_dt
         self._alpha = float(c["low_pass_alpha"])
         self._prev_target = self._offset.clone() if torch.is_tensor(
             self._offset) else torch.full_like(self._raw_actions, self._offset)
         # after the hit the target is no longer the policy's: the arm returns
         # to the rest pose through the same moderation (a deployment wrapper
         # does the same, so post-hit behaviour is deterministic and slow)
-        rest = dict(zip(p["arm"]["joints"], p["arm"]["rest_joint_pos"]))
-        # target names carry the model prefix ("arm_joint4"); match by suffix
+        # (both arms; the left rest pose is the mirrored right one)
+        arm = p["arm"]
+        rest = dict(zip(arm["joints"], arm["rest_joint_pos"]))
+        rest.update({j: m * q for j, m, q in zip(
+            arm["joints_left"], arm["left_mirror"], arm["rest_joint_pos"])})
+        # target names carry the model prefix ("arm_joint4")
+        self._arm_side = torch.tensor(
+            [0 if n.removeprefix("arm_") in arm["joints"] else 1
+             for n in self._target_names], device=self.device)
         self._rest = torch.tensor(
-            [next(v for j, v in rest.items() if n.endswith(j))
-             for n in self._target_names],
+            [rest[n.removeprefix("arm_")] for n in self._target_names],
             device=self.device).unsqueeze(0)
 
     def process_actions(self, actions: torch.Tensor) -> None:
         super().process_actions(actions)
         from humanoid_badminton import mdp  # lazy: mdp imports this module
         tgt = self._processed_actions
-        hit = mdp._state(self._env)["hit"]
+        store = mdp._state(self._env)
+        # bimanual: the arm not assigned to the shot holds the ready pose
+        # (the action offset), so only one racket goes for the shuttle
+        ready = self._offset if torch.is_tensor(self._offset) else \
+            torch.full_like(tgt, self._offset)
+        idle = self._arm_side.unsqueeze(0) != store["assign"].unsqueeze(-1)
+        tgt = torch.where(idle, ready, tgt)
+        hit = store["hit"]
         tgt = torch.where(hit.unsqueeze(-1), self._rest.expand_as(tgt), tgt)
         prev = self._prev_target
         q = prev + (tgt - prev).clamp(-self._step_max, self._step_max)
