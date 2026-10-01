@@ -35,5 +35,5 @@ echo "[3/3] Launching teleop pipeline inside container..."
 echo "  Isaac Sim takes 1-3 min to load. Wait for:"
 echo "  [Quest] Ready. Waiting for /quest_teleop messages."
 echo ""
-./watod exec simulation_isaac_dev bash \
+./watod exec simulation_isaac bash \
     /workspace/humanoid/src/teleop/quest_isaac_teleop/container_start_teleop.sh "$@"

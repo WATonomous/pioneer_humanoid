@@ -11,11 +11,10 @@ Pipeline
 
 Control
 -------
-IK: weighted damped-least-squares, one solver per arm so neither arm's homing state leaks
-into the other's. Each arm tracks its gripper's FINGERTIP-TIP midpoint (not the wrist
-link); orientation comes from the wrist link. Damping lambda_val is 0.1 (0.175 right) --
-see _DLS_LAMBDA; the shoulder is up-weighted (_IK_JOINT_COST) so hand rotation lands in
-the forearm/wrist instead of swinging the whole arm.
+IK: plain (unweighted) damped-least-squares, one solver per arm so neither arm's homing
+state leaks into the other's. Each arm tracks its gripper's FINGERTIP-TIP midpoint (not
+the wrist link); orientation comes from the wrist link. Damping lambda_val is 0.1
+(0.175 right) -- see _DLS_LAMBDA.
 
 Coordinate mapping: WebXR is Y-up (X=right, Y=up, -Z=forward); the robot base is Z-up and
 yawed 180deg. Both hand POSITION and wrist ORIENTATION are mapped CAMERA-RELATIVE (see
@@ -77,7 +76,7 @@ def _ensure_il_on_path() -> None:
 
 
 # ── CLI args ──────────────────────────────────────────────────────────────────
-parser = argparse.ArgumentParser(description="Quest pioneer_bimanual_arm teleop (both arms: weighted-DLS fingertip IK)")
+parser = argparse.ArgumentParser(description="Quest pioneer_bimanual_arm teleop (both arms: DLS fingertip IK)")
 parser.add_argument("--gain", type=float, default=1.0,
                     help="Motion gain: metres of EE motion per metre of real wrist motion")
 parser.add_argument("--record", action="store_true",
@@ -237,21 +236,6 @@ _PINCH_OPEN_M = 0.050
 _DLS_LAMBDA = 0.1
 _DLS_LAMBDA_RIGHT = 0.175
 
-# Per-joint cost for the weighted DLS solve (see _WeightedDlsIKController). Higher = solver
-# avoids that joint; only ratios matter. Shoulder is expensive so a hand rotation lands in the
-# forearm roll and wrist instead of swinging the whole arm -- at weight 5 the shoulder's share
-# of a pure twist drops to ~11% while it still does ~50% of a pure translation (which needs its
-# lever arm). Weight 25 cuts the twist share further but visibly slows translation. Elbow,
-# forearm roll, wrist stay at 1.0: elbow must stay cheap for reach, the other two are where we
-# want the rotation.
-_IK_SHOULDER_COST = 5.0
-_IK_JOINT_COST = {
-    "joint1": _IK_SHOULDER_COST, "joint2": _IK_SHOULDER_COST, "joint3": _IK_SHOULDER_COST,
-    "joint1L": _IK_SHOULDER_COST, "joint2l": _IK_SHOULDER_COST, "joint3l": _IK_SHOULDER_COST,
-    "joint4": 1.0, "joint4l": 1.0,      # elbow flexion
-    "joint5": 1.0, "joint5l": 1.0,      # forearm pronation/supination
-    "joint6": 1.0, "joint6l": 1.0,      # wrist flexion
-}
 # Ceiling + threshold for Chiaverini adaptive damping (_adaptive_dls_lambda): lambda ramps from
 # the floor above toward lambda_max as manipulability drops below epsilon.
 # CURRENTLY INACTIVE -- solve_and_apply was reverted to fixed lambda on live feedback that
@@ -1038,53 +1022,6 @@ def _ee_pose_in_base(robot, body_id: int):
     )
 
 
-class _WeightedDlsIKController(DifferentialIKController):
-    """DifferentialIKController whose DLS solve charges a per-joint cost.
-
-    Isaac Lab's "dls" branch solves dq = J^T (J J^T + lambda^2 I)^-1 e, which minimises the
-    UNWEIGHTED norm ||dq||. That norm prices one degree of shoulder rotation exactly like one
-    degree of forearm roll, so the damping term happily spreads motion across whichever joints
-    shrink ||dq|| fastest. Measured on this arm, a pure forearm-axis twist of the fingertip came
-    out 34.7% shoulder / 71% forearm at lambda=0.2, even though the exact undamped solution is
-    0.4% shoulder / 94% forearm -- i.e. the arm swung from the shoulder purely as an artifact of
-    the damping, not because the kinematics needed it.
-
-    Weighting fixes that. With W = diag(cost):
-
-        dq = W^-1 J^T (J W^-1 J^T + lambda^2 I)^-1 e
-
-    minimises ||dq||_W instead, so an expensive joint moves only when a cheap one cannot do the
-    job. This is the standard weighted-DLS formulation; KDL exposes the same knob as
-    ChainIkSolverVel_wdls.setWeightJS.
-
-    Note it does NOT trade task accuracy for posture: as lambda -> 0 with a square non-singular
-    J, W^-1 J^T (J W^-1 J^T)^-1 collapses to J^-1 regardless of W. Weighting only reshapes how
-    the DAMPING distributes motion -- which is precisely the part that was leaking.
-    """
-
-    def __init__(self, cfg, num_envs, device, joint_costs):
-        super().__init__(cfg, num_envs, device)
-        # (n,) -- broadcasts over the env batch and over the task rows below.
-        self._joint_cost_inv = 1.0 / torch.as_tensor(joint_costs, dtype=torch.float32, device=device)
-
-    def _compute_delta_joint_pos(self, delta_pose: torch.Tensor, jacobian: torch.Tensor) -> torch.Tensor:
-        if self.cfg.ik_method != "dls":
-            return super()._compute_delta_joint_pos(delta_pose, jacobian)
-
-        lambda_val = self.cfg.ik_params["lambda_val"]
-        w_inv = self._joint_cost_inv
-        jacobian_T = jacobian.transpose(1, 2)
-        # Scaling J's columns by w_inv IS J @ W^-1, without materialising the diagonal.
-        lhs = (jacobian * w_inv) @ jacobian_T
-        lhs = lhs + (lambda_val**2) * torch.eye(jacobian.shape[1], device=self._device)
-        # solve_ex(check_errors=False), not solve()/inverse(): those read a singularity flag on
-        # the host, forcing a CUDA sync that blocks ~4ms per call (twice per step) behind the
-        # in-flight render. Safe to skip: lhs = J W^-1 J^T + lambda^2 I is SPD for any lambda > 0
-        # (min eigenvalue >= lambda^2), so it's never singular.
-        y, _ = torch.linalg.solve_ex(lhs, delta_pose.unsqueeze(-1), check_errors=False)
-        return (w_inv.unsqueeze(-1) * (jacobian_T @ y)).squeeze(-1)
-
-
 class _ArmDlsController:
     """A DifferentialIKController plus the per-arm state to drive it from Quest wrist data:
     entity/jacobian indices, fingertip geometry, homing state, current target.
@@ -1107,14 +1044,9 @@ class _ArmDlsController:
             command_type="pose", use_relative_mode=False, ik_method="dls",
             ik_params={"lambda_val": lambda_val},
         )
-        # SceneEntityCfg resolves with preserve_order=False, so arm_ids comes back in
-        # ARTICULATION order, not the order of arm_joint_names. The Jacobian columns follow
-        # arm_ids, so the cost vector has to be built from the resolved names or the weights
-        # land on the wrong joints.
         self.arm_joint_names = [robot.data.joint_names[i] for i in self.arm_ids]
-        joint_costs = [_IK_JOINT_COST.get(name, 1.0) for name in self.arm_joint_names]
-        self.controller = _WeightedDlsIKController(
-            cfg, num_envs=scene.num_envs, device=device, joint_costs=joint_costs,
+        self.controller = DifferentialIKController(
+            cfg, num_envs=scene.num_envs, device=device,
         )
         self.controller.reset(env_ids=torch.arange(scene.num_envs, device=device))
         # Floor/ceiling for adaptive damping. Inert while _adaptive_dls_lambda is uncalled.

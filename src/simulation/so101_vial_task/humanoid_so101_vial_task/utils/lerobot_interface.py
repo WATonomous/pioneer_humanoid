@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os
 from collections import deque
 
 import numpy as np
@@ -183,6 +184,39 @@ class LeRobotSO101Interface:
         policy_config = PreTrainedConfig.from_pretrained(name_or_path)
         policy_config.pretrained_path = name_or_path
         policy_config.device = self.device
+
+        # Research knob: override the inference-time replanning horizon without
+        # retraining. ACT queues `n_action_steps` actions from each chunk_size=100
+        # prediction and executes them open-loop; a smaller value replans more
+        # often (closed-loop) at the cost of extra policy calls.
+        n_action_steps_override = os.environ.get("ACT_N_ACTION_STEPS_OVERRIDE")
+        if n_action_steps_override is not None and hasattr(policy_config, "n_action_steps"):
+            policy_config.n_action_steps = int(n_action_steps_override)
+            print(f"[INFO]: Overriding n_action_steps -> {policy_config.n_action_steps}")
+
+        # Research knob: enable ACT's temporal-ensembling inference mode (query
+        # every step, exponentially blend overlapping chunk predictions). Requires
+        # n_action_steps=1; coeff is the ACT paper's `m` weighting term.
+        temporal_ensemble_override = os.environ.get("ACT_TEMPORAL_ENSEMBLE_COEFF")
+        if temporal_ensemble_override is not None and hasattr(policy_config, "temporal_ensemble_coeff"):
+            policy_config.temporal_ensemble_coeff = float(temporal_ensemble_override)
+            policy_config.n_action_steps = 1
+            print(f"[INFO]: Enabling temporal ensembling coeff={policy_config.temporal_ensemble_coeff}, n_action_steps=1")
+
+        # Research knob: enable Real-Time Chunking (RTC) for flow-matching
+        # policies (pi0/pi0.5/SmolVLA). Treats chunk overlap as an inpainting
+        # problem via prefix attention instead of naive truncation/blending.
+        rtc_execution_horizon = os.environ.get("RTC_EXECUTION_HORIZON")
+        if rtc_execution_horizon is not None and hasattr(policy_config, "rtc_config"):
+            from lerobot.policies.rtc.configuration_rtc import RTCConfig
+
+            rtc_guidance_weight = float(os.environ.get("RTC_MAX_GUIDANCE_WEIGHT", "10.0"))
+            policy_config.rtc_config = RTCConfig(
+                enabled=True,
+                execution_horizon=int(rtc_execution_horizon),
+                max_guidance_weight=rtc_guidance_weight,
+            )
+            print(f"[INFO]: Enabling RTC, execution_horizon={rtc_execution_horizon}, max_guidance_weight={rtc_guidance_weight}")
 
         self.dataset_meta = DummyDatasetMeta(self.dataset_features, self.robot.name)
 
@@ -482,7 +516,13 @@ class LocalLeRobotPolicy:
         return
 
     def reset(self) -> None:
-        return
+        # Bugfix: this used to be a no-op, so the policy's internal action
+        # queue / temporal ensembler state leaked across episode boundaries
+        # in multi-episode eval runs (lerobot_eval.py calls this after every
+        # env.reset()). Most damaging for temporal ensembling, whose running
+        # exponential average never self-clears; the plain action-queue path
+        # is less affected since it naturally empties every n_action_steps.
+        self._iface.policy.reset()
 
     def get_action(
         self, joint_positions: torch.Tensor, visual_obs: dict, log: bool = False
