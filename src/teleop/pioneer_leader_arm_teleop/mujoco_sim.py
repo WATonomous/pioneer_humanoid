@@ -51,7 +51,7 @@ def run() -> None:
     import mujoco
     import mujoco.viewer
     import numpy as np
-    from humanoid_mujoco_scenes import list_scenes, make_model, scene_camera, scene_step
+    from humanoid_mujoco_scenes import list_scenes, make_model, scene_camera, scene_progress, scene_reset, scene_step
     from pioneer_humanoid.arm_params import (
         LEFT_ARM_JOINTS,
         LEFT_GRIPPER_CLOSED,
@@ -69,6 +69,9 @@ def run() -> None:
     cameras = {name: (int(spec["height"]), int(spec["width"])) for name, spec in record.images.items()}
     model = make_model(args.scene, cameras=cameras)
     scene_hook = scene_step(args.scene)  # per-step scene mechanics (e.g. zip_tie's ratchet), or None
+    scene_randomise = scene_reset(args.scene)  # new layout per episode, or None
+    scene_steps = scene_progress(args.scene)  # multi-step task: (index, total, instruction), or None
+    rng = np.random.default_rng()
     data = mujoco.MjData(model)
     # Position actuator bias is [0, -kp, -kv]: lower the wrist's kv (see WRIST_DAMPING).
     model.actuator_biasprm[model.actuator("joint6l").id, 2] = -WRIST_DAMPING
@@ -78,6 +81,9 @@ def run() -> None:
     grip_open = [LEFT_GRIPPER_OPEN[j] for j in LEFT_GRIPPER_JOINTS]
     grip_closed = [LEFT_GRIPPER_CLOSED[j] for j in LEFT_GRIPPER_JOINTS]
     set_home(model, data)
+    if scene_randomise is not None:
+        scene_randomise(model, data, rng)
+        mujoco.mj_forward(model, data)
     mapping = LeaderMapping(
         args,
         home_rad=[data.ctrl[a] for a in arm_acts],
@@ -93,7 +99,9 @@ def run() -> None:
 
     substeps = max(1, round(CONTROL_DT / model.opt.timestep))
     control_dt = substeps * model.opt.timestep
-    recorder, record_every = make_sim_recorder(args, record, device="cpu", sim_dt=control_dt)
+    # Multi-step scenes record the current step's instruction as each frame's task, plus its index.
+    extra = {"subtask_index": ["subtask_index"]} if scene_steps is not None else None
+    recorder, record_every = make_sim_recorder(args, record, device="cpu", sim_dt=control_dt, extra_features=extra)
     if recorder is not None:
         print("[RECORD] Keys: S=start, N=save episode (then reset), D=discard")
         recorder.start_keyboard()
@@ -113,12 +121,15 @@ def run() -> None:
         """Arm and every object back to their defaults; the arm waits for the leader at home."""
         mujoco.mj_resetData(model, data)
         set_home(model, data)
+        if scene_randomise is not None:
+            scene_randomise(model, data, rng)
         mujoco.mj_forward(model, data)
         mapping.reset()
 
     leader = LeaderInput(args)
     clock = WallClock(control_dt)
     step = 0
+    shown_step = None  # last task step announced
     print("[INFO] Leader calibrated (hanging = 0). Move it to home: elbow bent 90 deg, forearm forward, gripper open. R = reset.", flush=True)
     try:
         with mujoco.viewer.launch_passive(model, data, key_callback=on_key) as viewer:
@@ -149,8 +160,12 @@ def run() -> None:
                     ) / len(grip_qpos)
                     state = np.append(data.qpos[arm_qpos], min(max(closure, 0.0), 1.0)).astype(np.float32)
                     action = np.append(target, grip).astype(np.float32)
+                    task, extras = None, None
+                    if scene_steps is not None:
+                        index, _, task = scene_steps(model, data)
+                        extras = {"subtask_index": np.array([index], dtype=np.float32)}
                     with viewer.lock():
-                        saved = recorder.tick(action, state, read_images)
+                        saved = recorder.tick(action, state, read_images, task=task, extras=extras)
                     if saved:
                         reset_all()
                         print("\n[RECORD] Episode saved; arm and scene reset.", flush=True)
@@ -159,6 +174,12 @@ def run() -> None:
                     scene_hook(model, data)
                 mujoco.mj_step(model, data, nstep=substeps)
                 step += 1
+                if scene_steps is not None:
+                    index, total, instruction = scene_steps(model, data)
+                    if (index, instruction) != shown_step:
+                        shown_step = (index, instruction)
+                        msg = "all steps done -- N to save" if index >= total else f"step {index + 1}/{total}: {instruction}"
+                        print(f"\n[TASK] {msg}", flush=True)
                 viewer.sync()
 
                 leader.report(mapping)

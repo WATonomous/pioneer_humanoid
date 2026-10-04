@@ -43,12 +43,18 @@ def build(spec: mujoco.MjSpec) -> None:
 - **`camera`** — optional MuJoCo free-camera fields for the initial view.
 - **`step`** — optional `step(model, data)`, called by the teleop each control step before the physics, for
   mechanics a static model can't express (`zip_tie`'s one-way ratchet). Keep its state in `data` so a reset clears it.
+- **`reset`** — optional `reset(model, data, rng)`, called at startup and after every reset to randomise
+  the new episode (object placement, task order).
+- **`progress`** — optional `progress(model, data) -> (index, total, instruction)` for multi-step tasks.
+  The teleop prints each new step, and `--record` stores the instruction as each frame's `task` (LeRobot's
+  per-frame task) plus a `subtask_index` feature; `index == total` once everything is done.
 
 ## Scenes
 
 | name | notes |
 |------|-------|
 | `bare` | Floor + arm. |
+| `drawer_stow` | Long horizon, 5 steps: open the drawer (pinch the tab on its front, pull), put the red, green and blue 4 cm blocks in it in the order announced, close it. Every reset shuffles the blocks' places (a strip beside the cabinet) and the order. Each step is checked and latched in order; `progress` gives the current step and its instruction. Laid out for the gripper pointing down: the jaws are 61 mm long and ~16 cm across fully open, so half-close it before reaching for a block. |
 | `zip_tie` | A pre-threaded 300 × 3.6 mm nylon zip tie around four loose rods (spring-mounted, a few mm apart). The strap is one continuous chain from the head's root, round the rods, back through the slot and out as the tail toward the robot. Grab the tail ≳60 mm from the head (the jaws are 89 mm long) and pull: strap feeds through a one-way, toothed ratchet and the loop gathers then squeezes the rods (about 1 N to cinch). Success: `zip_tie.scene.is_tight(model, data)` (loop ≤ 107 mm, all rods touching). |
 | `peg_insert` | Table (top 0.705 m, as in Isaac `push`), 4 cm square peg, block with a square hole `CLEARANCE` (1 mm) wider. Peg and block sit inside the left arm's gripper-down reach (x 0.30–0.45, y 0.22–0.38). |
 
