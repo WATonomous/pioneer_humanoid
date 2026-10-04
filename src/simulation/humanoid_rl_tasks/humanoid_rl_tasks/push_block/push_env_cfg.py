@@ -59,10 +59,11 @@ from .scene import (  # noqa: F401  (BOX_* / FLOOR_TARGET re-exported for distil
 _PIONEER = Path(__file__).resolve().parents[4] / "pioneer_humanoid"
 if str(_PIONEER) not in sys.path:
     sys.path.insert(0, str(_PIONEER))
+# Uses canonical URDF-side names directly (formerly aliased LEFT_* as RIGHT_* from an old, since-fixed URDF flip).
 from pioneer_humanoid.bimanual_arm import (  # noqa: E402
     BIMANUAL_ARM_CFG,
-    LEFT_ARM_JOINTS as RIGHT_ARM_JOINTS,
-    LEFT_EE_BODY as RIGHT_EE_BODY,
+    LEFT_ARM_JOINTS,
+    LEFT_EE_BODY,
 )
 
 
@@ -307,7 +308,7 @@ class CurriculumCfg:
 
 
 def _ee_frame_cfg(*, debug_vis: bool) -> FrameTransformerCfg:
-    """EE proxy at the left wrist link (RIGHT_EE_BODY = link6l), zero offset.
+    """EE proxy at the left wrist link (LEFT_EE_BODY = link6l), zero offset.
 
     No verified fingertip-center offset from link6l exists as a static frame (the
     teleop code computes it dynamically from both finger tips at runtime, see
@@ -323,7 +324,7 @@ def _ee_frame_cfg(*, debug_vis: bool) -> FrameTransformerCfg:
         visualizer_cfg=marker_cfg,
         target_frames=[
             FrameTransformerCfg.FrameCfg(
-                prim_path="{ENV_REGEX_NS}/Robot/" + RIGHT_EE_BODY,
+                prim_path="{ENV_REGEX_NS}/Robot/" + LEFT_EE_BODY,
                 name="end_effector",
                 offset=OffsetCfg(pos=(0.0, 0.0, 0.0), rot=(1.0, 0.0, 0.0, 0.0)),
             ),
@@ -374,7 +375,7 @@ class PushBlockEnvCfg(ManagerBasedRLEnvCfg):
 
         self.actions.arm_action = mdp.JointPositionActionCfg(
             asset_name="robot",
-            joint_names=RIGHT_ARM_JOINTS,
+            joint_names=LEFT_ARM_JOINTS,
             scale=0.5,
             use_default_offset=True,
         )
