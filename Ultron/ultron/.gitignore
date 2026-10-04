@@ -1,0 +1,6 @@
+# secrets and per-run artifacts
+.env
+jobs/
+logs/
+__pycache__/
+information/learned/.lock
