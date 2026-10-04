@@ -7,7 +7,7 @@ name = "humanoid-mujoco-scenes"
 version = "0.1.0"
 description = "Plain-MuJoCo (CPU) scenes for the Pioneer arm (one folder per scene, auto-discovered)"
 requires-python = ">=3.10"
-dependencies = ["mujoco>=3.3", "numpy"]
+dependencies = ["mujoco>=3.3", "numpy", "pillow>=10.1"]
 
 [tool.setuptools.packages.find]
 where = ["."]
