@@ -148,7 +148,7 @@ class PioneerLeftArmInterface:
         Returns: a dict matching humanoid_robot_learning.frame.build_lerobot_frame's shape --
             NOT yet preprocessed/normalized; RTCDrivenPolicy._replan does that.
         """
-        state_np = sim_observation.detach().cpu().numpy()
+        state_np = sim_observation[:7].detach().cpu().numpy()
 
         obs_frame: dict[str, Any] = {
             "observation.state": state_np,

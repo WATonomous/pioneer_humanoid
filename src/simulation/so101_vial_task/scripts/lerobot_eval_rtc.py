@@ -59,7 +59,14 @@ class SO101RTCPolicy:
     and does not change per embodiment.
     """
 
-    def __init__(self, robot_iface: LeRobotSO101Interface, policy_path: str, task_description: str, execution_horizon: int):
+    def __init__(
+        self,
+        robot_iface: LeRobotSO101Interface,
+        policy_path: str,
+        task_description: str,
+        execution_horizon: int,
+        initial_action: torch.Tensor,
+    ):
         self._iface = robot_iface
         self._iface.task_description = task_description
         self._iface.make_policy(policy_path)
@@ -70,6 +77,11 @@ class SO101RTCPolicy:
             task_description=task_description,
             robot_type=self._iface.robot.robot_type,
             execution_horizon=execution_horizon,
+            # robot_iface.fps is this script's actual control-loop rate (set via
+            # LeRobotSO101Interface(..., fps=30, ...) in main()) -- reused here
+            # instead of a second hardcoded 30, so the two can't drift apart.
+            control_hz=robot_iface.fps,
+            initial_action=initial_action,
         )
 
     def reset(self):
@@ -118,13 +130,18 @@ def main():
     )
     robot_iface.init_device(visualize=False)
 
-    policy = SO101RTCPolicy(robot_iface, args_cli.policy_path, args_cli.lang_instruction, args_cli.execution_horizon)
+    # Defined before SO101RTCPolicy below -- also doubles as RTCDrivenPolicy's
+    # safe fallback action (see initial_action in SO101RTCPolicy.__init__).
+    initial_action = torch.tensor([-0.2736, -0.6109, -0.0745, 1.5148, -1.6034, -0.1465], device=env.unwrapped.device)
+
+    policy = SO101RTCPolicy(
+        robot_iface, args_cli.policy_path, args_cli.lang_instruction, args_cli.execution_horizon, initial_action
+    )
 
     obs, _ = env.reset()
     policy.reset()
 
     actions = torch.zeros(env.action_space.shape, device=env.unwrapped.device)
-    initial_action = torch.tensor([-0.2736, -0.6109, -0.0745, 1.5148, -1.6034, -0.1465], device=env.unwrapped.device)
 
     step = 0
     num_episodes = 0
