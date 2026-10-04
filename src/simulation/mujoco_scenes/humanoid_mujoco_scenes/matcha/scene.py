@@ -30,7 +30,7 @@ TABLE_HALF_Y = 0.6
 
 CUP_POS = (0.30, 0.34)
 CUP = dict(r=0.030, h=0.065, wall=0.003, n=14, mass=0.2)    # ceramic: heavy enough not to topple at a brush
-LADLE_POS = (0.26, 0.43)                       # ladle (already holding the matcha) stands in its holder
+LADLE_POS = (0.235, 0.435)                      # ladle (already holding the matcha) stands in its holder
 # Scooping a handful of 5 mm balls out of a jar isn't reliable with one arm in this space (tipped steeply
 # enough to scoop, the ladle's hand end hits its neighbours), so the ladle starts filled: carry it level, tip it.
 PITCHER_POS = (0.385, 0.43)
