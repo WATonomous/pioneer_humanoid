@@ -1,19 +1,25 @@
 """Zip-tie tightening: a pre-threaded zip tie loops around a bundle of rods; grab the tail and pull it tight.
 
-The head is fixed against the bundle. The tail leaves the head toward the robot, on edge (flat faces
-along world Y) so the gripper's jaws pinch it. Pulling the tail slides it out of the head on a slide
-joint -- the ratchet -- against tooth drag (frictionloss), and the loop around the bundle shrinks until
-it is tight on the rods. ``step`` makes the ratchet one-way: once pulled, the tail can't slip back.
+One continuous strap (a standard-duty 300 x 3.6 x 1.0 mm nylon tie): it starts under the head, wraps
+around four rods, comes back over its own root through the head's slot and leaves it as the tail,
+pointing at the robot. The strap
+is a chain of short flat segments; each joint bends easily across the thickness, resists twist, and is
+is rigid in-plane (it is ~20x stiffer that way), from nylon's modulus and the cross-section. Its rest shape is straight, so the loop
+springs open against the slot like a real tie.
 
-The loop is drawn as a tendon wrapped around the bundle; its far end (the slack) is coupled to the
-ratchet, so the loop visibly shrinks as the tail comes out. Success (``is_tight``): the loop is within
-TIGHT_SLACK of its length snug on the rods.
+Pulling the tail draws strap through the slot and the loop shrinks onto the rods. The rods are loose
+(spring-mounted at their base, a few mm apart), so the loop gathers them and then squeezes them: it
+gets hard to pull exactly when the bundle is cinched. The head's pawl lets strap come out through the
+slot but not go back in further than one tooth.
+
+Success (``is_tight``): the loop is no longer than TIGHT_LENGTH, i.e. the rods are pulled together.
 """
 from __future__ import annotations
 
 import math
 
 import mujoco
+import numpy as np
 
 from humanoid_mujoco_scenes import add_floor, scene
 
@@ -21,134 +27,229 @@ TABLE_TOP_Z = 0.705             # same table as peg_insert
 TABLE_X = (0.15, 0.85)
 TABLE_HALF_Y = 0.6
 
-BUNDLE_POS = (0.45, 0.29)       # xy of the rod bundle, inside the left arm's reach
-ROD_RADIUS = 0.009              # four vertical rods in a 2x2 cluster
-ROD_HEIGHT = 0.12
-LOOP_Z = TABLE_TOP_Z + 0.075    # height of the zip tie on the bundle
-WRAP_RADIUS = ROD_RADIUS * (1 + math.sqrt(2)) + 0.001   # circle around the cluster the loop wraps
+BUNDLE_POS = (0.45, 0.29)       # xy of the bundle centre, inside the left arm's reach
+LOOP_Z = TABLE_TOP_Z + 0.06     # strap height on the bundle
+ROD_RADIUS = 0.006              # four rods in a 2x2 cluster, ROD_GAP apart (loose) at rest
+ROD_GAP = 0.005
+ROD_HEIGHT = 0.10
+ROD_STIFFNESS = 15.0            # N/m, each rod's spring back to its rest spot (the bundle's give)
+ROD_FRICTION = 0.1              # nylon on steel
 
-HEAD_HALF = (0.008, 0.009, 0.007)   # zip-tie head (m, half extents), on the bundle's -X side
-STRAP_THICK = 0.003             # tail cross-section: thickness along Y (jaw direction), width along Z
-STRAP_WIDTH = 0.008
-TAIL_SEGMENTS = 6               # tail = chain of short segments, bending about Z (in the jaw direction)
-SEGMENT_LEN = 0.017
-SEGMENT_MASS = 0.002
-TAIL_BEND_STIFFNESS = 0.02      # Nm/rad per joint: springy, like nylon
-TAIL_BEND_DAMPING = 0.002
+# Strap: standard-duty nylon tie (300 x 3.6 x 1.0 mm). Stiffness from E = 2.5 GPa, G = 0.9 GPa and the
+# section; a heavy-duty 4.8 x 1.3 mm tie is ~3x stiffer and takes more pull than the sim gripper holds.
+STRAP_LENGTH = 0.30
+STRAP_WIDTH = 0.0036            # vertical (world Z)
+STRAP_THICK = 0.0010            # along the jaw direction where the gripper pinches the tail
+# Collision thickness: a 1 mm box lets the jaws or a rod push right through it under load (MuJoCo
+# contacts are soft, and softer on light bodies); the strap collides as COLLIDE_THICK, drawn at STRAP_THICK.
+COLLIDE_THICK = 0.003
+SEGMENT_LEN = 0.008
+_E, _G = 2.5e9, 0.9e9
+_EI_EASY = _E * STRAP_WIDTH * STRAP_THICK ** 3 / 12            # bending across the thickness
+_GJ = _G * STRAP_WIDTH * STRAP_THICK ** 3 / 3 * (1 - 0.63 * STRAP_THICK / STRAP_WIDTH)
+# MuJoCo scales contact stiffness with the bodies' mass: at nylon's real ~0.06 g per segment the jaws
+# sink through the 1.3 mm strap. Heavier segments keep a squeezed strap from being crushed.
+MASS_SCALE = 5.0
+SEGMENT_MASS = MASS_SCALE * 1140 * STRAP_WIDTH * STRAP_THICK * SEGMENT_LEN
+# Armature keeps each joint's natural frequency well under 1/timestep (the real segments are ~0.04 g).
+JOINT_ARMATURE = {"bend": 1e-6, "twist": 1e-6}
 
-PULL_TRAVEL = 0.06              # tail travel (m) from as-threaded to snug on the rods
-TOOTH_DRAG = 1.0                # N to drag the tail through the head (well under the gripper's hold)
-TIGHT_SLACK = 0.004             # success: loop within this (m) of snug
-SNUG_GAP = 0.006                # loop far end's clearance off the wrap circle when snug
+LOOP_RADIUS = 0.022             # as threaded: loop half-width around the bundle (loose)
+SLOT_CLEARANCE = 0.0004         # slot wider than the strap, each side
+HEAD_DEPTH = 0.009              # slot length (along the tail)
+SLOT_WALL = 0.001               # wall between the strap's root and the strap passing through the slot
+LAYER_GAP = STRAP_THICK + SLOT_WALL + 2 * SLOT_CLEARANCE   # root centreline to slot centreline (head is visual)
+TOOTH_PITCH = 0.0015            # pawl engages every 1.5 mm of strap
+TOOTH_DRAG = 0.3                # N to drag the strap through the head
+MAX_PULL = 0.09                 # carriage travel: more than the loop can ever give
 
-# Tail collides with the arm only (arm geoms: contype 2 / conaffinity 1), not with the world or itself.
-TAIL_CONTYPE = 4
-TAIL_CONAFFINITY = 2
+TIGHT_LENGTH = 0.107            # m of loop: at or below, all four rods are pulled together
+
+# Strap collides with the world and the arm, not itself or the head (contype 4 / conaffinity 1|2).
+STRAP_CONTYPE = 4
+STRAP_CONAFFINITY = 3
+
+
+def _strap_path():
+    """Strap centreline as threaded, from the root: [(x, y, heading)] every SEGMENT_LEN, and the arc
+    length at the slot centre.
+
+    Like a real tie: the root runs under the head toward the robot (-X), the strap goes clockwise round
+    the bundle (a stadium: west half-circle, top, east half-circle), comes back along the bottom just
+    outside its own root, passes straight through the slot and carries on toward the robot as the tail.
+    No bend near the slot, so the segment chain feeds through it freely.
+    """
+    bx, by = BUNDLE_POS
+    r_west = LOOP_RADIUS
+    r_east = LOOP_RADIUS + LAYER_GAP / 2        # the returning strap lands LAYER_GAP outside the root
+    lead = 0.002                                 # root past the head before it curves
+    entry = 0.004                                # straight run into the slot
+    top = HEAD_DEPTH + lead + entry
+    x_head = bx - top / 2 + lead + HEAD_DEPTH / 2
+    pos = np.array([x_head + HEAD_DEPTH / 2, by - r_west])
+    heading, step = math.pi, SEGMENT_LEN / 16
+    pts, arc = [(*pos, heading)], [0.0]
+
+    def run(length, curvature):
+        nonlocal pos, heading
+        for _ in range(max(1, round(length / step))):
+            ds = length / max(1, round(length / step))
+            heading += curvature * ds
+            pos = pos + ds * np.array([math.cos(heading), math.sin(heading)])
+            pts.append((*pos, heading))
+            arc.append(arc[-1] + ds)
+
+    run(HEAD_DEPTH + lead, 0.0)                  # root, under the head
+    run(math.pi * r_west, -1 / r_west)           # west half-circle, clockwise
+    run(top, 0.0)                                # across the top
+    run(math.pi * r_east, -1 / r_east)           # east half-circle, back to heading -X
+    run(entry + HEAD_DEPTH / 2, 0.0)             # into the slot, to its centre
+    slot_arc = arc[-1]
+    run(STRAP_LENGTH - arc[-1], 0.0)             # tail
+    pts, arc = np.array(pts), np.array(arc)
+    out = []
+    for s in np.arange(0, STRAP_LENGTH - SEGMENT_LEN / 2, SEGMENT_LEN):
+        x0, y0 = np.interp(s, arc, pts[:, 0]), np.interp(s, arc, pts[:, 1])
+        x1, y1 = np.interp(s + SEGMENT_LEN, arc, pts[:, 0]), np.interp(s + SEGMENT_LEN, arc, pts[:, 1])
+        out.append((x0, y0, math.atan2(y1 - y0, x1 - x0)))
+    return out, slot_arc, (x_head, by - r_west - LAYER_GAP)
+
+
+_PATH, SLOT_ARC, _SLOT_XY = _strap_path()
+SLOT_CENTRE = (_SLOT_XY[0], _SLOT_XY[1], LOOP_Z)
+SLOT_AXIS = np.array([-1.0, 0.0, 0.0])      # strap leaves the slot this way (toward the robot)
+N_SEGMENTS = len(_PATH)
 
 
 def step(model: mujoco.MjModel, data: mujoco.MjData) -> None:
-    """Ratchet: the pawl's target follows the tail out and never back (ctrl resets with the data)."""
-    pawl = model.actuator("zip_pawl").id
-    data.ctrl[pawl] = max(data.ctrl[pawl], data.qpos[model.joint("zip_ratchet").qposadr[0]])
+    """Head mechanics, once per control step (all state lives in ``data``, so a reset clears it).
+
+    The strap in the slot is welded to the carriage, whose travel is the strap pulled through; this
+    moves the welds along the strap as it feeds, and the pawl's target up to the last tooth passed.
+    """
+    fed = data.qpos[model.joint("zip_carriage").qposadr[0]]
+    data.userdata[0] = max(data.userdata[0], fed)
+    data.ctrl[model.actuator("zip_pawl").id] = math.floor(data.userdata[0] / TOOTH_PITCH) * TOOTH_PITCH
+    data.eq_active[_weld_ids(model)] = _in_slot(fed)
 
 
-@scene("zip_tie", camera=dict(lookat=[0.40, 0.29, 0.78], distance=0.7, azimuth=210, elevation=-30),
-       step=step)
+@scene("zip_tie", camera=dict(lookat=[0.40, 0.29, 0.77], distance=0.55, azimuth=215, elevation=-35), step=step)
 def build(spec: mujoco.MjSpec) -> None:
     add_floor(spec)
+    spec.nuserdata = 1
     world = spec.worldbody
-    box = mujoco.mjtGeom.mjGEOM_BOX
-    cyl = mujoco.mjtGeom.mjGEOM_CYLINDER
+    box, cyl = mujoco.mjtGeom.mjGEOM_BOX, mujoco.mjtGeom.mjGEOM_CYLINDER
     x0, x1 = TABLE_X
     world.add_geom(
         name="table", type=box, size=[(x1 - x0) / 2, TABLE_HALF_Y, TABLE_TOP_Z / 2],
         pos=[(x0 + x1) / 2, 0.0, TABLE_TOP_Z / 2], rgba=[0.55, 0.42, 0.3, 1],
     )
 
+    # Loose rods: each slides in XY on a spring to its rest spot, standing on the table (so a loose loop
+    # that slides down them can't slip underneath).
     bx, by = BUNDLE_POS
+    off = ROD_RADIUS + ROD_GAP / 2
     for i, (sx, sy) in enumerate(((1, 1), (1, -1), (-1, 1), (-1, -1))):
-        world.add_geom(
-            name=f"rod{i}", type=cyl, size=[ROD_RADIUS, ROD_HEIGHT / 2, 0],
-            pos=[bx + sx * ROD_RADIUS, by + sy * ROD_RADIUS, TABLE_TOP_Z + ROD_HEIGHT / 2], rgba=[0.75, 0.75, 0.78, 1],
-        )
-    # Invisible, collision-free cylinder the loop tendon wraps around.
-    world.add_geom(name="bundle_wrap", type=cyl, size=[WRAP_RADIUS, 0.01, 0], pos=[bx, by, LOOP_Z],
-                   contype=0, conaffinity=0, group=3, rgba=[0, 0, 0, 0])
-    world.add_site(name="wrap_side_pos", pos=[bx, by + WRAP_RADIUS + 0.01, LOOP_Z], group=3)
-    world.add_site(name="wrap_side_neg", pos=[bx, by - WRAP_RADIUS - 0.01, LOOP_Z], group=3)
+        rod = world.add_body(name=f"rod{i}", pos=[bx + sx * off, by + sy * off, TABLE_TOP_Z + ROD_HEIGHT / 2])
+        spec.add_exclude(bodyname1="world", bodyname2=f"rod{i}")  # stands on the table without dragging on it
+        for axis, name in (([1, 0, 0], "x"), ([0, 1, 0], "y")):
+            rod.add_joint(name=f"rod{i}_{name}", type=mujoco.mjtJoint.mjJNT_SLIDE, axis=axis,
+                          stiffness=ROD_STIFFNESS, damping=3.0, armature=0.01)
+        rod.add_geom(type=cyl, size=[ROD_RADIUS, ROD_HEIGHT / 2, 0], mass=0.02, priority=1,
+                     friction=[ROD_FRICTION, 0.005, 0.0001], rgba=[0.72, 0.72, 0.75, 1])
 
-    hx = bx - WRAP_RADIUS - HEAD_HALF[0]
-    world.add_geom(name="zip_head", type=box, size=list(HEAD_HALF), pos=[hx, by, LOOP_Z], rgba=[0.12, 0.12, 0.12, 1])
-    for name, side in (("loop_a", 1), ("loop_b", -1)):
-        world.add_site(name=name, pos=[hx + HEAD_HALF[0], by + side * (HEAD_HALF[1] - 0.002), LOOP_Z], group=3)
-
-    # Loop slack: a massless-ish point beyond the bundle, coupled to the ratchet (below).
-    slack = world.add_body(name="loop_slack", pos=[bx, by, LOOP_Z])
-    slack.add_joint(name="loop_slack", type=mujoco.mjtJoint.mjJNT_SLIDE, axis=[1, 0, 0])
-    slack.add_geom(type=mujoco.mjtGeom.mjGEOM_SPHERE, size=[0.002, 0, 0], mass=1e-3,
-                   contype=0, conaffinity=0, group=3)
-    # q = 0 as threaded; the tip reaches SNUG_GAP off the rods at full travel (kept clear of the wrap
-    # cylinder even when a hard pull overshoots the ratchet stop).
-    slack.add_site(name="loop_tip", pos=[WRAP_RADIUS + SNUG_GAP + PULL_TRAVEL / 2, 0, 0], group=3)
-
-    # Tail: root slides out of the head toward the robot (-X) on the ratchet joint.
-    world.add_site(name="head_exit", pos=[hx - HEAD_HALF[0] + 0.002, by, LOOP_Z], group=3)
-    root = world.add_body(name="tail_root", pos=[hx - HEAD_HALF[0], by, LOOP_Z])
-    root.add_site(name="tail_start", pos=[0.001, 0, 0], group=3)
-    root.add_joint(
-        name="zip_ratchet", type=mujoco.mjtJoint.mjJNT_SLIDE, axis=[-1, 0, 0], range=[0, PULL_TRAVEL],
-        limited=mujoco.mjtLimited.mjLIMITED_TRUE, frictionloss=TOOTH_DRAG, damping=2.0, armature=0.05,
-        solref_limit=[0.005, 1], solref_friction=[0.004, 1],
-    )
-    parent = root
-    for i in range(TAIL_SEGMENTS):
-        seg = parent.add_body(name=f"tail{i}", pos=[0 if i == 0 else -SEGMENT_LEN, 0, 0])
-        if i > 0:
-            seg.add_joint(name=f"tail_bend{i}", type=mujoco.mjtJoint.mjJNT_HINGE, axis=[0, 0, 1],
-                          stiffness=TAIL_BEND_STIFFNESS, damping=TAIL_BEND_DAMPING, armature=1e-4)
-        seg.add_geom(
-            type=box, size=[SEGMENT_LEN / 2, STRAP_THICK / 2, STRAP_WIDTH / 2], pos=[-SEGMENT_LEN / 2, 0, 0],
-            mass=SEGMENT_MASS, contype=TAIL_CONTYPE, conaffinity=TAIL_CONAFFINITY,
-            friction=[1.0, 0.005, 0.0001], condim=4, rgba=[0.12, 0.12, 0.12, 1],
-        )
-        parent = seg
-
-    # The loop shortens by about the tail pulled: its far end moves in by half of it.
-    eq = spec.add_equality(type=mujoco.mjtEq.mjEQ_JOINT, name1="loop_slack", name2="zip_ratchet")
-    eq.data[:5] = [0, -0.5, 0, 0, 0]
-
-    loop = spec.add_tendon(name="zip_loop", width=0.0035, rgba=[0.12, 0.12, 0.12, 1])
-    loop.wrap_site("loop_a")
-    loop.wrap_geom("bundle_wrap", "wrap_side_pos")
-    loop.wrap_site("loop_tip")
-    loop.wrap_geom("bundle_wrap", "wrap_side_neg")
-    loop.wrap_site("loop_b")
-
-    # Strap already pulled through the head: fills the gap between the head and the sliding tail.
-    fed = spec.add_tendon(name="zip_fed", width=0.0035, rgba=[0.12, 0.12, 0.12, 1])
-    fed.wrap_site("head_exit")
-    fed.wrap_site("tail_start")
-
-    # One-way pawl: pushes the tail back out to the furthest point it reached (ctrl, set by step())
-    # and never pulls it in. Forcerange [0, F] clips the pulling direction to zero.
-    pawl = spec.add_actuator(name="zip_pawl", target="zip_ratchet", trntype=mujoco.mjtTrn.mjTRN_JOINT)
-    pawl.set_to_position(kp=3000.0, kv=50.0)
+    # Head: the slot walls and block are visual. The slot itself is a carriage sliding along the slot
+    # axis (its travel = strap pulled through), with the strap's segments in the slot welded to it
+    # (welds added below): it holds the strap exactly in line, which wall contacts on a 1.3 mm strap
+    # don't. The pawl is a one-way actuator on the carriage, the tooth drag its friction.
+    head_rgba = [0.93, 0.92, 0.88, 1]  # natural nylon
+    sx, sy, sz = SLOT_CENTRE
+    gap_y, gap_z = STRAP_THICK / 2 + SLOT_CLEARANCE, STRAP_WIDTH / 2 + SLOT_CLEARANCE
+    wall = SLOT_WALL
+    for name, dy, dz, size in (
+        ("slot_wall_out", -(gap_y + wall / 2), 0, [HEAD_DEPTH / 2, wall / 2, gap_z + wall]),
+        ("slot_roof", 0, gap_z + wall / 2, [HEAD_DEPTH / 2, gap_y, wall / 2]),
+        ("slot_floor", 0, -(gap_z + wall / 2), [HEAD_DEPTH / 2, gap_y, wall / 2]),
+    ):
+        world.add_geom(name=name, type=box, size=size, pos=[sx, sy + dy, sz + dz], rgba=head_rgba,
+                       contype=0, conaffinity=0)
+    root_y = _PATH[0][1]
+    y_lo, y_hi = sy + gap_y, root_y + STRAP_THICK / 2 + 0.0005
+    world.add_geom(name="head_body", type=box, contype=0, conaffinity=0, rgba=head_rgba,
+                   size=[HEAD_DEPTH / 2, (y_hi - y_lo) / 2, gap_z + wall], pos=[sx, (y_hi + y_lo) / 2, sz])
+    carriage = world.add_body(name="zip_carriage", pos=[sx, sy, sz])
+    carriage.add_joint(name="zip_carriage", type=mujoco.mjtJoint.mjJNT_SLIDE, axis=list(SLOT_AXIS),
+                       range=[0, MAX_PULL], limited=mujoco.mjtLimited.mjLIMITED_TRUE,
+                       frictionloss=TOOTH_DRAG, damping=1.0, armature=0.01)
+    carriage.add_geom(type=mujoco.mjtGeom.mjGEOM_SPHERE, size=[0.001, 0, 0], mass=0.002,
+                      contype=0, conaffinity=0, group=3)
+    pawl = spec.add_actuator(name="zip_pawl", target="zip_carriage", trntype=mujoco.mjtTrn.mjTRN_JOINT)
+    pawl.set_to_position(kp=3000.0, kv=30.0)
     pawl.forcelimited = mujoco.mjtLimited.mjLIMITED_TRUE
-    pawl.forcerange = [0.0, 200.0]
+    pawl.forcerange = [0.0, 60.0]   # pushes strap back out to the last tooth, never pulls it in
+
+    # Strap: root fixed to the head, then one body per segment with two hinges at its start (in-plane
+    # bending, ~20x stiffer, is left rigid: a third hinge per joint makes the long chain slow to solve).
+    # Fine stripes along the strap for its teeth (one per TOOTH_PITCH).
+    teeth = spec.add_texture(name="strap_teeth", type=mujoco.mjtTexture.mjTEXTURE_2D, builtin=mujoco.mjtBuiltin.mjBUILTIN_CHECKER,
+                             rgb1=[0.95, 0.94, 0.9], rgb2=[0.78, 0.77, 0.72], width=64, height=64)
+    mat = spec.add_material(name="strap", texrepeat=[1 / TOOTH_PITCH / 2, 0.001], texuniform=True, specular=0.3, shininess=0.4)
+    mat.textures[mujoco.mjtTextureRole.mjTEXROLE_RGB] = teeth.name
+    parent, prev_heading = world, None
+    for i, (x, y, heading) in enumerate(_PATH):
+        if prev_heading is None:
+            seg = parent.add_body(name="strap0", pos=[x, y, LOOP_Z], quat=_zquat(heading))
+        else:
+            bend = _wrap(heading - prev_heading)
+            seg = parent.add_body(name=f"strap{i}", pos=[SEGMENT_LEN, 0, 0], quat=_zquat(bend))
+            # Rest shape straight: each easy-bend spring is relaxed at minus its threaded bend.
+            for kind, axis, k, ref in (
+                ("bend", [0, 0, 1], _EI_EASY / SEGMENT_LEN, -bend),
+                ("twist", [1, 0, 0], _GJ / SEGMENT_LEN, 0.0),
+            ):
+                seg.add_joint(name=f"strap{i}_{kind}", type=mujoco.mjtJoint.mjJNT_HINGE, axis=axis,
+                              stiffness=k, springref=ref, damping=4 * k * 1e-3, armature=JOINT_ARMATURE[kind])
+        tip = i == N_SEGMENTS - 1
+        width = STRAP_WIDTH * (0.6 if tip else 1.0)  # tapered tip
+        seg.add_geom(type=box, size=[SEGMENT_LEN / 2, COLLIDE_THICK / 2, width / 2], pos=[SEGMENT_LEN / 2, 0, 0],
+                     mass=SEGMENT_MASS, contype=STRAP_CONTYPE, conaffinity=STRAP_CONAFFINITY,
+                     friction=[1.0, 0.005, 0.0001], condim=4, group=3)
+        seg.add_geom(type=box, size=[SEGMENT_LEN / 2, STRAP_THICK / 2, width / 2], pos=[SEGMENT_LEN / 2, 0, 0],
+                     mass=0, material="strap", contype=0, conaffinity=0)
+        parent, prev_heading = seg, heading
+
+    # One weld per segment to the carriage, placing it where it sits when that much strap has fed
+    # through: segment origin at arc i*L lies (SLOT_ARC - i*L) along -SLOT_AXIS from the carriage,
+    # heading out of the slot. step() enables the ones in the slot.
+    active = _in_slot(0.0)
+    for i in range(N_SEGMENTS):
+        weld = spec.add_equality(name=f"slot_weld{i}", type=mujoco.mjtEq.mjEQ_WELD, objtype=mujoco.mjtObj.mjOBJ_BODY,
+                                 name1="zip_carriage", name2=f"strap{i}", active=bool(active[i]))
+        weld.data[:11] = [0, 0, 0, *(-(SLOT_ARC - i * SEGMENT_LEN) * SLOT_AXIS), 0, 0, 0, 1, 1]
+
+
+def _zquat(angle: float) -> list[float]:
+    return [math.cos(angle / 2), 0.0, 0.0, math.sin(angle / 2)]
+
+
+def _wrap(a: float) -> float:
+    return (a + math.pi) % (2 * math.pi) - math.pi
+
+
+def _in_slot(fed: float) -> np.ndarray:
+    """Which segments lie in the slot (centre within HEAD_DEPTH / 2 of the slot centre) at this feed."""
+    along = (np.arange(N_SEGMENTS) + 0.5) * SEGMENT_LEN - (SLOT_ARC - fed)
+    return np.abs(along) < HEAD_DEPTH / 2
+
+
+def _weld_ids(model: mujoco.MjModel) -> np.ndarray:
+    return np.array([model.equality(f"slot_weld{i}").id for i in range(N_SEGMENTS)])
 
 
 def loop_length(model: mujoco.MjModel, data: mujoco.MjData) -> float:
-    return float(data.ten_length[model.tendon("zip_loop").id])
-
-
-def snug_length(model: mujoco.MjModel) -> float:
-    """Loop length with the tail pulled all the way (snug on the rods)."""
-    d = mujoco.MjData(model)
-    d.qpos[model.joint("zip_ratchet").qposadr[0]] = PULL_TRAVEL
-    d.qpos[model.joint("loop_slack").qposadr[0]] = -PULL_TRAVEL / 2
-    mujoco.mj_forward(model, d)
-    return loop_length(model, d)
+    """Strap from the root round the bundle to the slot (m)."""
+    return SLOT_ARC - float(data.qpos[model.joint("zip_carriage").qposadr[0]])
 
 
 def is_tight(model: mujoco.MjModel, data: mujoco.MjData) -> bool:
-    return loop_length(model, data) <= snug_length(model) + TIGHT_SLACK
+    return loop_length(model, data) <= TIGHT_LENGTH

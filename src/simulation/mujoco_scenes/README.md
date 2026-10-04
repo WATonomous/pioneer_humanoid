@@ -49,7 +49,7 @@ def build(spec: mujoco.MjSpec) -> None:
 | name | notes |
 |------|-------|
 | `bare` | Floor + arm. |
-| `zip_tie` | A pre-threaded zip tie around four vertical rods (head fixed). Grab the tail (on edge, jaws pinch its faces) and pull it toward the robot: the tail slides out of the head against 1 N of tooth drag on a one-way ratchet, and the loop shrinks onto the rods. Success: `zip_tie.scene.is_tight(model, data)` (loop within 4 mm of snug). |
+| `zip_tie` | A pre-threaded 300 × 3.6 mm nylon zip tie around four loose rods (spring-mounted, a few mm apart). The strap is one continuous chain from the head's root, round the rods, back through the slot and out as the tail toward the robot. Grab the tail ≳60 mm from the head (the jaws are 89 mm long) and pull: strap feeds through a one-way, toothed ratchet and the loop gathers then squeezes the rods (about 1 N to cinch). Success: `zip_tie.scene.is_tight(model, data)` (loop ≤ 107 mm, all rods touching). |
 | `peg_insert` | Table (top 0.705 m, as in Isaac `push`), 4 cm square peg, block with a square hole `CLEARANCE` (1 mm) wider. Peg and block sit inside the left arm's gripper-down reach (x 0.30–0.45, y 0.22–0.38). |
 
 ## Differences from Isaac
