@@ -64,6 +64,10 @@ LAYER_GAP = STRAP_THICK + SLOT_WALL + 2 * SLOT_CLEARANCE   # root centreline to 
 TOOTH_PITCH = 0.0015            # pawl engages every 1.5 mm of strap
 TOOTH_DRAG = 0.3                # N to drag the strap through the head
 MAX_PULL = 0.09                 # carriage travel: more than the loop can ever give
+# The slot's hold on the strap (welds to the carriage). MuJoCo's default (0.02 s) is soft: the jaws
+# closing on the tail levered the strap ~8 mm out of a 2 mm slot. 2 x the 1 ms step: the stiffest stable.
+WELD_SOLREF = [0.002, 1.0]
+WELD_SOLIMP = [0.95, 0.99, 0.001, 0.5, 2.0]
 
 TIGHT_LENGTH = 0.107            # m of loop: at or below, all four rods are pulled together
 
@@ -230,6 +234,8 @@ def build(spec: mujoco.MjSpec) -> None:
         weld = spec.add_equality(name=f"slot_weld{i}", type=mujoco.mjtEq.mjEQ_WELD, objtype=mujoco.mjtObj.mjOBJ_BODY,
                                  name1="zip_carriage", name2=f"strap{i}", active=bool(active[i]))
         weld.data[:11] = [0, 0, 0, *(-(SLOT_ARC - i * SEGMENT_LEN) * SLOT_AXIS), 0, 0, 0, 1, 1]
+        weld.solref = WELD_SOLREF
+        weld.solimp = WELD_SOLIMP
 
 
 def _zquat(angle: float) -> list[float]:
@@ -241,9 +247,12 @@ def _wrap(a: float) -> float:
 
 
 def _in_slot(fed: float) -> np.ndarray:
-    """Which segments lie in the slot (centre within HEAD_DEPTH / 2 of the slot centre) at this feed."""
+    """Segments held by the slot at this feed: the two whose centres straddle the slot centre.
+
+    Always two, so the slot also holds the strap's angle against a sideways push on the tail.
+    """
     along = (np.arange(N_SEGMENTS) + 0.5) * SEGMENT_LEN - (SLOT_ARC - fed)
-    return np.abs(along) < HEAD_DEPTH / 2
+    return np.abs(along) < SEGMENT_LEN
 
 
 def _weld_ids(model: mujoco.MjModel) -> np.ndarray:
