@@ -90,6 +90,23 @@ DISPLAY=:1 PYTHONPATH=/workspace/humanoid/src/il:/workspace/humanoid/src/simulat
   --num_episodes 1 --execution_horizon 10 --server_port 5556
 ```
 
+## Run via Ultron (SLURM)
+
+If you want to run the evaluation as a SLURM job — either overlapped with your current allocation or on a fresh node — use **Ultron**:
+
+```bash
+cd ~/IsaacLab/FallRepo/Ultron
+ultron "run VLA policy eval for 1 episode"          # Fresh allocation
+ultron "run VLA policy eval for 3 episodes" -overlap # Overlap with your current job
+```
+
+Ultron will:
+1. Write the orchestration plan (how to start dockerd, mount the container, sync files, run the policy)
+2. Submit it to SLURM (or run overlapped inside your current job)
+3. Self-heal if anything fails — no manual intervention
+
+Check `Ultron/ultron/README.md` for more about Ultron's overlap and planning features.
+
 ## Logs
 
 - **Server:** `/tmp/testvla_server.log` — policy loading, pings, errors
