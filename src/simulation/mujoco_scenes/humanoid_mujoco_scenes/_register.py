@@ -34,21 +34,28 @@ class _Entry:
     robot_pos: tuple = (0.0, 0.0, ROBOT_STAND_LIFT_Z)
     camera: Optional[dict] = None  # mujoco free-camera fields: lookat, distance, azimuth, elevation
     step: Optional[Callable[[mujoco.MjModel, mujoco.MjData], None]] = None
+    reset: Optional[Callable] = None      # reset(model, data, rng): randomise a new episode
+    progress: Optional[Callable] = None   # progress(model, data) -> (step index, n steps, instruction)
 
 
 _REGISTRY: dict[str, _Entry] = {}
 _DISCOVERED = False
 
 
-def scene(name: str, *, robot_pos=(0.0, 0.0, ROBOT_STAND_LIFT_Z), camera=None, step=None):
+def scene(name: str, *, robot_pos=(0.0, 0.0, ROBOT_STAND_LIFT_Z), camera=None, step=None, reset=None, progress=None):
     """Register ``build(spec)`` under ``name``. ``robot_pos``: arm base placement (default: on its stand).
 
     ``step(model, data)``: optional, called by the teleop once per control step before stepping the
     physics -- for scene mechanics a static model can't express (e.g. a one-way ratchet). It must keep
     its state in ``data`` so ``mj_resetData`` resets it.
+
+    ``reset(model, data, rng)``: optional, called after every reset (and at startup) to randomise the
+    new episode, e.g. object placement. ``progress(model, data) -> (index, total, instruction)``:
+    optional, for multi-step tasks: which step the operator is on (index == total when done) and its
+    instruction, shown by the teleop and recorded per frame.
     """
     def deco(build):
-        _REGISTRY[name] = _Entry(build, tuple(robot_pos), camera, step)
+        _REGISTRY[name] = _Entry(build, tuple(robot_pos), camera, step, reset, progress)
         return build
 
     return deco
@@ -85,6 +92,16 @@ def scene_camera(name: str) -> Optional[dict]:
 def scene_step(name: str) -> Optional[Callable[[mujoco.MjModel, mujoco.MjData], None]]:
     _discover()
     return _REGISTRY[name].step
+
+
+def scene_reset(name: str) -> Optional[Callable]:
+    _discover()
+    return _REGISTRY[name].reset
+
+
+def scene_progress(name: str) -> Optional[Callable]:
+    _discover()
+    return _REGISTRY[name].progress
 
 
 def add_floor(spec: mujoco.MjSpec) -> None:

@@ -86,8 +86,12 @@ def make_sim_recorder(
     device: str,
     sim_dt: float,
     joint_names: list[str] = LEFT_ARM_RECORD_JOINTS,
+    extra_features: dict[str, list[str]] | None = None,
 ):
-    """Return (recorder, record_every): record one frame every `record_every` physics steps."""
+    """Return (recorder, record_every): record one frame every `record_every` physics steps.
+
+    ``extra_features``: extra float32 per-frame features, {name: [component names]} (see SimLeRobotRecorder).
+    """
     if not args.record:
         return None, 0
     try:
@@ -121,6 +125,7 @@ def make_sim_recorder(
         num_episodes=args.num_episodes,
         robot_type=str(cfg.get("robot_id", "pioneer_v1_left_arm")),
         rate_limit=False,
+        extra_features=extra_features,
     )
     recorder.init_dataset()
     print(f"[RECORD] Writing to {dataset_root} at {fps} fps (every {record_every} physics steps)")

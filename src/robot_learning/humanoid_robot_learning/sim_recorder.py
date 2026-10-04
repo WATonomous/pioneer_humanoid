@@ -133,6 +133,7 @@ class SimLeRobotRecorder:
         self._depth_bufs: dict[str, torch.Tensor] = {}
         self._seg_bufs: dict[str, torch.Tensor] = {}
         self._extra_bufs: dict[str, torch.Tensor] = {}
+        self._frame_tasks: list[str | None] = []
 
         self._episode_queue: queue.Queue = queue.Queue()
         # reusable pinned CPU episode slots; see _allocate_cpu_slots
@@ -164,8 +165,13 @@ class SimLeRobotRecorder:
         images: dict[str, np.ndarray | torch.Tensor] | Callable[[], dict[str, np.ndarray | torch.Tensor]],
         depth_buffers: dict[str, np.ndarray | torch.Tensor] | None = None,
         instance_id_seg_buffers: dict[str, np.ndarray | torch.Tensor] | None = None,
+        task: str | None = None,
+        extras: dict[str, np.ndarray | torch.Tensor] | None = None,
     ) -> bool:
         """Handle episode flags and push one frame if the rate allows.
+
+        `task`: this frame's language instruction (e.g. the current step of a multi-step task);
+        None records the session's task_name. `extras`: values for `extra_features`.
 
         `images` may be a plain dict or a zero-arg callable returning one -- pass a
         callable when capturing images is expensive (GPU->CPU reads); it's invoked
@@ -190,7 +196,9 @@ class SimLeRobotRecorder:
             if now - self._last_frame_t >= self._frame_period:
                 self._last_frame_t = now
                 resolved_images = images() if callable(images) else images
-                self.push_frame_to_buffer(action, state, resolved_images, depth_buffers, instance_id_seg_buffers)
+                self.push_frame_to_buffer(
+                    action, state, resolved_images, depth_buffers, instance_id_seg_buffers, extras=extras, task=task
+                )
         return False
 
     @property
@@ -309,8 +317,9 @@ class SimLeRobotRecorder:
         depth_buffers: dict[str, np.ndarray | torch.Tensor] | None = None,
         instance_id_seg_buffers: dict[str, np.ndarray | torch.Tensor] | None = None,
         extras: dict[str, np.ndarray | torch.Tensor] | None = None,
+        task: str | None = None,
     ) -> None:
-        """Push one timestep of data into the GPU buffers."""
+        """Push one timestep of data into the GPU buffers (`task`: this frame's instruction, or None)."""
         if self._current_frame >= self._capacity:
             print(
                 f"[WARN]: Buffer full at frame {self._current_frame}, skipping"
@@ -343,6 +352,7 @@ class SimLeRobotRecorder:
                 extras[name], torch.float32, self.device
             )
 
+        self._frame_tasks.append(task)
         self._current_frame += 1
 
     def _allocate_cpu_slots(self) -> None:
@@ -403,6 +413,7 @@ class SimLeRobotRecorder:
                 slot["seg"][name][:n].copy_(self._seg_bufs[name][:n])
         for name in self.extra_features:
             slot["extras"][name][:n].copy_(self._extra_bufs[name][:n])
+        slot["tasks"] = list(self._frame_tasks[:n])
 
         self._episode_queue.put(slot)
         self._clear_buffers()
@@ -420,6 +431,7 @@ class SimLeRobotRecorder:
         self._depth_bufs = {}
         self._seg_bufs = {}
         self._extra_bufs = {}
+        self._frame_tasks = []
         self._current_frame = 0
 
     def _async_processor(self) -> None:
@@ -466,11 +478,12 @@ class SimLeRobotRecorder:
         from lerobot.datasets.lerobot_dataset import LeRobotDataset
 
         n = episode["total_frames"]
+        tasks = episode.get("tasks") or [None] * n
         for i in tqdm(range(n), desc="Processing frames", unit="frame"):
             frame: dict[str, Any] = {
                 "action": episode["action"][i],
                 "observation.state": episode["observation"][i],
-                "task": self.task_name,
+                "task": tasks[i] or self.task_name,
             }
             for name in self.cameras:
                 frame[f"observation.images.{name}"] = episode["rgb"][name][i]
