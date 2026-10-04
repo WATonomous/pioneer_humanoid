@@ -41,12 +41,15 @@ def build(spec: mujoco.MjSpec) -> None:
 
 - **`robot_pos`** — arm base placement; default `(0, 0, 1.1997)` puts the stand's feet on the floor (z=0).
 - **`camera`** — optional MuJoCo free-camera fields for the initial view.
+- **`step`** — optional `step(model, data)`, called by the teleop each control step before the physics, for
+  mechanics a static model can't express (`zip_tie`'s one-way ratchet). Keep its state in `data` so a reset clears it.
 
 ## Scenes
 
 | name | notes |
 |------|-------|
 | `bare` | Floor + arm. |
+| `zip_tie` | A pre-threaded zip tie around four vertical rods (head fixed). Grab the tail (on edge, jaws pinch its faces) and pull it toward the robot: the tail slides out of the head against 1 N of tooth drag on a one-way ratchet, and the loop shrinks onto the rods. Success: `zip_tie.scene.is_tight(model, data)` (loop within 4 mm of snug). |
 | `peg_insert` | Table (top 0.705 m, as in Isaac `push`), 4 cm square peg, block with a square hole `CLEARANCE` (1 mm) wider. Peg and block sit inside the left arm's gripper-down reach (x 0.30–0.45, y 0.22–0.38). |
 
 ## Differences from Isaac

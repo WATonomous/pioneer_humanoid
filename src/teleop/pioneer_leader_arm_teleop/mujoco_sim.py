@@ -51,7 +51,7 @@ def run() -> None:
     import mujoco
     import mujoco.viewer
     import numpy as np
-    from humanoid_mujoco_scenes import list_scenes, make_model, scene_camera
+    from humanoid_mujoco_scenes import list_scenes, make_model, scene_camera, scene_step
     from pioneer_humanoid.arm_params import (
         LEFT_ARM_JOINTS,
         LEFT_GRIPPER_CLOSED,
@@ -68,6 +68,7 @@ def run() -> None:
         raise SystemExit(f"{record.path}: unknown images {unknown}; available: {list(CAMERA_NAMES)}")
     cameras = {name: (int(spec["height"]), int(spec["width"])) for name, spec in record.images.items()}
     model = make_model(args.scene, cameras=cameras)
+    scene_hook = scene_step(args.scene)  # per-step scene mechanics (e.g. zip_tie's ratchet), or None
     data = mujoco.MjData(model)
     # Position actuator bias is [0, -kp, -kv]: lower the wrist's kv (see WRIST_DAMPING).
     model.actuator_biasprm[model.actuator("joint6l").id, 2] = -WRIST_DAMPING
@@ -154,6 +155,8 @@ def run() -> None:
                         reset_all()
                         print("\n[RECORD] Episode saved; arm and scene reset.", flush=True)
 
+                if scene_hook is not None:
+                    scene_hook(model, data)
                 mujoco.mj_step(model, data, nstep=substeps)
                 step += 1
                 viewer.sync()
