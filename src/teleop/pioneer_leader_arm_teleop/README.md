@@ -67,7 +67,7 @@ pip install torch "lerobot @ git+https://github.com/huggingface/lerobot.git@e670
 python pioneer_leader_arm_teleop.py --target mujoco --scene peg_insert   # macOS: mjpython
 ```
 
-Scenes: `bare`, `peg_insert`, or any scene in `humanoid_mujoco_scenes` (see `src/simulation/mujoco_scenes/`).
+Scenes: `bare`, `peg_insert`, `zip_tie`, or any scene in `humanoid_mujoco_scenes` (see `src/simulation/mujoco_scenes/`).
 
 - **Home:** the arm starts at home (elbow bent 90°, forearm forward, gripper open) and follows the leader only once every leader joint is within 3° of home and the gripper is open. The status line lists the joints still off.
 - **Directions:** move one leader joint at a time. If a sim joint goes the wrong way, restart with that entry flipped in `--signs` (order A..G, default `1,-1,-1,1,1,-1,1`).

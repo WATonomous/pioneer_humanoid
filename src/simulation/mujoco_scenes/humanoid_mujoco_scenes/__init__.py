@@ -2,4 +2,4 @@
 
 See humanoid_mujoco_scenes/_register.py for the @scene decorator and how discovery works.
 """
-from ._register import add_floor, list_scenes, make_model, scene, scene_camera  # noqa: F401
+from ._register import add_floor, list_scenes, make_model, scene, scene_camera, scene_step  # noqa: F401
