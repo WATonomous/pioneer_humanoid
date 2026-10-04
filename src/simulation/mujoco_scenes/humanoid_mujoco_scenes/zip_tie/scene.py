@@ -58,6 +58,8 @@ LOOP_RADIUS = 0.022             # as threaded: loop half-width around the bundle
 SLOT_CLEARANCE = 0.0004         # slot wider than the strap, each side
 HEAD_DEPTH = 0.009              # slot length (along the tail)
 SLOT_WALL = 0.001               # wall between the strap's root and the strap passing through the slot
+HEAD_VIS_WALL = 0.0012          # head looks (visual only): wall thickness, slot opening around the strap
+HEAD_VIS_CLEARANCE = 0.0006
 LAYER_GAP = STRAP_THICK + SLOT_WALL + 2 * SLOT_CLEARANCE   # root centreline to slot centreline (head is visual)
 TOOTH_PITCH = 0.0015            # pawl engages every 1.5 mm of strap
 TOOTH_DRAG = 0.3                # N to drag the strap through the head
@@ -162,21 +164,23 @@ def build(spec: mujoco.MjSpec) -> None:
     # axis (its travel = strap pulled through), with the strap's segments in the slot welded to it
     # (welds added below): it holds the strap exactly in line, which wall contacts on a 1.3 mm strap
     # don't. The pawl is a one-way actuator on the carriage, the tooth drag its friction.
+    # Looks: a block around the strap's root with a rectangular slot through it (outer wall, roof,
+    # floor), and dark mouths on both faces so the strap visibly goes in and comes out.
     head_rgba = [0.93, 0.92, 0.88, 1]  # natural nylon
     sx, sy, sz = SLOT_CENTRE
-    gap_y, gap_z = STRAP_THICK / 2 + SLOT_CLEARANCE, STRAP_WIDTH / 2 + SLOT_CLEARANCE
-    wall = SLOT_WALL
-    for name, dy, dz, size in (
-        ("slot_wall_out", -(gap_y + wall / 2), 0, [HEAD_DEPTH / 2, wall / 2, gap_z + wall]),
-        ("slot_roof", 0, gap_z + wall / 2, [HEAD_DEPTH / 2, gap_y, wall / 2]),
-        ("slot_floor", 0, -(gap_z + wall / 2), [HEAD_DEPTH / 2, gap_y, wall / 2]),
+    gy, gz, w = STRAP_THICK / 2 + HEAD_VIS_CLEARANCE, STRAP_WIDTH / 2 + HEAD_VIS_CLEARANCE, HEAD_VIS_WALL
+    y_out, y_in = sy - gy - w, _PATH[0][1] + STRAP_THICK / 2 + w   # outer face, face beyond the root
+    for name, y0, y1, z0, z1 in (
+        ("head_wall_out", y_out, sy - gy, -gz - w, gz + w),
+        ("head_roof", sy - gy, sy + gy, gz, gz + w),
+        ("head_floor", sy - gy, sy + gy, -gz - w, -gz),
+        ("head_body", sy + gy, y_in, -gz - w, gz + w),
     ):
-        world.add_geom(name=name, type=box, size=size, pos=[sx, sy + dy, sz + dz], rgba=head_rgba,
-                       contype=0, conaffinity=0)
-    root_y = _PATH[0][1]
-    y_lo, y_hi = sy + gap_y, root_y + STRAP_THICK / 2 + 0.0005
-    world.add_geom(name="head_body", type=box, contype=0, conaffinity=0, rgba=head_rgba,
-                   size=[HEAD_DEPTH / 2, (y_hi - y_lo) / 2, gap_z + wall], pos=[sx, (y_hi + y_lo) / 2, sz])
+        world.add_geom(name=name, type=box, contype=0, conaffinity=0, rgba=head_rgba,
+                       size=[HEAD_DEPTH / 2, (y1 - y0) / 2, (z1 - z0) / 2], pos=[sx, (y0 + y1) / 2, sz + (z0 + z1) / 2])
+    for side in (1, -1):
+        world.add_geom(name=f"slot_mouth{'_in' if side > 0 else '_out'}", type=box, contype=0, conaffinity=0,
+                       rgba=[0.1, 0.1, 0.1, 1], size=[0.0001, gy, gz], pos=[sx + side * (HEAD_DEPTH / 2 - 0.0001), sy, sz])
     carriage = world.add_body(name="zip_carriage", pos=[sx, sy, sz])
     carriage.add_joint(name="zip_carriage", type=mujoco.mjtJoint.mjJNT_SLIDE, axis=list(SLOT_AXIS),
                        range=[0, MAX_PULL], limited=mujoco.mjtLimited.mjLIMITED_TRUE,
