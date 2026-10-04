@@ -67,13 +67,13 @@ pip install torch "lerobot @ git+https://github.com/huggingface/lerobot.git@e670
 python pioneer_leader_arm_teleop.py --target mujoco --scene peg_insert   # macOS: mjpython
 ```
 
-Scenes: `bare`, `peg_insert`, `zip_tie`, `drawer_stow`, `matcha`, or any scene in `humanoid_mujoco_scenes` (see `src/simulation/mujoco_scenes/`).
+Scenes: `bare`, `peg_insert`, `zip_tie`, `drawer_stow`, `matcha`, `duplo`, or any scene in `humanoid_mujoco_scenes` (see `src/simulation/mujoco_scenes/`).
 
 - **Home:** the arm starts at home (elbow bent 90°, forearm forward, gripper open) and follows the leader only once every leader joint is within 3° of home and the gripper is open. The status line lists the joints still off.
 - **Directions:** move one leader joint at a time. If a sim joint goes the wrong way, restart with that entry flipped in `--signs` (order A..G, default `1,-1,-1,1,1,-1,1`).
 - **R:** reset the arm and every object in the scene; the arm waits at home until the leader is back at home. During a take, it also discards the take.
 - **`--record`:** `S` start · `N` save (then auto-reset) · `D` discard → `<repo>/datasets/pioneer_v1_left_arm/sim/` · `--cameras ego,wrist_left` / `none`.
-- **Multi-step scenes** (`drawer_stow`, `matcha`): the terminal prints `[TASK] step k/n: <instruction>` as each step is done and
+- **Multi-step scenes** (`drawer_stow`, `matcha`, `duplo`): the terminal prints `[TASK] step k/n: <instruction>` as each step is done and
   `all steps done -- N to save` at the end. Recorded frames carry the current step's instruction as their `task` and a
   `subtask_index`, so a take is labelled step by step with no hand annotation.
   In the MuJoCo viewer these keys (and R) also toggle display flags (shadows, reflections, …); harmless.
