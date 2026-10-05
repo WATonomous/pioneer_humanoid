@@ -312,28 +312,11 @@ _HEAD_VIEWPOINT_HOME_POS = (0.0905602619765378, 0.04, 0.23809789390566405)
 _HEAD_VIEWPOINT_HOME_QUAT = (0.9063077870366499, 0.0, 0.42261826174069944, 0.0)  # ~50deg pitch, no roll
 _EYE_LOCAL_RIGHT = torch.tensor([0.0, -1.0, 0.0])
 _EYE_IPD_M = 0.063
-_EYE_LOCAL_FORWARD = torch.tensor([1.0, 0.0, 0.0])
-# ego_cam is pinned to the left eye's pose but nudged clear of the RSD455 housing mesh, which
-# otherwise blacks out half the frame: forward along the gaze, plus a straight base-frame +Z
-# (the forward offset alone was not enough -- it needed to clear geometry above it, not ahead).
-_EGO_CAM_FORWARD_OFFSET_M = 0.25
-_EGO_CAM_UP_OFFSET_M = 0.1
-# When True, ego_cam is never repositioned, so a manual GUI drag sticks. Probing aid only.
-_EGO_CAM_FREE_MOVE_DEBUG = False
-
 # Head tracking is not live -- head_viewpoint_pos_b/quat_b are set once at startup and never
 # mutated (see run_simulator). With this False the camera mounts are positioned once before the
 # sim loop instead of re-authored every physics step; flip to True the moment the head pose is
 # actually driven from the Quest, and per-step tracking resumes with no other change.
 _HEAD_TRACKING_LIVE = False
-# ego_cam is a bare USD Camera prim (looks down local -Z, up +Y), NOT an rsd455 payload
-# (+X forward, +Z up, -Y right). _HEAD_VIEWPOINT_HOME_QUAT is calibrated for the rsd455
-# convention, so it aims ego_cam wrong despite being the identical quaternion value. This is the
-# basis change between them -- compose as quat_mul(head_orient_b, this), not the reverse.
-_EGO_CAM_CONVENTION_FIX_QUAT = (-0.5, -0.5, 0.5, 0.5)
-# Extra +20deg downward pitch on ego_cam only (70deg total); the eye views keep their own
-# orientation. Applied as the OUTERMOST rotation: quat_mul(this, head_orient * convention_fix).
-_EGO_CAM_EXTRA_TILT_QUAT = (0.984807753012208, 0.0, 0.17364817766693033, 0.0)
 # Sub-path to the actual renderable Camera prim inside the rsd455 payload --
 # same as the SO101 vial task's camera_external_D455 (task_env_cfg.py).
 _RSD455_CAMERA_SUBPATH = "rsd455/RSD455/Camera_OmniVision_OV9782_Right"
@@ -413,36 +396,6 @@ def _widen_camera_fov(camera_prim_path: str, focal_length: float) -> None:
             return
         app.update()
     print(f"[Quest] WARNING: could not widen FOV on {camera_prim_path} (camera prim never became valid)", flush=True)
-
-
-def _read_camera_fov(camera_prim_path: str) -> tuple[float, float, float] | None:
-    """Read a Camera prim's focalLength/apertures; same load-wait as _widen_camera_fov.
-
-    Call BEFORE _widen_camera_fov, to capture the RSD455's native FOV before it is overwritten."""
-    stage = omni.usd.get_context().get_stage()
-    app = omni.kit.app.get_app_interface()
-    for _ in range(100):
-        cam_prim = stage.GetPrimAtPath(camera_prim_path)
-        if cam_prim.IsValid() and cam_prim.IsA(UsdGeom.Camera):
-            cam = UsdGeom.Camera(cam_prim)
-            return (
-                cam.GetFocalLengthAttr().Get(),
-                cam.GetHorizontalApertureAttr().Get(),
-                cam.GetVerticalApertureAttr().Get(),
-            )
-        app.update()
-    print(f"[Quest] WARNING: could not read FOV on {camera_prim_path} (camera prim never became valid)", flush=True)
-    return None
-
-
-def _set_camera_fov(camera_prim_path: str, focal_length: float, h_aperture: float, v_aperture: float) -> None:
-    """Set a Camera prim's focalLength/apertures. No load-wait -- ego_cam is baked into the USD,
-    unlike the late-composing rsd455 payload."""
-    stage = omni.usd.get_context().get_stage()
-    cam = UsdGeom.Camera(stage.GetPrimAtPath(camera_prim_path))
-    cam.GetFocalLengthAttr().Set(focal_length)
-    cam.GetHorizontalApertureAttr().Set(h_aperture)
-    cam.GetVerticalApertureAttr().Set(v_aperture)
 
 
 def _project_world_point_to_uv(camera_prim: Usd.Prim, world_xyz: tuple) -> tuple[float, float, bool]:
@@ -1195,8 +1148,6 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         _spawn_wrist_cam_marker("/World/envs/env_0/Robot/link6l/wrist_cam_marker", WRIST_CAM_POS)
         print(f"[Quest] wrist_cam calibration marker ON (2cm green sphere at {WRIST_CAM_POS} "
               "on link6l) -- set _SHOW_WRIST_CAM_MARKER=False to hide.", flush=True)
-    # Read the native FOV BEFORE widening it for the headset display.
-    _rsd455_native_fov = _read_camera_fov(f"{left_eye_mount}/{_RSD455_CAMERA_SUBPATH}")
     _widen_camera_fov(f"{left_eye_mount}/{_RSD455_CAMERA_SUBPATH}", _RSD455_WIDENED_FOCAL_LENGTH)
     _widen_camera_fov(f"{right_eye_mount}/{_RSD455_CAMERA_SUBPATH}", _RSD455_WIDENED_FOCAL_LENGTH)
     left_eye_camera = _open_pov_camera(f"{left_eye_mount}/{_RSD455_CAMERA_SUBPATH}", "Left Eye POV")
@@ -1206,18 +1157,6 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     _stage_for_cams = omni.usd.get_context().get_stage()
     _left_eye_cam_prim = _stage_for_cams.GetPrimAtPath(f"{left_eye_mount}/{_RSD455_CAMERA_SUBPATH}")
     _right_eye_cam_prim = _stage_for_cams.GetPrimAtPath(f"{right_eye_mount}/{_RSD455_CAMERA_SUBPATH}")
-    # ego_cam gets the RSD455's aperture but the WIDENED focal length -- native FOV is too
-    # zoomed in to be usable. Extra Kit preview windows for ego_cam/wrist_cam were removed here:
-    # they render on every app tick regardless of the render gate, and cost real time.
-    #
-    # args_cli.record is the same flag main() uses to decide whether ego_cam exists -- without
-    # it there is no prim to write to. Keep the two conditions identical.
-    _ego_cam_prim_path = f"{_base_link_prim_path}/ego_cam"
-    if args_cli.record and _rsd455_native_fov is not None:
-        _ego_cam_fov = (_RSD455_WIDENED_FOCAL_LENGTH, _rsd455_native_fov[1], _rsd455_native_fov[2])
-        _set_camera_fov(_ego_cam_prim_path, *_ego_cam_fov)
-        print(f"[Quest] ego_cam FOV set to WIDENED RSD455 (not native) "
-              f"(focalLength/hAperture/vAperture)={_ego_cam_fov}", flush=True)
     if left_eye_camera is not None and right_eye_camera is not None:
         _POV_STATIC_DIR.mkdir(parents=True, exist_ok=True)
         print(f"[Quest] Stereo POV feed will be captured to {_POV_FRAME_PATH_LEFT} / {_POV_FRAME_PATH_RIGHT} "
@@ -1320,14 +1259,10 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     head_viewpoint_pos_b = head_home_viewpoint_pos_b.clone()
     head_viewpoint_quat_b = head_home_viewpoint_quat_b.clone()
     eye_local_right = _EYE_LOCAL_RIGHT.to(device)
-    eye_local_forward = _EYE_LOCAL_FORWARD.to(device)
-    ego_cam_convention_fix_quat = torch.tensor([_EGO_CAM_CONVENTION_FIX_QUAT], dtype=torch.float32, device=device)
-    ego_cam_extra_tilt_quat = torch.tensor([_EGO_CAM_EXTRA_TILT_QUAT], dtype=torch.float32, device=device)
-
     def _sync_camera_mounts() -> None:
-        """Aim the stereo eye mounts (and ego_cam) at the current head viewpoint.
+        """Aim the stereo eye mounts at the current head viewpoint.
 
-        NOT cheap: three USD transform authorings, each firing change notifications through Kit's
+        NOT cheap: two USD transform authorings, each firing change notifications through Kit's
         render graph. Running it per physics step cost ~20ms/step while writing identical values,
         since the head viewpoint is static. Called once at startup; _HEAD_TRACKING_LIVE restores
         per-step tracking when head pose is actually driven."""
@@ -1337,18 +1272,6 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         head_orient_b = head_viewpoint_quat_b[0].tolist()
         _set_mount_pose(left_eye_mount, tuple(left_eye_pos_b), tuple(head_orient_b))
         _set_mount_pose(right_eye_mount, tuple(right_eye_pos_b), tuple(head_orient_b))
-        # ego_cam pinned to the left eye's pose so recorded frames match what the operator saw,
-        # nudged clear of the RSD455 housing mesh. Skipped without --record: main() leaves the
-        # sensor out of the scene entirely then.
-        if _EGO_CAM_FREE_MOVE_DEBUG or not args_cli.record:
-            return
-        forward_offset_b = quat_apply(head_viewpoint_quat_b, eye_local_forward.unsqueeze(0)) * _EGO_CAM_FORWARD_OFFSET_M
-        ego_cam_pos_b = (head_viewpoint_pos_b - right_offset_b + forward_offset_b)[0].tolist()
-        ego_cam_pos_b[2] += _EGO_CAM_UP_OFFSET_M  # straight base-frame +Z, per live feedback
-        ego_cam_orient_b = quat_mul(
-            ego_cam_extra_tilt_quat, quat_mul(head_viewpoint_quat_b, ego_cam_convention_fix_quat)
-        )[0].tolist()
-        _set_mount_pose(_ego_cam_prim_path, tuple(ego_cam_pos_b), tuple(ego_cam_orient_b))
 
     _sync_camera_mounts()
 
