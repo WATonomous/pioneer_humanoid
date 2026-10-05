@@ -53,10 +53,11 @@ def test_randomisation(model):
         assert len({o["colour"] for o in objs}) == len(objs)
         assert all(sum(o["shape"] == s for o in objs) <= S.MAX_PER_SHAPE for s in S.SHAPES)
         xy = [data.xpos[model.body(o["name"]).id][:2] for o in objs]
-        radii = [S._footprint(o["shape"], o["size"]) for o in objs]
+        radii = [S._footprint(o["shape"], o["size"], o["lying"]) for o in objs]
         (x0, x1), (y0, y1) = S.ZONE
         for i, (x, y) in enumerate(xy):
             assert x0 <= x <= x1 and y0 <= y <= y1
+            assert S._clear_of_bins(x, y, radii[i])
             for j in range(i):
                 assert np.linalg.norm(xy[i] - xy[j]) >= radii[i] + radii[j] + S.FINGER_GAP - 1e-9
         active = {o["name"] for o in objs}
@@ -121,15 +122,17 @@ def test_dropped_after_pickup(model):
 
 
 def test_toppled(model):
-    data = _episode(model, 0)
-    obj = next(o for o in S.episode_objects(model, data) if o["shape"] == "cylinder")
-    name = obj["name"][len("obj_"):]
-    pos = data.xpos[model.body(obj["name"]).id].copy()
-    adr = model.joint(obj["name"]).qposadr[0]
-    r = obj["size"][0]
-    data.qpos[adr:adr + 7] = [pos[0], pos[1], S.T + r + 0.002, math.cos(math.pi / 4), math.sin(math.pi / 4), 0, 0]
+    """A box knocked onto its side is toppled; a cylinder that was set out lying down is not."""
+    seed, data = next((s, d) for s in range(50) for d in [_episode(model, s)]
+                      if {o["shape"] for o in S.episode_objects(model, d)} >= {"box"}
+                      and any(o["lying"] for o in S.episode_objects(model, d)))
+    box = next(o for o in S.episode_objects(model, data) if o["shape"] == "box")
+    pos = data.xpos[model.body(box["name"]).id].copy()
+    adr = model.joint(box["name"]).qposadr[0]
+    lie = max(box["size"][0], box["size"][1])   # rests on its longest horizontal half-extent... at most
+    data.qpos[adr:adr + 7] = [pos[0], pos[1], S.T + lie + 0.002, math.cos(math.pi / 4), math.sin(math.pi / 4), 0, 0]
     _run(model, data, 1.0)
-    assert S.episode_status(model, data)["toppled"] == [f"{obj['colour']} {name.rsplit('_', 1)[0]}"]
+    assert S.episode_status(model, data)["toppled"] == [f"{box['colour']} box"], seed
 
 
 def test_hovering_object_is_neither_dropped_nor_home(model):
@@ -146,3 +149,16 @@ def test_hovering_object_is_neither_dropped_nor_home(model):
         scene_step("tidy_table")(model, data)
         status = S.episode_status(model, data)
         assert not status["dropped"] and status["step"] == 0 and status["homed"] == 0, (xyz, status)
+
+
+def test_messy_layouts_have_lying_cylinders_and_any_yaw(model):
+    lying, yaws = 0, []
+    for seed in range(40):
+        data = _episode(model, seed)
+        for o in S.episode_objects(model, data):
+            lying += o["lying"]
+            if o["shape"] == "box":
+                R = data.xmat[model.body(o["name"]).id].reshape(3, 3)
+                yaws.append(math.atan2(R[1, 0], R[0, 0]))
+    assert lying > 0
+    assert max(np.abs(yaws)) > math.radians(90)
