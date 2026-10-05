@@ -104,14 +104,14 @@ class CameraMount(NamedTuple):
     aspect: float | None      # sensor w/h the image must keep, or None
 
 
-# ego          RealSense D455 colour at 640x480 (4:3), 40 deg down. ESTIMATE ~80 x 65 deg: native
+# ego          RealSense D455 colour at 640x480 (4:3), 50 deg down. ESTIMATE ~80 x 65 deg: native
 #              1280x800 lens with the sides cropped to 4:3. Replace with the real camera_info.
 # wrist_left   between the fingers, ~60 deg hFOV, real camera not chosen yet
 # wrist_right  mirror of wrist_left
 CAMERAS = {
     "ego": CameraMount(
         "base_link", "cam_ego",
-        (0.08421, -0.00008, 0.26038), (0.640856, 0.298836, -0.298836, -0.640856),
+        (0.08421, -0.00008, 0.26038), (0.664463, 0.241845, -0.241845, -0.664463),
         1.93, 3.896 * (800 * 4 / 3) / 1280, (0.01, 100.0), 4 / 3,
     ),
     "wrist_left": CameraMount(
