@@ -377,6 +377,22 @@ class StairsRegistrationContracts(unittest.TestCase):
                         "rsl_rl_cfg_entry_point": PACKAGE + ".agents.rsl_rl_ppo_cfg:" + BASE_RUNNER,
                     })
 
+    def test_only_supported_final_recipes_are_public(self):
+        registrations = []
+        _load_without_imports(REGISTRY_FILE, {
+            "__name__": PACKAGE,
+            "gym": SimpleNamespace(register=lambda **kwargs: registrations.append(kwargs)),
+            "agents": SimpleNamespace(__name__=PACKAGE + ".agents"),
+        })
+        expected = {
+            f"{prefix}-{terrain}-PioneerHumanoid{suffix}-v0"
+            for prefix in ("Isaac-Locomotion", "Isaac-Velocity")
+            for terrain in ("Flat", "Rough", "RoughNoStairsSelectiveKneeShape", "Stairs")
+            for suffix in ("", "-Play")
+        }
+        self.assertEqual({item["id"] for item in registrations}, expected)
+        self.assertEqual(len(registrations), len(expected))
+
     def test_new_modules_depend_on_team_recipe_not_local_experiment_helpers(self):
         for path, classname, expected_base in (
             (ENV_FILE, "PioneerHumanoidStairsEnvCfg", BASE_ENV),
