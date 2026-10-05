@@ -14,6 +14,12 @@ parser.add_argument("--num_envs", type=int, default=1, help="Number of environme
 parser.add_argument("--steps", type=int, default=20, help="Number of zero-action policy steps to simulate.")
 parser.add_argument("--root_z", type=float, default=None, help="Override the robot default root height.")
 parser.add_argument(
+    "--nominal_reset",
+    action="store_true",
+    default=False,
+    help="Disable reset perturbations so the configured nominal stance can be inspected exactly.",
+)
+parser.add_argument(
     "--root_rot",
     type=float,
     nargs=4,
@@ -77,6 +83,24 @@ def main() -> None:
         env_cfg.scene.robot.init_state.pos = (x, y, args_cli.root_z)
     if args_cli.root_rot is not None:
         env_cfg.scene.robot.init_state.rot = tuple(args_cli.root_rot)
+    if args_cli.nominal_reset:
+        env_cfg.events.reset_base.params["pose_range"] = {
+            "x": (0.0, 0.0),
+            "y": (0.0, 0.0),
+            "yaw": (0.0, 0.0),
+        }
+        env_cfg.events.reset_base.params["velocity_range"] = {
+            "x": (0.0, 0.0),
+            "y": (0.0, 0.0),
+            "z": (0.0, 0.0),
+            "roll": (0.0, 0.0),
+            "pitch": (0.0, 0.0),
+            "yaw": (0.0, 0.0),
+        }
+        env_cfg.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)
+        env_cfg.events.reset_robot_joints.params["velocity_range"] = (0.0, 0.0)
+        env_cfg.events.base_external_force_torque = None
+        env_cfg.events.push_robot = None
 
     env = gym.make(args_cli.task, cfg=env_cfg)
     base_env = env.unwrapped
