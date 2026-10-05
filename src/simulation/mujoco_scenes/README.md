@@ -58,8 +58,23 @@ def build(spec: mujoco.MjSpec) -> None:
 | `matcha` | Long horizon, 4 steps: spoon the matcha into the cup, pour the water in, whisk it, serve the cup on the tray. Matcha and water are 5 mm balls (green in a pre-filled ladle, blue in a pitcher). Tools have chunky 25 mm square handles sticking up, for the gripper pointing down; the ladle and pitcher handles are posts on the side away from the cup, so held at the top and tipped toward the cup (wrist pitch) they empty over the far lip. Checks: ≥5/8 matcha and ≥12/24 water in the cup, whisk tines moved 20 cm inside the cup (circles or zig-zag), cup upright on the tray with most of the drink. Reset shifts the cup and pitcher. ~0.35 s physics per simulated second (32 balls; the slowest scene). |
 | `duplo` | Long horizon, 3 steps: stack the red, blue and yellow Duplo 2x4 bricks (64 x 32 x 19 mm) on the green baseplate in the colour order announced (first on the plate, each next one on the previous). Studs, walls and tubes are real collision geometry; the studs taper, so a brick put down within ~4 mm of the grid slides onto it. A brick seated square on the grid is welded there (MuJoCo can't do the press fit); pulling it off with more than 6 N, or twisting it, releases it. Bricks lie in a row beside the plate, long side along X, for the gripper pointing down pinching their 32 mm width. Reset shuffles the order and the bricks' places. |
 | `zip_tie` | A pre-threaded 300 × 3.6 mm nylon zip tie around four loose rods (spring-mounted, a few mm apart). The strap is one continuous chain from the head's root, round the rods, back through the slot and out as the tail toward the robot. Grab the tail ≳60 mm from the head (the jaws are 89 mm long) and pull: strap feeds through a one-way, toothed ratchet and the loop gathers then squeezes the rods (about 1 N to cinch). Success: `zip_tie.scene.is_tight(model, data)` (loop ≤ 107 mm, all rods touching). |
-| `keyboard` | Type the word announced, one letter per step. Real-size keyboard (19.05 mm pitch): every keycap is a 3 g body on a preloaded spring slide joint (moves at 0.35 N, registers at 2 mm / ~0.55 N, bottoms out at 4 mm / ~0.75 N, re-arms above 1.5 mm); the keyboard is a free 0.6 kg body. The finger pads (61 x 33 mm) are wider than a key, so each arm types with a stylus from the holder on its side: 16 mm square handle, pinch it gripper-down. Each arm reaches only its own half of the keyboard. Reset picks the word. |
+| `keyboard` | Type the text announced, one key per step. Real-size keyboard (19.05 mm pitch, A-Z, 0-9, space): every keycap is a 3 g body on a preloaded spring slide joint (moves at 0.35 N, registers at 2 mm / ~0.55 N, bottoms out at 4 mm / ~0.75 N, re-arms above 1.5 mm); the keyboard is a free 0.6 kg body. The finger pads (61 x 33 mm) are wider than a key, so each arm types with a stylus from the holder on its side: 16 mm square handle, standing at 45 deg so each arm's jaws meet it square; pinch it gripper-down. Each arm reaches only its own half of the keyboard. Reset picks a word; `scene.set_text(model, data, text)` sets any text. `python -m humanoid_mujoco_scenes.keyboard.typer --text "hello world" [--video out.mp4]` types it with both arms, scripted (see below). |
 | `peg_insert` | Table (top 0.705 m, as in Isaac `push`), 4 cm square peg, block with a square hole `CLEARANCE` (1 mm) wider. Peg and block sit inside the left arm's gripper-down reach (x 0.30–0.45, y 0.22–0.38). |
+
+## Scripted typing (`keyboard`)
+
+```bash
+python -m humanoid_mujoco_scenes.keyboard.typer --text "hello world"                       # prints each key, exit 0 if all typed
+MUJOCO_GL=egl python -m humanoid_mujoco_scenes.keyboard.typer --text "hi" --video hi.mp4    # plus a video
+python -m humanoid_mujoco_scenes.keyboard.typer --check-reach                               # which arm takes each key
+```
+
+No learning: IK plus smooth moves. Each key goes to the arm on its side. The stylus tip moves in straight lines (IK
+every cm, hand yaw fixed per waypoint so the arm can't swap posture mid-move), leaning 20 deg toward the middle while
+typing (straight down, the shoulder's joint-2 limit leaves the centre keys out of reach). Before each press it measures
+the tip and corrects for the arm's sag; a miss is retried 1 mm deeper; a stylus that has slid in the hand is put back
+and picked up again. `--speed 1` (default) keeps the 0.73 N m wrist motor below its limit; faster jerks the arm.
+About 3-4 s of sim time per key.
 
 ## Differences from Isaac
 

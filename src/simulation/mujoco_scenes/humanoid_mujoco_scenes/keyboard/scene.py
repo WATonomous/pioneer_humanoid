@@ -12,8 +12,9 @@ pointing down each arm reaches only its own side (right arm y <= 0, left arm y >
 so the keyboard sits centred at y = 0 and each arm has its own stylus, in a holder on its side:
 the left arm types Q-T / A-G / Z-V, the right arm Y-P / H-L / B-M, like touch typing.
 
-Steps (``progress``): "press <letter>" for each letter of a word picked at reset. Wrong keys are
-ignored; only the next letter advances.
+Steps (``progress``): "press <key>" for each character of the text: a word from WORDS picked at reset,
+or any text (A-Z, 0-9, space) given with ``set_text``. Wrong keys are ignored; only the next one
+advances. ``typer.py`` types any text with both arms: ``python -m humanoid_mujoco_scenes.keyboard.typer``.
 """
 from __future__ import annotations
 
@@ -48,35 +49,64 @@ SPACE_UNITS = 6.0
 SPACE_COL = 3.75                # space bar centre, in pitches from the number row's first key
 
 STYLUS_POS = {"right": (0.30, -0.24), "left": (0.30, 0.24)}  # one per arm, each in its own holder
+STYLUS_YAW = 45.0               # deg; handle faces (and holders) turned so each arm's jaws reach them square
 STYLUS_HANDLE = (0.016, 0.10)   # square side, length
 STYLUS_TIP = (0.004, 0.03)      # radius, length (capsule, rounded end)
 STYLUS_MASS = 0.015
-HOLDER_INNER = 0.026
+HOLDER_INNER = 0.019             # 1.5 mm clearance round the handle: a stylus put back stands upright
 HOLDER_WALL = 0.003
 HOLDER_H = 0.05
 
-WORDS = ["HI", "CAT", "WATO", "ROBOT", "HELLO", "TYPE"]
+WORDS = ["HI", "CAT", "WATO", "ROBOT", "HELLO", "TYPE"]   # reset picks one; set_text() takes any text
 KEYS = [k for row, _ in ROWS for k in row] + ["SPACE"]
+MAX_TEXT = 64
 
-# data.userdata: [letters of the word typed so far, word index, latched "down" flag per key...]
-_U_DONE, _U_WORD, _U_DOWN = 0, 1, 2
+# data.userdata: [characters typed so far, text length, latched "down" flag per key..., text char codes...]
+_U_DONE, _U_LEN, _U_DOWN = 0, 1, 2
+_U_TEXT = _U_DOWN + len(KEYS)
 
 
 def _keycap_body(key: str) -> str:
     return f"key_{key}"
 
 
+def key_for(char: str) -> str:
+    """Key that types `char` (case-insensitive; " " is SPACE). Raises ValueError if the keyboard has none."""
+    key = "SPACE" if char == " " else char.upper()
+    if key not in KEYS:
+        raise ValueError(f"no key for {char!r}: the keyboard has A-Z, 0-9 and space")
+    return key
+
+
+def set_text(model: mujoco.MjModel, data: mujoco.MjData, text: str) -> None:
+    """Make `text` the thing to type and clear progress. Letters, digits and spaces, up to MAX_TEXT."""
+    if not 0 < len(text) <= MAX_TEXT:
+        raise ValueError(f"text must be 1-{MAX_TEXT} characters, got {len(text)}")
+    codes = [ord(c) for c in text.upper()]
+    for c in text:
+        key_for(c)
+    data.userdata[_U_DONE] = 0
+    data.userdata[_U_LEN] = len(codes)
+    data.userdata[_U_TEXT:_U_TEXT + MAX_TEXT] = 0
+    data.userdata[_U_TEXT:_U_TEXT + len(codes)] = codes
+
+
+def get_text(model: mujoco.MjModel, data: mujoco.MjData) -> str:
+    n = int(data.userdata[_U_LEN])
+    return "".join(chr(int(c)) for c in data.userdata[_U_TEXT:_U_TEXT + n])
+
+
 # ----------------------------------------------------------------------------- hooks
 def step(model: mujoco.MjModel, data: mujoco.MjData) -> None:
-    """Register key presses (with hysteresis) and advance the word."""
-    word = WORDS[int(data.userdata[_U_WORD])]
+    """Register key presses (with hysteresis) and advance through the text."""
+    text = get_text(model, data)
     for i, key in enumerate(KEYS):
         depth = -data.qpos[model.joint(_keycap_body(key)).qposadr[0]]
         down = data.userdata[_U_DOWN + i]
         if not down and depth > ACTUATE:
             data.userdata[_U_DOWN + i] = 1
             k = int(data.userdata[_U_DONE])
-            if k < len(word) and key == word[k]:
+            if k < len(text) and key == key_for(text[k]):
                 data.userdata[_U_DONE] = k + 1
         elif down and depth < RELEASE:
             data.userdata[_U_DOWN + i] = 0
@@ -84,13 +114,13 @@ def step(model: mujoco.MjModel, data: mujoco.MjData) -> None:
 
 def reset(model: mujoco.MjModel, data: mujoco.MjData, rng: np.random.Generator) -> None:
     data.userdata[:] = 0
-    data.userdata[_U_WORD] = rng.integers(len(WORDS))
+    set_text(model, data, WORDS[rng.integers(len(WORDS))])
 
 
 def progress(model: mujoco.MjModel, data: mujoco.MjData) -> tuple[int, int, str]:
-    word = WORDS[int(data.userdata[_U_WORD])]
+    text = get_text(model, data)
     k = int(data.userdata[_U_DONE])
-    return k, len(word), f'type "{word}": press {word[min(k, len(word) - 1)]}'
+    return k, len(text), f'type "{text}": press {key_for(text[min(k, len(text) - 1)])}'
 
 
 def pressed_keys(model: mujoco.MjModel, data: mujoco.MjData) -> list[str]:
@@ -131,7 +161,7 @@ def _add_label(spec: mujoco.MjSpec, key: str) -> str:
        step=step, reset=reset, progress=progress)
 def build(spec: mujoco.MjSpec) -> None:
     add_floor(spec)
-    spec.nuserdata = _U_DOWN + len(KEYS)
+    spec.nuserdata = _U_TEXT + MAX_TEXT
     world = spec.worldbody
     box, capsule = mujoco.mjtGeom.mjGEOM_BOX, mujoco.mjtGeom.mjGEOM_CAPSULE
 
@@ -174,8 +204,10 @@ def build(spec: mujoco.MjSpec) -> None:
     side, length = STYLUS_HANDLE
     tip_r, tip_len = STYLUS_TIP
     half = (HOLDER_INNER + HOLDER_WALL) / 2
+    yaw = np.radians(STYLUS_YAW)
+    quat = [np.cos(yaw / 2), 0, 0, np.sin(yaw / 2)]
     for arm, (hx, hy) in STYLUS_POS.items():
-        holder = world.add_body(name=f"stylus_holder_{arm}", pos=[hx, hy, TABLE_TOP_Z + HOLDER_H / 2])
+        holder = world.add_body(name=f"stylus_holder_{arm}", pos=[hx, hy, TABLE_TOP_Z + HOLDER_H / 2], quat=quat)
         for sx, sy, size in ((1, 0, [HOLDER_WALL / 2, half + HOLDER_WALL / 2, HOLDER_H / 2]),
                              (-1, 0, [HOLDER_WALL / 2, half + HOLDER_WALL / 2, HOLDER_H / 2]),
                              (0, 1, [half - HOLDER_WALL / 2, HOLDER_WALL / 2, HOLDER_H / 2]),
@@ -183,11 +215,12 @@ def build(spec: mujoco.MjSpec) -> None:
             holder.add_geom(type=box, size=size, pos=[sx * half, sy * half, 0], rgba=[0.3, 0.3, 0.32, 1])
 
         # Stylus frame: the tip end of the handle; handle up, tip down.
-        st = world.add_body(name=f"stylus_{arm}", pos=[hx, hy, TABLE_TOP_Z + tip_len + 0.002])
+        st = world.add_body(name=f"stylus_{arm}", pos=[hx, hy, TABLE_TOP_Z + tip_len + 0.002], quat=quat)
         st.add_freejoint(name=f"stylus_{arm}")
+        # solref 2 ms (the stiffest the 1 ms step allows): a pinched handle creeps ~25% less than at 4 ms
         st.add_geom(name=f"stylus_{arm}_handle", type=box, size=[side / 2, side / 2, length / 2],
                     pos=[0, 0, length / 2], mass=STYLUS_MASS * 0.85, friction=[1.0, 0.02, 0.001], condim=4,
-                    rgba=[0.15, 0.4, 0.8, 1])
+                    solref=[0.002, 1.0], rgba=[0.15, 0.4, 0.8, 1])
         st.add_geom(name=f"stylus_{arm}_tip", type=capsule, size=[tip_r, (tip_len - 2 * tip_r) / 2, 0],
                     pos=[0, 0, -tip_len / 2], mass=STYLUS_MASS * 0.15,
                     friction=[1.0, 0.02, 0.001], condim=4, rgba=[0.1, 0.1, 0.1, 1])
