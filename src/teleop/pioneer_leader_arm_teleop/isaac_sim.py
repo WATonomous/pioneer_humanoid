@@ -164,7 +164,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     initial_targets, initial_grip = reset_all(initial_angles)
     controls = LeaderControlWindow(LEFT_ARM_JOINTS, mapping.signs, initial_targets, initial_grip)
     controls.update(initial_angles, initial_targets, initial_grip)
-    record_status = RecordingStatusWindow(recorder.num_episodes) if recorder is not None else None
+    record_status = RecordingStatusWindow() if recorder is not None else None
     if record_status is not None:
         record_status.update(recording=False, saved=recorder.num_recorded_episodes, frames=0, pending=0)
     wrist_preview = None
@@ -182,9 +182,6 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     clock = WallClock(sim_dt)
     try:
         while simulation_app.is_running():
-            if recorder is not None and recorder.is_complete:
-                print("[RECORD] Session complete.")
-                break
             angles = leader.read()
             if reset_requested["v"]:
                 reset_requested["v"] = False

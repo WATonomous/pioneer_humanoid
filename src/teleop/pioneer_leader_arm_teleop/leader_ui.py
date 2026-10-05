@@ -163,15 +163,12 @@ class WristCameraWindow:
 
 
 class RecordingStatusWindow:
-    """Large unambiguous recorder state: ready, recording, saving, or complete."""
+    """Large unambiguous recorder state that never stops at an episode count."""
 
     _READY = {"background_color": 0xFF505050, "border_radius": 8}
     _RECORDING = {"background_color": 0xFF3030D0, "border_radius": 8}
     _SAVING = {"background_color": 0xFF2070C0, "border_radius": 8}
-    _COMPLETE = {"background_color": 0xFF308030, "border_radius": 8}
-
-    def __init__(self, total: int):
-        self.total = int(total)
+    def __init__(self):
         self.window = ui.Window("Recording Status", width=430, height=125)
         with self.window.frame:
             with ui.ZStack(style={"margin": 8}):
@@ -191,11 +188,7 @@ class RecordingStatusWindow:
                     )
 
     def update(self, *, recording: bool, saved: int, frames: int, pending: int) -> None:
-        if saved >= self.total:
-            self._background.style = self._COMPLETE
-            self._state.text = "COMPLETE"
-            self._detail.text = f"{saved} demos saved"
-        elif recording:
+        if recording:
             self._background.style = self._RECORDING
             self._state.text = "● RECORDING"
             self._detail.text = f"{saved} saved  ·  {frames} frames captured  ·  N to save"
