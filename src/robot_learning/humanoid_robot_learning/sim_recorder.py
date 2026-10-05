@@ -2,9 +2,12 @@
 from __future__ import annotations
 
 import queue
+import os
+import shutil
 import subprocess
 import threading
 import time
+import uuid
 from pathlib import Path
 from typing import Any, Callable
 
@@ -186,11 +189,14 @@ class SimLeRobotRecorder:
         if flags.remove:
             self.cancel_recording()
             flags.remove = False
+        if flags.undo:
+            self.discard_last_saved_episode()
+            flags.undo = False
         if flags.success:
-            self.save_episode()
+            saved = self.save_episode()
             flags.success = False
             flags.start = False
-            return True
+            return saved
         if flags.start:
             now = time.monotonic()
             if now - self._last_frame_t >= self._frame_period:
@@ -205,6 +211,16 @@ class SimLeRobotRecorder:
     def num_buffered_frames(self) -> int:
         """Frames in the current (unsaved) episode."""
         return self._current_frame
+
+    @property
+    def is_recording(self) -> bool:
+        """Whether S has armed frame capture for the current episode."""
+        return bool(self._flags is not None and self._flags.start)
+
+    @property
+    def num_pending_episodes(self) -> int:
+        """Episodes queued or currently being written by the background worker."""
+        return int(self._episode_queue.unfinished_tasks)
 
     @property
     def is_complete(self) -> bool:
@@ -257,7 +273,11 @@ class SimLeRobotRecorder:
         if root.exists():
             try:
                 self.dataset = LeRobotDataset(self.repo_id, root=root)
-                print(f"[INFO]: Opened existing dataset at {root}")
+                self.num_recorded_episodes = int(self.dataset.num_episodes)
+                print(
+                    f"[INFO]: Opened existing dataset at {root} "
+                    f"({self.num_recorded_episodes} episode(s) already saved)"
+                )
                 return
             except Exception as exc:
                 raise ValueError(
@@ -389,14 +409,14 @@ class SimLeRobotRecorder:
                 )
             self._free_slots.put(slot)
 
-    def save_episode(self) -> None:
+    def save_episode(self) -> bool:
         """Copy the episode into a reusable pinned CPU slot and enqueue it.
 
         Blocks while both CPU slots are in flight (writer backpressure).
         """
         if self._action_buf is None:
             print("[WARN]: save_episode called with no buffered frames, skipping")
-            return
+            return False
         if self._free_slots.empty():
             print("[INFO]: Waiting for a free episode slot (writer catching up)...")
         slot = self._free_slots.get()
@@ -418,11 +438,82 @@ class SimLeRobotRecorder:
         self._episode_queue.put(slot)
         self._clear_buffers()
         print("[INFO]: Episode queued for saving.")
+        return True
 
     def cancel_recording(self) -> None:
         """Discard the current episode buffer without saving."""
         self._clear_buffers()
         print("[INFO]: Recording cancelled.")
+
+    def discard_last_saved_episode(self) -> bool:
+        """Remove the most recently saved episode and reopen the dataset in place.
+
+        LeRobot v3 stores multiple episodes in shared parquet/video chunks, so removing a saved
+        episode must rebuild those chunks.  The rebuilt dataset is prepared beside the original,
+        validated, then atomically swapped into place; the original remains available as a backup
+        until the replacement has opened successfully.
+        """
+        self._episode_queue.join()
+        total = int(self.dataset.num_episodes)
+        if total <= 0:
+            print("[WARN]: D pressed but there are no saved episodes to discard.")
+            return False
+
+        root = self.dataset_root
+        token = uuid.uuid4().hex[:8]
+        replacement = root.parent / f".{root.name}.discard-replacement-{token}"
+        backup = root.parent / f".{root.name}.discard-backup-{token}"
+        print(f"[INFO]: Removing saved episode {total}; rebuilding dataset metadata/videos...")
+
+        try:
+            if total == 1:
+                from lerobot.datasets.lerobot_dataset import LeRobotDataset
+
+                new_dataset = LeRobotDataset.create(
+                    self.repo_id,
+                    fps=self.fps,
+                    features=self._build_features(),
+                    root=replacement,
+                    robot_type=self.robot_type,
+                )
+            else:
+                from lerobot.datasets.dataset_tools import delete_episodes
+
+                new_dataset = delete_episodes(
+                    self.dataset,
+                    [total - 1],
+                    output_dir=replacement,
+                    repo_id=self.repo_id,
+                )
+
+            # Release the old reader before the directory swap.  os.replace keeps both rename
+            # operations on the same filesystem, so there is no partially-copied live dataset.
+            self.dataset = None
+            os.replace(root, backup)
+            os.replace(replacement, root)
+
+            from lerobot.datasets.lerobot_dataset import LeRobotDataset
+
+            self.dataset = LeRobotDataset(self.repo_id, root=root) if total > 1 else new_dataset
+            if total == 1:
+                # LeRobot's empty freshly-created dataset is usable for appending but cannot be
+                # reopened until its first replacement episode is saved.
+                self.dataset.root = root
+                self.dataset.meta.root = root
+            self.num_recorded_episodes = total - 1
+            shutil.rmtree(backup)
+            print(f"[INFO]: Discarded saved episode {total}; {self.num_recorded_episodes} remain.")
+            return True
+        except Exception:
+            if not root.exists() and backup.exists():
+                os.replace(backup, root)
+            if replacement.exists():
+                shutil.rmtree(replacement)
+            if self.dataset is None:
+                from lerobot.datasets.lerobot_dataset import LeRobotDataset
+
+                self.dataset = LeRobotDataset(self.repo_id, root=root)
+            raise
 
     def _clear_buffers(self) -> None:
         self._action_buf = None

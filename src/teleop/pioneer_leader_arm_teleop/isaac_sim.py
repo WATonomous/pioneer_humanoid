@@ -9,10 +9,10 @@
     G (servo ID 6) -> gripper (starts open at 41.5 deg, closes toward 0)
 
 Leader angles map 1:1 from its calibrated hanging pose (calibrate_leader.py), clamped to the URDF
-limits. The arm starts at home (elbow bent 90 deg) and follows once the leader is within 3 deg of
-home (see leader_mapping.py). Leader torque is always off; it is an input device only.
+limits. There is no home gate: the simulated arm follows every valid leader reading immediately.
+Leader torque is always off; it is an input device only.
 
-  R   reset the arm and every object in the scene; bring the leader back to home to resume
+  R   reset task objects and snap the simulated left arm to the leader's current physical pose
 
 Recording (--record, src/robot_learning/config/dataset_schema_pioneer_v1.yaml), 25 fps = every
 4th physics step. Keys S start, N save (then auto-reset), D discard:
@@ -31,6 +31,7 @@ from isaaclab.app import AppLauncher
 # in the image; this fallback keeps a bare bind-mounted checkout working.
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "pioneer_humanoid"))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "robot_learning"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "simulation" / "isaac_scenes"))
 
 from humanoid_robot_learning.sim_teleop_record import (  # noqa: E402
     add_record_args,
@@ -83,6 +84,7 @@ from pioneer_humanoid.bimanual_arm import (
     resolve_joint_name,
 )
 from humanoid_isaac_scenes import list_scenes, make_scene_cfg, scene_camera, scene_post_init
+from leader_ui import LeaderControlWindow, RecordingStatusWindow, WristCameraWindow
 
 
 def _joint_ids(robot, names: list[str]) -> list[int]:
@@ -140,9 +142,13 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         omni.appwindow.get_default_app_window().get_keyboard(), _on_kb
     )
 
-    def reset_all():
-        """Arm and every rigid object back to their defaults; the arm waits for the leader at home."""
-        robot.write_joint_state_to_sim(default_pos, default_vel)
+    def reset_all(angles=None):
+        """Reset scene objects while keeping the simulated left arm matched to the leader."""
+        target_list, grip = mapping.snap(leader.read() if angles is None else angles)
+        matched_pos = default_pos.clone()
+        matched_pos[:, arm_ids] = torch.tensor([target_list], device=sim.device)
+        matched_pos[:, gripper_ids] = torch.lerp(gripper_open, gripper_closed, grip)
+        robot.write_joint_state_to_sim(matched_pos, default_vel)
         robot.reset()
         for obj in scene.rigid_objects.values():
             root = obj.data.default_root_state.clone()
@@ -150,9 +156,27 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             obj.write_root_pose_to_sim(root[:, :7])
             obj.write_root_velocity_to_sim(root[:, 7:])
             obj.reset()
-        mapping.reset()
+        return target_list, grip
 
-    print("[INFO] Leader calibrated (hanging = 0). Move it to home: elbow bent 90 deg, forearm forward, gripper open. R = reset.", flush=True)
+    # Do not spawn at the URDF's bent-elbow default.  At launch, the simulated
+    # left arm starts at the current calibrated physical leader pose.
+    initial_angles = leader.read()
+    initial_targets, initial_grip = reset_all(initial_angles)
+    controls = LeaderControlWindow(LEFT_ARM_JOINTS, mapping.signs, initial_targets, initial_grip)
+    controls.update(initial_angles, initial_targets, initial_grip)
+    record_status = RecordingStatusWindow(recorder.num_episodes) if recorder is not None else None
+    if record_status is not None:
+        record_status.update(recording=False, saved=recorder.num_recorded_episodes, frames=0, pending=0)
+    wrist_preview = None
+    wrist_spec = _record.images.get("wrist_left")
+    if wrist_spec is not None:
+        wrist_preview = WristCameraWindow(int(wrist_spec["width"]), int(wrist_spec["height"]))
+    print(
+        "[INFO] Direct leader matching active (straight/resting calibration = 0). "
+        "R resets the scene and keeps the arm matched to the current physical pose. "
+        "Live direction/default controls are open in a separate window.",
+        flush=True,
+    )
 
     physics_step = 0
     clock = WallClock(sim_dt)
@@ -161,16 +185,36 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             if recorder is not None and recorder.is_complete:
                 print("[RECORD] Session complete.")
                 break
+            angles = leader.read()
             if reset_requested["v"]:
                 reset_requested["v"] = False
                 if recorder is not None and recorder.num_buffered_frames > 0:
                     # Frames either side of a reset are not one demo: drop the take, keep recording.
                     recorder.cancel_recording()
-                    print("[RECORD] Reset mid-episode: take discarded, recording restarts from home.")
-                reset_all()
-                print("\n[LEADER] Arm and scene reset; bring the leader back to home.", flush=True)
+                    print("[RECORD] Reset mid-episode: take discarded.")
+                reset_all(angles)
+                print("\n[LEADER] Scene reset; arm matched to the current physical leader pose.", flush=True)
 
-            target_list, grip = mapping.update(leader.read())
+            action = controls.pop_action()
+            while action is not None:
+                kind = action[0]
+                try:
+                    if kind == "directions":
+                        mapping.set_directions(angles, action[1])
+                        controls.set_status("Directions applied. Current simulated pose was preserved.")
+                    elif kind == "defaults":
+                        mapping.set_directions(angles, action[1])
+                        mapping.set_current_pose_defaults(angles, action[2], action[3])
+                        controls.set_status("Held physical pose now maps to the displayed defaults.")
+                    elif kind == "clear":
+                        mapping.set_directions(angles, action[1])
+                        mapping.clear_runtime_zero(angles)
+                        controls.set_status("Live zero cleared; using the saved encoder calibration.")
+                except ValueError as exc:
+                    controls.set_status(f"Could not apply settings: {exc}")
+                action = controls.pop_action()
+
+            target_list, grip = mapping.update(angles)
             target = torch.tensor([target_list], device=sim.device)
 
             robot.set_joint_position_target(target, joint_ids=arm_ids)
@@ -182,7 +226,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             robot.set_joint_position_target(held_gripper_open, joint_ids=held_gripper_ids)
             robot.set_joint_velocity_target(zero_gripper_vel, joint_ids=held_gripper_ids)
 
-            # No frames until the leader is at home: a take starts from home.
+            # Record at the schema rate while an episode is active.
             if recorder is not None and mapping.engaged and physics_step % record_every == 0:
                 finger_q = robot.data.joint_pos[:, gripper_ids]
                 closure = (
@@ -199,16 +243,35 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                 )
                 if saved:
                     reset_all()
-                    print("[RECORD] Episode saved; arm and scene reset.", flush=True)
+                    print("[RECORD] Episode saved; scene reset and arm matched to leader.", flush=True)
 
             scene.write_data_to_sim()
             sim.step()
             physics_step += 1
             scene.update(sim_dt)
 
+            # Update the lightweight UI at 25 Hz.  The wrist image reuses the recording camera's
+            # existing tensor, so this does not create a second renderer or alter saved frames.
+            if physics_step % 4 == 0:
+                controls.update(angles, target_list, grip)
+                if record_status is not None:
+                    record_status.update(
+                        recording=recorder.is_recording,
+                        saved=recorder.num_recorded_episodes,
+                        frames=recorder.num_buffered_frames,
+                        pending=recorder.num_pending_episodes,
+                    )
+                if wrist_preview is not None:
+                    wrist_preview.update(scene["record_cam_wrist_left"].data.output["rgb"][0])
+
             leader.report(mapping)
             clock.wait()
     finally:
+        controls.close()
+        if record_status is not None:
+            record_status.close()
+        if wrist_preview is not None:
+            wrist_preview.close()
         leader.close()
         print("\n[INFO] Stopped. Leader torque is OFF.", flush=True)
         # Also on errors: flushes episodes still being written in the background.

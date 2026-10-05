@@ -11,9 +11,9 @@ That is the URDF zero, the real arm's calibrated zero, and the leader's (`calibr
 | Servo | Bus ID | Sim joint | Default sign |
 |-------|--------|-----------|--------------|
 | A | 2 | `joint1L` shoulder flexion | +1 |
-| B | 3 | `joint2l` shoulder abduction | −1 |
+| B | 3 | `joint2l` shoulder abduction | +1 |
 | C | 1 | `joint3l` shoulder rotation | −1 |
-| D | 5 | `joint4l` elbow flexion | +1 |
+| D | 5 | `joint4l` elbow flexion | −1 |
 | E | 4 | `joint5l` forearm rotation | +1 |
 | F | 7 | `joint6l` wrist | −1 |
 | G | 6 | gripper (41.5° open → 0° closed) | +1 |
@@ -70,10 +70,24 @@ python pioneer_leader_arm_teleop.py --target mujoco --scene peg_insert   # macOS
 
 Scenes: `bare`, `peg_insert`, `zip_tie`, `drawer_stow`, `matcha`, `duplo`, or any scene in `humanoid_mujoco_scenes` (see `src/simulation/mujoco_scenes/`).
 
-- **Home:** the arm starts at home (elbow bent 90°, forearm forward, gripper open) and follows the leader only once every leader joint is within 3° of home and the gripper is open. The status line lists the joints still off.
-- **Directions:** move one leader joint at a time. If a sim joint goes the wrong way, restart with that entry flipped in `--signs` (order A..G, default `1,-1,-1,1,1,-1,1`).
-- **R:** reset the arm and every object in the scene; the arm waits at home until the leader is back at home. During a take, it also discards the take.
-- **`--record`:** `S` start · `N` save (then auto-reset) · `D` discard → `<repo>/datasets/pioneer_v1_left_arm/sim/` · `--cameras ego,wrist_left` / `none`.
+- **Launch:** with the physical leader in its calibrated straight/resting pose, the simulated left arm starts in that same pose and follows every joint immediately. There is no home-position gate or re-zero.
+- **Live controls:** the **Leader Arm Controls** window shows physical and target angles. Toggle any
+  **Inverted** box and click **Apply directions**; the current sim pose is preserved, so it does not
+  jump while the direction changes. Enter desired angles and click **Held pose → defaults** to map
+  the physical pose you are holding to those values. **Held pose → all zero** is the quick live-zero;
+  **Use saved calibration** removes that live offset. No restart is required.
+- **Directions:** the startup direction order A..G is `1,1,-1,-1,1,-1,1`; `--signs` can still
+  override it from the command line.
+- **Wrist preview:** recording with `--cameras ego,wrist_left` opens a small **Left Wrist Camera**
+  window using the exact wrist frames that are written into the dataset.
+- **Recording status:** a separate color-coded window shows **READY**, **● RECORDING** (with live
+  frame count), **SAVING**, or **COMPLETE**, plus the number of demos saved.
+- **R:** reset every task object while snapping the simulated left arm to the leader's current physical pose. Move the physical leader to the bent-90° start pose first, then press R. During a take, R also discards that take.
+- **`--record`:** `S` start · `N` save (then auto-reset) · `D` while recording discards the
+  current take; `D` while READY removes the most recently saved demo and decrements the counter.
+   Saved-demo removal can take several seconds because LeRobot rebuilds its shared video/parquet
+   chunks. Output goes to `<repo>/datasets/pioneer_v1_left_arm/sim/`; use
+   `--cameras ego,wrist_left` / `none`.
 - **Multi-step scenes** (`drawer_stow`, `matcha`, `duplo`): the terminal prints `[TASK] step k/n: <instruction>` as each step is done and
   `all steps done -- N to save` at the end. Recorded frames carry the current step's instruction as their `task` and a
   `subtask_index`, so a take is labelled step by step with no hand annotation.

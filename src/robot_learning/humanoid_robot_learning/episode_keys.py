@@ -16,6 +16,7 @@ class EpisodeFlags:
     start: bool = False
     success: bool = False
     remove: bool = False
+    undo: bool = False
     abort: bool = False
 
 
@@ -62,8 +63,15 @@ class EpisodeKeyboard:
                     self.flags.success = True
                     logger.info("[N] Mark episode complete.")
                 elif c == "d":
-                    self.flags.remove = True
-                    logger.info("[D] Discard episode buffer.")
+                    # While red, D discards the active take.  While idle, it undoes the most
+                    # recently saved take.  In both cases return to READY.
+                    if self.flags.start:
+                        self.flags.remove = True
+                    else:
+                        self.flags.undo = True
+                    self.flags.start = False
+                    self.flags.success = False
+                    logger.info("[D] Discard current or most recently saved episode.")
             except Exception:
                 logger.exception("Keyboard callback error")
 
