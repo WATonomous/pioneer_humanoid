@@ -1,6 +1,6 @@
 # Motion Tracking
 
-**Repository:** [motion_tracking_watonomous](https://github.com/JasonLiang12321/motion_tracking_watonomous)
+**Repository:** [motion_tracking_watonomous](https://github.com/WATonomous/Humanoid_motion_tracking)
 
 A pipeline that takes a recording of a human performing a motion and trains the WATonomous (Wato) humanoid to reproduce it in physics simulation.
 
@@ -27,4 +27,4 @@ Any motion can be used: walking, dancing, boxing and so on. The pipeline has bee
 
 ## Getting started
 
-See the repository's [README](https://github.com/JasonLiang12321/motion_tracking_watonomous#readme) for installation, the full pipeline command, and example training and evaluation commands.
+See the repository's [README](https://github.com/WATonomous/Humanoid_motion_tracking#readme) for installation, the full pipeline command, and example training and evaluation commands.
