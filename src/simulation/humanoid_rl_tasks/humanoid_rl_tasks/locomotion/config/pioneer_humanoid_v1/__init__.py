@@ -2,105 +2,11 @@ import gymnasium as gym
 
 from . import agents
 
+# Intermediate configuration classes supply the final recipe's inheritance,
+# but only the final new rough recipe and stairs scaffold are public tasks.
 _ENVS = (
     ("Rough", "rough_env_cfg:PioneerHumanoidRoughEnvCfg", "PioneerHumanoidRoughPPORunnerCfg", ""),
     ("Rough", "rough_env_cfg:PioneerHumanoidRoughEnvCfg_PLAY", "PioneerHumanoidRoughPPORunnerCfg", "-Play"),
-    (
-        "RoughNoStairs",
-        "rough_env_cfg:PioneerHumanoidRoughNoStairsEnvCfg",
-        "PioneerHumanoidRoughNoStairsPPORunnerCfg",
-        "",
-    ),
-    (
-        "RoughNoStairs",
-        "rough_env_cfg:PioneerHumanoidRoughNoStairsEnvCfg_PLAY",
-        "PioneerHumanoidRoughNoStairsPPORunnerCfg",
-        "-Play",
-    ),
-    (
-        "RoughNoStairsGaitTune",
-        "rough_env_cfg:PioneerHumanoidRoughNoStairsGaitTuneEnvCfg",
-        "PioneerHumanoidRoughNoStairsPPORunnerCfg",
-        "",
-    ),
-    (
-        "RoughNoStairsGaitTune",
-        "rough_env_cfg:PioneerHumanoidRoughNoStairsGaitTuneEnvCfg_PLAY",
-        "PioneerHumanoidRoughNoStairsPPORunnerCfg",
-        "-Play",
-    ),
-    (
-        "RoughNoStairsFootTune",
-        "rough_env_cfg:PioneerHumanoidRoughNoStairsFootTuneEnvCfg",
-        "PioneerHumanoidRoughNoStairsPPORunnerCfg",
-        "",
-    ),
-    (
-        "RoughNoStairsFootTune",
-        "rough_env_cfg:PioneerHumanoidRoughNoStairsFootTuneEnvCfg_PLAY",
-        "PioneerHumanoidRoughNoStairsPPORunnerCfg",
-        "-Play",
-    ),
-    (
-        "RoughNoStairsFootTuneFine",
-        "rough_env_cfg:PioneerHumanoidRoughNoStairsFootTuneFineEnvCfg",
-        "PioneerHumanoidRoughNoStairsPPORunnerCfg",
-        "",
-    ),
-    (
-        "RoughNoStairsFootTuneFine",
-        "rough_env_cfg:PioneerHumanoidRoughNoStairsFootTuneFineEnvCfg_PLAY",
-        "PioneerHumanoidRoughNoStairsPPORunnerCfg",
-        "-Play",
-    ),
-    (
-        "RoughNoStairsFootTuneFineNormalizedScratch",
-        "rough_env_cfg:PioneerHumanoidRoughNoStairsFootTuneFineEnvCfg",
-        "PioneerHumanoidRoughNoStairsFootTuneFineNormalizedScratchPPORunnerCfg",
-        "",
-    ),
-    (
-        "RoughNoStairsFootTuneFineNormalizedScratch",
-        "rough_env_cfg:PioneerHumanoidRoughNoStairsFootTuneFineEnvCfg_PLAY",
-        "PioneerHumanoidRoughNoStairsFootTuneFineNormalizedScratchPPORunnerCfg",
-        "-Play",
-    ),
-    (
-        "RoughNoStairsFootTuneFineKneeAxisFixedNormalizedScratch",
-        "rough_env_cfg:PioneerHumanoidRoughNoStairsFootTuneFineKneeAxisFixedEnvCfg",
-        "PioneerHumanoidRoughNoStairsFootTuneFineKneeAxisFixedNormalizedScratchPPORunnerCfg",
-        "",
-    ),
-    (
-        "RoughNoStairsFootTuneFineKneeAxisFixedNormalizedScratch",
-        "rough_env_cfg:PioneerHumanoidRoughNoStairsFootTuneFineKneeAxisFixedEnvCfg_PLAY",
-        "PioneerHumanoidRoughNoStairsFootTuneFineKneeAxisFixedNormalizedScratchPPORunnerCfg",
-        "-Play",
-    ),
-    (
-        "RoughNoStairsKneeAxisFixedLegClearance",
-        "rough_env_cfg:PioneerHumanoidRoughNoStairsKneeAxisFixedLegClearanceEnvCfg",
-        "PioneerHumanoidRoughNoStairsFootTuneFineKneeAxisFixedNormalizedScratchPPORunnerCfg",
-        "",
-    ),
-    (
-        "RoughNoStairsKneeAxisFixedLegClearance",
-        "rough_env_cfg:PioneerHumanoidRoughNoStairsKneeAxisFixedLegClearanceEnvCfg_PLAY",
-        "PioneerHumanoidRoughNoStairsFootTuneFineKneeAxisFixedNormalizedScratchPPORunnerCfg",
-        "-Play",
-    ),
-    (
-        "RoughNoStairsKneeAxisFixedSelectiveSelfCollision",
-        "rough_env_cfg:PioneerHumanoidRoughNoStairsKneeAxisFixedSelectiveSelfCollisionEnvCfg",
-        "PioneerHumanoidRoughNoStairsSelectiveSelfCollisionNormalizedScratchPPORunnerCfg",
-        "",
-    ),
-    (
-        "RoughNoStairsKneeAxisFixedSelectiveSelfCollision",
-        "rough_env_cfg:PioneerHumanoidRoughNoStairsKneeAxisFixedSelectiveSelfCollisionEnvCfg_PLAY",
-        "PioneerHumanoidRoughNoStairsSelectiveSelfCollisionNormalizedScratchPPORunnerCfg",
-        "-Play",
-    ),
     (
         "RoughNoStairsSelectiveKneeShape",
         "rough_env_cfg:PioneerHumanoidRoughNoStairsSelectiveKneeShapeEnvCfg",
