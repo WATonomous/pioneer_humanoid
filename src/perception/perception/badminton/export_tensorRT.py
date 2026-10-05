@@ -26,7 +26,8 @@ def export_trt(weights, imgsz, half, workspace_gb):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--weights", required=True, help="Path to trained .pt weights")
+    parser.add_argument("--weights", required=True,
+                        help="Path to trained .pt weights")
     parser.add_argument("--imgsz", type=int, default=640)
     parser.add_argument(
         "--half",

@@ -107,7 +107,8 @@ if __name__ == "__main__":
     parser.add_argument("--box_thresh", type=float, default=0.35)
     parser.add_argument("--text_thresh", type=float, default=0.25)
     parser.add_argument("--config_path", default="GroundingDINO_SwinT_OGC.py")
-    parser.add_argument("--weights_path", default="groundingdino_swint_ogc.pth")
+    parser.add_argument(
+        "--weights_path", default="groundingdino_swint_ogc.pth")
     args = parser.parse_args()
 
     auto_label(

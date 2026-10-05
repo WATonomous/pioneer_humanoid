@@ -5,7 +5,7 @@ from ultralytics import YOLO
 def train(data_yaml, epochs, imgsz, batch, model_variant):
     model = YOLO(
         model_variant
-    ) 
+    )
 
     results = model.train(
         data=data_yaml,

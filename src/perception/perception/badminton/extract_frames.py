@@ -13,7 +13,8 @@ def extract_frames(input_dir, output_dir, target_fps, blur_thresh):
     output_dir.mkdir(parents=True, exist_ok=True)
 
     video_exts = {".mp4", ".mov", ".avi", ".mkv"}
-    videos = [p for p in input_dir.rglob("*") if p.suffix.lower() in video_exts]
+    videos = [p for p in input_dir.rglob(
+        "*") if p.suffix.lower() in video_exts]
 
     if not videos:
         print(f"No videos found in {input_dir}")
@@ -64,7 +65,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--input_dir", default="data/raw_videos")
     parser.add_argument("--output_dir", default="data/frames")
-    parser.add_argument("--fps", type=float, default=5.0, help="Target sampling rate")
+    parser.add_argument("--fps", type=float, default=5.0,
+                        help="Target sampling rate")
     parser.add_argument(
         "--blur_thresh",
         type=float,

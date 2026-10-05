@@ -39,7 +39,8 @@ def benchmark(engine_path, imgsz, n_iters, n_warmup):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--engine", required=True, help="Path to exported .engine file")
+    parser.add_argument("--engine", required=True,
+                        help="Path to exported .engine file")
     parser.add_argument("--imgsz", type=int, default=640)
     parser.add_argument("--n_iters", type=int, default=200)
     parser.add_argument("--n_warmup", type=int, default=20)

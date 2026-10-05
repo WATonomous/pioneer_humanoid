@@ -64,4 +64,5 @@ if __name__ == "__main__":
     parser.add_argument("--val_frac", type=float, default=0.15)
     args = parser.parse_args()
 
-    split_dataset(args.labeled_dir, args.frames_dir, args.out_dir, args.val_frac)
+    split_dataset(args.labeled_dir, args.frames_dir,
+                  args.out_dir, args.val_frac)
