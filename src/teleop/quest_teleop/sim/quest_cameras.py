@@ -1,7 +1,4 @@
-"""Quest teleop cameras: ego_cam (re-aimed at the headset viewpoint at runtime) and wrist_cam.
-
-Specific to run_quest_bimanual_teleop.py. The robot's own mounted cameras (ego D455, wrist
-cameras) are in pioneer_humanoid.bimanual_arm (mounts in arm_params).
+"""Quest teleop cameras: shared Pioneer ego camera and VR wrist cameras.
 
 Prim paths assume the robot is spawned at ``{ENV_REGEX_NS}/Robot``.
 """
@@ -9,18 +6,13 @@ import math
 
 import isaaclab.sim as sim_utils
 from isaaclab.sensors import CameraCfg
+from pioneer_humanoid.bimanual_arm import make_camera_cfg
 
-# focal_length 18 is ~60deg horizontal; lower it to widen. run_quest_bimanual_teleop.py overwrites
-# ego_cam's at runtime to match the headset's widened RSD455 FOV.
+# VR wrist-camera lens. The ego camera uses the shared Pioneer lens.
 DATA_CAM_LENS = sim_utils.PinholeCameraCfg(
     focal_length=7.336, horizontal_aperture=20.955, vertical_aperture=15.2908,
     clipping_range=(0.01, 100.0),
 )
-
-# ego_cam pose, relative to base_link. Only an initial value in the Quest teleop script, which
-# re-aims ego_cam at the operator's head viewpoint at startup when --record is passed.
-EGO_CAM_POS = (0.047450090928410314, -0.008096717438775313, 0.21180604954921534)
-EGO_CAM_ROT = (0.8660254037844387, 0.49999999999999983, 0.0, 0.0)
 
 # wrist_cam aiming. The two angles are independent: roll spins the image, pitch aims the camera.
 WRIST_CAM_ROLL_DEG = 270.0   # rotates the image counter-clockwise; 90 / 180 / 270
@@ -66,16 +58,7 @@ def make_ego_cam_cfg() -> CameraCfg:
 
     A new instance per call, not a shared constant: InteractiveScene rewrites prim_path in place
     when it resolves {ENV_REGEX_NS}."""
-    return CameraCfg(
-        prim_path="{ENV_REGEX_NS}/Robot/base_link/ego_cam",
-        spawn=DATA_CAM_LENS,
-        offset=CameraCfg.OffsetCfg(pos=EGO_CAM_POS, rot=EGO_CAM_ROT, convention="opengl"),
-        height=480, width=640,
-        # Refresh whenever the app renders. An additional per-camera update_period on top of
-        # that froze this feed on a stale scene state.
-        update_period=0.0,
-        data_types=["rgb"],
-    )
+    return make_camera_cfg("ego", height=480, width=640)
 
 
 # Right wrist cam is the left one mirrored through the robot's XZ plane: position (x,y,z)->
