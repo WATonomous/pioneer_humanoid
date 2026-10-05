@@ -59,3 +59,6 @@ rl-play  --task=Isaac-Repose-Cube-PioneerHand-Play-v0 --num_envs=1
 
 Per-task notes: `humanoid_rl_tasks/humanoid_rl_tasks/<task>/*.md`. Full walkthrough:
 `docker/simulation/isaac_lab/README.md`.
+
+Pioneer humanoid walking: [model4000 baseline and matching playback recipe](humanoid_rl_tasks/humanoid_rl_tasks/locomotion/locomotion.md#frozen-rough-no-stairs-baseline-model4000).
+Stairs research starter: [twelve steps up, a raised walkway, and twelve steps down](humanoid_rl_tasks/humanoid_rl_tasks/locomotion/STAIRS.md).

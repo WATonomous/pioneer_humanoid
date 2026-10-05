@@ -18,6 +18,12 @@ def base_tilt_over_limit(
     return torch.linalg.norm(asset.data.projected_gravity_b[:, :2], dim=1) > limit
 
 
+def height_scan_invalid(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg) -> torch.Tensor:
+    """Terminate an environment when any terrain ray fails to hit a finite point."""
+    sensor = env.scene.sensors[sensor_cfg.name]
+    return ~torch.isfinite(sensor.data.ray_hits_w).all(dim=(1, 2))
+
+
 def terrain_out_of_bounds(
     env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"), distance_buffer: float = 3.0
 ) -> torch.Tensor:
