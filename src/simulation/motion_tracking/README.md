@@ -1,4 +1,4 @@
-# Motion Tracking
+# Pioneer Humanoid Whole Body Motion Tracking
 
 **Repository:** [motion_tracking_watonomous](https://github.com/WATonomous/Humanoid_motion_tracking)
 
