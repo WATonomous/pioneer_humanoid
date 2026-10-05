@@ -29,9 +29,9 @@ The equivalent `Isaac-Locomotion-Stairs-PioneerHumanoid-v0` and
 
 When preparing a PR, include the baseline's robot/asset, selective-collision,
 contact-sensor, and knee-shaping dependencies as well as these stairs files. A
-copy of `stairs_env_cfg.py` alone is not a standalone environment. The selected
-model4000 walking checkpoint is promoted separately under `models/`; keep other
-training outputs, local Docker configuration, native-viewer helpers, and private
+copy of `stairs_env_cfg.py` alone is not a standalone environment. This
+contribution is source-only: keep trained checkpoints, policy exports, training
+outputs, local Docker configuration, native-viewer helpers, and private
 experiment results out of the PR.
 
 ## Starting terrain and commands
@@ -102,8 +102,8 @@ python3 -m unittest discover \
   -p 'test_stair*.py' -v
 ```
 
-Hosts without Torch run 28 source/geometry tests and skip five episode-logic
-tests. To run all 33 on CPU, use the provided image's Python inside the container
+Hosts without Torch run 29 source/geometry tests and skip five episode-logic
+tests. To run all 34 on CPU, use the provided image's Python inside the container
 (this does not start Isaac, so it is safe while a training job runs):
 
 ```bash
@@ -245,3 +245,8 @@ terrain-contact sensor data, then exited successfully. On this local WSL setup,
 graphics initialization and CUDA shutdown warnings were logged despite the
 completed headless physics assertions. This does not validate Docker GUI
 rendering, stair traversal, or long-running training stability.
+
+The source-only scope cleanup on the same date passed all 64 CPU tests (34 stairs,
+26 knee-shaping, and four numerical-guard tests), including the additional
+contract limiting public tasks to Flat, Rough, the final selective-knee recipe,
+and Stairs. Reward weights, robot physics, and the final PPO recipe were unchanged.

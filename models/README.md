@@ -10,7 +10,6 @@ travel with the repo.
 | `pioneer_hand_cube/` | `Isaac-Repose-Cube-PioneerHand-v0` | in-hand reorientation (`model_6600.pt`) |
 | `pioneer_humanoid_flat/` | `Isaac-Locomotion-Flat-PioneerHumanoid-v0` | flat-ground walking (`model_3900.pt`) |
 | `pioneer_humanoid_rough/` | `Isaac-Locomotion-Rough-PioneerHumanoid-v0` | rough-terrain walking (`model_2999.pt`) |
-| [`pioneer_humanoid_rough_no_stairs_selective_knee_shape/`](pioneer_humanoid_rough_no_stairs_selective_knee_shape/README.md) | `Isaac-Locomotion-RoughNoStairsSelectiveKneeShape-PioneerHumanoid-v0` | normalized non-stair rough baseline (`model_4000.pt`), 19 active rewards; known stepping asymmetry |
 | `badminton_teacher/` | `Mjlab-Badminton-Receive-Teacher` | privileged-state receive teacher (`model_5996.pt`), 98.5% bank hits |
 | `badminton_student_ppo/` | `Mjlab-Badminton-Receive-Student-PPO` | EKF-perception receive policy (`model_4997.pt`), 98.8% bank hits, 78% net clearance; the deployable one |
 
