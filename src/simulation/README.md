@@ -18,6 +18,7 @@ src/simulation/
 │   └── humanoid_mujoco_scenes/ #   bare/  peg_insert/
 ├── so101_vial_task/        # SO101 imitation-learning task
 └── badminton/              # mjlab (MuJoCo Warp) badminton receive RL — see badminton/README.md
+└── whole_body_motion_tracking/ #Links to whole body motion tracking pipeline
 ```
 
 Robot URDF/USD/meshes and scene props live at the repo-root **`assets/`** (backend-neutral —
