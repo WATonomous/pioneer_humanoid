@@ -169,7 +169,7 @@ class RecordingStatusWindow:
     _RECORDING = {"background_color": 0xFF3030D0, "border_radius": 8}
     _SAVING = {"background_color": 0xFF2070C0, "border_radius": 8}
     def __init__(self):
-        self.window = ui.Window("Recording Status", width=430, height=125)
+        self.window = ui.Window("Recording Status", width=540, height=125)
         with self.window.frame:
             with ui.ZStack(style={"margin": 8}):
                 self._background = ui.Rectangle(style=self._READY)
@@ -187,11 +187,23 @@ class RecordingStatusWindow:
                         style={"font_size": 17, "color": 0xFFFFFFFF},
                     )
 
-    def update(self, *, recording: bool, saved: int, frames: int, pending: int) -> None:
+    def update(
+        self,
+        *,
+        recording: bool,
+        saved: int,
+        frames: int,
+        pending: int,
+        elapsed: float,
+        repeated: int,
+    ) -> None:
         if recording:
             self._background.style = self._RECORDING
             self._state.text = "● RECORDING"
-            self._detail.text = f"{saved} saved  ·  {frames} frames captured  ·  N to save"
+            self._detail.text = (
+                f"{saved} saved  ·  {elapsed:.1f}s / {frames} frames  ·  "
+                f"{repeated} held  ·  N to save"
+            )
         elif pending:
             self._background.style = self._SAVING
             self._state.text = "SAVING…"

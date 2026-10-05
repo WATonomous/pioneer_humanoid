@@ -95,7 +95,13 @@ def _joint_ids(robot, names: list[str]) -> list[int]:
 def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     robot = scene["robot"]
     sim_dt = sim.get_physics_dt()
-    recorder, record_every = make_sim_recorder(args_cli, _record, device=sim.device, sim_dt=sim_dt)
+    recorder, _ = make_sim_recorder(
+        args_cli,
+        _record,
+        device=sim.device,
+        sim_dt=sim_dt,
+        wall_clock_resample=True,
+    )
     if recorder is not None:
         print("[RECORD] Keys: S=start, N=save episode (then reset), D=discard")
         recorder.start_keyboard()
@@ -166,7 +172,14 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     controls.update(initial_angles, initial_targets, initial_grip)
     record_status = RecordingStatusWindow() if recorder is not None else None
     if record_status is not None:
-        record_status.update(recording=False, saved=recorder.num_recorded_episodes, frames=0, pending=0)
+        record_status.update(
+            recording=False,
+            saved=recorder.num_recorded_episodes,
+            frames=0,
+            pending=0,
+            elapsed=0.0,
+            repeated=0,
+        )
     wrist_preview = None
     wrist_spec = _record.images.get("wrist_left")
     if wrist_spec is not None:
@@ -223,8 +236,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             robot.set_joint_position_target(held_gripper_open, joint_ids=held_gripper_ids)
             robot.set_joint_velocity_target(zero_gripper_vel, joint_ids=held_gripper_ids)
 
-            # Record at the schema rate while an episode is active.
-            if recorder is not None and mapping.engaged and physics_step % record_every == 0:
+            # The recorder builds a fixed 25 Hz timeline from wall time.  Calling it every loop
+            # lets it hold frames when Isaac renders slowly instead of shortening the episode.
+            if recorder is not None and mapping.engaged:
                 finger_q = robot.data.joint_pos[:, gripper_ids]
                 closure = (
                     ((finger_q - gripper_open) / (gripper_closed - gripper_open))
@@ -257,6 +271,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                         saved=recorder.num_recorded_episodes,
                         frames=recorder.num_buffered_frames,
                         pending=recorder.num_pending_episodes,
+                        elapsed=recorder.capture_elapsed_s,
+                        repeated=recorder.num_repeated_frames,
                     )
                 if wrist_preview is not None:
                     wrist_preview.update(scene["record_cam_wrist_left"].data.output["rgb"][0])

@@ -83,6 +83,10 @@ Scenes: `bare`, `peg_insert`, `zip_tie`, `drawer_stow`, `matcha`, `duplo`, or an
 - **Recording status:** a separate color-coded window shows **READY**, **● RECORDING** (with live
   frame count), or **SAVING**, plus the number of demos saved. Reaching `--num_episodes` does not
   close Isaac; you can continue recording additional demos until you close it yourself.
+- **Real-time recording:** leader-arm episodes are resampled against wall time at 25 Hz. If Isaac
+  renders below 25 Hz, the previous synchronized camera/state/action sample is held for missed
+  timestamps instead of shortening and speeding up the saved demonstration. The status window
+  shows elapsed time and the number of held frames.
 - **R:** reset every task object while snapping the simulated left arm to the leader's current physical pose. Move the physical leader to the bent-90° start pose first, then press R. During a take, R also discards that take.
 - **`--record`:** `S` start · `N` save (then auto-reset) · `D` while recording discards the
   current take; `D` while READY removes the most recently saved demo and decrements the counter.

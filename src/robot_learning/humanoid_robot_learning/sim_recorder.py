@@ -110,6 +110,7 @@ class SimLeRobotRecorder:
         robot_type: str = "so101_follower",
         extra_features: dict[str, list[str]] | None = None,
         rate_limit: bool = True,
+        wall_clock_resample: bool = False,
     ) -> None:
         self.fps = fps
         self.save_mp4 = save_mp4
@@ -150,6 +151,10 @@ class SimLeRobotRecorder:
         self._flags: EpisodeFlags | None = None
         self._keyboard: EpisodeKeyboard | None = None
         self._last_frame_t: float = 0.0
+        self._wall_clock_resample = bool(wall_clock_resample)
+        self._record_start_t: float | None = None
+        self._next_frame_t: float | None = None
+        self._repeated_frames = 0
         # rate_limit=False: caller owns the cadence, tick() pushes every call. Use it when the
         # images only change on some ticks (sim rendering every Nth step) -- a second decimator
         # here can't line up with the render gate, and the extra ticks duplicate images.
@@ -192,19 +197,42 @@ class SimLeRobotRecorder:
         if flags.undo:
             self.discard_last_saved_episode()
             flags.undo = False
-        if flags.success:
-            saved = self.save_episode()
-            flags.success = False
-            flags.start = False
-            return saved
         if flags.start:
             now = time.monotonic()
-            if now - self._last_frame_t >= self._frame_period:
+            if self._wall_clock_resample:
+                if self._record_start_t is None:
+                    self._record_start_t = now
+                    self._next_frame_t = now
+                assert self._next_frame_t is not None
+                if now + 1e-9 >= self._next_frame_t:
+                    due = int((now - self._next_frame_t + 1e-9) / (1.0 / self.fps)) + 1
+                    # If Isaac missed output ticks, hold the preceding synchronized sample for
+                    # those timestamps, then append the newest sample.  The resulting fixed-rate
+                    # trajectory has the same duration as wall time instead of playing fast.
+                    repeated = 0
+                    for _ in range(max(0, due - 1)):
+                        if self._repeat_last_frame():
+                            repeated += 1
+                    self._repeated_frames += repeated
+                    resolved_images = images() if callable(images) else images
+                    self.push_frame_to_buffer(
+                        action, state, resolved_images, depth_buffers, instance_id_seg_buffers,
+                        extras=extras, task=task,
+                    )
+                    self._next_frame_t += due / self.fps
+            elif now - self._last_frame_t >= self._frame_period:
                 self._last_frame_t = now
                 resolved_images = images() if callable(images) else images
                 self.push_frame_to_buffer(
                     action, state, resolved_images, depth_buffers, instance_id_seg_buffers, extras=extras, task=task
                 )
+        if flags.success:
+            # N arrives between loop ticks. Capture any wall-clock timestamp now due before
+            # closing the take, rather than shortening it by the final render interval.
+            saved = self.save_episode()
+            flags.success = False
+            flags.start = False
+            return saved
         return False
 
     @property
@@ -221,6 +249,16 @@ class SimLeRobotRecorder:
     def num_pending_episodes(self) -> int:
         """Episodes queued or currently being written by the background worker."""
         return int(self._episode_queue.unfinished_tasks)
+
+    @property
+    def capture_elapsed_s(self) -> float:
+        """Wall-clock duration of the active take."""
+        return 0.0 if self._record_start_t is None else max(0.0, time.monotonic() - self._record_start_t)
+
+    @property
+    def num_repeated_frames(self) -> int:
+        """Timeline frames repeated because the simulator produced samples below dataset FPS."""
+        return self._repeated_frames
 
     @property
     def is_complete(self) -> bool:
@@ -417,6 +455,8 @@ class SimLeRobotRecorder:
         if self._action_buf is None:
             print("[WARN]: save_episode called with no buffered frames, skipping")
             return False
+        elapsed = self.capture_elapsed_s
+        repeated = self._repeated_frames
         if self._free_slots.empty():
             print("[INFO]: Waiting for a free episode slot (writer catching up)...")
         slot = self._free_slots.get()
@@ -437,13 +477,36 @@ class SimLeRobotRecorder:
 
         self._episode_queue.put(slot)
         self._clear_buffers()
-        print("[INFO]: Episode queued for saving.")
+        print(
+            f"[INFO]: Episode queued: {n / self.fps:.2f}s dataset timeline from "
+            f"{elapsed:.2f}s wall time ({repeated} held frame(s))."
+        )
         return True
 
     def cancel_recording(self) -> None:
         """Discard the current episode buffer without saving."""
         self._clear_buffers()
         print("[INFO]: Recording cancelled.")
+
+    def _repeat_last_frame(self) -> bool:
+        """Append a zero-order-held copy of the preceding synchronized sample."""
+        if self._current_frame <= 0 or self._current_frame >= self._capacity:
+            return False
+        i = self._current_frame
+        previous = i - 1
+        self._action_buf[i].copy_(self._action_buf[previous])
+        self._obs_buf[i].copy_(self._obs_buf[previous])
+        for name in self.cameras:
+            self._rgb_bufs[name][i].copy_(self._rgb_bufs[name][previous])
+            if self.depth:
+                self._depth_bufs[name][i].copy_(self._depth_bufs[name][previous])
+            if self.instance_id_seg:
+                self._seg_bufs[name][i].copy_(self._seg_bufs[name][previous])
+        for name in self.extra_features:
+            self._extra_bufs[name][i].copy_(self._extra_bufs[name][previous])
+        self._frame_tasks.append(self._frame_tasks[-1])
+        self._current_frame += 1
+        return True
 
     def discard_last_saved_episode(self) -> bool:
         """Remove the most recently saved episode and reopen the dataset in place.
@@ -524,6 +587,9 @@ class SimLeRobotRecorder:
         self._extra_bufs = {}
         self._frame_tasks = []
         self._current_frame = 0
+        self._record_start_t = None
+        self._next_frame_t = None
+        self._repeated_frames = 0
 
     def _async_processor(self) -> None:
         while not self._stop_event.is_set():
