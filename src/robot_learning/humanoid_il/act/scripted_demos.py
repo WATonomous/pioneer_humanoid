@@ -31,12 +31,13 @@ sys.path.insert(0, str(_HERE.parents[2] / "pioneer_humanoid"))
 sys.path.insert(0, str(_HERE.parents[2] / "simulation" / "mujoco_scenes"))
 
 from humanoid_robot_learning.sim_teleop_record import add_record_args, load_record_schema, make_sim_recorder  # noqa: E402
-from ik import FINGERS_BELOW_GRASP, YAW_RANGE, LeftArmIK  # noqa: E402
+from ik import FINGERS_BELOW_GRASP, LeftArmIK  # noqa: E402
 from tidy_sim import CONTROL_DT, RECORD_EVERY, TidySim  # noqa: E402
 
 LEADER_SERVOS = ["A", "B", "C", "D", "E", "F", "G"]   # pioneer_leader_arm_teleop/servo_leader.SERVO_IDS
 OPEN_GAP = 0.0958        # jaw gap fully open (m); closes ~linearly to slightly negative at grip 1
 SPEED = dict(travel=0.12, descend=0.05, lift=0.06, carry=0.10, lower=0.05)
+READY_HEIGHT = 0.18      # finger tips this far above the table at the ready pose (the tallest object is 75 mm)
 
 
 class Abort(Exception):
@@ -73,12 +74,19 @@ class Demo:
         y0 = self.ik.yaw_of(R0)
         dist = max(float(np.linalg.norm(np.asarray(pos) - p0)), abs(yaw - y0) * 0.08, 1e-3)
         n = max(2, int(dist / speed / CONTROL_DT))
-        for i in range(1, n + 1):
+        path = []
+        for i in range(1, n + 1):           # straight line, each step's IK warm-started from the last
             s = i / n
             s = s * s * (3 - 2 * s)
             q, err = self.ik.solve(sim.data.qpos, q, p0 + s * (np.asarray(pos) - p0), y0 + s * (yaw - y0), iters=15)
-            if i == n and err > 0.01:
+            path.append(q)
+        if err > 0.002:                     # stuck in a poor local solution: solve the goal afresh, go joint-space
+            q_goal, err = self.ik.solve_any(sim.data.qpos, [q, sim.target, sim.home], pos, yaw)
+            if err > 0.005:
                 raise Abort(f"pose out of reach ({err * 1000:.0f} mm short)")
+            q_start = sim.target.copy()
+            path = [q_start + (s * s * (3 - 2 * s)) * (q_goal - q_start) for s in np.arange(1, n + 1) / n]
+        for q in path:
             self.tick(q, sim.grip)
 
     def grip(self, target, seconds):
@@ -86,27 +94,40 @@ class Demo:
         for i in range(1, n + 1):
             self.tick(self.sim.target, g0 + (target - g0) * i / n)
 
-    def home(self, seconds=1.5, hold=0.5):
-        q0, q1 = self.sim.target.copy(), self.sim.home
-        n = int(seconds / CONTROL_DT)
+    def joint_move(self, q1, seconds, grip=0.0):
+        q0, n = self.sim.target.copy(), max(1, int(seconds / CONTROL_DT))
         for i in range(1, n + 1):
             s = i / n
-            self.tick(q0 + (s * s * (3 - 2 * s)) * (q1 - q0), 0.0)
+            self.tick(q0 + (s * s * (3 - 2 * s)) * (np.asarray(q1) - q0), grip)
+
+    def ready(self, S, seconds=1.5):
+        """Joint-space to gripper-down high over the zone: home has the gripper pointing forward, and asking for
+        "down" straight from there flips the wrist in one step and sweeps the fingers through the objects."""
+        (x0, x1), (y0, y1) = S.ZONE
+        pos = ((x0 + x1) / 2, (y0 + y1) / 2, S.T + 0.004 + FINGERS_BELOW_GRASP + READY_HEIGHT)
+        q, err = self.ik.solve_any(self.sim.data.qpos, [self.sim.target, self.sim.home], pos, 0.0)
+        if err > 0.005:
+            raise Abort("ready pose out of reach")
+        self.joint_move(q, seconds, self.sim.grip)
+
+    def home(self, seconds=1.5, hold=0.5):
+        self.joint_move(self.sim.home, seconds)
         for _ in range(int(hold / CONTROL_DT)):
-            self.tick(q1, 0.0)
+            self.tick(self.sim.home, 0.0)
 
 
-def grasp_plan(model, data, obj):
+def grasp_plan(model, data, obj, S):
     """(gripper yaw, width across the jaws, object half-height) for a top-down grasp, or Abort."""
     b = model.body(obj["name"]).id
     R = data.xmat[b].reshape(3, 3)
     size = obj["size"]
+    lo, hi = S.grasp_yaw_range(*data.xpos[b][:2])
     if obj["shape"] == "box":
         yaw_b = math.atan2(R[1, 0], R[0, 0])
         options = []
         for k in range(-2, 3):        # any of the box's four sides faces the jaws
             g = math.atan2(math.sin(yaw_b + k * math.pi / 2), math.cos(yaw_b + k * math.pi / 2))
-            if YAW_RANGE[0] <= g <= YAW_RANGE[1]:
+            if lo - 0.02 <= g <= hi + 0.02:
                 options.append((abs(g), g, 2 * (size[1] if k % 2 == 0 else size[0])))
         if not options:
             raise Abort("box turned where the gripper can't follow")
@@ -117,12 +138,25 @@ def grasp_plan(model, data, obj):
         a = math.atan2(ax[1], ax[0])
         yaw = math.atan2(math.sin(a), math.cos(a))
         yaw = yaw - math.pi if yaw > math.pi / 2 else yaw + math.pi if yaw < -math.pi / 2 else yaw
-        if not YAW_RANGE[0] <= yaw <= YAW_RANGE[1]:
+        if not lo - 0.02 <= yaw <= hi + 0.02:
             raise Abort("lying cylinder's axis turned where the gripper can't follow")
         return yaw, 2 * size[0], size[0]
     if obj["shape"] == "cylinder":
         return 0.0, 2 * size[0], size[1]
     return 0.0, 2 * size[0], size[0]
+
+
+def release_yaw(demo: Demo, yaw: float, off, bin_xy, release_z: float) -> float:
+    """The grasp yaw if the arm reaches the release poses with it, else the nearest of a few that it does."""
+    d = demo.sim.data
+    for cand in sorted({yaw, 0.0, 0.25, -0.25, 0.45}, key=lambda c: abs(c - yaw)):
+        c, s_ = math.cos(cand - yaw), math.sin(cand - yaw)
+        o = (c * off[0] - s_ * off[1], s_ * off[0] + c * off[1])
+        pos = (bin_xy[0] - o[0], bin_xy[1] - o[1])
+        if all(demo.ik.solve_any(d.qpos, [demo.sim.target, demo.sim.home], (*pos, z), cand, restarts=2)[1] < 0.002
+               for z in (release_z, release_z + 0.05)):
+            return cand
+    raise Abort("no reachable release pose over the bin")
 
 
 def run_episode(demo: Demo, seed: int, S) -> dict:
@@ -133,9 +167,10 @@ def run_episode(demo: Demo, seed: int, S) -> dict:
     for _ in range(10):
         demo.tick(sim.target, 0.0)
     objs = S.episode_objects(m, d)
+    demo.ready(S)
     in_bin = {}
     for k, obj in enumerate(objs):
-        yaw, width, half_h = grasp_plan(m, d, obj)
+        yaw, width, half_h = grasp_plan(m, d, obj, S)
         pos = d.xpos[m.body(obj["name"]).id].copy()
         grasp_z = S.T + 0.004 + FINGERS_BELOW_GRASP
         demo.move((pos[0], pos[1], grasp_z + 0.10), yaw, SPEED["travel"])
@@ -153,14 +188,22 @@ def run_episode(demo: Demo, seed: int, S) -> dict:
             by += 0.025 if in_bin.get(obj["shape"], 0) else -0.025
         in_bin[obj["shape"]] = in_bin.get(obj["shape"], 0) + 1
         release_z = S.T + S.BIN_T + S.BIN_WALL_H + 0.012 + under
-        demo.move((bx - off[0], by - off[1], release_z + 0.05), yaw, SPEED["carry"])
-        demo.move((bx - off[0], by - off[1], release_z), yaw, SPEED["lower"])
+        # How it lands in the bin doesn't matter: release at a yaw the arm reaches over this bin. The object
+        # turns with the gripper, so its offset from the grasp point turns too.
+        r_yaw = release_yaw(demo, yaw, off, (bx, by), release_z)
+        c, s_ = math.cos(r_yaw - yaw), math.sin(r_yaw - yaw)
+        off = np.array([c * off[0] - s_ * off[1], s_ * off[0] + c * off[1]])
+        demo.move((bx - off[0], by - off[1], release_z + 0.05), r_yaw, SPEED["carry"])
+        demo.move((bx - off[0], by - off[1], release_z), r_yaw, SPEED["lower"])
         demo.grip(float(np.clip((OPEN_GAP - width - 0.02) / 0.1, 0, 1)), 0.4)
-        demo.move((bx - off[0], by - off[1], release_z + 0.08), yaw, SPEED["travel"])
-        for _ in range(15):
+        demo.move((bx - off[0], by - off[1], release_z + 0.08), r_yaw, SPEED["travel"])
+        for _ in range(150):                 # let it land and settle: the step latches once it rests in the bin
+            if sim.step_info()[0] > k:
+                break
             demo.tick(sim.target, sim.grip)
         if sim.step_info()[0] <= k:
             raise Abort(f"step {k + 1} ({obj['colour']} {obj['shape']}) not done")
+    demo.ready(S, seconds=1.0)
     demo.home()
     return S.episode_status(m, d)
 

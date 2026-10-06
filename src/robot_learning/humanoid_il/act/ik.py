@@ -56,6 +56,19 @@ class LeftArmIK:
         p, _ = self.fk(qpos_full, q)
         return q, float(np.linalg.norm(np.asarray(pos) - p))
 
+    def solve_any(self, qpos_full, guesses, pos, yaw, restarts: int = 6, seed: int = 0):
+        """solve() from each guess, then from random starts, until one reaches ``pos``; (q, error) of the best."""
+        rng = np.random.default_rng(seed)
+        starts = list(guesses) + [np.clip(guesses[0] + rng.normal(0, 0.6, 6), self.lo, self.hi) for _ in range(restarts)]
+        best = None
+        for q0 in starts:
+            q, err = self.solve(qpos_full, q0, pos, yaw, iters=120)
+            if best is None or err < best[1]:
+                best = (q, err)
+            if err < 1e-3:
+                break
+        return best
+
     @staticmethod
     def yaw_of(R: np.ndarray) -> float:
         return math.atan2(R[1, 0], R[0, 0])

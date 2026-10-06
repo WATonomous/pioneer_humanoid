@@ -9,10 +9,10 @@ touching, so each one can be picked without pushing the others first).
 The bins are fixed: box bin and cylinder bin on the arm's outer side, ball bin at the far end of the table.
 
 Laid out for the LEFT arm with the gripper pointing down. Its reach that way is small: objects lie in a
-~18 x 16 cm zone, the bins just outside it. It has no wrist roll, so pointing down the gripper only turns
-about -45..+30 deg about vertical: a box turned past that is pinched across its other side (both fit in the
-jaws), a lying cylinder may need a different approach. Objects are at least a finger width apart (each finger
-is 33 mm thick).
+~18 x 16 cm zone, the bins just outside it. It has no wrist roll, so pointing down the gripper only turns so
+far about vertical, and less near the zone's edges (grasp_yaw_range): boxes and lying cylinders are turned so
+one of a box's sides, or a cylinder's axis, lines up with a yaw the gripper reaches where it lies. Objects
+are at least a finger width apart (each finger is 33 mm thick).
 
 The overhead RGB camera ``top`` looks down on the zone and the bins from above the table's far outer corner:
 from straight above or straight ahead, the gripper at home hides the objects under it.
@@ -64,7 +64,9 @@ FRICTION = (0.5, 1.0)
 ROLL_FRICTION = 0.0005           # balls and lying cylinders stop rolling within a few cm, not across the table
 
 ZONE = ((0.165, 0.345), (0.21, 0.37))  # x, y ranges object centres are drawn in
-BIN_CLEAR = 0.015                # every object's footprint stays this far from the bins' outer walls
+BIN_CLEAR = 0.01                 # the open jaws around every object stay this far from the bins' outer walls
+FINGER_T = 0.033                 # finger thickness; the jaws open to the object's width + JAW_SPARE around it
+JAW_SPARE = 0.03                 # (closer to a bin than that, the fingers land on its wall, not the table)
 FINGER_GAP = 0.04                # clear space between neighbours: a 33 mm finger plus margin
 SPAWN_LIFT = 0.001               # spawned this far above resting: zero clearance gets a PhysX-style kick
 
@@ -72,7 +74,8 @@ SPAWN_LIFT = 0.001               # spawned this far above resting: zero clearanc
 BIN_INNER = 0.10
 BIN_WALL_H = 0.03
 BIN_T = 0.005
-BINS = {"box": (0.19, 0.47), "cylinder": (0.30, 0.47), "ball": (0.42, 0.29)}   # inner centre x, y
+# Inner centre x, y: as far out as the arm still reaches to release over them, leaving room around the objects.
+BINS = {"box": (0.19, 0.50), "cylinder": (0.30, 0.50), "ball": (0.44, 0.29)}
 
 # The overhead camera: position, the point it looks at, vertical field of view, image size.
 TOP_CAMERA = dict(pos=(0.70, 0.75, 1.40), lookat=(0.26, 0.32, T), fovy=26.0, resolution=(640, 480))
@@ -144,7 +147,9 @@ def reset(model: mujoco.MjModel, data: mujoco.MjData, rng: np.random.Generator) 
     sizes = [_draw_size(_shape(_POOL[p]), rng) for p in pool]
     lying = [_shape(_POOL[p]) == "cylinder" and rng.random() < CYL_LYING for p in pool]
     xy = _draw_places(sizes, [_shape(_POOL[p]) for p in pool], lying, rng)
-    if xy is None:                                 # couldn't fit them: drop one and retry with fewer
+    while xy is None:                              # couldn't fit them: drop one and retry with fewer
+        if len(pool) == 1:
+            raise RuntimeError("tidy_table: no room for even one object -- ZONE / BINS / sizes don't fit")
         pool, sizes, lying = pool[:-1], sizes[:-1], lying[:-1]
         xy = _draw_places(sizes, [_shape(_POOL[p]) for p in pool], lying, rng)
     colours = rng.choice(len(COLOURS), size=len(pool), replace=False)
@@ -156,7 +161,7 @@ def reset(model: mujoco.MjModel, data: mujoco.MjData, rng: np.random.Generator) 
         _set_object(model, name, size, rng)
         model.geom_rgba[model.geom(f"obj_{name}").id] = list(COLOURS.values())[c]
         z = _stand_height(_shape(name), size, lie)
-        quat = _yaw_quat(rng.uniform(-math.pi, math.pi), lie)
+        quat = _yaw_quat(_draw_yaw(_shape(name), lie, x, y, rng), lie)
         _place(model, data, name, (x, y, z + SPAWN_LIFT), quat=quat)
         data.userdata[_U_COLOUR + p] = c
         data.userdata[_U_STAND + p] = z
@@ -255,7 +260,14 @@ def _footprint(shape: str, size: tuple, lying: bool = False) -> float:
     return size[0]
 
 
+def _jaw_reach(shape: str, size: tuple) -> float:
+    """How far from the object's centre the open jaws reach, opened to its widest side + JAW_SPARE."""
+    width = 2 * max(size[0], size[1]) if shape == "box" else 2 * size[0]
+    return (width + JAW_SPARE) / 2 + FINGER_T
+
+
 def _clear_of_bins(x: float, y: float, radius: float) -> bool:
+    """Nothing within `radius` of (x, y) -- the object, or the open gripper around it -- touches a bin."""
     for bx, by in BINS.values():
         half = BIN_INNER / 2 + BIN_T + BIN_CLEAR
         dx, dy = max(abs(x - bx) - half, 0.0), max(abs(y - by) - half, 0.0)
@@ -267,9 +279,10 @@ def _clear_of_bins(x: float, y: float, radius: float) -> bool:
 def _draw_places(sizes, shapes, lying, rng, tries: int = 4000):
     (x0, x1), (y0, y1) = ZONE
     radii = [_footprint(s, z, lie) for s, z, lie in zip(shapes, sizes, lying)]
+    reach = [max(r, _jaw_reach(s, z)) for r, s, z in zip(radii, shapes, sizes)]
     for _ in range(tries):
         xy = np.column_stack([rng.uniform(x0, x1, len(sizes)), rng.uniform(y0, y1, len(sizes))])
-        if all(_clear_of_bins(x, y, r) for (x, y), r in zip(xy, radii)) and \
+        if all(_clear_of_bins(x, y, r) for (x, y), r in zip(xy, reach)) and \
                 all(np.linalg.norm(xy[i] - xy[j]) >= radii[i] + radii[j] + FINGER_GAP
                     for i in range(len(xy)) for j in range(i + 1, len(xy))):
             return xy
@@ -324,6 +337,28 @@ def _stand_height(shape: str, size: tuple, lying: bool = False) -> float:
     if shape == "cylinder" and not lying:
         return size[1] + T
     return size[0] + T
+
+
+def grasp_yaw_range(x: float, y: float) -> tuple[float, float]:
+    """Gripper yaw (rad) the left arm reaches pointing down at grasp height over (x, y) in ZONE: measured with
+    humanoid_il/act/ik.py, conservatively. 0..-20 deg reach everywhere; turning positive needs the object on
+    the far side (larger y), turning past -30 fails toward the zone's far outer corner."""
+    lo = -20.0 if (x > 0.33 and y > 0.355) else -30.0
+    hi = 0.0 if y < 0.242 else min(40.0, 10.0 * (math.floor((y - 0.242) / 0.032) + 1))
+    return math.radians(lo), math.radians(hi)
+
+
+def _draw_yaw(shape: str, lying: bool, x: float, y: float, rng: np.random.Generator) -> float:
+    """A random yaw the gripper can grasp from above at (x, y): any side of a box (they repeat every 90 deg) or
+    a lying cylinder's axis (every 180 deg) turned within grasp_yaw_range. Balls and standing cylinders: any."""
+    if shape == "ball" or (shape == "cylinder" and not lying):
+        return rng.uniform(-math.pi, math.pi)
+    lo, hi = grasp_yaw_range(x, y)
+    period = math.pi / 2 if shape == "box" else math.pi
+    grasp = rng.uniform(lo, hi) + period * int(rng.integers(0, round(2 * math.pi / period)))
+    # The jaws close along the gripper's Y, so a lying cylinder's axis must run along its X; _yaw_quat lays a
+    # cylinder down with its axis along -Y, a quarter turn from that.
+    return grasp + (math.pi / 2 if shape == "cylinder" else 0.0)
 
 
 def _yaw_quat(yaw: float, lying: bool = False) -> tuple:

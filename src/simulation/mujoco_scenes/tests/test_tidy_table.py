@@ -57,7 +57,7 @@ def test_randomisation(model):
         (x0, x1), (y0, y1) = S.ZONE
         for i, (x, y) in enumerate(xy):
             assert x0 <= x <= x1 and y0 <= y <= y1
-            assert S._clear_of_bins(x, y, radii[i])
+            assert S._clear_of_bins(x, y, max(radii[i], S._jaw_reach(objs[i]["shape"], objs[i]["size"])))
             for j in range(i):
                 assert np.linalg.norm(xy[i] - xy[j]) >= radii[i] + radii[j] + S.FINGER_GAP - 1e-9
         active = {o["name"] for o in objs}
@@ -179,3 +179,25 @@ def test_condition_names_the_current_target(model):
         _run(model, data, 0.6)
     v = cond(model, data)
     assert v[names.index("done")] == 1 and v.sum() == 1
+
+
+def test_boxes_and_lying_cylinders_are_graspable_from_above(model):
+    """Each box has a side, each lying cylinder its axis, turned within the gripper's reach where it lies."""
+    checked = 0
+    for seed in range(60):
+        data = _episode(model, seed)
+        for o in S.episode_objects(model, data):
+            if o["shape"] == "ball" or (o["shape"] == "cylinder" and not o["lying"]):
+                continue
+            b = model.body(o["name"]).id
+            x, y = data.xpos[b][:2]
+            R = data.xmat[b].reshape(3, 3)
+            if o["shape"] == "box":
+                yaw, period = math.atan2(R[1, 0], R[0, 0]), math.pi / 2
+            else:
+                yaw, period = math.atan2(R[1, 2], R[0, 2]), math.pi
+            lo, hi = S.grasp_yaw_range(x, y)
+            g = (yaw - lo) % period + lo                     # the side / axis direction nearest above lo
+            assert g <= hi + math.radians(2), (seed, o["colour"], o["shape"], math.degrees(yaw))
+            checked += 1
+    assert checked > 20
