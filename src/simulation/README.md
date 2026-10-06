@@ -2,7 +2,7 @@
 
 Simulation packages: RL tasks, teleop data-collection scenes, the training runners,
 and datagen glue. The Isaac Lab ones are `pip install -e`'d into the `simulation_isaac`
-image (see `docker/simulation/isaac_lab/`); `mujoco_scenes/` and `badminton/` run on MuJoCo.
+image (see `docker/simulation/isaac_lab/`); `mujoco_scenes/`, `badminton/` and `motion_tracking/` run on MuJoCo.
 
 ```
 src/simulation/
@@ -17,7 +17,8 @@ src/simulation/
 ├── mujoco_scenes/          # plain-MuJoCo (CPU) scenes — @scene-discovered
 │   └── humanoid_mujoco_scenes/ #   bare/  peg_insert/
 ├── so101_vial_task/        # SO101 imitation-learning task
-└── badminton/              # mjlab (MuJoCo Warp) badminton receive RL — see badminton/README.md
+├── badminton/              # mjlab (MuJoCo Warp) badminton receive RL — see badminton/README.md
+└── motion_tracking/        # mjlab whole-body motion tracking (BeyondMimic) for Wato — see motion_tracking/README.md
 ```
 
 Robot URDF/USD/meshes and scene props live at the repo-root **`assets/`** (backend-neutral —
