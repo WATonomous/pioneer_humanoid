@@ -469,6 +469,7 @@ YAML::Node configWithAkElbowRollOnMit(bool with_fault_kd = true) {
   j["mit_kp"] = 8.0; // quantised 8.06 * 12 deg = 1.69 N.m <= 5
   j["mit_kd"] = 0.4;
   j["mit_max_torque"] = 5.0; // AK80-9 testing ceiling
+  j["mit_max_track_err"] = 12.0; // pinned: the shipped global may be looser
   if (with_fault_kd) {
     j["mit_fault_kd"] = 0.5;
   } else {
@@ -598,6 +599,7 @@ YAML::Node configWithShoulderPitchFf(double scale = 1.0, double max_torque = 5.5
   j["mit_kp"] = 15.0; // quantised 15.01 * 12 deg = 3.14 N.m
   j["mit_kd"] = 0.8;
   j["mit_max_torque"] = 10.0; // AK10-9 testing ceiling
+  j["mit_max_track_err"] = 12.0; // pinned: the shipped global may be looser
   j["mit_fault_kd"] = 1.0;
   j["gravity_ff_scale"] = scale;
   j["gravity_ff_max_torque"] = max_torque;
