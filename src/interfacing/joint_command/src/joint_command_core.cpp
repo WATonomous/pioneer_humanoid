@@ -246,13 +246,13 @@ JointSafetyConfig JointCommandCore::loadJointSafetyConfig(const YAML::Node& join
   if (joint_node["gravity_ff_max_torque"]) {
     cfg.gravity_ff_max_torque = joint_node["gravity_ff_max_torque"].as<double>();
   }
-  // The command frame IS the URDF frame (hardware_mapping.yaml's zero and direction match the
+  // The command frame IS the URDF frame (arm_calibration.yaml's zero and direction match the
   // URDF). Refuse the old cmd -> URDF keys rather than silently ignoring a -1 left in a config.
   for (const char* removed : {"urdf_direction", "urdf_offset_deg"}) {
     if (joint_node[removed]) {
       throw std::runtime_error(std::string(removed) +
                                " was removed: the command frame is the URDF frame. Fold it into "
-                               "hardware_mapping.yaml's direction / zero_offset / limits instead");
+                               "arm_calibration.yaml's direction / zero_offset / limits instead");
     }
   }
   if (joint_node["gravity_assume_deg"]) {

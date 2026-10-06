@@ -36,7 +36,7 @@ Per joint: confirm motor id → home zero → one end Enter → other end Enter 
 ```bash
 source /opt/watonomous/setup.bash
 python3 /root/ament_ws/src/interfacing/can/scripts/calibrate_arm.py \
-  --arm-side left --write-mapping --mapping /calibration/hardware_mapping.yaml
+  --arm-side left --write-mapping --calibration /calibration/arm_calibration.yaml
 ```
 Prompt: **Enter**=yes · id=correct id · **s**=skip · **q**=quit.
 
@@ -50,7 +50,7 @@ Prompt: **Enter**=yes · id=correct id · **s**=skip · **q**=quit.
   special frames (`MIT_SET_ZERO` is refused; use `SET_ORIGIN`). Feedback is the servo frame, with
   `torque = current × kt`.
 
-Per-joint gains live in `joint_command/config/safety_limits.yaml`; `joint_command` refuses to
+Per-joint gains live in `joint_command/config/arm_actuators.yaml`; `joint_command` refuses to
 start if `quantised kp × mit_max_track_err (+ feed-forward) > mit_max_torque`. Gains are snapped
 to the nearest 12-bit code. The gripper has no `ArmPose` slot, so nothing drives it yet.
 
