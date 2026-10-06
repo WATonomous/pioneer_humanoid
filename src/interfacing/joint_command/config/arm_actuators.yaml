@@ -137,3 +137,22 @@ safety:
         mit_max_track_err: 12.0  # deg, fault above
         mit_feedback_timeout: 0.2  # s without feedback -> fault
         gravity_assume_deg: 0.0
+
+    # Gripper: same drive. Driven only while ArmPose.include_gripper is true (else held); closure
+    # 0 = open = its calibrated zero, 1 = closed = arm_calibration.yaml upper_limit (calibrate
+    # it open, direction so that closing is positive). mit_max_track_err covers the full travel
+    # (enforced), so closing on an object never faults, and kp * travel caps the squeeze:
+    # 0.1221 (lowest nonzero code) * 105 deg (1.833 rad) = 0.224 N.m <= mit_max_torque 0.25.
+    # Gains NOT yet bench-checked.
+    gripper:
+      open_close:   # GL40, id 21
+        active: true
+        velocity_max: 60.0
+        delta_max: 2.4
+        control_type: 0        # MIT_CONTROL
+        mit_family: gl2        # fault action limp
+        mit_kp: 0.1221         # N.m/rad -> raw 1, the softest nonzero stiffness
+        mit_kd: 0.0098         # N.m.s/rad -> raw 8, as the wrist
+        mit_max_torque: 0.25   # N.m: grip ceiling, under the GL40's 0.3 testing ceiling
+        mit_max_track_err: 105.0  # deg, >= full travel (upper_limit - lower_limit)
+        mit_feedback_timeout: 0.2

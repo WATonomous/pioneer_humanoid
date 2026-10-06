@@ -21,8 +21,9 @@ the on-screen joint turns the same way and stops at the same angle. Try correcti
 arm_calibration.yaml: flip it and re-run calibrate_arm.py (zero_offset and the limits depend on
 it). One that needs --offset was not zeroed hanging: re-run calibrate_arm.py.
 
-The gripper is not driven: its 0-100 command units have no confirmed scale to the finger
-joints' travel in metres.
+The gripper's fingers follow its closure, as joint_command maps it: 0 = open (its calibrated
+zero) .. 1 = closed (arm_calibration.yaml upper_limit). Open and close it by hand: the fingers
+must open and close with it (calibrate it open, direction so that closing is positive).
 
 Check the angle math without ROS or MuJoCo:  python3 live_arm_mjviser.py --self-test
 """
@@ -35,7 +36,7 @@ import threading
 import time
 from pathlib import Path
 
-from joint_config import find_calibration, load_joint_map, motor_to_cmd_deg
+from joint_config import find_calibration, gripper_closure, load_joint_map, motor_to_cmd_deg
 
 # pioneer_humanoid is not installed in the simulation_mj image; scripts add src/ paths themselves.
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "pioneer_humanoid"))
@@ -84,7 +85,9 @@ def self_test() -> None:
             assert other["view_flip"] == -1 and other["view_offset_deg"] == 5.0
         else:
             assert other == joint
-    print(f"self-test ok ({len(joints)} joints from {mapping})")
+    grip = next(info for info in load_joint_map(mapping, "left").values() if info["slot"] is None)
+    assert gripper_closure(grip, 0.0) == 0.0 and gripper_closure(grip, grip["upper"]) == 1.0
+    print(f"self-test ok ({len(joints)} joints + gripper from {mapping})")
 
 
 def main() -> None:
@@ -115,6 +118,7 @@ def main() -> None:
     from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy
 
     from common_msgs.msg import MotorFeedback
+    from pioneer_humanoid import arm_params
     from pioneer_humanoid.arm_params import LEFT_ARM_JOINTS, RIGHT_ARM_JOINTS
     from pioneer_humanoid.mujoco_bimanual_arm import arm_spec
 
@@ -131,6 +135,13 @@ def main() -> None:
     data = mujoco.MjData(model)
     mujoco.mj_forward(model, data)
     qpos_adr = {j["urdf_joint"]: int(model.joint(j["urdf_joint"]).qposadr[0]) for j in joints.values()}
+    # The gripper (slot None): closure -> finger travel in metres, as in sim.
+    side = args.arm_side.upper()
+    grip = next(({**info, "motor_id": mid} for mid, info in load_joint_map(mapping, args.arm_side).items()
+                 if info["slot"] is None), None)
+    fingers = [(int(model.joint(f).qposadr[0]), getattr(arm_params, f"{side}_GRIPPER_OPEN")[f],
+                getattr(arm_params, f"{side}_GRIPPER_CLOSED")[f])
+               for f in getattr(arm_params, f"{side}_GRIPPER_JOINTS")]
 
     print(f"{args.arm_side} arm, read-only. mapping: {mapping}")
     for motor_id, j in sorted(joints.items()):
@@ -143,8 +154,13 @@ def main() -> None:
     lock = threading.Lock()
     latest_deg: dict[str, float] = {}
     last_seen: dict[int, float] = {}
+    latest_closure: list[float] = []
 
     def on_feedback(msg: MotorFeedback) -> None:
+        if grip is not None and int(msg.motor_id) == grip["motor_id"]:
+            with lock:
+                latest_closure[:] = [gripper_closure(grip, motor_to_cmd_deg(grip, float(msg.position)))]
+            return
         j = joints.get(int(msg.motor_id))
         if j is None:
             return
@@ -170,6 +186,7 @@ def main() -> None:
             now = time.monotonic()
             with lock:
                 shown = dict(latest_deg)
+                closure = list(latest_closure)
                 stale = sorted(j["name"] for motor_id, j in joints.items()
                                if now - last_seen.get(motor_id, -math.inf) > STALE_AFTER_S)
             # A frozen joint looks the same as a still one, so say when the picture is not live.
@@ -178,6 +195,10 @@ def main() -> None:
                 next_warn = now + STALE_AFTER_S
             for urdf_joint, deg in shown.items():
                 data.qpos[qpos_adr[urdf_joint]] = math.radians(deg)
+            if closure:
+                c = min(max(closure[0], 0.0), 1.0)
+                for adr, opened, closed in fingers:
+                    data.qpos[adr] = opened + c * (closed - opened)
             mujoco.mj_forward(model, data)
             scene.update_from_mjdata(data)
             time.sleep(1.0 / args.hz)

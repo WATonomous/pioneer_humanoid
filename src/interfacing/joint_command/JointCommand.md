@@ -97,6 +97,24 @@ Bring-up, one joint at a time, arm supported, `gravity_ff_scale: 0`:
 
 A wrong sign doubles the sag; the startup rule and the tracking watchdog bound it.
 
+## Gripper
+
+The GL40 gripper (id 21, `arm_calibration.yaml` `gripper.open_close`) is a 7th joint, present only
+when `arm_actuators.yaml` has a `gripper.open_close` block. Without one, the node is the 6-joint arm.
+Leave it out of a run with its `active: false` (see Launch).
+
+- **Command:** `ArmPose.gripper_closure`, 0 = open .. 1 = closed, used while
+  `include_gripper` is true. Closure 0 → command 0° (its calibrated zero), 1 → `upper_limit`, then
+  the same clamp / low-pass / rate limit as any joint. Without `include_gripper` (or with a
+  non-finite closure) it **holds where it is**, so a publisher that omits it never drops an object.
+- **Calibrate it open** with `calibrate_arm.py`, `direction` so that closing is positive, limits
+  open (≈ 0) .. closed. The node refuses limits that are not `[<= 0, > 0]`.
+- **Grasping never faults:** closing on an object leaves it short of its target, so
+  `mit_max_track_err` must cover the full travel (enforced). With the startup rule, that also caps
+  the squeeze: `kp × travel <= mit_max_torque`.
+- It must be MIT (`POSITION_LOOP` would be full stiffness), with no gravity feed-forward. Its
+  watchdog faults halt the whole arm like any MIT joint; an unpowered gripper is just excluded.
+
 ## Excluded joints
 
 At seeding, a joint with no feedback in the last 0.5 s, or physically outside its limits (stale

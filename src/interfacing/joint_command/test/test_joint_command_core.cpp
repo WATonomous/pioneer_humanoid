@@ -17,6 +17,8 @@ namespace {
 constexpr double kRateHz = 50.0;
 constexpr int kMit = common_msgs::msg::MotorCmd::MIT_CONTROL;
 constexpr int kPositionLoop = common_msgs::msg::MotorCmd::POSITION_LOOP;
+// ArmPose slot of the GL40 wrist; the gripper (when configured) comes after it.
+constexpr size_t kWrist = 5;
 
 std::string configPath(const std::string& name) {
   return std::string(CONFIG_DIR) + "/" + name;
@@ -297,7 +299,7 @@ TEST_F(ShippedConfig, UnpoweredJointsAreExcludedUntilTheNextSeed) {
 TEST_F(ShippedConfig, JointFoundOutsideItsOwnLimitsIsFlaggedAndExcluded) {
   // A joint found outside its limits (stale calibration) must be excluded, not clamped.
   std::map<int, double> feedback = feedbackForCommandFrame(0.0);
-  const size_t wrist = core.jointCount() - 1;
+  const size_t wrist = kWrist;
   feedback[static_cast<int>(core.motorId(wrist))] = 140.0; // where the real GL40 actually sits
 
   const SeedReport report = core.seedPrevTargetsFromFeedback(feedback);
@@ -323,7 +325,7 @@ TEST_F(ShippedConfig, JointFoundOutsideItsOwnLimitsIsFlaggedAndExcluded) {
 // ---------------------------------------------------------------------------
 
 TEST_F(ShippedConfig, MitJointsUseTheirDriveFamilyAndAkJointsDamp) {
-  const size_t wrist = core.jointCount() - 1;
+  const size_t wrist = kWrist;
   EXPECT_TRUE(core.isMitJoint(wrist)) << "the GL40 wrist must run MIT_CONTROL";
   EXPECT_EQ(core.safety(wrist).mit_family, MitDriveFamily::Gl2);
   for (size_t i = 0; i < wrist; ++i) {
@@ -397,7 +399,7 @@ TEST_F(ShippedConfig, GainQuantisationMatchesWhatTheDriveApplies) {
 
 TEST_F(ShippedConfig, MitWatchdogCatchesEveryFaultCondition) {
   seedAtCommandZero();
-  const size_t wrist = core.jointCount() - 1;
+  const size_t wrist = kWrist;
   const int id = static_cast<int>(core.motorId(wrist));
   core.armPoseToMotorCmds(uniformPose(0.0), kPositionLoop);
   const auto healthy_all = healthyMitFeedback();
@@ -486,7 +488,7 @@ TEST_F(ShippedConfig, AkMitJointDefaultsToDampAndRequiresAFaultKd) {
 
   ASSERT_TRUE(core.loadSafetyFromYaml(configWithAkElbowRollOnMit(), kRateHz)) << core.lastError();
   EXPECT_EQ(core.safety(kElbowRoll).mit_fault_action, MitFaultAction::Damp);
-  EXPECT_EQ(core.safety(core.jointCount() - 1).mit_fault_action, MitFaultAction::Limp)
+  EXPECT_EQ(core.safety(kWrist).mit_fault_action, MitFaultAction::Limp)
       << "the GL40 wrist keeps its limp default";
   EXPECT_TRUE(core.hasDampedMitJoints());
 }
@@ -494,7 +496,7 @@ TEST_F(ShippedConfig, AkMitJointDefaultsToDampAndRequiresAFaultKd) {
 TEST_F(ShippedConfig, DampedJointIsHeldWithDampingNotDroppedOrExited) {
   ASSERT_TRUE(core.loadSafetyFromYaml(configWithAkElbowRollOnMit(), kRateHz)) << core.lastError();
   const int elbow = static_cast<int>(core.motorId(kElbowRoll));
-  const int wrist = static_cast<int>(core.motorId(core.jointCount() - 1));
+  const int wrist = static_cast<int>(core.motorId(kWrist));
 
   bool saw_elbow = false;
   for (const auto& cmd : core.mitSafeCommands()) {
@@ -513,10 +515,16 @@ TEST_F(ShippedConfig, DampedJointIsHeldWithDampingNotDroppedOrExited) {
     EXPECT_NE(cmd.motor_id, wrist) << "the GL40 wrist is limp, not damped";
   }
 
-  // The fault path exits only Limp joints: exiting the elbow would cut its damping.
-  const auto exits = core.mitModeCommands(common_msgs::msg::MotorCmd::MIT_EXIT, true);
-  ASSERT_EQ(exits.size(), 1u);
-  EXPECT_EQ(exits[0].motor_id, wrist);
+  // The fault path exits only Limp joints (the GL40s): exiting the elbow would cut its damping.
+  std::vector<int> exited;
+  for (const auto& cmd : core.mitModeCommands(common_msgs::msg::MotorCmd::MIT_EXIT, true)) {
+    exited.push_back(cmd.motor_id);
+  }
+  std::vector<int> limp = {wrist};
+  if (core.hasGripper()) {
+    limp.push_back(core.motorId(JointCommandCore::kGripperJoint));
+  }
+  EXPECT_EQ(exited, limp);
 }
 
 TEST_F(ShippedConfig, AkStatusOneIsOverTemperatureNotEnable) {
@@ -809,6 +817,151 @@ TEST_F(ShippedConfig, UnpoweredJointUsesItsGravityAssumptionOnlyWhenSet) {
 }
 
 // ---------------------------------------------------------------------------
+// Gripper (GL40, after the wrist): closure 0 open .. 1 closed, driven only when the pose asks
+// ---------------------------------------------------------------------------
+
+namespace {
+
+constexpr size_t kGripper = JointCommandCore::kGripperJoint;
+
+common_msgs::msg::ArmPose poseWithGripper(double closure) {
+  common_msgs::msg::ArmPose pose = uniformPose(0.0);
+  pose.include_gripper = true;
+  pose.gripper_closure = closure;
+  return pose;
+}
+
+} // namespace
+
+TEST_F(ShippedConfig, GripperIsAnMitJointUnderTheGl40TestingCeiling) {
+  ASSERT_TRUE(core.hasGripper());
+  EXPECT_EQ(core.jointName(kGripper), "gripper.open_close");
+  EXPECT_EQ(core.motorId(kGripper), 21);
+  EXPECT_TRUE(core.isMitJoint(kGripper)) << "never POSITION_LOOP: that is full stiffness";
+  EXPECT_LE(core.safety(kGripper).mit_max_torque, 0.3);
+}
+
+TEST_F(ShippedConfig, GripperClosureMapsOpenToZeroAndClosedToTheUpperLimit) {
+  seedAtCommandZero();
+  const double closed = core.joint(kGripper).upper_limit;
+  auto settle = [&](double closure) {
+    for (int tick = 0; tick < 2000; ++tick) {
+      core.armPoseToMotorCmds(poseWithGripper(closure), kPositionLoop);
+    }
+    return core.prevTargets()[kGripper];
+  };
+
+  core.armPoseToMotorCmds(poseWithGripper(1.0), kPositionLoop);
+  EXPECT_LE(core.prevTargets()[kGripper], 60.0 / kRateHz + 1e-9) << "rate-limited like any joint";
+
+  EXPECT_NEAR(settle(1.0), closed, 1e-6);
+  EXPECT_NEAR(settle(0.5), closed / 2, 1e-6);
+  EXPECT_NEAR(settle(0.0), 0.0, 1e-6);
+  EXPECT_NEAR(settle(5.0), closed, 1e-6) << "closure is clamped to [0, 1]";
+  EXPECT_NEAR(settle(-1.0), 0.0, 1e-6);
+}
+
+TEST_F(ShippedConfig, GripperHoldsWhereItIsUnlessThePoseIncludesIt) {
+  std::map<int, double> fb = feedbackForCommandFrame(0.0);
+  fb[core.motorId(kGripper)] =
+      core.joint(kGripper).direction * (30.0 - core.joint(kGripper).zero_offset);
+  ASSERT_TRUE(core.seedPrevTargetsFromFeedback(fb).out_of_range.empty());
+
+  for (int tick = 0; tick < 200; ++tick) {
+    core.armPoseToMotorCmds(uniformPose(0.0), kPositionLoop); // include_gripper false
+  }
+  EXPECT_DOUBLE_EQ(core.prevTargets()[kGripper], 30.0) << "not opened: that would drop the object";
+
+  auto nan_pose = poseWithGripper(std::numeric_limits<double>::quiet_NaN());
+  for (int tick = 0; tick < 200; ++tick) {
+    core.armPoseToMotorCmds(nan_pose, kPositionLoop);
+  }
+  EXPECT_DOUBLE_EQ(core.prevTargets()[kGripper], 30.0);
+}
+
+TEST_F(ShippedConfig, ClosingOnAnObjectDoesNotFaultTheArm) {
+  seedAtCommandZero();
+  for (int tick = 0; tick < 2000; ++tick) {
+    core.armPoseToMotorCmds(poseWithGripper(1.0), kPositionLoop);
+  }
+  // Fingers stopped by an object at the open end: the whole travel short of the target, at the
+  // stall torque kp * travel.
+  auto fb = healthyMitFeedback();
+  const JointConfig& g = core.joint(kGripper);
+  const double travel_rad = (g.upper_limit - g.lower_limit) * kDeg;
+  fb[core.motorId(kGripper)].position_deg = g.direction * (0.0 - g.zero_offset);
+  fb[core.motorId(kGripper)].torque_nm =
+      JointCommandCore::quantiseKp(core.safety(kGripper).mit_kp) * travel_rad;
+  EXPECT_FALSE(core.checkMitFaults(fb).has_value()) << *core.checkMitFaults(fb);
+}
+
+TEST_F(ShippedConfig, UnsafeGripperConfigIsRefused) {
+  auto expectRefused = [&](const YAML::Node& cfg, const std::string& needle) {
+    EXPECT_FALSE(core.loadSafetyFromYaml(cfg, kRateHz)) << needle;
+    EXPECT_NE(core.lastError().find(needle), std::string::npos) << core.lastError();
+  };
+  auto shipped = [&]() { return YAML::LoadFile(configPath("arm_actuators.yaml"))["safety"]; };
+
+  YAML::Node cfg = shipped();
+  cfg["joints"]["gripper"]["open_close"].remove("control_type"); // inherits POSITION_LOOP
+  expectRefused(cfg, "MIT");
+
+  cfg = shipped();
+  cfg["joints"]["gripper"]["open_close"]["mit_max_track_err"] = 50.0;
+  expectRefused(cfg, "full travel");
+
+  cfg = shipped();
+  cfg["joints"]["gripper"]["open_close"]["gravity_ff_scale"] = 0.5;
+  cfg["joints"]["gripper"]["open_close"]["gravity_ff_max_torque"] = 0.01;
+  expectRefused(cfg, "gravity model");
+
+  // Calibrated with closing negative: upper_limit is the open end.
+  YAML::Node mapping = YAML::LoadFile(configPath("arm_calibration.yaml"));
+  mapping["left"]["gripper"]["open_close"]["lower_limit"] = -100.0;
+  mapping["left"]["gripper"]["open_close"]["upper_limit"] = 0.0;
+  ASSERT_TRUE(core.loadFromYaml(mapping, "left"));
+  expectRefused(shipped(), "closing is positive");
+
+  mapping = YAML::LoadFile(configPath("arm_calibration.yaml"));
+  mapping["left"].remove("gripper");
+  ASSERT_TRUE(core.loadFromYaml(mapping, "left"));
+  expectRefused(shipped(), "arm_calibration");
+}
+
+TEST_F(ShippedConfig, WithoutAGripperBlockTheArmIsSixJointsAsBefore) {
+  YAML::Node cfg = YAML::LoadFile(configPath("arm_actuators.yaml"))["safety"];
+  cfg["joints"].remove("gripper");
+  ASSERT_TRUE(core.loadSafetyFromYaml(cfg, kRateHz)) << core.lastError();
+  EXPECT_FALSE(core.hasGripper());
+  EXPECT_EQ(core.jointCount(), 6u);
+  seedAtCommandZero();
+  const auto cmds = core.armPoseToMotorCmds(poseWithGripper(1.0), kPositionLoop);
+  EXPECT_EQ(cmds.size(), 6u);
+  for (const auto& cmd : cmds) {
+    EXPECT_NE(cmd.motor_id, 21) << "an unconfigured gripper is never commanded";
+  }
+}
+
+TEST_F(ShippedConfig, UnpoweredGripperDoesNotZeroTheArmFeedForward) {
+  ASSERT_TRUE(core.loadSafetyFromYaml(configWithShoulderPitchFf(), kRateHz)) << core.lastError();
+  std::map<int, double> fb = feedbackForCommandFrame(0.0);
+  fb[core.motorId(kShoulderPitch)] =
+      core.joint(kShoulderPitch).direction * (60.0 - core.joint(kShoulderPitch).zero_offset);
+  fb.erase(core.motorId(kGripper));
+  ASSERT_EQ(core.seedPrevTargetsFromFeedback(fb).unmatched.size(), 1u);
+  double t = 0.0;
+  for (int tick = 0; tick < 60; ++tick) {
+    for (const auto& cmd : core.armPoseToMotorCmds(makePose(60, 0, 0, 0, 0, 0), kPositionLoop)) {
+      if (cmd.motor_id == core.motorId(kShoulderPitch)) {
+        t = cmd.torque;
+      }
+    }
+  }
+  EXPECT_NEAR(t, core.joint(kShoulderPitch).direction * 4.0696, 0.01)
+      << "the gripper is not part of the arm's gravity load";
+}
+
+// ---------------------------------------------------------------------------
 // active: which actuators a run uses (arm_actuators.yaml, per joint)
 // ---------------------------------------------------------------------------
 
@@ -884,4 +1037,22 @@ TEST_F(ShippedConfig, InactiveArmJointIsUnknownToTheGravityModel) {
   ASSERT_TRUE(core.loadSafetyFromYaml(cfg, kRateHz)) << core.lastError();
   EXPECT_NEAR(settledTorque(), core.joint(kShoulderPitch).direction * 4.0696, 0.01)
       << "with an assumed angle the feed-forward still runs";
+}
+
+TEST_F(ShippedConfig, ArmWithoutGripperAndGripperAlone) {
+  YAML::Node cfg = YAML::LoadFile(configPath("arm_actuators.yaml"))["safety"];
+  cfg["joints"]["gripper"]["open_close"]["active"] = false;
+  ASSERT_TRUE(core.loadSafetyFromYaml(cfg, kRateHz)) << core.lastError();
+  EXPECT_FALSE(core.isActive(kGripper));
+  seedAtCommandZero();
+  for (const auto& cmd : core.armPoseToMotorCmds(poseWithGripper(1.0), kPositionLoop)) {
+    EXPECT_NE(cmd.motor_id, 21);
+  }
+
+  ASSERT_TRUE(core.loadSafetyFromYaml(configWithOnlyActive({"gripper.open_close"}), kRateHz))
+      << core.lastError();
+  seedAtCommandZero();
+  const auto cmds = core.armPoseToMotorCmds(poseWithGripper(1.0), kPositionLoop);
+  ASSERT_EQ(cmds.size(), 1u);
+  EXPECT_EQ(cmds[0].motor_id, 21);
 }
