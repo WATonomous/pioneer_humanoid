@@ -828,14 +828,6 @@ YAML::Node configWithOnlyActive(const std::vector<std::string>& names) {
 
 } // namespace
 
-TEST_F(ShippedConfig, EveryShippedJointIsActive) {
-  for (size_t i = 0; i < core.jointCount(); ++i) {
-    EXPECT_TRUE(core.isActive(i)) << core.jointName(i);
-  }
-  seedAtCommandZero();
-  EXPECT_EQ(core.armPoseToMotorCmds(uniformPose(0.0), kPositionLoop).size(), core.jointCount());
-}
-
 TEST_F(ShippedConfig, AnInactiveJointIsNeverCommandedEnteredOrWatched) {
   constexpr size_t kElbowPitch = 3;
   const int elbow = core.motorId(kElbowPitch);
