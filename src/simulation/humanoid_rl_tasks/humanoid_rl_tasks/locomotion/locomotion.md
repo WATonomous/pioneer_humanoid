@@ -95,6 +95,11 @@ Use one environment for a closer inspection. `Isaac-Locomotion-*` aliases are
 equivalent. Plain `Rough` is a different recipe; do not select it merely to load
 an incompatible checkpoint.
 
+If WSL/Docker headless training works but you need a Windows GUI, follow the
+[CPU export and native Windows viewer guide](../../../humanoid_rl/NATIVE_VIEWER.md).
+It takes an explicit trusted checkpoint, exports TorchScript plus a manifest,
+and runs native Windows physics without committing models or local setup.
+
 Checkpoint compatibility requires the actor **and** critic observation
 normalizers from the saved policy, 235 policy observations, 12 ordered joint
 actions, and the matching task's scale/default-offset mapping. Both processed
