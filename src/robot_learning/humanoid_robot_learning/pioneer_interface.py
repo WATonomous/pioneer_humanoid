@@ -37,6 +37,7 @@ from pathlib import Path
 from typing import Any
 
 import torch
+import os
 
 from humanoid_robot_learning.schema import build_features, load_yaml
 from pioneer_humanoid.bimanual_arm import JOINT_POS_LIMITS
@@ -119,6 +120,33 @@ class PioneerLeftArmInterface:
         policy_config = PreTrainedConfig.from_pretrained(name_or_path)
         policy_config.pretrained_path = name_or_path
         policy_config.device = self.device
+
+        # Research knob: enable Real-Time Chunking (RTC) for flow-matching policies
+        # (pi0/pi0.5/SmolVLA). Off unless RTC_EXECUTION_HORIZON is set -- mirrors
+        # LeRobotSO101Interface.make_policy's identical knob.
+        rtc_execution_horizon = os.environ.get("RTC_EXECUTION_HORIZON")
+        if rtc_execution_horizon is not None and hasattr(policy_config, "rtc_config"):
+            try:
+                from importlib import import_module
+
+                rtc_config_module = import_module("lerobot.policies.rtc.configuration_rtc")
+                RTCConfig = rtc_config_module.RTCConfig
+            except Exception:
+                RTCConfig = None
+
+            if RTCConfig is not None:
+                rtc_guidance_weight = float(os.environ.get("RTC_MAX_GUIDANCE_WEIGHT", "10.0"))
+                policy_config.rtc_config = RTCConfig(
+                    enabled=True,
+                    execution_horizon=int(rtc_execution_horizon),
+                    max_guidance_weight=rtc_guidance_weight,
+                )
+                print(
+                    "[INFO]: Enabling RTC, "
+                    f"execution_horizon={rtc_execution_horizon}, "
+                    f"max_guidance_weight={rtc_guidance_weight}"
+                )
+
 
         dataset_meta = DummyDatasetMeta(self.dataset_features, self.robot_type)
         self.policy = make_policy(policy_config, ds_meta=dataset_meta)
