@@ -46,6 +46,12 @@ JointCommandNode::JointCommandNode() : Node("joint_command_node") {
     throw std::runtime_error("Failed to load safety config from '" + safety_config_path +
                              "': " + core_.lastError());
   }
+  std::string active;
+  for (size_t i = 0; i < core_.jointCount(); ++i) {
+    active += std::string(active.empty() ? "" : ", ") + core_.jointName(i) +
+              (core_.isActive(i) ? "" : " (INACTIVE)");
+  }
+  RCLCPP_INFO(this->get_logger(), "Joints this run: %s", active.c_str());
 
   motor_cmd_pub_ =
       this->create_publisher<common_msgs::msg::MotorCmd>(motor_cmd_topic, rclcpp::QoS(10));

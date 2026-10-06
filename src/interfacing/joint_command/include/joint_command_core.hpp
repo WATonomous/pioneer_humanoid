@@ -27,6 +27,8 @@ enum class MitDriveFamily { Gl2, Ak };
 enum class MitFaultAction { Limp, Damp };
 
 struct JointSafetyConfig {
+  // false: this run leaves the motor alone (no command, no MIT enter, no watchdog).
+  bool active{true};
   bool enable_position_clamp{true};
   bool enable_velocity_limit{true};
   bool enable_delta_limit{true};
@@ -111,6 +113,10 @@ public:
   // Joints whose motor is ABSENT from the map are reported as unmatched and excluded from
   // commands until the next seed.
   SeedReport seedPrevTargetsFromFeedback(const std::map<int, double>& motor_positions);
+
+  // arm_actuators.yaml `active` (default true). An inactive joint gets no command at all (no MIT
+  // enter, no watchdog); to the gravity model its angle is unknown, as if unpowered.
+  bool isActive(size_t joint) const;
 
   // Exclude joints seeded outside their limits (calibration mismatch) until the next seed.
   void blockJoints(const std::vector<size_t>& indices);
