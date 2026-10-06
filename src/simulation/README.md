@@ -62,3 +62,4 @@ Per-task notes: `humanoid_rl_tasks/humanoid_rl_tasks/<task>/*.md`. Full walkthro
 
 Pioneer humanoid walking: [source-only rough-no-stairs training and playback recipe](humanoid_rl_tasks/humanoid_rl_tasks/locomotion/locomotion.md#rough-no-stairs-source-only-recipe).
 Stairs research starter: [twelve steps up, a raised walkway, and twelve steps down](humanoid_rl_tasks/humanoid_rl_tasks/locomotion/STAIRS.md).
+Native Windows inspection: [CPU policy export and portable GUI viewer](humanoid_rl/NATIVE_VIEWER.md).

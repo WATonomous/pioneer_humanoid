@@ -31,8 +31,9 @@ When preparing a PR, include the baseline's robot/asset, selective-collision,
 contact-sensor, and knee-shaping dependencies as well as these stairs files. A
 copy of `stairs_env_cfg.py` alone is not a standalone environment. This
 contribution is source-only: keep trained checkpoints, policy exports, training
-outputs, local Docker configuration, native-viewer helpers, and private
-experiment results out of the PR.
+outputs, local Docker configuration, machine-local native-viewer setup, and
+private experiment results out of the PR. The portable source viewer is included;
+see the [CPU export and native Windows guide](../../../humanoid_rl/NATIVE_VIEWER.md).
 
 ## Starting terrain and commands
 
