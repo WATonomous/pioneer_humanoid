@@ -22,7 +22,7 @@ docker run -d --name watod_hy-jc-dry --network host \
   -v "$PWD/src/interfacing/joint_command:/root/ament_ws/src/joint_command" \
   --entrypoint tail ghcr.io/watonomous/humanoid/interfacing/joint_command:dev_main -F /dev/null
 
-# build (first time, or after editing C++ / safety_limits.yaml)
+# build (first time, or after editing C++ / arm_actuators.yaml)
 docker exec watod_hy-jc-dry bash -c 'source /opt/ros/humble/setup.bash; source /opt/watonomous/setup.bash; \
   cd /root/ament_ws && colcon build --packages-select joint_command --cmake-args -DCMAKE_BUILD_TYPE=Release'
 ```
@@ -72,7 +72,7 @@ docker exec watod_hy-interfacing-1 bash -c 'source /opt/watonomous/setup.bash; \
   END{printf \"14=%s 12=%s 13=%s 10=%s 11=%s\n\", p[14],p[12],p[13],p[10],p[11]}"'
 ```
 Values are in raw motor-frame degrees; convert via each joint's `zero_offset`/`direction` in
-`hardware_mapping.yaml` before using as an `/arm/joint_targets` target (cmd-frame).
+`arm_calibration.yaml` before using as an `/arm/joint_targets` target (cmd-frame).
 Recorded poses go stale whenever calibration changes — re-capture after any recalibration
 rather than reusing old numbers.
 
@@ -90,7 +90,7 @@ docker exec watod_hy-jc-dry bash -c 'pkill -f "install/joint_command/lib"'  # ar
 ```
 
 ## Notes
-- **Speed / smoothing:** edit `config/safety_limits.yaml` (`velocity_max`, `low_pass_alpha`,
+- **Speed / smoothing:** edit `config/arm_actuators.yaml` (`velocity_max`, `low_pass_alpha`,
   the `enable_*` flags), then rebuild (Setup) + restart the node. Currently 10°/s, clamp on.
 - **Telemetry:** `tools/arm_roundtrip.sh --offset "..."` moves, records and plots into
   `outputs/gl40_bench/<run>/`.

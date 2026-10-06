@@ -162,7 +162,7 @@ control:
   # kv [30,30,15,15,5,3] exceeded what the real drives can be commanded to.
   # AK-series MIT protocol ranges are kp 0-500, kd 0-5 (autonomy/interfacing/
   # can/config/mit_profiles.yaml); no gains are configured on hardware yet
-  # (behaviour/joint_command/config/safety_limits.yaml says start kp < 10).
+  # (behaviour/joint_command/config/arm_actuators.yaml says start kp < 10).
   # kp 60 / kv 3 on the 0.73 Nm GL40 wrist saturated the actuator at any
   # tracking error > 0.7 deg (run-8 eval: 95% of ticks above rated torque),
   # so the wrist gets the "start low" placeholder until the drive is tuned.

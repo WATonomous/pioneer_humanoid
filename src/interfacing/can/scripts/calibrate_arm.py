@@ -7,7 +7,7 @@ Typical flow per joint:
   1. Confirm / set motor id (Enter = yes, or type the correct id e.g. 14)
   2. Move joint to the pose you want as 0° → Enter  (records zero)
   3. Move to one range end → Enter, other end → Enter  (records min/max)
-  4. Results written to hardware_mapping.yaml and/or a sidecar file
+  4. Results written to arm_calibration.yaml and/or a sidecar file
 
 MIT drives only answer when spoken to, so they are polled with zero-gain MIT frames: those
 joints are LIMP while you calibrate -- support the arm. Stop joint_command_node first.
@@ -15,7 +15,7 @@ joints are LIMP while you calibrate -- support the arm. Stop joint_command_node 
 Examples (inside interfacing container, ROS sourced)::
 
   python3 /root/ament_ws/src/interfacing/can/scripts/calibrate_arm.py \\
-    --arm-side left --write-mapping --mapping /calibration/hardware_mapping.yaml
+    --arm-side left --write-mapping --calibration /calibration/arm_calibration.yaml
   ros2 run can calibrate_arm.py --arm-side left --write-mapping
 """
 
@@ -320,9 +320,9 @@ def apply_result_to_joint(joint: Dict[str, Any], result: Dict[str, Any]) -> None
 
 
 def mit_motor_ids(joints: List[Tuple[str, Dict[str, Any]]]) -> List[int]:
-    """Drives that only answer MIT frames: every GL II, plus joints safety_limits.yaml puts on
+    """Drives that only answer MIT frames: every GL II, plus joints arm_actuators.yaml puts on
     control_type 0 (an AK brought up in MIT)."""
-    safety = jc.find_safety_limits(None)
+    safety = jc.find_actuators(None)
     ids = set()
     for name, joint in joints:
         motor_id = parse_can_id(joint["can_id"])
@@ -549,7 +549,7 @@ def run(args: argparse.Namespace) -> int:
                 lo, hi, last = ends
                 direction = int(joint_result.get("direction", joint.get("direction", 1))) or 1
                 zero_offset = float(joint_result.get("zero_offset", joint.get("zero_offset", 0.0)))
-                # Limits in hardware_mapping are command-frame (pre-calibration) degrees.
+                # Limits in arm_calibration.yaml are command-frame (pre-calibration) degrees.
                 # cmd = zero_offset + motor / direction
                 cmd_a = zero_offset + lo / float(direction)
                 cmd_b = zero_offset + hi / float(direction)
@@ -598,18 +598,19 @@ def build_parser() -> argparse.ArgumentParser:
         / "interfacing"
         / "joint_command"
         / "config"
-        / "hardware_mapping.yaml"
+        / "arm_calibration.yaml"
     )
     # In-container mount path used by docker-compose.interfacing.yaml
-    container_mapping = Path("/calibration/hardware_mapping.yaml")
+    container_mapping = Path("/calibration/arm_calibration.yaml")
     if container_mapping.exists():
         default_mapping = container_mapping
     elif not default_mapping.exists():
-        default_mapping = Path("hardware_mapping.yaml")
+        default_mapping = Path("arm_calibration.yaml")
 
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--arm-side", default="left", choices=["left", "right"], help="Side in hardware_mapping.yaml")
-    p.add_argument("--mapping", default=str(default_mapping), help="Path to hardware_mapping.yaml")
+    p.add_argument("--arm-side", default="left", choices=["left", "right"], help="Side in arm_calibration.yaml")
+    p.add_argument("--calibration", "--mapping", dest="mapping", default=str(default_mapping),
+                   help="Path to arm_calibration.yaml")
     p.add_argument(
         "--sidecar",
         default=str(Path.home() / ".cache" / "humanoid" / "calibration" / "last_calibration.yaml"),
@@ -654,7 +655,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--write-mapping",
         action="store_true",
-        help="Update hardware_mapping.yaml in place (creates .bak once)",
+        help="Update arm_calibration.yaml in place (creates .bak once)",
     )
     return p
 

@@ -1,4 +1,4 @@
-// Does the moderation pipeline actually enforce what safety_limits.yaml claims?
+// Does the moderation pipeline actually enforce what arm_actuators.yaml claims?
 //
 // These run against the SHIPPED config files (CONFIG_DIR), not fixtures, so a future edit that
 // turns the position clamp off or raises a velocity past the testing ceiling fails here.
@@ -40,8 +40,8 @@ common_msgs::msg::ArmPose uniformPose(double deg) {
 class ShippedConfig : public ::testing::Test {
 protected:
   void SetUp() override {
-    ASSERT_TRUE(core.loadFromYaml(YAML::LoadFile(configPath("hardware_mapping.yaml")), "left"));
-    ASSERT_TRUE(core.loadSafetyFromYaml(YAML::LoadFile(configPath("safety_limits.yaml"))["safety"],
+    ASSERT_TRUE(core.loadFromYaml(YAML::LoadFile(configPath("arm_calibration.yaml")), "left"));
+    ASSERT_TRUE(core.loadSafetyFromYaml(YAML::LoadFile(configPath("arm_actuators.yaml"))["safety"],
                                         kRateHz))
         << core.lastError();
   }
@@ -176,8 +176,8 @@ TEST_F(ShippedConfig, VelocityMaxIsADegreesPerSecondBound) {
 TEST_F(ShippedConfig, SpeedDoesNotDependOnHowOftenArmPoseArrives) {
   // The pipeline advances per tick: same ticks, same result, however many poses arrived.
   JointCommandCore other;
-  ASSERT_TRUE(other.loadFromYaml(YAML::LoadFile(configPath("hardware_mapping.yaml")), "left"));
-  ASSERT_TRUE(other.loadSafetyFromYaml(YAML::LoadFile(configPath("safety_limits.yaml"))["safety"],
+  ASSERT_TRUE(other.loadFromYaml(YAML::LoadFile(configPath("arm_calibration.yaml")), "left"));
+  ASSERT_TRUE(other.loadSafetyFromYaml(YAML::LoadFile(configPath("arm_actuators.yaml"))["safety"],
                                        kRateHz));
   seedAtCommandZero();
   other.seedPrevTargetsFromFeedback(feedbackForCommandFrame(0.0));
@@ -192,7 +192,7 @@ TEST_F(ShippedConfig, SpeedDoesNotDependOnHowOftenArmPoseArrives) {
 }
 
 TEST_F(ShippedConfig, DeltaLimitBindsWhenItIsTighterThanTheVelocityLimit) {
-  YAML::Node cfg = YAML::LoadFile(configPath("safety_limits.yaml"))["safety"];
+  YAML::Node cfg = YAML::LoadFile(configPath("arm_actuators.yaml"))["safety"];
   cfg["global"]["velocity_max"] = 1000.0; // effectively disable the velocity limiter
   cfg["global"]["delta_max"] = 0.05;
   cfg["global"]["enable_low_pass"] = false;
@@ -372,7 +372,7 @@ TEST_F(ShippedConfig, ShippedMitGainsSatisfyTheStallTorqueRule) {
 }
 
 TEST_F(ShippedConfig, UnsafeMitGainsAreRefusedAtLoadTime) {
-  YAML::Node cfg = YAML::LoadFile(configPath("safety_limits.yaml"))["safety"];
+  YAML::Node cfg = YAML::LoadFile(configPath("arm_actuators.yaml"))["safety"];
   // 1.46 N.m/rad * 12 deg = 0.306 N.m, over the 0.3 ceiling -> must be refused.
   cfg["joints"]["wrist"]["pitch"]["mit_kp"] = 1.46;
   EXPECT_FALSE(core.loadSafetyFromYaml(cfg, kRateHz));
@@ -462,7 +462,7 @@ namespace {
 constexpr size_t kElbowRoll = 4;
 
 YAML::Node configWithAkElbowRollOnMit(bool with_fault_kd = true) {
-  YAML::Node cfg = YAML::LoadFile(configPath("safety_limits.yaml"))["safety"];
+  YAML::Node cfg = YAML::LoadFile(configPath("arm_actuators.yaml"))["safety"];
   YAML::Node j = cfg["joints"]["elbow"]["roll"];
   j["control_type"] = 0;
   j["mit_family"] = "ak";
@@ -592,7 +592,7 @@ std::array<double, 6> degToRad(const std::array<double, 6>& deg) {
 // Shoulder pitch pinned to known AK MIT values (independent of bench tuning) with gravity
 // feed-forward.
 YAML::Node configWithShoulderPitchFf(double scale = 1.0, double max_torque = 5.5) {
-  YAML::Node cfg = YAML::LoadFile(configPath("safety_limits.yaml"))["safety"];
+  YAML::Node cfg = YAML::LoadFile(configPath("arm_actuators.yaml"))["safety"];
   YAML::Node j = cfg["joints"]["shoulder"]["pitch"];
   j["control_type"] = 0;
   j["mit_family"] = "ak";
@@ -706,7 +706,7 @@ TEST_F(ShippedConfig, FeedForwardIsClampedAndFollowsTheMotorDirection) {
   EXPECT_FLOAT_EQ(settle(), static_cast<float>(dir * 1.0));
 
   // Flipping the motor's direction flips the torque it is sent.
-  YAML::Node mapping = YAML::LoadFile(configPath("hardware_mapping.yaml"));
+  YAML::Node mapping = YAML::LoadFile(configPath("arm_calibration.yaml"));
   mapping["left"]["shoulder"]["pitch"]["direction"] = -dir;
   ASSERT_TRUE(core.loadFromYaml(mapping, "left"));
   ASSERT_TRUE(core.loadSafetyFromYaml(configWithShoulderPitchFf(1.0, 1.0), kRateHz))
@@ -719,12 +719,12 @@ TEST_F(ShippedConfig, RemovedUrdfMappingKeysAreRefused) {
   // The command frame is the URDF frame; a leftover key (even an identity one) is refused so a
   // stale -1 can never be silently ignored.
   for (const char* key : {"urdf_direction", "urdf_offset_deg"}) {
-    YAML::Node cfg = YAML::LoadFile(configPath("safety_limits.yaml"))["safety"];
+    YAML::Node cfg = YAML::LoadFile(configPath("arm_actuators.yaml"))["safety"];
     cfg["joints"]["elbow"]["pitch"][key] = 1;
     EXPECT_FALSE(core.loadSafetyFromYaml(cfg, kRateHz)) << key;
     EXPECT_NE(core.lastError().find(key), std::string::npos) << core.lastError();
 
-    cfg = YAML::LoadFile(configPath("safety_limits.yaml"))["safety"];
+    cfg = YAML::LoadFile(configPath("arm_actuators.yaml"))["safety"];
     cfg["global"][key] = 1;
     EXPECT_FALSE(core.loadSafetyFromYaml(cfg, kRateHz)) << "global " << key;
   }
@@ -752,13 +752,13 @@ TEST_F(ShippedConfig, UnsafeGravityFeedForwardConfigIsRefused) {
 
   EXPECT_FALSE(core.loadSafetyFromYaml(configWithShoulderPitchFf(1.0, 0.0), kRateHz));
 
-  YAML::Node cfg = YAML::LoadFile(configPath("safety_limits.yaml"))["safety"];
+  YAML::Node cfg = YAML::LoadFile(configPath("arm_actuators.yaml"))["safety"];
   cfg["joints"]["elbow"]["pitch"]["control_type"] = kPositionLoop;
   cfg["joints"]["elbow"]["pitch"]["gravity_ff_scale"] = 1.0;
   EXPECT_FALSE(core.loadSafetyFromYaml(cfg, kRateHz));
   EXPECT_NE(core.lastError().find("POSITION_LOOP"), std::string::npos) << core.lastError();
 
-  YAML::Node mapping = YAML::LoadFile(configPath("hardware_mapping.yaml"));
+  YAML::Node mapping = YAML::LoadFile(configPath("arm_calibration.yaml"));
   mapping["right"] = mapping["left"];
   ASSERT_TRUE(core.loadFromYaml(mapping, "right"));
   EXPECT_FALSE(core.loadSafetyFromYaml(configWithShoulderPitchFf(), kRateHz))
