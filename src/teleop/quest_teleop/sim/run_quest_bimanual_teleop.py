@@ -93,7 +93,7 @@ parser.add_argument("--publish-real-left-arm", action="store_true",
                     help="Also publish the left arm's DLS-solved joint targets to /arm/joint_targets for "
                          "joint_command_node to drive the REAL physical left arm over CAN. Off by default -- "
                          "sim-only unless explicitly requested. RIGHT ARM HAS NO REAL-HARDWARE CAN MAPPING YET "
-                         "(hardware_mapping.yaml only has a left: section) -- this flag does not and cannot "
+                         "(arm_calibration.yaml only has a left: section) -- this flag does not and cannot "
                          "touch the right arm. Requires can_node + joint_command_node already running, the "
                          "CANable adapter connected, e-stop armed, and the real arm manually positioned near "
                          "the sim's rest pose (see PUBLISH_START_DELAY below).")
@@ -244,9 +244,9 @@ _DLS_LAMBDA_MAX_RIGHT = 0.9
 _DLS_MANIPULABILITY_EPSILON = 0.01
 
 # Joint-space output smoothing, modelled on joint_command_core.cpp's active default (velocity +
-# delta clamp; NOT its trapezoidal ramp or low-pass, both inactive on hardware). safety_limits
+# delta clamp; NOT its trapezoidal ramp or low-pass, both inactive on hardware). arm_actuators
 # .yaml's per-joint overrides are deliberately NOT applied -- the arm config's joint
-# grouping (2-DOF shoulder/3-DOF elbow) does not match hardware_mapping.yaml's ArmPose split.
+# grouping (2-DOF shoulder/3-DOF elbow) does not match arm_calibration.yaml's ArmPose split.
 # All three are UNUSED as of the revert to unsmoothed IK output; kept for a retry.
 _JOINT_VELOCITY_MAX_RAD_S = 1.7453292519943295  # 100 deg/s speed ceiling
 _JOINT_DELTA_MAX_RAD = 0.2617993877991494  # 15 deg/step
@@ -776,7 +776,7 @@ def _publish_real_left_arm_pose(pub, clock_node, joint_pos_des_rad) -> None:
     publish_joint_pos -- same LEFT_ARM_JOINTS order (joint1L, joint2l,
     joint3l, joint4l, joint5l, joint6l) maps 1:1 to
     shoulder(flexion,abduction,rotation) / elbow(flexion,forearm_rotation) /
-    wrist(extension), degrees (hardware_mapping.yaml + the CAN PositionDeg
+    wrist(extension), degrees (arm_calibration.yaml + the CAN PositionDeg
     signal expect degrees, joint_pos_des is radians)."""
     import math
 

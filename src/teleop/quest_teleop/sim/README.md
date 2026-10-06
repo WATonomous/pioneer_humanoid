@@ -443,7 +443,7 @@ and completely unaffected by this flag.
 
 ### Right arm is NOT supported yet
 
-`src/interfacing/joint_command/config/hardware_mapping.yaml` only has a
+`src/interfacing/joint_command/config/arm_calibration.yaml` only has a
 `left:` section — there are no CAN IDs documented anywhere in this repo for
 the right arm's motors, and `joint_command_node` is single-arm per instance
 (`arm_side` param, currently hardcoded to `"left"` in
@@ -455,7 +455,7 @@ there's nothing on the other end to receive it yet. Adding it requires:
 1. The right arm's actual motor CAN IDs (physical/hardware knowledge, not
    something to guess — sending a position command to the wrong physical
    motor ID is exactly the kind of mistake that damages hardware).
-2. A `right:` section in `hardware_mapping.yaml` with those IDs.
+2. A `right:` section in `arm_calibration.yaml` with those IDs.
 3. A second `joint_command_node` instance (`arm_side: "right"`, its own
    `input_topic`/`motor_cmd_topic` params so it doesn't collide with the left
    instance) and the matching publish call in the teleop script.
@@ -477,7 +477,7 @@ precedent, `src/teleop/task_space_controller/task_space_ik.py`
 | `wrist.position[0]` | `joint6l` | extension |
 
 `joint_pos_des` from the DLS solver is radians (Isaac Lab convention);
-`hardware_mapping.yaml`'s limits and the CAN `PositionDeg` signal expect
+`arm_calibration.yaml`'s limits and the CAN `PositionDeg` signal expect
 degrees, so `_publish_real_left_arm_pose` converts before publishing.
 
 ### Safety: the 5-second startup delay

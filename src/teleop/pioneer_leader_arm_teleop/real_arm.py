@@ -11,7 +11,7 @@ Run in the `simulation_mj` container (ROS, common_msgs, the leader's servo SDK) 
 Every angle is in the URDF frame, which is also the command frame ArmPose / joint_command use:
 
     leader:  sign * leader angle, clamped to the URDF limits      (as in sim)
-    real:    zero_offset + motor / direction                       (hardware_mapping.yaml)
+    real:    zero_offset + motor / direction                       (arm_calibration.yaml)
 
 Pose both arms the same (motors off) and check every joint agrees within 5 deg across its range;
 fix --signs (leader) or the real arm's direction / calibration (calibrate_arm.py) until it does.
@@ -28,11 +28,11 @@ import time
 from pathlib import Path
 
 _SRC = Path(__file__).resolve().parents[2]
-# joint_config (hardware_mapping.yaml reader) and pioneer_humanoid (URDF limits, home).
+# joint_config (arm_calibration.yaml reader) and pioneer_humanoid (URDF limits, home).
 sys.path.insert(0, str(_SRC / "interfacing" / "can" / "scripts"))
 sys.path.insert(0, str(_SRC / "pioneer_humanoid"))
 
-from joint_config import find_mapping, load_joint_map, motor_to_cmd_deg  # noqa: E402
+from joint_config import find_calibration, load_joint_map, motor_to_cmd_deg  # noqa: E402
 
 from arm_limits import gripper_fraction, limited_target  # noqa: E402
 from leader_mapping import add_leader_args, check_leader_args  # noqa: E402
@@ -45,7 +45,7 @@ AGREE_TOL_DEG = 5.0
 STALE_AFTER_S = 0.5
 PRINT_PERIOD_S = 0.2
 READ_PERIOD_S = 0.02
-# hardware_mapping.yaml left.gripper.open_close (the GL40): shown, not compared, until the
+# arm_calibration.yaml left.gripper.open_close (the GL40): shown, not compared, until the
 # gripper command path exists (#327).
 GRIPPER_CAN_ID = 21
 
@@ -143,7 +143,7 @@ def self_test() -> None:
     # The real config: six joints, slot order, URDF limits loaded.
     from pioneer_humanoid.arm_params import LEFT_ARM_JOINTS
     from pioneer_humanoid.urdf_joint_limits import JOINT_POS_LIMITS
-    mapping = find_mapping(None)
+    mapping = find_calibration(None)
     joints = build_joints(mapping, LEFT_ARM_JOINTS, JOINT_POS_LIMITS)
     assert [j["urdf_joint"] for j in joints] == LEFT_ARM_JOINTS
     assert [j["name"] for j in joints] == ["shoulder.pitch", "shoulder.roll", "shoulder.yaw",
@@ -155,7 +155,9 @@ def run() -> None:
     parser = argparse.ArgumentParser(
         description="DRY RUN: leader arm vs the real left arm (reads /interfacing/motorFeedback, publishes nothing).")
     add_leader_args(parser, scene_help="ignored for --target real")
-    parser.add_argument("--mapping", default=None, help="hardware_mapping.yaml (default: auto, as joint_command)")
+    # --calibration is the leader's own file (add_leader_args).
+    parser.add_argument("--arm-calibration", "--mapping", dest="mapping", default=None,
+                        help="the real arm's arm_calibration.yaml (default: auto, as joint_command)")
     parser.add_argument("--self-test", action="store_true", help="check the angle math and exit (no ROS, no leader)")
     args = parser.parse_args()
     if args.self_test:
@@ -165,7 +167,7 @@ def run() -> None:
     from pioneer_humanoid.arm_params import DEFAULT_JOINT_POS, LEFT_ARM_JOINTS
     from pioneer_humanoid.urdf_joint_limits import JOINT_POS_LIMITS
 
-    mapping = find_mapping(args.mapping)
+    mapping = find_calibration(args.mapping)
     joints = build_joints(mapping, LEFT_ARM_JOINTS, JOINT_POS_LIMITS)
     by_id = {j["motor_id"]: j for j in joints}
     grip_info = load_joint_map(mapping, "left").get(GRIPPER_CAN_ID)

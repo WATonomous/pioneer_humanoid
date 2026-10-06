@@ -1,4 +1,4 @@
-"""The arm's limits (hardware_mapping.yaml, safety_limits.yaml), read the way joint_command reads
+"""The arm's limits (arm_calibration.yaml, arm_actuators.yaml), read the way joint_command reads
 them. Used by arm_roundtrip.py, telemetry_record.py and calibrate_arm.py. No ROS imports.
 
 Frames (see joint_command_core.cpp applyCalibration):
@@ -24,18 +24,18 @@ ARM_POSE_NAMES = [f"{group}.{joint}" for group, joint in ARM_POSE_JOINTS]
 # The repo copy, found relative to this file (src/interfacing/can/scripts -> src/interfacing).
 _REPO_CONFIG = Path(__file__).resolve().parents[2] / "joint_command" / "config"
 
-DEFAULT_MAPPINGS = [
-    "/calibration/hardware_mapping.yaml",  # bind-mounted in both containers
-    "/root/ament_ws/src/interfacing/joint_command/config/hardware_mapping.yaml",
-    "/root/ament_ws/src/joint_command/config/hardware_mapping.yaml",
-    str(_REPO_CONFIG / "hardware_mapping.yaml"),
+DEFAULT_CALIBRATIONS = [
+    "/calibration/arm_calibration.yaml",  # bind-mounted in both containers
+    "/root/ament_ws/src/interfacing/joint_command/config/arm_calibration.yaml",
+    "/root/ament_ws/src/joint_command/config/arm_calibration.yaml",
+    str(_REPO_CONFIG / "arm_calibration.yaml"),
 ]
 
-SAFETY_LIMITS = [
-    "/opt/joint_command_config/safety_limits.yaml",
-    "/root/ament_ws/src/joint_command/config/safety_limits.yaml",
-    "/root/ament_ws/src/interfacing/joint_command/config/safety_limits.yaml",
-    str(_REPO_CONFIG / "safety_limits.yaml"),
+ACTUATOR_CONFIGS = [
+    "/opt/joint_command_config/arm_actuators.yaml",
+    "/root/ament_ws/src/joint_command/config/arm_actuators.yaml",
+    "/root/ament_ws/src/interfacing/joint_command/config/arm_actuators.yaml",
+    str(_REPO_CONFIG / "arm_actuators.yaml"),
 ]
 
 # can/config/mit_profiles.yaml: which protocol family each drive speaks (gl2 | ak).
@@ -46,7 +46,7 @@ MIT_PROFILES = [
 
 # Keys a joint block may override; anything missing falls back to safety.global, exactly as
 # JointCommandCore::loadJointSafetyConfig does.
-_SAFETY_KEYS = ("velocity_max", "delta_max", "control_type", "mit_kp", "mit_kd",
+_SAFETY_KEYS = ("active", "velocity_max", "delta_max", "control_type", "mit_kp", "mit_kd",
                 "mit_max_torque", "mit_max_track_err", "mit_feedback_timeout", "mit_family",
                 "mit_fault_kd", "enable_position_clamp", "enable_velocity_limit",
                 "gravity_ff_scale", "gravity_ff_max_torque", "gravity_assume_deg")
@@ -59,16 +59,16 @@ def _first_existing(candidates: List[str]) -> Optional[Path]:
     return None
 
 
-def find_mapping(explicit: Optional[str]) -> Path:
-    found = _first_existing([explicit] if explicit else DEFAULT_MAPPINGS)
+def find_calibration(explicit: Optional[str]) -> Path:
+    found = _first_existing([explicit] if explicit else DEFAULT_CALIBRATIONS)
     if found is None:
-        raise SystemExit("could not find hardware_mapping.yaml; pass --mapping PATH "
-                         f"(looked in: {', '.join(DEFAULT_MAPPINGS)})")
+        raise SystemExit("could not find arm_calibration.yaml; pass --calibration PATH "
+                         f"(looked in: {', '.join(DEFAULT_CALIBRATIONS)})")
     return found
 
 
-def find_safety_limits(explicit: Optional[str]) -> Optional[Path]:
-    return _first_existing([explicit] if explicit else SAFETY_LIMITS)
+def find_actuators(explicit: Optional[str]) -> Optional[Path]:
+    return _first_existing([explicit] if explicit else ACTUATOR_CONFIGS)
 
 
 def drive_family(motor_id: int) -> Optional[str]:
@@ -152,9 +152,9 @@ def joint_safety(path: Optional[Path], name: str) -> Dict[str, Any]:
     return {key: default.get(key) for key in _SAFETY_KEYS}
 
 
-def load_safety_limits(explicit: Optional[str]):
+def load_actuator_limits(explicit: Optional[str]):
     """({joint: velocity_max_dps}, {joint: mit thresholds}) for the plots; empty if missing."""
-    _, joints = load_joint_safety(find_safety_limits(explicit))
+    _, joints = load_joint_safety(find_actuators(explicit))
     vmax, mit = {}, {}
     for name, block in joints.items():
         vmax[name] = float(block.get("velocity_max") or 0)
@@ -170,7 +170,7 @@ def load_safety_limits(explicit: Optional[str]):
 
 def max_torque_by_joint(explicit: Optional[str]) -> Dict[str, float]:
     """Every joint's mit_max_torque, MIT or not -- the testing ceiling a run is judged against."""
-    _, joints = load_joint_safety(find_safety_limits(explicit))
+    _, joints = load_joint_safety(find_actuators(explicit))
     return {name: float(block["mit_max_torque"]) for name, block in joints.items()
             if block.get("mit_max_torque") is not None}
 

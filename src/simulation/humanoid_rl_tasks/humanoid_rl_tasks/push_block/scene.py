@@ -42,6 +42,8 @@ LIGHTBOX_USD = str(_PROPS / "lightbox" / "source" / "lightbox.usd")
 
 # ── grounding (teleop-verified; see module docstring) ────────────────────────
 ROBOT_STAND_LIFT_Z = 1.1997   # base_link lift so the stand's feet reach floor level
+ROBOT_BASE_X = 0.15
+ROBOT_BASE_POS = (ROBOT_BASE_X, 0.0, ROBOT_STAND_LIFT_Z)
 # table.usd is 29.5 inches along the local axis that becomes world Z after
 # _TABLE_ROT.  Scale that axis to the real table's 30.5-inch height while
 # keeping the feet at the same world position used by the verified scene.

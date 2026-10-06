@@ -17,7 +17,7 @@ We convert high-level arm joint targets (`ArmPose`) into per-motor CAN commands 
 
 ## Per-joint processing (`armPoseToMotorCmds`)
 
-For each joint $i$, let $q^{\mathrm{in}}_i$ be the incoming angle (degrees, same units as `hardware_mapping.yaml`).
+For each joint $i$, let $q^{\mathrm{in}}_i$ be the incoming angle (degrees, same units as `arm_calibration.yaml`).
 
 Repeat in order, once per control tick:
 
@@ -45,7 +45,7 @@ Store $q$ as $q^{\mathrm{prev}}$ for the next tick.
 
 ## MIT joints
 
-`control_type` is set per joint in `safety_limits.yaml` (`-1` = node default). All six joints
+`control_type` is set per joint in `arm_actuators.yaml` (`-1` = node default). All six joints
 currently run `MIT_CONTROL` (0): the GL40 wrist (`mit_family: gl2`) and the AKs (`ak`). See "MIT
 mode" in [can/README.md](../can/README.md).
 
@@ -82,7 +82,7 @@ while any joint's angle is unknown, unless an unpowered joint sets `gravity_assu
 only while that joint is strapped at that angle).
 
 The model reads command-frame angles as URDF angles: **the command frame is the URDF frame.**
-`hardware_mapping.yaml`'s zero is the URDF zero (arm hanging straight down, elbow straight) and
+`arm_calibration.yaml`'s zero is the URDF zero (arm hanging straight down, elbow straight) and
 each joint's `direction` makes positive turn the URDF's positive way: shoulder pitch swings the
 arm forward, shoulder roll out to the side, elbow pitch backward. (The old `urdf_direction` /
 `urdf_offset_deg` keys are refused: fold any correction into `direction` / `zero_offset`.)
@@ -90,7 +90,7 @@ arm forward, shoulder roll out to the side, elbow pitch backward. (The old `urdf
 Bring-up, one joint at a time, arm supported, `gravity_ff_scale: 0`:
 1. Calibrate with the arm hanging (`calibrate_arm.py`); the seed log should then read ~0 there.
 2. Jog each joint positive and check its direction against the list above. A wrong one: flip its
-   `direction` in `hardware_mapping.yaml` and re-run `calibrate_arm.py`.
+   `direction` in `arm_calibration.yaml` and re-run `calibrate_arm.py`.
 3. At a few poses, the `Gravity model ... pred X meas Y` log (every 5 s) must agree in sign and
    roughly in size.
 4. Set `gravity_ff_scale: 0.5`, confirm the sag shrinks, then go to 1.0.
@@ -109,12 +109,12 @@ a limit, and the rest of the arm keeps working.
 | File | Role |
 |------|------|
 | `config/joint_command.yaml` | ROS params: arm side, topics, control rate, control type |
-| `config/hardware_mapping.yaml` | Per-joint `can_id`, limits, `direction`, `zero_offset` |
-| `config/safety_limits.yaml` | Moderation toggles, per-joint `velocity_max`, `delta_max`, `low_pass_alpha`, `control_type`, MIT gains and limits |
+| `config/arm_calibration.yaml` | Per-joint `can_id`, limits, `direction`, `zero_offset` |
+| `config/arm_actuators.yaml` | `active` per joint, moderation toggles, per-joint `velocity_max`, `delta_max`, `low_pass_alpha`, `control_type`, MIT gains and limits |
 
-Safety YAML uses a top-level `safety:` key with `global` defaults and optional `joints` overrides (shoulder/elbow/wrist paths match hardware mapping).
+`arm_actuators.yaml` uses a top-level `safety:` key with `global` defaults and optional `joints` overrides (shoulder/elbow/wrist paths match `arm_calibration.yaml`).
 
-## Tuning `safety_limits.yaml`
+## Tuning `arm_actuators.yaml`
 
 Units are **degrees** and **deg/s**. At 50 Hz, `velocity_max: 100` implies up to **2.0°/tick** from the velocity limiter.
 
@@ -140,4 +140,10 @@ unsafe edit (clamp off, velocity past the 2 rad/s testing ceiling, broken gain r
 ros2 launch joint_command joint_command.launch.py
 ```
 
-**Defaults:** `arm_side=left`, `control_rate_hz=50`, `control_type=POSITION_LOOP` (4), overridden per joint in `safety_limits.yaml`.
+**Which actuators a run uses:** each joint's `active: true` in `arm_actuators.yaml`. Set it to
+`false` (e.g. every joint but one for a single-joint test) and restart the node. An inactive
+joint gets no command at all (no `MIT_ENTER`, no watchdog), and to the gravity model its angle is
+unknown, as if unpowered (`gravity_assume_deg` applies). The node logs which joints are active,
+and refuses to start with none.
+
+**Defaults:** `arm_side=left`, `control_rate_hz=50`, `control_type=POSITION_LOOP` (4), overridden per joint in `arm_actuators.yaml`.

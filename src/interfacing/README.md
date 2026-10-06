@@ -26,7 +26,7 @@ python3 /workspace/humanoid/src/interfacing/can/scripts/live_arm_mjviser.py --ar
 > joints by hand, one at a time, and confirm the on-screen joint turns the same way and stops
 > at the same angle. Try fixes with `--flip JOINT` / `--offset JOINT=DEG` (viewer-only), then
 > make them real: a flip is the joint's `direction` in
-> [joint_command/config/hardware_mapping.yaml](joint_command/config/hardware_mapping.yaml)
+> [joint_command/config/arm_calibration.yaml](joint_command/config/arm_calibration.yaml)
 > (then re-run `calibrate_arm.py`); an offset means it was not zeroed hanging (re-run it).
 
 → script docstring in `live_arm_mjviser.py` for the angle math and full flag reference.

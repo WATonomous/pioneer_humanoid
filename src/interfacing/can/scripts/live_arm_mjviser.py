@@ -13,12 +13,12 @@ Run in the `simulation_mj` container while `interfacing` is up and the arm is po
 
 Angle shown for each joint, in degrees -- the command frame IS the URDF frame:
 
-    q_urdf = q_cmd = zero_offset + motor / direction       (hardware_mapping.yaml)
+    q_urdf = q_cmd = zero_offset + motor / direction       (arm_calibration.yaml)
 
 Check the calibration against pioneer_bimanual_arm.urdf: move each joint by hand and confirm
 the on-screen joint turns the same way and stops at the same angle. Try corrections with
 --flip / --offset (viewer-only). A joint that needs --flip has the wrong `direction` in
-hardware_mapping.yaml: flip it and re-run calibrate_arm.py (zero_offset and the limits depend on
+arm_calibration.yaml: flip it and re-run calibrate_arm.py (zero_offset and the limits depend on
 it). One that needs --offset was not zeroed hanging: re-run calibrate_arm.py.
 
 The gripper is not driven: its 0-100 command units have no confirmed scale to the finger
@@ -35,7 +35,7 @@ import threading
 import time
 from pathlib import Path
 
-from joint_config import find_mapping, load_joint_map, motor_to_cmd_deg
+from joint_config import find_calibration, load_joint_map, motor_to_cmd_deg
 
 # pioneer_humanoid is not installed in the simulation_mj image; scripts add src/ paths themselves.
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "pioneer_humanoid"))
@@ -72,7 +72,7 @@ def self_test() -> None:
     assert urdf_deg(info, -20.0) == 30.0  # direction -1: motor -20 is +20 in the command frame
     assert urdf_deg(dict(info, view_flip=-1, view_offset_deg=90.0), -20.0) == 60.0
 
-    mapping = find_mapping(None)
+    mapping = find_calibration(None)
     names = ["j0", "j1", "j2", "j3", "j4", "j5"]
     joints = build_joint_map(mapping, "left", names, set(), {})
     assert sorted(j["urdf_joint"] for j in joints.values()) == names, joints
@@ -91,14 +91,15 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--arm-side", default="left", choices=["left", "right"],
-                        help="side in hardware_mapping.yaml; drives the same side of the URDF")
+                        help="side in arm_calibration.yaml; drives the same side of the URDF")
     parser.add_argument("--flip", nargs="*", default=[], metavar="JOINT",
                         help="viewer-only: invert these joints (e.g. shoulder.roll); a fix belongs in "
-                             "hardware_mapping.yaml's direction")
+                             "arm_calibration.yaml's direction")
     parser.add_argument("--offset", nargs="*", default=[], metavar="JOINT=DEG",
                         help="viewer-only: degrees added to these joints (e.g. shoulder.yaw=90); a fix "
                              "is a re-run of calibrate_arm.py")
-    parser.add_argument("--mapping", default=None, help="hardware_mapping.yaml (default: auto)")
+    parser.add_argument("--calibration", "--mapping", dest="mapping", default=None,
+                        help="arm_calibration.yaml (default: auto)")
     parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("--hz", type=float, default=30.0, help="scene refresh rate")
     parser.add_argument("--self-test", action="store_true", help="check the angle math and exit")
@@ -118,7 +119,7 @@ def main() -> None:
     from pioneer_humanoid.mujoco_bimanual_arm import arm_spec
 
     offset = {name.strip(): float(deg) for name, _, deg in (o.partition("=") for o in args.offset)}
-    mapping = find_mapping(args.mapping)
+    mapping = find_calibration(args.mapping)
     urdf_joints = LEFT_ARM_JOINTS if args.arm_side == "left" else RIGHT_ARM_JOINTS
     joints = build_joint_map(mapping, args.arm_side, urdf_joints, set(args.flip), offset)
     unknown = (set(args.flip) | set(offset)) - {j["name"] for j in joints.values()}

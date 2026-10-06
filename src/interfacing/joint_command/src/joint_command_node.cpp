@@ -31,14 +31,14 @@ JointCommandNode::JointCommandNode() : Node("joint_command_node") {
 
   const YAML::Node hardware_config =
       YAML::LoadFile(ament_index_cpp::get_package_share_directory("joint_command") +
-                     "/config/hardware_mapping.yaml");
+                     "/config/arm_calibration.yaml");
 
   if (!core_.loadFromYaml(hardware_config, arm_side)) {
     throw std::runtime_error("Failed to load 6-joint mapping for arm side '" + arm_side + "'");
   }
 
   const std::string safety_config_path =
-      ament_index_cpp::get_package_share_directory("joint_command") + "/config/safety_limits.yaml";
+      ament_index_cpp::get_package_share_directory("joint_command") + "/config/arm_actuators.yaml";
   const YAML::Node safety_config = YAML::LoadFile(safety_config_path);
   const YAML::Node safety_root = safety_config["safety"];
   if (!core_.loadSafetyFromYaml(safety_root, control_rate_hz_)) {
@@ -46,6 +46,12 @@ JointCommandNode::JointCommandNode() : Node("joint_command_node") {
     throw std::runtime_error("Failed to load safety config from '" + safety_config_path +
                              "': " + core_.lastError());
   }
+  std::string active;
+  for (size_t i = 0; i < core_.jointCount(); ++i) {
+    active += std::string(active.empty() ? "" : ", ") + core_.jointName(i) +
+              (core_.isActive(i) ? "" : " (INACTIVE)");
+  }
+  RCLCPP_INFO(this->get_logger(), "Joints this run: %s", active.c_str());
 
   motor_cmd_pub_ =
       this->create_publisher<common_msgs::msg::MotorCmd>(motor_cmd_topic, rclcpp::QoS(10));
@@ -178,7 +184,7 @@ bool JointCommandNode::trySeedFromFeedback() {
     for (const size_t i : report.out_of_range) {
       RCLCPP_ERROR(this->get_logger(),
                    "EXCLUDING joint %s (motor %d): it is at %.1f deg, outside its configured "
-                   "limits [%.1f, %.1f] in hardware_mapping.yaml. Its calibration is stale or "
+                   "limits [%.1f, %.1f] in arm_calibration.yaml. Its calibration is stale or "
                    "the limits are placeholders. This joint will NOT be commanded (MIT joints "
                    "are held limp) until the mapping is corrected -- re-run calibrate_arm.py.",
                    core_.jointName(i).c_str(), static_cast<int>(core_.motorId(i)),

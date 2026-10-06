@@ -26,7 +26,7 @@ services:
       - /dev:/dev # Allow access to host devices
       - ${MONO_DIR}/src/interfacing:/root/ament_ws/src/interfacing
       # For calibrate_arm.py --write-mapping
-      - ${MONO_DIR}/src/interfacing/joint_command/config/hardware_mapping.yaml:/calibration/hardware_mapping.yaml
+      - ${MONO_DIR}/src/interfacing/joint_command/config/arm_calibration.yaml:/calibration/arm_calibration.yaml
       # Telemetry run folders (gitignored)
       - ${MONO_DIR}/outputs:/outputs
       # Limits, read-only, for telemetry
@@ -62,7 +62,7 @@ services:
       - ${MONO_DIR}/src/interfacing/joint_command:/root/ament_ws/src/joint_command
       # Scripts for telemetry_record.py, outside /root (this container runs as the host user)
       - ${MONO_DIR}/src/interfacing/can/scripts:/opt/humanoid_scripts:ro
-      - ${MONO_DIR}/src/interfacing/joint_command/config/hardware_mapping.yaml:/calibration/hardware_mapping.yaml:ro
+      - ${MONO_DIR}/src/interfacing/joint_command/config/arm_calibration.yaml:/calibration/arm_calibration.yaml:ro
       - ${MONO_DIR}/src/interfacing/joint_command/config:/opt/joint_command_config:ro
       # Overlay the installed config so calibration/limit edits apply on node restart
       - ${MONO_DIR}/src/interfacing/joint_command/config:/opt/watonomous/joint_command/share/joint_command/config:ro

@@ -111,23 +111,23 @@ def profile_time(a: List[float], b: List[float], vel: List[float], floor: float)
 def resolve_config(args):
     """The configs joint_command_node enforces (its INSTALLED copy); refuse if the repo differs.
 
-    Explicit --mapping / --safety-limits skip the check.
+    Explicit --calibration / --actuators skip the check.
     """
     installed = jc.installed_joint_command_config()
-    live_mapping = jc.find_mapping(args.mapping)
-    live_safety = jc.find_safety_limits(args.safety_limits)
+    live_mapping = jc.find_calibration(args.mapping)
+    live_safety = jc.find_actuators(args.actuators)
     if live_safety is None:
-        sys.exit("could not find safety_limits.yaml; pass --safety-limits PATH")
-    if installed is None or (args.mapping and args.safety_limits):
+        sys.exit("could not find arm_actuators.yaml; pass --actuators PATH")
+    if installed is None or (args.mapping and args.actuators):
         return live_mapping, live_safety
     stale = []
     mapping, safety = live_mapping, live_safety
     if not args.mapping:
-        mapping = installed / "hardware_mapping.yaml"
+        mapping = installed / "arm_calibration.yaml"
         if not jc.same_yaml(mapping, live_mapping):
             stale.append(f"{mapping} != {live_mapping}")
-    if not args.safety_limits:
-        safety = installed / "safety_limits.yaml"
+    if not args.actuators:
+        safety = installed / "arm_actuators.yaml"
         if not jc.same_yaml(safety, live_safety):
             stale.append(f"{safety} != {live_safety}")
     if stale:
@@ -178,8 +178,10 @@ def main(argv=None) -> int:
                     help="keep streaming the origin after the run until Ctrl-C")
     ap.add_argument("--rate", type=float, default=50.0, help="ArmPose / sampling rate, Hz")
     ap.add_argument("--label", default="", help="run folder name (default: derived)")
-    ap.add_argument("--mapping", help="hardware_mapping.yaml (default: joint_command's)")
-    ap.add_argument("--safety-limits", help="safety_limits.yaml (default: joint_command's)")
+    ap.add_argument("--calibration", "--mapping", dest="mapping",
+                    help="arm_calibration.yaml (default: joint_command's)")
+    ap.add_argument("--actuators", "--safety-limits", dest="actuators",
+                    help="arm_actuators.yaml (default: joint_command's)")
     ap.add_argument("--arm-side", default="left")
     ap.add_argument("--no-log", action="store_true")
     args = ap.parse_args(argv)
@@ -220,12 +222,12 @@ def main(argv=None) -> int:
         f"{n.replace('.', '')[:6]}{v:+g}".replace("+", "p").replace("-", "m")
         for n, v in zip(jc.ARM_POSE_NAMES, rel or absolute) if n in moving and v)
 
-    velocity_max, mit_limits = jc.load_safety_limits(str(safety_path))
+    velocity_max, mit_limits = jc.load_actuator_limits(str(safety_path))
     log = RunFolder(
         label=label or "rt", source="ros", enabled=not args.no_log,
         meta={
             "tool": "arm_roundtrip.py", "arm_side": args.arm_side, "mapping": str(mapping),
-            "safety_limits": str(safety_path), "rate_hz": args.rate,
+            "actuators": str(safety_path), "rate_hz": args.rate,
             "frame": "command frame (degrees) for both sp_deg and pos_deg",
             "joints": {str(mid): info["name"] for mid, info in sorted(joint_map.items())},
             "moving": sorted(moving), "vel_dps": args.vel,

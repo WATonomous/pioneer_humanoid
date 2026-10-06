@@ -9,8 +9,8 @@ safety:
     # per joint to enable compliant holding; start LOW (e.g. kp<10) and increase gradually.
 
   # Position clamp is ENABLED: calibrate_arm.py's software zero-mode has been run for real,
-  # producing real per-joint limits (see hardware_mapping.yaml). Re-verify each joint's limits
-  # are current (re-run calibration after any power cycle first -- see hardware_mapping.yaml's
+  # producing real per-joint limits (see arm_calibration.yaml). Re-verify each joint's limits
+  # are current (re-run calibration after any power cycle first -- see arm_calibration.yaml's
   # header note on encoder drift).
   # velocity_max is still a deliberate slow crawl for testing; raise once trusted.
   #
@@ -38,22 +38,25 @@ safety:
     # Gravity feed-forward (MIT joints only), sent as MotorCmd.torque:
     #   ff = clamp(gravity_ff_scale * ramp * tau_model, +-gravity_ff_max_torque)
     # Startup rule: quantised mit_kp * mit_max_track_err + gravity_ff_max_torque <= mit_max_torque.
-    # The model reads command-frame angles as URDF angles: hardware_mapping.yaml's zero is the
+    # The model reads command-frame angles as URDF angles: arm_calibration.yaml's zero is the
     # URDF zero (hanging) and each direction matches the URDF's positive direction. Check the
     # node's "Gravity model ... pred / meas" log with scale 0 before raising gravity_ff_scale.
     # gravity_assume_deg: angle used for an unpowered joint -- only valid while strapped there.
     gravity_ff_scale: 0.0
     gravity_ff_max_torque: 0.0
 
+  # active: false leaves that motor alone for the run (no command, no MIT enter, no watchdog);
+  # to the gravity model its angle is then unknown, as if unpowered. Applies on node restart.
   joints:
     # --- AK10-9 / AK80-9, MIT --------------------------------------------------
-    # Limits come from calibrate_arm.py's software zero-mode (see hardware_mapping.yaml).
+    # Limits come from calibrate_arm.py's software zero-mode (see arm_calibration.yaml).
     # Re-run calibration after any power cycle: AK80-9 joints lose their zero (src/interfacing/README.md).
     # Stall torque = quantised kp * 12 deg (0.2094 rad) [+ gravity_ff_max_torque]. Testing
     # ceilings (real-hardware-safety skill): AK10-9 10 N.m, AK80-9 5 N.m -- these bench gains
     # exceed them, and mit_max_torque is set to each motor's full range.
     shoulder:
       pitch:   # AK10-9, id 14
+        active: true
         velocity_max: 30.0
         delta_max: 2.0
         control_type: 0
@@ -65,6 +68,7 @@ safety:
         gravity_ff_max_torque: 10.5   # model max 4.7 N.m
         gravity_assume_deg: 0.0
       roll:    # AK10-9, id 13
+        active: true
         velocity_max: 30.0
         delta_max: 2.0
         control_type: 0
@@ -76,6 +80,7 @@ safety:
         gravity_ff_max_torque: 5.5    # model max 4.7 N.m
         gravity_assume_deg: 0.0
       yaw:     # AK80-9, id 12
+        active: true
         velocity_max: 60.0
         delta_max: 2.0
         control_type: 0
@@ -88,6 +93,7 @@ safety:
         gravity_assume_deg: 0.0
     elbow:
       pitch:   # AK80-9, id 11
+        active: true
         velocity_max: 30.0
         delta_max: 1.6
         control_type: 0
@@ -100,6 +106,7 @@ safety:
         gravity_ff_max_torque: 3.59
         gravity_assume_deg: 0.0
       roll:    # AK80-9, id 104
+        active: true
         velocity_max: 30.0
         delta_max: 1.6
         control_type: 0
@@ -119,6 +126,7 @@ safety:
     # of sag; gravity feed-forward barely helps (0.044 N.m headroom at these gains).
     wrist:
       pitch:   # GL40, id 22
+        active: true
         velocity_max: 30.0
         delta_max: 2.4
         control_type: 0        # MIT_CONTROL
