@@ -1,0 +1,17 @@
+[project]
+name = "humanoid-motion-tracking"
+version = "0.1.0"
+description = "Whole-body motion tracking (BeyondMimic) for the Wato humanoid on mjlab / MuJoCo Warp"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "mujoco>=3.2",
+    "numpy>=1.26",
+]
+
+[project.optional-dependencies]
+train = ["mjlab[cu128]==1.6.0", "wandb<0.29"]
+train-cpu = ["mjlab[cpu]==1.6.0", "wandb<0.29"]
+
+[tool.uv]
+package = false
+conflicts = [[{ extra = "train" }, { extra = "train-cpu" }]]
