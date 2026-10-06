@@ -50,24 +50,36 @@ Motions in `data/motions/`: `boxing.csv` (Xsens, 120 fps, 35 s), `curling.csv`,
 `squatting.csv`. To play a motion faster, give `csv_to_npz.py` a larger
 `--input-fps` than it was recorded at (240 for a 120 fps take = 2× speed).
 
-## Generated footwork
+## Generated boxing movement
 
-`scripts/generate_footwork.py` builds boxing step-drag footwork (forward, back,
-left, right) without mocap: stance and guard copied from the boxing take,
-feet and centre of mass placed by the step-drag rules (foot nearest the
-direction moves first, the other pushes and follows the same distance, weight
-onto the support foot before each lift, reset to stance after every step),
-legs solved by IK. It prints a check against the motor speed caps.
+`scripts/generate_moves.py` builds boxing movement without mocap, chained
+freely from a move list:
+
+| move | what |
+|---|---|
+| `F` `B` `L` `R` | step-drag: the foot nearest the direction moves first, the other pushes and follows the same distance |
+| `D` / `DD` | duck, shallow and fast (10 cm, 10° lean) / deep (20 cm, 25° lean): knees bend, back straight, feet planted |
+| `SL` `SR` | slip: weight onto that side's foot, dip and tilt the head off line |
+| `WL` `WR` | bob and weave, head ending left / right: U-shaped path under a hook |
+| `PL` `PR` | pivot on the lead foot: rear foot swings round in short steps, body turns 45°, lead foot turns to match |
+| `H` | hold the stance |
+
+The stance and guard come from the boxing take; foot paths and the
+centre-of-mass / hip height / heading / lean curves come from the rules
+above, and the legs are solved by IK. Moves blend into each other without
+stopping. Any move that drives a leg motor past 80% of its speed cap
+(`--max-cap-use`) is slowed down automatically, so what comes out is within
+what the motors can do with headroom for balance.
 
 ```bash
-uv run scripts/generate_footwork.py --sequence F F F B B B L L L R R R \
-    --output-file data/motions/footwork.csv
-uv run scripts/csv_to_npz.py --input-file data/motions/footwork.csv --input-fps 50 \
-    --output-file data/motions/footwork.npz --video True
+uv run scripts/generate_moves.py --sequence F F D PL SL SR WL WR DD PR B B \
+    --output-file data/motions/moves.csv
+uv run scripts/csv_to_npz.py --input-file data/motions/moves.csv --input-fps 50 \
+    --output-file data/motions/moves.npz --video True
 ```
 
-Orthodox only. Longer steps, a longer stance or a bigger weight shift push the
-knees past their 3.67 rad/s cap; the script's report shows when.
+Each move has its own settings (`--duck.depth`, `--pivot.angle`,
+`--step.forward`, …; see `--help`). Orthodox only.
 
 Headless rendering without a GPU: `apt install libosmesa6` and set
 `MUJOCO_GL=osmesa`.
@@ -86,6 +98,6 @@ Headless rendering without a GPU: `apt install libosmesa6` and set
 
 ```
 wato_tracking/   robot.py (entity + motors), env_cfg.py (task), rl_cfg.py (PPO); __init__ registers the tasks
-scripts/         fetch_assets.sh, csv_to_npz.py, generate_footwork.py, train.py, play.py
+scripts/         fetch_assets.sh, csv_to_npz.py, generate_moves.py, train.py, play.py
 data/            fetched model + motions, generated NPZs (gitignored)
 ```
