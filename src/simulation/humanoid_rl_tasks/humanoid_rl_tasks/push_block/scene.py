@@ -41,8 +41,6 @@ TABLE_USD = str(_PROPS / "table.usd")
 
 # ── grounding (teleop-verified; see module docstring) ────────────────────────
 ROBOT_STAND_LIFT_Z = 1.1997   # base_link lift so the stand's feet reach floor level
-# Move the complete robot/stand toward +X so the left arm can comfortably
-# reach the cube on the physical lightbox table.
 ROBOT_BASE_X = 0.15
 ROBOT_BASE_POS = (ROBOT_BASE_X, 0.0, ROBOT_STAND_LIFT_Z)
 TABLE_TOP_Z = 0.705           # harness-measured top of table.usd at the pose below
