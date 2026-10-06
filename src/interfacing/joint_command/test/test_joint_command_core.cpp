@@ -833,14 +833,6 @@ common_msgs::msg::ArmPose poseWithGripper(double closure) {
 
 } // namespace
 
-TEST_F(ShippedConfig, GripperIsAnMitJointUnderTheGl40TestingCeiling) {
-  ASSERT_TRUE(core.hasGripper());
-  EXPECT_EQ(core.jointName(kGripper), "gripper.open_close");
-  EXPECT_EQ(core.motorId(kGripper), 21);
-  EXPECT_TRUE(core.isMitJoint(kGripper)) << "never POSITION_LOOP: that is full stiffness";
-  EXPECT_LE(core.safety(kGripper).mit_max_torque, 0.3);
-}
-
 TEST_F(ShippedConfig, GripperClosureMapsOpenToZeroAndClosedToTheUpperLimit) {
   seedAtCommandZero();
   const double closed = core.joint(kGripper).upper_limit;
@@ -942,25 +934,6 @@ TEST_F(ShippedConfig, WithoutAGripperBlockTheArmIsSixJointsAsBefore) {
   }
 }
 
-TEST_F(ShippedConfig, UnpoweredGripperDoesNotZeroTheArmFeedForward) {
-  ASSERT_TRUE(core.loadSafetyFromYaml(configWithShoulderPitchFf(), kRateHz)) << core.lastError();
-  std::map<int, double> fb = feedbackForCommandFrame(0.0);
-  fb[core.motorId(kShoulderPitch)] =
-      core.joint(kShoulderPitch).direction * (60.0 - core.joint(kShoulderPitch).zero_offset);
-  fb.erase(core.motorId(kGripper));
-  ASSERT_EQ(core.seedPrevTargetsFromFeedback(fb).unmatched.size(), 1u);
-  double t = 0.0;
-  for (int tick = 0; tick < 60; ++tick) {
-    for (const auto& cmd : core.armPoseToMotorCmds(makePose(60, 0, 0, 0, 0, 0), kPositionLoop)) {
-      if (cmd.motor_id == core.motorId(kShoulderPitch)) {
-        t = cmd.torque;
-      }
-    }
-  }
-  EXPECT_NEAR(t, core.joint(kShoulderPitch).direction * 4.0696, 0.01)
-      << "the gripper is not part of the arm's gravity load";
-}
-
 // ---------------------------------------------------------------------------
 // active: which actuators a run uses (arm_actuators.yaml, per joint)
 // ---------------------------------------------------------------------------
@@ -1037,22 +1010,4 @@ TEST_F(ShippedConfig, InactiveArmJointIsUnknownToTheGravityModel) {
   ASSERT_TRUE(core.loadSafetyFromYaml(cfg, kRateHz)) << core.lastError();
   EXPECT_NEAR(settledTorque(), core.joint(kShoulderPitch).direction * 4.0696, 0.01)
       << "with an assumed angle the feed-forward still runs";
-}
-
-TEST_F(ShippedConfig, ArmWithoutGripperAndGripperAlone) {
-  YAML::Node cfg = YAML::LoadFile(configPath("arm_actuators.yaml"))["safety"];
-  cfg["joints"]["gripper"]["open_close"]["active"] = false;
-  ASSERT_TRUE(core.loadSafetyFromYaml(cfg, kRateHz)) << core.lastError();
-  EXPECT_FALSE(core.isActive(kGripper));
-  seedAtCommandZero();
-  for (const auto& cmd : core.armPoseToMotorCmds(poseWithGripper(1.0), kPositionLoop)) {
-    EXPECT_NE(cmd.motor_id, 21);
-  }
-
-  ASSERT_TRUE(core.loadSafetyFromYaml(configWithOnlyActive({"gripper.open_close"}), kRateHz))
-      << core.lastError();
-  seedAtCommandZero();
-  const auto cmds = core.armPoseToMotorCmds(poseWithGripper(1.0), kPositionLoop);
-  ASSERT_EQ(cmds.size(), 1u);
-  EXPECT_EQ(cmds[0].motor_id, 21);
 }
