@@ -61,9 +61,6 @@ struct JointSafetyConfig {
   // Gravity feed-forward (MIT joints only), sent as MotorCmd.torque. scale 0 = off.
   double gravity_ff_scale{0.0};
   double gravity_ff_max_torque{0.0}; // N.m, |feed-forward| is clamped to this
-  // cmd -> URDF frame for the gravity model: q_urdf = urdf_direction * q_cmd + urdf_offset_deg.
-  int urdf_direction{1};
-  double urdf_offset_deg{0.0};
   // Cmd-frame angle assumed while this joint is unpowered. Unset = feed-forward off.
   std::optional<double> gravity_assume_deg;
 };

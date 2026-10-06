@@ -11,16 +11,15 @@ Run in the `simulation_mj` container while `interfacing` is up and the arm is po
     python3 /workspace/humanoid/src/interfacing/can/scripts/live_arm_mjviser.py --arm-side left
     # open http://localhost:8080
 
-Angle shown for each joint, in degrees:
+Angle shown for each joint, in degrees -- the command frame IS the URDF frame:
 
-    q_cmd  = zero_offset + motor / direction              (hardware_mapping.yaml)
-    q_urdf = urdf_direction * q_cmd + urdf_offset_deg     (safety_limits.yaml)
+    q_urdf = q_cmd = zero_offset + motor / direction       (hardware_mapping.yaml)
 
-urdf_direction / urdf_offset_deg are the same values joint_command's gravity model uses, and
-they ship as an identity guess. NOT YET VERIFIED on hardware against pioneer_bimanual_arm.urdf:
-move each joint by hand and confirm the on-screen joint turns the same way and stops at the
-same angle. Try corrections with --flip / --offset (viewer-only), then write the ones that
-work into safety_limits.yaml.
+Check the calibration against pioneer_bimanual_arm.urdf: move each joint by hand and confirm
+the on-screen joint turns the same way and stops at the same angle. Try corrections with
+--flip / --offset (viewer-only). A joint that needs --flip has the wrong `direction` in
+hardware_mapping.yaml: flip it and re-run calibrate_arm.py (zero_offset and the limits depend on
+it). One that needs --offset was not zeroed hanging: re-run calibrate_arm.py.
 
 The gripper is not driven: its 0-100 command units have no confirmed scale to the finger
 joints' travel in metres.
@@ -36,8 +35,7 @@ import threading
 import time
 from pathlib import Path
 
-from joint_config import (find_mapping, find_safety_limits, joint_safety, load_joint_map,
-                          motor_to_cmd_deg)
+from joint_config import find_mapping, load_joint_map, motor_to_cmd_deg
 
 # pioneer_humanoid is not installed in the simulation_mj image; scripts add src/ paths themselves.
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "pioneer_humanoid"))
@@ -46,46 +44,44 @@ STALE_AFTER_S = 1.0
 
 
 def urdf_deg(info: dict, motor_deg: float) -> float:
-    """Motor-frame feedback (deg) -> URDF joint angle (deg). Never clamped: this only displays."""
+    """Motor-frame feedback (deg) -> URDF joint angle (deg), with the viewer-only --flip /
+    --offset applied. Never clamped: this only displays."""
     q_cmd = motor_to_cmd_deg(info, motor_deg)
-    return info["urdf_direction"] * q_cmd + info["urdf_offset_deg"]
+    return info["view_flip"] * q_cmd + info["view_offset_deg"]
 
 
-def build_joint_map(mapping: Path, safety: Path | None, arm_side: str, urdf_joints: list[str],
+def build_joint_map(mapping: Path, arm_side: str, urdf_joints: list[str],
                     flip: set[str], offset: dict[str, float]) -> dict[int, dict]:
-    """{motor_id: joint info + urdf_joint, urdf_direction, urdf_offset_deg} for the six arm joints."""
+    """{motor_id: joint info + urdf_joint, view_flip, view_offset_deg} for the six arm joints."""
     out = {}
     for motor_id, info in load_joint_map(mapping, arm_side).items():
         if info["slot"] is None:  # gripper
             continue
-        block = joint_safety(safety, info["name"])
-        direction = int(block.get("urdf_direction") or 1)
         out[motor_id] = dict(
             info,
             urdf_joint=urdf_joints[info["slot"]],
-            urdf_direction=-direction if info["name"] in flip else direction,
-            urdf_offset_deg=float(block.get("urdf_offset_deg") or 0.0) + offset.get(info["name"], 0.0),
+            view_flip=-1 if info["name"] in flip else 1,
+            view_offset_deg=offset.get(info["name"], 0.0),
         )
     return out
 
 
 def self_test() -> None:
-    info = {"direction": -1.0, "zero_offset": 10.0, "urdf_direction": 1, "urdf_offset_deg": 0.0}
+    info = {"direction": -1.0, "zero_offset": 10.0, "view_flip": 1, "view_offset_deg": 0.0}
     assert urdf_deg(info, 0.0) == 10.0
     assert urdf_deg(info, -20.0) == 30.0  # direction -1: motor -20 is +20 in the command frame
-    assert urdf_deg(dict(info, urdf_direction=-1, urdf_offset_deg=90.0), -20.0) == 60.0
+    assert urdf_deg(dict(info, view_flip=-1, view_offset_deg=90.0), -20.0) == 60.0
 
     mapping = find_mapping(None)
     names = ["j0", "j1", "j2", "j3", "j4", "j5"]
-    joints = build_joint_map(mapping, find_safety_limits(None), "left", names, set(), {})
+    joints = build_joint_map(mapping, "left", names, set(), {})
     assert sorted(j["urdf_joint"] for j in joints.values()) == names, joints
-    flipped = build_joint_map(mapping, find_safety_limits(None), "left", names,
-                              {"shoulder.roll"}, {"shoulder.roll": 5.0})
+    assert all(j["view_flip"] == 1 and j["view_offset_deg"] == 0.0 for j in joints.values())
+    flipped = build_joint_map(mapping, "left", names, {"shoulder.roll"}, {"shoulder.roll": 5.0})
     for motor_id, joint in joints.items():
         other = flipped[motor_id]
         if joint["name"] == "shoulder.roll":
-            assert other["urdf_direction"] == -joint["urdf_direction"]
-            assert other["urdf_offset_deg"] == joint["urdf_offset_deg"] + 5.0
+            assert other["view_flip"] == -1 and other["view_offset_deg"] == 5.0
         else:
             assert other == joint
     print(f"self-test ok ({len(joints)} joints from {mapping})")
@@ -97,11 +93,12 @@ def main() -> None:
     parser.add_argument("--arm-side", default="left", choices=["left", "right"],
                         help="side in hardware_mapping.yaml; drives the same side of the URDF")
     parser.add_argument("--flip", nargs="*", default=[], metavar="JOINT",
-                        help="viewer-only: invert urdf_direction for these joints (e.g. shoulder.roll)")
+                        help="viewer-only: invert these joints (e.g. shoulder.roll); a fix belongs in "
+                             "hardware_mapping.yaml's direction")
     parser.add_argument("--offset", nargs="*", default=[], metavar="JOINT=DEG",
-                        help="viewer-only: degrees added to urdf_offset_deg (e.g. shoulder.yaw=90)")
+                        help="viewer-only: degrees added to these joints (e.g. shoulder.yaw=90); a fix "
+                             "is a re-run of calibrate_arm.py")
     parser.add_argument("--mapping", default=None, help="hardware_mapping.yaml (default: auto)")
-    parser.add_argument("--safety", default=None, help="safety_limits.yaml (default: auto)")
     parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("--hz", type=float, default=30.0, help="scene refresh rate")
     parser.add_argument("--self-test", action="store_true", help="check the angle math and exit")
@@ -121,9 +118,9 @@ def main() -> None:
     from pioneer_humanoid.mujoco_bimanual_arm import arm_spec
 
     offset = {name.strip(): float(deg) for name, _, deg in (o.partition("=") for o in args.offset)}
-    mapping, safety = find_mapping(args.mapping), find_safety_limits(args.safety)
+    mapping = find_mapping(args.mapping)
     urdf_joints = LEFT_ARM_JOINTS if args.arm_side == "left" else RIGHT_ARM_JOINTS
-    joints = build_joint_map(mapping, safety, args.arm_side, urdf_joints, set(args.flip), offset)
+    joints = build_joint_map(mapping, args.arm_side, urdf_joints, set(args.flip), offset)
     unknown = (set(args.flip) | set(offset)) - {j["name"] for j in joints.values()}
     if unknown or not joints:
         raise SystemExit(f"no such joint(s) {sorted(unknown)} for arm side {args.arm_side!r} in "
@@ -134,10 +131,12 @@ def main() -> None:
     mujoco.mj_forward(model, data)
     qpos_adr = {j["urdf_joint"]: int(model.joint(j["urdf_joint"]).qposadr[0]) for j in joints.values()}
 
-    print(f"{args.arm_side} arm, read-only. mapping: {mapping}  safety: {safety}")
+    print(f"{args.arm_side} arm, read-only. mapping: {mapping}")
     for motor_id, j in sorted(joints.items()):
-        print(f"  id {motor_id:>3} {j['name']:<15} -> {j['urdf_joint']:<8} "
-              f"urdf_direction {j['urdf_direction']:+d}  urdf_offset_deg {j['urdf_offset_deg']:+g}")
+        view = ""
+        if j["view_flip"] != 1 or j["view_offset_deg"]:
+            view = f"  (viewer-only: flip {j['view_flip']:+d}, offset {j['view_offset_deg']:+g})"
+        print(f"  id {motor_id:>3} {j['name']:<15} -> {j['urdf_joint']:<8} direction {j['direction']:+g}{view}")
     print("NOT VERIFIED on hardware: move each joint by hand and compare before trusting this view.")
 
     lock = threading.Lock()

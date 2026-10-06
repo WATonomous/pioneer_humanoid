@@ -38,13 +38,12 @@ safety:
     # Gravity feed-forward (MIT joints only), sent as MotorCmd.torque:
     #   ff = clamp(gravity_ff_scale * ramp * tau_model, +-gravity_ff_max_torque)
     # Startup rule: quantised mit_kp * mit_max_track_err + gravity_ff_max_torque <= mit_max_torque.
-    # q_urdf = urdf_direction * q_cmd + urdf_offset_deg. Identity is a guess: check the node's
-    # "Gravity model ... pred / meas" log with scale 0 before raising gravity_ff_scale.
+    # The model reads command-frame angles as URDF angles: hardware_mapping.yaml's zero is the
+    # URDF zero (hanging) and each direction matches the URDF's positive direction. Check the
+    # node's "Gravity model ... pred / meas" log with scale 0 before raising gravity_ff_scale.
     # gravity_assume_deg: angle used for an unpowered joint -- only valid while strapped there.
     gravity_ff_scale: 0.0
     gravity_ff_max_torque: 0.0
-    urdf_direction: 1
-    urdf_offset_deg: 0.0
 
   joints:
     # --- AK10-9 / AK80-9, MIT --------------------------------------------------
@@ -64,8 +63,6 @@ safety:
         mit_max_torque: 54.0
         mit_fault_kd: 1.0
         gravity_ff_max_torque: 10.5   # model max 4.7 N.m
-        urdf_direction: 1
-        urdf_offset_deg: 0.0
         gravity_assume_deg: 0.0
       roll:    # AK10-9, id 13
         velocity_max: 30.0
@@ -77,8 +74,6 @@ safety:
         mit_max_torque: 54.0
         mit_fault_kd: 1.0
         gravity_ff_max_torque: 5.5    # model max 4.7 N.m
-        urdf_direction: 1
-        urdf_offset_deg: 0.0
         gravity_assume_deg: 0.0
       yaw:     # AK80-9, id 12
         velocity_max: 60.0
@@ -90,8 +85,6 @@ safety:
         mit_max_torque: 18.0
         mit_fault_kd: 0.5
         gravity_ff_max_torque: 5.5    # model max 1.2 N.m
-        urdf_direction: 1
-        urdf_offset_deg: 0.0
         gravity_assume_deg: 0.0
     elbow:
       pitch:   # AK80-9, id 11
@@ -103,8 +96,6 @@ safety:
         mit_kd: 0.4
         mit_max_torque: 18.0
         mit_fault_kd: 0.5
-        urdf_direction: -1
-        urdf_offset_deg: 0.0
         gravity_ff_scale: 0.9
         gravity_ff_max_torque: 3.59
         gravity_assume_deg: 0.0
@@ -118,8 +109,6 @@ safety:
         mit_max_torque: 18.0
         mit_fault_kd: 0.5
         gravity_ff_max_torque: 3.3    # model max 0.18 N.m
-        urdf_direction: 1
-        urdf_offset_deg: 0.0
         gravity_assume_deg: 0.0
 
     # --- GL40 KV70 on a GL II drive, MIT ---------------------------------------
@@ -139,6 +128,4 @@ safety:
         mit_max_torque: 0.3    # N.m, fault above
         mit_max_track_err: 12.0  # deg, fault above
         mit_feedback_timeout: 0.2  # s without feedback -> fault
-        urdf_direction: 1
-        urdf_offset_deg: 0.0
         gravity_assume_deg: 0.0

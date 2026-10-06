@@ -246,11 +246,14 @@ JointSafetyConfig JointCommandCore::loadJointSafetyConfig(const YAML::Node& join
   if (joint_node["gravity_ff_max_torque"]) {
     cfg.gravity_ff_max_torque = joint_node["gravity_ff_max_torque"].as<double>();
   }
-  if (joint_node["urdf_direction"]) {
-    cfg.urdf_direction = joint_node["urdf_direction"].as<int>();
-  }
-  if (joint_node["urdf_offset_deg"]) {
-    cfg.urdf_offset_deg = joint_node["urdf_offset_deg"].as<double>();
+  // The command frame IS the URDF frame (hardware_mapping.yaml's zero and direction match the
+  // URDF). Refuse the old cmd -> URDF keys rather than silently ignoring a -1 left in a config.
+  for (const char* removed : {"urdf_direction", "urdf_offset_deg"}) {
+    if (joint_node[removed]) {
+      throw std::runtime_error(std::string(removed) +
+                               " was removed: the command frame is the URDF frame. Fold it into "
+                               "hardware_mapping.yaml's direction / zero_offset / limits instead");
+    }
   }
   if (joint_node["gravity_assume_deg"]) {
     cfg.gravity_assume_deg = joint_node["gravity_assume_deg"].as<double>();
@@ -263,10 +266,6 @@ bool JointCommandCore::validateMitGains() {
   for (size_t i = 0; i < joints_.size(); ++i) {
     const JointSafetyConfig& s = safety_[i];
     const std::string name = jointName(i);
-    if (s.urdf_direction != 1 && s.urdf_direction != -1) {
-      errors << "\n  " << name << ": urdf_direction must be 1 or -1 (got " << s.urdf_direction
-             << ")";
-    }
     if (s.gravity_assume_deg.has_value() && !std::isfinite(*s.gravity_assume_deg)) {
       errors << "\n  " << name << ": gravity_assume_deg must be finite";
     }
@@ -425,13 +424,13 @@ JointCommandCore::gravityTorqueMotor(const std::vector<double>& cmd_targets_deg)
     } else if (isBlocked(i)) {
       return out;
     }
-    q_urdf[i] = (s.urdf_direction * q_cmd + s.urdf_offset_deg) * kDegToRad;
+    q_urdf[i] = q_cmd * kDegToRad; // the command frame is the URDF frame
   }
   const std::array<double, 6> tau = leftArmGravityHoldTorque(q_urdf);
   for (size_t i = 0; i < q_urdf.size(); ++i) {
-    // Torque follows the angle's sign mapping: urdf -> cmd -> motor.
+    // Torque follows the angle's sign mapping: urdf (= cmd) -> motor.
     const double dir = joints_[i].direction == 0 ? 1.0 : joints_[i].direction;
-    out[i] = dir * safety_[i].urdf_direction * tau[i];
+    out[i] = dir * tau[i];
   }
   return out;
 }
