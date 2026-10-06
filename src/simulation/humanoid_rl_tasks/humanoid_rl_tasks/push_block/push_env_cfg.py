@@ -48,7 +48,7 @@ from .scene import (  # noqa: F401  (BOX_* / FLOOR_TARGET re-exported for distil
     RAMP_BASE_Z,
     RAMP_TOP_X,
     REPOSITION_START_STAGE,
-    ROBOT_STAND_LIFT_Z,
+    ROBOT_BASE_POS,
     SPAWN_STAGES,
     TABLE_TOP_Z,
     PushBlockSceneCfg,
@@ -369,7 +369,7 @@ class PushBlockEnvCfg(ManagerBasedRLEnvCfg):
         self.scene.replicate_physics = True
         self.scene.robot = BIMANUAL_ARM_CFG.replace(
             prim_path="{ENV_REGEX_NS}/Robot",
-            init_state=BIMANUAL_ARM_CFG.init_state.replace(pos=(0.0, 0.0, ROBOT_STAND_LIFT_Z)),
+            init_state=BIMANUAL_ARM_CFG.init_state.replace(pos=ROBOT_BASE_POS),
         )
         self.scene.robot.spawn.articulation_props.enabled_self_collisions = False
 
