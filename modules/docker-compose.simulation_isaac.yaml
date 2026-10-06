@@ -21,6 +21,8 @@ x-simulation_isaac_env: &simulation_isaac_env
   - PRIVACY_CONSENT=Y
   - NVIDIA_VISIBLE_DEVICES=all
   - NVIDIA_DRIVER_CAPABILITIES=all
+  # CAD Converter launches a nested Kit process; Isaac runs as root in this container.
+  - OMNI_KIT_ALLOW_ROOT=1
   - DISPLAY=${DISPLAY}
   - QT_X11_NO_MITSHM=1
   - TELEOP_PORT=${TELEOP_PORT:-/dev/ttyACM0}
@@ -57,4 +59,3 @@ services:
     stdin_open: true
     tty: true
     command: sleep infinity
-
