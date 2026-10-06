@@ -85,7 +85,7 @@ Targets are clamped to the arm's URDF limits. Wrist damping is lowered to 2.5 in
 ## Real arm (dry run)
 
 Read-only: subscribes to `/interfacing/motorFeedback`, creates no publisher, so it cannot move the arm.
-It prints leader vs real joint angles in the command frame (the frame `ArmPose` / `joint_command` use),
+It prints leader vs real joint angles in the URDF frame (also the command frame `ArmPose` / `joint_command` use),
 their difference, and how far the leader is from home. Use it to check the calibrations before any
 live teleop (`--live` is a later step of #327).
 
@@ -97,11 +97,10 @@ python3 pioneer_leader_arm_teleop.py --target real --port /dev/ttyACM1   # leade
 python3 pioneer_leader_arm_teleop.py --target real --self-test           # angle math only, no ROS / leader
 ```
 
-- Leader → command frame: `q_urdf = sign × leader` (clamped to the URDF limits, as in sim), then
-  `q_cmd = urdf_direction × (q_urdf − urdf_offset_deg)` from `safety_limits.yaml`.
-  Real → command frame: `q_cmd = zero_offset + motor / direction` from `hardware_mapping.yaml`.
+- Leader: `sign × leader` (clamped to the URDF limits, as in sim).
+  Real: `zero_offset + motor / direction` from `hardware_mapping.yaml`. Same frame, compared directly.
 - Check: pose both arms the same, motors off; every joint should agree within 1–2° across its range.
-  Fix `--signs`, the calibrations or `urdf_direction` / `urdf_offset_deg` until it does.
+  Fix `--signs` (leader) or the real arm's `direction` / calibration (`calibrate_arm.py`) until it does.
 - Flags: `>2` / `>5` (disagreement), `NO FEEDBACK` (none for 0.5 s), `urdf-clamp`, `outside hw [lo,hi]`
   (the leader's target is outside `hardware_mapping.yaml`'s limits; `joint_command` would clamp it).
 - The gripper is shown, not compared: the GL40 (id 21) has no command path yet.
