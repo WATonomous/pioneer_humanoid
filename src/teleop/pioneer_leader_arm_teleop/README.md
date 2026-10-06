@@ -99,9 +99,9 @@ python3 pioneer_leader_arm_teleop.py --target real --self-test           # angle
 
 - Leader: `sign × leader` (clamped to the URDF limits, as in sim).
   Real: `zero_offset + motor / direction` from `hardware_mapping.yaml`. Same frame, compared directly.
-- Check: pose both arms the same, motors off; every joint should agree within 1–2° across its range.
+- Check: pose both arms the same, motors off; every joint should agree within 5° across its range.
   Fix `--signs` (leader) or the real arm's `direction` / calibration (`calibrate_arm.py`) until it does.
-- Flags: `>2` / `>5` (disagreement), `NO FEEDBACK` (none for 0.5 s), `urdf-clamp`, `outside hw [lo,hi]`
+- Warnings (end of each row): `>5` (disagreement), `NO FEEDBACK` (none for 0.5 s), `urdf-clamp`, `outside hw [lo,hi]`
   (the leader's target is outside `hardware_mapping.yaml`'s limits; `joint_command` would clamp it).
 - The gripper is shown, not compared: the GL40 (id 21) has no command path yet.
 

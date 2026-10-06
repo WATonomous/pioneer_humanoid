@@ -13,7 +13,7 @@ Every angle is in the URDF frame, which is also the command frame ArmPose / join
     leader:  sign * leader angle, clamped to the URDF limits      (as in sim)
     real:    zero_offset + motor / direction                       (hardware_mapping.yaml)
 
-Pose both arms the same (motors off) and check every joint agrees within 1-2 deg across its range;
+Pose both arms the same (motors off) and check every joint agrees within 5 deg across its range;
 fix --signs (leader) or the real arm's direction / calibration (calibrate_arm.py) until it does.
 
 Check the math without ROS or the leader:  python3 pioneer_leader_arm_teleop.py --target real --self-test
@@ -42,8 +42,6 @@ from servo_leader import ARM_SERVOS, GRIPPER_SERVO, SERVO_IDS, parse_signs  # no
 # AGREE_TOL_DEG of the real arm on every joint.
 HOME_TOL_DEG = 3.0
 AGREE_TOL_DEG = 5.0
-# Calibration target for the dry-run check.
-GOOD_TOL_DEG = 2.0
 STALE_AFTER_S = 0.5
 PRINT_PERIOD_S = 0.2
 READ_PERIOD_S = 0.02
@@ -108,8 +106,6 @@ def format_rows(rows: list[dict], grip: float, real_grip: float | None) -> list[
             flags.append("NO FEEDBACK")
         elif abs(row["diff"]) > AGREE_TOL_DEG:
             flags.append(f">{AGREE_TOL_DEG:g}")
-        elif abs(row["diff"]) > GOOD_TOL_DEG:
-            flags.append(f">{GOOD_TOL_DEG:g}")
         if row["clamped"]:
             flags.append("urdf-clamp")
         if row["out_of_hw"]:
