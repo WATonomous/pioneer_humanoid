@@ -7,7 +7,6 @@ closed-loop in the same scene. Sim only; nothing here talks to the real arm.
 |------|--------------|
 | `tidy_sim.py` | The scene with the leader teleop's observation / action contract (below). Used by the demo generator and the evaluator, so training data and evaluation can't drift apart. |
 | `scripted_demos.py` | Scripted demonstrations in the teleop's LeRobot format; keeps only episodes the scene scores a success. |
-| `ik.py` | Gripper-down IK for the left arm (used by the scripted demos). |
 | `train_act.sh` | `lerobot-train` with ACT defaults for this task. |
 | `eval_sim.py` | Runs a checkpoint in `tidy_table` on unseen layouts and prints success / tidiness per episode. |
 
@@ -18,6 +17,12 @@ Leader arm (each take: `S` start, `N` save, `D` discard; end every take back at 
 ```bash
 python src/teleop/pioneer_leader_arm_teleop/pioneer_leader_arm_teleop.py \
     --target mujoco --scene tidy_table --record --cameras top,wrist_left
+```
+
+or the keyboard (no leader arm needed; keep the terminal focused: `P` start, `N` save, `B` discard, `H` home):
+
+```bash
+python src/teleop/keyboard_teleop/mujoco_keyboard_teleop.py --scene tidy_table --record --cameras top,wrist_left
 ```
 
 and/or scripted demos (headless, `MUJOCO_GL=egl` without a display):

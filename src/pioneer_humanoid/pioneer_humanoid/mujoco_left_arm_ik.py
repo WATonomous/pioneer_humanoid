@@ -1,5 +1,7 @@
 """Gripper-pointing-down inverse kinematics for the Pioneer LEFT arm in MuJoCo (damped least squares). Sim only.
 
+Used by the MuJoCo keyboard teleop and the tidy_table scripted demos (robot_learning/humanoid_il/act).
+
 The grasp point is midway between the finger pads, GRASP_POINT in link6l's frame; "pointing down" is link6l's
 frame equal to a turn of ``yaw`` about world Z (its -Z, the approach axis, then points straight down and the
 fingers close along the turned world Y). The arm has no wrist roll, so that yaw is limited: about -45..+30 deg.
@@ -11,7 +13,7 @@ import math
 import mujoco
 import numpy as np
 
-from pioneer_humanoid.arm_params import LEFT_ARM_JOINTS
+from .arm_params import LEFT_ARM_JOINTS
 
 GRASP_POINT = np.array([0.0, 0.053, -0.1138])   # link6l frame, measured between the open finger pads
 FINGERS_BELOW_GRASP = 0.087                       # finger tips sit this far below the grasp point

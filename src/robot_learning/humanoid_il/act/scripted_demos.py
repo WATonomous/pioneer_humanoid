@@ -31,7 +31,7 @@ sys.path.insert(0, str(_HERE.parents[2] / "pioneer_humanoid"))
 sys.path.insert(0, str(_HERE.parents[2] / "simulation" / "mujoco_scenes"))
 
 from humanoid_robot_learning.sim_teleop_record import add_record_args, load_record_schema, make_sim_recorder  # noqa: E402
-from ik import FINGERS_BELOW_GRASP, LeftArmIK  # noqa: E402
+from pioneer_humanoid.mujoco_left_arm_ik import FINGERS_BELOW_GRASP, LeftArmIK  # noqa: E402
 from tidy_sim import CONTROL_DT, RECORD_EVERY, TidySim  # noqa: E402
 
 LEADER_SERVOS = ["A", "B", "C", "D", "E", "F", "G"]   # pioneer_leader_arm_teleop/servo_leader.SERVO_IDS
