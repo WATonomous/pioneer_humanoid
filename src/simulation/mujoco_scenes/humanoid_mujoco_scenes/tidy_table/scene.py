@@ -171,6 +171,23 @@ def reset(model: mujoco.MjModel, data: mujoco.MjData, rng: np.random.Generator) 
     data.userdata[_U_STEP] = 0
 
 
+CONDITION_NAMES = [f"colour_{c}" for c in COLOURS] + [f"shape_{s}" for s in SHAPES] + ["done"]
+
+
+def condition(model: mujoco.MjModel, data: mujoco.MjData) -> np.ndarray:
+    """The current step's target for a policy without language input: one-hot colour, one-hot shape (the
+    shape also names the bin); all zeros but ``done`` once every step is done (go home)."""
+    v = np.zeros(len(CONDITION_NAMES), dtype=np.float32)
+    k, n = int(data.userdata[_U_STEP]), int(data.userdata[_U_N])
+    if k >= n:
+        v[-1] = 1.0
+        return v
+    p = int(data.userdata[_U_ORDER + k])
+    v[int(data.userdata[_U_COLOUR + p])] = 1.0
+    v[len(COLOURS) + SHAPES.index(_shape(_POOL[p]))] = 1.0
+    return v
+
+
 def progress(model: mujoco.MjModel, data: mujoco.MjData) -> tuple[int, int, str]:
     """(current step index, number of steps, its instruction); index == total when finished, with the
     last step's instruction."""
@@ -180,7 +197,7 @@ def progress(model: mujoco.MjModel, data: mujoco.MjData) -> tuple[int, int, str]
 
 # ----------------------------------------------------------------------------- scene
 @scene("tidy_table", camera=dict(lookat=[0.30, 0.36, 0.75], distance=0.8, azimuth=200, elevation=-45),
-       step=step, reset=reset, progress=progress)
+       step=step, reset=reset, progress=progress, condition=condition, condition_names=CONDITION_NAMES)
 def build(spec: mujoco.MjSpec) -> None:
     add_floor(spec)
     spec.nuserdata = _N_USER

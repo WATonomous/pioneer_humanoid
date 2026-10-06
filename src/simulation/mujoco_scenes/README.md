@@ -48,6 +48,9 @@ def build(spec: mujoco.MjSpec) -> None:
 - **`progress`** — optional `progress(model, data) -> (index, total, instruction)` for multi-step tasks.
   The teleop prints each new step, and `--record` stores the instruction as each frame's `task` (LeRobot's
   per-frame task) plus a `subtask_index` feature; `index == total` once everything is done.
+- **`condition`** + **`condition_names`** — optional `condition(model, data) -> np.ndarray`: the current instruction as
+  numbers for a policy with no language input (`tidy_table`: one-hot target colour and shape, plus `done`). `--record`
+  stores it as `observation.environment_state`, which LeRobot's ACT takes as an input.
 
 ## Scenes
 

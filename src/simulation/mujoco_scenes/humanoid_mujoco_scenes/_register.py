@@ -36,13 +36,16 @@ class _Entry:
     step: Optional[Callable[[mujoco.MjModel, mujoco.MjData], None]] = None
     reset: Optional[Callable] = None      # reset(model, data, rng): randomise a new episode
     progress: Optional[Callable] = None   # progress(model, data) -> (step index, n steps, instruction)
+    condition: Optional[Callable] = None  # condition(model, data) -> float vector telling a policy what to do now
+    condition_names: Optional[list] = None
 
 
 _REGISTRY: dict[str, _Entry] = {}
 _DISCOVERED = False
 
 
-def scene(name: str, *, robot_pos=(0.0, 0.0, ROBOT_STAND_LIFT_Z), camera=None, step=None, reset=None, progress=None):
+def scene(name: str, *, robot_pos=(0.0, 0.0, ROBOT_STAND_LIFT_Z), camera=None, step=None, reset=None, progress=None,
+          condition=None, condition_names=None):
     """Register ``build(spec)`` under ``name``. ``robot_pos``: arm base placement (default: on its stand).
 
     ``step(model, data)``: optional, called by the teleop once per control step before stepping the
@@ -53,9 +56,16 @@ def scene(name: str, *, robot_pos=(0.0, 0.0, ROBOT_STAND_LIFT_Z), camera=None, s
     new episode, e.g. object placement. ``progress(model, data) -> (index, total, instruction)``:
     optional, for multi-step tasks: which step the operator is on (index == total when done) and its
     instruction, shown by the teleop and recorded per frame.
+
+    ``condition(model, data) -> np.ndarray`` with ``condition_names`` (one per element): optional, the current
+    instruction as numbers for a policy without language input (e.g. a one-hot of the target object);
+    recorded per frame as ``observation.environment_state``, which LeRobot's ACT takes as an input.
     """
     def deco(build):
-        _REGISTRY[name] = _Entry(build, tuple(robot_pos), camera, step, reset, progress)
+        if (condition is None) != (condition_names is None):
+            raise ValueError(f"scene {name!r}: condition and condition_names go together")
+        _REGISTRY[name] = _Entry(build, tuple(robot_pos), camera, step, reset, progress, condition,
+                                 list(condition_names) if condition_names is not None else None)
         return build
 
     return deco
@@ -102,6 +112,13 @@ def scene_reset(name: str) -> Optional[Callable]:
 def scene_progress(name: str) -> Optional[Callable]:
     _discover()
     return _REGISTRY[name].progress
+
+
+def scene_condition(name: str) -> Optional[tuple[list, Callable]]:
+    """(condition_names, condition) of a scene that has one, else None."""
+    _discover()
+    entry = _REGISTRY[name]
+    return None if entry.condition is None else (entry.condition_names, entry.condition)
 
 
 def add_floor(spec: mujoco.MjSpec) -> None:

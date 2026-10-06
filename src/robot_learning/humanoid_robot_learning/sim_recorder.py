@@ -511,6 +511,11 @@ class SimLeRobotRecorder:
         self._episode_queue.join()
         self._stop_event.set()
         self._processor_thread.join(timeout=5.0)
+        # LeRobot >= 0.4 (dataset v3.0) keeps its parquet writers open across episodes and documents finalize()
+        # as required to write their footers; without it they only close when garbage-collected at exit.
+        dataset = getattr(self, "dataset", None)
+        if dataset is not None and hasattr(dataset, "finalize"):
+            dataset.finalize()
 
     # --- video helpers ---
 

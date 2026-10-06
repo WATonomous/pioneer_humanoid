@@ -53,7 +53,9 @@ def run() -> None:
     import mujoco
     import mujoco.viewer
     import numpy as np
-    from humanoid_mujoco_scenes import list_scenes, make_model, scene_camera, scene_progress, scene_reset, scene_step
+    from humanoid_mujoco_scenes import (
+        list_scenes, make_model, scene_camera, scene_condition, scene_progress, scene_reset, scene_step,
+    )
     from pioneer_humanoid.arm_params import (
         LEFT_ARM_JOINTS,
         LEFT_GRIPPER_CLOSED,
@@ -76,6 +78,7 @@ def run() -> None:
     scene_hook = scene_step(args.scene)  # per-step scene mechanics (e.g. zip_tie's ratchet), or None
     scene_randomise = scene_reset(args.scene)  # new layout per episode, or None
     scene_steps = scene_progress(args.scene)  # multi-step task: (index, total, instruction), or None
+    scene_cond = scene_condition(args.scene)  # (names, fn): the instruction as numbers, or None
     rng = np.random.default_rng()
     data = mujoco.MjData(model)
     # Position actuator bias is [0, -kp, -kv]: lower the wrist's kv (see WRIST_DAMPING).
@@ -110,6 +113,9 @@ def run() -> None:
     # Multi-step scenes record the current step's instruction as each frame's task, plus its index.
     if scene_steps is not None:
         extra["subtask_index"] = ["subtask_index"]
+    # ... and as numbers (e.g. tidy_table's one-hot target), a policy input: ACT has no language input.
+    if scene_cond is not None:
+        extra["observation.environment_state"] = scene_cond[0]
     recorder, record_every = make_sim_recorder(args, record, device="cpu", sim_dt=control_dt, extra_features=extra)
     if recorder is not None:
         print("[RECORD] Keys: S=start, N=save episode (then reset), D=discard")
@@ -177,6 +183,8 @@ def run() -> None:
                     if scene_steps is not None:
                         index, _, task = scene_steps(model, data)
                         extras["subtask_index"] = np.array([index], dtype=np.float32)
+                    if scene_cond is not None:
+                        extras["observation.environment_state"] = scene_cond[1](model, data)
                     with viewer.lock():
                         saved = recorder.tick(action, state, read_images, task=task, extras=extras)
                     if saved:

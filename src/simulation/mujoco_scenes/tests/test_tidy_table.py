@@ -162,3 +162,20 @@ def test_messy_layouts_have_lying_cylinders_and_any_yaw(model):
                 yaws.append(math.atan2(R[1, 0], R[0, 0]))
     assert lying > 0
     assert max(np.abs(yaws)) > math.radians(90)
+
+
+def test_condition_names_the_current_target(model):
+    from humanoid_mujoco_scenes import scene_condition
+    names, cond = scene_condition("tidy_table")
+    data = _episode(model, 3)
+    objs = S.episode_objects(model, data)
+    used = {sh: 0 for sh in S.SHAPES}
+    for obj in objs:
+        v = cond(model, data)
+        assert len(v) == len(names) and v.sum() == 2
+        assert {names[i] for i in np.flatnonzero(v)} == {f"colour_{obj['colour']}", f"shape_{obj['shape']}"}
+        _put_in_bin(model, data, obj, used[obj["shape"]])
+        used[obj["shape"]] += 1
+        _run(model, data, 0.6)
+    v = cond(model, data)
+    assert v[names.index("done")] == 1 and v.sum() == 1
