@@ -1,4 +1,4 @@
-"""Leader angles -> left-arm joint targets + gripper closure, shared by the Isaac and MuJoCo backends.
+"""Leader angles -> left-arm joint targets + gripper closure, shared by the Isaac, MuJoCo and real backends.
 
 One-to-one: the leader is calibrated hanging straight down (calibrate_leader.py), which is also the
 URDF zero and the real arm's zero, so a joint target is just sign x leader angle. The arm starts at
@@ -33,7 +33,12 @@ CONTROL_DT = 0.01
 
 
 def add_leader_args(parser: argparse.ArgumentParser, *, scene_help: str) -> None:
-    parser.add_argument("--target", choices=("isaac", "mujoco"), default="isaac", help="what the leader drives")
+    parser.add_argument(
+        "--target",
+        choices=("isaac", "mujoco", "real"),
+        default="isaac",
+        help="what the leader drives (real: dry run, read-only)",
+    )
     parser.add_argument("--scene", type=str, default="bare", help=scene_help)
     parser.add_argument("--port", default="/dev/ttyACM0", help="leader serial port")
     parser.add_argument("--baud", type=int, default=1_000_000, help="leader serial baud rate")
