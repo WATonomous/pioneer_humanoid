@@ -807,3 +807,81 @@ TEST_F(ShippedConfig, UnpoweredJointUsesItsGravityAssumptionOnlyWhenSet) {
   core.blockJoints({kElbowPitch});
   EXPECT_FLOAT_EQ(settledTorque(), 0.0f);
 }
+
+// ---------------------------------------------------------------------------
+// active: which actuators a run uses (arm_actuators.yaml, per joint)
+// ---------------------------------------------------------------------------
+
+namespace {
+
+// The shipped config with only `names` active.
+YAML::Node configWithOnlyActive(const std::vector<std::string>& names) {
+  YAML::Node cfg = YAML::LoadFile(configPath("arm_actuators.yaml"))["safety"];
+  for (auto group : cfg["joints"]) {
+    for (auto joint : group.second) {
+      const std::string name = group.first.as<std::string>() + "." + joint.first.as<std::string>();
+      joint.second["active"] = std::find(names.begin(), names.end(), name) != names.end();
+    }
+  }
+  return cfg;
+}
+
+} // namespace
+
+TEST_F(ShippedConfig, AnInactiveJointIsNeverCommandedEnteredOrWatched) {
+  constexpr size_t kElbowPitch = 3;
+  const int elbow = core.motorId(kElbowPitch);
+  ASSERT_TRUE(core.loadSafetyFromYaml(configWithOnlyActive({"elbow.pitch"}), kRateHz))
+      << core.lastError();
+  seedAtCommandZero();
+
+  const auto cmds = core.armPoseToMotorCmds(uniformPose(0.0), kPositionLoop);
+  ASSERT_EQ(cmds.size(), 1u);
+  EXPECT_EQ(cmds[0].motor_id, elbow);
+  for (const auto& batch :
+       {core.mitModeCommands(common_msgs::msg::MotorCmd::MIT_ENTER), core.mitSafeCommands()}) {
+    ASSERT_EQ(batch.size(), 1u);
+    EXPECT_EQ(batch[0].motor_id, elbow);
+  }
+  EXPECT_EQ(core.mitMotorIds(), std::vector<int>{elbow});
+
+  // Only the active joint reports: the silent inactive ones are not a fault.
+  std::map<int, MotorFeedbackSample> fb;
+  fb[elbow] = healthyMitFeedback().at(elbow);
+  EXPECT_FALSE(core.checkMitFaults(fb).has_value()) << *core.checkMitFaults(fb);
+}
+
+TEST_F(ShippedConfig, ARunWithNoActiveJointIsRefused) {
+  EXPECT_FALSE(core.loadSafetyFromYaml(configWithOnlyActive({}), kRateHz));
+  EXPECT_NE(core.lastError().find("no joint is active"), std::string::npos) << core.lastError();
+}
+
+TEST_F(ShippedConfig, InactiveArmJointIsUnknownToTheGravityModel) {
+  const int pitch_id = core.motorId(kShoulderPitch);
+  auto settledTorque = [&]() {
+    std::map<int, double> fb = feedbackForCommandFrame(0.0);
+    fb[pitch_id] =
+        core.joint(kShoulderPitch).direction * (60.0 - core.joint(kShoulderPitch).zero_offset);
+    core.seedPrevTargetsFromFeedback(fb);
+    double t = 0.0;
+    for (int tick = 0; tick < 60; ++tick) {
+      for (const auto& cmd : core.armPoseToMotorCmds(makePose(60, 0, 0, 0, 0, 0), kPositionLoop)) {
+        if (cmd.motor_id == pitch_id) {
+          t = cmd.torque;
+        }
+      }
+    }
+    return t;
+  };
+
+  YAML::Node cfg = configWithShoulderPitchFf();
+  cfg["joints"]["elbow"]["pitch"]["active"] = false;
+  cfg["joints"]["elbow"]["pitch"].remove("gravity_assume_deg");
+  ASSERT_TRUE(core.loadSafetyFromYaml(cfg, kRateHz)) << core.lastError();
+  EXPECT_FLOAT_EQ(settledTorque(), 0.0f) << "inactive, no assumption: its angle is unknown";
+
+  cfg["joints"]["elbow"]["pitch"]["gravity_assume_deg"] = 0.0;
+  ASSERT_TRUE(core.loadSafetyFromYaml(cfg, kRateHz)) << core.lastError();
+  EXPECT_NEAR(settledTorque(), core.joint(kShoulderPitch).direction * 4.0696, 0.01)
+      << "with an assumed angle the feed-forward still runs";
+}

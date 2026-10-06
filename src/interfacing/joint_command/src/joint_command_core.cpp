@@ -86,6 +86,10 @@ bool JointCommandCore::loadFromYaml(const YAML::Node& config, const std::string&
   return true;
 }
 
+bool JointCommandCore::isActive(size_t joint) const {
+  return joint >= safety_.size() || safety_[joint].active;
+}
+
 SeedReport
 JointCommandCore::seedPrevTargetsFromFeedback(const std::map<int, double>& motor_positions) {
   SeedReport report;
@@ -95,6 +99,9 @@ JointCommandCore::seedPrevTargetsFromFeedback(const std::map<int, double>& motor
     last_motor_cmd_deg_.assign(joints_.size(), 0.0);
   }
   for (size_t i = 0; i < joints_.size(); ++i) {
+    if (!isActive(i)) {
+      continue; // not part of this run: never seeded, reported or commanded
+    }
     const auto it = motor_positions.find(static_cast<int>(joints_[i].motor_id));
     if (it == motor_positions.end()) {
       // Not reporting: exclude it rather than ramp it from an assumed 0.
@@ -136,12 +143,11 @@ void JointCommandCore::blockJoints(const std::vector<size_t>& indices) {
 }
 
 bool JointCommandCore::isUnpowered(size_t joint) const {
-  return joint < unpowered_.size() && unpowered_[joint];
+  return (joint < unpowered_.size() && unpowered_[joint]) || !isActive(joint);
 }
 
 bool JointCommandCore::isBlocked(size_t joint) const {
-  return (joint < blocked_.size() && blocked_[joint]) ||
-         (joint < unpowered_.size() && unpowered_[joint]);
+  return (joint < blocked_.size() && blocked_[joint]) || isUnpowered(joint);
 }
 
 double JointCommandCore::clampAngle(double angle, const JointConfig& joint) {
@@ -172,6 +178,9 @@ JointSafetyConfig JointCommandCore::loadJointSafetyConfig(const YAML::Node& join
     return cfg;
   }
 
+  if (joint_node["active"]) {
+    cfg.active = joint_node["active"].as<bool>();
+  }
   if (joint_node["enable_position_clamp"]) {
     cfg.enable_position_clamp = joint_node["enable_position_clamp"].as<bool>();
   }
@@ -357,6 +366,10 @@ bool JointCommandCore::loadSafetyFromYaml(const YAML::Node& safety_cfg, double c
     last_error_ = e.what();
     return false;
   }
+  if (std::none_of(safety_.begin(), safety_.end(), [](const auto& s) { return s.active; })) {
+    last_error_ = "no joint is active: set active: true on at least one joint";
+    return false;
+  }
   return validateMitGains();
 }
 
@@ -376,7 +389,7 @@ bool JointCommandCore::isMitJoint(size_t joint) const {
 std::vector<int> JointCommandCore::mitMotorIds() const {
   std::vector<int> ids;
   for (size_t i = 0; i < joints_.size(); ++i) {
-    if (isMitJoint(i)) {
+    if (isMitJoint(i) && isActive(i)) {
       ids.push_back(static_cast<int>(joints_[i].motor_id));
     }
   }
@@ -438,7 +451,8 @@ JointCommandCore::gravityTorqueMotor(const std::vector<double>& cmd_targets_deg)
 std::vector<common_msgs::msg::MotorCmd> JointCommandCore::mitSafeCommands(bool damped_only) const {
   std::vector<common_msgs::msg::MotorCmd> cmds;
   for (size_t i = 0; i < joints_.size(); ++i) {
-    if (!isMitJoint(i) || (damped_only && safety_[i].mit_fault_action != MitFaultAction::Damp)) {
+    if (!isMitJoint(i) || !isActive(i) ||
+        (damped_only && safety_[i].mit_fault_action != MitFaultAction::Damp)) {
       continue;
     }
     cmds.push_back(mitSafeCommand(i));
@@ -450,7 +464,8 @@ std::vector<common_msgs::msg::MotorCmd> JointCommandCore::mitModeCommands(int8_t
                                                                           bool limp_only) const {
   std::vector<common_msgs::msg::MotorCmd> cmds;
   for (size_t i = 0; i < joints_.size(); ++i) {
-    if (!isMitJoint(i) || (limp_only && safety_[i].mit_fault_action != MitFaultAction::Limp)) {
+    if (!isMitJoint(i) || !isActive(i) ||
+        (limp_only && safety_[i].mit_fault_action != MitFaultAction::Limp)) {
       continue;
     }
     common_msgs::msg::MotorCmd cmd;
@@ -463,7 +478,7 @@ std::vector<common_msgs::msg::MotorCmd> JointCommandCore::mitModeCommands(int8_t
 
 bool JointCommandCore::hasDampedMitJoints() const {
   for (size_t i = 0; i < joints_.size(); ++i) {
-    if (isMitJoint(i) && safety_[i].mit_fault_action == MitFaultAction::Damp) {
+    if (isMitJoint(i) && isActive(i) && safety_[i].mit_fault_action == MitFaultAction::Damp) {
       return true;
     }
   }
@@ -553,6 +568,9 @@ JointCommandCore::armPoseToMotorCmds(const common_msgs::msg::ArmPose& pose,
   for (size_t i = 0; i < joints_.size(); ++i) {
     const JointSafetyConfig& safety = safety_[i];
 
+    if (!isActive(i)) {
+      continue; // not part of this run: no command at all
+    }
     if (isBlocked(i)) {
       // MIT joints get their fault action; servo joints get no command (drive holds).
       if (isMitJoint(i)) {

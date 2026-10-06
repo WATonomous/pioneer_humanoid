@@ -110,7 +110,7 @@ a limit, and the rest of the arm keeps working.
 |------|------|
 | `config/joint_command.yaml` | ROS params: arm side, topics, control rate, control type |
 | `config/arm_calibration.yaml` | Per-joint `can_id`, limits, `direction`, `zero_offset` |
-| `config/arm_actuators.yaml` | Moderation toggles, per-joint `velocity_max`, `delta_max`, `low_pass_alpha`, `control_type`, MIT gains and limits |
+| `config/arm_actuators.yaml` | `active` per joint, moderation toggles, per-joint `velocity_max`, `delta_max`, `low_pass_alpha`, `control_type`, MIT gains and limits |
 
 `arm_actuators.yaml` uses a top-level `safety:` key with `global` defaults and optional `joints` overrides (shoulder/elbow/wrist paths match `arm_calibration.yaml`).
 
@@ -139,5 +139,11 @@ unsafe edit (clamp off, velocity past the 2 rad/s testing ceiling, broken gain r
 ```bash
 ros2 launch joint_command joint_command.launch.py
 ```
+
+**Which actuators a run uses:** each joint's `active: true` in `arm_actuators.yaml`. Set it to
+`false` (e.g. every joint but one for a single-joint test) and restart the node. An inactive
+joint gets no command at all (no `MIT_ENTER`, no watchdog), and to the gravity model its angle is
+unknown, as if unpowered (`gravity_assume_deg` applies). The node logs which joints are active,
+and refuses to start with none.
 
 **Defaults:** `arm_side=left`, `control_rate_hz=50`, `control_type=POSITION_LOOP` (4), overridden per joint in `arm_actuators.yaml`.
