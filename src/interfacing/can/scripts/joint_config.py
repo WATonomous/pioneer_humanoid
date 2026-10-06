@@ -2,7 +2,8 @@
 them. Used by arm_roundtrip.py, telemetry_record.py and calibrate_arm.py. No ROS imports.
 
 Frames (see joint_command_core.cpp applyCalibration):
-  command frame  degrees, what ArmPose carries and what the limits are written in
+  command frame  degrees, what ArmPose carries and what the limits are written in. It IS the
+                 URDF frame: zero = hanging (URDF zero), direction = the URDF's positive way
   motor frame    direction * (q_cmd - zero_offset) degrees; MIT drives take it in radians
 """
 
@@ -48,8 +49,7 @@ MIT_PROFILES = [
 _SAFETY_KEYS = ("velocity_max", "delta_max", "control_type", "mit_kp", "mit_kd",
                 "mit_max_torque", "mit_max_track_err", "mit_feedback_timeout", "mit_family",
                 "mit_fault_kd", "enable_position_clamp", "enable_velocity_limit",
-                "gravity_ff_scale", "gravity_ff_max_torque", "urdf_direction", "urdf_offset_deg",
-                "gravity_assume_deg")
+                "gravity_ff_scale", "gravity_ff_max_torque", "gravity_assume_deg")
 
 
 def _first_existing(candidates: List[str]) -> Optional[Path]:

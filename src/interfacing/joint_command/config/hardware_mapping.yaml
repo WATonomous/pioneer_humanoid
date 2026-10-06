@@ -24,10 +24,10 @@ left:
   elbow:
     pitch:
       can_id: 11
-      direction: -1
-      zero_offset: -101.80000305175781
-      lower_limit: -84.50000286102295
-      upper_limit: 75.09999084472656
+      direction: 1
+      zero_offset: 101.80000305175781
+      lower_limit: -75.09999084472656
+      upper_limit: 84.50000286102295
       limit_range: true
     roll:
       can_id: 104

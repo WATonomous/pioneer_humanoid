@@ -81,13 +81,16 @@ from the URDF masses at the commanded pose; $r$ ramps 0 → 1 over 1 s after eac
 while any joint's angle is unknown, unless an unpowered joint sets `gravity_assume_deg` (valid
 only while that joint is strapped at that angle).
 
-The model needs URDF angles: `q_urdf = urdf_direction * q_cmd + urdf_offset_deg` on every joint.
-The shipped `1` / `0` are guesses. URDF zero is the arm hanging straight down, elbow straight;
-positive shoulder pitch swings the arm forward, shoulder roll out to the side, elbow pitch backward.
+The model reads command-frame angles as URDF angles: **the command frame is the URDF frame.**
+`hardware_mapping.yaml`'s zero is the URDF zero (arm hanging straight down, elbow straight) and
+each joint's `direction` makes positive turn the URDF's positive way: shoulder pitch swings the
+arm forward, shoulder roll out to the side, elbow pitch backward. (The old `urdf_direction` /
+`urdf_offset_deg` keys are refused: fold any correction into `direction` / `zero_offset`.)
 
 Bring-up, one joint at a time, arm supported, `gravity_ff_scale: 0`:
-1. Put the arm in URDF zero and set `urdf_offset_deg = -urdf_direction * q_cmd` from the seed log.
-2. Jog each joint positive and check its direction against the list above.
+1. Calibrate with the arm hanging (`calibrate_arm.py`); the seed log should then read ~0 there.
+2. Jog each joint positive and check its direction against the list above. A wrong one: flip its
+   `direction` in `hardware_mapping.yaml` and re-run `calibrate_arm.py`.
 3. At a few poses, the `Gravity model ... pred X meas Y` log (every 5 s) must agree in sign and
    roughly in size.
 4. Set `gravity_ff_scale: 0.5`, confirm the sag shrinks, then go to 1.0.
