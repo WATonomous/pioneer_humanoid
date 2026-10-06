@@ -12,12 +12,13 @@ bladed). Each step follows the standard step-drag rules:
   * weight goes onto the pushing foot before the first foot lifts, the push
     carries the body into the step, the weight goes onto the landed foot
     before the second foot lifts, then back to a neutral stance
-  * feet glide low; guard and torso angle stay fixed; no stance switch; the
-    hips sink a few cm into the step and rise on the reset, no bobbing
+  * feet glide low; hips stay low at one height (no bobbing); guard and torso
+    angle stay fixed; no stance switch
 
 Foot and centre-of-mass paths are minimum-jerk curves; leg joint angles come
 from whole-body IK on the Wato MJCF (feet pose, CoM over the support foot,
-pelvis height and orientation). The defaults keep every leg joint under the
+pelvis height and orientation). The CoM follows one smooth curve through
+the weight-shift points, so the body flows through each step. The defaults keep every leg joint under the
 motor speed caps (the AKH70 hip/knee cap of 3.67 rad/s is the tight one); the
 script prints the check. Output: CSV at --fps with the usual
 layout (root pos, root quat xyzw, 28 joints), opponent along world +x.
@@ -72,6 +73,30 @@ class Timing:
 def min_jerk(s: np.ndarray | float) -> np.ndarray | float:
   s = np.clip(s, 0.0, 1.0)
   return s**3 * (10 - 15 * s + 6 * s**2)
+
+
+def smooth_through(waypoints: list[tuple[int, np.ndarray, bool]], n_frames: int) -> np.ndarray:
+  """C1 cubic Hermite curve through (frame, value, stop) waypoints: zero
+  velocity at stop waypoints, finite-difference (Catmull-Rom) velocity
+  elsewhere. Waypoint 0 is the value at frame 0."""
+  t = np.array([w[0] for w in waypoints], dtype=float)
+  p = np.array([w[1] for w in waypoints])
+  v = np.zeros_like(p)
+  for i in range(1, len(p) - 1):
+    if not waypoints[i][2] and t[i + 1] > t[i - 1]:
+      v[i] = (p[i + 1] - p[i - 1]) / (t[i + 1] - t[i - 1])
+  out = np.empty((n_frames, p.shape[1]))
+  for k in range(n_frames):
+    i = min(max(np.searchsorted(t, k + 1, side="left") - 1, 0), len(t) - 2)
+    h = t[i + 1] - t[i]
+    if h <= 0:
+      out[k] = p[i + 1]
+      continue
+    s = np.clip((k + 1 - t[i]) / h, 0.0, 1.0)
+    h00, h10 = 2 * s**3 - 3 * s**2 + 1, s**3 - 2 * s**2 + s
+    h01, h11 = -2 * s**3 + 3 * s**2, s**3 - s**2
+    out[k] = h00 * p[i] + h10 * h * v[i] + h01 * p[i + 1] + h11 * h * v[i + 1]
+  return out
 
 
 class Wato:
@@ -165,7 +190,7 @@ def main(
   step_side: float = 0.08,
   weight_shift: float = 0.6,
   push: float = 0.5,
-  hip_dip: float = 0.06,
+  crouch: float = 0.06,
   lift: float = 0.03,
   hold: float = 1.0,
   fps: float = 50.0,
@@ -185,8 +210,8 @@ def main(
       foot's sole centre before a foot lifts (0 = none, 1 = fully over it).
     push: fraction of the step the CoM travels while the first foot is in the
       air (the pushing foot drives the body into the step).
-    hip_dip: how far the hips sink into the support leg during a step [m];
-      the straightening leg runs out of reach without it.
+    crouch: how much lower than the copied stance the hips stay throughout [m];
+      bent knees keep the straightening leg in reach when the weight shifts.
     lift: swing foot clearance [m] (feet glide low).
     hold: pause in stance at the start, end and on every change of direction [s].
     fps: output frame rate.
@@ -207,25 +232,30 @@ def main(
   clip_feet = {f: p - origin for f, (p, q) in feet0.items()}
   clip_com = robot.com()[:2]
 
-  # shorten the stance about its centre, in small IK steps from the clip pose
+  # shorten the stance about its centre and sink into it, in small IK steps
+  # from the clip pose
   feet_pos = {f: np.array([*(stance_scale * p[:2]), p[2]]) for f, p in clip_feet.items()}
   com_neutral = stance_scale * clip_com
+  stance_z = base_z - crouch
   for k in range(1, 21):
     s = k / 20
     robot.solve(
       {f: clip_feet[f] + s * (feet_pos[f] - clip_feet[f]) for f in feet_pos},
       feet_quat,
       clip_com + s * (com_neutral - clip_com),
-      base_z,
+      base_z - s * crouch,
       base_quat,
     )
   sole_off = {f: robot.sole_xy(f) - feet_pos[f][:2] for f in (LEAD, REAR)}
 
-  # (feet, CoM target, hip dip 0..1) per frame, min-jerk between keyframes
+  # Feet: still, or a min-jerk glide while stepping. CoM: one smooth curve
+  # through the weight-shift waypoints, stopping only in the holds, so the
+  # body flows through a step instead of halting between its phases.
   dt = 1.0 / fps
-  frames: list[tuple[dict, np.ndarray, float]] = []
+  feet_frames: list[dict] = []
+  waypoints: list[tuple[int, np.ndarray, bool]] = []  # (frame, CoM xy, stop there)
 
-  def emit(duration, feet_a, feet_b, com_a, com_b, dip_a, dip_b, swing_foot=None):
+  def feet_phase(duration, feet_a, feet_b, swing_foot=None):
     n = max(1, int(round(duration * fps)))
     for k in range(1, n + 1):
       s = min_jerk(k / n)
@@ -233,7 +263,10 @@ def main(
       if swing_foot is not None:
         u = k / n
         feet[swing_foot] = feet[swing_foot] + np.array([0, 0, lift * 16 * u**2 * (1 - u) ** 2])
-      frames.append((feet, com_a + s * (com_b - com_a), dip_a + s * (dip_b - dip_a)))
+      feet_frames.append(feet)
+
+  def waypoint(com, stop=False):
+    waypoints.append((len(feet_frames), com, stop))
 
   def neutral_at(feet):
     # neutral CoM moves with the stance (both feet moved by the same offset)
@@ -244,44 +277,48 @@ def main(
     n = neutral_at(feet)
     return n + weight_shift * (feet[foot][:2] + sole_off[foot] - n)
 
+  def hold_stance(feet):
+    waypoint(neutral_at(feet), stop=True)
+    feet_phase(hold, feet, feet)
+    waypoint(neutral_at(feet), stop=True)
+
   feet = {f: p.copy() for f, p in feet_pos.items()}
-  com = com_neutral.copy()
-  emit(hold, feet, feet, com, com, 0, 0)
+  hold_stance(feet)
   prev = None
   for move in sequence:
     if prev is not None and move != prev:
-      emit(hold, feet, feet, com, com, 0, 0)
+      hold_stance(feet)
     prev = move
     direction, first = MOVES[move]
     second = REAR if first == LEAD else LEAD
     step = np.array([*(direction * (step_forward if direction[0] else step_side)), 0.0])
 
-    # 1. load the pushing foot, sinking into it
-    c = over(second, feet)
-    emit(timing.shift, feet, feet, com, c, 0, 1)
-    com = c
+    # 1. load the pushing foot
+    feet_phase(timing.shift, feet, feet)
+    waypoint(over(second, feet))
     # 2. first foot glides out, the push carrying the body with it
     landed = dict(feet, **{first: feet[first] + step})
-    c = com + push * step[:2]
-    emit(timing.swing, feet, landed, com, c, 1, 1, swing_foot=first)
-    feet, com = landed, c
+    feet_phase(timing.swing, feet, landed, swing_foot=first)
+    waypoint(over(second, feet) + push * step[:2])
+    feet = landed
     # 3. weight onto the landed foot
-    c = over(first, feet)
-    emit(timing.transfer, feet, feet, com, c, 1, 1)
-    com = c
+    feet_phase(timing.transfer, feet, feet)
+    waypoint(over(first, feet))
     # 4. second foot follows the same distance: stance restored
     closed = dict(feet, **{second: feet[second] + step})
-    emit(timing.drag, feet, closed, com, com, 1, 1, swing_foot=second)
+    feet_phase(timing.drag, feet, closed, swing_foot=second)
+    waypoint(over(first, feet))
     feet = closed
-    # 5. reset to a balanced stance
-    c = neutral_at(feet)
-    emit(timing.reset, feet, feet, com, c, 1, 0)
-    com = c
-  emit(hold, feet, feet, com, com, 0, 0)
+    # 5. back to a balanced stance
+    feet_phase(timing.reset, feet, feet)
+    waypoint(neutral_at(feet))
+  hold_stance(feet)
+
+  com_frames = smooth_through(waypoints, len(feet_frames))
 
   out, worst = [], 0.0
-  for feet_f, com_f, dip in frames:
-    err = robot.solve(feet_f, feet_quat, com_f, base_z - hip_dip * dip, base_quat)
+  for feet_f, com_f in zip(feet_frames, com_frames):
+    err = robot.solve(feet_f, feet_quat, com_f, stance_z, base_quat)
     worst = max(worst, err)
     out.append(robot.csv_row())
   out = np.array(out)
@@ -291,7 +328,7 @@ def main(
   print(f"Wrote {len(out)} frames ({len(out) * dt:.1f} s at {fps:g} fps) to {output_file}")
   print(f"max IK residual: {worst:.2e}")
   if worst > 1e-3:
-    print("WARNING: some targets were out of reach; lower --weight-shift / step lengths or raise --hip-dip")
+    print("WARNING: some targets were out of reach; lower --weight-shift / step lengths or raise --crouch")
 
   # feasibility against the motor speed caps and joint limits
   vel = np.abs(np.gradient(out[:, 7:], dt, axis=0))
