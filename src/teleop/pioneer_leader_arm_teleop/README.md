@@ -2,6 +2,7 @@
 
 The 7-servo leader arm (STS3215, torque always off) drives the Pioneer left arm joint to joint,
 with no IK, in any registered scene: Isaac Sim (default) or plain MuJoCo (`--target mujoco`, CPU).
+`--target real` compares the leader with the real arm (dry run, publishes nothing; #327).
 Optional recording in the shared `dataset_schema_pioneer_v1.yaml` format, from either simulator.
 
 Angles map **one-to-one** from a shared zero: arm hanging straight down under gravity, gripper open.
@@ -81,12 +82,37 @@ Scenes: `bare`, `peg_insert`, `zip_tie`, `drawer_stow`, `matcha`, `duplo`, or an
 
 Targets are clamped to the arm's URDF limits. Wrist damping is lowered to 2.5 in this teleop only, so the sim wrist keeps up with the leader.
 
+## Real arm (dry run)
+
+Read-only: subscribes to `/interfacing/motorFeedback`, creates no publisher, so it cannot move the arm.
+It prints leader vs real joint angles in the command frame (the frame `ArmPose` / `joint_command` use),
+their difference, and how far the leader is from home. Use it to check the calibrations before any
+live teleop (`--live` is a later step of #327).
+
+```bash
+# interfacing up, arm powered (motors not commanded); then in the simulation_mj container:
+./watod -t simulation_mj
+cd /workspace/humanoid/src/teleop/pioneer_leader_arm_teleop
+python3 pioneer_leader_arm_teleop.py --target real --port /dev/ttyACM1   # leader port: not the CANable's
+python3 pioneer_leader_arm_teleop.py --target real --self-test           # angle math only, no ROS / leader
+```
+
+- Leader → command frame: `q_urdf = sign × leader` (clamped to the URDF limits, as in sim), then
+  `q_cmd = urdf_direction × (q_urdf − urdf_offset_deg)` from `safety_limits.yaml`.
+  Real → command frame: `q_cmd = zero_offset + motor / direction` from `hardware_mapping.yaml`.
+- Check: pose both arms the same, motors off; every joint should agree within 1–2° across its range.
+  Fix `--signs`, the calibrations or `urdf_direction` / `urdf_offset_deg` until it does.
+- Flags: `>2` / `>5` (disagreement), `NO FEEDBACK` (none for 0.5 s), `urdf-clamp`, `outside hw [lo,hi]`
+  (the leader's target is outside `hardware_mapping.yaml`'s limits; `joint_command` would clamp it).
+- The gripper is shown, not compared: the GL40 (id 21) has no command path yet.
+
 ## Files
 
 | file | role |
 |------|------|
-| `pioneer_leader_arm_teleop.py` | entry; `--target` picks the backend before any simulator import |
-| `isaac_sim.py` / `mujoco_sim.py` | backends |
+| `pioneer_leader_arm_teleop.py` | entry; `--target isaac\|mujoco\|real` picks the backend before any simulator import |
+| `isaac_sim.py` / `mujoco_sim.py` | sim backends |
+| `real_arm.py` | real-arm backend: dry run, leader vs `/interfacing/motorFeedback`, publishes nothing |
 | `leader_mapping.py` | shared: 1:1 mapping, home check, filter, gripper closure, leader read, wall-clock pacing |
 | `servo_leader.py` / `arm_limits.py` | servo bus reader / clamp + gripper fraction |
 | `calibrate_leader.py` | stores the hanging-pose zero |
