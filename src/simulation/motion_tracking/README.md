@@ -50,6 +50,25 @@ Motions in `data/motions/`: `boxing.csv` (Xsens, 120 fps, 35 s), `curling.csv`,
 `squatting.csv`. To play a motion faster, give `csv_to_npz.py` a larger
 `--input-fps` than it was recorded at (240 for a 120 fps take = 2× speed).
 
+## Generated footwork
+
+`scripts/generate_footwork.py` builds boxing step-drag footwork (forward, back,
+left, right) without mocap: stance and guard copied from the boxing take,
+feet and centre of mass placed by the step-drag rules (foot nearest the
+direction moves first, the other pushes and follows the same distance, weight
+onto the support foot before each lift, reset to stance after every step),
+legs solved by IK. It prints a check against the motor speed caps.
+
+```bash
+uv run scripts/generate_footwork.py --sequence F F F B B B L L L R R R \
+    --output-file data/motions/footwork.csv
+uv run scripts/csv_to_npz.py --input-file data/motions/footwork.csv --input-fps 50 \
+    --output-file data/motions/footwork.npz --video True
+```
+
+Orthodox only. Longer steps, a longer stance or a bigger weight shift push the
+knees past their 3.67 rad/s cap; the script's report shows when.
+
 Headless rendering without a GPU: `apt install libosmesa6` and set
 `MUJOCO_GL=osmesa`.
 
@@ -67,6 +86,6 @@ Headless rendering without a GPU: `apt install libosmesa6` and set
 
 ```
 wato_tracking/   robot.py (entity + motors), env_cfg.py (task), rl_cfg.py (PPO); __init__ registers the tasks
-scripts/         fetch_assets.sh, csv_to_npz.py, train.py, play.py
+scripts/         fetch_assets.sh, csv_to_npz.py, generate_footwork.py, train.py, play.py
 data/            fetched model + motions, generated NPZs (gitignored)
 ```
