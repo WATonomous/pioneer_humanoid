@@ -32,8 +32,8 @@ import numpy as np
 from scipy.spatial.transform import Rotation
 
 # Fitts' law for leader-arm teleop (s, s/bit): slower than free reaching, you watch the follower.
-FITTS_A = 0.35
-FITTS_B = 0.30
+FITTS_A = 0.25
+FITTS_B = 0.25
 # rad/s: fastest a hand turns a leader joint (a brisk human reach peaks around 2 rad/s at the elbow).
 LEADER_MAX_SPEED = 3.0
 # The leader's down-facing gripper, from its home orientation: fingers toward -Z, jaws closing along Y.
@@ -61,16 +61,17 @@ class Style:
     overlap: float        # how early the next part of an arc starts (0: in sequence .. 1: all at once)
 
     @classmethod
-    def sample(cls, rng: np.random.Generator) -> "Style":
-        speed = rng.uniform(0.85, 1.35)
+    def sample(cls, rng: np.random.Generator, pace: float = 1.0) -> "Style":
+        """A practised operator at ``pace`` 1; 0.5 is a slow, careful beginner, 1.5 brisk."""
+        speed = rng.uniform(0.65, 1.0) / pace
         return cls(
             speed=speed,
-            aim=rng.uniform(0.03, 0.06) * 1.1 / speed,      # speed-accuracy trade-off: hurried people aim worse
-            react=rng.uniform(0.18, 0.30),
+            aim=min(0.1, rng.uniform(0.03, 0.06) * 0.8 / speed),   # speed-accuracy trade-off: hurried people aim worse
+            react=rng.uniform(0.15, 0.25) / math.sqrt(pace),
             tremor=rng.uniform(0.15e-3, 0.5e-3),
             drift=rng.uniform(0.4e-3, 1.2e-3),
             wobble_deg=rng.uniform(0.5, 1.5),
-            hesitate=rng.uniform(0.6, 1.4),
+            hesitate=rng.uniform(0.35, 0.8) / pace,
             see=rng.uniform(1.0e-3, 2.5e-3),
             joint_blend=rng.uniform(0.25, 0.7),
             overlap=rng.uniform(0.35, 0.65),
@@ -350,17 +351,17 @@ class HumanOperator:
         dur = self.fitts(float(np.linalg.norm(delta)), size) * 0.8
         self.pos.add(self.t, dur, np.asarray(delta, float))
         self.run(dur)
-        self.settle(limit=0.5)
+        self.settle(limit=0.4)
 
     def set_grip(self, closure: float, hesitate: bool = True) -> None:
         """Squeeze or open the leader's claw (0 open .. 1 closed) at a hand's pace."""
         if hesitate:
-            self.run(self.style.hesitate * self.rng.uniform(0.1, 0.4))
-        dur = self.style.speed * self.rng.uniform(0.35, 0.65)
+            self.run(self.style.hesitate * self.rng.uniform(0.05, 0.3))
+        dur = self.style.speed * self.rng.uniform(0.3, 0.5)
         self.grip.add(self.t, dur, [closure - self.grip.goal()[0]])
-        self.run(dur + self.rng.uniform(0.1, 0.25))
+        self.run(dur + self.rng.uniform(0.05, 0.15))
 
-    def settle(self, speed: float = 0.02, limit: float = 1.0) -> None:
+    def settle(self, speed: float = 0.03, limit: float = 0.6) -> None:
         """Wait until the follower has (nearly) stopped, then a reaction time: judging the error before that is guessing."""
         p, waited = self.follower_tcp(), 0.0
         while waited < limit:
@@ -374,7 +375,7 @@ class HumanOperator:
 
     def glance(self) -> None:
         """Between steps: look at what's next before moving (a person doesn't chain steps instantly)."""
-        self.pause(0.3, 1.1)
+        self.pause(0.2, 0.7)
 
     def pause(self, lo: float, hi: float) -> None:
         self.run(self.style.hesitate * self.rng.uniform(lo, hi))

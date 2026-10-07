@@ -161,18 +161,19 @@ class _Recording:
             block = block and len(self.pending) > 32
 
 
-def run_episode(scene: str, seed: int, frame_sink=None, record_every: int = 0, on_frame=None):
+def run_episode(scene: str, seed: int, frame_sink=None, record_every: int = 0, on_frame=None, pace: float = 1.0):
     """Play one synthetic take; returns (success, sim seconds, notes, the operator's style as a dict)."""
     import dataclasses
 
     import numpy as np
-    from human_operator import HumanOperator
+    from human_operator import HumanOperator, Style
     from synthetic_tasks import TASKS, TaskFailed
 
     sim = TeleopSim(scene, seed)
     sim.frame_sink, sim.record_every, sim.on_frame = frame_sink, record_every, on_frame
-    op = HumanOperator(sim.model, lambda: sim.data, sim.tick, sim.joints, sim.home, sim.control_dt,
-                       np.random.default_rng([seed, 1]))
+    rng = np.random.default_rng([seed, 1])
+    op = HumanOperator(sim.model, lambda: sim.data, sim.tick, sim.joints, sim.home, sim.control_dt, rng,
+                       style=Style.sample(rng, pace))
     task = TASKS[scene]
     notes = []
     try:
@@ -187,10 +188,10 @@ def run_episode(scene: str, seed: int, frame_sink=None, record_every: int = 0, o
 
 
 def _probe(job):
-    scene, seed = job
+    scene, seed, pace = job
     os.environ.setdefault("MUJOCO_GL", "egl")
     t0 = time.time()
-    ok, sim_t, notes, _ = run_episode(scene, seed)
+    ok, sim_t, notes, _ = run_episode(scene, seed, pace=pace)
     return seed, ok, sim_t, time.time() - t0, notes
 
 
@@ -226,6 +227,8 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=0, help="first episode seed (episodes use seed, seed+1, ...)")
     parser.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2) - 1))
     parser.add_argument("--max_tries", type=int, default=0, help="seeds to try at most (default: 3 x num_episodes)")
+    parser.add_argument("--pace", type=float, default=1.0,
+                        help="operator tempo: 1 a practised operator, 0.5 a slow careful beginner, 1.5 brisk")
     parser.add_argument("--preview", type=str, default=None, help="also write an mp4 of the kept takes (scene camera)")
     parser.add_argument("--self-test", action="store_true", help="check the leader math and motion model and exit")
     add_record_args(parser, task_description="")
@@ -254,7 +257,7 @@ def main() -> None:
     if want <= 0:
         return
     kept, takes = [], {}
-    jobs = [(args.scene, args.seed + i) for i in range(tries) if args.seed + i not in done_seeds]
+    jobs = [(args.scene, args.seed + i, args.pace) for i in range(tries) if args.seed + i not in done_seeds]
     ctx = multiprocessing.get_context("fork")
     with ctx.Pool(args.workers) as pool:
         for seed, ok, sim_t, wall, notes in pool.imap(_probe, jobs):
@@ -291,7 +294,7 @@ def main() -> None:
                 if child.exitcode != 0:
                     raise SystemExit(f"recording seed {seed} failed (exit code {child.exitcode}); rerun to resume")
             if preview is not None:
-                run_episode(args.scene, seed, record_every=4, on_frame=preview.frame)
+                run_episode(args.scene, seed, record_every=4, on_frame=preview.frame, pace=args.pace)
     finally:
         if preview is not None:
             preview.close()
@@ -326,7 +329,7 @@ def _record_take(args, record, seed: int, take_s: float, result) -> None:
     pool = ProcessPoolExecutor(max_workers=min(args.workers, 2), mp_context=multiprocessing.get_context("spawn"))
     try:
         rec = _Recording(recorder, pool, args.scene, seed, cameras)
-        ok, sim_t, notes, style = run_episode(args.scene, seed, rec, record_every)
+        ok, sim_t, notes, style = run_episode(args.scene, seed, rec, record_every, pace=args.pace)
         rec.drain(block=True)
     finally:
         pool.shutdown(cancel_futures=True)
@@ -334,7 +337,7 @@ def _record_take(args, record, seed: int, take_s: float, result) -> None:
         recorder.save_episode()
         recorder.wait_saved()
         with open(Path(recorder.dataset_root) / TAKES_FILE, "a") as f:
-            f.write(json.dumps({"episode_index": episode, "scene": args.scene, "seed": seed, "take_s": round(sim_t, 2),
+            f.write(json.dumps({"episode_index": episode, "scene": args.scene, "seed": seed, "pace": args.pace, "take_s": round(sim_t, 2),
                                 "notes": notes, "operator": style}) + "\n")
     else:   # physics is deterministic, so this would be a bug; never save a failed take
         recorder.cancel_recording()

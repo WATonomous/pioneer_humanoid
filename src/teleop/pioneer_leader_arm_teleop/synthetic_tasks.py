@@ -43,7 +43,7 @@ def _finish(op, rest=None) -> None:
     """Back off and settle, like an operator before pressing N."""
     if rest is not None:
         op.move(rest, grip=op.rng.uniform(0.0, 0.3), tol=0.03, corrections=0)
-    op.pause(0.5, 1.2)
+    op.pause(0.3, 0.8)
 
 
 # ----------------------------------------------------------------------------- drawer_stow
@@ -84,7 +84,7 @@ def drawer_plan(op, model, data, notes) -> None:
                 grab_tab()
         raise TaskFailed("drawer stuck")
 
-    op.pause(0.4, 1.0)                     # takes a moment to start after pressing S
+    op.pause(0.3, 0.8)                     # takes a moment to start after pressing S
     start = op.follower_tcp()
 
     # 1. open
@@ -133,7 +133,9 @@ def peg_plan(op, model, data, notes) -> None:
 
     rng, T = op.rng, S.TABLE_TOP_Z
     peg = model.body("peg").id
-    grip_z = 0.085 + rng.uniform(-0.004, 0.004)   # tool point above the peg's bottom when held
+    # Tool point above the peg's bottom when held: the jaws (88 mm long) reach down to ~2 cm above its bottom, so most of
+    # the grip is below its middle and pushing on it doesn't twist it in the jaws.
+    grip_z = 0.064 + rng.uniform(-0.003, 0.003)
     block_top = T + S.BLOCK_HEIGHT
     high = block_top + grip_z + 0.05
 
@@ -155,7 +157,7 @@ def peg_plan(op, model, data, notes) -> None:
                    tol=0.004, axes=(1, 1, 0))
             op.move((p[0], p[1], T + grip_z), tol=0.003)
             op.set_grip(1.0)
-            op.move((p[0], p[1], T + grip_z + 0.03), tol=0.01, corrections=0, axes=(0, 0, 1), via=True)   # up off the table
+            op.move((p[0], p[1], T + grip_z + 0.03), tol=0.01, corrections=0, axes=(0, 0, 1))   # up off the table
             if peg_bottom() > T + 0.015:
                 return
             notes.append("regrasp peg")
@@ -187,7 +189,7 @@ def peg_plan(op, model, data, notes) -> None:
         op.move((tcp[0], tcp[1], z + (tcp[2] - peg_bottom())), tol=0.003, corrections=0, speed=speed)
         op.settle()
 
-    op.pause(0.4, 1.0)
+    op.pause(0.3, 0.8)
     start = op.follower_tcp()
     grasp()
     for attempt in range(5):
@@ -203,24 +205,43 @@ def peg_plan(op, model, data, notes) -> None:
         align(tries=4)
         lower_peg_to(block_top - 0.004, 0.4)     # into the mouth, look again
         align(tries=2)
-        lower_peg_to(block_top - 0.035, 0.5)
-        # Caught on the rim: feel for the hole with small sideways nudges.
-        for _ in range(6):
+        # Push it in a bit at a time, feeling for it: if it stops going down it's caught on the rim, so ease off
+        # (don't lean on it, it twists in the jaws) and nudge it towards the hole.
+        for _ in range(10):
             if in_hole():
                 break
-            err = op.see_offset("peg", "hole_block")[:2]
-            d = err / (np.linalg.norm(err) + 1e-9) * min(np.linalg.norm(err), 0.0015) + rng.normal(0, 0.0005, 2)
-            op.nudge((d[0], d[1], 0.0))
+            before = peg_bottom()
+            x, y = op.pos.goal()[:2]
+            op.move((x, y, op.follower_tcp()[2] - 0.01), tol=0.003, corrections=0, speed=0.8)
+            op.settle(limit=0.3)
+            if peg_bottom() > before - 0.003:
+                tcp = op.follower_tcp()
+                op.move((x, y, tcp[2] + 0.002), tol=0.003, corrections=0)
+                err = op.see_offset("peg", "hole_block")[:2]
+                d = err / (np.linalg.norm(err) + 1e-9) * min(np.linalg.norm(err), 0.0015) + rng.normal(0, 0.0005, 2)
+                op.nudge((d[0], d[1], 0.0))
         if in_hole():
             break
         notes.append("lift and retry peg")
         lower_peg_to(block_top + 0.012, 0.8)
     else:
         raise TaskFailed("insert")
-    lower_peg_to(T + 0.003, 0.7)   # push it home, let go, back off
-    op.set_grip(rng.uniform(0.25, 0.4))
+    # It's in: let go and it slides down the hole; push it home with the closed jaws if it sticks.
+    op.set_grip(rng.uniform(0.3, 0.45))
     tcp = op.follower_tcp()
-    op.move((tcp[0], tcp[1], high), tol=0.02, via=True)
+    op.move((tcp[0], tcp[1], tcp[2] + 0.06), tol=0.02, via=True)
+    op.settle(limit=0.3)
+    if not S.is_inserted(model, data):
+        notes.append("push peg home")
+        p = op.see("peg")
+        op.move((p[0], p[1], p[2] + S.PEG_HEIGHT / 2 + JAW_HALF + 0.01), grip=1.0, tol=0.004, axes=(1, 1, 0))
+        op.move((p[0], p[1], block_top + JAW_HALF - 0.005), tol=0.004, corrections=0, speed=0.7)
+        op.settle(limit=0.3)
+        tcp = op.follower_tcp()
+        op.move((tcp[0], tcp[1], high), grip=0.4, tol=0.02, via=True)
+    else:
+        tcp = op.follower_tcp()
+        op.move((tcp[0], tcp[1], high), tol=0.02, via=True)
     _finish(op, rest=start + rng.normal(0, 0.02, 3))
 
 
@@ -234,7 +255,7 @@ def zip_plan(op, model, data, notes) -> None:
     import humanoid_mujoco_scenes.zip_tie.scene as S
 
     rng = op.rng
-    op.pause(0.6, 1.2)
+    op.pause(0.4, 0.9)
     start = op.follower_tcp()
     head_west = S.SLOT_CENTRE[0] - S.HEAD_DEPTH / 2
     R = op.R_home @ np.eye(3)   # fingers forward as at home, jaws closing sideways across the flat tail
@@ -346,7 +367,7 @@ def duplo_plan(op, model, data, notes) -> None:
         tcp = op.follower_tcp()
         op.move((tcp[0], tcp[1], tcp[2] + 0.04), grip=0.4, tol=0.01, via=True)
 
-    op.pause(0.4, 1.0)
+    op.pause(0.3, 0.8)
     start = op.follower_tcp()
     order = S._order(data)
     for k, colour in enumerate(order):
