@@ -31,8 +31,7 @@ to the nearest 12-bit code. The gripper is driven from `ArmPose.gripper_position
 
 **AK bring-up, per joint** (arm supported, hardware E-stop in reach):
 1. `candump can0`: extended frames on `0000080<id>`, KP first, no `FF..FC` to the AK.
-2. Servo-mode and zero-gain-MIT readings at one pose agree within 0.5°. AK80-9s (11, 12, 104)
-   lose zero on every power cycle.
+2. Servo-mode and zero-gain-MIT readings at one pose agree within 0.5°.
 3. Hold with low gains (kp 2, kd 0.3) first, watching torque, tracking error and temperature.
 4. Stop `joint_command` and record what the drive does on stream loss (the V3 manual documents
    no CAN timeout).
