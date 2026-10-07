@@ -51,9 +51,10 @@ safety:
     # --- AK10-9 / AK80-9, MIT --------------------------------------------------
     # Limits come from calibrate_arm.py's software zero-mode (see arm_calibration.yaml).
     # Re-run calibration after any power cycle: AK80-9 joints lose their zero (src/interfacing/README.md).
-    # Interim gains (#327), not yet bench-checked. mit_max_torque: AK10-9 10 N.m, AK80-9 5 N.m.
-    # Stall torque = quantised kp * mit_max_track_err 15 deg (0.2618 rad): AK10-9 kp 30 ->
-    # 7.86 N.m, AK80-9 kp 19 -> 4.99 N.m. Gravity feed-forward off until its sign is checked (#325).
+    # Interim gains (#327), not yet bench-checked; gravity feed-forward off until its sign is
+    # checked (#325). Each mit_max_torque = 2 x that joint's max gravity load (the model over its
+    # URDF range), and kp = mit_max_torque / mit_max_track_err (15 deg = 0.2618 rad): at the worst
+    # load a joint then sags 7.5 deg, half the tracking limit, leaving the rest for motion.
     shoulder:
       pitch:   # AK10-9, id 14
         active: true
@@ -61,9 +62,9 @@ safety:
         delta_max: 2.0
         control_type: 0
         mit_family: ak
-        mit_kp: 30.0
+        mit_kp: 38.0
         mit_kd: 0.8
-        mit_max_torque: 10.0
+        mit_max_torque: 10.0   # gravity max 4.79 N.m
         mit_max_track_err: 15.0
         mit_fault_kd: 1.0
         gravity_ff_max_torque: 10.5   # model max 4.7 N.m
@@ -74,9 +75,9 @@ safety:
         delta_max: 2.0
         control_type: 0
         mit_family: ak
-        mit_kp: 30.0
+        mit_kp: 38.0
         mit_kd: 0.8
-        mit_max_torque: 10.0
+        mit_max_torque: 10.0   # gravity max 4.79 N.m
         mit_max_track_err: 15.0
         mit_fault_kd: 1.0
         gravity_ff_max_torque: 5.5    # model max 4.7 N.m
@@ -87,9 +88,9 @@ safety:
         delta_max: 2.0
         control_type: 0
         mit_family: ak
-        mit_kp: 19.0
+        mit_kp: 9.5
         mit_kd: 0.4
-        mit_max_torque: 5.0
+        mit_max_torque: 2.5   # gravity max 1.24 N.m
         mit_max_track_err: 15.0
         mit_fault_kd: 0.5
         gravity_ff_max_torque: 5.5    # model max 1.2 N.m
@@ -101,9 +102,9 @@ safety:
         delta_max: 1.6
         control_type: 0
         mit_family: ak
-        mit_kp: 19.0
+        mit_kp: 9.5
         mit_kd: 0.4
-        mit_max_torque: 5.0
+        mit_max_torque: 2.5   # gravity max 1.21 N.m
         mit_max_track_err: 15.0
         mit_fault_kd: 0.5
         gravity_ff_scale: 0.0
@@ -115,9 +116,9 @@ safety:
         delta_max: 1.6
         control_type: 0
         mit_family: ak
-        mit_kp: 19.0
+        mit_kp: 3.8
         mit_kd: 0.4
-        mit_max_torque: 5.0
+        mit_max_torque: 1.0   # gravity max 0.18 N.m; 1 N.m floor for gearbox friction (unmeasured)
         mit_max_track_err: 15.0
         mit_fault_kd: 0.5
         gravity_ff_max_torque: 3.3    # model max 0.18 N.m
