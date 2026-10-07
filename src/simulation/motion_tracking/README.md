@@ -81,6 +81,30 @@ uv run scripts/csv_to_npz.py --input-file data/motions/moves.csv --input-fps 50 
 Each move has its own settings (`--duck.depth`, `--pivot.angle`,
 `--step.forward`, …; see `--help`). Orthodox only.
 
+## Boxing arena (two fighters)
+
+`wato_boxing/` sets up red vs blue in a ring for fighting RL. Scene only so
+far: no task, rewards or skill actions yet.
+
+- **Fighters**: the tracking robot recoloured, in the orthodox stance from
+  `generate_moves.py`, 1.3 m apart facing each other (`distance`): lead
+  gloves ~0.2 m apart, a jab lands only after ~0.3 m of stepping in.
+- **Gloves and hitboxes**: glove spheres on the wrists; head, torso, pelvis
+  and arm/leg capsules fitted to the CAD meshes (hidden, group 3). They hit
+  the opponent, the ropes and the floor, never their own body. The CAD
+  meshes stay visual only.
+- **Ring**: 4 m between the ropes (scaled to Wato), 3 ropes, 4 posts.
+- **Hit sensors**: `<attacker>_hits_<defender>_head` / `_body`, glove vs
+  opponent head / torso, with contact count and net force per glove.
+
+```bash
+MUJOCO_GL=osmesa uv run scripts/view_arena.py --out-dir videos/arena --seconds 3   # checks + stills + video
+uv run scripts/play.py Mjlab-Boxing-Arena-Wato --agent zero --viewer viser         # interactive
+```
+
+With no policy the fighters only hold their joint angles and fold up within
+a second; balance comes from training.
+
 Headless rendering without a GPU: `apt install libosmesa6` and set
 `MUJOCO_GL=osmesa`.
 
@@ -98,6 +122,7 @@ Headless rendering without a GPU: `apt install libosmesa6` and set
 
 ```
 wato_tracking/   robot.py (entity + motors), env_cfg.py (task), rl_cfg.py (PPO); __init__ registers the tasks
-scripts/         fetch_assets.sh, csv_to_npz.py, generate_moves.py, train.py, play.py
+wato_boxing/     fighters.py (gloves, hitboxes, stance), ring.py, arena_env_cfg.py (two-fighter scene + hit sensors)
+scripts/         fetch_assets.sh, csv_to_npz.py, generate_moves.py, view_arena.py, train.py, play.py
 data/            fetched model + motions, generated NPZs (gitignored)
 ```

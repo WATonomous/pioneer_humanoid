@@ -7,6 +7,9 @@ with --agent zero) in the viewer, or records a video headless.
       --viewer viser                       # http://localhost:8080
 
   # headless: --video True --video-length 1770 (frames at 50 fps)
+
+  # the two-fighter arena (no policy yet; the motors hold the stance)
+  uv run scripts/play.py Mjlab-Boxing-Arena-Wato --agent zero --viewer viser
 """
 
 import os
@@ -19,6 +22,7 @@ if os.environ.get("MUJOCO_GL") == "osmesa":
   # loaded segfaults, so load it (via torch._dynamo) first.
   import torch._dynamo  # noqa: F401
 
+import wato_boxing  # noqa: E402,F401  (registers the arena)
 import wato_tracking  # noqa: E402,F401  (registers the tasks)
 from mjlab.scripts.play import main  # noqa: E402
 
