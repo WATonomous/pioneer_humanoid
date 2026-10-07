@@ -168,6 +168,34 @@ def test_turn_keys_turn_the_gripper_smoothly_and_stay_down(sim):
     assert sim.d.xmat[sim.m.body("link6l").id][8] > 0.98     # still pointing down
 
 
+def test_turning_far_from_the_robot_keeps_the_gripper_down_and_in_place(sim):
+    """Far out a turn needs big joint swings, and past the yaw the arm reaches it just stops."""
+    sim.run({"w"}, kt.GLIDE_S + 0.1)
+    assert sim.drive_to((0.42, 0.45, 0.92))
+    sim.run((), 0.4)
+    p0 = sim.grasp_point()
+    for held in ({"c"}, {"v"}):
+        for _ in range(250):
+            sim.run(held, kt.CONTROL_DT)
+            assert sim.d.xmat[sim.m.body("link6l").id][8] > np.cos(np.radians(5))   # was ~20 deg off
+            assert np.linalg.norm(sim.grasp_point() - p0) < 0.015                   # was ~9 cm away
+
+
+def test_a_turned_gripper_still_moves_everywhere(sim):
+    """Turned as far as it goes, a move the arm can't make at that yaw unwinds the turn instead of refusing."""
+    sim.run({"w"}, kt.GLIDE_S + 0.1)
+    assert sim.drive_to((0.27, 0.30, 0.90))
+    sim.run({"c"}, 0.6)
+    sim.run((), 0.4)
+    p0 = sim.grasp_point()
+    sim.run({"d"}, 0.7)                                      # toward the robot's side: no positive yaw there
+    sim.run((), 0.3)
+    d = sim.grasp_point() - p0
+    assert d[1] < -0.06                                      # was 7 mm
+    assert abs(d[0]) < 0.005 and abs(d[2]) < 0.005           # straight
+    assert sim.d.xmat[sim.m.body("link6l").id][8] > np.cos(np.radians(3))
+
+
 def test_home_glides_back(sim):
     sim.run({"w"}, kt.GLIDE_S + 0.5)
     sim.arm.go_home()

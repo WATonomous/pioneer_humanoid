@@ -1,7 +1,9 @@
 """GPU-buffered async LeRobot dataset recorder for Isaac Sim teleop."""
 from __future__ import annotations
 
+import json
 import queue
+import shutil
 import subprocess
 import threading
 import time
@@ -254,6 +256,10 @@ class SimLeRobotRecorder:
         if self._free_slots.empty():
             self._allocate_cpu_slots()
         root = self.dataset_root
+        if self._has_no_episodes(root):
+            # A run that saved no take leaves a folder LeRobotDataset can neither re-open nor create over.
+            shutil.rmtree(root)
+            print(f"[INFO]: Removed empty dataset folder (no saved episodes) at {root}")
         if root.exists():
             try:
                 self.dataset = LeRobotDataset(self.repo_id, root=root)
@@ -275,6 +281,15 @@ class SimLeRobotRecorder:
             robot_type=self.robot_type,
         )
         print(f"[INFO]: Created new dataset at {root}")
+
+    @staticmethod
+    def _has_no_episodes(root: Path) -> bool:
+        """True for a dataset folder whose meta/info.json counts zero saved episodes."""
+        try:
+            info = json.loads((root / "meta" / "info.json").read_text())
+        except (OSError, ValueError):
+            return False
+        return info.get("total_episodes") == 0
 
     def _allocate_buffers(self) -> None:
         dim = len(self.joint_names)

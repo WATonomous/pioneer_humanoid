@@ -19,7 +19,7 @@ python src/teleop/pioneer_leader_arm_teleop/pioneer_leader_arm_teleop.py \
     --target mujoco --scene tidy_table --record --cameras top,wrist_left
 ```
 
-or the keyboard (no leader arm needed; keep the terminal focused: `P` start, `N` save, `B` discard, `H` home):
+or the keyboard (no leader arm needed; keys go to the scene window: a take starts with the first move key, `N` save, `B` discard, `H` home):
 
 ```bash
 python src/teleop/keyboard_teleop/mujoco_keyboard_teleop.py --scene tidy_table --record --cameras top,wrist_left
@@ -44,7 +44,7 @@ Every frame holds:
 | `observation.environment_state` | which object is next: one-hot colour (8) + shape (3), `done` | yes |
 | `action` | 6 joint targets (rad) + gripper command 0..1 | target |
 | `leader_angles`, `leader_counts` | leader encoders, servos A..G: rad (calibrated) and raw counts; NaN in scripted demos | no |
-| `subtask_index`, `task` | the step index and its instruction ("put the red ball in the ball bin") | no |
+| `subtask_index`, `task` | the step index and its instruction ("put the red ball in a bin"; any bin counts) | no |
 
 Look inside a dataset, or export every value to CSV (one file per episode):
 

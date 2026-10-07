@@ -41,19 +41,20 @@ CPU only, no container: any `humanoid_mujoco_scenes` scene, recording in the lea
 can share a dataset; `leader_angles` / `leader_counts` are NaN for keyboard takes).
 
 ```bash
-pip install mujoco pynput && pip install -e src/pioneer_humanoid -e src/simulation/mujoco_scenes -e "src/robot_learning[sim]"
+pip install mujoco && pip install -e src/pioneer_humanoid -e src/simulation/mujoco_scenes -e "src/robot_learning[sim]"
 python src/teleop/keyboard_teleop/mujoco_keyboard_teleop.py --scene tidy_table --record --cameras top,wrist_left
 ```
 
-- **Keep the terminal focused**, not the viewer: keys are read globally (pynput), and the MuJoCo viewer maps
-  most letters to display toggles. macOS: run with `mjpython` and allow the terminal under Privacy >
-  Accessibility.
+- **Keys go to the scene window** (click it once). It is the script's own GLFW window, not `mujoco.viewer`,
+  which maps every letter to a display toggle (`W` wireframe, `S` shadows, `D` hides the table, ...). Mouse:
+  left drag orbits, right drag pans, wheel zooms. The top left corner shows the current step and `RECORDING`.
 - The gripper always points down; keys move the grasp point (between the finger pads). The first move key
   glides the arm from home to gripper-down over the table, then you have it.
 - **Move:** `W/S` x · `A/D` y · `Q/E` up/down · `C/V` turn · **hold `Shift`** = fine (quarter speed)
 - **`K`** open / close (eases over 0.4 s) · **`J`** narrow (default, ~66 mm) / wide opening · **`H`** glide home
   (end each take with it) · **`R`** reset arm + scene · `Esc` quit
-- **`--record`:** `P` start a take · `N` save (then a new layout) · `B` discard. Not `S`/`D`, which move the arm.
+- **`--record`:** a take starts by itself with the first move key from home (the window shows `RECORDING`) ·
+  `N` save (then a new layout) · `B` discard · `P` start again after a discard. Not `S`/`D`, which move the arm.
 - Contacts stay calm: speeds ramp, joint targets are rate-limited, the finger tips can't be commanded into the
   table, and pushing into something holds the arm where it stopped (~4 N held, not the ~110 N the stiff
   joints would otherwise press with). Hitting something at full speed still taps it (~140 N for an instant);

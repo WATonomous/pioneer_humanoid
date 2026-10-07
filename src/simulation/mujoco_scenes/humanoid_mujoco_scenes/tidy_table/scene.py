@@ -1,4 +1,4 @@
-"""Tidy table, level 1: put every object on the table into its category's bin, in the order announced,
+"""Tidy table, level 1: put every object on the table into a bin (any of the three), in the order announced,
 without dropping or knocking over anything on the way.
 
 3-4 objects per episode, drawn from three categories (box, cylinder, ball), at most two of a category.
@@ -6,7 +6,9 @@ Every reset re-draws which objects are out, their sizes, masses, friction, colou
 the order they go in; each object in an episode has its own colour, so "the red ball" is unambiguous.
 The table is messy: any yaw, some cylinders lying on their side, scattered over the reachable area (never
 touching, so each one can be picked without pushing the others first).
-The bins are fixed: box bin and cylinder bin on the arm's outer side, ball bin at the far end of the table.
+The bins are fixed: two on the arm's outer side, one at the far end of the table. They are named after the
+shapes (BINS; episode_objects gives each object "its" bin, where the scripted demos put it), but any bin counts:
+nothing in the scene shows which is which.
 
 Laid out for the LEFT arm with the gripper pointing down. Its reach that way is small: objects lie in a
 ~18 x 16 cm zone, the bins just outside it. It has no wrist roll, so pointing down the gripper only turns so
@@ -18,12 +20,12 @@ The overhead RGB camera ``top`` looks down on the zone and the bins from above t
 from straight above or straight ahead, the gripper at home hides the objects under it.
 
 Steps, checked automatically and latched in order (``progress``):
-  k. put the <colour> <shape> in the <shape> bin     that object resting in its bin, released
+  k. put the <colour> <shape> in a bin     that object resting in any bin, released
 Failures, checked every step and kept (``episode_status``):
   dropped      an object resting on the table (or knocked off it) after being picked up
   toppled      a box or cylinder resting on the table tipped (> TOPPLE_ANGLE) from how it was set out
-  order        an object put in its bin before its turn
-Releasing an object over its bin is fine; a cylinder that falls over inside a bin is home.
+  order        an object put in a bin before its turn
+Releasing an object over a bin is fine; a cylinder that falls over inside a bin is home.
 
 MuJoCo can't change a geom's type at runtime, so the scene holds a pool of objects (MAX_PER_SHAPE per
 shape); reset() resizes the ones it uses and hides the rest (invisible, no contacts, floating off-stage).
@@ -50,7 +52,10 @@ COLOURS = {
     "pink": [0.95, 0.5, 0.7, 1], "white": [0.95, 0.95, 0.95, 1],
 }
 
-# Sizes (m). Narrowest horizontal side 25-50 mm: the open jaws are ~96 mm apart.
+# Sizes (m). Narrowest horizontal side 25-50 mm: the open jaws are ~96 mm apart (JAW_OPEN, measured between the
+# finger pads). No side of any object is longer than MAX_SIDE, so it fits the jaws whichever way it ends up.
+JAW_OPEN = 0.0958
+MAX_SIDE = 0.8 * JAW_OPEN        # 76.6 mm
 BOX_LEN = (0.030, 0.055)         # along X (the fingers are 61 mm long)
 BOX_WIDTH = (0.025, 0.045)       # along Y, between the jaws
 BOX_HEIGHT = (0.025, 0.050)
@@ -118,7 +123,7 @@ def step(model: mujoco.MjModel, data: mujoco.MjData) -> None:
                 f |= _DROPPED
             elif _shape(name) != "ball" and _tilt(model, data, p) > TOPPLE_ANGLE:
                 f |= _TOPPLED
-        if not held and _resting(model, data, name) and _in_bin(model, data, p, touch) == _shape(name) \
+        if not held and _resting(model, data, name) and _in_bin(model, data, p, touch) is not None \
                 and order.index(p) > k:
             f |= _EARLY
         if not held and pos[2] < T - 0.02:   # off the table, resting or not
@@ -180,8 +185,8 @@ CONDITION_NAMES = [f"colour_{c}" for c in COLOURS] + [f"shape_{s}" for s in SHAP
 
 
 def condition(model: mujoco.MjModel, data: mujoco.MjData) -> np.ndarray:
-    """The current step's target for a policy without language input: one-hot colour, one-hot shape (the
-    shape also names the bin); all zeros but ``done`` once every step is done (go home)."""
+    """The current step's target for a policy without language input: one-hot colour, one-hot shape; all
+    zeros but ``done`` once every step is done (go home)."""
     v = np.zeros(len(CONDITION_NAMES), dtype=np.float32)
     k, n = int(data.userdata[_U_STEP]), int(data.userdata[_U_N])
     if k >= n:
@@ -243,12 +248,14 @@ def build(spec: mujoco.MjSpec) -> None:
 
 # ----------------------------------------------------------------------------- randomisation
 def _draw_size(shape: str, rng: np.random.Generator) -> tuple:
-    """Geom size (MuJoCo convention: half-extents / radius, half-height)."""
+    """Geom size (MuJoCo convention: half-extents / radius, half-height), no side longer than MAX_SIDE."""
     if shape == "box":
-        return tuple(rng.uniform(*r) / 2 for r in (BOX_LEN, BOX_WIDTH, BOX_HEIGHT))
-    if shape == "cylinder":
-        return rng.uniform(*CYL_RADIUS), rng.uniform(*CYL_HEIGHT) / 2
-    return (rng.uniform(*BALL_RADIUS),)
+        size = tuple(rng.uniform(*r) / 2 for r in (BOX_LEN, BOX_WIDTH, BOX_HEIGHT))
+    elif shape == "cylinder":
+        size = rng.uniform(*CYL_RADIUS), rng.uniform(*CYL_HEIGHT) / 2
+    else:
+        size = (rng.uniform(*BALL_RADIUS),)
+    return tuple(min(s, MAX_SIDE / 2) for s in size)
 
 
 def _footprint(shape: str, size: tuple, lying: bool = False) -> float:
@@ -462,7 +469,7 @@ def _in_bin(model, data, p: int, touch: dict):
 def _home(model, data, p: int, touch: dict) -> bool:
     name = _POOL[p]
     return ("finger" not in touch[p] and _resting(model, data, name)
-            and _in_bin(model, data, p, touch) == _shape(name))
+            and _in_bin(model, data, p, touch) is not None)
 
 
 def _describe(data, p: int) -> str:
@@ -471,7 +478,7 @@ def _describe(data, p: int) -> str:
 
 def _step_text(data, k: int) -> str:
     p = int(data.userdata[_U_ORDER + k])
-    return f"put the {_describe(data, p)} in the {_shape(_POOL[p])} bin"
+    return f"put the {_describe(data, p)} in a bin"
 
 
 # ----------------------------------------------------------------------------- public helpers
@@ -490,7 +497,7 @@ def episode_objects(model: mujoco.MjModel, data: mujoco.MjData) -> list[dict]:
 
 
 def episode_status(model: mujoco.MjModel, data: mujoco.MjData) -> dict:
-    """Score the episode so far. ``tidiness``: share of objects resting in their bin now. ``success``: every
+    """Score the episode so far. ``tidiness``: share of objects resting in a bin now. ``success``: every
     step done with nothing dropped, toppled or put away early."""
     k, n = int(data.userdata[_U_STEP]), int(data.userdata[_U_N])
     touch = _touching(model, data)

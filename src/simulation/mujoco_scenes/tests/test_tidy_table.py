@@ -66,6 +66,28 @@ def test_randomisation(model):
             assert model.geom_contype[g] == (f"obj_{name}" in active)
 
 
+def test_no_object_side_is_over_80_percent_of_the_open_jaws(model):
+    # The jaws' opening in the model: the gap along link6l's Y between the two fingers' collision boxes.
+    data = _episode(model, 0)
+    R6, p6 = data.xmat[model.body("link6l").id].reshape(3, 3), data.xpos[model.body("link6l").id]
+    spans = {}
+    for g in range(model.ngeom):
+        finger = model.body(model.geom_bodyid[g]).name
+        if finger in ("link7l", "link8l") and model.geom_contype[g] and model.geom_type[g] == mujoco.mjtGeom.mjGEOM_BOX:
+            y = (R6.T @ (data.geom_xpos[g] - p6))[1]
+            half = (np.abs(R6.T @ data.geom_xmat[g].reshape(3, 3)) @ model.geom_size[g])[1]
+            lo, hi = spans.get(finger, (math.inf, -math.inf))
+            spans[finger] = (min(lo, y - half), max(hi, y + half))
+    (_, a_hi), (b_lo, _) = sorted(spans.values())
+    assert abs((b_lo - a_hi) - S.JAW_OPEN) < 0.002
+
+    assert S.MAX_SIDE == pytest.approx(0.8 * S.JAW_OPEN)
+    for seed in range(200):
+        data = _episode(model, seed)
+        for o in S.episode_objects(model, data):
+            assert 2 * max(o["size"]) <= S.MAX_SIDE + 1e-9, (seed, o["shape"], o["size"])
+
+
 def test_objects_settle_untouched(model):
     for seed in range(10):
         data = _episode(model, seed)
@@ -100,14 +122,14 @@ def test_out_of_order_is_flagged(model):
     assert status["early"] == [f"{objs[1]['colour']} {objs[1]['shape']}"]
 
 
-def test_wrong_bin_does_not_count(model):
+def test_any_bin_counts(model):
     data = _episode(model, 3)
     obj = S.episode_objects(model, data)[0]
     other = next(s for s in S.SHAPES if s != obj["shape"])
     _put_in_bin(model, data, dict(obj, bin=S.BINS[other]), 0)
     _run(model, data, 0.6)
     status = S.episode_status(model, data)
-    assert status["step"] == 0 and status["homed"] == 0
+    assert status["step"] == 1 and status["homed"] == 1
 
 
 def test_dropped_after_pickup(model):
