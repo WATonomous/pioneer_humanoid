@@ -162,7 +162,9 @@ class _Recording:
 
 
 def run_episode(scene: str, seed: int, frame_sink=None, record_every: int = 0, on_frame=None):
-    """Play one synthetic take; returns (success, sim seconds, notes)."""
+    """Play one synthetic take; returns (success, sim seconds, notes, the operator's style as a dict)."""
+    import dataclasses
+
     import numpy as np
     from human_operator import HumanOperator
     from synthetic_tasks import TASKS, TaskFailed
@@ -181,14 +183,14 @@ def run_episode(scene: str, seed: int, frame_sink=None, record_every: int = 0, o
     if os.environ.get("SYNTH_TRACE"):
         print("\n".join(op.trace))
     sim.close()
-    return ok, sim.data.time, notes
+    return ok, sim.data.time, notes, {k: round(float(v), 5) for k, v in dataclasses.asdict(op.style).items()}
 
 
 def _probe(job):
     scene, seed = job
     os.environ.setdefault("MUJOCO_GL", "egl")
     t0 = time.time()
-    ok, sim_t, notes = run_episode(scene, seed)
+    ok, sim_t, notes, _ = run_episode(scene, seed)
     return seed, ok, sim_t, time.time() - t0, notes
 
 
@@ -241,10 +243,18 @@ def main() -> None:
         from humanoid_robot_learning.record_utils import resolve_dataset_root
         args.dataset_root = str(resolve_dataset_root(record.cfg, subdir=f"sim_synthetic/{args.scene}"))
 
+    # Takes already in the dataset (an interrupted run picks up where it stopped).
+    done = _recorded_takes(args.dataset_root) if args.record else []
+    done_seeds = {t["seed"] for t in done}
+    if done:
+        print(f"[SYNTH] {len(done)} takes already in {args.dataset_root}: seeds {sorted(done_seeds)}")
+
     # 1. Find seeds whose take succeeds (no cameras: fast, parallel).
-    want, tries = args.num_episodes, args.max_tries or 3 * args.num_episodes
-    kept, longest = [], 0.0
-    jobs = [(args.scene, args.seed + i) for i in range(tries)]
+    want, tries = args.num_episodes - len(done), args.max_tries or 3 * args.num_episodes
+    if want <= 0:
+        return
+    kept, takes = [], {}
+    jobs = [(args.scene, args.seed + i) for i in range(tries) if args.seed + i not in done_seeds]
     ctx = multiprocessing.get_context("fork")
     with ctx.Pool(args.workers) as pool:
         for seed, ok, sim_t, wall, notes in pool.imap(_probe, jobs):
@@ -252,7 +262,7 @@ def main() -> None:
                   + (f"  [{'; '.join(notes)}]" if notes else ""), flush=True)
             if ok:
                 kept.append(seed)
-                longest = max(longest, sim_t)
+                takes[seed] = sim_t
             if len(kept) >= want:
                 pool.terminate()
                 break
@@ -261,49 +271,75 @@ def main() -> None:
     # 2. Re-run the kept seeds with cameras into the dataset (and/or the preview video).
     if not (args.record or args.preview) or not kept:
         return
-    from concurrent.futures import ProcessPoolExecutor
-
-    cameras = {n: (int(s["height"]), int(s["width"])) for n, s in record.images.items()} if args.record else {}
-    recorder, record_every = None, 4
-    if args.record:
-        probe = TeleopSim(args.scene, kept[0], None)
-        # Frame buffers sized to the longest take (not the default 120 s): ~0.9 GB per 10 s with two 640x480 cameras.
-        recorder, record_every = make_sim_recorder(args, record, device="cpu", sim_dt=probe.control_dt,
-                                                   extra_features={"subtask_index": ["subtask_index"]} if probe.progress else None,
-                                                   buffer_capacity_s=longest + 5.0)
-        probe.close()
     preview = _Preview(args.preview, args.scene) if args.preview else None
-    # Memory, per take (two 640x480 cameras, osmesa): frame buffers ~0.9 GB per 10 s, the recorder's episode slot as
-    # much again, ~1.3 GB per render worker, and the video encode. So: 2 fresh (spawned) render workers, shut down
-    # before the save, and the next take starts only once this one is written.
-    pool = None
     try:
         for seed in kept:
             t0 = time.time()
-            rec = None
-            if recorder is not None:
-                pool = ProcessPoolExecutor(max_workers=min(args.workers, 2), mp_context=multiprocessing.get_context("spawn"))
-                rec = _Recording(recorder, pool, args.scene, seed, cameras)
-            ok, sim_t, _ = run_episode(args.scene, seed, rec, record_every, on_frame=preview.frame if preview else None)
-            if rec is not None:
-                rec.drain(block=True)
-                pool.shutdown()
-                pool = None
-                if ok:
-                    recorder.save_episode()
-                    recorder.wait_saved()
-                else:   # physics is deterministic, so this would be a bug; never save a failed take
-                    recorder.cancel_recording()
-            print(f"[SYNTH] seed {seed}: {'saved' if ok else 'DISCARDED (replay failed)'} ({sim_t:.1f} s, {time.time() - t0:.0f} s wall)", flush=True)
+            if args.record:
+                # Each take in a fresh process (it reopens the dataset and appends): a take's frame buffers, render
+                # workers and video encode are all freed when it exits, instead of fragmenting this process's heap.
+                ctx_spawn = multiprocessing.get_context("spawn")
+                result = ctx_spawn.Queue()
+                child = ctx_spawn.Process(target=_record_take, args=(args, record, seed, takes[seed], result))
+                child.start()
+                child.join()
+                try:
+                    ok, sim_t, _ = result.get(timeout=5)
+                except Exception:   # the child died before reporting (e.g. out of memory)
+                    ok, sim_t = False, 0.0
+                print(f"[SYNTH] seed {seed}: {'saved' if ok else 'NOT SAVED'} ({sim_t:.1f} s, {time.time() - t0:.0f} s wall)", flush=True)
+                if child.exitcode != 0:
+                    raise SystemExit(f"recording seed {seed} failed (exit code {child.exitcode}); rerun to resume")
+            if preview is not None:
+                run_episode(args.scene, seed, record_every=4, on_frame=preview.frame)
     finally:
-        if pool is not None:
-            pool.shutdown(cancel_futures=True)
-        if recorder is not None:
-            recorder.finalize()
-            print(f"[RECORD] Saved under {recorder.dataset_root}")
         if preview is not None:
             preview.close()
             print(f"[SYNTH] preview: {args.preview}")
+    if args.record:
+        print(f"[RECORD] Saved under {args.dataset_root}")
+
+
+TAKES_FILE = "meta/synthetic_takes.jsonl"   # one line per saved episode: seed, operator style, what happened
+
+
+def _recorded_takes(dataset_root) -> list[dict]:
+    import json
+    path = Path(dataset_root) / TAKES_FILE
+    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()] if path.exists() else []
+
+
+def _record_take(args, record, seed: int, take_s: float, result) -> None:
+    """Child process: replay one (known good) take with cameras, append it to the dataset, note it in TAKES_FILE."""
+    import json
+    from concurrent.futures import ProcessPoolExecutor
+
+    cameras = {n: (int(s["height"]), int(s["width"])) for n, s in record.images.items()}
+    probe = TeleopSim(args.scene, seed, None)
+    # Frame buffers sized to this take (not the default 120 s): ~0.9 GB per 10 s with two 640x480 cameras.
+    recorder, record_every = make_sim_recorder(args, record, device="cpu", sim_dt=probe.control_dt,
+                                               extra_features={"subtask_index": ["subtask_index"]} if probe.progress else None,
+                                               buffer_capacity_s=take_s + 5.0)
+    probe.close()
+    episode = recorder.dataset.meta.total_episodes
+    # CPU rendering is the slow part: 2 spawned render workers (~1.3 GB each with osmesa).
+    pool = ProcessPoolExecutor(max_workers=min(args.workers, 2), mp_context=multiprocessing.get_context("spawn"))
+    try:
+        rec = _Recording(recorder, pool, args.scene, seed, cameras)
+        ok, sim_t, notes, style = run_episode(args.scene, seed, rec, record_every)
+        rec.drain(block=True)
+    finally:
+        pool.shutdown(cancel_futures=True)
+    if ok:
+        recorder.save_episode()
+        recorder.wait_saved()
+        with open(Path(recorder.dataset_root) / TAKES_FILE, "a") as f:
+            f.write(json.dumps({"episode_index": episode, "scene": args.scene, "seed": seed, "take_s": round(sim_t, 2),
+                                "notes": notes, "operator": style}) + "\n")
+    else:   # physics is deterministic, so this would be a bug; never save a failed take
+        recorder.cancel_recording()
+    recorder.finalize()
+    result.put((ok, sim_t, notes))
 
 
 class _Preview:
