@@ -1,8 +1,9 @@
 """Quest VR -> Isaac Sim teleoperation for the pioneer_bimanual_arm (pioneer_bimanual_arm.usd).
 
-Runs inside the simulation_isaac container. Both arms are driven by Quest hand tracking:
-the left Quest wrist drives the left arm, the right drives the right, and pinching
-thumb+index closes that arm's gripper.
+Runs inside the simulation_isaac container. Both arms are driven by the Quest 2 controllers:
+the left controller drives the left arm, the right drives the right, and pulling a controller's
+trigger closes that arm's gripper. (Hand tracking -- wrist pose + thumb/index pinch -- is
+commented out in bridge/static/index.html and run_simulator, kept for switching back.)
 
 Pipeline
 --------
@@ -37,12 +38,17 @@ Performance
 See main() for the measured cost model and the fps/RTF tuning table. Three knobs:
 _POV_CAPTURE_EVERY_N_STEPS (render cadence), _PHYSICS_DT, _PACE_TO_REALTIME.
 
+Quest controllers: Y (left) discard take + reset scene, B (right) save episode + reset scene.
 Keys (Isaac Sim window focused): R recalibrate, T reset scene, S save episode,
 D discard episode (S/D only with --record).
 
 Usage
 -----
-    ./run_quest_bimanual_teleop.sh [--record] [--publish-real-left-arm]
+    ./run_quest_bimanual_teleop.sh [--scene NAME] [--record] [--publish-real-left-arm]
+
+--scene picks the world: ``lightbox`` (default, ArmV2SceneCfg below -- box + container) or any
+scene registered in humanoid_isaac_scenes (e.g. ``garment_fold``). The Quest cameras (eye pair,
+wrist_cam, wrist_cam_right, ego_cam) mount on the robot, so they are added to every scene.
 """
 
 import argparse
@@ -75,14 +81,18 @@ def _ensure_robot_learning_on_path() -> None:
 
 # ── CLI args ──────────────────────────────────────────────────────────────────
 parser = argparse.ArgumentParser(description="Quest pioneer_bimanual_arm teleop (both arms: DLS fingertip IK)")
+parser.add_argument("--scene", type=str, default="lightbox",
+                    help="'lightbox' (built-in box + container scene) or any scene registered in "
+                         "humanoid_isaac_scenes (validated after launch -- pass an unknown name to list them)")
 parser.add_argument("--gain", type=float, default=1.0,
                     help="Motion gain: metres of EE motion per metre of real wrist motion")
 parser.add_argument("--record", action="store_true",
-                    help="Record demonstrations (requires: pip install -e src/robot_learning[record]). Records the "
-                         "L-suffixed (link6l) arm only -- that's the arm ego_cam/wrist_cam are mounted for.")
+                    help="Record demonstrations (requires: pip install -e src/robot_learning[record]). Which arms "
+                         "and cameras are recorded comes from --schema.")
 parser.add_argument("--schema", type=str,
                     default=str(_ROBOT_LEARNING_PKG / "config" / "dataset_schema_wato_arm_v2_push_box.yaml"),
-                    help="Path to dataset_schema.yaml (only used with --record)")
+                    help="Path to dataset_schema.yaml (only used with --record). Its joint_names pick the arms: "
+                         "left only (default schema) or left+right (dataset_schema_pioneer_bimanual_quest.yaml)")
 parser.add_argument("--sink", type=str, default="lerobot",
                     help="Output sinks when --record: lerobot, hdf5, or lerobot,hdf5")
 parser.add_argument("--dataset_root", type=str, default=None,
@@ -124,6 +134,7 @@ from isaaclab.scene import InteractiveScene, InteractiveSceneCfg  # noqa: E402
 from isaaclab.sensors import Camera, CameraCfg  # noqa: E402
 from isaaclab.utils import configclass  # noqa: E402
 from isaaclab.utils.math import (  # noqa: E402
+    compute_pose_error,
     quat_apply,
     quat_apply_inverse,
     quat_from_matrix,
@@ -135,6 +146,7 @@ from isaaclab.utils.math import (  # noqa: E402
 
 # No aliasing: LEFT_* is the L-suffixed chain (physical left = left Quest wrist), RIGHT_* the
 # unsuffixed one. This block used to swap them to undo a reversed upstream; don't bring that back.
+from humanoid_isaac_scenes import list_scenes, make_scene_cfg, scene_camera, scene_post_init  # noqa: E402
 from quest_cameras import (  # noqa: E402
     WRIST_CAM_POS,
     make_ego_cam_cfg,
@@ -193,10 +205,14 @@ _GAIN_FAR = 1.0  # 1:1 hand->EE. 2.0 was tried for more reach; it made tracking 
 _GAIN_RAMP_START_M = 0.15
 _GAIN_RAMP_END_M = 0.35
 
-# Shoulder-to-fingertip is ~0.70-0.75m (link-length estimate), so 0.5m stays under the
-# kinematic ceiling but close enough that DLS conditioning degrades near it -- see
-# _DLS_LAMBDA_RIGHT. Lower it if the right arm locks up mid-reach.
-_MAX_REACH_M = 0.5
+# Cap on the target's displacement FROM THE REST TIP POSE (not from the shoulder). Was 0.5m,
+# which cut reach short in some directions (across the body, up) well before the arm's own
+# limit. 1.5m exceeds any reachable displacement (shoulder-to-fingertip ~0.70-0.75m, plus the
+# rest tip's own offset from the shoulder), so the arm's kinematics are now the only limit:
+# a target past full reach just stretches the arm toward it, DLS-damped. Near full extension
+# conditioning degrades (see _DLS_LAMBDA_RIGHT) -- if an arm feels sticky at full stretch,
+# pull back in; lower this again if it locks up.
+_MAX_REACH_M = 1.5
 
 # Both 0: fix framing on the camera/enclosure side, not by offsetting the arm's target from its
 # rest pose. Z was +0.2 to lift the tip clear of the table under the old all-zeros spawn pose;
@@ -224,6 +240,10 @@ _WRIST_ORIENT_OFFSET_RIGHT = torch.tensor([1.0, 0.0, 0.0, 0.0])
 _THUMB_TIP_IDX = 4
 _INDEX_TIP_IDX = 9
 _PINCH_CLOSE_M = 0.035  # was 0.030, nudged up per live feedback (easier to trigger close)
+# Quest 2 controllers: trigger value (0..1) thresholds, with hysteresis so a half-pulled trigger
+# doesn't chatter the gripper. Replaces the pinch distance above while on controllers.
+_TRIGGER_CLOSE = 0.6
+_TRIGGER_OPEN = 0.4
 _PINCH_OPEN_M = 0.050
 
 # Lowered from 0.2/0.35: those were raised for conditioning near full extension, which was an
@@ -233,6 +253,20 @@ _PINCH_OPEN_M = 0.050
 # Per-arm ratio kept, not unified -- only the left chain was re-measured.
 _DLS_LAMBDA = 0.1
 _DLS_LAMBDA_RIGHT = 0.175
+
+# Weighted DLS: orientation error/Jacobian rows are scaled by this relative to position (1.0).
+# The arm is 6-DOF ending in elbow-roll + wrist-pitch (no wrist yaw/roll), so most operator wrist
+# orientations are unreachable; with equal weights the solver traded fingertip POSITION accuracy
+# to chase them. < 1 keeps the fingertip on the hand and lets the wrist follow as far as the
+# joints allow. 1.0 reproduces the old unweighted behaviour exactly. Lower = more precise
+# position, looser wrist; raise toward 0.5 if the wrist feels unresponsive.
+#
+# 0.1 follows Unitree's production VR teleop IK (unitreerobotics/avp_teleoperate,
+# teleop/robot_control/robot_arm_ik.py): cost = 50*|pos_err|^2 + r*|rot_err|^2 + ..., with
+# r = 0.5 for their arms with fewer joints (G1_23, H1, R1_A5) and 1.0 for 7-DOF ones. Ours is
+# 6-DOF and can't reach every orientation, so r = 0.5. Their weights scale SQUARED errors; ours
+# scale rows, so the equivalent is sqrt(0.5 / 50) = 0.1 (was 0.3 before matching it).
+_IK_ORIENT_WEIGHT = 0.1
 
 # Ceiling + threshold for Chiaverini adaptive damping (_adaptive_dls_lambda): lambda ramps from
 # the floor above toward lambda_max as manipulability drops below epsilon.
@@ -1044,6 +1078,11 @@ class _ArmDlsController:
             cfg, num_envs=scene.num_envs, device=device,
         )
         self.controller.reset(env_ids=torch.arange(scene.num_envs, device=device))
+        # Row weights for the weighted DLS step in solve_and_apply. The controller above is kept
+        # only for its cfg (lambda, read by the ikdiag print); compute() is no longer called.
+        self.pose_weights = torch.tensor(
+            [1.0, 1.0, 1.0, _IK_ORIENT_WEIGHT, _IK_ORIENT_WEIGHT, _IK_ORIENT_WEIGHT], device=device
+        )
         # Floor/ceiling for adaptive damping. Inert while _adaptive_dls_lambda is uncalled.
         self.lambda_min = lambda_val
         self.lambda_max = lambda_max
@@ -1079,12 +1118,23 @@ class _ArmDlsController:
         jacobian_w = robot.root_physx_view.get_jacobians()[:, self.ee_jacobi_idx, :, self.arm_ids]
         jacobian_b = compute_tip_ik_jacobian(robot, jacobian_w, wrist_pos_b, tip_pos_b)
 
-        # Fixed lambda and no output smoothing, matching run_quest_bimanual_teleop.py exactly --
-        # adaptive damping and _smooth_damp were both tried here and made the IK feel wrong.
-        # dt is unused, kept for signature compatibility.
-        self.controller.set_command(torch.cat([target_pos_b, target_quat_b], dim=1))
+        # Fixed lambda and no output smoothing -- adaptive damping and _smooth_damp were both tried
+        # here and made the IK feel wrong. dt is unused, kept for signature compatibility.
+        #
+        # Weighted DLS: same step as DifferentialIKController's "dls" (dq = J^T (J J^T + l^2 I)^-1 e,
+        # axis-angle orientation error), with W = diag(1,1,1,w,w,w) applied to both J and e so
+        # position wins when the full 6D pose is unreachable -- see _IK_ORIENT_WEIGHT.
         joint_pos = robot.data.joint_pos[:, self.arm_ids]
-        joint_pos_des = self.controller.compute(tip_pos_b, tip_quat_b, jacobian_b, joint_pos)
+        pos_err, rot_err = compute_pose_error(
+            tip_pos_b, tip_quat_b, target_pos_b, target_quat_b, rot_error_type="axis_angle"
+        )
+        w = self.pose_weights
+        jac_w = jacobian_b * w.view(1, 6, 1)
+        err_w = torch.cat([pos_err, rot_err], dim=1) * w
+        lam = self.controller.cfg.ik_params["lambda_val"]
+        jjt = jac_w @ jac_w.transpose(1, 2) + (lam ** 2) * torch.eye(6, device=jac_w.device)
+        delta = jac_w.transpose(1, 2) @ torch.linalg.solve(jjt, err_w.unsqueeze(-1))
+        joint_pos_des = joint_pos + delta.squeeze(-1)
         self.last_joint_pos_des = joint_pos_des
 
         # Position target only. This used to ALSO write_joint_state_to_sim(joint_pos_des, 0),
@@ -1139,11 +1189,41 @@ def _init_recorder(device: str):
     return recorder, cfg
 
 
-def _capture_record_images(scene: InteractiveScene) -> dict:
-    """{schema_key: HxWx3 uint8 rgb} for the two data-collection cameras --
+# Recorded joint layouts. Only the primary gripper joint (7l / 7) is logged per arm -- 8l / 8 is
+# driven as its synchronized opposite, not an independent DOF. The schema's joint_names must
+# equal one of these exactly, since that is the column order the recording loop writes.
+_RECORD_JOINTS_LEFT = [*LEFT_ARM_JOINTS, LEFT_GRIPPER_JOINTS[0]]
+_RECORD_JOINTS_BIMANUAL = [*_RECORD_JOINTS_LEFT, *RIGHT_ARM_JOINTS, RIGHT_GRIPPER_JOINTS[0]]
+# schema image key -> scene camera key. "wrist" (not "wrist_left") because the existing
+# push-box datasets were recorded under that key.
+_RECORD_CAMERAS = {"ego": "ego_cam", "wrist": "wrist_cam", "wrist_right": "wrist_cam_right"}
+
+
+def _record_layout(record_cfg: dict) -> tuple[bool, list[str]]:
+    """(record_right_arm, [schema image keys]) from the schema; fails fast on anything the
+    recording loop can't produce rather than writing mislabelled columns."""
+    joint_names = list(record_cfg["joint_names"])
+    if joint_names == _RECORD_JOINTS_LEFT:
+        bimanual = False
+    elif joint_names == _RECORD_JOINTS_BIMANUAL:
+        bimanual = True
+    else:
+        raise SystemExit(f"--schema joint_names must be {_RECORD_JOINTS_LEFT} (left) or "
+                         f"{_RECORD_JOINTS_BIMANUAL} (bimanual), got {joint_names}")
+    from humanoid_robot_learning.schema import enabled_images
+    image_keys = list(enabled_images(record_cfg))
+    unknown = [k for k in image_keys if k not in _RECORD_CAMERAS]
+    if unknown:
+        raise SystemExit(f"--schema images {unknown} have no camera here; known: {list(_RECORD_CAMERAS)}")
+    return bimanual, image_keys
+
+
+def _capture_record_images(scene: InteractiveScene, image_keys: list[str]) -> dict:
+    """{schema_key: HxWx3 uint8 rgb} for the schema's enabled data-collection cameras --
     NOT the RSD455 headset pair, see module docstring."""
     images = {}
-    for schema_key, scene_key in (("ego", "ego_cam"), ("wrist", "wrist_cam")):
+    for schema_key in image_keys:
+        scene_key = _RECORD_CAMERAS[schema_key]
         rgb = scene[scene_key].data.output["rgb"]
         frame = rgb[0].detach().cpu().numpy()
         if frame.shape[-1] > 3:
@@ -1170,7 +1250,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
 
     scene.update(sim_dt)
     apply_joint_limits(robot)
-    _set_rigid_body_friction(scene["box"], _BOX_STATIC_FRICTION, _BOX_DYNAMIC_FRICTION)
+    if "box" in scene.rigid_objects:  # lightbox's graspable box; registry scenes tune their own
+        _set_rigid_body_friction(scene["box"], _BOX_STATIC_FRICTION, _BOX_DYNAMIC_FRICTION)
     _set_rigid_body_friction(
         robot, _GRIPPER_STATIC_FRICTION, _GRIPPER_DYNAMIC_FRICTION,
         body_names=(*LEFT_FINGER_TIP_BODIES, *RIGHT_FINGER_TIP_BODIES),
@@ -1244,7 +1325,14 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     axis_sign_right = _AXIS_SIGN_RIGHT.to(device)
     # Camera-relative basis in world frame: the rsd455's local axes rotated by the mount tilt.
     # Hand position deltas are composed along these, not along fixed world axes.
-    camera_tilt_quat = torch.tensor([_HEAD_VIEWPOINT_HOME_QUAT], dtype=torch.float32, device=device)
+    # _HEAD_VIEWPOINT_HOME_QUAT is the mount's pose in BASE frame (it's parented to base_link),
+    # so compose it with the robot's root rotation to get world. Identity root (lightbox) makes
+    # this a no-op; registry scenes that yaw the base (garment_fold: +90deg) need it, or every
+    # hand motion comes out rotated by that yaw. The base is fixed, so reading it once is enough.
+    camera_tilt_quat = quat_mul(
+        robot.data.root_state_w[:, 3:7],
+        torch.tensor([_HEAD_VIEWPOINT_HOME_QUAT], dtype=torch.float32, device=device),
+    )
     cam_fwd_world = quat_apply(camera_tilt_quat, _CAM_LOCAL_FORWARD.to(device).unsqueeze(0)).squeeze(0)
     cam_up_world = quat_apply(camera_tilt_quat, _CAM_LOCAL_UP.to(device).unsqueeze(0)).squeeze(0)
     cam_right_world = quat_apply(camera_tilt_quat, _CAM_LOCAL_RIGHT.to(device).unsqueeze(0)).squeeze(0)
@@ -1364,6 +1452,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         # (tick() no-ops without it) but is constructed directly.
         from humanoid_robot_learning.episode_keys import EpisodeFlags
         recorder._flags = EpisodeFlags(start=False)
+        _record_bimanual, _record_image_keys = _record_layout(record_cfg)
+        print(f"[RECORD] arms: {'left+right' if _record_bimanual else 'left only'}, "
+              f"cameras: {_record_image_keys}", flush=True)
 
     def _sphere_cfg(color, radius, opacity=1.0):
         return sim_utils.SphereCfg(
@@ -1434,15 +1525,19 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
 
     def _reset_scene() -> None:
         """Full scene reset (distinct from R's recalibration, which only re-anchors tracking):
-        box/container back to their original spawn pose+velocity, arm joints back to the default
+        every rigid object (box/container in lightbox) back to its original spawn pose+velocity,
+        a post_init garment (if the scene has one) soft-reset, arm joints back to the default
         rest pose, IK targets back to the rest tip pose (+ offsets), grippers back to open, and
         tracking re-homed (same as R) so the arm doesn't immediately snap back toward wherever
         your hand currently is."""
         nonlocal target_pos_b_left, target_quat_b_left, target_pos_b_right, target_quat_b_right
         nonlocal left_closed, right_closed
         nonlocal left_gripper_smoothed, left_gripper_vel, right_gripper_smoothed, right_gripper_vel
-        scene["box"].write_root_state_to_sim(scene["box"].data.default_root_state.clone())
-        scene["container"].write_root_state_to_sim(scene["container"].data.default_root_state.clone())
+        for _obj in scene.rigid_objects.values():
+            _obj.write_root_state_to_sim(_obj.data.default_root_state.clone())
+        # Built by the scene's post_init (garment_fold), not an InteractiveScene entity.
+        if getattr(scene, "garment", None) is not None:
+            scene.garment.reset()
         robot.write_joint_state_to_sim(robot.data.default_joint_pos.clone(), robot.data.default_joint_vel.clone())
         target_pos_b_left = init_tip_pos_b_l.clone()
         target_quat_b_left = init_tip_quat_b_l.clone()
@@ -1486,11 +1581,14 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     if recorder is not None:
         print("[Quest] Press S to save the current episode, D to discard it -- recording "
               "continues either way for the next demo.", flush=True)
-    print("[Quest] Press T (Isaac Sim window focused) to fully reset the scene (box/container/arm).", flush=True)
+    print("[Quest] Controllers: Y = reset scene (discards the take if recording), "
+          "B = save the take + reset (if recording). Keyboard T also resets.", flush=True)
 
     diag_frame = 0
     pov_capture_frame = 0
     _vr_connected = False
+    _reset_button_prev = False  # Quest Y / B button states last frame, for rising-edge detection
+    _save_button_prev = False
     _fps_window_start_t = time.monotonic()
     _fps_window_frames = 0
     _fps_window_capture_ms = 0.0
@@ -1537,6 +1635,24 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
                 if recorder is not None and recorder._flags is not None and not recorder._flags.start:
                     recorder._flags.start = True
                     print("[RECORD] VR connected -- recording started automatically.", flush=True)
+            # Controller buttons, acted on once per press (rising edge -- the state arrives every
+            # frame while held). Each demo is one reset-to-reset take:
+            #   Y (left):  discard the take being recorded, reset -> recording restarts from the reset
+            #   B (right): save the take as an episode, reset    -> next take starts from the reset
+            # Without --record both just reset (same as the T key).
+            if msg.save_button and not _save_button_prev:
+                if recorder is not None:
+                    recorder.save_episode()
+                    print(f"[RECORD] [B] Episode saved ({recorder.num_recorded_episodes} done); scene reset.",
+                          flush=True)
+                _reset_scene()
+            elif msg.reset_button and not _reset_button_prev:
+                if recorder is not None:
+                    recorder.cancel_recording()
+                    print("[RECORD] [Y] Take discarded; scene reset, recording restarts.", flush=True)
+                _reset_scene()
+            _reset_button_prev = msg.reset_button
+            _save_button_prev = msg.save_button
             left_xyz_q = _wrist_xyz(msg.left_wrist).to(device)
             right_xyz_q = _wrist_xyz(msg.right_wrist).to(device)
             left_quat = _wrist_quat_wxyz(msg.left_wrist).to(device)
@@ -1685,18 +1801,34 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
                 if right_arm.quest_home_xyz is not None:
                     right_target_vis.visualize(translations=_rp + quat_apply(root_quat_w, target_pos_b_right))
 
+            # Hand tracking: thumb-index pinch closed the gripper. Disabled for Quest 2 controllers.
+            # if left_tracked:
+            #     ld = _pinch_dist(left_joints)
+            #     if ld < _PINCH_CLOSE_M:
+            #         left_closed = True
+            #     elif ld > _PINCH_OPEN_M:
+            #         left_closed = False
+            #
+            # if right_tracked:
+            #     rd = _pinch_dist(right_joints)
+            #     if rd < _PINCH_CLOSE_M:
+            #         right_closed = True
+            #     elif rd > _PINCH_OPEN_M:
+            #         right_closed = False
+
+            # Quest 2 controllers: the trigger closes that arm's gripper. left/right_wrist above
+            # now carry the controller GRIP pose (index.html), which the homing/delta mapping
+            # uses unchanged -- it only reads rotation/translation relative to the homed pose.
             if left_tracked:
-                ld = _pinch_dist(left_joints)
-                if ld < _PINCH_CLOSE_M:
+                if msg.left_trigger > _TRIGGER_CLOSE:
                     left_closed = True
-                elif ld > _PINCH_OPEN_M:
+                elif msg.left_trigger < _TRIGGER_OPEN:
                     left_closed = False
 
             if right_tracked:
-                rd = _pinch_dist(right_joints)
-                if rd < _PINCH_CLOSE_M:
+                if msg.right_trigger > _TRIGGER_CLOSE:
                     right_closed = True
-                elif rd > _PINCH_OPEN_M:
+                elif msg.right_trigger < _TRIGGER_OPEN:
                     right_closed = False
 
         # Decided here so sim.step(render=), the recorder and the POV capture share one answer.
@@ -1709,10 +1841,16 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         # near-copy of action (r>0.999 on all 6 arm joints) and teaches a BC policy to echo
         # proprioception rather than move.
         if recorder is not None and _render_this_step:
-            _record_state = torch.cat([
+            _record_state_parts = [
                 robot.data.joint_pos[:, left_arm.arm_ids],
                 robot.data.joint_pos[:, left_gripper_ids[:1]],
-            ], dim=1)[0].clone()
+            ]
+            if _record_bimanual:
+                _record_state_parts += [
+                    robot.data.joint_pos[:, right_arm.arm_ids],
+                    robot.data.joint_pos[:, right_gripper_ids[:1]],
+                ]
+            _record_state = torch.cat(_record_state_parts, dim=1)[0].clone()
 
         # ── Differential IK (DLS) solve, both arms, every frame ─────────────────
         tip_pos_b_l_now, tip_quat_b_l_now = left_arm.solve_and_apply(robot, device, target_pos_b_left, target_quat_b_left, sim_dt)
@@ -1804,8 +1942,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
             _rtf_window_steps = 0
             _rtf_window_sleep_ms = 0.0
 
-        # ── Recording (L-suffixed/link6l arm only -- the one ego_cam/
-        # wrist_cam are mounted for) ─────────────────────────────────────────
+        # ── Recording (left arm, plus right when the schema is bimanual) ────────
         if recorder is not None:
             if recorder.is_complete:
                 print("[RECORD] Session complete.", flush=True)
@@ -1817,10 +1954,13 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
                 # snaps 0 -> -0.05 in one frame while _smooth_damp eases the joint over ~50ms,
                 # and it is the eased value that was actually commanded. Logging the snap
                 # trained the policy to slam a gripper the demos never slammed.
-                action = torch.cat([left_arm.last_joint_pos_des, left_gripper_smoothed[:, :1]], dim=1)[0]
-                # images as a callable, not a dict: two 640x480 GPU->CPU copies that must only
+                _action_parts = [left_arm.last_joint_pos_des, left_gripper_smoothed[:, :1]]
+                if _record_bimanual:
+                    _action_parts += [right_arm.last_joint_pos_des, right_gripper_smoothed[:, :1]]
+                action = torch.cat(_action_parts, dim=1)[0]
+                # images as a callable, not a dict: 640x480 GPU->CPU copies that must only
                 # run on pushed frames. Every step tanked RTF -- looked like the arm barely moving.
-                recorder.tick(action, _record_state, lambda: _capture_record_images(scene))
+                recorder.tick(action, _record_state, lambda: _capture_record_images(scene, _record_image_keys))
 
         # Mounts are static while _HEAD_TRACKING_LIVE is False -- positioned once before the
         # loop by _sync_camera_mounts (see there for why this is not a cheap no-op).
@@ -1931,7 +2071,10 @@ def main() -> None:
     sim_cfg = sim_utils.SimulationCfg(dt=_PHYSICS_DT, render_interval=_KIT_RENDERING_INTERVAL,
                                       device=args_cli.device)
     sim = sim_utils.SimulationContext(sim_cfg)
-    sim.set_camera_view([2.5, 2.5, 2.0], [0.0, 0.0, 0.8])
+    if args_cli.scene != "lightbox" and args_cli.scene not in list_scenes():
+        raise SystemExit(f"unknown --scene {args_cli.scene!r}; available: {['lightbox', *list_scenes()]}")
+    _registry_scene = args_cli.scene != "lightbox"
+    sim.set_camera_view(*((_registry_scene and scene_camera(args_cli.scene)) or ([2.5, 2.5, 2.0], [0.0, 0.0, 0.8])))
 
     # Trim RTX cost -- reflections/AO are real per-frame GPU time and buy nothing here.
     # Best-effort: an unknown setting path across Kit versions must not break teleop.
@@ -1946,7 +2089,14 @@ def main() -> None:
         except Exception as exc:  # noqa: BLE001 -- best-effort, see docstring above
             print(f"[Quest] Could not set {_rtx_setting}: {exc}", flush=True)
 
-    scene_cfg = ArmV2SceneCfg(num_envs=1, env_spacing=2.0)
+    if _registry_scene:
+        scene_cfg = make_scene_cfg(args_cli.scene, BIMANUAL_ARM_CFG, num_envs=1, env_spacing=2.0)
+        # Robot-mounted, so they fit any scene; run_simulator/recording bind these exact keys.
+        scene_cfg.ego_cam = make_ego_cam_cfg()
+        scene_cfg.wrist_cam = make_wrist_cam_cfg()
+        scene_cfg.wrist_cam_right = make_wrist_cam_cfg(body="link6", name="wrist_cam_right", mirror=True)
+    else:
+        scene_cfg = ArmV2SceneCfg(num_envs=1, env_spacing=2.0)
     if not args_cli.record:
         # ego_cam only feeds recording. Dropping it removes a whole RenderProduct from every
         # render tick and costs the operator nothing. None is InteractiveScene's skip value.
@@ -1954,7 +2104,10 @@ def main() -> None:
         print("[Quest] ego_cam disabled (no --record): one fewer camera rendered per frame.", flush=True)
     scene = InteractiveScene(scene_cfg)
     sim.reset()
-    print("[Quest] Simulation ready (lightbox enclosure walls added).")
+    post_init = scene_post_init(args_cli.scene) if _registry_scene else None
+    if post_init is not None:
+        post_init(scene, sim)
+    print(f"[Quest] Simulation ready (scene: {args_cli.scene}).")
     exit_code = 0
     try:
         run_simulator(sim, scene)

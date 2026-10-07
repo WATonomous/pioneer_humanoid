@@ -116,8 +116,10 @@ RUN $PYTHON -m pip install -c /tmp/constraints.txt \
     "transformers @ git+https://github.com/huggingface/transformers.git@dcddb970176382c0fcf4521b0c0e6fc15894dfe0" \
     "scipy>=1.11,<1.16"
 
+# FFmpeg 7.x: torchcodec<0.6 does not support FFmpeg 8. Pinned to a dated BtbN monthly build
+# because their rolling "latest" release only carries current major versions.
 RUN curl --proto "=https" --tlsv1.2 -sSf -L -o /tmp/ffmpeg.tar.xz \
-    https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n7.1-latest-linux64-lgpl-shared-7.1.tar.xz && \
+    https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-07-31-14-10/ffmpeg-n7.1.5-12-g1fdbca85aa-linux64-lgpl-shared-7.1.tar.xz && \
     tar -xf /tmp/ffmpeg.tar.xz -C /usr/local --strip-components=1 && \
     ldconfig && \
     rm /tmp/ffmpeg.tar.xz
