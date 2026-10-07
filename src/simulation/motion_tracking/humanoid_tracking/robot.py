@@ -111,6 +111,10 @@ def _damping(armature: float) -> float:
   return 2.0 * DAMPING_RATIO * armature * NATURAL_FREQ
 
 
+# joint-name regex -> motor speed cap [rad/s] (m/s for the claws), filled by _motor
+SPEED_CAPS: dict[str, float] = {}
+
+
 def _motor(
   names: tuple[str, ...],
   armature: float,
@@ -132,6 +136,8 @@ def _motor(
   (`implicit=True`, like Isaac's implicit actuators and mjlab's G1) and give
   up the speed cap.
   """
+  for n in names:
+    SPEED_CAPS[n] = velocity
   if implicit:
     return BuiltinPositionActuatorCfg(
       target_names_expr=names,
