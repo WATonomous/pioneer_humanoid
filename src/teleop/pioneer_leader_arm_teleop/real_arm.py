@@ -34,7 +34,7 @@ _SRC = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_SRC / "interfacing" / "can" / "scripts"))
 sys.path.insert(0, str(_SRC / "pioneer_humanoid"))
 
-from joint_config import find_calibration, gripper_closure, load_joint_map, motor_to_cmd_deg  # noqa: E402
+from joint_config import find_calibration, gripper_position, load_joint_map, motor_to_cmd_deg  # noqa: E402
 
 from arm_limits import gripper_fraction, limited_target  # noqa: E402
 from leader_mapping import add_leader_args, check_leader_args  # noqa: E402
@@ -120,7 +120,7 @@ def format_rows(rows: list[dict], grip: float, real_grip: float | None) -> list[
     else:
         real, diff = f"{real_grip:+9.2f}", f"{grip - real_grip:+8.2f}"
         warn = f">{GRIP_TOL:g}" if abs(grip - real_grip) > GRIP_TOL else ""
-    lines.append(f"{'gripper':<16}{'closure':<9}{GRIPPER_CAN_ID:>4}{grip:+9.2f}{real:>9}{diff:>8}{'':>8}  {warn}")
+    lines.append(f"{'gripper':<16}{'position':<9}{GRIPPER_CAN_ID:>4}{grip:+9.2f}{real:>9}{diff:>8}{'':>8}  {warn}")
 
     diffs = [abs(r["diff"]) for r in rows if r["diff"] is not None]
     worst_home = max(abs(r["home_err"]) for r in rows)
@@ -210,7 +210,7 @@ def run() -> None:
         cmd = motor_to_cmd_deg(info, float(msg.position))
         with lock:
             # The gripper is kept as closure, the arm joints as degrees.
-            real_cmd[motor_id] = gripper_closure(info, cmd) if info is grip_info else cmd
+            real_cmd[motor_id] = gripper_position(info, cmd) if info is grip_info else cmd
             last_seen[motor_id] = time.monotonic()
 
     rclpy.init()

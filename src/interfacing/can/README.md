@@ -52,7 +52,7 @@ Prompt: **Enter**=yes · id=correct id · **s**=skip · **q**=quit.
 
 Per-joint gains live in `joint_command/config/arm_actuators.yaml`; `joint_command` refuses to
 start if `quantised kp × mit_max_track_err (+ feed-forward) > mit_max_torque`. Gains are snapped
-to the nearest 12-bit code. The gripper is driven from `ArmPose.gripper_closure`
+to the nearest 12-bit code. The gripper is driven from `ArmPose.gripper_position`
 ([JointCommand.md](../joint_command/JointCommand.md#gripper)).
 
 **AK bring-up, per joint** (arm supported, hardware E-stop in reach):

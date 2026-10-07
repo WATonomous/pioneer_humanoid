@@ -103,7 +103,7 @@ The GL40 gripper (id 21, `arm_calibration.yaml` `gripper.open_close`) is a 7th j
 when `arm_actuators.yaml` has a `gripper.open_close` block. Without one, the node is the 6-joint arm.
 Leave it out of a run with its `active: false` (see Launch).
 
-- **Command:** `ArmPose.gripper_closure`, 0 = open .. 1 = closed, used while
+- **Command:** `ArmPose.gripper_position`, 0 = open .. 1 = closed, used while
   `include_gripper` is true. Closure 0 → command 0° (its calibrated zero), 1 → `upper_limit`, then
   the same clamp / low-pass / rate limit as any joint. Without `include_gripper` (or with a
   non-finite closure) it **holds where it is**, so a publisher that omits it never drops an object.

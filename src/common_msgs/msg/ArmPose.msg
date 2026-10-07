@@ -12,7 +12,7 @@ common_msgs/JointState wrist
 bool include_hand_pose
 common_msgs/HandPose hand_pose
 
-# Gripper closure: 0 = open .. 1 = closed. joint_command drives the gripper only while
+# Gripper position: 0 = open .. 1 = closed. joint_command drives the gripper only while
 # include_gripper is true; otherwise it holds the gripper where it is.
 bool include_gripper
-float64 gripper_closure
+float64 gripper_position

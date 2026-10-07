@@ -616,8 +616,8 @@ JointCommandCore::armPoseToMotorCmds(const common_msgs::msg::ArmPose& pose,
   };
   if (hasGripper()) {
     // Not in this pose (or not finite): hold where it is rather than open and drop the object.
-    const bool driven = pose.include_gripper && std::isfinite(pose.gripper_closure);
-    source_angles.push_back(driven ? std::clamp(pose.gripper_closure, 0.0, 1.0) *
+    const bool driven = pose.include_gripper && std::isfinite(pose.gripper_position);
+    source_angles.push_back(driven ? std::clamp(pose.gripper_position, 0.0, 1.0) *
                                          joints_[kGripperJoint].upper_limit
                                    : prev_targets_[kGripperJoint]);
   }

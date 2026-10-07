@@ -36,7 +36,7 @@ import threading
 import time
 from pathlib import Path
 
-from joint_config import find_calibration, gripper_closure, load_joint_map, motor_to_cmd_deg
+from joint_config import find_calibration, gripper_position, load_joint_map, motor_to_cmd_deg
 
 # pioneer_humanoid is not installed in the simulation_mj image; scripts add src/ paths themselves.
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "pioneer_humanoid"))
@@ -86,7 +86,7 @@ def self_test() -> None:
         else:
             assert other == joint
     grip = next(info for info in load_joint_map(mapping, "left").values() if info["slot"] is None)
-    assert gripper_closure(grip, 0.0) == 0.0 and gripper_closure(grip, grip["upper"]) == 1.0
+    assert gripper_position(grip, 0.0) == 0.0 and gripper_position(grip, grip["upper"]) == 1.0
     print(f"self-test ok ({len(joints)} joints + gripper from {mapping})")
 
 
@@ -159,7 +159,7 @@ def main() -> None:
     def on_feedback(msg: MotorFeedback) -> None:
         if grip is not None and int(msg.motor_id) == grip["motor_id"]:
             with lock:
-                latest_closure[:] = [gripper_closure(grip, motor_to_cmd_deg(grip, float(msg.position)))]
+                latest_closure[:] = [gripper_position(grip, motor_to_cmd_deg(grip, float(msg.position)))]
             return
         j = joints.get(int(msg.motor_id))
         if j is None:

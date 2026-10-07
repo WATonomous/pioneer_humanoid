@@ -827,7 +827,7 @@ constexpr size_t kGripper = JointCommandCore::kGripperJoint;
 common_msgs::msg::ArmPose poseWithGripper(double closure) {
   common_msgs::msg::ArmPose pose = uniformPose(0.0);
   pose.include_gripper = true;
-  pose.gripper_closure = closure;
+  pose.gripper_position = closure;
   return pose;
 }
 

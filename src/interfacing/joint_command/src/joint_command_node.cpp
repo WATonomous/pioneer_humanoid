@@ -102,9 +102,9 @@ void JointCommandNode::armPoseCallback(const common_msgs::msg::ArmPose::SharedPt
       }
     }
   }
-  if (msg->include_gripper && !std::isfinite(msg->gripper_closure)) {
+  if (msg->include_gripper && !std::isfinite(msg->gripper_position)) {
     RCLCPP_ERROR_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
-                          "ArmPose has a non-finite gripper_closure -- ignored, holding the last "
+                          "ArmPose has a non-finite gripper_position -- ignored, holding the last "
                           "pose");
     return;
   }

@@ -180,7 +180,7 @@ def motor_to_cmd_deg(info: dict, motor_deg: float) -> float:
     return info["zero_offset"] + motor_deg / (info["direction"] or 1.0)
 
 
-def gripper_closure(info: dict, cmd_deg: float) -> float:
+def gripper_position(info: dict, cmd_deg: float) -> float:
     """Gripper command angle -> closure, 0 = open (its calibrated zero) .. 1 = closed
     (upper_limit), as joint_command maps it. Not clamped, so a bad calibration shows."""
     return cmd_deg / info["upper"]
