@@ -71,6 +71,10 @@ bool JointCommandCore::loadFromYaml(const YAML::Node& config, const std::string&
   if (!ok) {
     return false;
   }
+  gripper_mapping_.reset();
+  if (arm["gripper"] && arm["gripper"]["open_close"]) {
+    gripper_mapping_ = loadJointConfig(arm["gripper"]["open_close"]);
+  }
 
   safety_.assign(joints_.size(), JointSafetyConfig{});
   // Seed at 0 (the assumed safe starting pose an operator positions the arm at before
@@ -88,6 +92,13 @@ bool JointCommandCore::loadFromYaml(const YAML::Node& config, const std::string&
 
 bool JointCommandCore::isActive(size_t joint) const {
   return joint >= safety_.size() || safety_[joint].active;
+}
+
+void JointCommandCore::resizeJointState() {
+  prev_targets_.resize(joints_.size(), 0.0);
+  last_motor_cmd_deg_.resize(joints_.size(), 0.0);
+  blocked_.resize(joints_.size(), false);
+  unpowered_.resize(joints_.size(), false);
 }
 
 SeedReport
@@ -337,6 +348,40 @@ bool JointCommandCore::validateMitGains() {
   return true;
 }
 
+bool JointCommandCore::validateGripper() {
+  if (!hasGripper()) {
+    return true;
+  }
+  const JointConfig& g = joints_[kGripperJoint];
+  const JointSafetyConfig& s = safety_[kGripperJoint];
+  std::ostringstream errors;
+  if (!isMitJoint(kGripperJoint)) {
+    errors
+        << "\n  gripper: needs control_type 0 (MIT) -- POSITION_LOOP drives it at full stiffness";
+  }
+  if (!g.limit_range || g.lower_limit > 0.0 || g.upper_limit <= 0.0) {
+    errors << "\n  gripper: limits must be [<= 0, > 0]: open is its calibrated zero, closed is "
+           << "upper_limit (got [" << g.lower_limit << ", " << g.upper_limit
+           << "]). Calibrate it open, with direction so that closing is positive";
+  }
+  // A grasp leaves the gripper short of its target: that must not trip the tracking fault (which
+  // halts the whole arm). With the startup rule this also caps the squeeze at mit_max_torque.
+  if (s.mit_max_track_err < g.upper_limit - g.lower_limit) {
+    errors << "\n  gripper: mit_max_track_err " << s.mit_max_track_err
+           << " deg must cover its full travel (" << g.upper_limit - g.lower_limit
+           << " deg) so a grasp never faults";
+  }
+  if (s.gravity_ff_scale != 0.0) {
+    errors << "\n  gripper: has no gravity model, gravity_ff_scale must be 0";
+  }
+  const std::string text = errors.str();
+  if (!text.empty()) {
+    last_error_ = "Gripper configuration is unsafe:" + text;
+    return false;
+  }
+  return true;
+}
+
 bool JointCommandCore::loadSafetyFromYaml(const YAML::Node& safety_cfg, double control_rate_hz) {
   last_error_.clear();
   if (joints_.empty()) {
@@ -349,6 +394,20 @@ bool JointCommandCore::loadSafetyFromYaml(const YAML::Node& safety_cfg, double c
   }
 
   control_rate_hz_ = control_rate_hz;
+  // The gripper is driven only if this config has a block for it.
+  joints_.resize(jointPaths().size());
+  // One level at a time: indexing through a missing key throws in yaml-cpp.
+  const bool drives_gripper = safety_cfg["joints"] && safety_cfg["joints"]["gripper"] &&
+                              safety_cfg["joints"]["gripper"]["open_close"];
+  if (drives_gripper) {
+    if (!gripper_mapping_) {
+      last_error_ = "safety config has a gripper block but arm_calibration.yaml has no "
+                    "gripper.open_close for this arm";
+      return false;
+    }
+    joints_.push_back(*gripper_mapping_);
+  }
+  resizeJointState();
   try {
     JointSafetyConfig defaults;
     if (safety_cfg["global"]) {
@@ -362,6 +421,10 @@ bool JointCommandCore::loadSafetyFromYaml(const YAML::Node& safety_cfg, double c
       const YAML::Node joint_node = safety_cfg["joints"][group][joint_name];
       safety_[i] = loadJointSafetyConfig(joint_node, defaults);
     }
+    if (hasGripper()) {
+      safety_[kGripperJoint] =
+          loadJointSafetyConfig(safety_cfg["joints"]["gripper"]["open_close"], defaults);
+    }
   } catch (const std::exception& e) {
     last_error_ = e.what();
     return false;
@@ -370,7 +433,7 @@ bool JointCommandCore::loadSafetyFromYaml(const YAML::Node& safety_cfg, double c
     last_error_ = "no joint is active: set active: true on at least one joint";
     return false;
   }
-  return validateMitGains();
+  return validateMitGains() && validateGripper();
 }
 
 double JointCommandCore::clampStep(double target, double previous, double delta_max) {
@@ -401,6 +464,9 @@ int8_t JointCommandCore::motorId(size_t joint) const {
 }
 
 std::string JointCommandCore::jointName(size_t joint) const {
+  if (joint == kGripperJoint) {
+    return "gripper.open_close";
+  }
   if (joint >= jointPaths().size()) {
     return "joint" + std::to_string(joint);
   }
@@ -534,8 +600,8 @@ JointCommandCore::checkMitFaults(const std::map<int, MotorFeedbackSample>& feedb
 std::vector<common_msgs::msg::MotorCmd>
 JointCommandCore::armPoseToMotorCmds(const common_msgs::msg::ArmPose& pose,
                                      int8_t default_control_type) {
-  if (joints_.size() != 6) {
-    throw std::runtime_error("JointCommandCore is not configured for 6 joints");
+  if (joints_.size() != 6 && joints_.size() != 7) {
+    throw std::runtime_error("JointCommandCore is not configured for 6 joints (+ gripper)");
   }
 
   if (pose.shoulder.position.size() < 3 || pose.elbow.position.size() < 2 ||
@@ -543,10 +609,17 @@ JointCommandCore::armPoseToMotorCmds(const common_msgs::msg::ArmPose& pose,
     throw std::runtime_error("ArmPose must contain 3 shoulder, 2 elbow, and 1 wrist positions");
   }
 
-  const std::vector<double> source_angles = {
+  std::vector<double> source_angles = {
       pose.shoulder.position[0], pose.shoulder.position[1], pose.shoulder.position[2],
       pose.elbow.position[0],    pose.elbow.position[1],    pose.wrist.position[0],
   };
+  if (hasGripper()) {
+    // Not in this pose (or not finite): hold where it is rather than open and drop the object.
+    const bool driven = pose.include_gripper && std::isfinite(pose.gripper_position);
+    source_angles.push_back(driven ? std::clamp(pose.gripper_position, 0.0, 1.0) *
+                                         joints_[kGripperJoint].upper_limit
+                                   : prev_targets_[kGripperJoint]);
+  }
 
   std::vector<common_msgs::msg::MotorCmd> commands;
   commands.reserve(joints_.size());

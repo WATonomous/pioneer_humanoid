@@ -150,6 +150,13 @@ public:
     return joints_.size();
   }
 
+  // The gripper (GL40, gripper.open_close) is joint kGripperJoint, present only when
+  // arm_actuators.yaml has a block for it. gripper_position 0 (open) -> cmd 0, 1 -> upper_limit.
+  static constexpr size_t kGripperJoint = 6;
+  bool hasGripper() const {
+    return joints_.size() > kGripperJoint;
+  }
+
   const JointSafetyConfig& safety(size_t joint) const {
     return safety_.at(joint);
   }
@@ -171,10 +178,14 @@ private:
   static double clampStep(double target, double previous, double delta_max);
   static double applyLowPass(double target, double previous, double alpha);
   bool validateMitGains();
+  bool validateGripper();
+  void resizeJointState();
   common_msgs::msg::MotorCmd mitSafeCommand(size_t joint) const;
   std::vector<double> gravityTorqueMotor(const std::vector<double>& cmd_targets_deg) const;
 
   std::vector<JointConfig> joints_;
+  // arm_calibration.yaml's gripper, appended to joints_ only if arm_actuators.yaml drives it.
+  std::optional<JointConfig> gripper_mapping_;
   std::vector<JointSafetyConfig> safety_;
   std::vector<double> prev_targets_;
   std::vector<double> last_motor_cmd_deg_;

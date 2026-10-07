@@ -13,6 +13,8 @@ Every angle is in the URDF frame, which is also the command frame ArmPose / join
     leader:  sign * leader angle, clamped to the URDF limits      (as in sim)
     real:    zero_offset + motor / direction                       (arm_calibration.yaml)
 
+The gripper is compared as its position, 0 open .. 1 closed, as joint_command maps it.
+
 Pose both arms the same (motors off) and check every joint agrees within 5 deg across its range;
 fix --signs (leader) or the real arm's direction / calibration (calibrate_arm.py) until it does.
 
@@ -32,7 +34,7 @@ _SRC = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_SRC / "interfacing" / "can" / "scripts"))
 sys.path.insert(0, str(_SRC / "pioneer_humanoid"))
 
-from joint_config import find_calibration, load_joint_map, motor_to_cmd_deg  # noqa: E402
+from joint_config import find_calibration, gripper_position, load_joint_map, motor_to_cmd_deg  # noqa: E402
 
 from arm_limits import gripper_fraction, limited_target  # noqa: E402
 from leader_mapping import add_leader_args, check_leader_args  # noqa: E402
@@ -45,9 +47,9 @@ AGREE_TOL_DEG = 5.0
 STALE_AFTER_S = 0.5
 PRINT_PERIOD_S = 0.2
 READ_PERIOD_S = 0.02
-# arm_calibration.yaml left.gripper.open_close (the GL40): shown, not compared, until the
-# gripper command path exists (#327).
+# arm_calibration.yaml left.gripper.open_close (the GL40), compared as position 0 open .. 1 closed.
 GRIPPER_CAN_ID = 21
+GRIP_TOL = 0.1
 
 
 def build_joints(mapping: Path, urdf_joints: list[str],
@@ -95,7 +97,8 @@ def compare(joints: list[dict], leader_rad: tuple[float, ...], signs: list[float
 
 
 def format_rows(rows: list[dict], grip: float, real_grip: float | None) -> list[str]:
-    lines = [f"{'joint':<16}{'urdf':<9}{'id':>4}{'leader':>9}{'real':>9}{'diff':>8}{'home':>8}  flags",
+    """real_grip: the real gripper's position (0 open .. 1 closed), None without feedback."""
+    lines = [f"{'joint':<16}{'urdf':<9}{'id':>4}{'leader':>9}{'real':>9}{'diff':>8}{'home':>8}  warnings",
              "-" * 72]
     for row in rows:
         j = row["joint"]
@@ -112,8 +115,12 @@ def format_rows(rows: list[dict], grip: float, real_grip: float | None) -> list[
             flags.append(f"outside hw [{j['lower']:.0f},{j['upper']:.0f}]")
         lines.append(f"{j['name']:<16}{j['urdf_joint']:<9}{j['motor_id']:>4}{row['leader']:+9.1f}"
                      f"{real:>9}{diff:>8}{row['home_err']:+8.1f}  {' '.join(flags)}")
-    real_g = "---" if real_grip is None else f"{real_grip:.1f} (cmd units, not compared)"
-    lines.append(f"{'gripper':<16}leader closure {grip:.2f} (0 open .. 1 closed)   real id 21: {real_g}")
+    if real_grip is None:
+        real, diff, warn = "  ---", "  ---", "NO FEEDBACK"
+    else:
+        real, diff = f"{real_grip:+9.2f}", f"{grip - real_grip:+8.2f}"
+        warn = f">{GRIP_TOL:g}" if abs(grip - real_grip) > GRIP_TOL else ""
+    lines.append(f"{'gripper':<16}{'position':<9}{GRIPPER_CAN_ID:>4}{grip:+9.2f}{real:>9}{diff:>8}{'':>8}  {warn}")
 
     diffs = [abs(r["diff"]) for r in rows if r["diff"] is not None]
     worst_home = max(abs(r["home_err"]) for r in rows)
@@ -135,6 +142,10 @@ def self_test() -> None:
     assert abs(deg + 20.0) < 1e-9 and not clamped
     deg, clamped = leader_deg(joint, math.radians(120.0), 1.0)
     assert abs(deg - 90.0) < 1e-9 and clamped
+
+    assert "NO FEEDBACK" in format_rows(compare([joint], (0.0,), [1.0], {}, [0.0]), 0.5, None)[-3]
+    assert format_rows(compare([joint], (0.0,), [1.0], {1: 0.0}, [0.0]), 0.5, 0.3)[-3].endswith(">0.1")
+    assert format_rows(compare([joint], (0.0,), [1.0], {1: 0.0}, [0.0]), 0.5, 0.45)[-3].split()[-1] == "+0.05"
 
     rows = compare([joint], (math.radians(50.0),), [1.0], {1: 47.0}, [0.0])
     assert abs(rows[0]["diff"] - 3.0) < 1e-9 and rows[0]["out_of_hw"]
@@ -196,8 +207,10 @@ def run() -> None:
         info = by_id.get(motor_id) or (grip_info if motor_id == GRIPPER_CAN_ID else None)
         if info is None:
             return
+        cmd = motor_to_cmd_deg(info, float(msg.position))
         with lock:
-            real_cmd[motor_id] = motor_to_cmd_deg(info, float(msg.position))
+            # The gripper is kept as position 0..1, the arm joints as degrees.
+            real_cmd[motor_id] = gripper_position(info, cmd) if info is grip_info else cmd
             last_seen[motor_id] = time.monotonic()
 
     rclpy.init()

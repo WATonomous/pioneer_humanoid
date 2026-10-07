@@ -103,7 +103,7 @@ python3 pioneer_leader_arm_teleop.py --target real --self-test           # angle
   Fix `--signs` (leader) or the real arm's `direction` / calibration (`calibrate_arm.py`) until it does.
 - Warnings (end of each row): `>5` (disagreement), `NO FEEDBACK` (none for 0.5 s), `urdf-clamp`, `outside hw [lo,hi]`
   (the leader's target is outside `arm_calibration.yaml`'s limits; `joint_command` would clamp it).
-- The gripper is shown, not compared: the GL40 (id 21) has no command path yet.
+- Gripper: compared as position (0 open .. 1 closed), leader vs the real GL40 (id 21); `>0.1` warns.
 
 ## Files
 

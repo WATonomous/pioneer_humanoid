@@ -137,3 +137,19 @@ safety:
         mit_max_track_err: 12.0  # deg, fault above
         mit_feedback_timeout: 0.2  # s without feedback -> fault
         gravity_assume_deg: 0.0
+
+    # Gripper: ArmPose.gripper_position 0 (open, calibrated zero) .. 1 (closed, upper_limit).
+    # mit_max_track_err >= full travel (enforced), so a grasp never faults and the squeeze is
+    # kp * travel = 0.1221 * 1.833 rad = 0.224 N.m <= 0.25. Gains not yet bench-checked.
+    gripper:
+      open_close:   # GL40, id 21
+        active: true
+        velocity_max: 60.0
+        delta_max: 2.4
+        control_type: 0        # MIT_CONTROL
+        mit_family: gl2        # fault action limp
+        mit_kp: 0.1221         # N.m/rad -> raw 1, the softest nonzero stiffness
+        mit_kd: 0.0098         # N.m.s/rad -> raw 8, as the wrist
+        mit_max_torque: 0.25   # N.m: grip ceiling, under the GL40's 0.3 testing ceiling
+        mit_max_track_err: 105.0  # deg, >= full travel (upper_limit - lower_limit)
+        mit_feedback_timeout: 0.2
