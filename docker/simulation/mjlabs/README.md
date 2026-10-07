@@ -26,6 +26,20 @@ MODE_OF_OPERATION="develop"
 ./watod -t simulation_mj
 ```
 
+   No NVIDIA GPU / container toolkit on the host (e.g. an Intel laptop)? `up` fails with
+   `could not select device driver "nvidia"`. Drop the GPU reservation for your machine only with a
+   gitignored override that `watod` picks up automatically:
+
+```bash
+cat > modules/docker-compose.simulation_mj.local.yaml <<'EOF'
+services:
+  simulation_mj:
+    deploy: !reset {}
+EOF
+```
+
+   MuJoCo then renders through Mesa (`/dev/dri`) and JAX runs on CPU.
+
 3. Inside the container, smoke-check GPU / JAX:
 
 ```bash
