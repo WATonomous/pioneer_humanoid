@@ -74,7 +74,9 @@ MIT joint is exited. Stop `joint_command` **before** `can_node`, with the arm su
 
 MIT joints can be sent the torque that holds the arm's weight, in `MotorCmd.torque`:
 
-$$\tau_{\mathrm{ff}} = \mathrm{clip}\big(\texttt{gravity\_ff\_scale} \cdot r \cdot \tau_{\mathrm{model}},\ \pm\texttt{gravity\_ff\_max\_torque}\big)$$
+$$
+\tau_{\mathrm{ff}} = \mathrm{clip}\big(\texttt{gravity\_ff\_scale} \cdot r \cdot \tau_{\mathrm{model}},\ \pm\texttt{gravity\_ff\_max\_torque}\big)
+$$
 
 $\tau_{\mathrm{model}}$ ([gravity_model.cpp](src/gravity_model.cpp)) is the left arm's static load
 from the URDF masses at the commanded pose; $r$ ramps 0 → 1 over 1 s after each seed. It is zeroed
