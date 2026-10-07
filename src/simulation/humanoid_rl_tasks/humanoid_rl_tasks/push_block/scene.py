@@ -1,11 +1,9 @@
 """Single source of truth for the push-block scene: geometry + placement.
 
-Placement is the **teleop-verified grounding** (measured via isaac_harness bbox,
-see humanoid_isaac_scenes): the arm on its floor stand (``base_link``
-lifted ``ROBOT_STAND_LIFT_Z``, feet at floor level), a real work table whose top
-sits at ``TABLE_TOP_Z``, and the ramp-box + block on that table top. This
-replaces the SO101-inherited grounding (arm at the origin, table top at z=0)
-that the RL push env used through mid-2026.
+The room -- arm on its floor stand at ``ROBOT_BASE_POS``, the 30.5-inch table
+whose top sits at ``TABLE_TOP_Z``, the CAD lightbox -- is the shared lightbox
+workcell (``humanoid_rl_tasks.workcell``); this scene only adds the ramp-box +
+block on that table top and the MDP geometry around them.
 
 Imported by:
   - ``push_env_cfg.py`` -- the RL env fills ``scene.robot`` / ``scene.ee_frame``
@@ -25,53 +23,36 @@ from typing import Optional
 
 import isaaclab.sim as sim_utils
 from isaaclab.assets import ArticulationCfg, AssetBaseCfg, RigidObjectCfg
-from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.sensors import TiledCameraCfg
 from isaaclab.sensors.frame_transformer.frame_transformer_cfg import FrameTransformerCfg
-from isaaclab.sim.spawners.from_files.from_files_cfg import GroundPlaneCfg, UsdFileCfg
+from isaaclab.sim.spawners.from_files.from_files_cfg import UsdFileCfg
 from isaaclab.utils import configclass
 
+from ..workcell import (  # noqa: F401  (grounding re-exported for push_env_cfg / teleop)
+    GROUND_Z,
+    ROBOT_BASE_POS,
+    ROBOT_BASE_X,
+    ROBOT_STAND_LIFT_Z,
+    TABLE_TOP_Z,
+    LightboxWorkcellCfg,
+)
 from .mdp.utils import BLOCK_HALF_SIZE
 
 # ── shared USD props (src/simulation/assets/) ───────────────────────────────
 _PROPS = Path(__file__).resolve().parents[5] / "assets" / "props"  # -> <repo>/assets/props
 BLOCK_USD = str(_PROPS / "block.usd")
 BOX_USD = str(_PROPS / "box.usd")
-TABLE_USD = str(_PROPS / "table.usd")
-LIGHTBOX_USD = str(_PROPS / "lightbox.usd")
-
-# ── grounding (teleop-verified; see module docstring) ────────────────────────
-ROBOT_STAND_LIFT_Z = 1.1997   # base_link lift so the stand's feet reach floor level
-ROBOT_BASE_X = 0.15
-ROBOT_BASE_POS = (ROBOT_BASE_X, 0.0, ROBOT_STAND_LIFT_Z)
-# table.usd is 29.5 inches along the local axis that becomes world Z after
-# _TABLE_ROT.  Scale that axis to the real table's 30.5-inch height while
-# keeping the feet at the same world position used by the verified scene.
-TABLE_HEIGHT_M = 30.5 * 0.0254
-_TABLE_SOURCE_HEIGHT_IN = 29.5
-_TABLE_HEIGHT_SCALE = TABLE_HEIGHT_M / _TABLE_SOURCE_HEIGHT_IN
-# The robot stand asset's lowest point lands at world Z=0 after
-# ROBOT_STAND_LIFT_Z, and the enclosure walls also begin at Z=0.  Ground the
-# table legs and plane on that same floor instead of leaving the scene floating.
-_TABLE_BOTTOM_Z = 0.0
-_TABLE_CENTER_Z = _TABLE_BOTTOM_Z + TABLE_HEIGHT_M / 2
-TABLE_TOP_Z = _TABLE_BOTTOM_Z + TABLE_HEIGHT_M
-GROUND_Z = 0.0
-
-_TABLE_POS = (0.69, 0.00612, _TABLE_CENTER_Z)
-_TABLE_ROT = (0.5000000000000001, 0.5, 0.5, 0.49999999999999994)  # wxyz
-_TABLE_SCALE = (0.0254, _TABLE_HEIGHT_SCALE, 0.0254)  # SolidWorks inch export; local Y is world height
 
 # ── block / ramp-box geometry (env frame; robot base at the origin) ──────────
 BLOCK_HALF = BLOCK_HALF_SIZE
 PUSH_DIR = (1.0, 0.0)
 
-# The converted lightbox/table begins at world X ~= 0.385.  The original task
-# geometry was authored around a table that began near X=0.115, so shift the
-# entire task (cube, ramp, target, and success bounds) together by 0.27 m.
+# The lightbox table's front edge is at world X = TABLE_X_MIN (~0.385).  The
+# original task geometry was authored around a table that began near X=0.115,
+# so shift the entire task (cube, ramp, target, and success bounds) together.
 # Keeping this as one explicit offset prevents the visible props and the RL
 # reward geometry from drifting apart again.
-TASK_X_OFFSET = 0.27
+TASK_X_OFFSET = 0.27  # ~= TABLE_X_MIN - 0.115
 
 # box placed corner at (0.27, 0.127) in the original task, yaw -90 deg:
 # box-local +y (up the ramp) -> env +x
@@ -111,18 +92,10 @@ BOX_EXCLUSION = {
     "y_abs": 0.127 + BLOCK_HALF,
 }
 
-# ── lightbox enclosure (visual only; teleop / quest values) ──────────────────
-# Onshape export: X=60-inch table width, Y=24-inch depth, and the assembly's
-# vertical direction is -Z. Rotate it so width is world Y, depth is world X,
-# the open face points toward -X (the robot), and its legs land at Z=0.
-LIGHTBOX_POS = (0.69, 0.00612, TABLE_TOP_Z)
-LIGHTBOX_ROT = (0.0, 0.70710678, -0.70710678, 0.0)  # wxyz: X=180 deg, Z=-90 deg
-LIGHTBOX_SCALE = (1.0, 1.0, 30.5 / 30.0)  # CAD table is 30 in; physical table is 30.5 in
-
 
 @configclass
-class PushBlockSceneCfg(InteractiveSceneCfg):
-    """Block + ramp-box + table + lightbox, on the teleop-verified grounding.
+class PushBlockSceneCfg(LightboxWorkcellCfg):
+    """Block + ramp-box on the lightbox workcell (``humanoid_rl_tasks.workcell``).
 
     ``robot`` and ``ee_frame`` are ``MISSING`` -- the RL env cfg and the teleop
     registry each fill them in. ``tiled_camera`` stays ``None`` unless the
@@ -132,35 +105,6 @@ class PushBlockSceneCfg(InteractiveSceneCfg):
     robot: ArticulationCfg = MISSING
     ee_frame: FrameTransformerCfg = MISSING
     tiled_camera: Optional[TiledCameraCfg] = None
-
-    plane = AssetBaseCfg(
-        prim_path="/World/GroundPlane",
-        init_state=AssetBaseCfg.InitialStateCfg(pos=(0.0, 0.0, GROUND_Z)),
-        spawn=GroundPlaneCfg(),
-    )
-    light = AssetBaseCfg(
-        prim_path="/World/light",
-        spawn=sim_utils.DomeLightCfg(color=(0.75, 0.75, 0.75), intensity=3000.0),
-    )
-
-    # Preserve the verified table collision invisibly. The converted CAD below
-    # supplies the real visible table/lightbox but contains no collision API.
-    table_collision = AssetBaseCfg(
-        prim_path="{ENV_REGEX_NS}/TableCollision",
-        init_state=AssetBaseCfg.InitialStateCfg(pos=_TABLE_POS, rot=_TABLE_ROT),
-        spawn=UsdFileCfg(
-            usd_path=TABLE_USD,
-            scale=_TABLE_SCALE,
-            visible=False,
-            collision_props=sim_utils.CollisionPropertiesCfg(),
-        ),
-    )
-
-    lightbox = AssetBaseCfg(
-        prim_path="{ENV_REGEX_NS}/Lightbox",
-        init_state=AssetBaseCfg.InitialStateCfg(pos=LIGHTBOX_POS, rot=LIGHTBOX_ROT),
-        spawn=UsdFileCfg(usd_path=LIGHTBOX_USD, scale=LIGHTBOX_SCALE),
-    )
 
     # dynamic block to push (corner-origin USD)
     object = RigidObjectCfg(

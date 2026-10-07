@@ -32,7 +32,7 @@ PYTHONPATH=$(pwd) /workspace/isaaclab/isaaclab.sh -p keyboard_teleop.py [--scene
 
 - **Move:** `W/S` x · `A/D` y · `Q/E` z · `Z/X` `T/G` `C/V` rotate · **hold `Shift`** = fine
 - **`K`** toggle gripper · **`R`** reset arm
-- **`--scene`:** `bare` (default) or `push` (table + ramp-box + block + lightbox)
+- **`--scene`:** any `humanoid_isaac_scenes` scene — `bare` (default, empty lightbox workcell), `push` (ramp-box + block), `vial_rack`, …
 - **`--record`** (image already has `humanoid-robot-learning`): `S` start · `N` save · `D` discard · `Esc` stop → `<repo>/datasets/pioneer_v1_left_arm/sim/` · `--cameras ego,wrist_left` / `none`
 
 ## Notes
