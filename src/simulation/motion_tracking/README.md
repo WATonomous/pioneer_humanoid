@@ -102,8 +102,10 @@ MUJOCO_GL=osmesa uv run scripts/view_arena.py --out-dir videos/arena --seconds 3
 uv run scripts/play.py Mjlab-Boxing-Arena-Wato --agent zero --viewer viser         # interactive
 ```
 
-With no policy the fighters only hold their joint angles and fold up within
-a second; balance comes from training.
+With no policy the fighters stand on their own: the arena holds the stance
+with 4x the tracking stiffness (`gain_scale`, same torque limits, peak use
+32% at the rear ankle). The tracking gains (1x) are soft by design and need
+a trained policy to stay up.
 
 Headless rendering without a GPU: `apt install libosmesa6` and set
 `MUJOCO_GL=osmesa`.
@@ -112,9 +114,9 @@ Headless rendering without a GPU: `apt install libosmesa6` and set
 
 | | Isaac Lab | here |
 |---|---|---|
-| robot | `whole_body_humanoid_raw_export.urdf` | GMR's `watonomous.xml` (same robot, converted from that URDF) |
+| robot | `whole_body_humanoid_raw_export.urdf` | GMR's `watonomous.xml` (same robot, converted from that URDF), with its ±10 Nm per-joint force cap removed |
 | collisions | convex hulls of every mesh, self-collision off | box under each foot only; meshes are visual |
-| motor speed caps | `velocity_limit_sim` | DC motor model with full torque up to the cap, braking above it |
+| motor speed caps | `velocity_limit_sim` | DC motor model with full torque up to the cap, braking above it; forearm roll, wrist and claws use implicit position actuators instead (the explicit DC-motor PD shakes on joints that light) and have no cap |
 | `undesired_contacts` reward | yes | no (mjlab's base tracking task has none) |
 | PPO, rewards, observations, terminations, gains, armature, action scale | — | same values |
 
