@@ -5,6 +5,19 @@ ROS 2 bridge: `/interfacing/motorCMD` ↔ CAN ↔ `/interfacing/motorFeedback`.
 
 Bring-up (connect, verify, calibrate) is in [../README.md](../README.md).
 
+## Two encodings: servo mode vs MIT
+
+`MotorCmd.control_type` picks how `can_node` builds the CAN frame:
+
+| | Servo mode (`POSITION_LOOP`, `SET_ORIGIN`, disable, …) | MIT (`MIT_CONTROL`, enter / exit) |
+|---|---|---|
+| Frame layout + scaling | [`../dbc/humanoid.dbc`](../dbc/README.md), via `libdbcppp` | `config/mit_profiles.yaml` (each motor's family and ranges) + `src/mit_protocol.cpp` |
+| Why | one id per motor, same scaling for every motor | scaling depends on the motor's range; GL II feedback shares one id |
+
+Exceptions: the GL II MIT command uses the DBC's `MITControlCmd` layout (codes already scaled by
+`mit_protocol.cpp`), and AK feedback is always the DBC's `ServoStatusFeedback`, even in MIT.
+Each joint's `control_type` is set in `joint_command/config/arm_actuators.yaml`.
+
 ## gs_usb / candleLight adapter
 
 `lsusb` shows `1d50:606f`: it is a native `can0`, so skip `can_udev.sh`/slcand:
