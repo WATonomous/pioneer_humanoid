@@ -150,7 +150,7 @@ Start conservative on hardware, then increase until motion is responsive without
 ## Tests
 
 `colcon test --packages-select joint_command` runs gtests against the **shipped** config, so an
-unsafe edit (clamp off, velocity past the 2 rad/s testing ceiling, broken gain rule) fails the build.
+unsafe edit (clamp off, velocity past 2 rad/s, broken gain rule) fails the build.
 
 ## Launch
 

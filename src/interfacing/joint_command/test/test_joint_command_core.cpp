@@ -1,7 +1,7 @@
 // Does the moderation pipeline actually enforce what arm_actuators.yaml claims?
 //
 // These run against the SHIPPED config files (CONFIG_DIR), not fixtures, so a future edit that
-// turns the position clamp off or raises a velocity past the testing ceiling fails here.
+// turns the position clamp off or raises a velocity past 2 rad/s fails here.
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -216,12 +216,12 @@ TEST_F(ShippedConfig, DeltaLimitBindsWhenItIsTighterThanTheVelocityLimit) {
   }
 }
 
-TEST_F(ShippedConfig, ShippedVelocitiesStayUnderTheTestingCeiling) {
-  // 2 rad/s = 114.6 deg/s is the per-joint testing limit in the real-hardware-safety skill.
+TEST_F(ShippedConfig, ShippedVelocitiesStayUnderTwoRadPerSecond) {
+  // 2 rad/s = 114.6 deg/s per joint while the arm is being brought up.
   constexpr double kCeilingDps = 114.59;
   for (size_t i = 0; i < core.jointCount(); ++i) {
     EXPECT_LE(core.safety(i).velocity_max, kCeilingDps)
-        << core.jointName(i) << " ships with velocity_max above the 2 rad/s testing ceiling";
+        << core.jointName(i) << " ships with velocity_max above 2 rad/s";
     EXPECT_GT(core.safety(i).velocity_max, 0.0) << core.jointName(i);
   }
 }
@@ -470,7 +470,7 @@ YAML::Node configWithAkElbowRollOnMit(bool with_fault_kd = true) {
   j["mit_family"] = "ak";
   j["mit_kp"] = 8.0; // quantised 8.06 * 12 deg = 1.69 N.m <= 5
   j["mit_kd"] = 0.4;
-  j["mit_max_torque"] = 5.0;     // AK80-9 testing ceiling
+  j["mit_max_torque"] = 5.0;     // the shipped AK80-9 cap
   j["mit_max_track_err"] = 12.0; // pinned: the shipped global may be looser
   if (with_fault_kd) {
     j["mit_fault_kd"] = 0.5;
@@ -606,7 +606,7 @@ YAML::Node configWithShoulderPitchFf(double scale = 1.0, double max_torque = 5.5
   j["mit_family"] = "ak";
   j["mit_kp"] = 15.0; // quantised 15.01 * 12 deg = 3.14 N.m
   j["mit_kd"] = 0.8;
-  j["mit_max_torque"] = 10.0;    // AK10-9 testing ceiling
+  j["mit_max_torque"] = 10.0;    // the shipped AK10-9 cap
   j["mit_max_track_err"] = 12.0; // pinned: the shipped global may be looser
   j["mit_fault_kd"] = 1.0;
   j["gravity_ff_scale"] = scale;
