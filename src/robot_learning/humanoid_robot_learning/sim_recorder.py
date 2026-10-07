@@ -419,6 +419,10 @@ class SimLeRobotRecorder:
         self._clear_buffers()
         print("[INFO]: Episode queued for saving.")
 
+    def wait_saved(self) -> None:
+        """Block until every queued episode is written (keeps memory down: one episode in flight)."""
+        self._episode_queue.join()
+
     def cancel_recording(self) -> None:
         """Discard the current episode buffer without saving."""
         self._clear_buffers()

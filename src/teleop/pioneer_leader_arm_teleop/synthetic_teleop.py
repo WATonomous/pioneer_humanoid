@@ -273,17 +273,25 @@ def main() -> None:
                                                    buffer_capacity_s=longest + 5.0)
         probe.close()
     preview = _Preview(args.preview, args.scene) if args.preview else None
-    # Fresh (spawned) render workers: ~0.7 GB each with osmesa; the recorder's frame buffers need the rest.
-    pool = ProcessPoolExecutor(max_workers=min(args.workers, 3), mp_context=multiprocessing.get_context("spawn")) if recorder is not None else None
+    # Memory, per take (two 640x480 cameras, osmesa): frame buffers ~0.9 GB per 10 s, the recorder's episode slot as
+    # much again, ~1.3 GB per render worker, and the video encode. So: 2 fresh (spawned) render workers, shut down
+    # before the save, and the next take starts only once this one is written.
+    pool = None
     try:
         for seed in kept:
             t0 = time.time()
-            rec = _Recording(recorder, pool, args.scene, seed, cameras) if recorder is not None else None
+            rec = None
+            if recorder is not None:
+                pool = ProcessPoolExecutor(max_workers=min(args.workers, 2), mp_context=multiprocessing.get_context("spawn"))
+                rec = _Recording(recorder, pool, args.scene, seed, cameras)
             ok, sim_t, _ = run_episode(args.scene, seed, rec, record_every, on_frame=preview.frame if preview else None)
             if rec is not None:
                 rec.drain(block=True)
+                pool.shutdown()
+                pool = None
                 if ok:
                     recorder.save_episode()
+                    recorder.wait_saved()
                 else:   # physics is deterministic, so this would be a bug; never save a failed take
                     recorder.cancel_recording()
             print(f"[SYNTH] seed {seed}: {'saved' if ok else 'DISCARDED (replay failed)'} ({sim_t:.1f} s, {time.time() - t0:.0f} s wall)", flush=True)

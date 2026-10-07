@@ -107,9 +107,10 @@ python synthetic_teleop.py --scene peg_insert --num_episodes 3 --preview peg.mp4
   `--workers` processes; only successful ones are replayed (deterministically) with cameras and saved, like discarding
   a botched take. Measured: drawer_stow 15/15, peg_insert 19/20, zip_tie 10/10, duplo 20/20 seeds succeed.
 - **Speed / memory:** the physics and the operator run ~3–10× faster than real time; the cameras are the slow part
-  on CPU (osmesa: ~0.5 s per 640×480 frame), so recording renders them on up to 3 spawned processes (~1.2 GB each)
-  from each frame's poses. The recorder keeps a take's frames in RAM (~5.5 GB for two cameras): budget ~14 GB.
-  With a GPU (`MUJOCO_GL=egl`) rendering is not the bottleneck.
+  on CPU (osmesa: ~0.5 s per 640×480 frame), so recording renders them on 2 spawned processes (~1.3 GB each) from
+  each frame's poses, ~10–15 min per minute-long take. The recorder holds a take's frames in RAM (~0.9 GB per 10 s with
+  two cameras, twice while saving); takes are recorded one at a time. With a GPU (`MUJOCO_GL=egl`) rendering is not
+  the bottleneck.
 - Adding a scene: write `plan(op, model, data, notes)` and a success check in `synthetic_tasks.py`.
 
 ## Real arm (dry run, then `--live`)
