@@ -82,6 +82,34 @@ Scenes: `bare`, `peg_insert`, `zip_tie`, `drawer_stow`, `matcha`, `duplo`, or an
 
 Targets are clamped to the arm's URDF limits. Wrist damping is lowered to 2.5 in this teleop only, so the sim wrist keeps up with the leader.
 
+## Synthetic demos (MuJoCo, no leader)
+
+`synthetic_teleop.py` records demos without a person: a simulated operator moves a virtual leader through the
+same `LeaderMapping` (home engage, filter, clamp) and recorder as `--target mujoco --record`, so the dataset has
+the same features, per-step `task` and `subtask_index`. Headless, CPU is fine.
+
+```bash
+MUJOCO_GL=egl python synthetic_teleop.py --scene drawer_stow --record --num_episodes 10   # CPU only: MUJOCO_GL=osmesa
+python synthetic_teleop.py --scene peg_insert --num_episodes 3 --preview peg.mp4          # just look, no dataset
+```
+
+- **Human-like motion** (`human_operator.py`): the operator aims the follower's gripper and moves the leader to match
+  (IK of the leader, a 1:1 copy of the arm). Reaches are overlapping minimum-jerk strokes (bell-shaped speed, slightly
+  curved paths) timed by Fitts' law; the first stroke lands a few % off, and after a reaction time the operator
+  corrects what they see, stopping when the arm is blocked rather than pushing harder. Tremor (8–12 Hz, sub-mm), slow
+  drift, wrist wobble, noisy judgement of where objects are, hesitation before grasps. Speed, accuracy, tremor and so on
+  are drawn per episode, like different people.
+- **Plans** (`synthetic_tasks.py`): `drawer_stow`, `peg_insert`, `zip_tie`, written like instructions to a person:
+  look, reach, grasp, check it worked and recover if not (re-grasp, pull again, stand a crooked peg back up), place.
+- **Seeds:** episode *i* uses `--seed + i` for the layout and the operator. Takes are first run without cameras on
+  `--workers` processes; only successful ones are replayed (deterministically) with cameras and saved, like discarding
+  a botched take. Measured: drawer_stow 29/30, peg_insert 18/20, zip_tie 20/20 seeds succeed.
+- **Speed / memory:** the physics and the operator run ~3–10× faster than real time; the cameras are the slow part
+  on CPU (osmesa: ~0.5 s per 640×480 frame), so recording renders them on up to 3 spawned processes (~1.2 GB each)
+  from each frame's poses. The recorder keeps a take's frames in RAM (~5.5 GB for two cameras): budget ~14 GB.
+  With a GPU (`MUJOCO_GL=egl`) rendering is not the bottleneck.
+- Adding a scene: write `plan(op, model, data, notes)` and a success check in `synthetic_tasks.py`.
+
 ## Real arm (dry run, then `--live`)
 
 Without `--live` it is read-only: subscribes to `/interfacing/motorFeedback`, creates no publisher, so it
@@ -125,3 +153,5 @@ python3 pioneer_leader_arm_teleop.py --target real --self-test           # angle
 | `servo_leader.py` / `arm_limits.py` | servo bus reader / clamp + gripper fraction |
 | `calibrate_leader.py` | stores the hanging-pose zero |
 | `encoder_test.py` | servo bring-up, no simulator |
+| `synthetic_teleop.py` | synthetic demos: simulated operator → same mapping and recorder as `mujoco_sim.py` |
+| `human_operator.py` / `synthetic_tasks.py` | the operator's motion model / what it does in each scene |
