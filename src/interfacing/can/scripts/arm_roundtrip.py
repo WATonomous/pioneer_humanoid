@@ -32,7 +32,7 @@ stops streaming; lost feedback freezes in place. Then joint_command's stale-stre
 applies. The node's installed configs must match the repo's. Recalibrate the AK80-9s after every
 power-on (src/interfacing/README.md).
 
-HARDWARE E-STOP within reach for every run. See .claude/skills/real-hardware-safety/SKILL.md.
+HARDWARE E-STOP within reach for every run.
 """
 
 from __future__ import annotations

@@ -169,7 +169,7 @@ def load_actuator_limits(explicit: Optional[str]):
 
 
 def max_torque_by_joint(explicit: Optional[str]) -> Dict[str, float]:
-    """Every joint's mit_max_torque, MIT or not -- the testing ceiling a run is judged against."""
+    """Every joint's mit_max_torque, MIT or not -- the cap a run is judged against."""
     _, joints = load_joint_safety(find_actuators(explicit))
     return {name: float(block["mit_max_torque"]) for name, block in joints.items()
             if block.get("mit_max_torque") is not None}

@@ -127,7 +127,7 @@ safety:
     # PD drive with NO internal limit checking: mit_max_* below are the only protection.
     # Gains: bench session 2026-09-19 on motor 22. kp quantises to 500/4096 per count, so
     # 1.22 -> raw 10 -> 1.2207 applied. kd must be > 0 (GL II manual: kd = 0 oscillates).
-    # Stall: 1.2207 * 0.2094 rad = 0.256 N.m <= 0.3 N.m testing ceiling. Expect a few degrees
+    # Stall: 1.2207 * 0.2094 rad = 0.256 N.m <= mit_max_torque 0.3 N.m. Expect a few degrees
     # of sag; gravity feed-forward barely helps (0.044 N.m headroom at these gains).
     wrist:
       pitch:   # GL40, id 22
@@ -155,6 +155,6 @@ safety:
         mit_family: gl2        # fault action limp
         mit_kp: 0.1221         # N.m/rad -> raw 1, the softest nonzero stiffness
         mit_kd: 0.0098         # N.m.s/rad -> raw 8, as the wrist
-        mit_max_torque: 0.25   # N.m: grip ceiling, under the GL40's 0.3 testing ceiling
+        mit_max_torque: 0.25   # N.m: squeeze limit
         mit_max_track_err: 105.0  # deg, >= full travel (upper_limit - lower_limit)
         mit_feedback_timeout: 0.2
