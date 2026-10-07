@@ -1,15 +1,39 @@
-# Real arm bring-up: calibrate → visualize → move
+# Real arm bring-up: connect → calibrate → visualize → move
 
-Three separate steps, in three different packages. This page is just the entry point —
-each step's real detail lives in its own doc.
+Follow top to bottom. Package details: [can/README.md](can/README.md) (CAN bridge, MIT mode,
+benchmarks), [joint_command/JointCommand.md](joint_command/JointCommand.md) (command node, configs).
+
+## 0. Connect
+1. **Hardware**: battery + E-stop closed (motor power ≠ CAN power). CANable USB → host; CAN_H/CAN_L → arm (120 Ω term).
+2. **Host setup (once)**: `./src/interfacing/can/scripts/can_udev.sh install` → `/dev/canable`.
+   `watod-config.local.sh`: `ACTIVE_MODULES="interfacing"`, `MODE_OF_OPERATION="develop"`.
+3. **Bring up**: `can.launch.py` starts `can_node` + SLCAN (`/dev/canable` → `can0` @ 1 Mbps).
+   ```bash
+   ./watod build && ./watod up -d
+   ./watod -t interfacing
+   source /opt/watonomous/setup.bash
+   ```
+   A gs_usb / candleLight adapter instead: [can/README.md](can/README.md#gs_usb--candlelight-adapter).
+4. **Verify**:
+   ```bash
+   ros2 node list                  # /can_node
+   candump can0                    # e.g. 0x290A–0x290E
+   ros2 topic echo /interfacing/motorFeedback common_msgs/msg/MotorFeedback --once
+   ```
 
 ## 1. Calibrate
-Per-joint zero + limits, from live motor feedback. **Re-run after every power-on** for
-elbow.pitch, elbow.roll, and shoulder.yaw (AK80-9 motors) — their single-turn absolute
-encoders don't reliably survive a power cycle; shoulder.pitch/roll (AK10-9) have so far.
+Per-joint zero + limits, from live motor feedback, with the arm **hanging** (the URDF zero).
+**Re-run after every power-on** for elbow.pitch, elbow.roll, and shoulder.yaw (AK80-9 motors) —
+their single-turn absolute encoders don't reliably survive a power cycle; shoulder.pitch/roll
+(AK10-9) have so far.
 
-→ [can/README.md](can/README.md) — hardware
-bring-up, `can_node`, `calibrate_arm.py` usage.
+Per joint: confirm motor id → home zero → one end Enter → other end Enter → writes `zero_offset`/limits/`can_id`.
+```bash
+source /opt/watonomous/setup.bash
+python3 /root/ament_ws/src/interfacing/can/scripts/calibrate_arm.py \
+  --arm-side left --write-mapping --calibration /calibration/arm_calibration.yaml
+```
+Prompt: **Enter**=yes · id=correct id · **s**=skip · **q**=quit.
 
 ## 2. Visualize
 Read-only mirror of live motor feedback in the browser. Confirms calibration looks right
