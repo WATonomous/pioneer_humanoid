@@ -55,7 +55,7 @@ def drawer_plan(op, model, data, notes) -> None:
     tab_y = sum(S.CAB_Y) / 2
     tab_top = T + S.CAB_HEIGHT - 0.006
     tab_z = tab_top - S.TAB[2] / 2 + 0.005
-    jx = 0.0305 + 0.010                    # jaw half-length (along X, gripper down) + margin off the front
+    jx = 0.0305 + 0.018                    # jaw half-length (along X, gripper down) + margin off the drawer front
 
     def front():                           # drawer frame origin = its front face
         return op.see("drawer")[0]
@@ -73,7 +73,8 @@ def drawer_plan(op, model, data, notes) -> None:
         for _ in range(4):
             before = S.drawer_travel(model, data)
             x = op.follower_tcp()[0] - (travel - before)
-            op.move((x, tab_y + rng.normal(0, 0.002), tab_z), tol=0.01, corrections=0, speed=0.8)
+            # a steady pull: the drawer's damping fights a fast one and the jaws slip off the tab
+            op.move((x, tab_y + rng.normal(0, 0.002), tab_z), tol=0.01, corrections=0, speed=0.5)
             op.settle()
             if done():
                 return
@@ -87,17 +88,14 @@ def drawer_plan(op, model, data, notes) -> None:
     op.pause(0.3, 0.8)                     # takes a moment to start after pressing S
     start = op.follower_tcp()
 
-    # 1. open
-    grab_tab()
-    slide_drawer(S.DRAWER_TRAVEL + 0.005, lambda: S.drawer_travel(model, data) >= S.DRAWER_TRAVEL - 0.012)   # all the way out
-    op.set_grip(rng.uniform(0.25, 0.4))
-    op.move(op.follower_tcp() + (0, 0, 0.03), tol=0.02, via=True)   # off the tab before moving away
+    def open_drawer():
+        grab_tab()
+        slide_drawer(S.DRAWER_TRAVEL + 0.005, lambda: S.drawer_travel(model, data) >= S.DRAWER_TRAVEL - 0.012)   # all the way
+        op.set_grip(rng.uniform(0.25, 0.4))
+        op.move(op.follower_tcp() + (0, 0, 0.03), tol=0.02, via=True)   # off the tab before moving away
 
-    # 2-4. blocks, in the announced order
-    spots = [(0.045, -0.027), (0.045, 0.027), (0.093, 0.0)]
-    for k, colour in enumerate(S._order(data)):
+    def grasp(colour):
         body = f"block_{colour}"
-        op.glance()
         for attempt in range(3):
             b = op.see(body)
             yaw = op.see_yaw(body) * rng.uniform(0.4, 1.0)    # roughly lines the jaws up with the block
@@ -107,16 +105,41 @@ def drawer_plan(op, model, data, notes) -> None:
             op.set_grip(1.0)
             op.move((b[0], b[1], T + 0.10), tol=0.02, corrections=0, axes=(0, 0, 1), via=True)   # up off the table
             if data.xpos[model.body(body).id][2] > T + 0.03:    # it came up with the gripper
-                break
+                return
             notes.append(f"regrasp {colour}")
             op.set_grip(0.4)
+        raise TaskFailed(f"grasp {colour}")
+
+    def landed_in_drawer(colour) -> bool:
+        for _ in range(10):                # watch it drop and settle
+            op.run(0.1)
+            if S.in_drawer(model, data, colour):
+                return True
+        return False
+
+    # 1. open
+    open_drawer()
+
+    # 2-4. blocks, in the announced order. Drop spots far enough back that the jaws (wider than a block) stay clear
+    # of the drawer front: catching it pushes the drawer shut.
+    spots = [(0.06, -0.027), (0.06, 0.027), (0.105, 0.0)]
+    for k, colour in enumerate(S._order(data)):
+        op.glance()
+        for attempt in range(3):
+            if S.drawer_travel(model, data) < S.DRAWER_TRAVEL - 0.03:     # got pushed in: open it again
+                notes.append("drawer pushed in: open again")
+                open_drawer()
+            grasp(colour)
+            sx = min(front() + spots[k][0], S.CAB_X - S.BLOCK / 2 - 0.012) + rng.normal(0, 0.004)   # over the open part
+            sy = tab_y + spots[k][1] + rng.normal(0, 0.003)
+            op.arc((sx, sy, T + 0.127), high, R=op.down(rng.normal(0, 0.05)), tol=0.006, land=0.75)   # over the front, in
+            op.set_grip(rng.uniform(0.35, 0.45))
+            op.move((sx, sy, T + 0.16), tol=0.03, via=True)
+            if landed_in_drawer(colour):
+                break
+            notes.append(f"{colour} missed the drawer: again")
         else:
-            raise TaskFailed(f"grasp {colour}")
-        sx = min(front() + spots[k][0], S.CAB_X - S.BLOCK / 2 - 0.012) + rng.normal(0, 0.004)   # over the tray's open part
-        sy = tab_y + spots[k][1] + rng.normal(0, 0.003)
-        op.arc((sx, sy, T + 0.127), high, R=op.down(rng.normal(0, 0.05)), tol=0.006, land=0.75)   # over the front, in
-        op.set_grip(rng.uniform(0.35, 0.45))
-        op.move((sx, sy, T + 0.16), tol=0.03, via=True)
+            raise TaskFailed(f"stow {colour}")
 
     # 5. close
     op.glance()

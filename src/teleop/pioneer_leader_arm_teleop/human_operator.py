@@ -15,8 +15,9 @@ they are aiming for. The hand pose is built the way human reaching is modelled:
 - Aiming error: the first stroke lands off target (a little short, scattered ~5% of the distance);
   after a visual reaction delay the operator sees the follower's error and adds corrective strokes
   until it is within tolerance. Vision is noisy too: objects are seen a few mm off.
-- Tremor (8-12 Hz, sub-mm) and slow postural drift (Ornstein-Uhlenbeck, ~1 mm) on the hand, small
-  wobble in its orientation and grip; hesitation pauses before grasping and releasing.
+- A trace of tremor (8-12 Hz, < 0.1 mm: the leader's mass and geared servos filter the hand's) and slow
+  postural drift (Ornstein-Uhlenbeck, ~0.5 mm) on the hand, a little wobble in its orientation and grip;
+  hesitation pauses before grasping and releasing.
 
 Every parameter that differs between people is drawn per episode (``Style.sample``).
 No simulator stepping here: ``tick(q_leader, grip)`` is the caller's (one control step per call).
@@ -68,9 +69,10 @@ class Style:
             speed=speed,
             aim=min(0.1, rng.uniform(0.03, 0.06) * 0.8 / speed),   # speed-accuracy trade-off: hurried people aim worse
             react=rng.uniform(0.15, 0.25) / math.sqrt(pace),
-            tremor=rng.uniform(0.15e-3, 0.5e-3),
-            drift=rng.uniform(0.4e-3, 1.2e-3),
-            wobble_deg=rng.uniform(0.5, 1.5),
+            # Small: the leader arm's own mass and geared servos filter most of a hand's tremor.
+            tremor=rng.uniform(0.02e-3, 0.08e-3),
+            drift=rng.uniform(0.3e-3, 0.8e-3),
+            wobble_deg=rng.uniform(0.3, 0.8),
             hesitate=rng.uniform(0.35, 0.8) / pace,
             see=rng.uniform(1.0e-3, 2.5e-3),
             joint_blend=rng.uniform(0.25, 0.7),
@@ -151,9 +153,9 @@ class HumanOperator:
         self.rot = _Channel(np.zeros(3))                 # rotation vector, world frame, applied to R_home
         self.grip = _Channel([0.0])
         s = self.style
-        self.pos_noise = _Noise(rng, 3, s.tremor, s.drift)
-        self.rot_noise = _Noise(rng, 3, math.radians(0.15), math.radians(s.wobble_deg), tau=1.2)
-        self.grip_noise = _Noise(rng, 1, 0.004, 0.01, tau=0.6)
+        self.pos_noise = _Noise(rng, 3, s.tremor, s.drift, tau=1.5)
+        self.rot_noise = _Noise(rng, 3, math.radians(0.02), math.radians(s.wobble_deg), tau=2.0)
+        self.grip_noise = _Noise(rng, 1, 0.001, 0.005, tau=1.0)
         self.bends: list[tuple[float, float, np.ndarray]] = []   # (start, duration, path offsets at s = 0..1)
         self.trace: list[str] = []                       # one line per move, for debugging plans
 
