@@ -1,9 +1,10 @@
 """What the synthetic operator (human_operator.py) does in each scene, for synthetic_teleop.py.
 
 A plan is written like instructions to a person at the leader arm: look where things are, reach,
-grasp, check it worked (and try again if not), carry, let go. Positions come from ``op.see`` (judged a
-few mm off), never from exact state, and every move goes through the operator's human motion model.
-``success`` decides whether the take is kept.
+grasp, check it worked (and try again if not), carry, let go. Where to aim comes from ``op.see`` /
+``op.see_offset`` (judged a few mm off); yes/no checks a person reads at a glance (did it come up, did it
+click, is the drawer open, how deep is the peg) look at the scene directly. Every move goes through the
+operator's human motion model. ``success`` decides whether the take is kept.
 """
 from __future__ import annotations
 
