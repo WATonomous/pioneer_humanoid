@@ -2,8 +2,10 @@
 for the Wato robot as a retargeted CSV, chained freely.
 
 The stance and guard are copied from one frame of a retargeted clip (default:
-the boxing take at 8.2 s, orthodox: left foot forward, rear heel up, torso
-bladed), shortened to fit Wato's legs and held a few cm lower. Moves:
+the boxing take at 8.2 s, orthodox: left foot forward, torso bladed),
+shortened to fit Wato's legs, held a few cm lower, with both soles flat and
+the weight split 50/50 so it can stand under physics (the clip's raised rear
+heel leaves too little foot on the floor). Moves:
 
   F B L R   step-drag forward / back / left / right: the foot nearest the
             direction moves first while the other pushes, then follows the
@@ -52,7 +54,7 @@ import tyro
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from wato_tracking.robot import ACTUATORS, CSV_JOINT_NAMES, WATO_XML, _sole_box  # noqa: E402
+from wato_tracking.robot import ACTUATORS, CSV_JOINT_NAMES, SOLE_THICKNESS, WATO_XML, _sole_box  # noqa: E402
 
 LEAD, REAR = "left_foot_1", "right_foot_1"  # orthodox
 LEG_JOINTS = CSV_JOINT_NAMES[:12]
@@ -520,7 +522,21 @@ def solve_timeline(robot: Wato, stance: Stance, tl: Timeline) -> tuple[np.ndarra
   return np.array(out), worst
 
 
+def flat(quat: np.ndarray) -> np.ndarray:
+  """Keep only the yaw of a foot orientation (sole flat on the floor; the foot
+  frame is level at qpos0)."""
+  m = np.zeros(9)
+  mujoco.mju_quat2Mat(m, quat)
+  m = m.reshape(3, 3)
+  return quat_z(float(np.arctan2(m[1, 0], m[0, 0])))
+
+
 def make_stance(robot: Wato, stance_file: str, stance_time: float, stance_fps: float, scale: float, crouch: float) -> Stance:
+  """Stance from the clip frame, made to stand on a robot: shortened by
+  `scale`, hips `crouch` lower, both soles flat on the floor (the clip's raised
+  rear heel and rolled lead foot leave only an edge and a corner on the
+  ground, too little to balance on) and the weight split 50/50 between the
+  feet."""
   rows = np.loadtxt(stance_file, delimiter=",")
   robot.set_csv_row(rows[int(round(stance_time * stance_fps))])
   feet0 = {f: robot.foot_pose(f) for f in (LEAD, REAR)}
@@ -528,24 +544,48 @@ def make_stance(robot: Wato, stance_file: str, stance_time: float, stance_fps: f
   robot.d.qpos[:3] -= origin
   robot.forward()
   base_z, base_quat = robot.d.xpos[robot.base][2], robot.d.xquat[robot.base].copy()
-  feet_quat = {f: q for f, (p, q) in feet0.items()}
+  clip_quat = {f: q for f, (p, q) in feet0.items()}
   clip_feet = {f: p - origin for f, (p, q) in feet0.items()}
   clip_com = robot.com()[:2]
 
-  # shorten the stance about its centre and sink into it, in small IK steps
-  feet_pos = {f: np.array([*(scale * p[:2]), p[2]]) for f, p in clip_feet.items()}
-  com = scale * clip_com
-  for k in range(1, 21):
-    s = k / 20
+  feet_quat = {f: flat(q) for f, q in clip_quat.items()}
+  # foot origin height that puts the bottom of the sole box on the floor
+  sole_bottom = {f: robot.sole[f][2] - SOLE_THICKNESS / 2 for f in (LEAD, REAR)}
+  feet_pos = {f: np.array([*(scale * p[:2]), -sole_bottom[f]]) for f, p in clip_feet.items()}
+  soles = {f: feet_pos[f][:2] + rot_mat2(feet_quat[f]) @ robot.sole[f][:2] for f in (LEAD, REAR)}
+  com = (soles[LEAD] + soles[REAR]) / 2
+
+  # flatten the feet, shorten the stance and sink into it, in small IK steps
+  for k in range(1, 31):
+    s = k / 30
     robot.solve(
       {f: clip_feet[f] + s * (feet_pos[f] - clip_feet[f]) for f in feet_pos},
-      feet_quat,
+      {f: slerp(clip_quat[f], feet_quat[f], s) for f in feet_pos},
       clip_com + s * (com - clip_com),
       base_z - s * crouch,
       base_quat,
     )
   sole_off = {f: robot.sole_xy(f) - feet_pos[f][:2] for f in (LEAD, REAR)}
   return Stance(feet_pos, feet_quat, sole_off, com, base_z - crouch, base_quat)
+
+
+def rot_mat2(quat: np.ndarray) -> np.ndarray:
+  """Top-left 2x2 of a yaw-only rotation."""
+  m = np.zeros(9)
+  mujoco.mju_quat2Mat(m, quat)
+  return m.reshape(3, 3)[:2, :2]
+
+
+def slerp(a: np.ndarray, b: np.ndarray, t: float) -> np.ndarray:
+  d = float(np.dot(a, b))
+  if d < 0:
+    b, d = -b, -d
+  if d > 0.9995:
+    q = a + t * (b - a)
+  else:
+    th = np.arccos(d)
+    q = (np.sin((1 - t) * th) * a + np.sin(t * th) * b) / np.sin(th)
+  return q / np.linalg.norm(q)
 
 
 def speed_use(out: np.ndarray, fps: float) -> tuple[np.ndarray, np.ndarray]:
