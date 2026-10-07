@@ -2,17 +2,13 @@ safety:
   units:
     angle: "deg"
     velocity: "deg_s"
-    # mit_kp/mit_kd: only used on joints whose control_type is MIT_CONTROL (0).
-    # Per-motor units (kp in [0,500], kd in [0,5] for AK-series -- see
-    # can/config/mit_profiles.yaml). Unset/0 (the default below) is a deliberate safe no-op:
-    # zero stiffness/damping means the joint stays free even under MIT_CONTROL. Set explicitly
-    # per joint to enable compliant holding; start LOW (e.g. kp<10) and increase gradually.
+    # mit_kp/mit_kd: physical units, MIT_CONTROL (0) joints only; can_node clamps them to each
+    # motor's range (can/config/mit_profiles.yaml). The global 0 / 0 is a safe no-op: a joint
+    # holds only with gains set in its own block below.
 
-  # Position clamp is ENABLED: calibrate_arm.py's software zero-mode has been run for real,
-  # producing real per-joint limits (see arm_calibration.yaml). Re-verify each joint's limits
-  # are current (re-run calibration after any power cycle first -- see arm_calibration.yaml's
-  # header note on encoder drift).
-  # velocity_max is still a deliberate slow crawl for testing; raise once trusted.
+  # Position clamp is ENABLED, with the limits calibrate_arm.py wrote to arm_calibration.yaml.
+  # Re-run calibration after every power-on: the AK80-9s lose their zero.
+  # Every joint below sets its own velocity_max and MIT limits; the global values are fallbacks.
   #
   # Per control tick: position clamp -> low-pass -> velocity limit -> delta limit -> position
   # clamp -> calibration. velocity_max is a true deg/s bound, however fast ArmPose arrives.
