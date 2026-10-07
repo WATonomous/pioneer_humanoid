@@ -96,6 +96,7 @@ def drawer_plan(op, model, data, notes) -> None:
     spots = [(0.045, -0.027), (0.045, 0.027), (0.093, 0.0)]
     for k, colour in enumerate(S._order(data)):
         body = f"block_{colour}"
+        op.glance()
         for attempt in range(3):
             b = op.see(body)
             yaw = op.see_yaw(body) * rng.uniform(0.4, 1.0)    # roughly lines the jaws up with the block
@@ -118,6 +119,7 @@ def drawer_plan(op, model, data, notes) -> None:
         op.move((sx, sy, high), tol=0.03, via=True)
 
     # 5. close
+    op.glance()
     grab_tab()
     slide_drawer(-0.01, lambda: S.drawer_travel(model, data) <= S.CLOSED_TRAVEL - 0.002)
     op.set_grip(rng.uniform(0.25, 0.4))
@@ -294,34 +296,34 @@ def duplo_plan(op, model, data, notes) -> None:
         R = data.xmat[model.body(body).id].reshape(3, 3)
         return math.atan2(R[1, 0], R[0, 0])
 
-    op.pause(0.4, 1.0)
-    start = op.follower_tcp()
-    hand_yaw = 0.0
-    for k, colour in enumerate(S._order(data)):
+    hand_yaw = [0.0]
+
+    def grasp(colour: str) -> None:
         brick = f"brick_{colour}"
-        support = "baseplate" if k == 0 else f"brick_{S._order(data)[k - 1]}"
         for attempt in range(3):
             b = op.see(brick)
-            hand_yaw = op.see_yaw(brick, symmetry=math.pi) * rng.uniform(0.5, 1.0)
-            op.move((b[0], b[1], high), R=op.down(hand_yaw), grip=rng.uniform(0.35, 0.45), tol=0.02, via=True)
+            hand_yaw[0] = op.see_yaw(brick, symmetry=math.pi) * rng.uniform(0.5, 1.0)
+            op.move((b[0], b[1], high), R=op.down(hand_yaw[0]), grip=rng.uniform(0.35, 0.45), tol=0.02, via=True)
             op.move((b[0], b[1], b[2] + bz + S.STUD_H + JAW_HALF + 0.012), tol=0.004, axes=(1, 1, 0))
             op.move((b[0], b[1], b[2] + grip_z), tol=0.003)
             op.set_grip(1.0)
             op.move((b[0], b[1], high), tol=0.02, corrections=0, axes=(0, 0, 1))
-            if data.xpos[model.body(brick).id][2] > T + 0.03:
-                break
+            if data.xpos[model.body(brick).id][2] > b[2] + 0.02:   # it came up with the gripper
+                return
             notes.append(f"regrasp {colour}")
             op.set_grip(0.4)
-        else:
-            raise TaskFailed(f"grasp {colour}")
+        raise TaskFailed(f"grasp {colour}")
+
+    def place(colour: str, support: str) -> None:
+        brick = f"brick_{colour}"
         # Turn the wrist so the held brick comes square to what it goes on, then carry it over.
         turn = (yaw_of(support) - yaw_of(brick) + math.pi / 2) % math.pi - math.pi / 2 + math.radians(rng.normal(0, 1.5))
-        hand_yaw += turn
-        top = plate_top if k == 0 else data.xpos[model.body(support).id][2] + bz
+        hand_yaw[0] += turn
+        top = plate_top if support == "baseplate" else data.xpos[model.body(support).id][2] + bz
         sp = op.see(support)
         off = op.follower_tcp() - op.see(brick)
         lift = top + S.STUD_H + 0.012 - (data.xpos[model.body(brick).id][2])   # brick bottom just over the studs
-        op.move((sp[0] + off[0], sp[1] + off[1], op.follower_tcp()[2]), R=op.down(hand_yaw), tol=0.01, axes=(1, 1, 0))
+        op.move((sp[0] + off[0], sp[1] + off[1], op.follower_tcp()[2]), R=op.down(hand_yaw[0]), tol=0.01, axes=(1, 1, 0))
         op.move(op.follower_tcp() + (0, 0, lift), tol=0.004, axes=(0, 0, 1), corrections=1, speed=0.8)
         for _ in range(5):   # line it up by eye, brick against the one below
             err = op.see_offset(brick, support)[:2]
@@ -334,15 +336,36 @@ def duplo_plan(op, model, data, notes) -> None:
         op.set_grip(rng.uniform(0.35, 0.45))
         tcp = op.follower_tcp()
         op.move((tcp[0], tcp[1], tcp[2] + 0.03), tol=0.01, via=True)
-        if S.snapped_to(model, data, colour) != support:
-            # Didn't click: press it down with the closed jaws on its studs.
-            notes.append(f"press {colour}")
-            b = op.see(brick)
-            op.move((b[0], b[1], b[2] + bz + S.STUD_H + JAW_HALF + 0.01), grip=1.0, tol=0.004, axes=(1, 1, 0))
-            op.move((b[0], b[1], b[2] + bz + JAW_HALF - 0.004), tol=0.003, corrections=0, speed=0.5)
-            op.settle()
-            tcp = op.follower_tcp()
-            op.move((tcp[0], tcp[1], tcp[2] + 0.04), grip=0.4, tol=0.01, via=True)
+
+    def press(colour: str) -> None:
+        """Didn't click but nearly there: press it down with the closed jaws on its studs."""
+        b = op.see(f"brick_{colour}")
+        op.move((b[0], b[1], b[2] + bz + S.STUD_H + JAW_HALF + 0.01), grip=1.0, tol=0.004, axes=(1, 1, 0))
+        op.move((b[0], b[1], b[2] + bz + JAW_HALF - 0.004), tol=0.003, corrections=0, speed=0.5)
+        op.settle()
+        tcp = op.follower_tcp()
+        op.move((tcp[0], tcp[1], tcp[2] + 0.04), grip=0.4, tol=0.01, via=True)
+
+    op.pause(0.4, 1.0)
+    start = op.follower_tcp()
+    order = S._order(data)
+    for k, colour in enumerate(order):
+        support = "baseplate" if k == 0 else f"brick_{order[k - 1]}"
+        op.glance()
+        grasp(colour)
+        for attempt in range(3):
+            place(colour, support)
+            if S.snapped_to(model, data, colour) == support:
+                break
+            if np.linalg.norm(op.see_offset(f"brick_{colour}", support)[:2]) < 0.005:
+                notes.append(f"press {colour}")
+                press(colour)
+                if S.snapped_to(model, data, colour) == support:
+                    break
+            notes.append(f"re-place {colour}")      # too far off to push in: pick it up again
+            grasp(colour)
+        else:
+            raise TaskFailed(f"place {colour}")
         op.move(op.follower_tcp() + (0, 0, high - op.follower_tcp()[2]), tol=0.02, via=True)
     _finish(op, rest=start + rng.normal(0, 0.02, 3))
 

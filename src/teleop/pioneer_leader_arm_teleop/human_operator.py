@@ -56,9 +56,10 @@ class Style:
 
     @classmethod
     def sample(cls, rng: np.random.Generator) -> "Style":
+        speed = rng.uniform(0.85, 1.35)
         return cls(
-            speed=rng.uniform(0.85, 1.35),
-            aim=rng.uniform(0.03, 0.07),
+            speed=speed,
+            aim=rng.uniform(0.03, 0.06) * 1.1 / speed,      # speed-accuracy trade-off: hurried people aim worse
             react=rng.uniform(0.18, 0.30),
             tremor=rng.uniform(0.15e-3, 0.5e-3),
             drift=rng.uniform(0.4e-3, 1.2e-3),
@@ -270,6 +271,10 @@ class HumanOperator:
                 break
             p = q
         self.run(self.style.react)
+
+    def glance(self) -> None:
+        """Between steps: look at what's next before moving (a person doesn't chain steps instantly)."""
+        self.pause(0.3, 1.1)
 
     def pause(self, lo: float, hi: float) -> None:
         self.run(self.style.hesitate * self.rng.uniform(lo, hi))

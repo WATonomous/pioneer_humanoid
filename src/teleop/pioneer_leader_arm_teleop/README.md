@@ -104,7 +104,7 @@ python synthetic_teleop.py --scene peg_insert --num_episodes 3 --preview peg.mp4
   brick that didn't click), place.
 - **Seeds:** episode *i* uses `--seed + i` for the layout and the operator. Takes are first run without cameras on
   `--workers` processes; only successful ones are replayed (deterministically) with cameras and saved, like discarding
-  a botched take. Measured: drawer_stow 29/30, peg_insert 18/20, zip_tie 20/20 seeds succeed.
+  a botched take. Measured: drawer_stow 15/15, peg_insert 19/20, zip_tie 10/10, duplo 20/20 seeds succeed.
 - **Speed / memory:** the physics and the operator run ~3–10× faster than real time; the cameras are the slow part
   on CPU (osmesa: ~0.5 s per 640×480 frame), so recording renders them on up to 3 spawned processes (~1.2 GB each)
   from each frame's poses. The recorder keeps a take's frames in RAM (~5.5 GB for two cameras): budget ~14 GB.
