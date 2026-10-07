@@ -13,7 +13,7 @@ Every angle is in the URDF frame, which is also the command frame ArmPose / join
     leader:  sign * leader angle, clamped to the URDF limits      (as in sim)
     real:    zero_offset + motor / direction                       (arm_calibration.yaml)
 
-The gripper is compared as closure, 0 open .. 1 closed, as joint_command maps it.
+The gripper is compared as its position, 0 open .. 1 closed, as joint_command maps it.
 
 Pose both arms the same (motors off) and check every joint agrees within 5 deg across its range;
 fix --signs (leader) or the real arm's direction / calibration (calibrate_arm.py) until it does.
@@ -47,7 +47,7 @@ AGREE_TOL_DEG = 5.0
 STALE_AFTER_S = 0.5
 PRINT_PERIOD_S = 0.2
 READ_PERIOD_S = 0.02
-# arm_calibration.yaml left.gripper.open_close (the GL40), compared as closure 0 open .. 1 closed.
+# arm_calibration.yaml left.gripper.open_close (the GL40), compared as position 0 open .. 1 closed.
 GRIPPER_CAN_ID = 21
 GRIP_TOL = 0.1
 
@@ -97,7 +97,7 @@ def compare(joints: list[dict], leader_rad: tuple[float, ...], signs: list[float
 
 
 def format_rows(rows: list[dict], grip: float, real_grip: float | None) -> list[str]:
-    """real_grip: the real gripper's closure (0 open .. 1 closed), None without feedback."""
+    """real_grip: the real gripper's position (0 open .. 1 closed), None without feedback."""
     lines = [f"{'joint':<16}{'urdf':<9}{'id':>4}{'leader':>9}{'real':>9}{'diff':>8}{'home':>8}  warnings",
              "-" * 72]
     for row in rows:
@@ -209,7 +209,7 @@ def run() -> None:
             return
         cmd = motor_to_cmd_deg(info, float(msg.position))
         with lock:
-            # The gripper is kept as closure, the arm joints as degrees.
+            # The gripper is kept as position 0..1, the arm joints as degrees.
             real_cmd[motor_id] = gripper_position(info, cmd) if info is grip_info else cmd
             last_seen[motor_id] = time.monotonic()
 

@@ -364,9 +364,8 @@ bool JointCommandCore::validateGripper() {
            << "upper_limit (got [" << g.lower_limit << ", " << g.upper_limit
            << "]). Calibrate it open, with direction so that closing is positive";
   }
-  // Closing on an object leaves the gripper short of its target; that must not trip the
-  // tracking fault (which halts the whole arm). With the startup rule (kp * track_err <=
-  // mit_max_torque) this also caps the squeeze at mit_max_torque.
+  // A grasp leaves the gripper short of its target: that must not trip the tracking fault (which
+  // halts the whole arm). With the startup rule this also caps the squeeze at mit_max_torque.
   if (s.mit_max_track_err < g.upper_limit - g.lower_limit) {
     errors << "\n  gripper: mit_max_track_err " << s.mit_max_track_err
            << " deg must cover its full travel (" << g.upper_limit - g.lower_limit

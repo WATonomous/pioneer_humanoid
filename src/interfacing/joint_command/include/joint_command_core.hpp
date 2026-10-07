@@ -150,9 +150,8 @@ public:
     return joints_.size();
   }
 
-  // The gripper (GL40, arm_calibration.yaml gripper.open_close) is joint kGripperJoint, present
-  // only when arm_actuators.yaml has a gripper block. Closure 0 (open) -> cmd 0 (its calibrated
-  // zero), 1 (closed) -> upper_limit.
+  // The gripper (GL40, gripper.open_close) is joint kGripperJoint, present only when
+  // arm_actuators.yaml has a block for it. gripper_position 0 (open) -> cmd 0, 1 -> upper_limit.
   static constexpr size_t kGripperJoint = 6;
   bool hasGripper() const {
     return joints_.size() > kGripperJoint;
@@ -185,7 +184,7 @@ private:
   std::vector<double> gravityTorqueMotor(const std::vector<double>& cmd_targets_deg) const;
 
   std::vector<JointConfig> joints_;
-  // arm_calibration.yaml's gripper, appended to joints_ only if the safety config drives it.
+  // arm_calibration.yaml's gripper, appended to joints_ only if arm_actuators.yaml drives it.
   std::optional<JointConfig> gripper_mapping_;
   std::vector<JointSafetyConfig> safety_;
   std::vector<double> prev_targets_;

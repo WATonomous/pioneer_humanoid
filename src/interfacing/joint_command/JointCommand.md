@@ -104,9 +104,9 @@ when `arm_actuators.yaml` has a `gripper.open_close` block. Without one, the nod
 Leave it out of a run with its `active: false` (see Launch).
 
 - **Command:** `ArmPose.gripper_position`, 0 = open .. 1 = closed, used while
-  `include_gripper` is true. Closure 0 → command 0° (its calibrated zero), 1 → `upper_limit`, then
+  `include_gripper` is true. Position 0 → command 0° (its calibrated zero), 1 → `upper_limit`, then
   the same clamp / low-pass / rate limit as any joint. Without `include_gripper` (or with a
-  non-finite closure) it **holds where it is**, so a publisher that omits it never drops an object.
+  non-finite position) it **holds where it is**, so a publisher that omits it never drops an object.
 - **Calibrate it open** with `calibrate_arm.py`, `direction` so that closing is positive, limits
   open (≈ 0) .. closed. The node refuses limits that are not `[<= 0, > 0]`.
 - **Grasping never faults:** closing on an object leaves it short of its target, so

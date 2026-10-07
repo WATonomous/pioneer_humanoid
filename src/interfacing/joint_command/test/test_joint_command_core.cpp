@@ -817,28 +817,28 @@ TEST_F(ShippedConfig, UnpoweredJointUsesItsGravityAssumptionOnlyWhenSet) {
 }
 
 // ---------------------------------------------------------------------------
-// Gripper (GL40, after the wrist): closure 0 open .. 1 closed, driven only when the pose asks
+// Gripper (GL40, after the wrist): position 0 open .. 1 closed, driven only when the pose asks
 // ---------------------------------------------------------------------------
 
 namespace {
 
 constexpr size_t kGripper = JointCommandCore::kGripperJoint;
 
-common_msgs::msg::ArmPose poseWithGripper(double closure) {
+common_msgs::msg::ArmPose poseWithGripper(double position) {
   common_msgs::msg::ArmPose pose = uniformPose(0.0);
   pose.include_gripper = true;
-  pose.gripper_position = closure;
+  pose.gripper_position = position;
   return pose;
 }
 
 } // namespace
 
-TEST_F(ShippedConfig, GripperClosureMapsOpenToZeroAndClosedToTheUpperLimit) {
+TEST_F(ShippedConfig, GripperPositionMapsOpenToZeroAndClosedToTheUpperLimit) {
   seedAtCommandZero();
   const double closed = core.joint(kGripper).upper_limit;
-  auto settle = [&](double closure) {
+  auto settle = [&](double position) {
     for (int tick = 0; tick < 2000; ++tick) {
-      core.armPoseToMotorCmds(poseWithGripper(closure), kPositionLoop);
+      core.armPoseToMotorCmds(poseWithGripper(position), kPositionLoop);
     }
     return core.prevTargets()[kGripper];
   };
@@ -849,7 +849,7 @@ TEST_F(ShippedConfig, GripperClosureMapsOpenToZeroAndClosedToTheUpperLimit) {
   EXPECT_NEAR(settle(1.0), closed, 1e-6);
   EXPECT_NEAR(settle(0.5), closed / 2, 1e-6);
   EXPECT_NEAR(settle(0.0), 0.0, 1e-6);
-  EXPECT_NEAR(settle(5.0), closed, 1e-6) << "closure is clamped to [0, 1]";
+  EXPECT_NEAR(settle(5.0), closed, 1e-6) << "position is clamped to [0, 1]";
   EXPECT_NEAR(settle(-1.0), 0.0, 1e-6);
 }
 

@@ -21,7 +21,7 @@ the on-screen joint turns the same way and stops at the same angle. Try correcti
 arm_calibration.yaml: flip it and re-run calibrate_arm.py (zero_offset and the limits depend on
 it). One that needs --offset was not zeroed hanging: re-run calibrate_arm.py.
 
-The gripper's fingers follow its closure, as joint_command maps it: 0 = open (its calibrated
+The gripper's fingers follow its position, as joint_command maps it: 0 = open (its calibrated
 zero) .. 1 = closed (arm_calibration.yaml upper_limit). Open and close it by hand: the fingers
 must open and close with it (calibrate it open, direction so that closing is positive).
 
@@ -135,7 +135,7 @@ def main() -> None:
     data = mujoco.MjData(model)
     mujoco.mj_forward(model, data)
     qpos_adr = {j["urdf_joint"]: int(model.joint(j["urdf_joint"]).qposadr[0]) for j in joints.values()}
-    # The gripper (slot None): closure -> finger travel in metres, as in sim.
+    # The gripper (slot None): position 0..1 -> finger travel in metres, as in sim.
     side = args.arm_side.upper()
     grip = next(({**info, "motor_id": mid} for mid, info in load_joint_map(mapping, args.arm_side).items()
                  if info["slot"] is None), None)
@@ -154,12 +154,12 @@ def main() -> None:
     lock = threading.Lock()
     latest_deg: dict[str, float] = {}
     last_seen: dict[int, float] = {}
-    latest_closure: list[float] = []
+    latest_grip: list[float] = []
 
     def on_feedback(msg: MotorFeedback) -> None:
         if grip is not None and int(msg.motor_id) == grip["motor_id"]:
             with lock:
-                latest_closure[:] = [gripper_position(grip, motor_to_cmd_deg(grip, float(msg.position)))]
+                latest_grip[:] = [gripper_position(grip, motor_to_cmd_deg(grip, float(msg.position)))]
             return
         j = joints.get(int(msg.motor_id))
         if j is None:
@@ -186,7 +186,7 @@ def main() -> None:
             now = time.monotonic()
             with lock:
                 shown = dict(latest_deg)
-                closure = list(latest_closure)
+                grip_pos = list(latest_grip)
                 stale = sorted(j["name"] for motor_id, j in joints.items()
                                if now - last_seen.get(motor_id, -math.inf) > STALE_AFTER_S)
             # A frozen joint looks the same as a still one, so say when the picture is not live.
@@ -195,8 +195,8 @@ def main() -> None:
                 next_warn = now + STALE_AFTER_S
             for urdf_joint, deg in shown.items():
                 data.qpos[qpos_adr[urdf_joint]] = math.radians(deg)
-            if closure:
-                c = min(max(closure[0], 0.0), 1.0)
+            if grip_pos:
+                c = min(max(grip_pos[0], 0.0), 1.0)
                 for adr, opened, closed in fingers:
                     data.qpos[adr] = opened + c * (closed - opened)
             mujoco.mj_forward(model, data)
