@@ -87,13 +87,11 @@ each joint's `direction` makes positive turn the URDF's positive way: shoulder p
 arm forward, shoulder roll out to the side, elbow pitch backward. (The old `urdf_direction` /
 `urdf_offset_deg` keys are refused: fold any correction into `direction` / `zero_offset`.)
 
-Bring-up, one joint at a time, arm supported, `gravity_ff_scale: 0`:
-1. Calibrate with the arm hanging (`calibrate_arm.py`); the seed log should then read ~0 there.
-2. Jog each joint positive and check its direction against the list above. A wrong one: flip its
-   `direction` in `arm_calibration.yaml` and re-run `calibrate_arm.py`.
-3. At a few poses, the `Gravity model ... pred X meas Y` log (every 5 s) must agree in sign and
+Bring-up, after steps 1–2 of [../README.md](../README.md) (calibrated hanging, directions checked
+against the list above), one joint at a time, arm supported, `gravity_ff_scale: 0`:
+1. At a few poses, the `Gravity model ... pred X meas Y` log (every 5 s) must agree in sign and
    roughly in size.
-4. Set `gravity_ff_scale: 0.5`, confirm the sag shrinks, then go to 1.0.
+2. Set `gravity_ff_scale: 0.5`, confirm the sag shrinks, then go to 1.0.
 
 A wrong sign doubles the sag; the startup rule and the tracking watchdog bound it.
 

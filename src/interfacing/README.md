@@ -58,8 +58,16 @@ python3 /workspace/humanoid/src/interfacing/can/scripts/live_arm_mjviser.py --ar
 ## 3. Move (real motor control)
 Only after 1–2 look right. Everything goes through `joint_command` (`ArmPose` on
 `/arm/joint_targets`): it clamps, rate-limits, seeds from live feedback (no startup jump) and
-runs the MIT watchdog. Start it with `ros2 launch joint_command joint_command.launch.py`; for
-single-joint tests set the other joints `active: false` in `arm_actuators.yaml`.
+runs the MIT watchdog. Start it with `ros2 launch joint_command joint_command.launch.py`.
+
+First powered moves, in this order:
+1. Clear workspace, hardware E-stop on the 48 V supply in reach, a hand under the arm.
+2. One joint at a time: every other joint `active: false` in `arm_actuators.yaml` (restart the node).
+   Small, slow moves from the current pose.
+3. Then the whole arm, slowly; then the gripper.
+
+A fault stops the whole arm: AK joints sink damped, the GL40s go limp. Support the arm and
+restart the node.
 
 - Leader-arm teleop: `pioneer_leader_arm_teleop.py --target real` (dry run), then `--live`
   → [teleop/pioneer_leader_arm_teleop/README.md](../teleop/pioneer_leader_arm_teleop/README.md#real-arm-dry-run-then---live)
