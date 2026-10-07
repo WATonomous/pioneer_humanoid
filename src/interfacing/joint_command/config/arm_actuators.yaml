@@ -51,11 +51,10 @@ safety:
     # --- AK10-9 / AK80-9, MIT --------------------------------------------------
     # Limits come from calibrate_arm.py's software zero-mode (see arm_calibration.yaml).
     # Re-run calibration after any power cycle: AK80-9 joints lose their zero (src/interfacing/README.md).
-    # Interim gains (#327), not yet bench-checked: mit_max_torque at the testing ceilings
-    # (real-hardware-safety skill): AK10-9 10 N.m, AK80-9 5 N.m. Stall torque = quantised kp *
-    # mit_max_track_err 15 deg (0.2618 rad): AK10-9 kp 30 -> 7.86 N.m, AK80-9 kp 19 -> 4.99 N.m
-    # (kp 20 would be 5.24, over its ceiling). Gravity feed-forward off until its sign is
-    # checked (#325).
+    # Interim gains (#327), not yet bench-checked. mit_max_torque at the testing ceilings:
+    # AK10-9 10 N.m, AK80-9 5 N.m. Stall torque = quantised kp * mit_max_track_err 15 deg
+    # (0.2618 rad): AK10-9 kp 30 -> 7.86 N.m, AK80-9 kp 19 -> 4.99 N.m. Gravity feed-forward
+    # off until its sign is checked (#325).
     shoulder:
       pitch:   # AK10-9, id 14
         active: true
