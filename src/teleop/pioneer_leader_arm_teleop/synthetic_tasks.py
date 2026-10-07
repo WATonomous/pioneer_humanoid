@@ -258,7 +258,10 @@ def zip_plan(op, model, data, notes) -> None:
     op.pause(0.4, 0.9)
     start = op.follower_tcp()
     head_west = S.SLOT_CENTRE[0] - S.HEAD_DEPTH / 2
-    R = op.R_home @ np.eye(3)   # fingers forward as at home, jaws closing sideways across the flat tail
+    # Fingers forward as at home, jaws closing sideways across the flat tail, tipped down so the palm stays above the
+    # tail behind the grasp (level, the wrist housing sits on the strap and the table).
+    from scipy.spatial.transform import Rotation
+    R = Rotation.from_euler("y", rng.uniform(20, 30), degrees=True).as_matrix() @ op.R_home
 
     def tail_at(x):
         """Where the tail is at this x (judged by eye along the strap's last segments)."""
