@@ -92,18 +92,6 @@ uv run --with matplotlib --with numpy tools/gl40_telemetry_plot.py outputs/gl40_
 
 ---
 
-## Open arm tasks (onboarding / assignable)
-
-Live joint mirror, mjlab sim parity, and interactive calibration are done — see
-[../README.md](../README.md) for calibrate → visualize → move.
-
-| Status | Task | Why |
-|--------|------|-----|
-| TODO | **VR teleop** — Quest → real motors via teleop + `joint_command` / CAN | End-to-end teleop UX |
-| TODO (later) | **Isaac Lab sim-to-real** — `task_space_ik.py --publish-real-left-arm` (IK) + `reach` RL task driving the real arm | Validate IK/policy against real hardware |
-
----
-
 ## Topics / config
 
 `/interfacing/motorCMD` (`MotorCmd`, ROS→CAN) · `/interfacing/motorFeedback` (`MotorFeedback`, CAN→ROS)
