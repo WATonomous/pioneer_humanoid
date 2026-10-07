@@ -69,15 +69,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 # ffmpeg with SVT-AV1 for LeRobot videos (same build as the Isaac image).
 RUN curl --proto "=https" --tlsv1.2 -sSf -L -o /tmp/ffmpeg.tar.xz \
-    https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n7.1-latest-linux64-lgpl-shared-7.1.tar.xz && \
+    https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n8.1-latest-linux64-lgpl-shared-8.1.tar.xz && \
     tar -xf /tmp/ffmpeg.tar.xz -C /usr/local --strip-components=1 && \
     ldconfig && \
     rm /tmp/ffmpeg.tar.xz
 # CPU torch (LeRobot at this commit needs <2.8), then LeRobot at the Isaac image's commit, the
 # leader's servo SDK and the episode keys. Repo packages are not installed: the scripts add
 # src/ paths themselves (repo mounted at /workspace/humanoid).
-RUN pip3 install --no-cache-dir torch==2.7.1 torchvision==0.22.1 --index-url https://download.pytorch.org/whl/cpu && \
-    pip3 install --no-cache-dir \
+RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel && \
+    python3 -m pip install --no-cache-dir torch==2.7.1 torchvision==0.22.1 --index-url https://download.pytorch.org/whl/cpu && \
+    python3 -m pip install --no-cache-dir \
     "lerobot @ git+https://github.com/huggingface/lerobot.git@e670ac5daf9b76" \
     "feetech-servo-sdk>=1.0.0,<2.0.0" pynput pillow tqdm
 
