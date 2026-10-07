@@ -75,7 +75,14 @@ uv run scripts/play_rl.py Mjlab-Badminton-Receive-Student-PPO --viewer viser \
     --checkpoint-file <model.pt>                      # http://localhost:8080
 ```
 
-Single-arm baselines are checked in under `models/` (repo root):
+Bimanual baselines are checked in under `models/` (repo root):
+`models/badminton_bimanual_student_ppo/model_2999.pt` (97.8% bank hits, 66%
+net clearance, hits split 49/51% right/left) and its teacher
+`models/badminton_bimanual_teacher/model_2999.pt` (96.7%). Both were
+warm-started from the single-arm baselines with `scripts/widen_checkpoint.py`
+and fine-tuned for 3000 iterations.
+
+Single-arm baselines are also checked in under `models/` (repo root):
 `models/badminton_student_ppo/model_4997.pt` (98.8% bank hits, 78% net
 clearance) and its teacher `models/badminton_teacher/model_5996.pt`. They
 run on the bimanual env only after `scripts/widen_checkpoint.py`. The
