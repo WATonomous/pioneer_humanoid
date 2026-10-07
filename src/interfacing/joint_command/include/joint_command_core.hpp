@@ -40,12 +40,9 @@ struct JointSafetyConfig {
   // MotorCmd::control_type for this joint; -1 = the node default (joint_command.yaml).
   int control_type{-1};
 
-  // MIT_CONTROL (compliant holding) gains. Only used on joints whose control_type is
-  // MIT_CONTROL; ignored for POSITION_LOOP etc. Default 0/0 is deliberately a
-  // safe no-op (zero stiffness/damping = motor free) -- a joint must be explicitly configured
-  // with nonzero mit_kp/mit_kd to actually hold under MIT. Units match the CubeMars AK-series
-  // manual's MIT protocol range for this motor (see can/config/mit_profiles.yaml): kp in
-  // [0,500], kd in [0,5] -- can_node clamps to the exact per-motor range before sending.
+  // MIT_CONTROL gains, physical units; ignored for other control types. Default 0/0 is a safe
+  // no-op (motor free): a joint holds only with nonzero gains. can_node clamps them to each
+  // motor's range in can/config/mit_profiles.yaml (kp [0, 500], kd [0, 5] for every motor here).
   double mit_kp{0.0};
   double mit_kd{0.0};
 
