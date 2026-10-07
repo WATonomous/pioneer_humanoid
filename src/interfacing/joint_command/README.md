@@ -1,6 +1,6 @@
 # Joint command: `joint_command_node` + `joint_command_core`
 
-We convert high-level arm joint targets (`ArmPose`) into per-motor CAN commands (`MotorCmd`), with YAML-driven calibration and runtime safety moderation (clamp, rate limit, smoothing, MIT watchdog). Every teleop / policy path to the real arm goes through it.
+Converts arm joint targets (`ArmPose`) into per-motor CAN commands (`MotorCmd`), with YAML-driven calibration and runtime safety moderation (clamp, rate limit, smoothing, MIT watchdog). Every teleop / policy path to the real arm goes through it.
 
 ## Pipeline
 
@@ -87,13 +87,11 @@ each joint's `direction` makes positive turn the URDF's positive way: shoulder p
 arm forward, shoulder roll out to the side, elbow pitch backward. (The old `urdf_direction` /
 `urdf_offset_deg` keys are refused: fold any correction into `direction` / `zero_offset`.)
 
-Bring-up, one joint at a time, arm supported, `gravity_ff_scale: 0`:
-1. Calibrate with the arm hanging (`calibrate_arm.py`); the seed log should then read ~0 there.
-2. Jog each joint positive and check its direction against the list above. A wrong one: flip its
-   `direction` in `arm_calibration.yaml` and re-run `calibrate_arm.py`.
-3. At a few poses, the `Gravity model ... pred X meas Y` log (every 5 s) must agree in sign and
+Bring-up, after steps 1–2 of [../README.md](../README.md) (calibrated hanging, directions checked
+against the list above), one joint at a time, arm supported, `gravity_ff_scale: 0`:
+1. At a few poses, the `Gravity model ... pred X meas Y` log (every 5 s) must agree in sign and
    roughly in size.
-4. Set `gravity_ff_scale: 0.5`, confirm the sag shrinks, then go to 1.0.
+2. Set `gravity_ff_scale: 0.5`, confirm the sag shrinks, then go to 1.0.
 
 A wrong sign doubles the sag; the startup rule and the tracking watchdog bound it.
 
@@ -126,25 +124,19 @@ a limit, and the rest of the arm keeps working.
 
 | File | Role |
 |------|------|
-| `config/joint_command.yaml` | ROS params: arm side, topics, control rate, control type |
-| `config/arm_calibration.yaml` | Per-joint `can_id`, limits, `direction`, `zero_offset` |
-| `config/arm_actuators.yaml` | `active` per joint, moderation toggles, per-joint `velocity_max`, `delta_max`, `low_pass_alpha`, `control_type`, MIT gains and limits |
+| `config/joint_command.yaml` | ROS params: arm side, topics, control rate, default control type |
+| `config/arm_calibration.yaml` | Per-joint `can_id`, limits, `direction`, `zero_offset` (written by `calibrate_arm.py`) |
+| `config/arm_actuators.yaml` | Hand-set, under `safety:` (`global` defaults, `joints` overrides); each value's reason is in its comment |
 
-`arm_actuators.yaml` uses a top-level `safety:` key with `global` defaults and optional `joints` overrides (shoulder/elbow/wrist paths match `arm_calibration.yaml`).
+`arm_actuators.yaml` keys (degrees, deg/s; at 50 Hz `velocity_max: 100` is 2°/tick):
 
-## Tuning `arm_actuators.yaml`
-
-Units are **degrees** and **deg/s**. At 50 Hz, `velocity_max: 100` implies up to **2.0°/tick** from the velocity limiter.
-
-Start conservative on hardware, then increase until motion is responsive without jitter or limit hitting. Current values are bench defaults, not policy-tuned.
-
-| Parameter | Effect |
-|-----------|--------|
-| `velocity_max` | Max joint speed (converted to °/tick) |
-| `delta_max` | Hard cap on ° change per tick |
+| Key | Effect |
+|-----|--------|
+| `active` | Drive this joint this run (see Launch) |
+| `velocity_max` / `delta_max` | Max speed / max ° change per tick |
 | `low_pass_alpha` | Higher → smoother/slower (e.g. `0.85`) |
-| `enable_*` | Toggle each stage without recompiling |
-| `control_type` | Per joint; `0` = MIT_CONTROL, `4` = POSITION_LOOP, `-1` = node default |
+| `enable_*` | Toggle each moderation stage without recompiling |
+| `control_type` | `0` = MIT_CONTROL, `4` = POSITION_LOOP, `-1` = node default |
 | `mit_*`, `gravity_*` | MIT gains, fault thresholds and feed-forward (see above) |
 
 ## Tests
