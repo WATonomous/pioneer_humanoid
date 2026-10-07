@@ -22,24 +22,24 @@ For each joint $i$, let $q^{\mathrm{in}}_i$ be the incoming angle (degrees, same
 Repeat in order, once per control tick:
 
 1. **Position clamp** — if enabled, clip to hardware limits:
-   $$
+   ```math
    q \leftarrow \mathrm{clip}(q,\ q_{\min},\ q_{\max}).
-   $$
+   ```
 2. **Low-pass** — exponential smoothing with $\alpha =$ `low_pass_alpha`:
-   $$
+   ```math
    q \leftarrow \alpha\, q^{\mathrm{prev}} + (1-\alpha)\, q.
-   $$
+   ```
 3. **Velocity limit** — cap change per control tick using previous moderated target $q^{\mathrm{prev}}_i$:
-   $$
-   \Delta q_{\max} = \frac{\texttt{velocity\_max}}{\texttt{control\_rate\_hz}}.
-   $$
+   ```math
+   \Delta q_{\max} = \frac{\mathtt{velocity\_max}}{\mathtt{control\_rate\_hz}}.
+   ```
 4. **Delta limit** — additional per-step cap `delta_max` (degrees/tick).
 5. **Position clamp again** — limits still hold after smoothing. If it bites (joint outside its
    limits), the move back into range is rate-limited too, not snapped.
 6. **Calibration** — map to motor frame before publish:
-   $$
-   q_{\mathrm{motor}} = \texttt{direction} \cdot (q - \texttt{zero\_offset}).
-   $$
+   ```math
+   q_{\mathrm{motor}} = \mathtt{direction} \cdot (q - \mathtt{zero\_offset}).
+   ```
 
 Store $q$ as $q^{\mathrm{prev}}$ for the next tick.
 
@@ -74,7 +74,9 @@ MIT joint is exited. Stop `joint_command` **before** `can_node`, with the arm su
 
 MIT joints can be sent the torque that holds the arm's weight, in `MotorCmd.torque`:
 
-$$\tau_{\mathrm{ff}} = \mathrm{clip}\big(\texttt{gravity\_ff\_scale} \cdot r \cdot \tau_{\mathrm{model}},\ \pm\texttt{gravity\_ff\_max\_torque}\big)$$
+```math
+\tau_{\mathrm{ff}} = \mathrm{clip}\big(\mathtt{gravity\_ff\_scale} \cdot r \cdot \tau_{\mathrm{model}},\ \pm\mathtt{gravity\_ff\_max\_torque}\big)
+```
 
 $\tau_{\mathrm{model}}$ ([gravity_model.cpp](src/gravity_model.cpp)) is the left arm's static load
 from the URDF masses at the commanded pose; $r$ ramps 0 → 1 over 1 s after each seed. It is zeroed
