@@ -6,7 +6,7 @@
 # 3. Setting the transmission queue length
 # 
 # The script takes three parameters all found in the src/interfacing/can/config/params.yaml:
-# - device_path: Serial device path (e.g., /dev/ttyACM0)
+# - device_path: Serial device path (e.g., /dev/canable)
 # - interface_name: Name for the CAN interface (e.g., can0)
 # - bitrate_code: Bitrate configuration code (e.g., -s6 for 500k, -s8 for 1M)
 
@@ -31,7 +31,7 @@ fi
 
 if [ -z "$DEVICE_PATH" ] || [ -z "$INTERFACE_NAME" ] || [ -z "$BITRATE_CODE" ]; then
     echo "Usage: $0 <device_path> <interface_name> <bitrate_code>"
-    echo "Example: $0 /dev/ttyACM0 can0 -s6"
+    echo "Example: $0 /dev/canable can0 -s8"
     echo ""
     exit 1
 fi

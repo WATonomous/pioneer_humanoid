@@ -31,7 +31,13 @@ python3 /workspace/humanoid/src/interfacing/can/scripts/live_arm_mjviser.py --ar
 
 → script docstring in `live_arm_mjviser.py` for the angle math and full flag reference.
 
-## 3. Move (optional, real motor control)
-Only after 1–2 look right. Rate-limited, seeds from live feedback (no startup slam).
+## 3. Move (real motor control)
+Only after 1–2 look right. Everything goes through `joint_command` (`ArmPose` on
+`/arm/joint_targets`): it clamps, rate-limits, seeds from live feedback (no startup jump) and
+runs the MIT watchdog. Start it with `ros2 launch joint_command joint_command.launch.py`; for
+single-joint tests set the other joints `active: false` in `arm_actuators.yaml`.
 
-→ [joint_command/MOVE_ARM_RUNBOOK.md](joint_command/MOVE_ARM_RUNBOOK.md)
+- Leader-arm teleop: `pioneer_leader_arm_teleop.py --target real` (dry run), then `--live`
+  → [teleop/pioneer_leader_arm_teleop/README.md](../teleop/pioneer_leader_arm_teleop/README.md#real-arm-dry-run-then---live)
+- Scripted moves and benchmarks: `tools/arm_roundtrip.sh` → [can/README.md](can/README.md#angle-benchmarks-arm_roundtrippy)
+- Node, configs and tuning → [joint_command/JointCommand.md](joint_command/JointCommand.md)
