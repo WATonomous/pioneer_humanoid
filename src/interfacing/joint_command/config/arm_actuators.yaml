@@ -23,8 +23,8 @@ safety:
     control_type: -1   # -1 = joint_command.yaml's control_type; set per joint below
     mit_kp: 0.0   # 0 = MIT_CONTROL is a safe no-op until set per-joint below
     mit_kd: 0.0
-    mit_max_torque: 0.3        # N.m, fault above
-    mit_max_track_err: 60.0    # deg, fault above
+    mit_max_torque: 10        # N.m, fault above
+    mit_max_track_err: 10.0    # deg, fault above
     mit_feedback_timeout: 0.2  # s without feedback -> fault
     # gl2 (GL40) or ak (AK10-9 / AK80-9): they disagree on the status byte.
     mit_family: gl2
@@ -58,13 +58,13 @@ safety:
         delta_max: 2.0
         control_type: 0
         mit_family: ak
-        mit_kp: 38.0
+        mit_kp: 30.0                  # stall 11.5 N.m
         mit_kd: 0.8
-        mit_max_torque: 10.0   # gravity max 4.79 N.m
-        mit_max_track_err: 15.0
+        mit_max_torque: 10
         mit_fault_kd: 1.0
         gravity_ff_max_torque: 10.5   # model max 4.7 N.m
         gravity_assume_deg: 0.0
+        gravity_ff_scale: 0.0
       roll:    # AK10-9, id 13
         active: true
         velocity_max: 30.0
@@ -73,11 +73,11 @@ safety:
         mit_family: ak
         mit_kp: 38.0
         mit_kd: 0.8
-        mit_max_torque: 10.0   # gravity max 4.79 N.m
-        mit_max_track_err: 15.0
+        mit_max_torque: 10.0
         mit_fault_kd: 1.0
         gravity_ff_max_torque: 5.5    # model max 4.7 N.m
         gravity_assume_deg: 0.0
+        gravity_ff_scale: 0.0
       yaw:     # AK80-9, id 12
         active: true
         velocity_max: 60.0
@@ -91,6 +91,7 @@ safety:
         mit_fault_kd: 0.5
         gravity_ff_max_torque: 5.5    # model max 1.2 N.m
         gravity_assume_deg: 0.0
+        gravity_ff_scale: 0.0
     elbow:
       pitch:   # AK80-9, id 11
         active: true
@@ -98,27 +99,26 @@ safety:
         delta_max: 1.6
         control_type: 0
         mit_family: ak
-        mit_kp: 9.5
+        mit_kp: 30.0                  # stall 6.7 N.m + 3.59 ff
         mit_kd: 0.4
-        mit_max_torque: 2.5   # gravity max 1.21 N.m
-        mit_max_track_err: 15.0
+        mit_max_torque: 10.0
         mit_fault_kd: 0.5
-        gravity_ff_scale: 0.0
         gravity_ff_max_torque: 3.59
         gravity_assume_deg: 0.0
+        gravity_ff_scale: 0.0
       roll:    # AK80-9, id 104
         active: true
         velocity_max: 30.0
         delta_max: 1.6
-        control_type: 0
+        # control_type: 0
         mit_family: ak
         mit_kp: 3.8
         mit_kd: 0.4
-        mit_max_torque: 1.0   # gravity max 0.18 N.m; 1 N.m floor for gearbox friction (unmeasured)
-        mit_max_track_err: 15.0
+        mit_max_torque: 10.0
         mit_fault_kd: 0.5
         gravity_ff_max_torque: 3.3    # model max 0.18 N.m
         gravity_assume_deg: 0.0
+        gravity_ff_scale: 0.0
 
     # --- GL40 KV70 on a GL II drive, MIT ---------------------------------------
     # PD drive with NO internal limit checking: mit_max_* below are the only protection.
@@ -139,19 +139,4 @@ safety:
         mit_max_track_err: 12.0  # deg, fault above
         mit_feedback_timeout: 0.2  # s without feedback -> fault
         gravity_assume_deg: 0.0
-
-    # Gripper: ArmPose.gripper_position 0 (open, calibrated zero) .. 1 (closed, upper_limit).
-    # mit_max_track_err >= full travel (enforced), so a grasp never faults and the squeeze is
-    # kp * travel = 0.1221 * 1.833 rad = 0.224 N.m <= 0.25. Gains not yet bench-checked.
-    gripper:
-      open_close:   # GL40, id 21
-        active: true
-        velocity_max: 60.0
-        delta_max: 2.4
-        control_type: 0        # MIT_CONTROL
-        mit_family: gl2        # fault action limp
-        mit_kp: 0.1221         # N.m/rad -> raw 1, the softest nonzero stiffness
-        mit_kd: 0.0098         # N.m.s/rad -> raw 8, as the wrist
-        mit_max_torque: 0.25   # N.m: squeeze limit
-        mit_max_track_err: 105.0  # deg, >= full travel (upper_limit - lower_limit)
-        mit_feedback_timeout: 0.2
+        gravity_ff_scale: 0.0
