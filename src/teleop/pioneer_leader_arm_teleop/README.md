@@ -99,8 +99,9 @@ python synthetic_teleop.py --scene peg_insert --num_episodes 3 --preview peg.mp4
   corrects what they see, stopping when the arm is blocked rather than pushing harder. Tremor (8–12 Hz, sub-mm), slow
   drift, wrist wobble, noisy judgement of where objects are, hesitation before grasps. Speed, accuracy, tremor and so on
   are drawn per episode, like different people.
-- **Plans** (`synthetic_tasks.py`): `drawer_stow`, `peg_insert`, `zip_tie`, written like instructions to a person:
-  look, reach, grasp, check it worked and recover if not (re-grasp, pull again, stand a crooked peg back up), place.
+- **Plans** (`synthetic_tasks.py`): `drawer_stow`, `peg_insert`, `zip_tie`, `duplo`, written like instructions to a person:
+  look, reach, grasp, check it worked and recover if not (re-grasp, pull again, stand a crooked peg back up, press a
+  brick that didn't click), place.
 - **Seeds:** episode *i* uses `--seed + i` for the layout and the operator. Takes are first run without cameras on
   `--workers` processes; only successful ones are replayed (deterministically) with cameras and saved, like discarding
   a botched take. Measured: drawer_stow 29/30, peg_insert 18/20, zip_tie 20/20 seeds succeed.

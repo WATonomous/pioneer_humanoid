@@ -192,26 +192,55 @@ def _probe(job):
     return seed, ok, sim_t, time.time() - t0, notes
 
 
+def self_test() -> None:
+    """Check the virtual leader without recording: angle math, motion model, a short reach."""
+    import numpy as np
+    from human_operator import HumanOperator, _Channel, minimum_jerk
+
+    sim = TeleopSim("bare", 0, filter_alpha=1.0)   # no low-pass: targets must equal the leader exactly
+    sim.mapping.update(sim.leader_angles(sim.home, 0.0))
+    assert sim.mapping.engaged
+    q = np.array(sim.home) + 0.1
+    target, grip = sim.mapping.update(sim.leader_angles(q, 0.7))
+    assert np.allclose(target, q) and abs(grip - 0.7) < 1e-9, (target, grip)
+
+    assert minimum_jerk(0.0) == 0.0 and minimum_jerk(1.0) == 1.0 and abs(minimum_jerk(0.5) - 0.5) < 1e-12
+    ch = _Channel([0.0, 0.0])
+    ch.add(0.0, 1.0, [1.0, 0.0])
+    ch.add(0.5, 1.0, [0.0, 2.0])
+    assert np.allclose(ch.goal(), [1.0, 2.0]) and np.allclose(ch.at(2.0), [1.0, 2.0])
+
+    sim = TeleopSim("bare", 0)
+    op = HumanOperator(sim.model, lambda: sim.data, sim.tick, sim.joints, sim.home, sim.control_dt, np.random.default_rng(0))
+    goal = op.follower_tcp() + (-0.05, 0.05, -0.05)
+    err = op.move(goal, tol=0.005)
+    assert err < 0.01, f"reach missed by {err * 1000:.1f} mm"
+    print(f"self-test ok (reach error {err * 1000:.1f} mm in {sim.data.time:.1f} s)")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Synthetic human-like leader-arm teleop demos (MuJoCo, headless).")
-    parser.add_argument("--scene", required=True, help="scene with a plan in synthetic_tasks.py")
+    parser.add_argument("--scene", default=None, help="scene with a plan in synthetic_tasks.py")
     parser.add_argument("--seed", type=int, default=0, help="first episode seed (episodes use seed, seed+1, ...)")
     parser.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2) - 1))
     parser.add_argument("--max_tries", type=int, default=0, help="seeds to try at most (default: 3 x num_episodes)")
     parser.add_argument("--preview", type=str, default=None, help="also write an mp4 of the kept takes (scene camera)")
+    parser.add_argument("--self-test", action="store_true", help="check the leader math and motion model and exit")
     add_record_args(parser, task_description="")
     args = parser.parse_args()
+    if args.self_test:
+        return self_test()
     record = load_record_schema(parser, args)
     os.environ.setdefault("MUJOCO_GL", "egl")
 
     from synthetic_tasks import TASKS
-    if args.scene not in TASKS:
+    if args.scene is None or args.scene not in TASKS:
         raise SystemExit(f"no synthetic plan for --scene {args.scene!r}; have: {sorted(TASKS)}")
     args.task_description = args.task_description or TASKS[args.scene].instruction
 
     # 1. Find seeds whose take succeeds (no cameras: fast, parallel).
     want, tries = args.num_episodes, args.max_tries or 3 * args.num_episodes
-    kept = []
+    kept, longest = [], 0.0
     jobs = [(args.scene, args.seed + i) for i in range(tries)]
     ctx = multiprocessing.get_context("fork")
     with ctx.Pool(args.workers) as pool:
@@ -220,6 +249,7 @@ def main() -> None:
                   + (f"  [{'; '.join(notes)}]" if notes else ""), flush=True)
             if ok:
                 kept.append(seed)
+                longest = max(longest, sim_t)
             if len(kept) >= want:
                 pool.terminate()
                 break
@@ -234,8 +264,10 @@ def main() -> None:
     recorder, record_every = None, 4
     if args.record:
         probe = TeleopSim(args.scene, kept[0], None)
+        # Frame buffers sized to the longest take (not the default 120 s): ~0.9 GB per 10 s with two 640x480 cameras.
         recorder, record_every = make_sim_recorder(args, record, device="cpu", sim_dt=probe.control_dt,
-                                                   extra_features={"subtask_index": ["subtask_index"]} if probe.progress else None)
+                                                   extra_features={"subtask_index": ["subtask_index"]} if probe.progress else None,
+                                                   buffer_capacity_s=longest + 5.0)
         probe.close()
     preview = _Preview(args.preview, args.scene) if args.preview else None
     # Fresh (spawned) render workers: ~0.7 GB each with osmesa; the recorder's frame buffers need the rest.
