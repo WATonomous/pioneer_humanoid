@@ -58,11 +58,15 @@ A MIT joint is a PD drive with no internal limit checking, so `joint_command` ad
 | `mit_max_track_err` | fault if the joint lags its setpoint by more (deg) |
 | `mit_feedback_timeout` | fault after this long without feedback |
 | `mit_family` | `gl2` or `ak`; they disagree on the status byte (AK 1 = over-temperature) |
+| `motor` | `AK10-9`, `AK80-9` or `GL40`: sets the testing ceiling on `mit_max_torque` |
 | `mit_fault_action` | `limp` (kp = kd = 0, `MIT_EXIT`) or `damp` (kp = 0, kd = `mit_fault_kd`); default `damp` for `ak` |
 | `mit_fault_kd` | damping for `damp`, in (0, 5] |
 
-**Startup rule** (the node refuses to launch otherwise): quantised `mit_kp` × `mit_max_track_err`
-(rad) + `gravity_ff_max_torque` ≤ `mit_max_torque`.
+**Startup rules** (the node refuses to launch otherwise):
+- quantised `mit_kp` × `mit_max_track_err` (rad) + `gravity_ff_max_torque` ≤ `mit_max_torque`;
+- `mit_max_torque` ≤ the motor's testing ceiling (real-hardware-safety skill): AK10-9 10 N·m,
+  AK80-9 5 N·m, GL40 0.3 N·m, and `motor` must match `mit_family`. The ceilings live in
+  `joint_command_core.cpp` (`kMotors`); raising one is a deliberate code change.
 
 Lifecycle: `MIT_ENTER` at startup, zero-stiffness frames until seeded, then gains, then
 zero-stiffness frames again when the stream goes stale. A fault latches: `limp` joints get

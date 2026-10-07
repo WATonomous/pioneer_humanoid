@@ -390,6 +390,21 @@ TEST_F(ShippedConfig, UnsafeMitGainsAreRefusedAtLoadTime) {
   EXPECT_NE(core.lastError().find("mit_kd"), std::string::npos) << core.lastError();
 }
 
+TEST_F(ShippedConfig, TorqueCapsAboveTheTestingCeilingsAreRefused) {
+  auto expectRefused = [&](const std::string& group, const std::string& joint, const char* key,
+                           const YAML::Node& value, const std::string& needle) {
+    YAML::Node cfg = YAML::LoadFile(configPath("arm_actuators.yaml"))["safety"];
+    cfg["joints"][group][joint][key] = value;
+    EXPECT_FALSE(core.loadSafetyFromYaml(cfg, kRateHz)) << group << "." << joint << " " << key;
+    EXPECT_NE(core.lastError().find(needle), std::string::npos) << core.lastError();
+  };
+  expectRefused("shoulder", "pitch", "mit_max_torque", YAML::Node(10.5), "testing ceiling");
+  expectRefused("elbow", "pitch", "mit_max_torque", YAML::Node(5.5), "testing ceiling");
+  expectRefused("wrist", "pitch", "mit_max_torque", YAML::Node(0.31), "testing ceiling");
+  expectRefused("elbow", "roll", "motor", YAML::Node("AK80"), "needs motor");
+  expectRefused("wrist", "pitch", "motor", YAML::Node("AK80-9"), "mit_family");
+}
+
 TEST_F(ShippedConfig, GainQuantisationMatchesWhatTheDriveApplies) {
   // 12-bit codes over 0..500 (kp) and 0..5 (kd): the drive can only apply multiples.
   EXPECT_NEAR(JointCommandCore::quantiseKp(1.22), 10 * (500.0 / 4096), 1e-9);
