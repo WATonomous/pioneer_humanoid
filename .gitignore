@@ -8,6 +8,7 @@ __pycache__
 *.html
 
 watod-config.local.sh
+modules/docker-compose.*.local.yaml
 utils/voxel/spconv
 
 build/

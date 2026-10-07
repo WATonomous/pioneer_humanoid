@@ -32,6 +32,10 @@ function run_compose {
     local compose_args=()
     for name in $active; do
         compose_args+=( -f "$MODULES_DIR/docker-compose.${name}.yaml" )
+        # Per-machine override (gitignored), e.g. to drop the GPU reservation on a non-NVIDIA host.
+        if [ -f "$MODULES_DIR/docker-compose.${name}.local.yaml" ]; then
+            compose_args+=( -f "$MODULES_DIR/docker-compose.${name}.local.yaml" )
+        fi
     done
 
     echo "Running docker compose ${compose_args[*]} $@"
