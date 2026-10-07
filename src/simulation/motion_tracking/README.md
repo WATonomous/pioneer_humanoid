@@ -83,8 +83,8 @@ Each move has its own settings (`--duck.depth`, `--pivot.angle`,
 
 ## Boxing arena (two fighters)
 
-`wato_boxing/` sets up red vs blue in a ring for fighting RL. Scene only so
-far: no task, rewards or skill actions yet.
+`wato_boxing/` sets up red vs blue in a ring for fighting RL: scene, rewards
+and round endings. Skill actions and opponent observations are not in yet.
 
 - **Fighters**: the tracking robot recoloured, in the orthodox stance from
   `generate_moves.py`, 1.3 m apart facing each other (`distance`): lead
@@ -101,6 +101,33 @@ far: no task, rewards or skill actions yet.
 MUJOCO_GL=osmesa uv run scripts/view_arena.py --out-dir videos/arena --seconds 3   # checks + stills + video
 uv run scripts/play.py Mjlab-Boxing-Arena-Wato --agent zero --viewer viser         # interactive
 ```
+
+**Rewards and round endings** (`wato_boxing/mdp.py`, weights in
+`REWARD_WEIGHTS` in `arena_env_cfg.py`, points not scaled by dt, scored from
+the `learner`'s side). The robot cannot get up, so the first fighter down
+(non-foot hitbox on the canvas, pelvis < 0.4 m or torso tilt > 60°) ends the
+round:
+
+| term | points |
+|---|---|
+| knockdown: opponent down within 1 s of a glove hit | +100 |
+| opponent down without a hit (slip) | +10 |
+| knocked down / fell | −100 |
+| both down | −50 each |
+| self-collision (legs through each other, arm through torso), round ends | −100 |
+| bell (20 s), nobody down | ±10 × tanh(landed-hit difference / 3) |
+| clean hits, per step of glove contact × force/100 N (head ×1, body ×0.5) | +2 |
+| hits taken | −1 |
+| stability: no extra lean beyond the stance, pelvis at stance height | +0.02/step |
+| shoving: head/torso/pelvis/legs pressing on the opponent's torso or pelvis | −0.5 × force/100 N |
+| overspeed (joint speed past 80% of the motor cap), torque at 95% of the limit, joint limits, joint acceleration | −1 / −0.5 / −1 / −1e-6 |
+| planted foot sliding, both feet off the floor, touching the ropes | −0.5/(m/s), −2, −2 |
+
+`scripts/test_fight_rewards.py` forces each case in the sim (falls with and
+without a hit, both from red's and blue's side, double down, dragging the
+feet, a drop, thrashing, legs crossed, ropes, the bell) and checks what
+fires; it also checks the self-collision test against MuJoCo's own geom
+distances on 150 random poses.
 
 With no policy the fighters stand on their own: the arena holds the stance
 with 4x the tracking stiffness (`gain_scale`, same torque limits, peak use
@@ -124,7 +151,7 @@ Headless rendering without a GPU: `apt install libosmesa6` and set
 
 ```
 wato_tracking/   robot.py (entity + motors), env_cfg.py (task), rl_cfg.py (PPO); __init__ registers the tasks
-wato_boxing/     fighters.py (gloves, hitboxes, stance), ring.py, arena_env_cfg.py (two-fighter scene + hit sensors)
-scripts/         fetch_assets.sh, csv_to_npz.py, generate_moves.py, view_arena.py, train.py, play.py
+wato_boxing/     fighters.py (gloves, hitboxes, stance), ring.py, mdp.py (fight state, rewards, round endings), arena_env_cfg.py
+scripts/         fetch_assets.sh, csv_to_npz.py, generate_moves.py, view_arena.py, test_fight_rewards.py, train.py, play.py
 data/            fetched model + motions, generated NPZs (gitignored)
 ```
