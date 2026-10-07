@@ -16,6 +16,7 @@ Hitbox geoms (per fighter): glove_l, glove_r (spheres on the wrists, shown),
 head, torso, pelvis, and capsules along the arms and legs (hidden, group 3).
 """
 
+import dataclasses
 from typing import Literal
 
 import mujoco
@@ -64,40 +65,41 @@ LIMB_CHAINS = {
   ],
 }
 
-# Orthodox boxing stance (the stance of scripts/generate_moves.py: boxing take
-# at 8.2 s, stance scaled to 0.75, hips 6 cm lower). Root pose is relative to
-# the centre between the feet, facing +x (the opponent).
-STANCE_ROOT_POS = (-0.0269, -0.0055, 0.7325)
-STANCE_ROOT_QUAT = (0.5629, -0.0713, 0.0820, -0.8194)  # wxyz
+# Orthodox boxing stance: frame 0 of scripts/generate_moves.py (boxing take at
+# 8.2 s, stance scaled to 0.75, hips 6 cm lower, both soles flat, weight 50/50).
+# Root pose is relative to the centre between the feet, facing +x (the
+# opponent). Regenerate from data/motions/moves.csv row 0 if the stance changes.
+STANCE_ROOT_POS = (-0.0524, -0.0069, 0.7325)
+STANCE_ROOT_QUAT = (0.5629, -0.0713, 0.082, -0.8194)  # wxyz
 STANCE_JOINTS = {
-  "left_hip_a_akh70": 0.7814,
-  "left_hip_r_rs04": -0.1978,
-  "left_thigh_rs03": 0.0078,
-  "left_knee_akh70": 1.1338,
-  "left_foot_joint_simMotor1": -0.654,
-  "left_foot_joint_simMotor2": -0.0035,
-  "right_hip_a_akh70": 0.4237,
-  "right_hip_r_rs04": -0.1481,
-  "right_thigh_rs03": -0.3602,
-  "right_knee_akh70": -0.9565,
-  "right_foot_joint_simMotor1": -0.5139,
-  "right_foot_joint_simMotor2": -0.135,
+  "left_hip_a_akh70": 0.8392,
+  "left_hip_r_rs04": -0.2128,
+  "left_thigh_rs03": 0.0229,
+  "left_knee_akh70": 1.1640,
+  "left_foot_joint_simMotor1": -0.5223,
+  "left_foot_joint_simMotor2": 0.0262,
+  "right_hip_a_akh70": 0.4150,
+  "right_hip_r_rs04": -0.1368,
+  "right_thigh_rs03": -0.4047,
+  "right_knee_akh70": -0.8805,
+  "right_foot_joint_simMotor1": -0.6171,
+  "right_foot_joint_simMotor2": -0.0062,
   "left_shoulder_ak10_1_pitch": 0.4223,
   "left_shoulder_ak10_2_roll": 0.4125,
   "left_elbow_ak80_1_yaw": 0.4813,
   "left_elbow_ak80_2_bend": -0.3951,
   "left_elbow_ak80_3_forearm": -1.9173,
-  "left_wrist_gl40": 0.304,
-  "left_claw_1": 0.0,
-  "left_claw_2": 0.0,
+  "left_wrist_gl40": 0.3040,
+  "left_claw_1": 0.0000,
+  "left_claw_2": 0.0000,
   "right_shoulder_ak10_1_pitch": 1.6594,
   "right_shoulder_ak10_2_roll": -0.2783,
   "right_elbow_ak80_1_yaw": -1.1606,
   "right_elbow_ak80_2_bend": -0.5358,
-  "right_elbow_ak80_3_forearm": 0.302,
+  "right_elbow_ak80_3_forearm": 0.3020,
   "right_wrist_gl40": 0.4943,
-  "right_claw_1": 0.0,
-  "right_claw_2": 0.0,
+  "right_claw_1": 0.0000,
+  "right_claw_2": 0.0000,
 }
 
 
@@ -229,7 +231,17 @@ def hitbox_collision(team: Team) -> CollisionCfg:
   )
 
 
-def get_fighter_cfg(team: Team, position_xy=(0.0, 0.0), yaw: float = 0.0) -> EntityCfg:
+def scaled_actuators(gain_scale: float) -> tuple:
+  """Motors with stiffness x gain_scale and damping x sqrt(gain_scale) (same
+  damping ratio); torque and speed limits unchanged."""
+  if gain_scale == 1.0:
+    return ACTUATORS
+  return tuple(
+    dataclasses.replace(a, stiffness=a.stiffness * gain_scale, damping=a.damping * gain_scale**0.5) for a in ACTUATORS
+  )
+
+
+def get_fighter_cfg(team: Team, position_xy=(0.0, 0.0), yaw: float = 0.0, gain_scale: float = 1.0) -> EntityCfg:
   def spec_fn() -> mujoco.MjSpec:
     spec = get_spec()
     add_hitboxes(spec, team)
@@ -239,6 +251,6 @@ def get_fighter_cfg(team: Team, position_xy=(0.0, 0.0), yaw: float = 0.0) -> Ent
     init_state=stance_pose(position_xy, yaw),
     collisions=(FEET_COLLISION, hitbox_collision(team)),
     spec_fn=spec_fn,
-    articulation=EntityArticulationInfoCfg(actuators=ACTUATORS, soft_joint_pos_limit_factor=0.9),
+    articulation=EntityArticulationInfoCfg(actuators=scaled_actuators(gain_scale), soft_joint_pos_limit_factor=0.9),
   )
 

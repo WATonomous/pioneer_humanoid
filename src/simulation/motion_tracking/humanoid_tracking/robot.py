@@ -9,6 +9,8 @@ right, y = robot forward, z = up.
 Changes made to the MJCF when it is loaded:
   * its <motor>s, floor and light are dropped; mjlab adds the actuators and
     the terrain
+  * its +-10 Nm per-joint actuator force cap is removed (the motors are
+    18-222 Nm; the actuators carry the real limits)
   * the CAD meshes are visual only; each foot gets a box collider fitted to
     the sole of its mesh (Isaac uses convex hulls of every mesh with
     self-collisions off; only the feet are meant to touch the ground here)
@@ -23,7 +25,7 @@ from pathlib import Path
 import mujoco
 import numpy as np
 
-from mjlab.actuator import DcMotorActuatorCfg
+from mjlab.actuator import BuiltinPositionActuatorCfg, DcMotorActuatorCfg
 from mjlab.entity import EntityArticulationInfoCfg, EntityCfg
 from mjlab.utils.spec_config import CollisionCfg
 
@@ -116,13 +118,28 @@ def _motor(
   velocity: float,
   stiffness: float | None = None,
   damping: float | None = None,
-) -> DcMotorActuatorCfg:
+  implicit: bool = False,
+) -> DcMotorActuatorCfg | BuiltinPositionActuatorCfg:
   """PD joint with Isaac's effort_limit_sim / velocity_limit_sim behaviour.
 
   MuJoCo has no joint speed cap. A DC motor whose stall torque is far above
   the effort limit keeps the full effort limit up to `velocity` and then can
   only brake, which matches a hard velocity limit closely.
+
+  The DC motor's PD is explicit, so on joints with very little inertia about
+  their axis (forearm roll, wrist, claws) its damping overshoots every 5 ms
+  step and the joint shakes. Those use MuJoCo's implicit position actuator
+  (`implicit=True`, like Isaac's implicit actuators and mjlab's G1) and give
+  up the speed cap.
   """
+  if implicit:
+    return BuiltinPositionActuatorCfg(
+      target_names_expr=names,
+      stiffness=_stiffness(armature) if stiffness is None else stiffness,
+      damping=_damping(armature) if damping is None else damping,
+      effort_limit=effort,
+      armature=armature,
+    )
   return DcMotorActuatorCfg(
     target_names_expr=names,
     stiffness=_stiffness(armature) if stiffness is None else stiffness,
@@ -149,13 +166,9 @@ ACTUATORS = (
   ),
   # Arms.
   _motor((".*_shoulder_ak10_1_pitch", ".*_shoulder_ak10_2_roll"), ARMATURE_AK10, EFFORT_AK10, VELOCITY_AK10),
-  _motor(
-    (".*_elbow_ak80_1_yaw", ".*_elbow_ak80_2_bend", ".*_elbow_ak80_3_forearm"),
-    ARMATURE_AK80,
-    EFFORT_AK80,
-    VELOCITY_AK80,
-  ),
-  _motor((".*_wrist_gl40",), ARMATURE_GL40, EFFORT_GL40, VELOCITY_GL40),
+  _motor((".*_elbow_ak80_1_yaw", ".*_elbow_ak80_2_bend"), ARMATURE_AK80, EFFORT_AK80, VELOCITY_AK80),
+  _motor((".*_elbow_ak80_3_forearm",), ARMATURE_AK80, EFFORT_AK80, VELOCITY_AK80, implicit=True),
+  _motor((".*_wrist_gl40",), ARMATURE_GL40, EFFORT_GL40, VELOCITY_GL40, implicit=True),
   # Claws: position-held grippers with the team's hand-tuned PD.
   _motor(
     (".*_claw_1", ".*_claw_2"),
@@ -164,6 +177,7 @@ ACTUATORS = (
     VELOCITY_CLAW,
     stiffness=STIFFNESS_CLAW,
     damping=DAMPING_CLAW,
+    implicit=True,
   ),
 )
 
@@ -201,6 +215,10 @@ def get_spec() -> mujoco.MjSpec:
     spec.delete(geom)
   for light in list(spec.worldbody.lights):
     spec.delete(light)
+  # the MJCF caps every joint's actuator force at +-10 Nm (actuatorfrcrange),
+  # far below the motors; the actuators below carry the real effort limits
+  for joint in spec.joints:
+    joint.actfrclimited = mujoco.mjtLimited.mjLIMITED_FALSE
 
   for geom in spec.geoms:
     geom.contype = 0

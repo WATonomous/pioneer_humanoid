@@ -13,6 +13,13 @@ This env has no task yet: no rewards, and each fighter's action is a joint
 position target around the stance (the tracking task's action). It exists to
 build and view the scene; the fight task replaces the actions (skill
 commands), observations and rewards.
+
+Standing without a policy: the tracking gains (10 Hz, `gain_scale=1`) are
+soft on purpose, the policy does the balancing, and a crouched fighter folds
+under them in about a second. The arena holds the stance with 4x stiffness
+(same damping ratio, same torque limits) so the fighters stand on their own:
+the hips settle ~2 cm and stay. A fight task with a trained policy should go
+back to `gain_scale=1`, the gains the skills are trained with.
 """
 
 from mjlab.envs import ManagerBasedRlEnvCfg
@@ -50,15 +57,17 @@ def hit_sensors() -> tuple[ContactSensorCfg, ...]:
   return tuple(sensors)
 
 
-def boxing_arena_env_cfg(distance: float = 1.3, ring_size: float = 4.0, num_envs: int = 1) -> ManagerBasedRlEnvCfg:
+def boxing_arena_env_cfg(
+  distance: float = 1.3, ring_size: float = 4.0, num_envs: int = 1, gain_scale: float = 4.0
+) -> ManagerBasedRlEnvCfg:
   half = distance / 2
   scene = SceneCfg(
     num_envs=num_envs,
     env_spacing=ring_size + 1.5,
     terrain=TerrainEntityCfg(terrain_type="plane"),
     entities={
-      "red": get_fighter_cfg("red", position_xy=(-half, 0.0), yaw=0.0),
-      "blue": get_fighter_cfg("blue", position_xy=(half, 0.0), yaw=3.141592653589793),
+      "red": get_fighter_cfg("red", position_xy=(-half, 0.0), yaw=0.0, gain_scale=gain_scale),
+      "blue": get_fighter_cfg("blue", position_xy=(half, 0.0), yaw=3.141592653589793, gain_scale=gain_scale),
       "ring": get_ring_cfg(ring_size),
     },
     sensors=hit_sensors(),
