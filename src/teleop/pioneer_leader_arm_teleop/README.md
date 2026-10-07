@@ -108,8 +108,8 @@ python synthetic_teleop.py --scene peg_insert --num_episodes 3 --preview peg.mp4
   pick up a block that missed it, stand a crooked peg back up, press a brick that didn't click), place.
 - **Seeds:** episode *i* uses `--seed + i` for the layout and the operator. Takes are first run without cameras on
   `--workers` processes; only successful ones are replayed (deterministically) with cameras and saved, like discarding
-  a botched take. At pace 1: drawer_stow 15/16 (38–75 s takes), peg_insert 12/12 (18–29 s), zip_tie 12/12 (9–16 s), duplo 12/12
-  (32–43 s) seeds succeed.
+  a botched take. At pace 1: drawer_stow 11/12 (33–50 s takes), peg_insert 12/12 (15–27 s), zip_tie 12/12 (8–16 s), duplo 11/12
+  (29–36 s) seeds succeed.
 - **Per-episode record:** `meta/synthetic_takes.jsonl` in the dataset lists each episode's seed, operator style (speed,
   aim, reaction time, tremor, ...) and what happened (re-grasps, ...). A rerun with the same `--dataset_root` skips
   those seeds and records only what's missing, so an interrupted run resumes.

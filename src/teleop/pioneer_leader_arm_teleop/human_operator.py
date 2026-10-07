@@ -323,8 +323,9 @@ class HumanOperator:
         return out
 
     def _correct(self, target, tol: float, corrections: int, axes, dur: float) -> float:
-        """Watch the follower settle, then nudge it onto the target (what a person does after a reach)."""
-        self.settle()
+        """Nudge the follower onto the target as it comes to rest (what a person does after a reach): the next
+        correction starts while the arm is still slowing down, not after it has stopped."""
+        self.glimpse()
         mask = np.asarray(axes, float)
         last = None
         for _ in range(corrections):
@@ -339,7 +340,7 @@ class HumanOperator:
             d = self.fitts(e, tol) * 0.8
             self.pos.add(self.t, d, err * self.rng.uniform(0.75, 1.0))
             self.run(d)
-            self.settle()
+            self.glimpse()
         self._log("move", target, dur)
         return float(np.linalg.norm((target - self.follower_tcp()) * mask))
 
@@ -353,17 +354,29 @@ class HumanOperator:
         dur = self.fitts(float(np.linalg.norm(delta)), size) * 0.8
         self.pos.add(self.t, dur, np.asarray(delta, float))
         self.run(dur)
-        self.settle(limit=0.4)
+        self.glimpse()
 
     def set_grip(self, closure: float, hesitate: bool = True) -> None:
         """Squeeze or open the leader's claw (0 open .. 1 closed) at a hand's pace."""
-        if hesitate:
-            self.run(self.style.hesitate * self.rng.uniform(0.05, 0.3))
-        dur = self.style.speed * self.rng.uniform(0.3, 0.5)
+        if hesitate and self.rng.random() < 0.3:      # now and then a moment's hesitation before committing
+            self.run(self.style.hesitate * self.rng.uniform(0.1, 0.4))
+        dur = self.style.speed * self.rng.uniform(0.25, 0.4)
         self.grip.add(self.t, dur, [closure - self.grip.goal()[0]])
-        self.run(dur + self.rng.uniform(0.05, 0.15))
+        self.run(dur + self.rng.uniform(0.03, 0.1))
 
-    def settle(self, speed: float = 0.03, limit: float = 0.6) -> None:
+    def glimpse(self) -> None:
+        """Look again once the arm has nearly stopped (< 5 cm/s, at most 0.3 s); half a reaction time to judge it."""
+        p, waited = self.follower_tcp(), 0.0
+        while waited < 0.3:
+            self.run(0.03)
+            waited += 0.03
+            q = self.follower_tcp()
+            if np.linalg.norm(q - p) / 0.03 < 0.05:
+                break
+            p = q
+        self.run(0.5 * self.style.react)
+
+    def settle(self, speed: float = 0.03, limit: float = 0.5) -> None:
         """Wait until the follower has (nearly) stopped, then a reaction time: judging the error before that is guessing."""
         p, waited = self.follower_tcp(), 0.0
         while waited < limit:
