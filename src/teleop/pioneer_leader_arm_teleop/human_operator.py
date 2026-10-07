@@ -7,6 +7,10 @@ they are aiming for. The hand pose is built the way human reaching is modelled:
 - Submovements: every move is one or more minimum-jerk strokes (bell-shaped speed) that overlap and
   add up (Flash & Hogan; Morasso & Mussa-Ivaldi). A move is split into two overlapping strokes through
   a slightly offset midpoint, so paths bow a little instead of being ruler-straight.
+- Leader-arm curvature: moving a leader arm, people partly move joints rather than the hand in a
+  straight line, so the hand bends towards the joint-space path (a per-person share of it).
+- Carrying over things (``arc``): lift, across and down overlap into one swoop instead of
+  up-stop-over-stop-down.
 - Timing from Fitts' law: duration grows with log2(distance / tolerance); per-person speed.
 - Aiming error: the first stroke lands off target (a little short, scattered ~5% of the distance);
   after a visual reaction delay the operator sees the follower's error and adds corrective strokes
@@ -53,6 +57,8 @@ class Style:
     wobble_deg: float     # orientation drift (std)
     hesitate: float       # pause scale before grasps/releases
     see: float            # m, error in judging where an object is
+    joint_blend: float    # share of the joint-space path in a reach's shape (leader-arm curvature)
+    overlap: float        # how early the next part of an arc starts (0: in sequence .. 1: all at once)
 
     @classmethod
     def sample(cls, rng: np.random.Generator) -> "Style":
@@ -66,6 +72,8 @@ class Style:
             wobble_deg=rng.uniform(0.5, 1.5),
             hesitate=rng.uniform(0.6, 1.4),
             see=rng.uniform(1.0e-3, 2.5e-3),
+            joint_blend=rng.uniform(0.25, 0.7),
+            overlap=rng.uniform(0.35, 0.65),
         )
 
 
@@ -145,6 +153,7 @@ class HumanOperator:
         self.pos_noise = _Noise(rng, 3, s.tremor, s.drift)
         self.rot_noise = _Noise(rng, 3, math.radians(0.15), math.radians(s.wobble_deg), tau=1.2)
         self.grip_noise = _Noise(rng, 1, 0.004, 0.01, tau=0.6)
+        self.bends: list[tuple[float, float, np.ndarray]] = []   # (start, duration, path offsets at s = 0..1)
         self.trace: list[str] = []                       # one line per move, for debugging plans
 
     # ------------------------------------------------------------------ what the operator sees
@@ -184,7 +193,7 @@ class HumanOperator:
         return self.style.speed * (FITTS_A + FITTS_B * bits) * self.rng.lognormal(0.0, 0.12)
 
     def move(self, target, R=None, grip: float | None = None, tol: float = 0.01, via: bool = False,
-             corrections: int = 3, axes=(1, 1, 1), speed: float = 1.0, bow: float = 0.08) -> float:
+             corrections: int = 3, axes=(1, 1, 1), speed: float = 1.0, bow: float = 0.1) -> float:
         """Bring the follower's tool point to ``target`` (orientation ``R``, gripper closure ``grip``).
 
         ``via``: pass through on the way to the next move (returns ~2/3 through, no corrections).
@@ -199,19 +208,8 @@ class HumanOperator:
         if R is not None:   # turning the wrist takes time too: ~0.5 s per 45 deg on top of the reach
             ang = np.linalg.norm(self._rotvec(R) - self.rot.goal())
             dur = max(dur, self.style.speed * (0.4 + 0.6 * ang / (math.pi / 4)))
-        aim = target.copy()
         if dist > 1e-3:
-            u = delta / dist
-            side = np.cross(u, self.rng.normal(size=3))
-            side /= np.linalg.norm(side) + 1e-9
-            err = u * self.rng.normal(-0.02, self.style.aim) * dist + side * self.rng.normal(0.0, 0.5 * self.style.aim) * dist
-            aim = target + np.clip(err, -0.25 * dist, 0.25 * dist) * np.asarray(axes)
-            # two overlapping strokes through a bowed midpoint: a slightly curved, single-hump reach
-            perp = np.cross(u, self.rng.normal(size=3))
-            perp /= np.linalg.norm(perp) + 1e-9
-            mid = start + 0.5 * (aim - start) + perp * self.rng.normal(0.0, bow) * dist
-            self.pos.add(self.t, 0.6 * dur, mid - start)
-            self.pos.add(self.t + 0.3 * dur, 0.7 * dur, aim - mid)
+            self._reach(self.t, dur, start, self._aim(start, target, axes), bow, R)
         if R is not None:
             self.rot.add(self.t + 0.05 * dur, 0.9 * dur, self._rotvec(R) - self.rot.goal())
         if grip is not None:
@@ -221,6 +219,108 @@ class HumanOperator:
             self._log("via", target, dur)
             return float(np.linalg.norm(target - self.follower_tcp()))
         self.run(dur)
+        return self._correct(target, tol, corrections, axes, dur)
+
+    def arc(self, target, clear_z: float, R=None, grip: float | None = None, tol: float = 0.01, corrections: int = 3,
+            axes=(1, 1, 1), via: bool = False, speed: float = 1.0, land: float = 0.45) -> float:
+        """Carry/reach to ``target`` over things up to height ``clear_z``: up, across and down as one swoop
+        (overlapping strokes), not up-stop-over-stop-down. ``land``: how far through the move across the descent
+        starts (late, ~0.75, to clear something just before the target). Corrections as in ``move``."""
+        target = np.asarray(target, float)
+        start = self.pos.goal()
+        up = max(0.0, clear_z - start[2])
+        down = target[2] - max(clear_z, start[2])          # negative: lowering at the end
+        flat = np.array([target[0] - start[0], target[1] - start[1], 0.0])
+        t_up = self.fitts(up, 0.02) / speed if up > 0.005 else 0.0
+        t_across = self.fitts(float(np.linalg.norm(flat)), tol) / speed
+        t_down = self.fitts(abs(down), tol) / speed if abs(down) > 0.005 else 0.0
+        if R is not None:
+            ang = np.linalg.norm(self._rotvec(R) - self.rot.goal())
+            t_across = max(t_across, self.style.speed * (0.4 + 0.6 * ang / (math.pi / 4)))
+        ov = float(np.clip(self.style.overlap * self.rng.uniform(0.8, 1.2), 0.0, 1.0))
+        t0 = self.t
+        if t_up:
+            t_up = max(t_up, 0.35 * t_across)                # the lift spreads over the first part of the swoop
+            self.pos.add(t0, t_up, [0.0, 0.0, up])
+        t1 = t0 + (1 - ov) * 0.5 * t_up                      # across starts soon after the lift...
+        top = start + (0.0, 0.0, up)
+        over = np.array([target[0], target[1], top[2]])
+        self._reach(t1, t_across, top, self._aim(top, over, (axes[0], axes[1], 0)), 0.05, R)
+        t2 = t1 + float(np.clip(land + 0.2 * (0.5 - ov), 0.2, 0.9)) * t_across   # ...and the descent part-way across
+        if t_down:
+            self.pos.add(t2, t_down, [0.0, 0.0, down])
+        if R is not None:
+            self.rot.add(t1, t_across, self._rotvec(R) - self.rot.goal())
+        if grip is not None:
+            self.grip.add(t1, t_across, [grip - self.grip.goal()[0]])
+        end = max(t1 + t_across, t2 + t_down)
+        if via:
+            self.run(t0 + 0.8 * (end - t0) - self.t)
+            self._log("arcv", target, end - t0)
+            return float(np.linalg.norm(target - self.follower_tcp()))
+        self.run(end - self.t)
+        return self._correct(target, tol, corrections, axes, end - t0)
+
+    def _aim(self, start, target, axes) -> np.ndarray:
+        """Where a first stroke actually goes: a little short, scattered ~aim x distance (only along ``axes``)."""
+        delta = target - start
+        dist = float(np.linalg.norm(delta))
+        if dist < 1e-3:
+            return target.copy()
+        u = delta / dist
+        side = np.cross(u, self.rng.normal(size=3))
+        side /= np.linalg.norm(side) + 1e-9
+        err = u * self.rng.normal(-0.02, self.style.aim) * dist + side * self.rng.normal(0.0, 0.5 * self.style.aim) * dist
+        return target + np.clip(err, -0.25 * dist, 0.25 * dist) * np.asarray(axes)
+
+    def _reach(self, t0: float, dur: float, start, aim, bow: float, R=None) -> None:
+        """Two overlapping strokes through a bowed midpoint (a slightly curved, single-hump reach), bent towards
+        the leader's joint-space path."""
+        start, aim = np.asarray(start, float), np.asarray(aim, float)
+        dist = float(np.linalg.norm(aim - start))
+        u = (aim - start) / max(dist, 1e-9)
+        perp = np.cross(u, self.rng.normal(size=3))
+        perp /= np.linalg.norm(perp) + 1e-9
+        mid = start + 0.5 * (aim - start) + perp * self.rng.normal(0.0, bow) * dist
+        self.pos.add(t0, 0.6 * dur, mid - start)
+        self.pos.add(t0 + 0.3 * dur, 0.7 * dur, aim - mid)
+        if dist > 0.03:
+            self._bend(t0, dur, start, aim, R)
+
+    def _bend(self, t0: float, dur: float, start, aim, R=None) -> None:
+        """Offsets that pull this reach towards the path a straight line in the leader's joints would trace."""
+        if R is None:
+            R = Rotation.from_rotvec(self.rot.goal()).as_matrix() @ self.R_home
+        q0, e0 = self._solve(self.q, start, R, 60)
+        q1, e1 = self._solve(q0, aim, R, 60)
+        if max(e0, e1) > 2e-3:
+            return
+        s = np.linspace(0.0, 1.0, 17)
+        path = []
+        for si in s:
+            self.kin.qpos[self.qadr] = q0 + si * (q1 - q0)
+            mujoco.mj_kinematics(self.m, self.kin)
+            path.append(self._tcp(self.kin))
+        path = np.array(path)
+        dev = path - (path[0] + s[:, None] * (path[-1] - path[0]))
+        dist = float(np.linalg.norm(aim - start))
+        scale = min(1.0, 0.3 * dist / (np.abs(dev).max() + 1e-9))      # never more than 30% of the reach
+        self.bends.append((t0, dur, self.style.joint_blend * scale * dev))
+        self.kin.qpos[self.qadr] = self.q
+
+    def _bend_at(self, t: float) -> np.ndarray:
+        out = np.zeros(3)
+        for b in [b for b in self.bends if t >= b[0] + b[1]]:
+            self.bends.remove(b)
+        s = np.linspace(0.0, 1.0, 17)
+        for t0, dur, dev in self.bends:
+            if t > t0:
+                ph = float(minimum_jerk((t - t0) / dur))
+                out += np.array([np.interp(ph, s, dev[:, k]) for k in range(3)])
+        return out
+
+    def _correct(self, target, tol: float, corrections: int, axes, dur: float) -> float:
+        """Watch the follower settle, then nudge it onto the target (what a person does after a reach)."""
         self.settle()
         mask = np.asarray(axes, float)
         last = None
@@ -282,7 +382,7 @@ class HumanOperator:
     def run(self, sec: float) -> None:
         for _ in range(max(1, int(round(sec / self.dt)))):
             self.t += self.dt
-            p = self.pos.at(self.t) + self.pos_noise(self.t, self.dt)
+            p = self.pos.at(self.t) + self._bend_at(self.t) + self.pos_noise(self.t, self.dt)
             rv = self.rot.at(self.t) + self.rot_noise(self.t, self.dt)
             R = Rotation.from_rotvec(rv).as_matrix() @ self.R_home
             g = float(np.clip(self.grip.at(self.t)[0] + self.grip_noise(self.t, self.dt)[0], 0.0, 1.0))

@@ -95,8 +95,10 @@ python synthetic_teleop.py --scene peg_insert --num_episodes 3 --preview peg.mp4
 ```
 
 - **Human-like motion** (`human_operator.py`): the operator aims the follower's gripper and moves the leader to match
-  (IK of the leader, a 1:1 copy of the arm). Reaches are overlapping minimum-jerk strokes (bell-shaped speed, slightly
-  curved paths) timed by Fitts' law; the first stroke lands a few % off, and after a reaction time the operator
+  (IK of the leader, a 1:1 copy of the arm). Reaches are overlapping minimum-jerk strokes (bell-shaped speed) timed by
+  Fitts' law, curved by a random bow and by a per-person share of the leader's joint-space path (people move a leader
+  arm partly joint by joint). Carrying over things is one swoop (lift, across and down overlap), not
+  up-stop-over-stop-down. The first stroke lands a few % off, and after a reaction time the operator
   corrects what they see, stopping when the arm is blocked rather than pushing harder. Tremor (8–12 Hz, sub-mm), slow
   drift, wrist wobble, noisy judgement of where objects are, hesitation before grasps. Speed, accuracy, tremor and so on
   are drawn per episode, like different people.
@@ -105,7 +107,7 @@ python synthetic_teleop.py --scene peg_insert --num_episodes 3 --preview peg.mp4
   brick that didn't click), place.
 - **Seeds:** episode *i* uses `--seed + i` for the layout and the operator. Takes are first run without cameras on
   `--workers` processes; only successful ones are replayed (deterministically) with cameras and saved, like discarding
-  a botched take. Measured: drawer_stow 15/15, peg_insert 19/20, zip_tie 10/10, duplo 20/20 seeds succeed.
+  a botched take. Measured: drawer_stow 12/12, peg_insert 11/12, zip_tie 12/12, duplo 12/12 seeds succeed.
 - **Per-episode record:** `meta/synthetic_takes.jsonl` in the dataset lists each episode's seed, operator style (speed,
   aim, reaction time, tremor, ...) and what happened (re-grasps, ...). A rerun with the same `--dataset_root` skips
   those seeds and records only what's missing, so an interrupted run resumes.

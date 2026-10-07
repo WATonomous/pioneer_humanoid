@@ -62,8 +62,8 @@ def drawer_plan(op, model, data, notes) -> None:
 
     def grab_tab():
         x = front() - S.FRONT_T - jx
-        op.move((x, tab_y, high), R=op.down(), grip=rng.uniform(0.3, 0.4), tol=0.02, via=True)
-        op.move((x, tab_y, tab_top + JAW_HALF + 0.015), tol=0.005, axes=(1, 1, 0))   # line up above the tab
+        op.arc((x, tab_y, tab_top + JAW_HALF + 0.015), high, R=op.down(), grip=rng.uniform(0.3, 0.4), tol=0.005,
+               axes=(1, 1, 0))                                                     # over the tab, lined up
         op.move((x, tab_y, tab_z), tol=0.004)
         op.set_grip(1.0)
         op.pause(0.1, 0.3)
@@ -91,7 +91,7 @@ def drawer_plan(op, model, data, notes) -> None:
     grab_tab()
     slide_drawer(S.DRAWER_TRAVEL + 0.005, lambda: S.drawer_travel(model, data) >= S.DRAWER_TRAVEL - 0.012)   # all the way out
     op.set_grip(rng.uniform(0.25, 0.4))
-    op.move(op.follower_tcp() + (0, 0, 0.07), tol=0.02, via=True)
+    op.move(op.follower_tcp() + (0, 0, 0.03), tol=0.02, via=True)   # off the tab before moving away
 
     # 2-4. blocks, in the announced order
     spots = [(0.045, -0.027), (0.045, 0.027), (0.093, 0.0)]
@@ -101,12 +101,12 @@ def drawer_plan(op, model, data, notes) -> None:
         for attempt in range(3):
             b = op.see(body)
             yaw = op.see_yaw(body) * rng.uniform(0.4, 1.0)    # roughly lines the jaws up with the block
-            op.move((b[0], b[1], high), R=op.down(yaw), grip=rng.uniform(0.35, 0.45), tol=0.02, via=True)
-            op.move((b[0], b[1], T + S.BLOCK + JAW_HALF + 0.015), tol=0.005, axes=(1, 1, 0))   # hover, line up
+            op.arc((b[0], b[1], T + S.BLOCK + JAW_HALF + 0.015), high, R=op.down(yaw), grip=rng.uniform(0.35, 0.45),
+                   tol=0.005, axes=(1, 1, 0))                                     # over the block, lined up
             op.move((b[0], b[1], T + JAW_HALF + 0.004), tol=0.004)
             op.set_grip(1.0)
-            op.move((b[0], b[1], high), tol=0.02, corrections=0, axes=(0, 0, 1))      # straight up first
-            if data.xpos[model.body(body).id][2] > T + 0.06:    # it came up with the gripper
+            op.move((b[0], b[1], T + 0.10), tol=0.02, corrections=0, axes=(0, 0, 1), via=True)   # up off the table
+            if data.xpos[model.body(body).id][2] > T + 0.03:    # it came up with the gripper
                 break
             notes.append(f"regrasp {colour}")
             op.set_grip(0.4)
@@ -114,17 +114,16 @@ def drawer_plan(op, model, data, notes) -> None:
             raise TaskFailed(f"grasp {colour}")
         sx = min(front() + spots[k][0], S.CAB_X - S.BLOCK / 2 - 0.012) + rng.normal(0, 0.004)   # over the tray's open part
         sy = tab_y + spots[k][1] + rng.normal(0, 0.003)
-        op.move((sx, sy, high), R=op.down(rng.normal(0, 0.05)), tol=0.01, axes=(1, 1, 0))
-        op.move((sx, sy, T + 0.127), tol=0.006)
+        op.arc((sx, sy, T + 0.127), high, R=op.down(rng.normal(0, 0.05)), tol=0.006, land=0.75)   # over the front, in
         op.set_grip(rng.uniform(0.35, 0.45))
-        op.move((sx, sy, high), tol=0.03, via=True)
+        op.move((sx, sy, T + 0.16), tol=0.03, via=True)
 
     # 5. close
     op.glance()
     grab_tab()
     slide_drawer(-0.01, lambda: S.drawer_travel(model, data) <= S.CLOSED_TRAVEL - 0.002)
     op.set_grip(rng.uniform(0.25, 0.4))
-    op.move(op.follower_tcp() + (0, 0, 0.08), tol=0.02, via=True)
+    op.move(op.follower_tcp() + (0, 0, 0.03), tol=0.02, via=True)
     _finish(op, rest=start + rng.normal(0, 0.02, 3))
 
 
@@ -152,12 +151,12 @@ def peg_plan(op, model, data, notes) -> None:
     def grasp():
         for attempt in range(3):
             p = op.see("peg")
-            op.move((p[0], p[1], high), R=op.down(), grip=rng.uniform(0.3, 0.45), tol=0.02, via=True)
-            op.move((p[0], p[1], T + S.PEG_HEIGHT + JAW_HALF + 0.015), tol=0.004, axes=(1, 1, 0))
+            op.arc((p[0], p[1], T + S.PEG_HEIGHT + JAW_HALF + 0.015), high, R=op.down(), grip=rng.uniform(0.3, 0.45),
+                   tol=0.004, axes=(1, 1, 0))
             op.move((p[0], p[1], T + grip_z), tol=0.003)
             op.set_grip(1.0)
-            op.move((p[0], p[1], high), tol=0.02, corrections=0, axes=(0, 0, 1))
-            if peg_bottom() > T + 0.03:
+            op.move((p[0], p[1], T + grip_z + 0.03), tol=0.01, corrections=0, axes=(0, 0, 1), via=True)   # up off the table
+            if peg_bottom() > T + 0.015:
                 return
             notes.append("regrasp peg")
             op.set_grip(0.4)
@@ -197,7 +196,8 @@ def peg_plan(op, model, data, notes) -> None:
             set_down()
         h = op.see("hole_block")
         off = op.follower_tcp() - op.see("peg")
-        op.move((h[0] + off[0], h[1] + off[1], block_top + 0.012 + S.PEG_HEIGHT / 2 + off[2]), tol=0.003, axes=(1, 1, 0), speed=0.8)
+        op.arc((h[0] + off[0], h[1] + off[1], block_top + 0.012 + S.PEG_HEIGHT / 2 + off[2]), high, tol=0.003,
+               speed=0.8, land=0.7)                                             # carried over the block's edge
         align()
         lower_peg_to(block_top + 0.004, 0.6)     # just above the hole: look again
         align(tries=4)
@@ -247,8 +247,7 @@ def zip_plan(op, model, data, notes) -> None:
 
     for attempt in range(3):
         g = tail_at(head_west - rng.uniform(0.055, 0.065))   # jaws (89 mm long) clear of the head
-        op.move(g + (0, 0, 0.08), R=R, grip=rng.uniform(0.0, 0.15), tol=0.02, via=True)
-        op.move(g + (0, 0, 0.02), tol=0.004, axes=(1, 1, 0))
+        op.arc(g + (0, 0, 0.02), g[2] + 0.07, R=R, grip=rng.uniform(0.0, 0.15), tol=0.004, axes=(1, 1, 0))
         op.move(g, tol=0.003)
         op.set_grip(1.0)
         pulled = 0.0
@@ -304,12 +303,12 @@ def duplo_plan(op, model, data, notes) -> None:
         for attempt in range(3):
             b = op.see(brick)
             hand_yaw[0] = op.see_yaw(brick, symmetry=math.pi) * rng.uniform(0.5, 1.0)
-            op.move((b[0], b[1], high), R=op.down(hand_yaw[0]), grip=rng.uniform(0.35, 0.45), tol=0.02, via=True)
-            op.move((b[0], b[1], b[2] + bz + S.STUD_H + JAW_HALF + 0.012), tol=0.004, axes=(1, 1, 0))
+            op.arc((b[0], b[1], b[2] + bz + S.STUD_H + JAW_HALF + 0.012), high, R=op.down(hand_yaw[0]),
+                   grip=rng.uniform(0.35, 0.45), tol=0.004, axes=(1, 1, 0))
             op.move((b[0], b[1], b[2] + grip_z), tol=0.003)
             op.set_grip(1.0)
-            op.move((b[0], b[1], high), tol=0.02, corrections=0, axes=(0, 0, 1))
-            if data.xpos[model.body(brick).id][2] > b[2] + 0.02:   # it came up with the gripper
+            op.move((b[0], b[1], b[2] + grip_z + 0.035), tol=0.01, corrections=0, axes=(0, 0, 1), via=True)   # up, clear
+            if data.xpos[model.body(brick).id][2] > b[2] + 0.015:   # it came up with the gripper
                 return
             notes.append(f"regrasp {colour}")
             op.set_grip(0.4)
@@ -324,8 +323,8 @@ def duplo_plan(op, model, data, notes) -> None:
         sp = op.see(support)
         off = op.follower_tcp() - op.see(brick)
         lift = top + S.STUD_H + 0.012 - (data.xpos[model.body(brick).id][2])   # brick bottom just over the studs
-        op.move((sp[0] + off[0], sp[1] + off[1], op.follower_tcp()[2]), R=op.down(hand_yaw[0]), tol=0.01, axes=(1, 1, 0))
-        op.move(op.follower_tcp() + (0, 0, lift), tol=0.004, axes=(0, 0, 1), corrections=1, speed=0.8)
+        op.arc((sp[0] + off[0], sp[1] + off[1], op.follower_tcp()[2] + lift), high, R=op.down(hand_yaw[0]), tol=0.004,
+               land=0.6)
         for _ in range(5):   # line it up by eye, brick against the one below
             err = op.see_offset(brick, support)[:2]
             if np.linalg.norm(err) < 0.0015:
