@@ -1,12 +1,14 @@
-"""Real-arm backend of pioneer_leader_arm_teleop.py: DRY RUN, leader vs real left arm, side by side.
+"""Real-arm backend of pioneer_leader_arm_teleop.py: leader vs real left arm, side by side.
 
-READ-ONLY: subscribes to /interfacing/motorFeedback and never creates a publisher, so it cannot
-move the arm. (--live, which will publish /arm/joint_targets, is a later step of #327.)
+Dry run by default: subscribes to /interfacing/motorFeedback and never creates a publisher, so it
+cannot move the arm. --live publishes the leader as ArmPose on /arm/joint_targets (50 Hz) through
+joint_command, but only after the gate passes (every active joint: leader within 3 deg of home and
+within 5 deg of the real arm; gripper within 0.1) and you type `live`.
 
 Run in the `simulation_mj` container (ROS, common_msgs, the leader's servo SDK) while
 `interfacing` is up and the arm is powered:
 
-    python3 pioneer_leader_arm_teleop.py --target real --port /dev/ttyACM1
+    python3 pioneer_leader_arm_teleop.py --target real --port /dev/ttyACM1 [--live]
 
 Every angle is in the URDF frame, which is also the command frame ArmPose / joint_command use:
 
@@ -34,14 +36,15 @@ _SRC = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_SRC / "interfacing" / "can" / "scripts"))
 sys.path.insert(0, str(_SRC / "pioneer_humanoid"))
 
-from joint_config import find_calibration, gripper_position, load_joint_map, motor_to_cmd_deg  # noqa: E402
+from joint_config import (find_actuators, find_calibration, gripper_position, joint_safety,  # noqa: E402
+                          load_joint_map, load_joint_safety, motor_to_cmd_deg)
 
 from arm_limits import gripper_fraction, limited_target  # noqa: E402
 from leader_mapping import add_leader_args, check_leader_args  # noqa: E402
 from servo_leader import ARM_SERVOS, GRIPPER_SERVO, SERVO_IDS, parse_signs  # noqa: E402
 
-# The --live gate (#327), previewed here: leader within HOME_TOL_DEG of home and within
-# AGREE_TOL_DEG of the real arm on every joint.
+# The --live gate: leader within HOME_TOL_DEG of home and within AGREE_TOL_DEG of the real arm on
+# every active joint, gripper within GRIP_TOL.
 HOME_TOL_DEG = 3.0
 AGREE_TOL_DEG = 5.0
 STALE_AFTER_S = 0.5
@@ -96,6 +99,28 @@ def compare(joints: list[dict], leader_rad: tuple[float, ...], signs: list[float
     return rows
 
 
+def gate_failures(rows: list[dict], grip: float, real_grip: float | None,
+                  active: set[str], grip_active: bool) -> list[str]:
+    """Why --live may not start yet; empty when it may. Inactive joints are not driven, so skipped."""
+    out = []
+    for row in rows:
+        name = row["joint"]["name"]
+        if name not in active:
+            continue
+        if row["real"] is None:
+            out.append(f"{name}: no feedback")
+        elif abs(row["diff"]) > AGREE_TOL_DEG:
+            out.append(f"{name}: leader {row['diff']:+.1f} deg from real")
+        if abs(row["home_err"]) > HOME_TOL_DEG:
+            out.append(f"{name}: leader {row['home_err']:+.1f} deg from home")
+    if grip_active:
+        if real_grip is None:
+            out.append("gripper: no feedback")
+        elif abs(grip - real_grip) > GRIP_TOL:
+            out.append(f"gripper: leader {grip - real_grip:+.2f} from real")
+    return out
+
+
 def format_rows(rows: list[dict], grip: float, real_grip: float | None) -> list[str]:
     """real_grip: the real gripper's position (0 open .. 1 closed), None without feedback."""
     lines = [f"{'joint':<16}{'urdf':<9}{'id':>4}{'leader':>9}{'real':>9}{'diff':>8}{'home':>8}  warnings",
@@ -131,7 +156,6 @@ def format_rows(rows: list[dict], grip: float, real_grip: float | None) -> list[
     lines.append(f"leader at home (<= {HOME_TOL_DEG:g} deg): "
                  f"{'yes' if worst_home <= HOME_TOL_DEG else 'no'} (worst {worst_home:.1f})   "
                  f"leader = real (<= {AGREE_TOL_DEG:g} deg): {agree}")
-    lines.append("DRY RUN: nothing is published.  Ctrl-C to stop.")
     return lines
 
 
@@ -143,9 +167,17 @@ def self_test() -> None:
     deg, clamped = leader_deg(joint, math.radians(120.0), 1.0)
     assert abs(deg - 90.0) < 1e-9 and clamped
 
-    assert "NO FEEDBACK" in format_rows(compare([joint], (0.0,), [1.0], {}, [0.0]), 0.5, None)[-3]
-    assert format_rows(compare([joint], (0.0,), [1.0], {1: 0.0}, [0.0]), 0.5, 0.3)[-3].endswith(">0.1")
-    assert format_rows(compare([joint], (0.0,), [1.0], {1: 0.0}, [0.0]), 0.5, 0.45)[-3].split()[-1] == "+0.05"
+    assert "NO FEEDBACK" in format_rows(compare([joint], (0.0,), [1.0], {}, [0.0]), 0.5, None)[-2]
+    assert format_rows(compare([joint], (0.0,), [1.0], {1: 0.0}, [0.0]), 0.5, 0.3)[-2].endswith(">0.1")
+    assert format_rows(compare([joint], (0.0,), [1.0], {1: 0.0}, [0.0]), 0.5, 0.45)[-2].split()[-1] == "+0.05"
+
+    active = {"shoulder.pitch"}
+    assert gate_failures(compare([joint], (0.0,), [1.0], {1: 1.0}, [0.0]), 0.0, 0.05, active, True) == []
+    assert gate_failures(compare([joint], (0.0,), [1.0], {}, [0.0]), 0.0, 0.0, active, True) == [
+        "shoulder.pitch: no feedback"]
+    assert len(gate_failures(compare([joint], (math.radians(10.0),), [1.0], {1: 0.0}, [0.0]),
+                             0.0, None, active, True)) == 3  # off real, off home, gripper silent
+    assert gate_failures(compare([joint], (math.radians(10.0),), [1.0], {}, [0.0]), 0.5, None, set(), False) == []
 
     rows = compare([joint], (math.radians(50.0),), [1.0], {1: 47.0}, [0.0])
     assert abs(rows[0]["diff"] - 3.0) < 1e-9 and rows[0]["out_of_hw"]
@@ -162,13 +194,27 @@ def self_test() -> None:
     print(f"self-test ok ({len(joints)} joints from {mapping})")
 
 
+def arm_pose(msg_type, rows: list[dict], grip: float, include_gripper: bool):
+    """ArmPose of the leader's targets (deg, URDF = command frame); joint_command clamps and rate-limits."""
+    msg = msg_type()
+    msg.name = "leader_arm_teleop"
+    msg.is_left = True
+    q = [float(row["leader"]) for row in rows]
+    msg.shoulder.position, msg.elbow.position, msg.wrist.position = q[0:3], q[3:5], q[5:6]
+    msg.include_gripper = include_gripper
+    msg.gripper_position = float(grip)
+    return msg
+
+
 def run() -> None:
     parser = argparse.ArgumentParser(
-        description="DRY RUN: leader arm vs the real left arm (reads /interfacing/motorFeedback, publishes nothing).")
+        description="Leader arm vs the real left arm: a dry run (publishes nothing) unless --live.")
     add_leader_args(parser, scene_help="ignored for --target real")
     # --calibration is the leader's own file (add_leader_args).
     parser.add_argument("--arm-calibration", "--mapping", dest="mapping", default=None,
                         help="the real arm's arm_calibration.yaml (default: auto, as joint_command)")
+    parser.add_argument("--live", action="store_true",
+                        help="publish /arm/joint_targets once the gate passes and you type `live`")
     parser.add_argument("--self-test", action="store_true", help="check the angle math and exit (no ROS, no leader)")
     args = parser.parse_args()
     if args.self_test:
@@ -185,17 +231,25 @@ def run() -> None:
     signs = parse_signs(args.signs)
     grip_axis = tuple(SERVO_IDS).index(GRIPPER_SERVO)
     home = [DEFAULT_JOINT_POS[j] for j in LEFT_ARM_JOINTS]
+    # arm_actuators.yaml `active`: joint_command leaves inactive joints alone, so the gate skips them.
+    # It drives the gripper only if the gripper has a block there.
+    actuators = find_actuators(None)
+    _, blocks = load_joint_safety(actuators)
+    active = {j["name"] for j in joints if joint_safety(actuators, j["name"]).get("active") is not False}
+    grip_active = (grip_info is not None and grip_info["name"] in blocks and
+                   blocks[grip_info["name"]].get("active") is not False)
 
-    print(f"left arm, DRY RUN (read-only). mapping: {mapping}")
+    print(f"left arm, {'LIVE once the gate passes' if args.live else 'DRY RUN (read-only)'}. "
+          f"mapping: {mapping}, actuators: {actuators}")
     for label, j, sign in zip(ARM_SERVOS, joints, signs):
         print(f"  leader {label} {sign:+.0f} -> {j['urdf_joint']:<8} -> {j['name']:<15} id {j['motor_id']:>3}  "
-              f"direction {j['direction']:+g}")
+              f"direction {j['direction']:+g}{'' if j['name'] in active else '  (inactive)'}")
 
     import rclpy
     from rclpy.node import Node
     from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy
 
-    from common_msgs.msg import MotorFeedback
+    from common_msgs.msg import ArmPose, MotorFeedback
     from leader_mapping import LeaderInput
 
     lock = threading.Lock()
@@ -214,32 +268,65 @@ def run() -> None:
             last_seen[motor_id] = time.monotonic()
 
     rclpy.init()
-    # Subscriptions only: this node has no publisher, so the dry run cannot command a motor.
-    node = Node("leader_arm_real_dry_run")
+    # No publisher until --live passes its gate, so the dry run cannot command a motor.
+    node = Node("leader_arm_real")
     qos = QoSProfile(reliability=ReliabilityPolicy.BEST_EFFORT, history=HistoryPolicy.KEEP_LAST, depth=50)
     node.create_subscription(MotorFeedback, "/interfacing/motorFeedback", on_feedback, qos)
     threading.Thread(target=rclpy.spin, args=(node,), daemon=True).start()
 
+    def snapshot():
+        angles = leader.read()
+        now = time.monotonic()
+        with lock:
+            fresh = {i: q for i, q in real_cmd.items() if now - last_seen[i] <= STALE_AFTER_S}
+        grip = gripper_fraction(angles[grip_axis], signs[grip_axis])
+        return compare(joints, angles, signs, fresh, home), grip, fresh.get(GRIPPER_CAN_ID)
+
     leader = LeaderInput(args)
     redraw = sys.stdout.isatty()
     next_print = 0.0
+    pub = None
     try:
         while rclpy.ok():
-            angles = leader.read()
+            rows, grip, real_grip = snapshot()
+            failures = [] if pub else gate_failures(rows, grip, real_grip, active, grip_active)
+            if args.live and pub is None and not failures:
+                answer = input("\nGate passed: leader at home and matching the real arm. Hand on the "
+                               "E-stop, then type `live` to start publishing (anything else quits): ")
+                if answer.strip() != "live":
+                    break
+                # Re-check: either arm may have moved while waiting at the prompt.
+                rows, grip, real_grip = snapshot()
+                failures = gate_failures(rows, grip, real_grip, active, grip_active)
+                if failures:
+                    print("[WARN] moved while at the prompt: " + "; ".join(failures), flush=True)
+                    time.sleep(2.0)
+                else:
+                    pub = node.create_publisher(ArmPose, "/arm/joint_targets", 10)
+            if pub is not None:
+                msg = arm_pose(ArmPose, rows, grip, grip_active)
+                msg.header.stamp = node.get_clock().now().to_msg()
+                pub.publish(msg)
             now = time.monotonic()
             if now >= next_print:
                 next_print = now + PRINT_PERIOD_S
-                with lock:
-                    fresh = {i: q for i, q in real_cmd.items() if now - last_seen[i] <= STALE_AFTER_S}
-                rows = compare(joints, angles, signs, fresh, home)
-                grip = gripper_fraction(angles[grip_axis], signs[grip_axis])
-                text = "\n".join(format_rows(rows, grip, fresh.get(GRIPPER_CAN_ID)))
-                print(("\033[H\033[J" if redraw else "\n") + text, flush=True)
+                lines = format_rows(rows, grip, real_grip)
+                if pub is not None:
+                    lines.append("LIVE: publishing /arm/joint_targets.  Ctrl-C to stop.")
+                else:
+                    if args.live:
+                        lines.append("waiting for the gate: " + ("; ".join(failures) or "ok"))
+                    lines.append("DRY RUN: nothing is published.  Ctrl-C to stop.")
+                print(("\033[H\033[J" if redraw else "\n") + "\n".join(lines), flush=True)
             time.sleep(READ_PERIOD_S)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, EOFError):
         pass
     finally:
         leader.close()
         node.destroy_node()
         rclpy.shutdown()
-        print("\n[INFO] Stopped. Nothing was published; leader torque is OFF.", flush=True)
+        if pub is None:
+            print("\n[INFO] Stopped. Nothing was published; leader torque is OFF.", flush=True)
+        else:
+            print("\n[INFO] Stopped publishing. joint_command holds the last pose for its "
+                  "command_timeout_sec, then sets kp = 0 and the arm sinks: support it.", flush=True)

@@ -2,7 +2,7 @@
 
     isaaclab.sh -p pioneer_leader_arm_teleop.py --scene push [--record]
     python pioneer_leader_arm_teleop.py --target mujoco --scene peg_insert
-    python3 pioneer_leader_arm_teleop.py --target real          # dry run: compares, publishes nothing
+    python3 pioneer_leader_arm_teleop.py --target real [--live] # dry run; --live drives the real arm
 
 --target picks the backend before anything simulator-specific is imported, so --target mujoco
 and --target real run without Isaac. See isaac_sim.py / mujoco_sim.py / real_arm.py and README.md.
