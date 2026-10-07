@@ -237,6 +237,9 @@ def main() -> None:
     if args.scene is None or args.scene not in TASKS:
         raise SystemExit(f"no synthetic plan for --scene {args.scene!r}; have: {sorted(TASKS)}")
     args.task_description = args.task_description or TASKS[args.scene].instruction
+    if args.record and args.dataset_root is None:   # never mixed into the human recordings under <root>/sim
+        from humanoid_robot_learning.record_utils import resolve_dataset_root
+        args.dataset_root = str(resolve_dataset_root(record.cfg, subdir=f"sim_synthetic/{args.scene}"))
 
     # 1. Find seeds whose take succeeds (no cameras: fast, parallel).
     want, tries = args.num_episodes, args.max_tries or 3 * args.num_episodes

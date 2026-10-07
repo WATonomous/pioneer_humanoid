@@ -86,7 +86,8 @@ Targets are clamped to the arm's URDF limits. Wrist damping is lowered to 2.5 in
 
 `synthetic_teleop.py` records demos without a person: a simulated operator moves a virtual leader through the
 same `LeaderMapping` (home engage, filter, clamp) and recorder as `--target mujoco --record`, so the dataset has
-the same features, per-step `task` and `subtask_index`. Headless, CPU is fine.
+the same features, per-step `task` and `subtask_index`. Headless, CPU is fine. Output: `<repo>/datasets/pioneer_v1_left_arm/sim_synthetic/<scene>/`
+(kept apart from human takes; `--dataset_root` to override).
 
 ```bash
 MUJOCO_GL=egl python synthetic_teleop.py --scene drawer_stow --record --num_episodes 10   # CPU only: MUJOCO_GL=osmesa
