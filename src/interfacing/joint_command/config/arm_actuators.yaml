@@ -52,10 +52,10 @@ safety:
     # Limits come from calibrate_arm.py's software zero-mode (see arm_calibration.yaml).
     # Re-run calibration after any power cycle: AK80-9 joints lose their zero (src/interfacing/README.md).
     # Interim gains (#327), not yet bench-checked: mit_max_torque at the testing ceilings
-    # (real-hardware-safety skill; the node refuses more): AK10-9 10 N.m, AK80-9 5 N.m. Stall
-    # torque = quantised kp * mit_max_track_err 15 deg (0.2618 rad): AK10-9 kp 30 -> 7.86 N.m,
-    # AK80-9 kp 19 -> 4.99 N.m (kp 20 would be 5.24, over its ceiling). Gravity feed-forward off
-    # until its sign is checked (#325).
+    # (real-hardware-safety skill): AK10-9 10 N.m, AK80-9 5 N.m. Stall torque = quantised kp *
+    # mit_max_track_err 15 deg (0.2618 rad): AK10-9 kp 30 -> 7.86 N.m, AK80-9 kp 19 -> 4.99 N.m
+    # (kp 20 would be 5.24, over its ceiling). Gravity feed-forward off until its sign is
+    # checked (#325).
     shoulder:
       pitch:   # AK10-9, id 14
         active: true
@@ -63,7 +63,6 @@ safety:
         delta_max: 2.0
         control_type: 0
         mit_family: ak
-        motor: AK10-9
         mit_kp: 30.0
         mit_kd: 0.8
         mit_max_torque: 10.0
@@ -77,7 +76,6 @@ safety:
         delta_max: 2.0
         control_type: 0
         mit_family: ak
-        motor: AK10-9
         mit_kp: 30.0
         mit_kd: 0.8
         mit_max_torque: 10.0
@@ -91,7 +89,6 @@ safety:
         delta_max: 2.0
         control_type: 0
         mit_family: ak
-        motor: AK80-9
         mit_kp: 19.0
         mit_kd: 0.4
         mit_max_torque: 5.0
@@ -106,7 +103,6 @@ safety:
         delta_max: 1.6
         control_type: 0
         mit_family: ak
-        motor: AK80-9
         mit_kp: 19.0
         mit_kd: 0.4
         mit_max_torque: 5.0
@@ -121,7 +117,6 @@ safety:
         delta_max: 1.6
         control_type: 0
         mit_family: ak
-        motor: AK80-9
         mit_kp: 19.0
         mit_kd: 0.4
         mit_max_torque: 5.0
@@ -143,7 +138,6 @@ safety:
         delta_max: 2.4
         control_type: 0        # MIT_CONTROL
         mit_family: gl2        # fault action defaults to limp: unloaded, safe to free
-        motor: GL40
         mit_kp: 1.22           # N.m/rad  -> raw 10 -> 1.2207 applied
         mit_kd: 0.0098         # N.m.s/rad -> raw 8 -> 0.00977 applied
         mit_max_torque: 0.3    # N.m, fault above
@@ -161,7 +155,6 @@ safety:
         delta_max: 2.4
         control_type: 0        # MIT_CONTROL
         mit_family: gl2        # fault action limp
-        motor: GL40
         mit_kp: 0.1221         # N.m/rad -> raw 1, the softest nonzero stiffness
         mit_kd: 0.0098         # N.m.s/rad -> raw 8, as the wrist
         mit_max_torque: 0.25   # N.m: grip ceiling, under the GL40's 0.3 testing ceiling

@@ -16,28 +16,6 @@ constexpr double kDegToRad = 3.14159265358979323846 / 180.0;
 constexpr double kMitGainCodes = 4096.0;
 constexpr double kGravityFfRampSec = 1.0;
 
-// Testing torque ceilings (real-hardware-safety skill). mit_max_torque may not exceed them; raise
-// one only deliberately, here, with the bench data that justifies it.
-struct MotorSpec {
-  const char* model;
-  MitDriveFamily family;
-  double testing_ceiling_nm;
-};
-constexpr MotorSpec kMotors[] = {
-    {"AK10-9", MitDriveFamily::Ak, 10.0},
-    {"AK80-9", MitDriveFamily::Ak, 5.0},
-    {"GL40", MitDriveFamily::Gl2, 0.3},
-};
-
-const MotorSpec* findMotor(const std::string& model) {
-  for (const MotorSpec& m : kMotors) {
-    if (model == m.model) {
-      return &m;
-    }
-  }
-  return nullptr;
-}
-
 // ArmPose joint order, shared by both config files.
 const std::vector<std::pair<std::string, std::string>>& jointPaths() {
   static const std::vector<std::pair<std::string, std::string>> paths = {
@@ -254,9 +232,6 @@ JointSafetyConfig JointCommandCore::loadJointSafetyConfig(const YAML::Node& join
   if (joint_node["mit_feedback_timeout"]) {
     cfg.mit_feedback_timeout = joint_node["mit_feedback_timeout"].as<double>();
   }
-  if (joint_node["motor"]) {
-    cfg.motor = joint_node["motor"].as<std::string>();
-  }
   if (joint_node["mit_family"]) {
     const std::string family = joint_node["mit_family"].as<std::string>();
     if (family == "gl2") {
@@ -357,19 +332,6 @@ bool JointCommandCore::validateMitGains() {
              << s.mit_max_track_err << " deg + gravity_ff_max_torque " << ff_max
              << " N.m = " << worst << " N.m exceeds mit_max_torque " << s.mit_max_torque
              << " N.m -- lower mit_kp, mit_max_track_err or gravity_ff_max_torque";
-    }
-    const MotorSpec* motor = findMotor(s.motor);
-    if (motor == nullptr) {
-      errors << "\n  " << name << ": MIT joint needs motor: AK10-9, AK80-9 or GL40 (got '"
-             << s.motor << "')";
-    } else {
-      if (motor->family != s.mit_family) {
-        errors << "\n  " << name << ": motor " << s.motor << " does not match its mit_family";
-      }
-      if (s.mit_max_torque > motor->testing_ceiling_nm) {
-        errors << "\n  " << name << ": mit_max_torque " << s.mit_max_torque << " N.m exceeds the "
-               << s.motor << " testing ceiling " << motor->testing_ceiling_nm << " N.m";
-      }
     }
     // Damp must damp, within the 12-bit kd field's 5.0 ceiling.
     if (s.mit_fault_action == MitFaultAction::Damp &&

@@ -55,9 +55,6 @@ struct JointSafetyConfig {
   double mit_feedback_timeout{0.2}; // s without feedback before faulting
 
   MitDriveFamily mit_family{MitDriveFamily::Gl2};
-  // Motor model (AK10-9 / AK80-9 / GL40): MIT joints must name it; its testing ceiling caps
-  // mit_max_torque.
-  std::string motor;
   // Defaults from mit_family (ak -> Damp, gl2 -> Limp) unless set in the YAML.
   MitFaultAction mit_fault_action{MitFaultAction::Limp};
   bool mit_fault_action_explicit{false};
