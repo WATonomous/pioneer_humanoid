@@ -312,7 +312,7 @@ def duplo_plan(op, model, data, notes) -> None:
 
     rng, T = op.rng, S.T
     bz = S.BRICK[2]
-    grip_z = JAW_HALF + 0.004 + rng.uniform(-0.002, 0.002)   # tool point above a brick's bottom when held
+    grip_z = JAW_HALF + 0.008 + rng.uniform(-0.002, 0.002)   # tool point above a brick's bottom when held (jaw tips clear of the plate)
     high = T + 0.14 + rng.uniform(-0.01, 0.01)
     plate_top = T + S.PLATE_T
 
