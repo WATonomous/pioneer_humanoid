@@ -147,7 +147,6 @@ class PioneerLeftArmInterface:
                     f"max_guidance_weight={rtc_guidance_weight}"
                 )
 
-
         dataset_meta = DummyDatasetMeta(self.dataset_features, self.robot_type)
         self.policy = make_policy(policy_config, ds_meta=dataset_meta)
 
@@ -173,14 +172,16 @@ class PioneerLeftArmInterface:
                 is (e.g. visual_obs["rgb_ego"], visual_obs["rgb_wrist"] -- adjust the
                 "rgb_" prefix here if your sim env names these differently).
 
-        Returns: a dict matching humanoid_robot_learning.frame.build_lerobot_frame's shape --
-            NOT yet preprocessed/normalized; RTCDrivenPolicy._replan does that.
+        Returns: a dict matching humanoid_robot_learning.frame.build_lerobot_frame's shape,
+            minus "task" -- NOT yet preprocessed/normalized; RTCDrivenPolicy._replan does that.
+            The task string is deliberately left out: _replan's
+            prepare_observation_for_inference runs torch.from_numpy on every key (a string
+            crashes it) and adds "task" itself from RTCDrivenPolicy.task_description.
         """
         state_np = sim_observation[:7].detach().cpu().numpy()
 
         obs_frame: dict[str, Any] = {
             "observation.state": state_np,
-            "task": self.task_description,
         }
         for camera_key in self.cameras:
             img = visual_obs[f"rgb_{camera_key}"][0]

@@ -78,7 +78,7 @@ class RTCDrivenPolicy:
             already uses to warm-start an episode -- this class has no
             embodiment knowledge of its own to invent one. After the first
             real action is produced, this is replaced by that action (held,
-            not reused) for any later gap.
+            not reused) for any later gap; ``reset()`` restores it.
         device: inference device; defaults to ``policy.config.device``.
     """
 
@@ -113,12 +113,16 @@ class RTCDrivenPolicy:
         self.d = 1
         self._replanning = False
         self._episode_id = 0
+        self._initial_action = initial_action
         self._last_action = initial_action
 
     def reset(self) -> None:
         self.policy.reset()
         self.queue = ActionQueue(RTCConfig(enabled=True, execution_horizon=self.execution_horizon))
         self._episode_id += 1
+        # Otherwise the new episode's first ticks (queue empty, replan in flight) would
+        # replay the previous episode's final action.
+        self._last_action = self._initial_action
 
     def _replan(self, obs_frame: dict, prev_left_over, action_index_before) -> None:
         try:
@@ -163,7 +167,7 @@ class RTCDrivenPolicy:
                 action_index_before_inference=action_index_before,
             )
         finally:
-            #always reset _replanning to prevent soft lock in case of exception 
+            # always reset _replanning to prevent soft lock in case of exception
             self._replanning = False
 
     def get_action(self, obs_frame: dict) -> torch.Tensor:
