@@ -1,7 +1,7 @@
 # Real arm bring-up: connect → calibrate → visualize → move
 
 Follow top to bottom. Package details: [can/README.md](can/README.md) (CAN bridge, MIT mode,
-benchmarks), [joint_command/JointCommand.md](joint_command/JointCommand.md) (command node, configs).
+benchmarks), [joint_command/README.md](joint_command/README.md) (command node, configs).
 
 ## 0. Connect
 1. **Hardware**: battery + E-stop closed (motor power ≠ CAN power). CANable USB → host; CAN_H/CAN_L → arm (120 Ω term).
@@ -72,4 +72,4 @@ restart the node.
 - Leader-arm teleop: `pioneer_leader_arm_teleop.py --target real` (dry run), then `--live`
   → [teleop/pioneer_leader_arm_teleop/README.md](../teleop/pioneer_leader_arm_teleop/README.md#real-arm-dry-run-then---live)
 - Scripted moves and benchmarks: `tools/arm_roundtrip.sh` → [can/README.md](can/README.md#angle-benchmarks-arm_roundtrippy)
-- Node, configs and tuning → [joint_command/JointCommand.md](joint_command/JointCommand.md)
+- Node, configs and tuning → [joint_command/README.md](joint_command/README.md)

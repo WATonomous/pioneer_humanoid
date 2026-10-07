@@ -27,7 +27,7 @@ ros2 run can can_node --ros-args --params-file $(ros2 pkg prefix can)/share/can/
 Per-joint gains live in `joint_command/config/arm_actuators.yaml`; `joint_command` refuses to
 start if `quantised kp × mit_max_track_err (+ feed-forward) > mit_max_torque`. Gains are snapped
 to the nearest 12-bit code. The gripper is driven from `ArmPose.gripper_position`
-([JointCommand.md](../joint_command/JointCommand.md#gripper)).
+([joint_command/README.md](../joint_command/README.md#gripper)).
 
 **AK bring-up, per joint** (arm supported, hardware E-stop in reach):
 1. `candump can0`: extended frames on `0000080<id>`, KP first, no `FF..FC` to the AK.
