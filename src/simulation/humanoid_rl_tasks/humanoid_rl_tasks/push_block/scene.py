@@ -38,7 +38,7 @@ _PROPS = Path(__file__).resolve().parents[5] / "assets" / "props"  # -> <repo>/a
 BLOCK_USD = str(_PROPS / "block.usd")
 BOX_USD = str(_PROPS / "box.usd")
 TABLE_USD = str(_PROPS / "table.usd")
-LIGHTBOX_USD = str(_PROPS / "lightbox" / "source" / "lightbox.usd")
+LIGHTBOX_USD = str(_PROPS / "lightbox.usd")
 
 # ── grounding (teleop-verified; see module docstring) ────────────────────────
 ROBOT_STAND_LIFT_Z = 1.1997   # base_link lift so the stand's feet reach floor level
