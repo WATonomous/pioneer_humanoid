@@ -323,8 +323,12 @@ def run(space: str, seconds: float, pca: dict | None, nthread: int = 4, seed: in
                 new_target()
         if renderer is not None and i % 3 == 0:
             cam = mujoco.MjvCamera()
-            cam.lookat[:] = [0.03, 0.10, 0.02] if TASK == "yaw" else [-0.012, 0.10, 0.02]
-            cam.distance, cam.azimuth, cam.elevation = (0.38 if TASK == "yaw" else 0.32), 90, -50
+            if TASK == "roll":
+                cam.lookat[:] = cube_rest
+                cam.distance, cam.azimuth, cam.elevation = 0.2, 90, -65
+            else:
+                cam.lookat[:] = [0.03, 0.10, 0.02] if TASK == "yaw" else [-0.012, 0.10, 0.02]
+                cam.distance, cam.azimuth, cam.elevation = (0.38 if TASK == "yaw" else 0.32), 90, -50
             renderer.update_scene(data, cam)
             frames.append(renderer.render())
     wall = time.time() - t0
