@@ -142,6 +142,26 @@ chance (27% vs 15% at k=3) but miss most of it (principal angles to the grasp to
 soft contacts the overlap was at chance, so this is sensitive to the setup; two runs only. The logged
 targets also include the planner's isotropic sampling noise.
 
+## More MPC tasks (`mpc.py --task`)
+
+**yaw** -- the Isaac in-hand task: turn the cube to a random goal yaw, success when the orientation error
+is < 0.4 rad, then a new goal (at least 0.8 rad away). The cost tracks a spin toward the goal (2 x the
+signed yaw error, capped at 1 rad/s) plus the orientation error; with the orientation error alone the
+planner just held still (0 goals in 30 s). Stock hand, 20 s per seed:
+
+| seed | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
+|---|---|---|---|---|---|---|---|---|
+| goals reached | 0 (dropped 7.7 s) | 3 | 1 | 2 | 0 | 1 | 0 (dropped 6.8 s) | 5 |
+| mean orientation error (rad) | 2.44 | 1.96 | 0.97 | 0.95 | 1.54 | 1.07 | 1.41 | 1.34 |
+
+12 goals in ~133 s of simulation (one per ~11 s), 2 drops in 8 runs. The Isaac PPO policy's best mean
+orientation error was ~0.94 rad (TRAINING_LOG.md); the metrics aren't defined identically, so this is a
+rough comparison, not a win. `out/mpc_yaw.gif` (seed 7): the green ghost cube is the goal.
+
+**roll** -- a 1.5 cm ball on the palm, rolled to random targets within +-2 cm of where it settled (each
+at least 1.5 cm from the ball); success within 1 cm. 40-58 targets in 8-10 s over 3 seeds, never
+dropped. `out/mpc_roll.gif`.
+
 ## Thumb mount study (`thumb.py`)
 
 The Isaac in-hand log concluded palm-normal spin needs a thumb that opposes the fingers the way human,
