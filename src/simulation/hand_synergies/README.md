@@ -130,10 +130,12 @@ in 6 s, 3 seeds; the action space differs only in where the noise lives:
 | joint (20-D) | 116 | 107 | 73 | 99 |
 | manipulation synergy-3 | 58 | 67 | 99 | 75 |
 | manipulation synergy-5 | 83 | 142 | 105 | 110 |
+| grasp synergy-3 | 26 | 40 | 56 | 41 |
+| grasp synergy-5 | 25 | 12 | 61 | 33 |
 
-(Grasp-synergy action-space rows are being rerun with the corrected grasp PCA.)
-
-No run drops the cube and no space clearly wins: seed spread is about as big as any gap. Every space spins
+No run drops the cube. Joint space and the manipulation synergies (PCA of joint-space MPC's own commands)
+are about equal; **the grasp synergies spin the cube 2-3x less**: confined to the grasp subspace, the
+planner can't make the finger-against-finger motions spinning needs (see the subspace comparison below). Every space spins
 far below the target (~0.2 rad/s), matching the Isaac in-hand log: palm-normal spin is hard for this hand.
 A sweep over noise (0.25-1.0), horizon (0.15-0.5 s) and samples (32/64) didn't do better without drops.
 The motion is jerky because the planner keeps the single best sample; MPPI averaging, a command-change
