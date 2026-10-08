@@ -83,8 +83,8 @@ Each move has its own settings (`--duck.depth`, `--pivot.angle`,
 
 ## Boxing arena (two fighters)
 
-`wato_boxing/` sets up red vs blue in a ring for fighting RL: scene, rewards
-and round endings. Skill actions and opponent observations are not in yet.
+`wato_boxing/` sets up red vs blue in a ring for fighting RL: scene, rewards,
+round endings and opponent perception. Skill actions are not in yet.
 
 - **Fighters**: the tracking robot recoloured, in the orthodox stance from
   `generate_moves.py`, 1.3 m apart facing each other (`distance`): lead
@@ -129,6 +129,43 @@ feet, a drop, thrashing, legs crossed, ropes, the bell) and checks what
 fires; it also checks the self-collision test against MuJoCo's own geom
 distances on 150 random poses.
 
+**Perception** (`wato_boxing/perception.py`). The policy sees the opponent
+only through simulated sensors, fused by an EKF per target (opponent head,
+left glove, right glove, torso):
+
+```
+D455 RGB camera (25 Hz, 40 ms late) ─┐  pixel (u, v) + apparent size → bearing + rough range
+chest ultrasonic (25 Hz, 20 ms late) ─┼─▶ EKF (constant velocity) ─▶ actor: per target pos, vel, std, time unseen
+(optional) D455 depth                 ─┘                              critic: the same + exact opponent state
+```
+
+- Sensors are simulated from geometry, not rendered (fast enough for
+  thousands of envs): pinhole projection with the D455's 86°×60° field of
+  view, occlusion by either fighter's gloves and arms (own guard included),
+  pixel noise, random dropouts, latency and sensor rate.
+- The ultrasonic returns the nearest thing in its 15° cone, which may be its
+  own guard; a reading is used only when it fits a tracked target (3σ gate).
+- Hidden targets coast on their last velocity for 0.2 s, then freeze and
+  their uncertainty grows; after 1 s unseen the track is dropped.
+- Observation: 32 numbers (4 targets × [position 3, velocity 3, std, time
+  unseen]) in the fighter's heading frame. The critic also gets the exact
+  positions and velocities (24), so a student policy can learn from it.
+- Settings in `PerceptionCfg` (`CameraCfg`, `UltrasonicCfg`, `EkfCfg`),
+  passed as `boxing_arena_env_cfg(perception=...)`.
+
+`scripts/test_perception.py` checks it against MuJoCo:
+
+| check | result |
+|---|---|
+| camera occlusion vs MuJoCo ray casting (200 random arm poses) | 658/658 agree, 71 hidden |
+| ultrasonic cone vs the axis ray | never longer; its own guard is the nearest thing in ~19% of readings |
+| mean error, opponent standing | RGB 3.6 cm, + ultrasonic 3.6 cm, + depth 1.1 cm |
+| RMS error, opponent moving 0.4 m/s | RGB 9.3 cm, + ultrasonic 6.3 cm, + depth 7.6 cm |
+
+Caveats: the camera points ~21° right and ~12° down in the bladed stance
+(the torso turns), so the opponent's left side leaves the image first; the
+camera bar is also the "head" hitbox, so a head hit lands on the camera.
+
 With no policy the fighters stand on their own: the arena holds the stance
 with 4x the tracking stiffness (`gain_scale`, same torque limits, peak use
 32% at the rear ankle). The tracking gains (1x) are soft by design and need
@@ -151,7 +188,9 @@ Headless rendering without a GPU: `apt install libosmesa6` and set
 
 ```
 wato_tracking/   robot.py (entity + motors), env_cfg.py (task), rl_cfg.py (PPO); __init__ registers the tasks
-wato_boxing/     fighters.py (gloves, hitboxes, stance), ring.py, mdp.py (fight state, rewards, round endings), arena_env_cfg.py
-scripts/         fetch_assets.sh, csv_to_npz.py, generate_moves.py, view_arena.py, test_fight_rewards.py, train.py, play.py
+wato_boxing/     fighters.py (gloves, hitboxes, stance, sensor sites), ring.py, mdp.py (fight state, rewards, round endings),
+                 perception.py (camera + ultrasonic + EKF), arena_env_cfg.py
+scripts/         fetch_assets.sh, csv_to_npz.py, generate_moves.py, view_arena.py, test_fight_rewards.py,
+                 test_perception.py, train.py, play.py
 data/            fetched model + motions, generated NPZs (gitignored)
 ```

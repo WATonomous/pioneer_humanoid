@@ -12,10 +12,12 @@ robot cannot get up, so the first fighter down ends the round), clean hits,
 stability, and penalties for shoving and unrealistic movement; self-collision
 ends the round as a loss; at the bell, points by landed-hit difference.
 
-Actions and observations are still placeholders: each fighter's action is a
-joint position target around the stance (the tracking task's action) and the
-observations are joint positions. The fight task replaces them with skill
-commands and self + opponent state.
+Observations: the actor sees the opponent only through its sensors, an EKF
+fusing a simulated RGB camera (D455 on the shoulder-frame bar) and a chest
+ultrasonic sensor (wato_boxing/perception.py); the critic also gets the exact
+opponent state. Actions are still a placeholder: each fighter's action is a
+joint position target around the stance (the tracking task's action); the
+fight task replaces it with skill commands.
 
 Standing without a policy: the tracking gains (10 Hz, `gain_scale=1`) are
 soft on purpose, the policy does the balancing, and a crouched fighter folds
@@ -40,6 +42,8 @@ from mjlab.terrains import TerrainEntityCfg
 from mjlab.viewer import ViewerConfig
 
 from wato_boxing import mdp as fight
+from wato_boxing import perception as vision
+from wato_boxing.perception import PerceptionCfg
 from wato_boxing.fighters import get_fighter_cfg
 from wato_boxing.ring import get_ring_cfg
 from wato_tracking.robot import WATO_ACTION_SCALE
@@ -97,6 +101,7 @@ def boxing_arena_env_cfg(
   gain_scale: float = 4.0,
   learner: str = "red",
   round_s: float = 20.0,
+  perception: PerceptionCfg | None = None,
 ) -> ManagerBasedRlEnvCfg:
   half = distance / 2
   scene = SceneCfg(
@@ -120,16 +125,30 @@ def boxing_arena_env_cfg(
     )
     for team in TEAMS
   }
+  joint_terms = {
+    f"{team}_joint_pos": ObservationTermCfg(func=mdp.joint_pos_rel, params={"asset_cfg": SceneEntityCfg(team)})
+    for team in TEAMS
+  }
+  pcfg = perception or PerceptionCfg()
   observations = {
+    # the policy sees the opponent only through its sensors (EKF estimate)
     "actor": ObservationGroupCfg(
       terms={
-        f"{team}_joint_pos": ObservationTermCfg(func=mdp.joint_pos_rel, params={"asset_cfg": SceneEntityCfg(team)})
-        for team in TEAMS
+        **joint_terms,
+        "opponent": ObservationTermCfg(func=vision.opponent_perceived, params={"team": learner, "cfg": pcfg}),
+      },
+      concatenate_terms=True,
+    ),
+    # the critic (and a teacher policy) gets the exact opponent state
+    "critic": ObservationGroupCfg(
+      terms={
+        **joint_terms,
+        "opponent_perceived": ObservationTermCfg(func=vision.opponent_perceived, params={"team": learner, "cfg": pcfg}),
+        "opponent_true": ObservationTermCfg(func=vision.opponent_true, params={"team": learner, "cfg": pcfg}),
       },
       concatenate_terms=True,
     ),
   }
-  observations["critic"] = observations["actor"]
 
   return ManagerBasedRlEnvCfg(
     scene=scene,
@@ -144,6 +163,7 @@ def boxing_arena_env_cfg(
     events={
       "reset_scene_to_default": EventTermCfg(func=reset_scene_to_default, mode="reset"),
       "reset_fight_state": EventTermCfg(func=fight.reset_fight_state, mode="reset"),
+      "reset_trackers": EventTermCfg(func=vision.reset_trackers, mode="reset"),
     },
     viewer=ViewerConfig(
       origin_type=ViewerConfig.OriginType.WORLD,

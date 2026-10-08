@@ -241,10 +241,59 @@ def scaled_actuators(gain_scale: float) -> tuple:
   )
 
 
+# Sensors. The bar on top of the shoulder frame matches a RealSense D455
+# (132 x 30 mm vs 124 x 29 mm); the camera sits at its front face looking
+# forward. The ultrasonic sensor sits at the front of the chest. Each has a
+# site (used by wato_boxing/perception.py; frame: -z forward, +y up, +x right,
+# like a MuJoCo camera) and the camera also a MuJoCo <camera> for rendering.
+CAMERA_SITE = "d455"
+ULTRASONIC_SITE = "ultrasonic"
+D455_FOVY = 60.5  # deg, vertical: 86 deg horizontal on a 16:10 image (perception.CameraCfg)
+ULTRASONIC_BODY = TORSO_BODY
+
+
+def _forward_frame_quat(data: mujoco.MjData, model: mujoco.MjModel, body: str) -> np.ndarray:
+  """Body-frame quat of a frame looking along the robot's forward axis (world
+  +y at qpos0), up = world +z: camera convention (-z forward, +y up)."""
+  rot_world = np.array([[1.0, 0.0, 0.0], [0.0, 0.0, -1.0], [0.0, 1.0, 0.0]])  # columns: x, y, z of the frame
+  rot_body = data.xmat[model.body(body).id].reshape(3, 3).T @ rot_world
+  q = np.zeros(4)
+  mujoco.mju_mat2Quat(q, rot_body.flatten())
+  return q
+
+
+def add_sensors(spec: mujoco.MjSpec) -> None:
+  model = spec.copy().compile()
+  data = mujoco.MjData(model)
+  mujoco.mj_kinematics(model, data)
+
+  # camera: front face of the bar on top of the shoulder frame
+  pts = _mesh_points_world(model, data, HEAD_BODY)
+  bar = pts[pts[:, 2] > pts[:, 2].max() - 0.03]
+  cam = np.array([bar[:, 0].mean(), bar[:, 1].max(), bar[:, 2].mean()])
+  quat = _forward_frame_quat(data, model, HEAD_BODY)
+  pos = _to_body(data, model, HEAD_BODY, cam)
+  spec.body(HEAD_BODY).add_site(name=CAMERA_SITE, pos=pos, quat=quat, size=(0.01, 0.01, 0.01), group=4)
+  spec.body(HEAD_BODY).add_camera(name=CAMERA_SITE, pos=pos, quat=quat, fovy=D455_FOVY)
+
+  # ultrasonic: front of the chest, upper third of the torso
+  pts = _mesh_points_world(model, data, ULTRASONIC_BODY)
+  lo, hi = pts.min(0), pts.max(0)
+  us = np.array([(lo[0] + hi[0]) / 2, hi[1], lo[2] + 0.66 * (hi[2] - lo[2])])
+  spec.body(ULTRASONIC_BODY).add_site(
+    name=ULTRASONIC_SITE,
+    pos=_to_body(data, model, ULTRASONIC_BODY, us),
+    quat=_forward_frame_quat(data, model, ULTRASONIC_BODY),
+    size=(0.01, 0.01, 0.01),
+    group=4,
+  )
+
+
 def get_fighter_cfg(team: Team, position_xy=(0.0, 0.0), yaw: float = 0.0, gain_scale: float = 1.0) -> EntityCfg:
   def spec_fn() -> mujoco.MjSpec:
     spec = get_spec()
     add_hitboxes(spec, team)
+    add_sensors(spec)
     return spec
 
   return EntityCfg(
