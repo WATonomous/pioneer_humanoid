@@ -55,7 +55,7 @@ PALM_BODY = "hand_origin"
 DISTAL_BODIES = ("thumb_distal", "distal_1", "distal_2", "distal_3", "distal_4")
 
 
-def hand_spec(thumb_pos=None, thumb_yaw_deg: float = 0.0) -> mujoco.MjSpec:
+def hand_spec(thumb_pos=None, thumb_yaw_deg: float = 0.0, finger_collisions: bool = False) -> mujoco.MjSpec:
     """MjSpec of the hand: hand_origin as the root body, one position actuator per joint (named after it).
 
     The root has no joint: attach it to a frame (or add a freejoint/mocap weld) to place it.
@@ -64,6 +64,9 @@ def hand_spec(thumb_pos=None, thumb_yaw_deg: float = 0.0) -> mujoco.MjSpec:
     ``thumb_pos`` / ``thumb_yaw_deg``: a hypothetical thumb mount for design studies -- the thumb base
     (the circumduction joint) moved to ``thumb_pos`` in the palm frame and the whole thumb chain turned
     about the palm normal (Z) by ``thumb_yaw_deg``. Defaults are the hand as built.
+
+    ``finger_collisions``: digits collide with each other (not with their own links or the palm, whose
+    convex hull overlaps every finger base). Off by default, like the Isaac in-hand task.
     """
     urdf = HAND_URDF_PATH.read_text()
     urdf = re.sub(r'filename="\.\./meshes/', 'filename="', urdf)
@@ -99,8 +102,30 @@ def hand_spec(thumb_pos=None, thumb_yaw_deg: float = 0.0) -> mujoco.MjSpec:
         act.ctrllimited = mujoco.mjtLimited.mjLIMITED_TRUE
         act.inheritrange = 1.0  # ctrlrange = joint range
 
+    if finger_collisions:
+        _digit_collision_bits(spec)
     _add_tip_sites(spec)
     return spec
+
+
+_DIGIT_ROOTS = ("thumb", "abduction_1", "finger_2", "finger_3", "finger_4")  # first body of each digit
+
+
+def _digit_collision_bits(spec: mujoco.MjSpec) -> None:
+    """Give each digit its own contype bit and let it collide with the other digits' bits (and the world)."""
+    bits = {root: 1 << (2 + i) for i, root in enumerate(_DIGIT_ROOTS)}
+    all_bits = sum(bits.values())
+
+    def walk(body, bit):
+        for geom in body.geoms:
+            if geom.contype:
+                geom.contype = HAND_CONTYPE | bit
+                geom.conaffinity = HAND_CONAFFINITY | (all_bits & ~bit)
+        for child in body.bodies:
+            walk(child, bit)
+
+    for root, bit in bits.items():
+        walk(spec.body(root), bit)
 
 
 def _add_tip_sites(spec: mujoco.MjSpec) -> None:
