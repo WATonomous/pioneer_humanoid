@@ -36,6 +36,7 @@ SUCCESS_RISE_M = 0.08
 HELD_M = 0.03               # and end within this of where it would be had it not moved in the hand
 WRIST0 = np.array([0.0, 0.0, 0.35])
 RELEASE_S = 0.15            # gravity-free settle after the fixture lets go
+STAND_R = 0.007             # rendered stand radius (m)
 
 
 def make_model(thumb: str = "stock", finger_collisions: bool = False, width: int = 480,
@@ -79,6 +80,15 @@ def make_model(thumb: str = "stock", finger_collisions: bool = False, width: int
     # squeezing fingers; resetting the object's pose every step (grasp_gen's pin) lets them sink in, and
     # the stored overlap fires a small object off at tens of m/s when it's let go.
     spec.worldbody.add_body(name="fixture", mocap=True, pos=[0, 0.1, 0.05])
+    # What the fixture looks like in renders: a thin stand from the table up to the object, shown while
+    # the weld holds and hidden when it lets go. Visual only (no collisions); sized per trial.
+    stand = spec.worldbody.add_body(name="stand", mocap=True)
+    # Non-zero compile-time pos: a geom compiled at its body's origin is flagged "same frame" and later
+    # geom_pos edits are ignored.
+    stand.add_geom(name="stand_rod", type=mujoco.mjtGeom.mjGEOM_CYLINDER, size=[STAND_R, 0.1, 0],
+                   pos=[0, 0, 0.1], contype=0, conaffinity=0, rgba=[0.85, 0.85, 0.9, 1])
+    stand.add_geom(name="stand_cradle", type=mujoco.mjtGeom.mjGEOM_CYLINDER, size=[0.015, 0.003, 0],
+                   pos=[0, 0, 0.2], contype=0, conaffinity=0, rgba=[0.85, 0.85, 0.9, 1])
     weld = spec.add_equality(name="fixture", type=mujoco.mjtEq.mjEQ_WELD, name1="object", name2="fixture",
                              objtype=mujoco.mjtObj.mjOBJ_BODY)
     weld.solref = [0.004, 1.0]
@@ -96,10 +106,26 @@ class Lifter:
         self.lift_q = self.model.joint("lift").qposadr[0]
         self.lift_act = self.model.actuator("lift").id
         self.fixture = self.model.body("fixture").mocapid[0]
+        self.stand = self.model.body("stand").mocapid[0]
+        self.stand_geoms = (self.model.geom("stand_rod").id, self.model.geom("stand_cradle").id)
         self.weld = self.model.equality("fixture").id
         # weld the object's frame onto the fixture's frame (anchor at the origin, identity relative pose)
         self.model.eq_data[self.weld, :10] = [0, 0, 0, 0, 0, 0, 1, 0, 0, 0]
         self.table = self.model.geom("table").id
+
+    def _show_stand(self, obj_pos: np.ndarray | None) -> None:
+        """Draw the fixture as a stand reaching up to just under ``obj_pos``; None hides it."""
+        m, d = self.model, self.data
+        rod, cradle = self.stand_geoms
+        if obj_pos is None:
+            m.geom_rgba[[rod, cradle], 3] = 0.0
+            return
+        top = obj_pos[2] - 0.012  # just under the object's centre, inside it from most views
+        d.mocap_pos[self.stand] = [obj_pos[0], obj_pos[1], 0.0]
+        m.geom_size[rod, 1] = top / 2
+        m.geom_pos[rod] = [0, 0, top / 2]
+        m.geom_pos[cradle] = [0, 0, top]
+        m.geom_rgba[[rod, cradle], 3] = 1.0
 
     def wrist_pos(self) -> np.ndarray:
         return self.data.xpos[self.model.body("wrist").id].copy()
@@ -136,6 +162,7 @@ class Lifter:
             d.mocap_pos[self.fixture] = pos
             d.mocap_quat[self.fixture] = quat
             d.eq_active[self.weld] = 1
+            self._show_stand(pos)
             if self._start_clear():
                 break
         else:
@@ -169,12 +196,14 @@ class Lifter:
         d.mocap_pos[self.fixture] = pos
         d.mocap_quat[self.fixture] = rec["obj_quat"]
         d.eq_active[self.weld] = 1
+        self._show_stand(pos)
         mujoco.mj_step(m, d, nstep=int(SETTLE_S / TIMESTEP))
         return self._release_and_lift(ctrl)
 
     def _release_and_lift(self, ctrl: np.ndarray, record=lambda: None) -> bool:
         m, d, gen = self.model, self.data, self.gen
         d.eq_active[self.weld] = 0
+        self._show_stand(None)
         g = m.opt.gravity.copy()
         m.opt.gravity[:] = 0.0
         for _ in range(int(RELEASE_S / TIMESTEP)):
@@ -250,9 +279,11 @@ def render_gif(path: str, thumb: str, sampler: str, fc: bool, pca: dict | None, 
 
     class Recorder(list):
         def append(self, t):
-            cam = mujoco.MjvCamera()
-            cam.lookat[:] = d.qpos[lifter.gen.idx.obj_qpos:lifter.gen.idx.obj_qpos + 3]
-            cam.distance, cam.azimuth, cam.elevation = 0.35, 135, -20
+            cam = mujoco.MjvCamera()  # fixed on the start, so the lift itself shows
+            if not self:
+                self.lookat = d.qpos[lifter.gen.idx.obj_qpos:lifter.gen.idx.obj_qpos + 3] + [0, 0, LIFT_M / 2]
+            cam.lookat[:] = self.lookat
+            cam.distance, cam.azimuth, cam.elevation = 0.42, 135, -12
             renderer.update_scene(d, cam)
             imgs.append(Image.fromarray(renderer.render()))
             super().append(t)

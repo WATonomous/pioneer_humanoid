@@ -94,7 +94,8 @@ placements live in the dropped dimensions.
 **Grasp and lift** (`lift.py`): the hand (palm down, on a wrist that slides vertically) closes on an object
 held by a fixture (a weld), the fixture lets go, the object settles into the grasp, and the wrist lifts 10 cm
 in 1 s and holds 1 s. Success: it rose >= 8 cm, stayed within 3 cm of where it sat in the hand, and no step
-went unstable. Same objects and placement as `grasp_gen`. `out/lift.gif`.
+went unstable. Same objects and placement as `grasp_gen`. `out/lift.gif` (the fixture is drawn as a stand that
+disappears on release; it has no collision).
 
 Carrying the shake-test-stable grasps (`--stored 600`, postures rebuilt from k PCs plus the same squeeze):
 
