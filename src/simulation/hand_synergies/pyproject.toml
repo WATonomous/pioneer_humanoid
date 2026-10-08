@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hand-synergies"
+version = "0.1.0"
+description = "Grasp synergies (PCA / eigengrasps) for the pioneer hand in plain MuJoCo, CPU only"
+requires-python = ">=3.10"
+dependencies = ["mujoco>=3.3", "numpy", "matplotlib", "pillow"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["hand_synergies*"]
