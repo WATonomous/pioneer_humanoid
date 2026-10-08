@@ -158,8 +158,9 @@ def run(space: str, seconds: float, pca: dict | None, nthread: int = 4, seed: in
             mujoco.mj_step(model, data)
             yaw += data.sensordata[5] * TIMESTEP
         spin_log.append(data.sensordata[5])
-        if dropped_at is None and data.sensordata[2] < DROP_Z:
+        if data.sensordata[2] < DROP_Z:  # off the hand: the episode is over (a falling cube still "spins")
             dropped_at = data.time
+            break
         if renderer is not None and i % 3 == 0:
             cam = mujoco.MjvCamera()
             cam.lookat[:] = [-0.012, 0.10, 0.02]
@@ -174,7 +175,8 @@ def run(space: str, seconds: float, pca: dict | None, nthread: int = 4, seed: in
         imgs[0].save(gif, save_all=True, append_images=imgs[1:], duration=int(CONTROL_DT * 3 * 1000), loop=0)
         renderer.close()
     return dict(space=space, ctrl=np.array(ctrl_log), yaw=yaw, mean_spin=float(np.mean(spin_log)),
-                dropped_at=dropped_at, realtime=seconds / wall)
+                dropped_at=dropped_at, sim_seconds=len(spin_log) * CONTROL_DT,
+                realtime=len(spin_log) * CONTROL_DT / wall)
 
 
 def main() -> None:
@@ -196,7 +198,8 @@ def main() -> None:
     if args.log:
         np.savez(args.log, ctrl=r["ctrl"], joint_names=np.array(JOINT_NAMES), control_dt=CONTROL_DT)
     drop = f"dropped at {r['dropped_at']:.1f} s" if r["dropped_at"] is not None else "never dropped"
-    print(f"{r['space']} noise={NOISE_NORM} horizon={HORIZON_S} samples={N_SAMPLES}: turned {np.degrees(r['yaw']):.0f} deg in {args.seconds:.0f} s "
+    print(f"{r['space']} noise={NOISE_NORM} horizon={HORIZON_S} samples={N_SAMPLES}: "
+          f"turned {np.degrees(r['yaw']):.0f} deg in {r['sim_seconds']:.1f} s "
           f"(mean {r['mean_spin']:.2f} rad/s, target {TARGET_SPIN}), {drop}, {r['realtime']:.2f}x real time")
 
 

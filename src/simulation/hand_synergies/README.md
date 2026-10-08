@@ -114,24 +114,27 @@ python -m hand_synergies.mpc --space synergy-3 --seconds 10
 | manipulation synergy-3 | 97 | 113 | 5 | 72 deg |
 | manipulation synergy-5 | 74 | 66 | 89 | 76 deg |
 
+(The manipulation-synergy rows used a basis fitted from logs that wrongly included ~4 s of commands after
+the cube had fallen; re-run them with the current `manip.py` output before trusting those two rows.)
+
 No space drops the cube in 6 s, and none clearly wins: seed spread is bigger than any gap. Every space spins
 far below the 1 rad/s target (~0.2 rad/s), which matches the Isaac in-hand log: with the thumb on this side
 of the palm, palm-normal spin is hard for the hand itself, whatever the controller. A sweep over noise
-(0.25-1.0), horizon (0.15-0.5 s) and samples (32/64) didn't beat ~120 deg / 6 s without dropping; one
-15 s joint run spun at 1.6 rad/s for a while and then dropped the cube at 11 s.
+(0.25-1.0), horizon (0.15-0.5 s) and samples (32/64) didn't beat ~120 deg / 6 s without dropping. The best
+longer run (joint, seed 1) turned 259 deg in 10.8 s, then pushed the cube off the pinky side.
 
-**Grasp synergies vs manipulation synergies** (`manip.py`, PCA of the joint targets from two 15 s
-joint-space MPC runs):
+**Grasp synergies vs manipulation synergies** (`manip.py`, PCA of the joint targets from two joint-space
+MPC runs, 15 s and 10.5 s up to the drop):
 
 | k | grasp PCs 1-k capture of the spinning motion | random k-D subspace |
 |---|---|---|
-| 1 | 5% | 5% |
-| 3 | 16% | 15% |
-| 5 | 29% | 25% |
-| 10 | 48% | 50% |
+| 1 | 3% | 5% |
+| 3 | 13% | 15% |
+| 5 | 27% | 25% |
+| 10 | 46% | 50% |
 
-The spinning motion is itself low-dimensional (its own 3 PCs: 72%), but it lives in a different subspace
-(principal angles to the grasp top-3: 59, 75, 87 deg). Grasp synergies move the fingers together;
+The spinning motion is itself low-dimensional (its own 3 PCs: 66%), but it lives in a different subspace
+(principal angles to the grasp top-3: 64, 68, 85 deg). Grasp synergies move the fingers together;
 the spin's main mode moves them against each other (index MCP vs ring PIP). So a hand controlled only
 through grasp synergies loses exactly the motions in-hand manipulation uses. Caveat: the logged
 targets include the planner's isotropic sampling noise.
