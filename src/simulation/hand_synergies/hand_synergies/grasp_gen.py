@@ -72,8 +72,8 @@ GRAVITY = 9.81
 
 
 class GraspGen:
-    def __init__(self):
-        self.model = make_model()
+    def __init__(self, thumb: str = "stock"):
+        self.model = make_model(thumb=thumb)
         self.data = mujoco.MjData(self.model)
         self.idx = HandIndex.of(self.model)
         self.ranges = joint_ranges(self.model)
@@ -273,10 +273,12 @@ class GraspGen:
 _GEN: GraspGen | None = None
 
 
-def _worker(seed: int):
+def _init_worker(thumb: str) -> None:
     global _GEN
-    if _GEN is None:
-        _GEN = GraspGen()
+    _GEN = GraspGen(thumb)
+
+
+def _worker(seed: int):
     return _GEN.trial(seed)
 
 
@@ -286,12 +288,13 @@ def main() -> None:
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--workers", type=int, default=mp.cpu_count())
     p.add_argument("--out", default="grasps.npz")
+    p.add_argument("--thumb", default="stock", help="thumb mount (thumb.THUMB_MOUNTS)")
     args = p.parse_args()
 
     seeds = range(args.seed * 10_000_000, args.seed * 10_000_000 + args.trials)
     t0 = time.time()
     results = []
-    with mp.Pool(args.workers) as pool:
+    with mp.Pool(args.workers, initializer=_init_worker, initargs=(args.thumb,)) as pool:
         for i, r in enumerate(pool.imap_unordered(_worker, seeds, chunksize=16)):
             if r is not None:
                 results.append(r)

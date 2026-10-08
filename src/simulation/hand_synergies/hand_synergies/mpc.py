@@ -53,7 +53,9 @@ HOME_POSE = {
 }
 
 
-def make_model(width: int = 480, height: int = 360) -> mujoco.MjModel:
+def make_model(width: int = 480, height: int = 360, thumb: str = "stock") -> mujoco.MjModel:
+    from .thumb import thumb_kwargs
+
     spec = mujoco.MjSpec()
     spec.modelname = "hand_cube_spin"
     spec.option.timestep = TIMESTEP
@@ -64,7 +66,7 @@ def make_model(width: int = 480, height: int = 360) -> mujoco.MjModel:
     spec.visual.global_.offheight = height
     spec.worldbody.add_light(pos=[0.2, 0.1, 0.6], dir=[-0.3, 0, -1], diffuse=[0.8, 0.8, 0.8])
     # Palm up: the hand frame's palm faces -Z, so turn it 180 deg about Y.
-    spec.worldbody.add_frame(quat=[0, 0, 1, 0]).attach_body(hand_spec().body(PALM_BODY), "", "")
+    spec.worldbody.add_frame(quat=[0, 0, 1, 0]).attach_body(hand_spec(**thumb_kwargs(thumb)).body(PALM_BODY), "", "")
     cube = spec.worldbody.add_body(name="cube", pos=CUBE_HOME)
     cube.add_freejoint(name="cube")
     cube.add_geom(type=mujoco.mjtGeom.mjGEOM_BOX, size=[CUBE_HALF] * 3, density=400,
@@ -142,11 +144,18 @@ class Planner:
         return ctrl[best, 0]
 
 
-def run(space: str, seconds: float, pca: dict | None, nthread: int = 4, seed: int = 0, gif: str | None = None):
-    model = make_model()
+def run(space: str, seconds: float, pca: dict | None, nthread: int = 4, seed: int = 0, gif: str | None = None,
+        thumb: str = "stock"):
+    model = make_model(thumb=thumb)
     data = mujoco.MjData(model)
     home = np.array([HOME_POSE[n] for n in JOINT_NAMES])
     data.qpos[:20] = home
+    mujoco.mj_forward(model, data)
+    cube = model.body("cube").id
+    if any(c.dist < -0.001 and cube in (model.geom_bodyid[c.geom1], model.geom_bodyid[c.geom2])
+           for c in data.contact[: data.ncon]):
+        home[:4] = 0.0  # this thumb mount's home pose would start inside the cube: start it straight
+        data.qpos[:20] = home
     data.ctrl[:] = home
     mujoco.mj_step(model, data, nstep=int(0.5 / TIMESTEP))  # let the cube settle in the palm
     planner = Planner(model, space, pca, nthread, seed)
@@ -194,14 +203,17 @@ def main() -> None:
     p.add_argument("--noise", type=float, default=NOISE_NORM, help="rad, expected perturbation norm")
     p.add_argument("--horizon", type=float, default=HORIZON_S, help="s")
     p.add_argument("--samples", type=int, default=N_SAMPLES)
+    p.add_argument("--target-spin", type=float, default=TARGET_SPIN, help="rad/s about +Z (sign = direction)")
+    p.add_argument("--thumb", default="stock", help="thumb mount (thumb.THUMB_MOUNTS)")
     args = p.parse_args()
-    globals().update(NOISE_NORM=args.noise, HORIZON_S=args.horizon, N_SAMPLES=args.samples)
+    globals().update(NOISE_NORM=args.noise, HORIZON_S=args.horizon, N_SAMPLES=args.samples,
+                     TARGET_SPIN=args.target_spin)
     pca = dict(np.load(args.synergies)) if args.space != "joint" else None
-    r = run(args.space, args.seconds, pca, args.threads, args.seed, args.gif)
+    r = run(args.space, args.seconds, pca, args.threads, args.seed, args.gif, args.thumb)
     if args.log:
         np.savez(args.log, ctrl=r["ctrl"], joint_names=np.array(JOINT_NAMES), control_dt=CONTROL_DT)
     drop = f"dropped at {r['dropped_at']:.1f} s" if r["dropped_at"] is not None else "never dropped"
-    print(f"{r['space']} noise={NOISE_NORM} horizon={HORIZON_S} samples={N_SAMPLES}: "
+    print(f"thumb={args.thumb} {r['space']} noise={NOISE_NORM} horizon={HORIZON_S} samples={N_SAMPLES}: "
           f"turned {np.degrees(r['yaw']):.0f} deg in {r['sim_seconds']:.1f} s "
           f"(mean {r['mean_spin']:.2f} rad/s, target {TARGET_SPIN}), {drop}, {r['realtime']:.2f}x real time")
 

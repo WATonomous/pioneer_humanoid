@@ -55,11 +55,15 @@ PALM_BODY = "hand_origin"
 DISTAL_BODIES = ("thumb_distal", "distal_1", "distal_2", "distal_3", "distal_4")
 
 
-def hand_spec() -> mujoco.MjSpec:
+def hand_spec(thumb_pos=None, thumb_yaw_deg: float = 0.0) -> mujoco.MjSpec:
     """MjSpec of the hand: hand_origin as the root body, one position actuator per joint (named after it).
 
     The root has no joint: attach it to a frame (or add a freejoint/mocap weld) to place it.
     Each digit gets a ``tip_<distal body>`` site at its fingertip.
+
+    ``thumb_pos`` / ``thumb_yaw_deg``: a hypothetical thumb mount for design studies -- the thumb base
+    (the circumduction joint) moved to ``thumb_pos`` in the palm frame and the whole thumb chain turned
+    about the palm normal (Z) by ``thumb_yaw_deg``. Defaults are the hand as built.
     """
     urdf = HAND_URDF_PATH.read_text()
     urdf = re.sub(r'filename="\.\./meshes/', 'filename="', urdf)
@@ -68,6 +72,12 @@ def hand_spec() -> mujoco.MjSpec:
         f'<mujoco><compiler meshdir="{_MESH_DIR}" discardvisual="false" fusestatic="false"/></mujoco></robot>',
     )
     spec = mujoco.MjSpec.from_string(urdf)
+    thumb = spec.body("thumb")
+    if thumb_pos is not None:
+        thumb.pos = list(thumb_pos)
+    if thumb_yaw_deg:
+        half = np.radians(thumb_yaw_deg) / 2
+        thumb.quat = [np.cos(half), 0.0, 0.0, np.sin(half)]
 
     for joint in spec.joints:
         joint.limited = mujoco.mjtLimited.mjLIMITED_TRUE
