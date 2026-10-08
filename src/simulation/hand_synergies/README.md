@@ -252,11 +252,18 @@ fwd / flip / palm108 / yaw90 let thumb and fingers pass through each other, so d
 | tripod / pinch grasps among them | 29 / 7 | 50 / 10 |
 | thumb touches the object | 69% | 79% |
 
-near36 -- the thumb base moved ~12 mm toward the knuckles and turned 36 deg about the palm normal -- is
-better on every measure, by ~10-20%: spin +18% (about 1.3 standard errors, seed spread is large), grasps
-+11% (~1.3 sd), and noticeably more precision grasps. Suggestive, not conclusive; worth a CAD check
-(does the base fit there?) before anything else. The bigger redesigns the Isaac log suggested don't fit
-without moving the fingers too.
+Follow-up with more seeds (finger collisions on):
+
+| | stock | near36 |
+|---|---|---|
+| spin, 20 runs (10 seeds x 2 directions), 8 s | 90 +- 11 deg (1 drop) | 112 +- 10 deg (0 drops), Welch p = 0.12 |
+| yaw-goal task, 6 seeds x 20 s | 10 goals, 0 drops, mean error 1.23 rad | 13 goals, 2 drops, mean error 1.32 rad |
+
+Verdict: near36 -- the thumb base moved ~12 mm toward the knuckles and turned 36 deg about the palm normal --
+grasps ~11% more objects (more precision grasps, thumb in more grasps) and spins ~20% more, but neither
+difference is statistically solid and the goal task is a wash. It's the direction the kinematics point
+(more fingertip opposition), not a proven upgrade; worth a CAD check of whether the base fits there before
+anything else. The large redesigns don't fit without moving the fingers too.
 
 ## Finger collisions
 
