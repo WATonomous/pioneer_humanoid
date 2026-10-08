@@ -184,11 +184,15 @@ def main() -> None:
     p.add_argument("--threads", type=int, default=4)
     p.add_argument("--synergies", default="out/synergies.npz")
     p.add_argument("--gif", default=None)
+    p.add_argument("--noise", type=float, default=NOISE_NORM, help="rad, expected perturbation norm")
+    p.add_argument("--horizon", type=float, default=HORIZON_S, help="s")
+    p.add_argument("--samples", type=int, default=N_SAMPLES)
     args = p.parse_args()
+    globals().update(NOISE_NORM=args.noise, HORIZON_S=args.horizon, N_SAMPLES=args.samples)
     pca = dict(np.load(args.synergies)) if args.space != "joint" else None
     r = run(args.space, args.seconds, pca, args.threads, args.seed, args.gif)
     drop = f"dropped at {r['dropped_at']:.1f} s" if r["dropped_at"] is not None else "never dropped"
-    print(f"{r['space']}: turned {np.degrees(r['yaw']):.0f} deg in {args.seconds:.0f} s "
+    print(f"{r['space']} noise={NOISE_NORM} horizon={HORIZON_S} samples={N_SAMPLES}: turned {np.degrees(r['yaw']):.0f} deg in {args.seconds:.0f} s "
           f"(mean {r['mean_spin']:.2f} rad/s, target {TARGET_SPIN}), {drop}, {r['realtime']:.2f}x real time")
 
 

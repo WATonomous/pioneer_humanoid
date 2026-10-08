@@ -56,6 +56,56 @@ Outputs in `out/`: `grasps.npz` (posture `q`, commanded `ctrl`, object, contacts
 `synergies.npz` (`mean`, `components`, `stds`, `variance_ratio`), `variance.png`, `loadings.png`,
 `synergies.png`, `pc1.gif`...`pc4.gif`, `reconstruction.png/.csv`.
 
+## Results so far (1891 grasps from 20k trials, default `SAMPLING`)
+
+**Variance**: 3 PCs explain 78%, 5 PCs 89%, 6 PCs 91%.
+
+| PC | var | what it does |
+|---|---|---|
+| 1 | 41% | ring + pinky curl together (they either wrap the object or close into a fist) |
+| 2 | 21% | thumb opposition (MCP_A_thumb) against thumb curl (PIP/DIP) |
+| 3 | 16% | index + middle curl (the precision side) |
+| 4 | 7% | mixed finger curl |
+
+Spread (MCP_A_1-4) and circumduction barely load: they vary in the pre-shape prior but the grasps don't
+depend on them much.
+
+**Variance explained is not grasp quality** (`synergies eval`, 300 grasps):
+
+| k PCs | mean | 1 | 2 | 3 | 5 | 8 | 10 | 20 |
+|---|---|---|---|---|---|---|---|---|
+| k-PC posture held as the grasp | | 17% | 18% | 21% | 27% | 41% | 46% | 85% |
+| k-PC pre-shape, then close to contact | 49% | 48% | 52% | 59% | 60% | 68% | 73% | 73% |
+
+A grasp needs mm-accurate contacts that 3 PCs don't carry; used as a pre-shape plus close-to-contact
+(how Ciocarlie's eigengrasp planner uses them), 3 PCs get ~80% of the full-posture ceiling.
+
+**Pre-shape search on new objects** (`search.py`, 150 objects, 16 tries each, power grasp):
+
+| sampler | success per try | objects grasped within 16 |
+|---|---|---|
+| generator prior (20-D) | 16.5% | 49% |
+| Gaussian, all 20 PCs | 17.1% | 43% |
+| synergy-3 | 15.2% | 24% |
+| synergy-5 | 14.9% | 25% |
+
+Synergy pre-shapes succeed as often per try but cover half as many objects: they reproduce the typical
+grasp, and the unusual ones that solve awkward placements live in the dropped dimensions.
+
+## Cube spin with sampling MPC (`mpc.py`)
+
+Palm-up hand, 4 cm cube, predictive sampling (32 rollouts x 0.3 s every 20 ms via `mujoco.rollout`), cost
+= spin about +Z at 1 rad/s + stay in the palm + don't tumble. No training. The action space differs only in
+where the noise lives: all 20 joints, or the first k grasp PCs.
+
+```bash
+MUJOCO_GL=osmesa python -m hand_synergies.mpc --space joint --seconds 10 --gif out/mpc_joint.gif
+python -m hand_synergies.mpc --space synergy-3 --seconds 10
+```
+
+First run (untuned): joint 140 deg in 10 s, synergy-3 102 deg, neither dropped the cube. ~0.1x real time on
+4 cores.
+
 ## Caveats
 
 - The hand model has no tendon coupling or torque limits: every joint is an independent position servo with
