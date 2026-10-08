@@ -25,7 +25,7 @@ BOTTLE3_POS = (0.65, 0.10)
 # ---- hooks
 
 # ---- scene
-@scene("my_scene", camera=dict(lookat=[0.38, 0.29, 0.75], distance=2.0, azimuth=200, elevation=-35))
+@scene("bowling", camera=dict(lookat=[0.38, 0.29, 0.75], distance=2.0, azimuth=200, elevation=-35))
 def build(spec: mujoco.MjSpec) -> None:
     add_floor(spec)
     world = spec.worldbody
