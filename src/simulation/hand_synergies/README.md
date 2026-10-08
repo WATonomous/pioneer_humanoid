@@ -242,6 +242,22 @@ is why they lost the grasp tests. The unconstrained optimum puts the base inside
 buildable optimum is a small change (near36). The finger-collisions-off physical results above for
 fwd / flip / palm108 / yaw90 let thumb and fingers pass through each other, so don't read them as designs.
 
+**Best buildable mount vs stock, finger collisions on** (the honest comparison):
+
+| | stock | near36 |
+|---|---|---|
+| spin +Z / -Z, 4 seeds each, 8 s | 87 / 112 deg | 105 / 130 deg |
+| spin mean, drops | 100 deg, 1/8 | 118 deg, 0/8 |
+| stable grasps, wide placement, 20k trials | 312 | 346 |
+| tripod / pinch grasps among them | 29 / 7 | 50 / 10 |
+| thumb touches the object | 69% | 79% |
+
+near36 -- the thumb base moved ~12 mm toward the knuckles and turned 36 deg about the palm normal -- is
+better on every measure, by ~10-20%: spin +18% (about 1.3 standard errors, seed spread is large), grasps
++11% (~1.3 sd), and noticeably more precision grasps. Suggestive, not conclusive; worth a CAD check
+(does the base fit there?) before anything else. The bigger redesigns the Isaac log suggested don't fit
+without moving the fingers too.
+
 ## Finger collisions
 
 With `--finger-collisions` (digits collide with each other) the stock spin drops from 119 to 87 deg / 8 s
