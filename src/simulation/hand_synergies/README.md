@@ -220,6 +220,18 @@ palm normal), ~30 s.
 | flip (pinky side near the knuckles, turned ~175 deg) | .68 | .65 | .63 | .40 | .59 |
 | palm108 (best with the base on the palm, y <= 0.09) | | | | | .53 |
 
+Physical tests of the opposition-optimized mounts (same protocols as above, finger collisions off):
+
+| mount | spin +Z | spin -Z | mean | stable grasps (wide, 10k) | thumb touches object |
+|---|---|---|---|---|---|
+| stock | 135 | 109 | 122 deg | 181 | 72% |
+| palm108 | 153 | 109 | 131 deg | 220 | 89% |
+| fwd | | | | 182 | 87% |
+| flip | 102 | 90 | 96 deg | 139 | 85% |
+
+Opposition overlap predicts thumb participation (72% -> 85-89%), and palm108 grasps 22% more objects than
+stock (~2 sd) and spins about as well. Checked with finger collisions on below.
+
 The stock thumb already opposes all four fingers reasonably; the radial variants barely reach them, which
 is why they lost the grasp tests. The best mounts sit near the knuckles, where a real thumb base would
 collide with the finger roots (thumb links aren't checked against the fingers here), so treat them as a
