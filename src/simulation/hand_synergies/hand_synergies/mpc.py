@@ -213,7 +213,8 @@ def _settled_home(model: mujoco.MjModel, data: mujoco.MjData) -> tuple[np.ndarra
             continue  # starts inside the cube (finger-on-finger contact doesn't count)
         mujoco.mj_step(model, data, nstep=int(SETTLE_S / TIMESTEP))
         pos = data.sensordata[:3].copy()
-        speed = np.linalg.norm(data.qvel[model.joint("cube").dofadr[0]:][:6])
+        # linear speed only: pinched between thumb and fingers a cube can chatter in place for a while
+        speed = np.linalg.norm(data.qvel[model.joint("cube").dofadr[0]:][:3])
         if pos[2] > DROP_Z + 0.01 and np.linalg.norm(pos[:2] - CUBE_HOME[:2]) < 0.04 and speed < 0.05:
             return home, pos
     raise RuntimeError("no thumb home pose keeps the cube on the hand")
