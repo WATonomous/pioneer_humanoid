@@ -1,4 +1,5 @@
-"""Stitch the rendered GIFs in out/ into one showcase MP4 with a title card per segment.
+"""Stitch the rendered GIFs in out/ into one showcase MP4 (a label in the corner of each segment;
+--cards adds a title card before each).
 
 Render the pieces first (see README: pick / actions / mpc / synergies with --gif), then
 
@@ -24,6 +25,7 @@ SEGMENTS = (
     ("stack.gif", "Stack", "onto a 5 cm box"),
     ("push.gif", "Push", "backs of the fingers sweep it along the table"),
     ("press.gif", "Press", "point gesture onto a spring button (100% over 100 trials)"),
+    ("type_multi.gif", "Type, four fingers", "26 keys; per key the finger needing the least wrist travel"),
     ("type.gif", "Type", "26-key keyboard, index finger, exact up to +-6 mm aiming error"),
     ("gestures.gif", "Gestures", "open, fist, point, thumbs-up, peace, OK"),
     ("mpc_joint.gif", "In-hand: spin a cube", "sampling MPC, no training"),
@@ -76,23 +78,26 @@ def main() -> None:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--src", default="out")
     p.add_argument("--out", default="out/showcase.mp4")
+    p.add_argument("--cards", action="store_true", help="title card before each segment")
     args = p.parse_args()
     import imageio.v2 as imageio
 
     src = Path(args.src)
     writer = imageio.get_writer(args.out, fps=FPS, codec="libx264", quality=6, macro_block_size=16)
-    intro = card("Pioneer hand in MuJoCo", "CPU only, no training -- WATonomous humanoid")
-    for _ in range(int(2.5 * FPS)):
-        writer.append_data(intro)
+    if args.cards:
+        intro = card("Pioneer hand in MuJoCo", "CPU only, no training -- WATonomous humanoid")
+        for _ in range(int(2.5 * FPS)):
+            writer.append_data(intro)
     used = 0
     for name, title, subtitle in SEGMENTS:
         path = src / name
         if not path.exists():
             print(f"skip {name} (not rendered)")
             continue
-        c = card(title, subtitle)
-        for _ in range(int(CARD_S * FPS)):
-            writer.append_data(c)
+        if args.cards:
+            c = card(title, subtitle)
+            for _ in range(int(CARD_S * FPS)):
+                writer.append_data(c)
         for f in gif_frames(path, title):
             writer.append_data(f)
         used += 1

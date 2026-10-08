@@ -229,32 +229,45 @@ def press(p: Picker, seed: int, frames=None) -> bool:
     return bool(not gen.unstable() and -lowest[0] >= PRESS_MIN_M)
 
 
+FINGERS = ("1", "2", "3", "4")  # index, middle, ring, pinky
+
+
+def press_pose(finger: str) -> np.ndarray:
+    """``finger`` straight, the other fingers curled up out of the way, thumb tucked."""
+    curled = {f"{j}_{f}": 1.0 for f in FINGERS if f != finger for j in ("MCP", "PIP", "DIP")}
+    return _curl({**curled, "MCP_A_thumb": 0.6, "PIP_thumb": 0.8, "DIP_thumb": 0.8})
+
+
 def type_text(p: Picker, text: str, frames=None, typed: list | None = None, jitter_m: float = 0.0,
-              seed: int = 0) -> str:
-    """Type ``text`` on the keyboard with the index finger (point gesture, fingers down); returns what the
-    keys registered. A key registers when it goes down KEY_DOWN_M (and again only after it comes back up).
-    ``jitter_m``: aiming error per keystroke (uniform +-)."""
+              seed: int = 0, fingers: str = "index", fingers_used: list | None = None) -> str:
+    """Type ``text`` on the keyboard, fingers pointing down; returns what the keys registered. A key
+    registers when it goes down KEY_DOWN_M (and again only after it comes back up).
+
+    ``fingers``: "index" presses every key with the index; "multi" picks, per key, whichever of index /
+    middle / ring / pinky needs the least wrist travel -- that finger straightens, the rest curl up.
+    ``jitter_m``: aiming error per keystroke (uniform +-). ``fingers_used`` collects the finger per key."""
     from .pick import KEY_BASE_Z, KEY_H, key_layout
 
     m, d, gen = p.model, p.data, p.gen
     p.frames = frames
     rng = np.random.default_rng(seed)
     typed = [] if typed is None else typed
-    hand = gestures()["point"]
     layout = key_layout()
     keys = {c: m.joint(f"key_{c}").qposadr[0] for c in layout}
     down = {c: False for c in layout}
-    mujoco.mj_resetData(m, d)
-    _park_object(p)
-    d.qpos[p.pitch_q] = p.pitch
-    d.ctrl[p.pitch_act] = p.pitch
-    d.qpos[gen.idx.qpos] = hand
-    mujoco.mj_kinematics(m, d)
-    tip = _lowest_vertex(m, d, "distal_1")  # fingertip, wrist at the origin
+    choices = ("1",) if fingers == "index" else FINGERS
+    poses = {f: press_pose(f) for f in choices}
+    tips = {}
+    for f in choices:  # each finger's fingertip with the wrist at the origin, in its press pose
+        mujoco.mj_resetData(m, d)
+        d.qpos[p.pitch_q] = p.pitch
+        d.qpos[gen.idx.qpos] = poses[f]
+        mujoco.mj_kinematics(m, d)
+        tips[f] = _lowest_vertex(m, d, f"distal_{f}")
     top = KEY_BASE_Z + KEY_H
 
-    def wrist_for(xy, height):
-        return np.array([xy[0] - tip[0], xy[1] - tip[1], top + height - tip[2]])
+    def wrist_for(f, xy, height):
+        return np.array([xy[0] - tips[f][0], xy[1] - tips[f][1], top + height - tips[f][2]])
 
     def watch():
         for c, a in keys.items():
@@ -265,28 +278,39 @@ def type_text(p: Picker, text: str, frames=None, typed: list | None = None, jitt
                 down[c] = False
         p.record()
 
-    def go(a, b, seconds):
+    def go(a, b, seconds, hand_a, hand_b=None):
+        hand_b = hand_a if hand_b is None else hand_b
         n = int(seconds / 0.001)
         for i in range(n):
-            p._set_wrist(a + (b - a) * (i + 1) / n)
-            d.ctrl[gen.idx.act] = hand
+            s = (i + 1) / n
+            p._set_wrist(a + (b - a) * s)
+            d.ctrl[gen.idx.act] = hand_a + (hand_b - hand_a) * s
             mujoco.mj_step(m, d)
             watch()
 
-    pos = wrist_for(layout[text[0]], 0.03)
+    finger = choices[0]
+    pos = wrist_for(finger, layout[text[0]], 0.03)
+    mujoco.mj_resetData(m, d)
+    _park_object(p)
+    d.qpos[p.pitch_q] = p.pitch
+    d.ctrl[p.pitch_act] = p.pitch
+    d.qpos[gen.idx.qpos] = poses[finger]
     d.qpos[p.wrist_q] = pos
     p._set_wrist(pos)
-    d.ctrl[gen.idx.act] = hand
+    d.ctrl[gen.idx.act] = poses[finger]
     mujoco.mj_forward(m, d)
     for c in text:
         aim = np.asarray(layout[c]) + rng.uniform(-jitter_m, jitter_m, size=2)
-        hover, press_at = wrist_for(aim, 0.015), wrist_for(aim, -0.008)
-        go(pos, hover, 0.3)
-        go(hover, press_at, 0.15)
-        go(press_at, press_at, 0.08)
-        go(press_at, hover, 0.15)
-        pos = hover
-    go(pos, pos, 0.3)
+        nxt = min(choices, key=lambda f: np.linalg.norm(wrist_for(f, aim, 0.015)[:2] - pos[:2]))
+        if fingers_used is not None:
+            fingers_used.append(nxt)
+        hover, press_at = wrist_for(nxt, aim, 0.015), wrist_for(nxt, aim, -0.008)
+        go(pos, hover, 0.3, poses[finger], poses[nxt])
+        go(hover, press_at, 0.15, poses[nxt])
+        go(press_at, press_at, 0.08, poses[nxt])
+        go(press_at, hover, 0.15, poses[nxt])
+        pos, finger = hover, nxt
+    go(pos, pos, 0.3, poses[finger])
     return "".join(typed)
 
 
@@ -385,7 +409,7 @@ def render_gestures_gif(path: str, hold_s: float = 0.8, move_s: float = 0.6) -> 
     print(f"wrote {path} ({len(imgs)} frames)")
 
 
-def render_typing(path: str, text: str) -> None:
+def render_typing(path: str, text: str, fingers: str = "index") -> None:
     """Video of the hand typing ``text``, with what the keys registered written on top."""
     from PIL import Image, ImageDraw
 
@@ -404,7 +428,7 @@ def render_typing(path: str, text: str) -> None:
             imgs.append(img)
             super().append(t)
 
-    out = type_text(p, text, frames=Recorder(), typed=typed)
+    out = type_text(p, text, frames=Recorder(), typed=typed, fingers=fingers)
     imgs[0].save(path, save_all=True, append_images=imgs[1:], duration=40, loop=0)
     renderer.close()
     print(f"wrote {path}: typed {out!r} ({len(imgs)} frames)")
@@ -442,6 +466,8 @@ def main() -> None:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("action", choices=("place", "stack", "push", "press", "type", "gestures"))
     p.add_argument("--text", default="hello watonomous", help="for type (letters only; spaces are skipped)")
+    p.add_argument("--fingers", default="index", choices=("index", "multi"),
+                   help="for type: index only, or the finger needing the least wrist travel per key")
     p.add_argument("--trials", type=int, default=300)
     p.add_argument("--finger-collisions", action="store_true")
     p.add_argument("--synergies", default="out/synergies.npz", help="pre-shapes for place/stack ('' = prior)")
@@ -451,13 +477,13 @@ def main() -> None:
     if args.action == "type":
         text = "".join(c for c in args.text.lower() if c.isalpha())
         if args.gif:
-            render_typing(args.gif, text)
+            render_typing(args.gif, text, args.fingers)
             return
         import difflib
 
         p = Picker("stock", args.finger_collisions, pitch_deg=DOWN_PITCH, keyboard=True)
         for jitter in (0.0, 0.004, 0.006, 0.008, 0.010):
-            outs = [type_text(p, text, jitter_m=jitter, seed=s) for s in range(args.trials)]
+            outs = [type_text(p, text, jitter_m=jitter, seed=s, fingers=args.fingers) for s in range(args.trials)]
             exact = np.mean([o == text for o in outs])
             match = np.mean([difflib.SequenceMatcher(None, text, o).ratio() for o in outs])
             print(f"aim error +-{jitter * 1000:.0f} mm: {exact:.0%} exact, {match:.1%} of characters right")
