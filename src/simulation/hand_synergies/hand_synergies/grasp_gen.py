@@ -273,8 +273,9 @@ class GraspGen:
 _GEN: GraspGen | None = None
 
 
-def _init_worker(thumb: str) -> None:
+def _init_worker(thumb: str, sampling: dict) -> None:
     global _GEN
+    SAMPLING.update(sampling)  # spawn-safe: workers don't inherit the parent's edits
     _GEN = GraspGen(thumb)
 
 
@@ -289,12 +290,15 @@ def main() -> None:
     p.add_argument("--workers", type=int, default=mp.cpu_count())
     p.add_argument("--out", default="grasps.npz")
     p.add_argument("--thumb", default="stock", help="thumb mount (thumb.THUMB_MOUNTS)")
+    p.add_argument("--obj-x", type=float, nargs=2, default=SAMPLING["obj_x"], help="object centre x range (hand frame)")
+    p.add_argument("--obj-y", type=float, nargs=2, default=SAMPLING["obj_y"], help="object centre y range (hand frame)")
     args = p.parse_args()
+    SAMPLING.update(obj_x=tuple(args.obj_x), obj_y=tuple(args.obj_y))
 
     seeds = range(args.seed * 10_000_000, args.seed * 10_000_000 + args.trials)
     t0 = time.time()
     results = []
-    with mp.Pool(args.workers, initializer=_init_worker, initargs=(args.thumb,)) as pool:
+    with mp.Pool(args.workers, initializer=_init_worker, initargs=(args.thumb, SAMPLING)) as pool:
         for i, r in enumerate(pool.imap_unordered(_worker, seeds, chunksize=16)):
             if r is not None:
                 results.append(r)
