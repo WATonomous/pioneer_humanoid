@@ -23,6 +23,8 @@ import numpy as np
 from mujoco import rollout
 from pioneer_humanoid.mujoco_hand import JOINT_NAMES, PALM_BODY, hand_spec, joint_ranges
 
+from .scene import stiffen_contacts
+
 TIMESTEP = 0.002
 CONTROL_DT = 0.02          # replan period
 HORIZON_S = 0.3
@@ -76,6 +78,7 @@ def make_model(width: int = 480, height: int = 360) -> mujoco.MjModel:
                     objtype=mujoco.mjtObj.mjOBJ_BODY, objname="cube")
     spec.add_sensor(name="cube_zaxis", type=mujoco.mjtSensor.mjSENS_FRAMEZAXIS,
                     objtype=mujoco.mjtObj.mjOBJ_BODY, objname="cube")
+    stiffen_contacts(spec)
     return spec.compile()
 
 

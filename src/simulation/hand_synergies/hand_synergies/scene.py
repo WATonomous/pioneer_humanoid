@@ -22,6 +22,16 @@ _GEOM_TYPES = {
 }
 # Palm surface (the -Z face of the palm hull) in the hand frame.
 PALM_SURFACE_Z = -0.008
+# Same contact as humanoid_mujoco_scenes: time constant 4 ms (>= 2 x timestep) and solimp near 1. MuJoCo's
+# default (0.02 s, 0.9-0.95) lets the fingers sink 3-12 mm into a squeezed object.
+CONTACT_SOLREF = [0.004, 1.0]
+CONTACT_SOLIMP = [0.95, 0.99, 0.001, 0.5, 2.0]
+
+
+def stiffen_contacts(spec: mujoco.MjSpec) -> None:
+    for geom in spec.geoms:
+        geom.solref = CONTACT_SOLREF
+        geom.solimp = CONTACT_SOLIMP
 
 
 def make_model(width: int = 640, height: int = 480) -> mujoco.MjModel:
@@ -47,6 +57,7 @@ def make_model(width: int = 640, height: int = 480) -> mujoco.MjModel:
             name=name, type=gtype, size=[0.02, 0.02, 0.02], rgba=[0.9, 0.55, 0.2, 1],
             friction=[1.0, 0.01, 0.001], density=0,
         )
+    stiffen_contacts(spec)
     # Placeholder inertia; set_object writes the real one for each trial.
     obj.mass = 0.05
     obj.inertia = [1e-5, 1e-5, 1e-5]
