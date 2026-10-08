@@ -179,13 +179,18 @@ class GraspGen:
 
     def trial(self, seed: int) -> dict | None:
         rng = np.random.default_rng(seed)
-        m, d, idx = self.model, self.data, self.idx
-        lo, hi = self.ranges[:, 0], self.ranges[:, 1]
         grasp_type = rng.choice(list(GRASP_TYPES), p=[w for _, w in GRASP_TYPES.values()])
-        digits = GRASP_TYPES[grasp_type][0]
         q0 = self.sample_preshape(rng)
         kind, size, pos, quat = self.sample_object(rng)
+        result = self.grasp(q0, kind, size, pos, quat, GRASP_TYPES[grasp_type][0])
+        if result is not None:
+            result.update(grasp_type=grasp_type, seed=seed)
+        return result
 
+    def grasp(self, q0, kind, size, pos, quat, digits) -> dict | None:
+        """Pre-shape ``q0``, object at (pos, quat), close ``digits``, squeeze, shake. None if it fails."""
+        m, d, idx = self.model, self.data, self.idx
+        lo, hi = self.ranges[:, 0], self.ranges[:, 1]
         mujoco.mj_resetData(m, d)
         set_object(m, idx, kind, size)
         m.opt.gravity[:] = 0.0
@@ -236,16 +241,16 @@ class GraspGen:
             return None
         obj_pos, obj_quat = self._object_pose()
         return dict(
-            q=q_grasp, ctrl=ctrl.copy(), preshape=q0, grasp_type=grasp_type, kind=kind,
+            q=q_grasp, ctrl=ctrl.copy(), preshape=q0, kind=kind,
             size=np.pad(size, (0, 3 - len(size))), obj_pos=obj_pos, obj_quat=obj_quat,
-            contacts=np.array([g in groups for g in CONTACT_GROUPS]), seed=seed,
+            contacts=np.array([g in groups for g in CONTACT_GROUPS]),
         )
 
-    def hold_test(self, ctrl: np.ndarray, start: mujoco.MjData | None = None) -> bool:
-        """Gravity along each of +-X/Y/Z from the current state (or ``start``); True if the object stays."""
+    def hold_test(self, ctrl: np.ndarray) -> bool:
+        """Gravity along each of +-X/Y/Z from the current state; True if the object stays."""
         m, d = self.model, self.data
         snap = mujoco.MjData(m)
-        mujoco.mj_copyData(snap, m, start if start is not None else d)
+        mujoco.mj_copyData(snap, m, d)
         try:
             for axis in range(3):
                 for sign in (-1.0, 1.0):

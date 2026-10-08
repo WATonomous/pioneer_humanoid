@@ -5,8 +5,8 @@
 
 fit:  synergies.npz (mean, components, stds, variance ratio), variance.png, loadings.png,
       pc<k>.gif (the hand swept along each PC, -2 sd .. +2 sd) and synergies.png (a still grid).
-eval: re-holds each grasp with its posture rebuilt from the first k PCs (plus the usual squeeze)
-      and re-runs the six-direction shake test -> reconstruction.png / reconstruction.csv.
+eval: rebuilds grasps from their first k PCs, two ways: as the final posture, and as a pre-shape the
+      hand then closes from (see _eval_one); shake test each -> reconstruction.png / reconstruction.csv.
 """
 from __future__ import annotations
 
@@ -164,64 +164,100 @@ def render_synergies(pca: dict, out: Path, k: int = 4, n_frames: int = 24) -> No
 
 # --- reconstruction test ----------------------------------------------------------------------
 _EVAL = {}
+_SIZE_DIMS = {"sphere": 1, "cylinder": 2, "box": 3}
+OPEN_STEPS = (0.2, 0.4, 0.6)  # rad the closing joints back off from a k-PC pre-shape, until it clears the object
 
 
 def _eval_one(args):
-    g, k, rec = args
-    from .grasp_gen import SETTLE_S, GraspGen, set_object
+    """One grasp, one k, one mode:
+
+    posture:  hand set to the recorded grasp, target switched to the k-PC rebuild (+ the original squeeze);
+              does the object stay through the shake test?
+    preshape: the k-PC rebuild, opened a little, is a pre-shape; autograsp closes from it on the object at
+              its recorded pose (the usual close -> squeeze -> shake). k=0 is the mean posture.
+    """
+    g, k, mode, rec = args
+    from .grasp_gen import GRASP_TYPES, SETTLE_S, GraspGen, set_object
 
     gen = _EVAL.get("gen") or _EVAL.setdefault("gen", GraspGen())
     m, d, idx = gen.model, gen.data, gen.idx
-    mujoco.mj_resetData(m, d)
     kind = str(rec["kind"])
-    set_object(m, idx, kind, rec["size"][: {"sphere": 1, "cylinder": 2, "box": 3}[kind]])
+    size = rec["size"][: _SIZE_DIMS[kind]]
+    if mode == "preshape":
+        digits = GRASP_TYPES[str(rec["grasp_type"])][0]
+        for delta in OPEN_STEPS:
+            q0 = rec["q_k"].copy()
+            q0[gen.close_j] -= gen.close_sign * delta
+            q0 = np.clip(q0, *gen.ranges.T)
+            set_object(m, idx, kind, size)
+            mujoco.mj_resetData(m, d)
+            d.qpos[idx.qpos] = q0
+            d.qpos[idx.obj_qpos:idx.obj_qpos + 3] = rec["obj_pos"]
+            d.qpos[idx.obj_qpos + 3:idx.obj_qpos + 7] = rec["obj_quat"]
+            mujoco.mj_forward(m, d)
+            if not any(c.dist < 0 for c in d.contact[: d.ncon]):
+                break
+        result = gen.grasp(q0, kind, size, rec["obj_pos"], rec["obj_quat"], digits)
+        return g, k, mode, result is not None
+
+    mujoco.mj_resetData(m, d)
+    set_object(m, idx, kind, size)
     m.opt.gravity[:] = 0.0
     d.qpos[idx.qpos] = rec["q"]
     d.qpos[idx.obj_qpos:idx.obj_qpos + 3] = rec["obj_pos"]
     d.qpos[idx.obj_qpos + 3:idx.obj_qpos + 7] = rec["obj_quat"]
-    # Same per-joint squeeze as the original grasp, on top of the rebuilt posture.
     ctrl = np.clip(rec["q_k"] + (rec["ctrl"] - rec["q"]), *gen.ranges.T)
     d.ctrl[idx.act] = ctrl
     mujoco.mj_step(m, d, nstep=int(SETTLE_S / m.opt.timestep))
-    return g, k, gen.hold_test(ctrl)
+    return g, k, mode, gen.hold_test(ctrl)
 
 
 def evaluate(grasps: dict, pca: dict, ks, n: int, seed: int = 0) -> dict:
+    """{mode: {k: fraction held}} over the same n random grasps for every k and mode."""
     rng = np.random.default_rng(seed)
     pick = rng.choice(len(grasps["q"]), size=min(n, len(grasps["q"])), replace=False)
+    fields = ("q", "ctrl", "kind", "size", "obj_pos", "obj_quat", "grasp_type")
     jobs = []
-    for k in ks:
-        q_k = project(grasps["q"][pick], pca, k)
-        for row, g in enumerate(pick):
-            rec = {f: grasps[f][g] for f in ("q", "ctrl", "kind", "size", "obj_pos", "obj_quat")}
-            rec["q_k"] = q_k[row]
-            jobs.append((int(g), k, rec))
-    held = {k: [] for k in ks}
+    for mode in ("posture", "preshape"):
+        for k in ks:
+            q_k = project(grasps["q"][pick], pca, k) if k else np.tile(pca["mean"], (len(pick), 1))
+            for row, g in enumerate(pick):
+                if mode == "posture" and k == 0:
+                    continue
+                rec = {f: grasps[f][g] for f in fields}
+                rec["q_k"] = q_k[row]
+                jobs.append((int(g), k, mode, rec))
+    held = {}
     with mp.Pool() as pool:
-        for _, k, ok in pool.imap_unordered(_eval_one, jobs, chunksize=8):
-            held[k].append(ok)
-    return {k: float(np.mean(v)) for k, v in held.items()}
+        for _, k, mode, ok in pool.imap_unordered(_eval_one, jobs, chunksize=8):
+            held.setdefault(mode, {}).setdefault(k, []).append(ok)
+    return {mode: {k: float(np.mean(v)) for k, v in sorted(r.items())} for mode, r in held.items()}
 
 
 def plot_reconstruction(rates: dict, pca: dict, path: Path, n: int) -> None:
     import matplotlib.pyplot as plt
 
-    ks = sorted(rates)
-    fig, ax = plt.subplots(figsize=(7, 4), facecolor=SURFACE)
+    fig, ax = plt.subplots(figsize=(7.5, 4.2), facecolor=SURFACE)
     _style(ax)
-    ax.plot(ks, [rates[k] * 100 for k in ks], color=BLUE, linewidth=2, marker="o", markersize=6,
-            label="grasps still held")
-    cum = np.cumsum(pca["variance_ratio"]) * 100
-    ax.plot(ks, [cum[k - 1] for k in ks], color=MUTED, linewidth=2, linestyle="--", label="variance explained")
-    for k in ks:
-        ax.annotate(f"{rates[k] * 100:.0f}%", (k, rates[k] * 100), textcoords="offset points", xytext=(0, 8),
-                    ha="center", fontsize=8, color=INK)
-    ax.set_xticks(ks)
+    ks = sorted(rates["preshape"])
+    cum = np.concatenate([[0.0], np.cumsum(pca["variance_ratio"])]) * 100
+    ax.plot(ks, [cum[k] for k in ks], color=MUTED, linewidth=2, linestyle="--", label="variance explained")
+    series = (
+        ("preshape", BLUE, "k-PC pre-shape, then close to contact"),
+        ("posture", RED, "k-PC posture as the grasp"),
+    )
+    for mode, color, label in series:
+        r = rates[mode]
+        x = sorted(r)
+        ax.plot(x, [r[k] * 100 for k in x], color=color, linewidth=2, marker="o", markersize=6, label=label)
+        for k in x:
+            ax.annotate(f"{r[k] * 100:.0f}", (k, r[k] * 100), textcoords="offset points", xytext=(0, 7),
+                        ha="center", fontsize=8, color=INK)
+    ax.set_xticks(ks, [str(k) if k else "mean" for k in ks])
     ax.set_ylim(0, 105)
     ax.set_xlabel("synergies used (k PCs)", color=INK)
-    ax.set_ylabel("%", color=INK)
-    ax.set_title(f"Grasps that survive the shake test with a k-PC posture (n={n})", loc="left", color=INK,
-                 fontsize=11)
+    ax.set_ylabel("% of grasps that pass the shake test", color=INK)
+    ax.set_title(f"How many synergies a grasp needs (n={n} grasps)", loc="left", color=INK, fontsize=11)
     ax.legend(frameon=False, fontsize=9, loc="lower right")
     fig.tight_layout()
     fig.savefig(path, dpi=150)
@@ -251,15 +287,17 @@ def main() -> None:
         print(f"wrote {out}/synergies.npz, variance.png, loadings.png, synergies.png, pc1-4.gif")
     else:
         pca = dict(np.load(out / "synergies.npz"))
-        ks = [1, 2, 3, 4, 5, 6, 8, 10, 20]
+        ks = [0, 1, 2, 3, 4, 5, 6, 8, 10, 20]
         rates = evaluate(grasps, pca, ks, args.n_eval)
         n = min(args.n_eval, len(q))
+        cum = np.concatenate([[0.0], np.cumsum(pca["variance_ratio"])])
         with open(out / "reconstruction.csv", "w") as f:
-            f.write("k,variance_explained,held\n")
+            f.write("k,variance_explained,held_posture,held_preshape\n")
             for k in ks:
-                f.write(f"{k},{np.cumsum(pca['variance_ratio'])[k - 1]:.4f},{rates[k]:.4f}\n")
+                f.write(f"{k},{cum[k]:.4f},{rates['posture'].get(k, float('nan')):.4f},{rates['preshape'][k]:.4f}\n")
         plot_reconstruction(rates, pca, out / "reconstruction.png", n)
-        print("held: " + ", ".join(f"k={k}:{rates[k]:.0%}" for k in ks))
+        for mode, r in rates.items():
+            print(f"{mode:9s} held: " + ", ".join(f"k={k}:{v:.0%}" for k, v in r.items()))
 
 
 if __name__ == "__main__":
