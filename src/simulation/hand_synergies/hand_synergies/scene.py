@@ -41,8 +41,9 @@ def stiffen_contacts(spec: mujoco.MjSpec) -> None:
 
 
 def make_model(width: int = 640, height: int = 480, thumb: str = "stock",
-               finger_collisions: bool = False) -> mujoco.MjModel:
-    """``thumb``: a mount from thumb.THUMB_MOUNTS. ``finger_collisions``: see mujoco_hand.hand_spec."""
+               finger_collisions: bool = False, torque_limit: float | None = None) -> mujoco.MjModel:
+    """``thumb``: a mount from thumb.THUMB_MOUNTS. ``finger_collisions``, ``torque_limit``: see
+    mujoco_hand.hand_spec."""
     from .thumb import thumb_kwargs
 
     spec = mujoco.MjSpec()
@@ -58,7 +59,8 @@ def make_model(width: int = 640, height: int = 480, thumb: str = "stock",
     spec.worldbody.add_light(pos=[0.3, 0.3, 0.6], dir=[-0.5, -0.4, -1], diffuse=[0.7, 0.7, 0.7])
     spec.worldbody.add_light(pos=[-0.3, 0.0, -0.6], dir=[0.5, 0.2, 1], diffuse=[0.5, 0.5, 0.5])
 
-    spec.worldbody.add_frame().attach_body(hand_spec(**thumb_kwargs(thumb), finger_collisions=finger_collisions).body(PALM_BODY), "", "")
+    spec.worldbody.add_frame().attach_body(hand_spec(**thumb_kwargs(thumb), finger_collisions=finger_collisions,
+                  torque_limit=torque_limit).body(PALM_BODY), "", "")
 
     obj = spec.worldbody.add_body(name="object", pos=[0, 0.1, -0.05])
     obj.add_freejoint(name="object")

@@ -72,9 +72,11 @@ GRAVITY = 9.81
 
 
 class GraspGen:
-    def __init__(self, thumb: str = "stock", finger_collisions: bool = False, model: mujoco.MjModel | None = None):
+    def __init__(self, thumb: str = "stock", finger_collisions: bool = False, model: mujoco.MjModel | None = None,
+                 torque_limit: float | None = None):
         """``model``: use this compiled model (hand + a free body "object") instead of scene.make_model."""
-        self.model = model if model is not None else make_model(thumb=thumb, finger_collisions=finger_collisions)
+        self.model = model if model is not None else make_model(
+            thumb=thumb, finger_collisions=finger_collisions, torque_limit=torque_limit)
         self.data = mujoco.MjData(self.model)
         self.idx = HandIndex.of(self.model)
         self.ranges = joint_ranges(self.model)
@@ -292,10 +294,10 @@ class GraspGen:
 _GEN: GraspGen | None = None
 
 
-def _init_worker(thumb: str, sampling: dict, finger_collisions: bool) -> None:
+def _init_worker(thumb: str, sampling: dict, finger_collisions: bool, torque_limit: float | None) -> None:
     global _GEN
     SAMPLING.update(sampling)  # spawn-safe: workers don't inherit the parent's edits
-    _GEN = GraspGen(thumb, finger_collisions)
+    _GEN = GraspGen(thumb, finger_collisions, torque_limit=torque_limit)
 
 
 def _worker(seed: int):
@@ -310,6 +312,7 @@ def main() -> None:
     p.add_argument("--out", default="grasps.npz")
     p.add_argument("--thumb", default="stock", help="thumb mount (thumb.THUMB_MOUNTS)")
     p.add_argument("--finger-collisions", action="store_true", help="digits collide with each other")
+    p.add_argument("--torque-limit", type=float, default=None, help="Nm per joint (default: unlimited)")
     p.add_argument("--obj-x", type=float, nargs=2, default=SAMPLING["obj_x"], help="object centre x range (hand frame)")
     p.add_argument("--obj-y", type=float, nargs=2, default=SAMPLING["obj_y"], help="object centre y range (hand frame)")
     args = p.parse_args()
@@ -318,7 +321,7 @@ def main() -> None:
     seeds = range(args.seed * 10_000_000, args.seed * 10_000_000 + args.trials)
     t0 = time.time()
     results = []
-    with mp.Pool(args.workers, initializer=_init_worker, initargs=(args.thumb, SAMPLING, args.finger_collisions)) as pool:
+    with mp.Pool(args.workers, initializer=_init_worker, initargs=(args.thumb, SAMPLING, args.finger_collisions, args.torque_limit)) as pool:
         for i, r in enumerate(pool.imap_unordered(_worker, seeds, chunksize=16)):
             if r is not None:
                 results.append(r)
