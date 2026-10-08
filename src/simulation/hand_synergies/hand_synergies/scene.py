@@ -20,6 +20,12 @@ _GEOM_TYPES = {
     "cylinder": mujoco.mjtGeom.mjGEOM_CYLINDER,
     "box": mujoco.mjtGeom.mjGEOM_BOX,
 }
+# Compile-time size of the object geoms. MuJoCo builds the body's bounding-volume hierarchy (bvh_aabb) at
+# compile time and set_object() can't grow it, so contacts outside the compiled bounds are missed: a 4 cm
+# sphere compiled at 2 cm let fingers sink 1-4 mm in before any contact. Compile at the largest size any
+# experiment uses (set_object only ever shrinks from here).
+MAX_SIZE = {"sphere": [0.045, 0, 0], "cylinder": [0.04, 0.1, 0], "box": [0.04, 0.04, 0.1]}
+
 # Palm surface (the -Z face of the palm hull) in the hand frame.
 PALM_SURFACE_Z = -0.008
 # Same contact as humanoid_mujoco_scenes: time constant 4 ms (>= 2 x timestep) and solimp near 1. MuJoCo's
@@ -58,7 +64,7 @@ def make_model(width: int = 640, height: int = 480, thumb: str = "stock",
     obj.add_freejoint(name="object")
     for name, gtype in _GEOM_TYPES.items():
         obj.add_geom(
-            name=name, type=gtype, size=[0.02, 0.02, 0.02], rgba=[0.9, 0.55, 0.2, 1],
+            name=name, type=gtype, size=MAX_SIZE[name], rgba=[0.9, 0.55, 0.2, 1],
             friction=[1.0, 0.01, 0.001], density=0,
         )
     stiffen_contacts(spec)
@@ -66,6 +72,10 @@ def make_model(width: int = 640, height: int = 480, thumb: str = "stock",
     obj.mass = 0.05
     obj.inertia = [1e-5, 1e-5, 1e-5]
     obj.explicitinertial = True
+    # The inertial frame must be set too: left alone it took the body's spawn position, putting the
+    # centre of mass ~11 cm from the object's centre.
+    obj.ipos = [0.0, 0.0, 0.0]
+    obj.iquat = [1.0, 0.0, 0.0, 0.0]
     return spec.compile()
 
 
