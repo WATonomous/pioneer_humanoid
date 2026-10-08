@@ -91,7 +91,31 @@ Synergy pre-shapes succeed *more* often per try (27% vs 21%, ~2400 tries each) b
 distinct objects: they concentrate on the typical grasp, and the unusual ones that solve awkward
 placements live in the dropped dimensions.
 
-**Grasp and lift** (`lift.py`): results being regenerated.
+**Grasp and lift** (`lift.py`): the hand (palm down, on a wrist that slides vertically) closes on an object
+held by a fixture (a weld), the fixture lets go, the object settles into the grasp, and the wrist lifts 10 cm
+in 1 s and holds 1 s. Success: it rose >= 8 cm, stayed within 3 cm of where it sat in the hand, and no step
+went unstable. Same objects and placement as `grasp_gen`. `out/lift.gif`.
+
+Carrying the shake-test-stable grasps (`--stored 600`, postures rebuilt from k PCs plus the same squeeze):
+
+| posture | as stored | 10 PCs | 5 PCs | 3 PCs | 1 PC |
+|---|---|---|---|---|---|
+| carried 10 cm | 78% | 67% | 53% | 43% | 40% |
+
+Pre-shape -> autograsp -> lift, 1000 trials each (finger collisions on, +-1.1% s.e.):
+
+| pre-shape sampler | stock thumb | near36 thumb |
+|---|---|---|
+| generator prior | 14.1% | 13.3% |
+| Gaussian, all 20 PCs | 13.7% | 15.0% |
+| synergy-1 | 16.5% | 18.3% |
+| synergy-3 | 14.9% | 19.0% |
+| synergy-5 | 15.1% | 17.2% |
+
+Synergy pre-shapes lift a few points more than random ones -- clearly on near36 (+6, ~3.5 s.e.),
+marginally on stock -- even though the synergies were fitted to stock grasps. A first version lifted tall
+objects off a table and lifted none: the stock thumb hangs ~10.6 cm below the palm, so it hits the table
+beside anything shorter.
 
 ## In-hand manipulation with sampling MPC (`mpc.py`)
 
@@ -174,6 +198,7 @@ put the base inside the finger roots; with finger collisions on, such a thumb ge
 | stable grasps, objects placed over a wide area, 20k trials | 821 | 853 |
 | ... of which tripod / pinch | 89 / 19 | 114 / 28 |
 | thumb touches the object | 63% | 75% |
+| pre-shape -> grasp -> lift, best sampler | 16.5% (synergy-1) | 19.0% (synergy-3) |
 
 Verdict: near36 uses the thumb more and makes ~30% more precision grasps, and spins ~20% more, but the
 spin and total-grasp differences aren't statistically solid and the goal task is a wash. It's the
