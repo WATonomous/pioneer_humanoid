@@ -210,15 +210,20 @@ finger's flexion space, and score the fraction of each fingertip's workspace tha
 within 1 cm of (a Kapandji-style test). Search: 3000 random mounts (base x, y on the palm, yaw about the
 palm normal), ~30 s.
 
-| mount | index | middle | ring | pinky | mean |
-|---|---|---|---|---|---|
-| stock | .25 | .39 | .48 | .50 | .41 |
-| yaw90 | .07 | .02 | .27 | .54 | .22 |
-| radial45 | .19 | .14 | .02 | .00 | .09 |
-| radial90 | .03 | .06 | .13 | .00 | .05 |
-| fwd (stock, base 3 cm toward the knuckles) | .30 | .63 | .73 | .63 | .57 |
-| flip (pinky side near the knuckles, turned ~175 deg) | .68 | .65 | .63 | .40 | .59 |
-| palm108 (best with the base on the palm, y <= 0.09) | | | | | .53 |
+| mount | index | middle | ring | pinky | mean | buildable |
+|---|---|---|---|---|---|---|
+| stock | .25 | .39 | .48 | .50 | .41 | yes |
+| yaw90 | .07 | .02 | .27 | .54 | .22 | no |
+| radial45 | .19 | .14 | .02 | .00 | .09 | yes |
+| radial90 | .03 | .06 | .13 | .00 | .05 | yes |
+| fwd (stock, base 3 cm toward the knuckles) | .30 | .63 | .73 | .63 | .57 | no |
+| flip (pinky side near the knuckles, turned ~175 deg) | .68 | .65 | .63 | .40 | .59 | no |
+| palm108 (best with the base on the palm, y <= 0.09) | .53 | .50 | .57 | .50 | .52 | no |
+| near36 (best buildable: base 12 mm toward the knuckles, turned 36 deg) | .42 | .50 | .57 | .52 | .50 | yes |
+
+"Buildable" = the thumb's base links (thumb, thumb_abduction) don't collide with any finger with the fingers
+straight, half or fully curled (`Opposition.base_clear`). With finger collisions on, palm108's base sits
+inside the pinky's roots and the simulation throws the thumb out of its range.
 
 Physical tests of the opposition-optimized mounts (same protocols as above, finger collisions off):
 
@@ -233,9 +238,9 @@ Opposition overlap predicts thumb participation (72% -> 85-89%), and palm108 gra
 stock (~2 sd) and spins about as well. Checked with finger collisions on below.
 
 The stock thumb already opposes all four fingers reasonably; the radial variants barely reach them, which
-is why they lost the grasp tests. The best mounts sit near the knuckles, where a real thumb base would
-collide with the finger roots (thumb links aren't checked against the fingers here), so treat them as a
-direction ("closer to the fingers"), not a design.
+is why they lost the grasp tests. The unconstrained optimum puts the base inside the finger roots; the
+buildable optimum is a small change (near36). The finger-collisions-off physical results above for
+fwd / flip / palm108 / yaw90 let thumb and fingers pass through each other, so don't read them as designs.
 
 ## Finger collisions
 
