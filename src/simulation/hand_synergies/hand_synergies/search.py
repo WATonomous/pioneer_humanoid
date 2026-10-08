@@ -7,8 +7,8 @@ runs the usual power autograsp + shake test from each:
   gauss-20    Gaussian over all 20 joints fitted to the stable grasps (every PC, at its own sd)
   synergy-k   Gaussian over the first k PCs only: q = mean + sum_i a_i PC_i, a_i ~ N(0, sd_i)
 
-The fitted samplers' postures are opened by the same OPEN_STEPS as the eval (they are grasp postures,
-not pre-shapes). Reports per-attempt success and the fraction of problems solved within the budget.
+The fitted samplers draw grasp postures, not pre-shapes: their flexion is scaled down by OPEN_SCALE to the
+prior's openness (keeping the synergy's pattern), then opened further if the hand still overlaps the object. Reports per-attempt success and the fraction of problems solved within the budget.
 
     python -m hand_synergies.search --problems 150 --budget 16 --out out
 """
@@ -24,6 +24,8 @@ import numpy as np
 from .synergies import BLUE, INK, MUTED, OPEN_STEPS, RED, SURFACE, _style
 
 _STATE = {}
+# Grasp postures are ~41% curled, the generator's pre-shapes ~13%: scale flexion by this to match.
+OPEN_SCALE = 0.3
 PROBLEM_SEED = 900_000_000  # far from grasp_gen's trial seeds: test objects are new
 
 
@@ -43,11 +45,14 @@ def _sample(sampler: str, rng: np.random.Generator, pca: dict, gen) -> np.ndarra
 
 
 def _clear_preshape(gen, q: np.ndarray, kind, size, pos, quat) -> np.ndarray | None:
-    """Open q's closing joints until the hand clears the object; None if it never does."""
+    """Turn a grasp posture into a pre-shape: scale its flexion down by OPEN_SCALE (keeping the pattern),
+    then open further by OPEN_STEPS until the hand clears the object; None if it never does."""
     from .scene import set_object
 
     m, d, idx = gen.model, gen.data, gen.idx
-    for delta in OPEN_STEPS:
+    q = q.copy()
+    q[gen.close_j] *= OPEN_SCALE
+    for delta in (0.0, *OPEN_STEPS):
         q0 = q.copy()
         q0[gen.close_j] -= gen.close_sign * delta
         q0 = np.clip(q0, *gen.ranges.T)
