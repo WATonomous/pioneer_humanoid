@@ -1,9 +1,9 @@
-"""Bare scene: floor + light + arm on its stand. The default scene."""
+"""Bare scene: the shared lightbox workcell and arm. The default scene."""
 from __future__ import annotations
 
-from humanoid_mujoco_scenes import add_floor, scene
+from humanoid_mujoco_scenes import ROBOT_BASE_POS, WORKCELL_CAMERA, add_lightbox_workcell, scene
 
 
-@scene("bare", camera=dict(lookat=[0.2, 0.0, 0.9], distance=2.5, azimuth=150, elevation=-20))
+@scene("bare", robot_pos=ROBOT_BASE_POS, camera=WORKCELL_CAMERA)
 def build(spec):
-    add_floor(spec)
+    add_lightbox_workcell(spec)

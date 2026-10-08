@@ -11,7 +11,7 @@ assets/
 ├── pioneer_bimanual_arm/   # the bimanual arm — urdf, usd, meshes  (BIMANUAL_ARM_CFG)
 ├── pioneer_hand/           # 20-DOF hand — urdf, usd, meshes        (HAND_CFG)
 ├── whole_body_humanoid/    # legged humanoid — urdf, usd, meshes    (WHOLE_BODY_HUMANOID_CFG)
-├── props/                 # block.usd, box.usd, table.usd, lightbox.usd — scene props owned by no robot
+├── props/                 # shared scene props; USD sources plus MuJoCo-compatible meshes
 └── lerobot/               # SO101 arm + vial-task USDs + HDRIs — synced from an external repo
 ```
 

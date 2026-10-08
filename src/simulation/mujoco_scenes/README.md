@@ -30,17 +30,22 @@ humanoid_mujoco_scenes/my_scene/
 ```python
 # humanoid_mujoco_scenes/my_scene/scene.py
 import mujoco
-from humanoid_mujoco_scenes import add_floor, scene
+from humanoid_mujoco_scenes import ROBOT_BASE_POS, TABLE_TOP_Z, WORKCELL_CAMERA, add_lightbox_workcell, scene
 
 
-@scene("my_scene", camera=dict(lookat=[0.4, 0.3, 0.75], distance=1.0, azimuth=200, elevation=-35))
+@scene("my_scene", robot_pos=ROBOT_BASE_POS, camera=WORKCELL_CAMERA)
 def build(spec: mujoco.MjSpec) -> None:
-    add_floor(spec)
-    spec.worldbody.add_geom(type=mujoco.mjtGeom.mjGEOM_BOX, size=[0.3, 0.5, 0.35], pos=[0.5, 0, 0.35])
+    add_lightbox_workcell(spec)
+    spec.worldbody.add_geom(
+        type=mujoco.mjtGeom.mjGEOM_BOX,
+        size=[0.03, 0.03, 0.03],
+        pos=[0.55, 0, TABLE_TOP_Z + 0.03],
+    )
 ```
 
-- **`robot_pos`** — arm base placement; default `(0, 0, 1.1997)` puts the stand's feet on the floor (z=0).
-- **`camera`** — optional MuJoCo free-camera fields for the initial view.
+- **`add_lightbox_workcell`** — the standardized floor, CAD lightbox/table, lighting, and table collision. Use `TABLE_TOP_Z` when placing task objects.
+- **`robot_pos`** — arm base placement; use `ROBOT_BASE_POS` with the shared workcell. The registry default `(0, 0, 1.1997)` remains available to legacy scenes.
+- **`camera`** — optional MuJoCo free-camera fields; use `WORKCELL_CAMERA` with the shared workcell.
 - **`step`** — optional `step(model, data)`, called by the teleop each control step before the physics, for
   mechanics a static model can't express (`zip_tie`'s one-way ratchet). Keep its state in `data` so a reset clears it.
 - **`reset`** — optional `reset(model, data, rng)`, called at startup and after every reset to randomise
@@ -53,7 +58,7 @@ def build(spec: mujoco.MjSpec) -> None:
 
 | name | notes |
 |------|-------|
-| `bare` | Floor + arm. |
+| `bare` | Shared lightbox workcell (floor, 30.5-inch table, enclosure, lighting) + arm. |
 | `drawer_stow` | Long horizon, 5 steps: open the drawer (pinch the tab on its front, pull), put the red, green and blue 4 cm blocks in it in the order announced, close it. Every reset shuffles the blocks' places (a strip beside the cabinet) and the order. Each step is checked and latched in order; `progress` gives the current step and its instruction. Laid out for the gripper pointing down: the jaws are 61 mm long and ~16 cm across fully open, so half-close it before reaching for a block. |
 | `matcha` | Long horizon, 4 steps: spoon the matcha into the cup, pour the water in, whisk it, serve the cup on the tray. Matcha and water are 5 mm balls (green in a pre-filled ladle, blue in a pitcher). Tools have chunky 25 mm square handles sticking up, for the gripper pointing down; the ladle and pitcher handles are posts on the side away from the cup, so held at the top and tipped toward the cup (wrist pitch) they empty over the far lip. Checks: ≥5/8 matcha and ≥12/24 water in the cup, whisk tines moved 20 cm inside the cup (circles or zig-zag), cup upright on the tray with most of the drink. Reset shifts the cup and pitcher. ~0.35 s physics per simulated second (32 balls; the slowest scene). |
 | `duplo` | Long horizon, 3 steps: stack the red, blue and yellow Duplo 2x4 bricks (64 x 32 x 19 mm) on the green baseplate in the colour order announced (first on the plate, each next one on the previous). Studs, walls and tubes are real collision geometry; the studs taper, so a brick put down within ~4 mm of the grid slides onto it. A brick seated square on the grid is welded there (MuJoCo can't do the press fit); pulling it off with more than 6 N, or twisting it, releases it. Bricks lie in a row beside the plate, long side along X, for the gripper pointing down pinching their 32 mm width. Reset shuffles the order and the bricks' places. |
