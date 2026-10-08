@@ -1,10 +1,8 @@
 """Leader angles -> left-arm joint targets + gripper closure, shared by the Isaac, MuJoCo and real backends.
 
 One-to-one: the leader is calibrated hanging straight down (calibrate_leader.py), which is also the
-URDF zero and the real arm's zero, so a joint target is just sign x leader angle. The arm starts at
-home (arm_params.DEFAULT_JOINT_POS, elbow bent 90 deg) and only follows the leader once every
-leader joint is within ENGAGE_TOL_DEG of home with the gripper open -- at startup and after every
-reset -- so it never jumps to wherever the leader happens to be.
+URDF zero and the real arm's zero, so a joint target is just sign x leader angle. There is no home
+gate: every valid leader reading immediately updates the simulated arm target.
 
 Plain Python: no simulator imports. The leader is an input device with torque always off.
 """
@@ -15,16 +13,12 @@ import math
 import time
 from pathlib import Path
 
-from arm_limits import gripper_fraction, limited_target
+from arm_limits import GRIPPER_OPEN_DEG, limited_target
 from servo_leader import ARM_SERVOS, GRIPPER_SERVO, SERVO_IDS, ServoLeader, load_calibration, parse_signs
 
 # Per-servo direction, A..F then G. Flip one with --signs if a joint moves the wrong way.
-DEFAULT_SIGNS = "1,-1,-1,1,1,-1,1"
+DEFAULT_SIGNS = "1,1,-1,-1,1,-1,1"
 DEFAULT_CALIBRATION = Path(__file__).resolve().parent / "leader_calibration.json"
-# Follow the leader only once every arm joint is this close to home ...
-ENGAGE_TOL_DEG = 3.0
-# ... and the gripper this close to open (closure fraction, 0 = open).
-ENGAGE_GRIP_TOL = 0.1
 # Stock wrist damping (18) caps joint6l near 2 deg/s at the GL40's 0.73 Nm, so the sim wrist
 # lags the leader. Each backend lowers it for this teleop only; the shared arm config keeps 18.
 WRIST_DAMPING = 2.5
@@ -79,32 +73,92 @@ class LeaderMapping:
         self.home = list(home_rad)
         self.limits_deg = [(math.degrees(lo), math.degrees(hi)) for lo, hi in limits_rad]
         self.gripper_axis = tuple(SERVO_IDS).index(GRIPPER_SERVO)
+        # Runtime zero offsets are deliberately separate from the encoder calibration.  The
+        # calibration says what the physical hanging pose is; these offsets say what simulated
+        # joint angle that physical pose should command.  The Isaac UI can change them live.
+        self.offsets = [0.0] * len(ARM_SERVOS)
+        self.grip_offset = 0.0
         self.reset()
 
     def reset(self) -> None:
-        """Back to home and wait for the leader to reach it (call with every arm reset)."""
-        self.engaged = False
+        """Reset the filtered target to home; the next reading follows immediately."""
+        self.engaged = True
         self.target = list(self.home)
         self.grip = 0.0
-        self.off_home: list[tuple[str, float]] = []
 
-    def update(self, angles: tuple[float, ...]) -> tuple[list[float], float]:
+    def _desired(self, angles: tuple[float, ...]) -> tuple[list[float], float]:
         desired = [
-            limited_target(angles[i], self.signs[i], 1.0, self.limits_deg[i])
+            limited_target(angles[i], self.signs[i], 1.0, self.limits_deg[i], self.offsets[i])
             for i in range(len(ARM_SERVOS))
         ]
-        grip = gripper_fraction(angles[self.gripper_axis], self.signs[self.gripper_axis])
-        if not self.engaged:
-            self.off_home = [
-                (label, math.degrees(d - h))
-                for label, d, h in zip(ARM_SERVOS, desired, self.home)
-                if abs(math.degrees(d - h)) > ENGAGE_TOL_DEG
-            ]
-            if grip > ENGAGE_GRIP_TOL:
-                self.off_home.append((GRIPPER_SERVO, grip))
-            if self.off_home:
-                return self.target, self.grip
-            self.engaged = True
+        # At the calibrated gripper-open pose the closure is zero.  Apply the runtime offset
+        # before clamping so a live re-zero remains reversible at either end of travel.
+        grip = (
+            -self.signs[self.gripper_axis]
+            * math.degrees(angles[self.gripper_axis])
+            / GRIPPER_OPEN_DEG
+            + self.grip_offset
+        )
+        grip = max(0.0, min(1.0, grip))
+        return desired, grip
+
+    def set_directions(self, angles: tuple[float, ...], signs: list[float]) -> tuple[list[float], float]:
+        """Change directions live without making the simulated arm jump.
+
+        The current physical pose keeps commanding the same desired target.  Motion after this
+        point follows the new directions, which makes a mistaken inversion safe to correct while
+        Isaac is running.
+        """
+        if len(signs) != len(SERVO_IDS) or any(sign not in (-1, 1, -1.0, 1.0) for sign in signs):
+            raise ValueError(f"directions must contain {len(SERVO_IDS)} values, each +1 or -1")
+        previous_arm, previous_grip = self._desired(angles)
+        self.signs = [float(sign) for sign in signs]
+        self.offsets = [
+            target - self.signs[i] * angles[i]
+            for i, target in enumerate(previous_arm)
+        ]
+        grip_angle_deg = math.degrees(angles[self.gripper_axis])
+        self.grip_offset = previous_grip + self.signs[self.gripper_axis] * grip_angle_deg / GRIPPER_OPEN_DEG
+        return self.snap(angles)
+
+    def set_current_pose_defaults(
+        self,
+        angles: tuple[float, ...],
+        arm_defaults_deg: list[float],
+        gripper_default: float,
+    ) -> tuple[list[float], float]:
+        """Map the physical pose being held now to the requested simulated defaults."""
+        if len(arm_defaults_deg) != len(ARM_SERVOS):
+            raise ValueError(f"expected {len(ARM_SERVOS)} arm defaults")
+        if not all(math.isfinite(value) for value in arm_defaults_deg):
+            raise ValueError("arm defaults must be finite")
+        if not math.isfinite(gripper_default):
+            raise ValueError("gripper default must be finite")
+        defaults_rad = [math.radians(value) for value in arm_defaults_deg]
+        self.offsets = [
+            default - self.signs[i] * angles[i]
+            for i, default in enumerate(defaults_rad)
+        ]
+        gripper_default = max(0.0, min(1.0, gripper_default))
+        grip_angle_deg = math.degrees(angles[self.gripper_axis])
+        self.grip_offset = gripper_default + self.signs[self.gripper_axis] * grip_angle_deg / GRIPPER_OPEN_DEG
+        return self.snap(angles)
+
+    def clear_runtime_zero(self, angles: tuple[float, ...]) -> tuple[list[float], float]:
+        """Return to the saved encoder calibration and snap to the resulting absolute target."""
+        self.offsets = [0.0] * len(ARM_SERVOS)
+        self.grip_offset = 0.0
+        return self.snap(angles)
+
+    def snap(self, angles: tuple[float, ...]) -> tuple[list[float], float]:
+        """Match the filtered target exactly to the current physical leader pose."""
+        desired, grip = self._desired(angles)
+        self.target = list(desired)
+        self.grip = grip
+        return list(self.target), self.grip
+
+    def update(self, angles: tuple[float, ...]) -> tuple[list[float], float]:
+        desired, grip = self._desired(angles)
         self.target = [t + self.alpha * (d - t) for t, d in zip(self.target, desired)]
         self.grip += self.alpha * (grip - self.grip)
         return self.target, self.grip
@@ -144,16 +198,10 @@ class LeaderInput:
         if now - self._last_report < 0.5:
             return
         self._last_report = now
-        if mapping.engaged:
-            line = (
-                " ".join(f"{label}={math.degrees(a):+6.1f}" for label, a in zip(SERVO_IDS, self.angles))
-                + f" grip={mapping.grip:.2f}"
-            )
-        else:
-            line = "move leader to home (elbow 90, gripper open): " + " ".join(
-                f"{label} {err:+.0f}deg" if label != GRIPPER_SERVO else f"{label} {err:.2f}"
-                for label, err in mapping.off_home
-            )
+        line = (
+            " ".join(f"{label}={math.degrees(a):+6.1f}" for label, a in zip(SERVO_IDS, self.angles))
+            + f" grip={mapping.grip:.2f}"
+        )
         print(f"\r[LEADER] {line:<100}", end="", flush=True)
 
     def close(self) -> None:
