@@ -56,6 +56,12 @@ Outputs in `out/`: `grasps.npz` (posture `q`, commanded `ctrl`, object, contacts
 `synergies.npz` (`mean`, `components`, `stds`, `variance_ratio`), `variance.png`, `loadings.png`,
 `synergies.png`, `pc1.gif`...`pc4.gif`, `reconstruction.png/.csv`.
 
+> **Being regenerated.** Two bugs in the grasp scene invalidated every grasp-based number below (grasp
+> counts, synergies, reconstruction, search, thumb grasp counts): the object's centre of mass sat ~11 cm
+> from its centre (`ipos` left at the spawn position), and objects larger than their compile-time size
+> missed contacts until fingers were 1-4 mm inside. Fixed in `scene.py`; the MPC cube/ball numbers are
+> unaffected.
+
 ## Results (stiff contacts; default `SAMPLING`)
 
 All numbers below are from runs with the contact settings in `scene.CONTACT_SOLREF/SOLIMP`. An earlier
