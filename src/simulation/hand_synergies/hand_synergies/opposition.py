@@ -8,7 +8,9 @@ fingertip sites, and score how much of each finger's fingertip workspace the thu
 
 The mount search moves the thumb base (x, y in the palm frame) and turns the chain about the palm normal,
 like thumb.THUMB_MOUNTS, and keeps the mounts with the best mean overlap. Only positions, not pad
-orientation, are checked, and the thumb's links aren't tested against the palm or fingers.
+orientation, are checked. A mount is ``feasible`` only if the thumb's base links (the ones that don't move
+with its flexion: thumb, thumb_abduction) don't collide with any finger, with the fingers straight,
+half-curled and fully curled -- the best unconstrained mounts put the base inside the finger roots.
 
     python -m hand_synergies.opposition --out out/opposition.csv
 """
@@ -33,7 +35,7 @@ FINGER_GRID = 8             # samples per finger flexion joint (MCP, PIP, DIP)
 
 class Opposition:
     def __init__(self):
-        self.model = hand_spec().compile()
+        self.model = hand_spec(finger_collisions=True).compile()
         self.data = mujoco.MjData(self.model)
         self.thumb_body = self.model.body("thumb").id
         ranges = joint_ranges(self.model)
@@ -61,6 +63,24 @@ class Opposition:
             out[i] = self.data.site_xpos[site]
         return out
 
+    def base_clear(self) -> bool:
+        """No collision between the thumb's base links and any finger (fingers straight / half / curled)."""
+        m, d = self.model, self.data
+        base = {m.body("thumb").id, m.body("thumb_abduction").id}
+        flex = [n for n in JOINT_NAMES if n[:3] in ("MCP", "PIP", "DIP") and not n.startswith("MCP_A")
+                and not n.endswith("thumb")]
+        lo, hi = joint_ranges(m)[[JOINT_NAMES.index(n) for n in flex]].T
+        closed = np.where(np.abs(hi) > np.abs(lo), hi, lo)
+        for frac in (0.0, 0.5, 1.0):
+            d.qpos[:] = 0.0
+            d.qpos[[self.qadr[JOINT_NAMES.index(n)] for n in flex]] = frac * closed
+            mujoco.mj_forward(m, d)
+            for c in d.contact[: d.ncon]:
+                b1, b2 = m.geom_bodyid[c.geom1], m.geom_bodyid[c.geom2]
+                if c.dist < 0 and (b1 in base) != (b2 in base):
+                    return False
+        return True
+
     def score(self, pos, yaw_deg: float) -> dict:
         self.model.body_pos[self.thumb_body] = pos
         half = np.radians(yaw_deg) / 2
@@ -73,6 +93,7 @@ class Opposition:
             out[f"overlap_{name}"] = float(np.mean(d < CONTACT_R))
             out[f"reach_{name}"] = float(d.min())
         out["overlap_mean"] = float(np.mean([out[f"overlap_{n}"] for n in FINGER_NAMES]))
+        out["feasible"] = int(self.base_clear())
         out["fingers_touched"] = int(sum(out[f"reach_{n}"] < CONTACT_R for n in FINGER_NAMES))
         return out
 
@@ -99,9 +120,11 @@ def main() -> None:
         fh.write(",".join(keys) + "\n")
         for r in rows:
             fh.write(",".join(f"{r[k]:.4f}" if isinstance(r[k], float) else str(r[k]) for k in keys) + "\n")
-    show = ("overlap_index", "overlap_middle", "overlap_ring", "overlap_pinky", "overlap_mean", "fingers_touched")
+    show = ("overlap_index", "overlap_middle", "overlap_ring", "overlap_pinky", "overlap_mean", "fingers_touched",
+            "feasible")
     print(f"{'mount':10s} {'x':>7s} {'y':>6s} {'yaw':>6s} " + " ".join(f"{k.replace('overlap_', ''):>8s}" for k in show))
-    best = sorted(rows[len(THUMB_MOUNTS):], key=lambda r: -r["overlap_mean"])[:8]
+    best = sorted(rows[len(THUMB_MOUNTS):], key=lambda r: -r["overlap_mean"])[:4]
+    best += sorted([r for r in rows[len(THUMB_MOUNTS):] if r["feasible"]], key=lambda r: -r["overlap_mean"])[:6]
     for r in rows[:len(THUMB_MOUNTS)] + best:
         print(f"{r['mount']:10s} {r['x']:+.3f} {r['y']:.3f} {r['yaw']:+6.0f} "
               + " ".join(f"{r[k]:8.3f}" if isinstance(r[k], float) else f"{r[k]:8d}" for k in show))

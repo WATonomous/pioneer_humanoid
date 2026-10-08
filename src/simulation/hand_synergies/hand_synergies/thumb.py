@@ -16,6 +16,9 @@ THUMB_MOUNTS = {
     "fwd": ((0.003, 0.109, 0.0198), -2.0),        # stock, base 3 cm toward the knuckles (overlap .57 vs .41)
     "flip": ((0.052, 0.106, 0.0198), -175.0),     # pinky side near the knuckles, turned around (.59)
     "palm108": ((0.028, 0.087, 0.0198), 108.0),   # best with the base kept on the palm, y <= 0.09 (.53)
+    # fwd, flip, palm108 (and yaw90) put the thumb base inside the finger roots -- not buildable.
+    # Best mount whose base clears the fingers (opposition.py feasibility check):
+    "near36": ((0.002, 0.090, 0.0198), 36.0),     # base 12 mm toward the knuckles, turned 36 deg (.50)
 }
 
 

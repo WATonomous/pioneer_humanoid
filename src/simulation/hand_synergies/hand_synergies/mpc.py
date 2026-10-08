@@ -207,8 +207,10 @@ def _settled_home(model: mujoco.MjModel, data: mujoco.MjData) -> tuple[np.ndarra
         data.ctrl[:] = home
         data.qpos[cube_q:cube_q + 3] = CUBE_HOME + [0, 0, DROP_HEIGHT]
         mujoco.mj_forward(model, data)
-        if any(c.dist < 0 for c in data.contact[: data.ncon]):
-            continue
+        cube = model.body("cube").id
+        if any(c.dist < 0 and cube in (model.geom_bodyid[c.geom1], model.geom_bodyid[c.geom2])
+               for c in data.contact[: data.ncon]):
+            continue  # starts inside the cube (finger-on-finger contact doesn't count)
         mujoco.mj_step(model, data, nstep=int(SETTLE_S / TIMESTEP))
         pos = data.sensordata[:3].copy()
         speed = np.linalg.norm(data.qvel[model.joint("cube").dofadr[0]:][:6])
