@@ -226,7 +226,7 @@ Physical tests of the opposition-optimized mounts (same protocols as above, fing
 |---|---|---|---|---|---|
 | stock | 135 | 109 | 122 deg | 181 | 72% |
 | palm108 | 153 | 109 | 131 deg | 220 | 89% |
-| fwd | | | | 182 | 87% |
+| fwd | 107 | 27 | 67 deg (2 drops) | 182 | 87% |
 | flip | 102 | 90 | 96 deg | 139 | 85% |
 
 Opposition overlap predicts thumb participation (72% -> 85-89%), and palm108 grasps 22% more objects than
