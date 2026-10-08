@@ -23,7 +23,7 @@ python -m hand_synergies.lift --stored 600  # can the stable grasps be carried?
 python -m hand_synergies.lift --trials 1000 --samplers prior,synergy-3   # pre-shape -> grasp -> lift
 python -m hand_synergies.pick --pitch=-30 --trials 1000   # pick objects off the table (arm-like wrist)
 python -m hand_synergies.actions place|stack|push|press --trials 300 [--gif out/x.gif]
-python -m hand_synergies.actions gestures                  # out/gestures.png
+python -m hand_synergies.actions gestures [--gif out/gestures.gif]   # still grid, or a video
 python -m hand_synergies.mpc --task spin|yaw|roll --seconds 10 --gif out/x.gif
 python -m hand_synergies.opposition         # thumb-mount search (kinematics only, ~30 s)
 ```
@@ -151,7 +151,7 @@ That's one blind attempt per object, fixed approach angle, no aiming beyond the 
 | stack | the same onto a 5 cm box | 26% of picked objects |
 | push | fingers straight down (pitch -90), backs of the fingers sweep the object 15 cm; moved >= 8 cm, < 3 cm sideways | 35% |
 | press | point gesture, index straight down onto a spring button (3 N) placed with +-8 mm error; down >= 6 mm | 100% |
-| gestures | open, fist, point, thumbs-up, peace, OK (thumb tip within 5 mm of the index tip) | `out/gestures.png` |
+| gestures | open, fist, point, thumbs-up, peace, OK (thumb tip within 5 mm of the index tip), moved through by the servos with finger collisions on | `out/gestures.png`, `out/gestures.gif` |
 
 Place/stack mostly fail after release: spheres roll away, boxes tip as the fingers open. Push loses
 spheres (squirt sideways), rolling cylinders (drift) and very low boxes (the rounded fingertips ride over

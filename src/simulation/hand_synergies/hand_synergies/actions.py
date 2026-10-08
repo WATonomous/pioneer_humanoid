@@ -266,6 +266,51 @@ def render_gestures(path: str) -> None:
     print(f"wrote {path}")
 
 
+def render_gestures_gif(path: str, hold_s: float = 0.8, move_s: float = 0.6) -> None:
+    """The hand (servos, gravity on, finger collisions on) moving through every gesture and back to open,
+    with a slowly orbiting camera."""
+    from PIL import Image, ImageDraw
+
+    p = Picker("stock", True)
+    m, d = p.model, p.data
+    m.vis.headlight.ambient[:] = 0.35  # the scene light is above; this view looks up at the palm
+    m.vis.headlight.diffuse[:] = 0.6
+    renderer = mujoco.Renderer(m, 360, 480)
+    poses = gestures()
+    order = [*poses, "open"]
+    mujoco.mj_resetData(m, d)
+    d.qpos[p.wrist_q] = [0, 0, 0.3]
+    p._set_wrist([0, 0, 0.3])
+    q = poses["open"]
+    d.qpos[p.gen.idx.qpos] = q
+    imgs, frame_dt = [], 0.04
+
+    def shoot(label):
+        cam = mujoco.MjvCamera()
+        cam.lookat[:] = [0.02, 0.1, 0.27]
+        cam.distance, cam.elevation = 0.38, 25
+        cam.azimuth = 200 + 40 * np.sin(d.time * 0.6)
+        renderer.update_scene(d, cam)
+        img = Image.fromarray(renderer.render())
+        ImageDraw.Draw(img).text((10, 10), label, fill=(255, 255, 255))
+        imgs.append(img)
+
+    for name in order:
+        target = poses[name]
+        n = int(move_s / frame_dt)
+        for i in range(n):  # smooth (cosine) blend to the next pose
+            a = 0.5 - 0.5 * np.cos(np.pi * (i + 1) / n)
+            p.step(frame_dt, hand=q + (target - q) * a)
+            shoot(name)
+        q = target
+        for _ in range(int(hold_s / frame_dt)):
+            p.step(frame_dt, hand=q)
+            shoot(name)
+    imgs[0].save(path, save_all=True, append_images=imgs[1:], duration=int(frame_dt * 1000), loop=0)
+    renderer.close()
+    print(f"wrote {path} ({len(imgs)} frames)")
+
+
 def render_gif(action: str, path: str, fc: bool, pca, seeds) -> None:
     from PIL import Image
 
@@ -304,7 +349,10 @@ def main() -> None:
     p.add_argument("--png", default="out/gestures.png")
     args = p.parse_args()
     if args.action == "gestures":
-        render_gestures(args.png)
+        if args.gif:
+            render_gestures_gif(args.gif)
+        else:
+            render_gestures(args.png)
         return
     pca_path = args.synergies if args.action in ("place", "stack") else ""
     if args.gif:
