@@ -23,7 +23,9 @@ python -m hand_synergies.lift --stored 600  # can the stable grasps be carried?
 python -m hand_synergies.lift --trials 1000 --samplers prior,synergy-3   # pre-shape -> grasp -> lift
 python -m hand_synergies.pick --pitch=-30 --trials 1000   # pick objects off the table (arm-like wrist)
 python -m hand_synergies.actions place|stack|push|press --trials 300 [--gif out/x.gif]
+python -m hand_synergies.actions type --text "hello watonomous" [--gif out/type.gif]
 python -m hand_synergies.actions gestures [--gif out/gestures.gif]   # still grid, or a video
+python -m hand_synergies.showcase           # stitch the rendered GIFs into out/showcase.mp4
 python -m hand_synergies.mpc --task spin|yaw|roll --seconds 10 --gif out/x.gif
 python -m hand_synergies.opposition         # thumb-mount search (kinematics only, ~30 s)
 ```
@@ -39,7 +41,8 @@ python -m hand_synergies.opposition         # thumb-mount search (kinematics onl
 | `search.py` | random pre-shape search on new objects: generator prior vs synergy samplers |
 | `lift.py` | grasp an object off a fixture and lift it 10 cm; or carry stored grasps |
 | `pick.py` | pick objects off the table with an arm-like wrist (x/y/z/yaw/pitch servos) |
-| `actions.py` | place, stack, push, press a button, gestures |
+| `actions.py` | place, stack, push, press a button, type on a keyboard, gestures |
+| `showcase.py` | stitch the rendered GIFs into one MP4 with title cards |
 | `mpc.py` | predictive-sampling MPC on a palm-up hand: cube spin, cube goal yaw (the Isaac task), ball rolling |
 | `manip.py` | PCA of MPC's joint commands ("manipulation synergies") vs grasp synergies |
 | `thumb.py`, `opposition.py` | hypothetical thumb mounts; fingertip-opposition score and mount search |
@@ -151,11 +154,14 @@ That's one blind attempt per object, fixed approach angle, no aiming beyond the 
 | stack | the same onto a 5 cm box | 26% of picked objects |
 | push | fingers straight down (pitch -90), backs of the fingers sweep the object 15 cm; moved >= 8 cm, < 3 cm sideways | 35% |
 | press | point gesture, index straight down onto a spring button (3 N) placed with +-8 mm error; down >= 6 mm | 100% |
+| type | point gesture over a 26-key QWERTY keyboard of spring keys (24 mm pitch, 1 N); the wrist moves key to key, the index presses; a key registers at 4 mm down | 20/20 phrases exact with up to +-6 mm aiming error; 96% / 92% of characters at +-8 / +-10 mm |
 | gestures | open, fist, point, thumbs-up, peace, OK (thumb tip within 5 mm of the index tip), moved through by the servos with finger collisions on | `out/gestures.png`, `out/gestures.gif` |
 
 Place/stack mostly fail after release: spheres roll away, boxes tip as the fingers open. Push loses
 spheres (squirt sideways), rolling cylinders (drift) and very low boxes (the rounded fingertips ride over
-them). GIFs: `out/pick.gif`, `out/place.gif`, `out/stack.gif`, `out/push.gif`, `out/press.gif`.
+them). Typing's keys collide with the hand only (not the plate under them). GIFs: `out/pick.gif`,
+`out/place.gif`, `out/stack.gif`, `out/push.gif`, `out/press.gif`, `out/type.gif`, `out/gestures.gif`;
+all stitched into `out/showcase.mp4`.
 
 ## In-hand manipulation with sampling MPC (`mpc.py`)
 

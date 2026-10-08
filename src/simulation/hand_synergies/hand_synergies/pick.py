@@ -44,12 +44,20 @@ WRIST_AXES = ("x", "y", "z")
 PEDESTAL_HALF = [0.035, 0.035, 0.025]
 BUTTON_TRAVEL = 0.01       # m
 BUTTON_SPRING = 300.0      # N/m: ~3 N to bottom it out
+# Keyboard: a big one -- this index fingertip is ~2 cm wide, a laptop key pitch is 19 mm.
+KEY_PITCH = 0.024
+KEY_CAP = 0.018
+KEY_H = 0.008
+KEY_BASE_Z = 0.012
+KEY_TRAVEL = 0.006
+KEY_SPRING = 150.0         # N/m: ~1 N at the bottom
 
 
 def make_model(thumb: str = "stock", finger_collisions: bool = False, torque_limit: float | None = None,
-               width: int = 480, height: int = 360, extras: bool = False) -> mujoco.MjModel:
+               width: int = 480, height: int = 360, extras: bool = False, keyboard: bool = False) -> mujoco.MjModel:
     """``extras``: also a box to stack on ("pedestal", mocap) and a spring-loaded push button
-    ("button_base" mocap + "button" on a slide joint), parked out of the way (see actions.py)."""
+    ("button_base" mocap + "button" on a slide joint), parked out of the way (see actions.py).
+    ``keyboard``: a 26-key QWERTY keyboard of spring keys ("key_a" ... bodies and joints) at the origin."""
     from .thumb import thumb_kwargs
 
     spec = mujoco.MjSpec()
@@ -101,18 +109,38 @@ def make_model(thumb: str = "stock", finger_collisions: bool = False, torque_lim
                          range=[-BUTTON_TRAVEL, 0.0], stiffness=BUTTON_SPRING, damping=1.0)
         button.add_geom(type=mujoco.mjtGeom.mjGEOM_CYLINDER, size=[0.012, 0.006, 0], pos=[0, 0, 0.006],
                         rgba=[0.85, 0.15, 0.15, 1], density=300)
+    if keyboard:
+        spec.worldbody.add_geom(name="keyboard", type=mujoco.mjtGeom.mjGEOM_BOX,
+                                size=[0.15, 0.045, KEY_BASE_Z / 2], pos=[0, -KEY_PITCH, KEY_BASE_Z / 2],
+                                rgba=[0.15, 0.15, 0.17, 1])
+        for c, (x, y) in key_layout().items():
+            key = spec.worldbody.add_body(name=f"key_{c}", pos=[x, y, KEY_BASE_Z])
+            key.add_joint(name=f"key_{c}", type=mujoco.mjtJoint.mjJNT_SLIDE, axis=[0, 0, 1],
+                          range=[-KEY_TRAVEL, 0.0], stiffness=KEY_SPRING, damping=0.5)
+            # keys collide with the hand only (contype bit 2), not with the plate they sit on
+            key.add_geom(type=mujoco.mjtGeom.mjGEOM_BOX, size=[KEY_CAP / 2, KEY_CAP / 2, KEY_H / 2],
+                         pos=[0, 0, KEY_H / 2], rgba=[0.88, 0.88, 0.9, 1], density=300, contype=0, conaffinity=2)
     stiffen_contacts(spec)
     return spec.compile()
 
 
+def key_layout() -> dict[str, tuple[float, float]]:
+    """Key centres (x, y) of a staggered QWERTY layout, top row at y = 0."""
+    out = {}
+    for row, (keys, shift) in enumerate((("qwertyuiop", 0.0), ("asdfghjkl", 0.25), ("zxcvbnm", 0.75))):
+        for i, c in enumerate(keys):
+            out[c] = ((i + shift - 4.5) * KEY_PITCH, -row * KEY_PITCH)
+    return out
+
+
 class Picker:
     def __init__(self, thumb: str = "stock", finger_collisions: bool = False, torque_limit: float | None = None,
-                 pitch_deg: float = 0.0, extras: bool = False):
+                 pitch_deg: float = 0.0, extras: bool = False, keyboard: bool = False):
         from .grasp_gen import GraspGen
 
         self.pitch = np.radians(pitch_deg)
         self.frames = None
-        self.model = make_model(thumb, finger_collisions, torque_limit, extras=extras)
+        self.model = make_model(thumb, finger_collisions, torque_limit, extras=extras, keyboard=keyboard)
         self.gen = GraspGen(model=self.model)  # its autograsp, on this model
         self.data = self.gen.data
         m = self.model
