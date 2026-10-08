@@ -185,6 +185,26 @@ fingers close on objects near the finger bases. So these variants are badly plac
 fair test of opposition; a mount should be chosen for where its arc meets the fingers (see the
 opposition analysis below).
 
+**Opposition analysis** (`opposition.py`, kinematics only): sample the thumb's joint space and each
+finger's flexion space, and score the fraction of each fingertip's workspace that the thumb tip comes
+within 1 cm of (a Kapandji-style test). Search: 3000 random mounts (base x, y on the palm, yaw about the
+palm normal), ~30 s.
+
+| mount | index | middle | ring | pinky | mean |
+|---|---|---|---|---|---|
+| stock | .25 | .39 | .48 | .50 | .41 |
+| yaw90 | .07 | .02 | .27 | .54 | .22 |
+| radial45 | .19 | .14 | .02 | .00 | .09 |
+| radial90 | .03 | .06 | .13 | .00 | .05 |
+| fwd (stock, base 3 cm toward the knuckles) | .30 | .63 | .73 | .63 | .57 |
+| flip (pinky side near the knuckles, turned ~175 deg) | .68 | .65 | .63 | .40 | .59 |
+| palm108 (best with the base on the palm, y <= 0.09) | | | | | .53 |
+
+The stock thumb already opposes all four fingers reasonably; the radial variants barely reach them, which
+is why they lost the grasp tests. The best mounts sit near the knuckles, where a real thumb base would
+collide with the finger roots (thumb links aren't checked against the fingers here), so treat them as a
+direction ("closer to the fingers"), not a design.
+
 ## Finger collisions
 
 With `--finger-collisions` (digits collide with each other) the stock spin drops from 119 to 87 deg / 8 s
