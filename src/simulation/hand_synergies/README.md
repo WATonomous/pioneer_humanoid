@@ -21,6 +21,9 @@ python -m hand_synergies.synergies eval     # grasps rebuilt from k PCs
 python -m hand_synergies.search             # pre-shape search on new objects
 python -m hand_synergies.lift --stored 600  # can the stable grasps be carried?
 python -m hand_synergies.lift --trials 1000 --samplers prior,synergy-3   # pre-shape -> grasp -> lift
+python -m hand_synergies.pick --pitch=-30 --trials 1000   # pick objects off the table (arm-like wrist)
+python -m hand_synergies.actions place|stack|push|press --trials 300 [--gif out/x.gif]
+python -m hand_synergies.actions gestures                  # out/gestures.png
 python -m hand_synergies.mpc --task spin|yaw|roll --seconds 10 --gif out/x.gif
 python -m hand_synergies.opposition         # thumb-mount search (kinematics only, ~30 s)
 ```
@@ -35,6 +38,8 @@ python -m hand_synergies.opposition         # thumb-mount search (kinematics onl
 | `synergies.py` | PCA, plots, per-PC GIFs, reconstruction test |
 | `search.py` | random pre-shape search on new objects: generator prior vs synergy samplers |
 | `lift.py` | grasp an object off a fixture and lift it 10 cm; or carry stored grasps |
+| `pick.py` | pick objects off the table with an arm-like wrist (x/y/z/yaw/pitch servos) |
+| `actions.py` | place, stack, push, press a button, gestures |
 | `mpc.py` | predictive-sampling MPC on a palm-up hand: cube spin, cube goal yaw (the Isaac task), ball rolling |
 | `manip.py` | PCA of MPC's joint commands ("manipulation synergies") vs grasp synergies |
 | `thumb.py`, `opposition.py` | hypothetical thumb mounts; fingertip-opposition score and mount search |
@@ -117,6 +122,40 @@ Synergy pre-shapes lift a few points more than random ones -- clearly on near36 
 marginally on stock -- even though the synergies were fitted to stock grasps. A first version lifted tall
 objects off a table and lifted none: the stock thumb hangs ~10.6 cm below the palm, so it hits the table
 beside anything shorter.
+
+## Picking off the table and other arm + hand actions (`pick.py`, `actions.py`)
+
+The hand on an arm stand-in: the wrist moves on x / y / z slide joints and yaw / pitch hinges, each a
+stiff position servo (moving joints, not a teleported mocap body, so contact friction sees the hand's
+real velocity). Objects (grasp_gen's) rest on the table under gravity. Scripted, no learning: the wrist
+moves in straight lines and the hand switches between a few targets.
+
+**Pick** (`pick.py`): reach above, descend, autograsp from a pre-shape, lift 10 cm, hold 1 s. The object is
+placed under the midpoint of the thumb tip and middle fingertip, and the hand's lowest point is kept just
+above the table. **The wrist has to tilt**: palm-down, the stock thumb hangs ~10.6 cm below the palm, the
+palm stops ~11 cm up, and the fingers can't reach small objects. Tilting the fingers ~30 deg toward the
+table swings the thumb back:
+
+| wrist pitch | -75 | -60 | -45 | **-30** | -15 | 0 (palm down) |
+|---|---|---|---|---|---|---|
+| picked up, random pre-shape (200 trials) | 0% | 0% | 10.5% | **18.5%** | 8% | 0.5% |
+| picked up, synergy-3 pre-shape | 0% | 0% | 8% | **17.5%** | 14.5% | 2% |
+
+That's one blind attempt per object, fixed approach angle, no aiming beyond the placement rule.
+
+**Actions** (`actions.py`, 100-400 randomized trials each):
+
+| action | how | success |
+|---|---|---|
+| place | pick (pitch -30), carry 15 cm, lower until the object's bottom is 4 mm above the table, open gradually, back off; within 2.5 cm of the target | 32% of picked objects (6% overall) |
+| stack | the same onto a 5 cm box | 26% of picked objects |
+| push | fingers straight down (pitch -90), backs of the fingers sweep the object 15 cm; moved >= 8 cm, < 3 cm sideways | 35% |
+| press | point gesture, index straight down onto a spring button (3 N) placed with +-8 mm error; down >= 6 mm | 100% |
+| gestures | open, fist, point, thumbs-up, peace, OK (thumb tip within 5 mm of the index tip) | `out/gestures.png` |
+
+Place/stack mostly fail after release: spheres roll away, boxes tip as the fingers open. Push loses
+spheres (squirt sideways), rolling cylinders (drift) and very low boxes (the rounded fingertips ride over
+them). GIFs: `out/pick.gif`, `out/place.gif`, `out/stack.gif`, `out/push.gif`, `out/press.gif`.
 
 ## In-hand manipulation with sampling MPC (`mpc.py`)
 
@@ -226,6 +265,9 @@ passing through each other.
 - **Pinned objects**: resetting a pinned object's pose each step lets fingers sink in; the stored overlap
   can fire a small object off at tens of m/s on release. `lift` uses a weld fixture; `grasp_gen` still pins
   (it can only cost grasps, not fake them).
+- **Hinge ranges in degrees**: MjSpec's compiler reads hinge ranges in degrees, so a wrist range of +-3.2
+  was +-3.2 deg and its soft limit fought the pitch servo (a "-90 deg" wrist sat at -85, enough to miss a
+  button by 1.8 cm). Fixed in `pick.py`; the pick results above are from after the fix.
 - **Grasp-synergy MPC rows and the first thumb grasp counts** came from the buggy grasp scene; they were
   rerun or dropped.
 

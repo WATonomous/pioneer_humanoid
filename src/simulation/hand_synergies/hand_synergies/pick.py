@@ -41,10 +41,15 @@ HOLD_S = 1.0
 SUCCESS_RISE_M = 0.08
 HELD_M = 0.03
 WRIST_AXES = ("x", "y", "z")
+PEDESTAL_HALF = [0.035, 0.035, 0.025]
+BUTTON_TRAVEL = 0.01       # m
+BUTTON_SPRING = 300.0      # N/m: ~3 N to bottom it out
 
 
 def make_model(thumb: str = "stock", finger_collisions: bool = False, torque_limit: float | None = None,
-               width: int = 480, height: int = 360) -> mujoco.MjModel:
+               width: int = 480, height: int = 360, extras: bool = False) -> mujoco.MjModel:
+    """``extras``: also a box to stack on ("pedestal", mocap) and a spring-loaded push button
+    ("button_base" mocap + "button" on a slide joint), parked out of the way (see actions.py)."""
     from .thumb import thumb_kwargs
 
     spec = mujoco.MjSpec()
@@ -66,7 +71,9 @@ def make_model(thumb: str = "stock", finger_collisions: bool = False, torque_lim
         act = spec.add_actuator(name=f"wrist_{axis}", target=f"wrist_{axis}", trntype=mujoco.mjtTrn.mjTRN_JOINT)
         act.set_to_position(kp=20000.0, kv=600.0)
     for name, axis in (("wrist_yaw", [0, 0, 1]), ("wrist_pitch", [1, 0, 0])):
-        wrist.add_joint(name=name, type=mujoco.mjtJoint.mjJNT_HINGE, axis=axis, range=[-3.2, 3.2])
+        # the spec compiler reads hinge ranges in degrees (a range of +-3.2 was +-3.2 deg, and the soft
+        # limit fought the servo: "-30 deg" wasn't)
+        wrist.add_joint(name=name, type=mujoco.mjtJoint.mjJNT_HINGE, axis=axis, range=[-180.0, 180.0])
         act = spec.add_actuator(name=name, target=name, trntype=mujoco.mjtTrn.mjTRN_JOINT)
         act.set_to_position(kp=500.0, kv=20.0)
     wrist.add_frame().attach_body(
@@ -82,17 +89,30 @@ def make_model(thumb: str = "stock", finger_collisions: bool = False, torque_lim
     obj.explicitinertial = True
     obj.ipos = [0.0, 0.0, 0.0]  # see scene.make_model: left alone it takes the spawn position
     obj.iquat = [1.0, 0.0, 0.0, 0.0]
+    if extras:
+        ped = spec.worldbody.add_body(name="pedestal", mocap=True, pos=[2.0, 0.0, PEDESTAL_HALF[2]])
+        ped.add_geom(name="pedestal", type=mujoco.mjtGeom.mjGEOM_BOX, size=PEDESTAL_HALF,
+                     rgba=[0.35, 0.45, 0.6, 1], friction=[1.0, 0.01, 0.001])
+        base = spec.worldbody.add_body(name="button_base", mocap=True, pos=[2.0, 1.0, 0.0])
+        base.add_geom(type=mujoco.mjtGeom.mjGEOM_BOX, size=[0.03, 0.03, 0.01], pos=[0, 0, 0.01],
+                      rgba=[0.3, 0.3, 0.32, 1])
+        button = base.add_body(name="button", pos=[0, 0, 0.02])
+        button.add_joint(name="button", type=mujoco.mjtJoint.mjJNT_SLIDE, axis=[0, 0, 1],
+                         range=[-BUTTON_TRAVEL, 0.0], stiffness=BUTTON_SPRING, damping=1.0)
+        button.add_geom(type=mujoco.mjtGeom.mjGEOM_CYLINDER, size=[0.012, 0.006, 0], pos=[0, 0, 0.006],
+                        rgba=[0.85, 0.15, 0.15, 1], density=300)
     stiffen_contacts(spec)
     return spec.compile()
 
 
 class Picker:
     def __init__(self, thumb: str = "stock", finger_collisions: bool = False, torque_limit: float | None = None,
-                 pitch_deg: float = 0.0):
+                 pitch_deg: float = 0.0, extras: bool = False):
         from .grasp_gen import GraspGen
 
         self.pitch = np.radians(pitch_deg)
-        self.model = make_model(thumb, finger_collisions, torque_limit)
+        self.frames = None
+        self.model = make_model(thumb, finger_collisions, torque_limit, extras=extras)
         self.gen = GraspGen(model=self.model)  # its autograsp, on this model
         self.data = self.gen.data
         m = self.model
@@ -148,13 +168,46 @@ class Picker:
     def wrist_pos(self) -> np.ndarray:
         return self.data.xpos[self.model.body("wrist").id].copy()
 
-    def trial(self, seed: int, sampler: str, pca: dict | None, frames: list | None = None) -> bool:
+    # --- motion helpers (the actions in actions.py chain these) ---------------------------------------
+    def record(self) -> None:
+        if self.frames is not None and int(round(self.data.time / TIMESTEP)) % 40 == 0:
+            self.frames.append(self.data.time)
+
+    def step(self, seconds: float, hand: np.ndarray | None = None) -> None:
+        for _ in range(int(seconds / TIMESTEP)):
+            if hand is not None:
+                self.data.ctrl[self.gen.idx.act] = hand
+            mujoco.mj_step(self.model, self.data)
+            self.record()
+
+    def move(self, a, b, seconds: float, hand: np.ndarray | None = None) -> None:
+        """Wrist from xyz ``a`` to ``b`` in a straight line over ``seconds`` (hand targets held)."""
+        a, b = np.asarray(a, float), np.asarray(b, float)
+        n = int(seconds / TIMESTEP)
+        for i in range(n):
+            self._set_wrist(a + (b - a) * (i + 1) / n)
+            if hand is not None:
+                self.data.ctrl[self.gen.idx.act] = hand
+            mujoco.mj_step(self.model, self.data)
+            self.record()
+
+    def obj_pos(self) -> np.ndarray:
+        a = self.gen.idx.obj_qpos
+        return self.data.qpos[a:a + 3].copy()
+
+    def grasp_and_lift(self, seed: int, sampler: str, pca: dict | None, frames: list | None = None,
+                       obj_xy=(0.0, 0.0), setup=None) -> dict:
+        """Reach, descend, close, lift LIFT_M, hold. Returns the grasp's details and whether it held.
+
+        ``setup(start_pos)``: called right after the reset, e.g. to place other things in the scene."""
         from .grasp_gen import GRASP_TYPES
         from .search import OPEN_SCALE, _sample
 
+        self.frames = frames
         rng = np.random.default_rng(seed)  # same object and placement for every sampler / thumb
         m, d, gen = self.model, self.data, self.gen
         kind, size, pos, quat, half_h = self._object(rng)
+        pos[:2] += obj_xy
         jitter = rng.uniform(-JITTER_M, JITTER_M, size=2)
 
         q0 = _sample(sampler, np.random.default_rng([seed, 1]), pca, gen)
@@ -177,38 +230,27 @@ class Picker:
         d.ctrl[gen.idx.act] = descend_q
         d.qpos[gen.idx.obj_qpos:gen.idx.obj_qpos + 3] = pos
         d.qpos[gen.idx.obj_qpos + 3:gen.idx.obj_qpos + 7] = quat
+        if setup is not None:
+            setup(pos)
         mujoco.mj_forward(m, d)
 
-        def record():
-            if frames is not None and int(round(d.time / TIMESTEP)) % 40 == 0:
-                frames.append(d.time)
+        self.step(0.2)  # object settles on the table
+        self.move(start, grasp, DESCEND_S)
+        ctrl = gen.close(q0, GRASP_TYPES["power"][0], after_step=self.record)
+        self.step(SETTLE_S)
+        z0 = self.obj_pos()[2]
+        in_hand = self.obj_pos() - self.wrist_pos()
+        lifted = grasp + [0, 0, LIFT_M]
+        self.move(grasp, lifted, LIFT_S, hand=ctrl)
+        self.step(HOLD_S, hand=ctrl)
+        obj = self.obj_pos()
+        ok = (not gen.unstable() and obj[2] - z0 >= SUCCESS_RISE_M
+              and np.linalg.norm(obj - self.wrist_pos() - in_hand) < HELD_M)
+        return dict(ok=bool(ok), ctrl=ctrl, grasp=grasp, lifted=lifted, kind=kind, size=size, half_h=half_h,
+                    start_pos=pos, in_hand=in_hand)
 
-        def move(a, b, seconds):
-            n = int(seconds / TIMESTEP)
-            for i in range(n):
-                self._set_wrist(a + (b - a) * (i + 1) / n)
-                mujoco.mj_step(m, d)
-                record()
-
-        for _ in range(int(0.2 / TIMESTEP)):  # object settles on the table
-            mujoco.mj_step(m, d)
-            record()
-        move(start, grasp, DESCEND_S)
-        ctrl = gen.close(q0, GRASP_TYPES["power"][0], after_step=record)
-        for _ in range(int(SETTLE_S / TIMESTEP)):
-            mujoco.mj_step(m, d)
-            record()
-        z0 = d.qpos[gen.idx.obj_qpos + 2]
-        in_hand = d.qpos[gen.idx.obj_qpos:gen.idx.obj_qpos + 3] - self.wrist_pos()
-        move(grasp, grasp + [0, 0, LIFT_M], LIFT_S)
-        for _ in range(int(HOLD_S / TIMESTEP)):
-            d.ctrl[gen.idx.act] = ctrl
-            mujoco.mj_step(m, d)
-            record()
-        if gen.unstable():
-            return False
-        obj = d.qpos[gen.idx.obj_qpos:gen.idx.obj_qpos + 3]
-        return bool(obj[2] - z0 >= SUCCESS_RISE_M and np.linalg.norm(obj - self.wrist_pos() - in_hand) < HELD_M)
+    def trial(self, seed: int, sampler: str, pca: dict | None, frames: list | None = None) -> bool:
+        return self.grasp_and_lift(seed, sampler, pca, frames)["ok"]
 
 
 _PICKERS = {}
