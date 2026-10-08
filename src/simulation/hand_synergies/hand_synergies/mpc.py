@@ -186,6 +186,7 @@ THUMB_HOME_CANDIDATES = (
     (0.0, 1.0, -0.8, -0.8),
     (0.0, 0.0, 0.0, 0.0),
     (0.0, 1.5, 0.0, 0.0),
+    (0.0, 2.0, 0.0, 0.0),   # thumb swung fully over: needed when the base sits near the knuckles ("fwd")
 )
 DROP_HEIGHT = 0.03  # the cube starts this far above CUBE_HOME and settles wherever the hand lets it
 SETTLE_S = 0.8
