@@ -43,6 +43,15 @@ DROP_Z = 0.0
 W_TILT = 1.0               # cube's own axes leaving vertical: spin about Z, not tumble
 W_CTRL = 0.01
 
+# --smooth: MPPI (cost-weighted average of all samples, not the single best) with temperature
+# MPPI_TEMP x the cost spread, the jump from the command being executed is penalized too, and
+# W_CTRL_SMOOTH replaces W_CTRL. Picking the single best sample every 20 ms makes the fingers jerk.
+SMOOTH = False
+MPPI_TEMP = 0.1
+W_CTRL_SMOOTH = 0.5
+# Low-pass on the executed command (any mode): ctrl = (1 - a) * previous + a * planned; 1.0 = off.
+FILTER_ALPHA = 1.0
+
 # Palm-up resting grasp (the Isaac in-hand task's INHAND_GRASP_JOINT_POS with the fingers unspread).
 HOME_POSE = {
     "circumduction": 0.0, "MCP_A_thumb": 0.5, "PIP_thumb": -0.8, "DIP_thumb": -0.8,
@@ -96,8 +105,46 @@ def stage_cost(sens: np.ndarray, ctrl_delta: np.ndarray) -> np.ndarray:
         + W_POS * np.sum((pos[..., :2] - CUBE_HOME[:2]) ** 2, axis=-1)
         + W_DROP * (pos[..., 2] < DROP_Z)
         + W_TILT * tilt
-        + W_CTRL * np.sum(ctrl_delta**2, axis=-1)
+        + (W_CTRL_SMOOTH if SMOOTH else W_CTRL) * np.sum(ctrl_delta**2, axis=-1)
     )
+
+
+# Thumb poses (circumduction, MCP_A, PIP, DIP) tried in order for the start: the first that leaves the cube
+# resting on the hand wins. A moved thumb mount can make HOME_POSE's thumb knock the cube off.
+THUMB_HOME_CANDIDATES = (
+    (0.0, 0.5, -0.8, -0.8),
+    (0.0, 0.0, -0.8, -0.8),
+    (0.0, 1.0, -0.8, -0.8),
+    (0.0, 0.0, 0.0, 0.0),
+    (0.0, 1.5, 0.0, 0.0),
+)
+DROP_HEIGHT = 0.03  # the cube starts this far above CUBE_HOME and settles wherever the hand lets it
+SETTLE_S = 0.8
+
+
+def _settled_home(model: mujoco.MjModel, data: mujoco.MjData) -> tuple[np.ndarray, np.ndarray]:
+    """Reset to a home pose with the cube dropped onto the palm and settled.
+
+    Returns (home joint targets, settled cube position). The settled position becomes the "stay here"
+    target of the cost, so a thumb mount that takes up part of the palm isn't charged for it.
+    """
+    cube_q = model.joint("cube").qposadr[0]
+    for thumb in THUMB_HOME_CANDIDATES:
+        mujoco.mj_resetData(model, data)
+        home = np.array([HOME_POSE[n] for n in JOINT_NAMES])
+        home[:4] = thumb
+        data.qpos[:20] = home
+        data.ctrl[:] = home
+        data.qpos[cube_q:cube_q + 3] = CUBE_HOME + [0, 0, DROP_HEIGHT]
+        mujoco.mj_forward(model, data)
+        if any(c.dist < 0 for c in data.contact[: data.ncon]):
+            continue
+        mujoco.mj_step(model, data, nstep=int(SETTLE_S / TIMESTEP))
+        pos = data.sensordata[:3].copy()
+        speed = np.linalg.norm(data.qvel[model.joint("cube").dofadr[0]:][:6])
+        if pos[2] > DROP_Z + 0.01 and np.linalg.norm(pos[:2] - CUBE_HOME[:2]) < 0.04 and speed < 0.05:
+            return home, pos
+    raise RuntimeError("no thumb home pose keeps the cube on the hand")
 
 
 class Planner:
@@ -139,34 +186,33 @@ class Planner:
         state = np.empty(mujoco.mj_stateSize(self.model, mujoco.mjtState.mjSTATE_FULLPHYSICS))
         mujoco.mj_getState(self.model, data, state, mujoco.mjtState.mjSTATE_FULLPHYSICS)
         _, sens = rollout.rollout(self.model, self.datas, state[None], ctrl, persistent_pool=True)
-        dctrl = np.diff(ctrl, axis=1, prepend=ctrl[:, :1]) / TIMESTEP * CONTROL_DT
+        # change per control period; with SMOOTH the first step counts the jump from the current command
+        first = np.broadcast_to(data.ctrl, ctrl[:, :1].shape) if SMOOTH else ctrl[:, :1]
+        dctrl = np.diff(ctrl, axis=1, prepend=first) / TIMESTEP * CONTROL_DT
         cost = stage_cost(sens, dctrl).sum(axis=1)
-        best = int(np.argmin(cost))
-        self.nominal = knots[best]
-        return ctrl[best, 0]
+        if not SMOOTH:
+            best = int(np.argmin(cost))
+            self.nominal = knots[best]
+            return ctrl[best, 0]
+        spread = max(float(np.std(cost)), 1e-9)
+        w = np.exp(-(cost - cost.min()) / (MPPI_TEMP * spread))
+        self.nominal = np.einsum("n,nkj->kj", w / w.sum(), knots)
+        return self.nominal[0].copy()
 
 
 def run(space: str, seconds: float, pca: dict | None, nthread: int = 4, seed: int = 0, gif: str | None = None,
         thumb: str = "stock", finger_collisions: bool = False):
     model = make_model(thumb=thumb, finger_collisions=finger_collisions)
     data = mujoco.MjData(model)
-    home = np.array([HOME_POSE[n] for n in JOINT_NAMES])
-    data.qpos[:20] = home
-    mujoco.mj_forward(model, data)
-    cube = model.body("cube").id
-    if any(c.dist < -0.001 and cube in (model.geom_bodyid[c.geom1], model.geom_bodyid[c.geom2])
-           for c in data.contact[: data.ncon]):
-        home[:4] = 0.0  # this thumb mount's home pose would start inside the cube: start it straight
-        data.qpos[:20] = home
-    data.ctrl[:] = home
-    mujoco.mj_step(model, data, nstep=int(0.5 / TIMESTEP))  # let the cube settle in the palm
+    home, cube_rest = _settled_home(model, data)
+    globals()["CUBE_HOME"] = cube_rest  # stage_cost keeps the cube near where it settled
     planner = Planner(model, space, pca, nthread, seed)
     sub = int(round(CONTROL_DT / TIMESTEP))
     renderer = mujoco.Renderer(model, 360, 480) if gif else None
     frames, yaw, spin_log, dropped_at, ctrl_log = [], 0.0, [], None, []
     t0 = time.time()
     for i in range(int(seconds / CONTROL_DT)):
-        data.ctrl[:] = planner.plan(data)
+        data.ctrl[:] = (1 - FILTER_ALPHA) * data.ctrl + FILTER_ALPHA * planner.plan(data)
         ctrl_log.append(data.ctrl.copy())
         for _ in range(sub):
             mujoco.mj_step(model, data)
@@ -188,7 +234,9 @@ def run(space: str, seconds: float, pca: dict | None, nthread: int = 4, seed: in
         imgs = [Image.fromarray(f) for f in frames]
         imgs[0].save(gif, save_all=True, append_images=imgs[1:], duration=int(CONTROL_DT * 3 * 1000), loop=0)
         renderer.close()
-    return dict(space=space, ctrl=np.array(ctrl_log), yaw=yaw, mean_spin=float(np.mean(spin_log)),
+    c = np.array(ctrl_log)
+    jerk = float(np.mean(np.linalg.norm(np.diff(c, axis=0), axis=1))) if len(c) > 1 else 0.0
+    return dict(space=space, ctrl=c, jerk=jerk, yaw=yaw, mean_spin=float(np.mean(spin_log)),
                 dropped_at=dropped_at, sim_seconds=len(spin_log) * CONTROL_DT,
                 realtime=len(spin_log) * CONTROL_DT / wall)
 
@@ -208,17 +256,24 @@ def main() -> None:
     p.add_argument("--target-spin", type=float, default=TARGET_SPIN, help="rad/s about +Z (sign = direction)")
     p.add_argument("--thumb", default="stock", help="thumb mount (thumb.THUMB_MOUNTS)")
     p.add_argument("--finger-collisions", action="store_true", help="digits collide with each other")
+    p.add_argument("--smooth", action="store_true", help="MPPI averaging + control-change penalty (see SMOOTH)")
+    p.add_argument("--w-ctrl", type=float, default=None, help="control-change weight (overrides the mode's)")
+    p.add_argument("--temp", type=float, default=MPPI_TEMP, help="MPPI temperature (x cost std)")
+    p.add_argument("--filter", type=float, default=FILTER_ALPHA, help="low-pass alpha on the executed command")
     args = p.parse_args()
     globals().update(NOISE_NORM=args.noise, HORIZON_S=args.horizon, N_SAMPLES=args.samples,
-                     TARGET_SPIN=args.target_spin)
+                     TARGET_SPIN=args.target_spin, SMOOTH=args.smooth, MPPI_TEMP=args.temp, FILTER_ALPHA=args.filter)
+    if args.w_ctrl is not None:
+        globals().update(W_CTRL=args.w_ctrl, W_CTRL_SMOOTH=args.w_ctrl)
     pca = dict(np.load(args.synergies)) if args.space != "joint" else None
     r = run(args.space, args.seconds, pca, args.threads, args.seed, args.gif, args.thumb, args.finger_collisions)
     if args.log:
         np.savez(args.log, ctrl=r["ctrl"], joint_names=np.array(JOINT_NAMES), control_dt=CONTROL_DT)
     drop = f"dropped at {r['dropped_at']:.1f} s" if r["dropped_at"] is not None else "never dropped"
-    print(f"thumb={args.thumb}{' fingercoll' if args.finger_collisions else ''} {r['space']} noise={NOISE_NORM} horizon={HORIZON_S} samples={N_SAMPLES}: "
+    print(f"thumb={args.thumb}{' fingercoll' if args.finger_collisions else ''}{' smooth' if args.smooth else ''} w_ctrl={args.w_ctrl} temp={args.temp} filter={args.filter} {r['space']} noise={NOISE_NORM} horizon={HORIZON_S} samples={N_SAMPLES}: "
           f"turned {np.degrees(r['yaw']):.0f} deg in {r['sim_seconds']:.1f} s "
-          f"(mean {r['mean_spin']:.2f} rad/s, target {TARGET_SPIN}), {drop}, {r['realtime']:.2f}x real time")
+          f"(mean {r['mean_spin']:.2f} rad/s, target {TARGET_SPIN}), {drop}, "
+          f"jerk {r['jerk']:.3f} rad/step, {r['realtime']:.2f}x real time")
 
 
 if __name__ == "__main__":
