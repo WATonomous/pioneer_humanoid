@@ -72,8 +72,9 @@ GRAVITY = 9.81
 
 
 class GraspGen:
-    def __init__(self, thumb: str = "stock", finger_collisions: bool = False):
-        self.model = make_model(thumb=thumb, finger_collisions=finger_collisions)
+    def __init__(self, thumb: str = "stock", finger_collisions: bool = False, model: mujoco.MjModel | None = None):
+        """``model``: use this compiled model (hand + a free body "object") instead of scene.make_model."""
+        self.model = model if model is not None else make_model(thumb=thumb, finger_collisions=finger_collisions)
         self.data = mujoco.MjData(self.model)
         self.idx = HandIndex.of(self.model)
         self.ranges = joint_ranges(self.model)
@@ -187,22 +188,13 @@ class GraspGen:
             result.update(grasp_type=grasp_type, seed=seed)
         return result
 
-    def grasp(self, q0, kind, size, pos, quat, digits) -> dict | None:
-        """Pre-shape ``q0``, object at (pos, quat), close ``digits``, squeeze, shake. None if it fails."""
+    def close(self, q0: np.ndarray, digits, after_step=None) -> np.ndarray:
+        """Autograsp from the current state with targets ``q0``, then squeeze; returns the final targets.
+
+        ``after_step``: called after every control step (e.g. to pin the object).
+        """
         m, d, idx = self.model, self.data, self.idx
         lo, hi = self.ranges[:, 0], self.ranges[:, 1]
-        mujoco.mj_resetData(m, d)
-        set_object(m, idx, kind, size)
-        m.opt.gravity[:] = 0.0
-        d.qpos[idx.qpos] = q0
-        d.ctrl[idx.act] = q0
-        d.qpos[idx.obj_qpos:idx.obj_qpos + 3] = pos
-        d.qpos[idx.obj_qpos + 3:idx.obj_qpos + 7] = quat
-        mujoco.mj_forward(m, d)
-        if self._contacts()[0] or any(c.dist < 0 for c in d.contact[: d.ncon]):
-            return None  # starts inside the hand
-
-        # Autograsp.
         active = np.isin(self.close_digit, digits)
         moving = active.copy()
         ctrl = q0.copy()
@@ -220,13 +212,32 @@ class GraspGen:
             moving &= ~at_limit
             d.ctrl[idx.act] = ctrl
             mujoco.mj_step(m, d, nstep=CTRL_EVERY)
-            self._pin_object(pos, quat)
+            if after_step is not None:
+                after_step()
 
         # Squeeze the joints that stopped on contact (not the ones that ran to their limit).
         pressed = active & ~moving & ~np.isclose(ctrl[self.close_j], self.close_limit)
         j = self.close_j[pressed]
         ctrl[j] = np.clip(ctrl[j] + self.close_sign[pressed] * SQUEEZE_RAD, lo[j], hi[j])
         d.ctrl[idx.act] = ctrl
+        return ctrl
+
+    def grasp(self, q0, kind, size, pos, quat, digits) -> dict | None:
+        """Pre-shape ``q0``, object at (pos, quat), close ``digits``, squeeze, shake. None if it fails."""
+        m, d, idx = self.model, self.data, self.idx
+        lo, hi = self.ranges[:, 0], self.ranges[:, 1]
+        mujoco.mj_resetData(m, d)
+        set_object(m, idx, kind, size)
+        m.opt.gravity[:] = 0.0
+        d.qpos[idx.qpos] = q0
+        d.ctrl[idx.act] = q0
+        d.qpos[idx.obj_qpos:idx.obj_qpos + 3] = pos
+        d.qpos[idx.obj_qpos + 3:idx.obj_qpos + 7] = quat
+        mujoco.mj_forward(m, d)
+        if self._contacts()[0] or any(c.dist < 0 for c in d.contact[: d.ncon]):
+            return None  # starts inside the hand
+
+        ctrl = self.close(q0, digits, after_step=lambda: self._pin_object(pos, quat))
         settle = int(SETTLE_S / m.opt.timestep)
         for _ in range(settle // (2 * CTRL_EVERY)):  # first half pinned: the squeeze builds up
             mujoco.mj_step(m, d, nstep=CTRL_EVERY)

@@ -176,6 +176,8 @@ swing carries it toward the fingertips (head-on opposition). Hypothetical mounts
 | radial45 | index side, near the wrist | diagonally toward the ring finger |
 | radial90 | index side | straight across the palm |
 
+("stock" in the thumb-study runs had its thumb base at the URDF origin rounded to 0.1 mm; it is exact now.)
+
 **Cube spin** (joint-space MPC, 8 s, 3 seeds per direction; the cube is dropped onto the palm and the cost
 keeps it where it settled, so a mount that takes up palm space isn't charged for it):
 

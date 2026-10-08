@@ -23,5 +23,7 @@ THUMB_MOUNTS = {
 
 
 def thumb_kwargs(name: str) -> dict:
+    if name == "stock":  # exactly as built (STOCK_POS is the URDF origin rounded to 0.1 mm)
+        return {}
     pos, yaw = THUMB_MOUNTS[name]
     return dict(thumb_pos=pos, thumb_yaw_deg=yaw)
