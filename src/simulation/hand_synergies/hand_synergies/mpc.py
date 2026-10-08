@@ -57,7 +57,9 @@ ROLL_LEAVE_R = 0.035
 
 # cost weights
 W_ORI = 1.0                # yaw task: per rad of orientation error
-W_HOLD = 0.05              # yaw task: per (rad/s)^2 of cube spin -- arrive and stop, don't overshoot
+# yaw task: track a spin toward the goal, YAW_GAIN x the signed yaw error capped at TARGET_SPIN. The
+# orientation error alone barely changes over one 0.3 s horizon, so the planner just held still.
+YAW_GAIN = 2.0
 W_SPIN = 1.0
 W_POS = 400.0              # per m^2 off CUBE_HOME (xy) -- keeps it in the palm
 W_DROP = 50.0              # cube below DROP_Z
@@ -141,6 +143,16 @@ def orientation_error(quat: np.ndarray, goal: np.ndarray) -> np.ndarray:
     return 2.0 * np.arccos(np.clip(np.abs(quat @ goal), 0.0, 1.0))
 
 
+def yaw_error(quat: np.ndarray, goal: np.ndarray) -> np.ndarray:
+    """Signed rotation about world +Z (rad, in [-pi, pi]) that takes ``quat`` [..., 4] toward ``goal``:
+    the Z part of goal * conj(quat)."""
+    w1, x1, y1, z1 = goal
+    w2, x2, y2, z2 = quat[..., 0], -quat[..., 1], -quat[..., 2], -quat[..., 3]
+    w = w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2
+    z = w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2
+    return np.angle(np.exp(2j * np.arctan2(z, w)))
+
+
 def stage_cost(sens: np.ndarray, ctrl_delta: np.ndarray) -> np.ndarray:
     """Per-step cost from sensordata [..., 16] (pos 3, angvel 3, z-axis 3, quat 4, linvel 3)."""
     pos, angvel, zaxis, quat = sens[..., 0:3], sens[..., 3:6], sens[..., 6:9], sens[..., 9:13]
@@ -157,10 +169,12 @@ def stage_cost(sens: np.ndarray, ctrl_delta: np.ndarray) -> np.ndarray:
         + W_DROP * (pos[..., 2] < DROP_Z)
         + (W_CTRL_SMOOTH if SMOOTH else W_CTRL) * np.sum(ctrl_delta**2, axis=-1)
     )
-    if TASK == "yaw":
-        return W_ORI * orientation_error(quat, GOAL_QUAT) + W_HOLD * np.sum(angvel**2, axis=-1) + common
     # Tilt: the cube's own Z axis (vertical at the start) should stay vertical -- spin, don't tumble.
     tilt = 1.0 - np.abs(zaxis[..., 2])
+    if TASK == "yaw":
+        spin_ref = np.clip(YAW_GAIN * yaw_error(quat, GOAL_QUAT), -TARGET_SPIN, TARGET_SPIN)
+        return (W_SPIN * (angvel[..., 2] - spin_ref) ** 2 + W_ORI * orientation_error(quat, GOAL_QUAT)
+                + W_TILT * tilt + common)
     return W_SPIN * (angvel[..., 2] - TARGET_SPIN) ** 2 + W_TILT * tilt + common
 
 
