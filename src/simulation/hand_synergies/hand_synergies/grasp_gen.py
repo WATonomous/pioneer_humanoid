@@ -244,6 +244,8 @@ class GraspGen:
             self._pin_object(pos, quat)
         mujoco.mj_step(m, d, nstep=settle // 2)  # then released
 
+        if self.unstable():
+            return None  # MuJoCo reset a blown-up step (a squeezed cylinder can spin up); not a grasp
         _, groups = self._contacts()
         if len(groups) < 2:
             return None
@@ -256,6 +258,12 @@ class GraspGen:
             size=np.pad(size, (0, 3 - len(size))), obj_pos=obj_pos, obj_quat=obj_quat,
             contacts=np.array([g in groups for g in CONTACT_GROUPS]),
         )
+
+    def unstable(self) -> bool:
+        """True if MuJoCo has flagged (and reset) a bad step since the last mj_resetData."""
+        return any(self.data.warning[w].number for w in (mujoco.mjtWarning.mjWARN_BADQACC,
+                                                         mujoco.mjtWarning.mjWARN_BADQVEL,
+                                                         mujoco.mjtWarning.mjWARN_BADQPOS))
 
     def hold_test(self, ctrl: np.ndarray) -> bool:
         """Gravity along each of +-X/Y/Z from the current state; True if the object stays."""
@@ -273,7 +281,7 @@ class GraspGen:
                     mujoco.mj_step(m, d, nstep=int(HOLD_TEST_S / m.opt.timestep))
                     p1, q1 = self._object_pose()
                     turn = 2 * np.arccos(min(1.0, abs(float(q0 @ q1))))
-                    if np.linalg.norm(p1 - p0) > MAX_DRIFT_M or turn > MAX_TURN_RAD:
+                    if np.linalg.norm(p1 - p0) > MAX_DRIFT_M or turn > MAX_TURN_RAD or self.unstable():
                         return False
             return True
         finally:

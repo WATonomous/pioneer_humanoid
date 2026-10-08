@@ -1,17 +1,19 @@
-"""Grasp and lift: the hand comes down palm-first over an object resting on a table, closes, and lifts it.
+"""Grasp, release, lift: the hand (palm down, on a wrist that slides vertically) closes on an object held by
+a fixture, the fixture (a weld) lets go, and the wrist lifts LIFT_M over LIFT_S and holds for HOLD_S.
 
-One trial: a random tall object (a bottle-like cylinder or carton-like box, 12-18 cm) stands on the table;
-the hand (on a mocap wrist, palm down) is placed with its palm just above it, in a pre-shape from a
-sampler -- a claw grab from above: the stock thumb hangs ~10.6 cm below the palm, so it would hit the
-table beside anything shorter; the
-power autograsp closes (grasp_gen.GraspGen.close, gravity on, nothing pinned), the wrist lifts LIFT_M
-over LIFT_S and holds for HOLD_S. Success: the object ends at least SUCCESS_RISE_M higher.
+The objects and their placement under the palm are grasp_gen's (sample_object). Success: the object rose at least SUCCESS_RISE_M, ended within HELD_M of where it would be had it
+not moved in the hand, and no step went unstable (MuJoCo silently resets an unstable simulation; a squeezed
+cylinder can spin up). Unlike grasp_gen's shake test this carries the object, under real gravity, while the
+hand accelerates.
+
+(A first version lifted tall objects off a table: the stock thumb hangs ~10.6 cm below the palm, so only
+tall objects fit, and none of them was lifted.)
 
 Samplers (pre-shapes) are search.py's: ``prior`` (grasp_gen's random pre-shape) or ``synergy-k`` /
 ``gauss-20`` (a fitted grasp posture opened to the prior's aperture).
 
-    python -m hand_synergies.lift --trials 600 --samplers prior,synergy-3 --thumbs stock,near36 --finger-collisions
-    MUJOCO_GL=osmesa python -m hand_synergies.lift --gif out/lift.gif --trials 8 --samplers prior
+    python -m hand_synergies.lift --trials 1000 --samplers prior,synergy-3 --thumbs stock,near36 --finger-collisions
+    MUJOCO_GL=osmesa python -m hand_synergies.lift --gif out/lift.gif --trials 40 --samplers synergy-3
 """
 from __future__ import annotations
 
@@ -23,7 +25,7 @@ import mujoco
 import numpy as np
 from pioneer_humanoid.mujoco_hand import PALM_BODY, hand_spec
 
-from .scene import (MAX_SIZE, PALM_SURFACE_Z, TIMESTEP, _GEOM_TYPES, set_object,
+from .scene import (MAX_SIZE, TIMESTEP, _GEOM_TYPES, set_object,
                     stiffen_contacts)
 
 LIFT_M = 0.10
@@ -31,15 +33,13 @@ LIFT_S = 1.0
 HOLD_S = 1.0
 SETTLE_S = 0.3
 SUCCESS_RISE_M = 0.08
-PALM_POINT = np.array([0.015, 0.105])   # hand-frame xy over the object's centre (between thumb and fingers)
-PALM_JITTER = 0.015                      # m, uniform +- on that placement
-GAP = (0.0, 0.01)                        # m between the palm surface and the object's top
-OBJECT_HALF_HEIGHT = (0.06, 0.09)        # m
-OBJECT_HALF_WIDTH = (0.012, 0.035)       # m (cylinder radius, box half sides)
+HELD_M = 0.03               # and end within this of where it would be had it not moved in the hand
+WRIST0 = np.array([0.0, 0.0, 0.35])
+RELEASE_S = 0.15            # gravity-free settle after the fixture lets go
 
 
 def make_model(thumb: str = "stock", finger_collisions: bool = False, width: int = 480,
-               height: int = 360) -> mujoco.MjModel:
+               height: int = 360, torque_limit: float | None = None) -> mujoco.MjModel:
     from .thumb import thumb_kwargs
 
     spec = mujoco.MjSpec()
@@ -53,9 +53,16 @@ def make_model(thumb: str = "stock", finger_collisions: bool = False, width: int
     spec.worldbody.add_light(pos=[0.3, -0.3, 0.8], dir=[-0.3, 0.3, -1], diffuse=[0.8, 0.8, 0.8])
     spec.worldbody.add_geom(name="table", type=mujoco.mjtGeom.mjGEOM_PLANE, size=[0.5, 0.5, 0.01],
                             rgba=[0.55, 0.5, 0.45, 1], friction=[1.0, 0.01, 0.001])
-    wrist = spec.worldbody.add_body(name="wrist", mocap=True, pos=[0, 0, 0.3])
+    # The wrist rides a vertical slide joint driven by a stiff position servo. Teleporting a mocap wrist
+    # instead gives the hand zero velocity as far as contact friction is concerned, and the object slips.
+    wrist = spec.worldbody.add_body(name="wrist", pos=WRIST0.tolist())
+    wrist.add_joint(name="lift", type=mujoco.mjtJoint.mjJNT_SLIDE, axis=[0, 0, 1], range=[-0.2, 0.3],
+                    damping=0.0, armature=0.0)
+    lift = spec.add_actuator(name="lift", target="lift", trntype=mujoco.mjtTrn.mjTRN_JOINT)
+    lift.set_to_position(kp=20000.0, kv=600.0)
     wrist.add_frame().attach_body(
-        hand_spec(**thumb_kwargs(thumb), finger_collisions=finger_collisions).body(PALM_BODY), "", "")
+        hand_spec(**thumb_kwargs(thumb), finger_collisions=finger_collisions,
+                  torque_limit=torque_limit).body(PALM_BODY), "", "")
     obj = spec.worldbody.add_body(name="object", pos=[0, 0.1, 0.05])
     obj.add_freejoint(name="object")
     for name, gtype in _GEOM_TYPES.items():
@@ -68,31 +75,34 @@ def make_model(thumb: str = "stock", finger_collisions: bool = False, width: int
     # centre of mass ~11 cm from the object's centre.
     obj.ipos = [0.0, 0.0, 0.0]
     obj.iquat = [1.0, 0.0, 0.0, 0.0]
+    # Fixture: a mocap body the object is welded to until release. A weld lets the solver balance the
+    # squeezing fingers; resetting the object's pose every step (grasp_gen's pin) lets them sink in, and
+    # the stored overlap fires a small object off at tens of m/s when it's let go.
+    spec.worldbody.add_body(name="fixture", mocap=True, pos=[0, 0.1, 0.05])
+    weld = spec.add_equality(name="fixture", type=mujoco.mjtEq.mjEQ_WELD, name1="object", name2="fixture",
+                             objtype=mujoco.mjtObj.mjOBJ_BODY)
+    weld.solref = [0.004, 1.0]
     stiffen_contacts(spec)
     return spec.compile()
 
 
 class Lifter:
-    def __init__(self, thumb: str, finger_collisions: bool):
+    def __init__(self, thumb: str, finger_collisions: bool, torque_limit: float | None = None):
         from .grasp_gen import GraspGen
 
-        self.model = make_model(thumb, finger_collisions)
+        self.model = make_model(thumb, finger_collisions, torque_limit=torque_limit)
         self.gen = GraspGen(model=self.model)  # reuses its autograsp on this model
         self.data = self.gen.data
-        self.wrist = self.model.body("wrist").mocapid[0]
+        self.lift_q = self.model.joint("lift").qposadr[0]
+        self.lift_act = self.model.actuator("lift").id
+        self.fixture = self.model.body("fixture").mocapid[0]
+        self.weld = self.model.equality("fixture").id
+        # weld the object's frame onto the fixture's frame (anchor at the origin, identity relative pose)
+        self.model.eq_data[self.weld, :10] = [0, 0, 0, 0, 0, 0, 1, 0, 0, 0]
         self.table = self.model.geom("table").id
 
-    def _object(self, rng):
-        """Tall object standing on the table: (kind, size, pos, quat, half height)."""
-        kind = ("cylinder", "box")[rng.integers(2)]
-        yaw = rng.uniform(-np.pi, np.pi)
-        quat = np.array([np.cos(yaw / 2), 0.0, 0.0, np.sin(yaw / 2)])
-        half_h = rng.uniform(*OBJECT_HALF_HEIGHT)
-        if kind == "cylinder":
-            size = np.array([rng.uniform(*OBJECT_HALF_WIDTH), half_h])
-        else:
-            size = np.array([rng.uniform(*OBJECT_HALF_WIDTH), rng.uniform(*OBJECT_HALF_WIDTH), half_h])
-        return kind, size, np.array([0.0, 0.0, half_h]), quat, half_h
+    def wrist_pos(self) -> np.ndarray:
+        return self.data.xpos[self.model.body("wrist").id].copy()
 
     def _start_clear(self) -> bool:
         m, d = self.model, self.data
@@ -106,48 +116,84 @@ class Lifter:
 
         rng = np.random.default_rng(seed)  # same object and placement for every sampler / thumb
         m, d, gen = self.model, self.data, self.gen
-        kind, size, pos, quat, half_h = self._object(rng)
-        offset = PALM_POINT + rng.uniform(-PALM_JITTER, PALM_JITTER, size=2)
-        gap = rng.uniform(*GAP)
-        wrist0 = np.array([pos[0] - offset[0], pos[1] - offset[1], 2 * half_h + gap - PALM_SURFACE_Z])
+        kind, size, pos_h, quat = gen.sample_object(rng)  # grasp_gen's objects, in the hand frame
+        pos = WRIST0 + pos_h  # the wrist frame is the hand frame (palm down)
 
         q = _sample(sampler, np.random.default_rng([seed, 1]), pca, gen)
         if sampler != "prior":
             q = q.copy()
             q[gen.close_j] *= OPEN_SCALE
-        for delta in (0.0, *OPEN_STEPS):  # open until the hand clears the object and the table
+        for delta in (0.0, *OPEN_STEPS):  # open until the hand clears the object
             q0 = q.copy()
             q0[gen.close_j] -= gen.close_sign * delta
             q0 = np.clip(q0, *gen.ranges.T)
             mujoco.mj_resetData(m, d)
             set_object(m, gen.idx, kind, size)
-            d.mocap_pos[self.wrist] = wrist0
             d.qpos[gen.idx.qpos] = q0
             d.ctrl[gen.idx.act] = q0
             d.qpos[gen.idx.obj_qpos:gen.idx.obj_qpos + 3] = pos
             d.qpos[gen.idx.obj_qpos + 3:gen.idx.obj_qpos + 7] = quat
+            d.mocap_pos[self.fixture] = pos
+            d.mocap_quat[self.fixture] = quat
+            d.eq_active[self.weld] = 1
             if self._start_clear():
                 break
         else:
             return False
 
         def record():
-            if frames is not None and len(frames) < 10_000 and int(d.time / TIMESTEP) % 40 == 0:
+            if frames is not None and int(round(d.time / TIMESTEP)) % 40 == 0:
                 frames.append(d.time)
 
-        mujoco.mj_step(m, d, nstep=int(0.1 / TIMESTEP))  # object settles on the table
-        z0 = d.qpos[gen.idx.obj_qpos + 2]
+        # Close on the object while the fixture holds it, squeeze, settle, then let go.
         ctrl = gen.close(q0, GRASP_TYPES["power"][0], after_step=record)
         for _ in range(int(SETTLE_S / TIMESTEP)):
             mujoco.mj_step(m, d)
             record()
+        return self._release_and_lift(ctrl, record)
+
+    def lift_grasp(self, rec: dict, q_target: np.ndarray | None = None) -> bool:
+        """Carry a stored grasp_gen grasp: hand at its posture, object at its pose (welded), targets
+        ``q_target`` (default: its own commanded targets), release, settle without gravity, lift."""
+        m, d, gen = self.model, self.data, self.gen
+        kind = str(rec["kind"])
+        size = rec["size"][: {"sphere": 1, "cylinder": 2, "box": 3}[kind]]
+        pos = WRIST0 + rec["obj_pos"]
+        mujoco.mj_resetData(m, d)
+        set_object(m, gen.idx, kind, size)
+        d.qpos[gen.idx.qpos] = rec["q"]
+        ctrl = rec["ctrl"] if q_target is None else np.clip(q_target + (rec["ctrl"] - rec["q"]), *gen.ranges.T)
+        d.ctrl[gen.idx.act] = ctrl
+        d.qpos[gen.idx.obj_qpos:gen.idx.obj_qpos + 3] = pos
+        d.qpos[gen.idx.obj_qpos + 3:gen.idx.obj_qpos + 7] = rec["obj_quat"]
+        d.mocap_pos[self.fixture] = pos
+        d.mocap_quat[self.fixture] = rec["obj_quat"]
+        d.eq_active[self.weld] = 1
+        mujoco.mj_step(m, d, nstep=int(SETTLE_S / TIMESTEP))
+        return self._release_and_lift(ctrl)
+
+    def _release_and_lift(self, ctrl: np.ndarray, record=lambda: None) -> bool:
+        m, d, gen = self.model, self.data, self.gen
+        d.eq_active[self.weld] = 0
+        g = m.opt.gravity.copy()
+        m.opt.gravity[:] = 0.0
+        for _ in range(int(RELEASE_S / TIMESTEP)):
+            mujoco.mj_step(m, d)
+            record()
+        m.opt.gravity[:] = g
+        z0 = d.qpos[gen.idx.obj_qpos + 2]
+        pos_h = d.qpos[gen.idx.obj_qpos:gen.idx.obj_qpos + 3] - self.wrist_pos()  # where it settled
         n = int(LIFT_S / TIMESTEP)
         for i in range(n + int(HOLD_S / TIMESTEP)):
-            d.mocap_pos[self.wrist] = wrist0 + [0, 0, LIFT_M * min(1.0, (i + 1) / n)]
+            d.ctrl[self.lift_act] = LIFT_M * min(1.0, (i + 1) / n)
             d.ctrl[gen.idx.act] = ctrl
             mujoco.mj_step(m, d)
             record()
-        return bool(d.qpos[gen.idx.obj_qpos + 2] - z0 >= SUCCESS_RISE_M)
+        if gen.unstable():
+            return False  # MuJoCo reset an unstable step: whatever happened after is not a lift
+        obj = d.qpos[gen.idx.obj_qpos:gen.idx.obj_qpos + 3]
+        carried = self.wrist_pos() + pos_h
+        return bool(obj[2] - z0 >= SUCCESS_RISE_M and np.linalg.norm(obj - carried) < HELD_M)
 
 
 _LIFTERS = {}
@@ -160,6 +206,32 @@ def _work(args):
         _LIFTERS[key] = Lifter(thumb, fc)
     pca = dict(np.load(pca_path)) if sampler != "prior" else None
     return thumb, sampler, _LIFTERS[key].trial(seed, sampler, pca)
+
+
+def _carry(args):
+    i, k, grasps_path, pca_path = args
+    from .synergies import project
+
+    if "stored" not in _LIFTERS:
+        _LIFTERS["stored"] = (Lifter("stock", False), dict(np.load(grasps_path)), dict(np.load(pca_path)))
+    lifter, grasps, pca = _LIFTERS["stored"]
+    rec = {f: grasps[f][i] for f in ("q", "ctrl", "kind", "size", "obj_pos", "obj_quat")}
+    return k, lifter.lift_grasp(rec, None if k == 20 else project(grasps["q"][i][None], pca, k)[0])
+
+
+def carry_stored(grasps_path: str, pca_path: str, n: int) -> None:
+    """Can grasp_gen's shake-test-stable grasps be carried, as is and with postures rebuilt from k PCs?"""
+    count = len(np.load(grasps_path)["q"])
+    pick = np.random.default_rng(0).choice(count, size=min(n, count), replace=False)
+    ks = (20, 10, 5, 3, 1)
+    held = {k: [] for k in ks}
+    with mp.Pool() as pool:
+        for k, ok in pool.imap_unordered(_carry, [(int(i), k, grasps_path, pca_path) for k in ks for i in pick],
+                                         chunksize=8):
+            held[k].append(ok)
+    for k in ks:
+        label = "as stored" if k == 20 else f"{k}-PC posture"
+        print(f"stable grasps carried, {label:13s}: {np.mean(held[k]):5.1%} of {len(held[k])}")
 
 
 def render_gif(path: str, thumb: str, sampler: str, fc: bool, pca: dict | None, seeds) -> None:
@@ -200,7 +272,13 @@ def main() -> None:
     p.add_argument("--synergies", default="out/synergies.npz")
     p.add_argument("--gif", default=None, help="render one successful lift (first thumb and sampler) instead")
     p.add_argument("--out", default=None, help="save per-trial results (npz)")
+    p.add_argument("--stored", type=int, default=0,
+                   help="instead: carry this many of --grasps' stable grasps, rebuilt from k PCs (k=20: as is)")
+    p.add_argument("--grasps", default="out/grasps.npz")
     args = p.parse_args()
+    if args.stored:
+        carry_stored(args.grasps, args.synergies, args.stored)
+        return
     samplers, thumbs = args.samplers.split(","), args.thumbs.split(",")
     if args.gif:
         pca = dict(np.load(args.synergies)) if samplers[0] != "prior" else None

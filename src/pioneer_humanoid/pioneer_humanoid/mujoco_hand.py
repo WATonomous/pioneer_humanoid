@@ -55,7 +55,8 @@ PALM_BODY = "hand_origin"
 DISTAL_BODIES = ("thumb_distal", "distal_1", "distal_2", "distal_3", "distal_4")
 
 
-def hand_spec(thumb_pos=None, thumb_yaw_deg: float = 0.0, finger_collisions: bool = False) -> mujoco.MjSpec:
+def hand_spec(thumb_pos=None, thumb_yaw_deg: float = 0.0, finger_collisions: bool = False,
+              torque_limit: float | None = None) -> mujoco.MjSpec:
     """MjSpec of the hand: hand_origin as the root body, one position actuator per joint (named after it).
 
     The root has no joint: attach it to a frame (or add a freejoint/mocap weld) to place it.
@@ -67,6 +68,10 @@ def hand_spec(thumb_pos=None, thumb_yaw_deg: float = 0.0, finger_collisions: boo
 
     ``finger_collisions``: digits collide with each other (not with their own links or the palm, whose
     convex hull overlaps every finger base). Off by default, like the Isaac in-hand task.
+
+    ``torque_limit``: clamp every actuator to +-this many Nm. None (default) leaves them unlimited, as in
+    the Isaac config; then a 0.08 rad squeeze at kp 50 is ~4 Nm per joint, ~100+ N on a small object --
+    far more than a hand this size produces. The real motors' torque isn't in the repo (URDF effort=0).
     """
     urdf = HAND_URDF_PATH.read_text()
     urdf = re.sub(r'filename="\.\./meshes/', 'filename="', urdf)
@@ -101,6 +106,9 @@ def hand_spec(thumb_pos=None, thumb_yaw_deg: float = 0.0, finger_collisions: boo
         act.set_to_position(kp=kp, kv=kv)
         act.ctrllimited = mujoco.mjtLimited.mjLIMITED_TRUE
         act.inheritrange = 1.0  # ctrlrange = joint range
+        if torque_limit is not None:
+            act.forcelimited = mujoco.mjtLimited.mjLIMITED_TRUE
+            act.forcerange = [-torque_limit, torque_limit]
 
     if finger_collisions:
         _digit_collision_bits(spec)
