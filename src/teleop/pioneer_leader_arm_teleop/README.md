@@ -74,6 +74,9 @@ Scenes: `bare`, `peg_insert`, `zip_tie`, `drawer_stow`, `matcha`, `duplo`, or an
 - **Directions:** move one leader joint at a time. If a sim joint goes the wrong way, restart with that entry flipped in `--signs` (order A..G, default `1,-1,-1,1,1,-1,1`).
 - **R:** reset the arm and every object in the scene; the arm waits at home until the leader is back at home. During a take, it also discards the take.
 - **`--record`:** `S` start · `N` save (then auto-reset) · `D` discard → `<repo>/datasets/pioneer_v1_left_arm/sim/` · `--cameras ego,wrist_left` / `none`.
+  Besides the arm cameras, `--cameras` takes a camera the scene itself has (`tidy_table`: `--cameras top,wrist_left`).
+  Every frame also stores the leader's encoders, servos A..G: `leader_angles` (rad, calibrated, hanging = 0) and
+  `leader_counts` (raw counts). They are not `observation.*` features, so policies don't train on them.
 - **Multi-step scenes** (`drawer_stow`, `matcha`, `duplo`): the terminal prints `[TASK] step k/n: <instruction>` as each step is done and
   `all steps done -- N to save` at the end. Recorded frames carry the current step's instruction as their `task` and a
   `subtask_index`, so a take is labelled step by step with no hand annotation.

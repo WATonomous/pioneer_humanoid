@@ -139,6 +139,11 @@ class LeaderInput:
                 self._last_warning = now
         return self.angles
 
+    def counts(self) -> tuple[int, ...]:
+        """Raw encoder counts behind the last good reading, in SERVO_IDS order."""
+        positions = self.leader.last_positions()
+        return tuple(positions[servo_id] for servo_id in SERVO_IDS.values())
+
     def report(self, mapping: LeaderMapping) -> None:
         now = time.monotonic()
         if now - self._last_report < 0.5:

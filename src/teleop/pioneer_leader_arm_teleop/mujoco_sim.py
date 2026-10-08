@@ -27,6 +27,8 @@ from humanoid_robot_learning.sim_teleop_record import (  # noqa: E402
     make_sim_recorder,
 )
 
+from servo_leader import SERVO_IDS  # noqa: E402
+
 from leader_mapping import (  # noqa: E402
     CONTROL_DT,
     WRIST_DAMPING,
@@ -51,7 +53,9 @@ def run() -> None:
     import mujoco
     import mujoco.viewer
     import numpy as np
-    from humanoid_mujoco_scenes import list_scenes, make_model, scene_camera, scene_progress, scene_reset, scene_step
+    from humanoid_mujoco_scenes import (
+        list_scenes, make_model, scene_camera, scene_condition, scene_progress, scene_reset, scene_step,
+    )
     from pioneer_humanoid.arm_params import (
         LEFT_ARM_JOINTS,
         LEFT_GRIPPER_CLOSED,
@@ -63,14 +67,18 @@ def run() -> None:
 
     if args.scene not in list_scenes():
         raise SystemExit(f"unknown --scene {args.scene!r}; available: {list_scenes()}")
-    unknown = sorted(set(record.images) - set(CAMERA_NAMES))
-    if unknown:
-        raise SystemExit(f"{record.path}: unknown images {unknown}; available: {list(CAMERA_NAMES)}")
     cameras = {name: (int(spec["height"]), int(spec["width"])) for name, spec in record.images.items()}
-    model = make_model(args.scene, cameras=cameras)
+    # Arm cameras are mounted on the robot; any other image must be a camera the scene has (tidy_table's "top").
+    model = make_model(args.scene, cameras={n: hw for n, hw in cameras.items() if n in CAMERA_NAMES})
+    unknown = sorted(n for n in cameras
+                     if n not in CAMERA_NAMES and mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_CAMERA, n) < 0)
+    if unknown:
+        raise SystemExit(f"{record.path}: images {unknown} are neither arm cameras {list(CAMERA_NAMES)} "
+                         f"nor cameras of scene {args.scene!r}")
     scene_hook = scene_step(args.scene)  # per-step scene mechanics (e.g. zip_tie's ratchet), or None
     scene_randomise = scene_reset(args.scene)  # new layout per episode, or None
     scene_steps = scene_progress(args.scene)  # multi-step task: (index, total, instruction), or None
+    scene_cond = scene_condition(args.scene)  # (names, fn): the instruction as numbers, or None
     rng = np.random.default_rng()
     data = mujoco.MjData(model)
     # Position actuator bias is [0, -kp, -kv]: lower the wrist's kv (see WRIST_DAMPING).
@@ -99,8 +107,15 @@ def run() -> None:
 
     substeps = max(1, round(CONTROL_DT / model.opt.timestep))
     control_dt = substeps * model.opt.timestep
+    # Leader encoders every frame: calibrated angles (rad, hanging = 0) and raw counts, in servo order. Not
+    # "observation.*" -- LeRobot would feed those to the policy, and the leader IS the action.
+    extra = {"leader_angles": list(SERVO_IDS), "leader_counts": list(SERVO_IDS)}
     # Multi-step scenes record the current step's instruction as each frame's task, plus its index.
-    extra = {"subtask_index": ["subtask_index"]} if scene_steps is not None else None
+    if scene_steps is not None:
+        extra["subtask_index"] = ["subtask_index"]
+    # ... and as numbers (e.g. tidy_table's one-hot target), a policy input: ACT has no language input.
+    if scene_cond is not None:
+        extra["observation.environment_state"] = scene_cond[0]
     recorder, record_every = make_sim_recorder(args, record, device="cpu", sim_dt=control_dt, extra_features=extra)
     if recorder is not None:
         print("[RECORD] Keys: S=start, N=save episode (then reset), D=discard")
@@ -160,10 +175,16 @@ def run() -> None:
                     ) / len(grip_qpos)
                     state = np.append(data.qpos[arm_qpos], min(max(closure, 0.0), 1.0)).astype(np.float32)
                     action = np.append(target, grip).astype(np.float32)
-                    task, extras = None, None
+                    task = None
+                    extras = {
+                        "leader_angles": np.asarray(leader.angles, dtype=np.float32),
+                        "leader_counts": np.asarray(leader.counts(), dtype=np.float32),
+                    }
                     if scene_steps is not None:
                         index, _, task = scene_steps(model, data)
-                        extras = {"subtask_index": np.array([index], dtype=np.float32)}
+                        extras["subtask_index"] = np.array([index], dtype=np.float32)
+                    if scene_cond is not None:
+                        extras["observation.environment_state"] = scene_cond[1](model, data)
                     with viewer.lock():
                         saved = recorder.tick(action, state, read_images, task=task, extras=extras)
                     if saved:
