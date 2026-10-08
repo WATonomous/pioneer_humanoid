@@ -142,6 +142,39 @@ chance (27% vs 15% at k=3) but miss most of it (principal angles to the grasp to
 soft contacts the overlap was at chance, so this is sensitive to the setup; two runs only. The logged
 targets also include the planner's isotropic sampling noise.
 
+## Thumb mount study (`thumb.py`)
+
+The Isaac in-hand log concluded palm-normal spin needs a thumb that opposes the fingers the way human,
+Shadow and Allegro thumbs do. As built, the thumb base sits mid-palm between index and middle and its MCP_A
+swing carries it toward the fingertips (head-on opposition). Hypothetical mounts, same links and limits
+(`hand_spec(thumb_pos=..., thumb_yaw_deg=...)`, `--thumb` on `mpc` and `grasp_gen`):
+
+| mount | base | swing |
+|---|---|---|
+| stock | mid-palm | toward the fingertips |
+| yaw90 | mid-palm | across the palm toward the pinky |
+| radial45 | index side, near the wrist | diagonally toward the ring finger |
+| radial90 | index side | straight across the palm |
+
+**Cube spin** (joint-space MPC, 8 s, 3 seeds per direction; the cube is dropped onto the palm and the cost
+keeps it where it settled, so a mount that takes up palm space isn't charged for it):
+
+| mount | +Z spin | -Z spin | mean | drops |
+|---|---|---|---|---|
+| stock | 135 | 109 | 122 deg | 0/6 |
+| radial90 | 79 | 127 | 103 deg | 0/6 |
+| radial45 | 79 | 85 | 82 deg | 1/6 |
+| yaw90 | 82 | 48 | 65 deg | 2/6 |
+
+None of these mounts beats the stock thumb at palm-normal spin with this planner, so the Isaac log's
+hypothesis isn't supported for them. radial90 is the most consistent in one direction (120-132 deg over
+3 seeds). These are crude variants: only the base position and swing direction move.
+
+## Finger collisions
+
+With `--finger-collisions` (digits collide with each other) the stock spin drops from 119 to 87 deg / 8 s
+(4 seeds, 1 drop vs 0): part of the planner's spin came from fingers passing through each other.
+
 ## Caveats
 
 - The hand model has no tendon coupling or torque limits: every joint is an independent position servo with

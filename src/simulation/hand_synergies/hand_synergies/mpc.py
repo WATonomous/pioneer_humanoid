@@ -1,9 +1,11 @@
-"""Spin a cube in the palm-up hand with sampling MPC (predictive sampling), in joint or synergy space.
+"""Manipulate a cube in the palm-up hand with sampling MPC (predictive sampling), in joint or synergy space.
 
 No training: every CONTROL_DT the planner perturbs its nominal plan (a few control knots over a short
 horizon) N times, rolls each out on a copy of the simulation (mujoco.rollout, multithreaded), and
-keeps the cheapest. The cost asks the cube to spin about the palm normal (world +Z) at TARGET_SPIN
-while staying in the palm.
+keeps the cheapest. Two tasks (--task):
+  spin   spin the cube about the palm normal (world +Z) at TARGET_SPIN while it stays in the palm
+  yaw    the Isaac in-hand task: turn the cube to a random goal yaw (about +Z), success when the
+         orientation error is < YAW_SUCCESS rad, then a new goal (Isaac resamples on success too)
 
 The only difference between the action spaces is where the noise lives:
   joint       every one of the 20 joint targets perturbed independently
@@ -11,6 +13,7 @@ The only difference between the action spaces is where the noise lives:
 
     python -m hand_synergies.mpc --space joint --seconds 10 --gif out/mpc_joint.gif
     python -m hand_synergies.mpc --space synergy-3 --seconds 10
+    python -m hand_synergies.mpc --task yaw --seconds 30 --gif out/mpc_yaw.gif
 """
 from __future__ import annotations
 
@@ -35,7 +38,14 @@ TARGET_SPIN = 1.0          # rad/s about world +Z
 CUBE_HALF = 0.02
 CUBE_HOME = np.array([-0.012, 0.10, 0.03])  # resting spot in the palm (world)
 
+TASK = "spin"
+YAW_SUCCESS = 0.4          # rad, the Isaac task's success threshold
+GOAL_QUAT = np.array([1.0, 0.0, 0.0, 0.0])
+GOAL_MARKER_OFFSET = np.array([0.11, 0.0, 0.01])  # the goal-orientation ghost cube, beside the hand
+
 # cost weights
+W_ORI = 1.0                # yaw task: per rad of orientation error
+W_HOLD = 0.05              # yaw task: per (rad/s)^2 of cube spin -- arrive and stop, don't overshoot
 W_SPIN = 1.0
 W_POS = 400.0              # per m^2 off CUBE_HOME (xy) -- keeps it in the palm
 W_DROP = 50.0              # cube below DROP_Z
@@ -91,22 +101,36 @@ def make_model(width: int = 480, height: int = 360, thumb: str = "stock",
                     objtype=mujoco.mjtObj.mjOBJ_BODY, objname="cube")
     spec.add_sensor(name="cube_zaxis", type=mujoco.mjtSensor.mjSENS_FRAMEZAXIS,
                     objtype=mujoco.mjtObj.mjOBJ_BODY, objname="cube")
+    spec.add_sensor(name="cube_quat", type=mujoco.mjtSensor.mjSENS_FRAMEQUAT,
+                    objtype=mujoco.mjtObj.mjOBJ_BODY, objname="cube")
+    # Goal ghost for renders: a mocap cube that never collides (hidden in the spin task).
+    goal = spec.worldbody.add_body(name="goal", mocap=True, pos=CUBE_HOME + GOAL_MARKER_OFFSET)
+    goal.add_geom(type=mujoco.mjtGeom.mjGEOM_BOX, size=[CUBE_HALF] * 3, contype=0, conaffinity=0,
+                  rgba=[0.3, 0.8, 0.4, 0.0])
+    goal.add_geom(type=mujoco.mjtGeom.mjGEOM_BOX, size=[CUBE_HALF * 1.01, 0.004, CUBE_HALF * 1.01],
+                  contype=0, conaffinity=0, rgba=[0.15, 0.15, 0.15, 0.0])
     stiffen_contacts(spec)
     return spec.compile()
 
 
+def orientation_error(quat: np.ndarray, goal: np.ndarray) -> np.ndarray:
+    """Rotation angle (rad) between unit quaternions [..., 4] and ``goal``."""
+    return 2.0 * np.arccos(np.clip(np.abs(quat @ goal), 0.0, 1.0))
+
+
 def stage_cost(sens: np.ndarray, ctrl_delta: np.ndarray) -> np.ndarray:
-    """Per-step cost from sensordata [..., 9] (pos 3, angvel 3, z-axis 3)."""
-    pos, angvel, zaxis = sens[..., 0:3], sens[..., 3:6], sens[..., 6:9]
-    # Tilt: the cube's own Z axis (vertical at the start) should stay vertical -- spin, don't tumble.
-    tilt = 1.0 - np.abs(zaxis[..., 2])
-    return (
-        W_SPIN * (angvel[..., 2] - TARGET_SPIN) ** 2
-        + W_POS * np.sum((pos[..., :2] - CUBE_HOME[:2]) ** 2, axis=-1)
+    """Per-step cost from sensordata [..., 13] (pos 3, angvel 3, z-axis 3, quat 4)."""
+    pos, angvel, zaxis, quat = sens[..., 0:3], sens[..., 3:6], sens[..., 6:9], sens[..., 9:13]
+    common = (
+        W_POS * np.sum((pos[..., :2] - CUBE_HOME[:2]) ** 2, axis=-1)
         + W_DROP * (pos[..., 2] < DROP_Z)
-        + W_TILT * tilt
         + (W_CTRL_SMOOTH if SMOOTH else W_CTRL) * np.sum(ctrl_delta**2, axis=-1)
     )
+    if TASK == "yaw":
+        return W_ORI * orientation_error(quat, GOAL_QUAT) + W_HOLD * np.sum(angvel**2, axis=-1) + common
+    # Tilt: the cube's own Z axis (vertical at the start) should stay vertical -- spin, don't tumble.
+    tilt = 1.0 - np.abs(zaxis[..., 2])
+    return W_SPIN * (angvel[..., 2] - TARGET_SPIN) ** 2 + W_TILT * tilt + common
 
 
 # Thumb poses (circumduction, MCP_A, PIP, DIP) tried in order for the start: the first that leaves the cube
@@ -210,6 +234,26 @@ def run(space: str, seconds: float, pca: dict | None, nthread: int = 4, seed: in
     sub = int(round(CONTROL_DT / TIMESTEP))
     renderer = mujoco.Renderer(model, 360, 480) if gif else None
     frames, yaw, spin_log, dropped_at, ctrl_log = [], 0.0, [], None, []
+    goal_rng = np.random.default_rng([seed, 7])
+    cube_q0 = data.sensordata[9:13].copy()  # settled orientation: goals are yaws of it
+    goal_log, err_log, success_times = [], [], []
+
+    def new_goal():
+        half = goal_rng.uniform(-np.pi, np.pi) / 2
+        qz = np.array([np.cos(half), 0.0, 0.0, np.sin(half)])
+        g = np.empty(4)
+        mujoco.mju_mulQuat(g, qz, cube_q0)
+        globals()["GOAL_QUAT"] = g
+        mid = model.body("goal").mocapid[0]
+        data.mocap_pos[mid] = cube_rest + GOAL_MARKER_OFFSET
+        data.mocap_quat[mid] = g
+        goal_log.append(g)
+
+    if TASK == "yaw":
+        for gid in range(model.ngeom):
+            if model.geom_bodyid[gid] == model.body("goal").id:
+                model.geom_rgba[gid, 3] = 0.45
+        new_goal()
     t0 = time.time()
     for i in range(int(seconds / CONTROL_DT)):
         data.ctrl[:] = (1 - FILTER_ALPHA) * data.ctrl + FILTER_ALPHA * planner.plan(data)
@@ -221,10 +265,16 @@ def run(space: str, seconds: float, pca: dict | None, nthread: int = 4, seed: in
         if data.sensordata[2] < DROP_Z:  # off the hand: the episode is over (a falling cube still "spins")
             dropped_at = data.time
             break
+        if TASK == "yaw":
+            err = float(orientation_error(data.sensordata[9:13], GOAL_QUAT))
+            err_log.append(err)
+            if err < YAW_SUCCESS:
+                success_times.append(len(spin_log) * CONTROL_DT)
+                new_goal()
         if renderer is not None and i % 3 == 0:
             cam = mujoco.MjvCamera()
-            cam.lookat[:] = [-0.012, 0.10, 0.02]
-            cam.distance, cam.azimuth, cam.elevation = 0.32, 90, -50
+            cam.lookat[:] = [0.03, 0.10, 0.02] if TASK == "yaw" else [-0.012, 0.10, 0.02]
+            cam.distance, cam.azimuth, cam.elevation = (0.38 if TASK == "yaw" else 0.32), 90, -50
             renderer.update_scene(data, cam)
             frames.append(renderer.render())
     wall = time.time() - t0
@@ -237,12 +287,15 @@ def run(space: str, seconds: float, pca: dict | None, nthread: int = 4, seed: in
     c = np.array(ctrl_log)
     jerk = float(np.mean(np.linalg.norm(np.diff(c, axis=0), axis=1))) if len(c) > 1 else 0.0
     return dict(space=space, ctrl=c, jerk=jerk, yaw=yaw, mean_spin=float(np.mean(spin_log)),
+                successes=len(success_times), success_times=success_times,
+                mean_err=float(np.mean(err_log)) if err_log else float("nan"),
                 dropped_at=dropped_at, sim_seconds=len(spin_log) * CONTROL_DT,
                 realtime=len(spin_log) * CONTROL_DT / wall)
 
 
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    p.add_argument("--task", default="spin", choices=("spin", "yaw"))
     p.add_argument("--space", default="joint", help="joint | synergy-<k>")
     p.add_argument("--seconds", type=float, default=10.0)
     p.add_argument("--seed", type=int, default=0)
@@ -261,7 +314,7 @@ def main() -> None:
     p.add_argument("--temp", type=float, default=MPPI_TEMP, help="MPPI temperature (x cost std)")
     p.add_argument("--filter", type=float, default=FILTER_ALPHA, help="low-pass alpha on the executed command")
     args = p.parse_args()
-    globals().update(NOISE_NORM=args.noise, HORIZON_S=args.horizon, N_SAMPLES=args.samples,
+    globals().update(TASK=args.task, NOISE_NORM=args.noise, HORIZON_S=args.horizon, N_SAMPLES=args.samples,
                      TARGET_SPIN=args.target_spin, SMOOTH=args.smooth, MPPI_TEMP=args.temp, FILTER_ALPHA=args.filter)
     if args.w_ctrl is not None:
         globals().update(W_CTRL=args.w_ctrl, W_CTRL_SMOOTH=args.w_ctrl)
@@ -270,8 +323,16 @@ def main() -> None:
     if args.log:
         np.savez(args.log, ctrl=r["ctrl"], joint_names=np.array(JOINT_NAMES), control_dt=CONTROL_DT)
     drop = f"dropped at {r['dropped_at']:.1f} s" if r["dropped_at"] is not None else "never dropped"
-    print(f"thumb={args.thumb}{' fingercoll' if args.finger_collisions else ''}{' smooth' if args.smooth else ''} w_ctrl={args.w_ctrl} temp={args.temp} filter={args.filter} {r['space']} noise={NOISE_NORM} horizon={HORIZON_S} samples={N_SAMPLES}: "
-          f"turned {np.degrees(r['yaw']):.0f} deg in {r['sim_seconds']:.1f} s "
+    flags = (f"{' fingercoll' if args.finger_collisions else ''}{' smooth' if args.smooth else ''}"
+             f" w_ctrl={args.w_ctrl} temp={args.temp} filter={args.filter}")
+    head = f"thumb={args.thumb}{flags} {r['space']} noise={NOISE_NORM} horizon={HORIZON_S} samples={N_SAMPLES}: "
+    if args.task == "yaw":
+        times = ", ".join(f"{t:.1f}" for t in r["success_times"])
+        print(head + f"{r['successes']} goals reached in {r['sim_seconds']:.1f} s (at {times} s), "
+              f"mean orientation error {r['mean_err']:.2f} rad, {drop}, jerk {r['jerk']:.3f} rad/step, "
+              f"{r['realtime']:.2f}x real time")
+        return
+    print(head + f"turned {np.degrees(r['yaw']):.0f} deg in {r['sim_seconds']:.1f} s "
           f"(mean {r['mean_spin']:.2f} rad/s, target {TARGET_SPIN}), {drop}, "
           f"jerk {r['jerk']:.3f} rad/step, {r['realtime']:.2f}x real time")
 
