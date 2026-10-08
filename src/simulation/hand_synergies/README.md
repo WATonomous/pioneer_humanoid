@@ -170,6 +170,21 @@ None of these mounts beats the stock thumb at palm-normal spin with this planner
 hypothesis isn't supported for them. radial90 is the most consistent in one direction (120-132 deg over
 3 seeds). These are crude variants: only the base position and swing direction move.
 
+**Grasps** (`grasp_gen --thumb`, 10k trials each; first with the default placement, then with objects
+placed over a wider area, x -0.07..0.08, y 0.0..0.19, so the stock-tuned placement doesn't decide it):
+
+| mount | stable grasps (default) | stable grasps (wide) | thumb touches the object (wide) |
+|---|---|---|---|
+| stock | 518 | 181 | 72% |
+| yaw90 | 222 | 87 | 53% |
+| radial45 | 273 | 87 | 16% |
+| radial90 | 259 | 83 | 14% |
+
+The radial thumbs rarely take part in a grasp: their swing ends over the palm near the wrist, while the
+fingers close on objects near the finger bases. So these variants are badly placed arcs rather than a
+fair test of opposition; a mount should be chosen for where its arc meets the fingers (see the
+opposition analysis below).
+
 ## Finger collisions
 
 With `--finger-collisions` (digits collide with each other) the stock spin drops from 119 to 87 deg / 8 s

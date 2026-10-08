@@ -12,6 +12,10 @@ THUMB_MOUNTS = {
     "yaw90": (STOCK_POS, -90.0),                  # same base, swings across the palm toward the pinky
     "radial45": ((-0.035, 0.045, 0.0198), -45.0),  # index side near the wrist, swings toward ring finger
     "radial90": ((-0.035, 0.06, 0.0198), -90.0),   # index side, swings straight across the palm
+    # Best fingertip-opposition overlap from opposition.py's 3000-mount search (kinematics only):
+    "fwd": ((0.003, 0.109, 0.0198), -2.0),        # stock, base 3 cm toward the knuckles (overlap .57 vs .41)
+    "flip": ((0.052, 0.106, 0.0198), -175.0),     # pinky side near the knuckles, turned around (.59)
+    "palm108": ((0.028, 0.087, 0.0198), 108.0),   # best with the base kept on the palm, y <= 0.09 (.53)
 }
 
 
