@@ -232,7 +232,10 @@ passing through each other.
 
 - Every joint is an independent position servo with the Isaac gains and no torque limit (the real motors'
   torque isn't in the repo; URDF effort=0). A 0.08 rad squeeze at kp 50 is ~4 Nm per joint -- 100+ N on a
-  small object -- far more than a hand this size produces. `hand_spec(torque_limit=...)` clamps it.
+  small object -- far more than a hand this size produces. `hand_spec(torque_limit=...)` /
+  `grasp_gen --torque-limit` clamp it. With an assumed 0.5 Nm per joint: 2699 stable grasps (vs 2543), the
+  same synergies (top-3 subspaces within 1.6-7.6 deg, 3 PCs = 77%), and 90% of them carried 10 cm (vs 78%;
+  gentler squeezes release more smoothly). The synergy findings don't hinge on the motor strength.
 - No tendon coupling: if the real hand couples PIP/DIP, those joints will correlate more on hardware.
 - MuJoCo collides meshes as convex hulls, so the palm is solid where the real one is a frame.
 - Finger-finger collisions are off by default (as in the Isaac in-hand task) except where noted.
