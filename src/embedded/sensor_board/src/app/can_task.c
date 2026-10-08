@@ -9,8 +9,13 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define IMU_CAN_PAYLOAD_SIZE        20U
-#define IMU_CAN_EXTENDED_ID         0x2B00U
+#define IMU_QUATERNION_PAYLOAD_SIZE         8U
+#define IMU_ANGULAR_VELOCITY_PAYLOAD_SIZE   6U
+#define IMU_GRAVITY_PAYLOAD_SIZE            6U
+
+#define IMU_QUATERNION_CAN_ID                0x2B00U
+#define IMU_ANGULAR_VELOCITY_CAN_ID          0x2D00U
+#define IMU_GRAVITY_CAN_ID                   0x2E00U
 #define IMU_STALE_TIMEOUT_MS        20U
 
 #define IMU_QUAT_SCALE              16384.0f
@@ -91,41 +96,87 @@ static void pack_int16_big_endian(uint8_t *destination, int16_t value)
     destination[1] = (uint8_t)(raw & 0xFFU);
 }
 
-static void pack_imu_data(uint8_t payload[IMU_CAN_PAYLOAD_SIZE], const ImuCanData *imu)
+static void pack_quaternion(
+    uint8_t payload[IMU_QUATERNION_PAYLOAD_SIZE],
+    const ImuCanData *imu)
 {
     pack_int16_big_endian(&payload[0], imu->qx);
     pack_int16_big_endian(&payload[2], imu->qy);
     pack_int16_big_endian(&payload[4], imu->qz);
     pack_int16_big_endian(&payload[6], imu->qw);
-
-    pack_int16_big_endian(&payload[8], imu->angular_velocity_x);
-    pack_int16_big_endian(&payload[10], imu->angular_velocity_y);
-    pack_int16_big_endian(&payload[12], imu->angular_velocity_z);
-
-    pack_int16_big_endian(&payload[14], imu->gravity_x);
-    pack_int16_big_endian(&payload[16], imu->gravity_y);
-    pack_int16_big_endian(&payload[18], imu->gravity_z);
 }
 
-static bool send_imu_data(const ImuCanData *imu)
+static void pack_angular_velocity(
+    uint8_t payload[IMU_ANGULAR_VELOCITY_PAYLOAD_SIZE],
+    const ImuCanData *imu)
 {
-    uint8_t payload[IMU_CAN_PAYLOAD_SIZE];
+    pack_int16_big_endian(&payload[0], imu->angular_velocity_x);
+    pack_int16_big_endian(&payload[2], imu->angular_velocity_y);
+    pack_int16_big_endian(&payload[4], imu->angular_velocity_z);
+}
 
+static void pack_gravity(
+    uint8_t payload[IMU_GRAVITY_PAYLOAD_SIZE],
+    const ImuCanData *imu)
+{
+    pack_int16_big_endian(&payload[0], imu->gravity_x);
+    pack_int16_big_endian(&payload[2], imu->gravity_y);
+    pack_int16_big_endian(&payload[4], imu->gravity_z);
+}
+
+static bool send_classic_frame(
+    uint32_t identifier,
+    uint32_t dataLength,
+    uint8_t *payload)
+{
     FDCAN_TxHeaderTypeDef header = {
-        .Identifier = IMU_CAN_EXTENDED_ID,
+        .Identifier = identifier,
         .IdType = FDCAN_EXTENDED_ID,
         .TxFrameType = FDCAN_DATA_FRAME,
-        .DataLength = FDCAN_DLC_BYTES_20,
+        .DataLength = dataLength,
         .ErrorStateIndicator = FDCAN_ESI_ACTIVE,
-        .BitRateSwitch = FDCAN_BRS_ON,
-        .FDFormat = FDCAN_FD_CAN,
+        .BitRateSwitch = FDCAN_BRS_OFF,
+        .FDFormat = FDCAN_CLASSIC_CAN,
         .TxEventFifoControl = FDCAN_NO_TX_EVENTS,
         .MessageMarker = 0
     };
 
-    pack_imu_data(payload, imu);
+    return HAL_FDCAN_AddMessageToTxFifoQ(
+        &hfdcan1,
+        &header,
+        payload
+    ) == HAL_OK;
+}
 
-    return HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &header, payload) == HAL_OK;
+static bool send_imu_data(const ImuCanData *imu)
+{
+    uint8_t quaternionPayload[IMU_QUATERNION_PAYLOAD_SIZE] = {0};
+    uint8_t angularVelocityPayload[IMU_ANGULAR_VELOCITY_PAYLOAD_SIZE] = {0};
+    uint8_t gravityPayload[IMU_GRAVITY_PAYLOAD_SIZE] = {0};
+
+    pack_quaternion(quaternionPayload, imu);
+    pack_angular_velocity(angularVelocityPayload, imu);
+    pack_gravity(gravityPayload, imu);
+
+    bool quaternionSent = send_classic_frame(
+        IMU_QUATERNION_CAN_ID,
+        FDCAN_DLC_BYTES_8,
+        quaternionPayload
+    );
+
+    bool angularVelocitySent = send_classic_frame(
+        IMU_ANGULAR_VELOCITY_CAN_ID,
+        FDCAN_DLC_BYTES_6,
+        angularVelocityPayload
+    );
+
+    bool gravitySent = send_classic_frame(
+        IMU_GRAVITY_CAN_ID,
+        FDCAN_DLC_BYTES_6,
+        gravityPayload
+    );
+
+    return quaternionSent && angularVelocitySent && gravitySent;
 }
 
 void CanTask(void *pvParameters)
@@ -133,20 +184,17 @@ void CanTask(void *pvParameters)
     (void)pvParameters;
 
     bno085_sample sample;
+    TickType_t nextWakeTime = xTaskGetTickCount();
 
     for (;;)
     {
-        if (xQueueReceive(bno085SampleQueue, &sample, pdMS_TO_TICKS(IMU_STALE_TIMEOUT_MS)) != pdTRUE)
+        if ((xQueuePeek(bno085SampleQueue, &sample, 0) == pdTRUE) &&
+            sample_is_fresh(&sample))
         {
-            continue;
+            ImuCanData canData = sample_to_can_data(&sample);
+            send_imu_data(&canData);
         }
 
-        if (!sample_is_fresh(&sample))
-        {
-            continue;
-        }
-
-        ImuCanData canData = sample_to_can_data(&sample);
-        send_imu_data(&canData);
+        vTaskDelayUntil(&nextWakeTime, pdMS_TO_TICKS(4U));
     }
 }

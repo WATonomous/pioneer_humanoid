@@ -77,17 +77,21 @@ BO_ 2147500032 FingerPosLoopCmd: 8 Fingers
    SG_ PIP_x : 39|16@0+ (0.00549325,0) [0|360] "Degrees" Vector__XXX
    SG_ DIP_x : 55|16@0+ (0.00549325,0) [0|360] "Degrees" Vector__XXX
 
-BO_ 2147494656 ImuStatusFeedback: 20 IMU
+BO_ 2147494656 ImuQuaternionFeedback: 8 IMU
    SG_ QuaternionX : 7|16@0- (0.00006103515625,0) [-1|1] "" Vector__XXX
    SG_ QuaternionY : 23|16@0- (0.00006103515625,0) [-1|1] "" Vector__XXX
    SG_ QuaternionZ : 39|16@0- (0.00006103515625,0) [-1|1] "" Vector__XXX
    SG_ QuaternionW : 55|16@0- (0.00006103515625,0) [-1|1] "" Vector__XXX
-   SG_ AngularVelocityX : 71|16@0- (0.001953125,0) [-64|63.998046875] "rad/s" Vector__XXX
-   SG_ AngularVelocityY : 87|16@0- (0.001953125,0) [-64|63.998046875] "rad/s" Vector__XXX
-   SG_ AngularVelocityZ : 103|16@0- (0.001953125,0) [-64|63.998046875] "rad/s" Vector__XXX
-   SG_ GravityX : 119|16@0- (0.00390625,0) [-128|127.99609375] "m/s^2" Vector__XXX
-   SG_ GravityY : 135|16@0- (0.00390625,0) [-128|127.99609375] "m/s^2" Vector__XXX
-   SG_ GravityZ : 151|16@0- (0.00390625,0) [-128|127.99609375] "m/s^2" Vector__XXX
+
+BO_ 2147495168 ImuAngularVelocityFeedback: 6 IMU
+   SG_ AngularVelocityX : 7|16@0- (0.001953125,0) [-64|63.998046875] "rad/s" Vector__XXX
+   SG_ AngularVelocityY : 23|16@0- (0.001953125,0) [-64|63.998046875] "rad/s" Vector__XXX
+   SG_ AngularVelocityZ : 39|16@0- (0.001953125,0) [-64|63.998046875] "rad/s" Vector__XXX
+
+BO_ 2147495424 ImuGravityFeedback: 6 IMU
+   SG_ GravityX : 7|16@0- (0.00390625,0) [-128|127.99609375] "m/s^2" Vector__XXX
+   SG_ GravityY : 23|16@0- (0.00390625,0) [-128|127.99609375] "m/s^2" Vector__XXX
+   SG_ GravityZ : 39|16@0- (0.00390625,0) [-128|127.99609375] "m/s^2" Vector__XXX
 
 CM_ BU_ Motor "CubeMars AK-series actuator";
 CM_ BU_ Fingers "STM devices controlling fingers";

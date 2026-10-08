@@ -37,6 +37,11 @@ static spiTaskData taskData =
 
 static uint8_t txZeros[SH2_HAL_MAX_TRANSFER_IN] = {0};
 
+static bool sensor_work_pending(void)
+{
+    return (taskData.rxBufLen == 0) && (HAL_GPIO_ReadPin(BNO085_INT_GPIO_Port, BNO085_INT_Pin) == GPIO_PIN_RESET);
+}
+
 static void spi_write(void)
 {
     HAL_GPIO_WritePin(SPI1_CS_GPIO_Port, SPI1_CS_Pin, GPIO_PIN_RESET);
@@ -68,8 +73,7 @@ static spiState_E getDesiredState(uint32_t events)
     {
         case IDLE:
         {
-            bool interrupt = (HAL_GPIO_ReadPin(BNO085_INT_GPIO_Port, BNO085_INT_Pin) == GPIO_PIN_RESET);
-            if (interrupt && (taskData.rxBufLen == 0))
+            if (sensor_work_pending())
             {
                 if (taskData.txBufLen > 0)
                 {
@@ -179,7 +183,8 @@ void SpiTask(void *pvParameters)
     for (;;)
     {
         uint32_t events = 0;
-        xTaskNotifyWait(0, UINT32_MAX, &events, portMAX_DELAY);
+        TickType_t waitTicks = (taskData.currentState == IDLE && sensor_work_pending()) ? 0 : portMAX_DELAY;
+        xTaskNotifyWait(0, UINT32_MAX, &events, waitTicks);
 
         if (events & SPI_EVENT_RX_FREE)
         {

@@ -188,6 +188,11 @@ void TIM1_UP_TIM16_IRQHandler(void)
 }
 
 /* USER CODE BEGIN 1 */
+void FDCAN1_IT0_IRQHandler(void)
+{
+  HAL_FDCAN_IRQHandler(&hfdcan1);
+}
+
 /**
   * @brief This function handles SPI1 interrupt
   */
