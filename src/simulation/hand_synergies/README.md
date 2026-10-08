@@ -103,8 +103,38 @@ MUJOCO_GL=osmesa python -m hand_synergies.mpc --space joint --seconds 10 --gif o
 python -m hand_synergies.mpc --space synergy-3 --seconds 10
 ```
 
-First run (untuned): joint 140 deg in 10 s, synergy-3 102 deg, neither dropped the cube. ~0.1x real time on
-4 cores.
+~0.05-0.1x real time. Spin over 6 s, 3 seeds each (default noise 0.5 rad, horizon 0.3 s, 32 samples):
+
+| action space | seed 0 | seed 1 | seed 2 | mean |
+|---|---|---|---|---|
+| joint (20-D) | 101 | 94 | 54 | 83 deg |
+| grasp synergy-3 | 98 | 62 | 22 | 61 deg |
+| grasp synergy-5 | 43 | 104 | 102 | 83 deg |
+| grasp synergy-10 | 114 | 3 | 60 | 59 deg |
+| manipulation synergy-3 | 97 | 113 | 5 | 72 deg |
+| manipulation synergy-5 | 74 | 66 | 89 | 76 deg |
+
+No space drops the cube in 6 s, and none clearly wins: seed spread is bigger than any gap. Every space spins
+far below the 1 rad/s target (~0.2 rad/s), which matches the Isaac in-hand log: with the thumb on this side
+of the palm, palm-normal spin is hard for the hand itself, whatever the controller. A sweep over noise
+(0.25-1.0), horizon (0.15-0.5 s) and samples (32/64) didn't beat ~120 deg / 6 s without dropping; one
+15 s joint run spun at 1.6 rad/s for a while and then dropped the cube at 11 s.
+
+**Grasp synergies vs manipulation synergies** (`manip.py`, PCA of the joint targets from two 15 s
+joint-space MPC runs):
+
+| k | grasp PCs 1-k capture of the spinning motion | random k-D subspace |
+|---|---|---|
+| 1 | 5% | 5% |
+| 3 | 16% | 15% |
+| 5 | 29% | 25% |
+| 10 | 48% | 50% |
+
+The spinning motion is itself low-dimensional (its own 3 PCs: 72%), but it lives in a different subspace
+(principal angles to the grasp top-3: 59, 75, 87 deg). Grasp synergies move the fingers together;
+the spin's main mode moves them against each other (index MCP vs ring PIP). So a hand controlled only
+through grasp synergies loses exactly the motions in-hand manipulation uses. Caveat: the logged
+targets include the planner's isotropic sampling noise.
 
 ## Caveats
 
