@@ -286,10 +286,13 @@ def run(space: str, seconds: float, pca: dict | None, nthread: int = 4, seed: in
     goal_log, err_log, success_times = [], [], []
 
     def new_goal():
-        half = goal_rng.uniform(-np.pi, np.pi) / 2
-        qz = np.array([np.cos(half), 0.0, 0.0, np.sin(half)])
-        g = np.empty(4)
-        mujoco.mju_mulQuat(g, qz, cube_q0)
+        while True:  # at least 2 x YAW_SUCCESS from the cube, so a new goal is never already reached
+            half = goal_rng.uniform(-np.pi, np.pi) / 2
+            qz = np.array([np.cos(half), 0.0, 0.0, np.sin(half)])
+            g = np.empty(4)
+            mujoco.mju_mulQuat(g, qz, cube_q0)
+            if orientation_error(data.sensordata[9:13], g) >= 2 * YAW_SUCCESS:
+                break
         globals()["GOAL_QUAT"] = g
         mid = model.body("goal").mocapid[0]
         data.mocap_pos[mid] = cube_rest + GOAL_MARKER_OFFSET
