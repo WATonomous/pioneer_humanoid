@@ -6,6 +6,8 @@ keeps the cheapest. Two tasks (--task):
   spin   spin the cube about the palm normal (world +Z) at TARGET_SPIN while it stays in the palm
   yaw    the Isaac in-hand task: turn the cube to a random goal yaw (about +Z), success when the
          orientation error is < YAW_SUCCESS rad, then a new goal (Isaac resamples on success too)
+  roll   a ball instead of the cube: roll it to random target spots on the palm, success within
+         ROLL_SUCCESS m, then a new target
 
 The only difference between the action spaces is where the noise lives:
   joint       every one of the 20 joint targets perturbed independently
@@ -14,6 +16,7 @@ The only difference between the action spaces is where the noise lives:
     python -m hand_synergies.mpc --space joint --seconds 10 --gif out/mpc_joint.gif
     python -m hand_synergies.mpc --space synergy-3 --seconds 10
     python -m hand_synergies.mpc --task yaw --seconds 30 --gif out/mpc_yaw.gif
+    python -m hand_synergies.mpc --task roll --seconds 30 --gif out/mpc_roll.gif
 """
 from __future__ import annotations
 
@@ -42,6 +45,15 @@ TASK = "spin"
 YAW_SUCCESS = 0.4          # rad, the Isaac task's success threshold
 GOAL_QUAT = np.array([1.0, 0.0, 0.0, 0.0])
 GOAL_MARKER_OFFSET = np.array([0.11, 0.0, 0.01])  # the goal-orientation ghost cube, beside the hand
+BALL_RADIUS = 0.015
+ROLL_SUCCESS = 0.01        # m
+ROLL_MIN_MOVE = 0.015      # m, a new target is at least this far from the ball
+ROLL_TARGET_BOX = 0.02     # targets are uniform within +-this (m, xy) of where the ball settled
+TARGET_XY = np.zeros(2)
+W_ROLL = 2000.0            # roll task: per m^2 from the target (1 cm -> 0.2)
+W_ROLL_VEL = 0.5           # roll task: per (m/s)^2 of ball speed -- arrive and stop
+W_ROLL_LEAVE = 20.0        # roll task: ball more than ROLL_LEAVE_R from where it settled (about to fall off)
+ROLL_LEAVE_R = 0.035
 
 # cost weights
 W_ORI = 1.0                # yaw task: per rad of orientation error
@@ -73,7 +85,8 @@ HOME_POSE = {
 
 
 def make_model(width: int = 480, height: int = 360, thumb: str = "stock",
-               finger_collisions: bool = False) -> mujoco.MjModel:
+               finger_collisions: bool = False, ball: bool = False) -> mujoco.MjModel:
+    """Palm-up hand with a free object named "cube" (a ball of BALL_RADIUS if ``ball``)."""
     from .thumb import thumb_kwargs
 
     spec = mujoco.MjSpec()
@@ -90,11 +103,15 @@ def make_model(width: int = 480, height: int = 360, thumb: str = "stock",
         hand_spec(**thumb_kwargs(thumb), finger_collisions=finger_collisions).body(PALM_BODY), "", "")
     cube = spec.worldbody.add_body(name="cube", pos=CUBE_HOME)
     cube.add_freejoint(name="cube")
-    cube.add_geom(type=mujoco.mjtGeom.mjGEOM_BOX, size=[CUBE_HALF] * 3, density=400,
-                  friction=[1.0, 0.01, 0.001], rgba=[0.9, 0.55, 0.2, 1])
-    # A stripe on one face so the spin reads in renders.
-    cube.add_geom(type=mujoco.mjtGeom.mjGEOM_BOX, size=[CUBE_HALF * 1.01, 0.004, CUBE_HALF * 1.01],
-                  contype=0, conaffinity=0, density=0, rgba=[0.15, 0.15, 0.15, 1])
+    if ball:
+        cube.add_geom(type=mujoco.mjtGeom.mjGEOM_SPHERE, size=[BALL_RADIUS, 0, 0], density=400,
+                      friction=[1.0, 0.01, 0.001], rgba=[0.2, 0.5, 0.9, 1])
+    else:
+        cube.add_geom(type=mujoco.mjtGeom.mjGEOM_BOX, size=[CUBE_HALF] * 3, density=400,
+                      friction=[1.0, 0.01, 0.001], rgba=[0.9, 0.55, 0.2, 1])
+        # A stripe on one face so the spin reads in renders.
+        cube.add_geom(type=mujoco.mjtGeom.mjGEOM_BOX, size=[CUBE_HALF * 1.01, 0.004, CUBE_HALF * 1.01],
+                      contype=0, conaffinity=0, density=0, rgba=[0.15, 0.15, 0.15, 1])
     spec.add_sensor(name="cube_pos", type=mujoco.mjtSensor.mjSENS_FRAMEPOS, objtype=mujoco.mjtObj.mjOBJ_BODY,
                     objname="cube")
     spec.add_sensor(name="cube_angvel", type=mujoco.mjtSensor.mjSENS_FRAMEANGVEL,
@@ -103,12 +120,18 @@ def make_model(width: int = 480, height: int = 360, thumb: str = "stock",
                     objtype=mujoco.mjtObj.mjOBJ_BODY, objname="cube")
     spec.add_sensor(name="cube_quat", type=mujoco.mjtSensor.mjSENS_FRAMEQUAT,
                     objtype=mujoco.mjtObj.mjOBJ_BODY, objname="cube")
+    spec.add_sensor(name="cube_linvel", type=mujoco.mjtSensor.mjSENS_FRAMELINVEL,
+                    objtype=mujoco.mjtObj.mjOBJ_BODY, objname="cube")
     # Goal ghost for renders: a mocap cube that never collides (hidden in the spin task).
     goal = spec.worldbody.add_body(name="goal", mocap=True, pos=CUBE_HOME + GOAL_MARKER_OFFSET)
-    goal.add_geom(type=mujoco.mjtGeom.mjGEOM_BOX, size=[CUBE_HALF] * 3, contype=0, conaffinity=0,
-                  rgba=[0.3, 0.8, 0.4, 0.0])
-    goal.add_geom(type=mujoco.mjtGeom.mjGEOM_BOX, size=[CUBE_HALF * 1.01, 0.004, CUBE_HALF * 1.01],
-                  contype=0, conaffinity=0, rgba=[0.15, 0.15, 0.15, 0.0])
+    if ball:  # target spot: a flat green disc
+        goal.add_geom(type=mujoco.mjtGeom.mjGEOM_CYLINDER, size=[ROLL_SUCCESS, 0.001, 0], contype=0,
+                      conaffinity=0, rgba=[0.3, 0.9, 0.4, 0.0])
+    else:
+        goal.add_geom(type=mujoco.mjtGeom.mjGEOM_BOX, size=[CUBE_HALF] * 3, contype=0, conaffinity=0,
+                      rgba=[0.3, 0.8, 0.4, 0.0])
+        goal.add_geom(type=mujoco.mjtGeom.mjGEOM_BOX, size=[CUBE_HALF * 1.01, 0.004, CUBE_HALF * 1.01],
+                      contype=0, conaffinity=0, rgba=[0.15, 0.15, 0.15, 0.0])
     stiffen_contacts(spec)
     return spec.compile()
 
@@ -119,8 +142,16 @@ def orientation_error(quat: np.ndarray, goal: np.ndarray) -> np.ndarray:
 
 
 def stage_cost(sens: np.ndarray, ctrl_delta: np.ndarray) -> np.ndarray:
-    """Per-step cost from sensordata [..., 13] (pos 3, angvel 3, z-axis 3, quat 4)."""
+    """Per-step cost from sensordata [..., 16] (pos 3, angvel 3, z-axis 3, quat 4, linvel 3)."""
     pos, angvel, zaxis, quat = sens[..., 0:3], sens[..., 3:6], sens[..., 6:9], sens[..., 9:13]
+    if TASK == "roll":
+        return (
+            W_ROLL * np.sum((pos[..., :2] - TARGET_XY) ** 2, axis=-1)
+            + W_ROLL_VEL * np.sum(sens[..., 13:16] ** 2, axis=-1)
+            + W_ROLL_LEAVE * (np.linalg.norm(pos[..., :2] - CUBE_HOME[:2], axis=-1) > ROLL_LEAVE_R)
+            + W_DROP * (pos[..., 2] < DROP_Z)
+            + (W_CTRL_SMOOTH if SMOOTH else W_CTRL) * np.sum(ctrl_delta**2, axis=-1)
+        )
     common = (
         W_POS * np.sum((pos[..., :2] - CUBE_HOME[:2]) ** 2, axis=-1)
         + W_DROP * (pos[..., 2] < DROP_Z)
@@ -226,7 +257,9 @@ class Planner:
 
 def run(space: str, seconds: float, pca: dict | None, nthread: int = 4, seed: int = 0, gif: str | None = None,
         thumb: str = "stock", finger_collisions: bool = False):
-    model = make_model(thumb=thumb, finger_collisions=finger_collisions)
+    model = make_model(thumb=thumb, finger_collisions=finger_collisions, ball=TASK == "roll")
+    if TASK == "roll":
+        globals()["DROP_Z"] = -0.02  # the ball rests in the cup of the palm, lower than the cube
     data = mujoco.MjData(model)
     home, cube_rest = _settled_home(model, data)
     globals()["CUBE_HOME"] = cube_rest  # stage_cost keeps the cube near where it settled
@@ -249,11 +282,22 @@ def run(space: str, seconds: float, pca: dict | None, nthread: int = 4, seed: in
         data.mocap_quat[mid] = g
         goal_log.append(g)
 
-    if TASK == "yaw":
+    def new_target():
+        while True:  # at least ROLL_MIN_MOVE from the ball, so a new target is never already reached
+            xy = cube_rest[:2] + goal_rng.uniform(-ROLL_TARGET_BOX, ROLL_TARGET_BOX, size=2)
+            if np.linalg.norm(xy - data.sensordata[:2]) >= ROLL_MIN_MOVE:
+                break
+        globals()["TARGET_XY"] = xy
+        mid = model.body("goal").mocapid[0]
+        data.mocap_pos[mid] = [xy[0], xy[1], cube_rest[2] - BALL_RADIUS + 0.001]
+        data.mocap_quat[mid] = [1, 0, 0, 0]
+        goal_log.append(xy)
+
+    if TASK in ("yaw", "roll"):
         for gid in range(model.ngeom):
             if model.geom_bodyid[gid] == model.body("goal").id:
-                model.geom_rgba[gid, 3] = 0.45
-        new_goal()
+                model.geom_rgba[gid, 3] = 0.45 if TASK == "yaw" else 0.8
+        new_goal() if TASK == "yaw" else new_target()
     t0 = time.time()
     for i in range(int(seconds / CONTROL_DT)):
         data.ctrl[:] = (1 - FILTER_ALPHA) * data.ctrl + FILTER_ALPHA * planner.plan(data)
@@ -271,6 +315,12 @@ def run(space: str, seconds: float, pca: dict | None, nthread: int = 4, seed: in
             if err < YAW_SUCCESS:
                 success_times.append(len(spin_log) * CONTROL_DT)
                 new_goal()
+        elif TASK == "roll":
+            err = float(np.linalg.norm(data.sensordata[:2] - TARGET_XY))
+            err_log.append(err)
+            if err < ROLL_SUCCESS:
+                success_times.append(len(spin_log) * CONTROL_DT)
+                new_target()
         if renderer is not None and i % 3 == 0:
             cam = mujoco.MjvCamera()
             cam.lookat[:] = [0.03, 0.10, 0.02] if TASK == "yaw" else [-0.012, 0.10, 0.02]
@@ -295,7 +345,7 @@ def run(space: str, seconds: float, pca: dict | None, nthread: int = 4, seed: in
 
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument("--task", default="spin", choices=("spin", "yaw"))
+    p.add_argument("--task", default="spin", choices=("spin", "yaw", "roll"))
     p.add_argument("--space", default="joint", help="joint | synergy-<k>")
     p.add_argument("--seconds", type=float, default=10.0)
     p.add_argument("--seed", type=int, default=0)
@@ -326,10 +376,11 @@ def main() -> None:
     flags = (f"{' fingercoll' if args.finger_collisions else ''}{' smooth' if args.smooth else ''}"
              f" w_ctrl={args.w_ctrl} temp={args.temp} filter={args.filter}")
     head = f"thumb={args.thumb}{flags} {r['space']} noise={NOISE_NORM} horizon={HORIZON_S} samples={N_SAMPLES}: "
-    if args.task == "yaw":
+    if args.task in ("yaw", "roll"):
         times = ", ".join(f"{t:.1f}" for t in r["success_times"])
-        print(head + f"{r['successes']} goals reached in {r['sim_seconds']:.1f} s (at {times} s), "
-              f"mean orientation error {r['mean_err']:.2f} rad, {drop}, jerk {r['jerk']:.3f} rad/step, "
+        unit = "rad orientation" if args.task == "yaw" else "m distance"
+        print(head + f"{args.task}: {r['successes']} goals reached in {r['sim_seconds']:.1f} s (at {times} s), "
+              f"mean {unit} error {r['mean_err']:.3f}, {drop}, jerk {r['jerk']:.3f} rad/step, "
               f"{r['realtime']:.2f}x real time")
         return
     print(head + f"turned {np.degrees(r['yaw']):.0f} deg in {r['sim_seconds']:.1f} s "
