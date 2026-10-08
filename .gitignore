@@ -38,3 +38,4 @@ src/teleop/quest_teleop/bridge/static/marker_uv.json
 src/simulation/garment_fold_task/
 src/simulation/humanoid_rl/logs/
 src/simulation/humanoid_rl/outputs/
+src/interfacing/joint_command/config/arm_calibration.yaml.bak
