@@ -149,10 +149,11 @@ def run(space: str, seconds: float, pca: dict | None, nthread: int = 4, seed: in
     planner = Planner(model, space, pca, nthread, seed)
     sub = int(round(CONTROL_DT / TIMESTEP))
     renderer = mujoco.Renderer(model, 360, 480) if gif else None
-    frames, yaw, spin_log, dropped_at = [], 0.0, [], None
+    frames, yaw, spin_log, dropped_at, ctrl_log = [], 0.0, [], None, []
     t0 = time.time()
     for i in range(int(seconds / CONTROL_DT)):
         data.ctrl[:] = planner.plan(data)
+        ctrl_log.append(data.ctrl.copy())
         for _ in range(sub):
             mujoco.mj_step(model, data)
             yaw += data.sensordata[5] * TIMESTEP
@@ -172,8 +173,8 @@ def run(space: str, seconds: float, pca: dict | None, nthread: int = 4, seed: in
         imgs = [Image.fromarray(f) for f in frames]
         imgs[0].save(gif, save_all=True, append_images=imgs[1:], duration=int(CONTROL_DT * 3 * 1000), loop=0)
         renderer.close()
-    return dict(space=space, yaw=yaw, mean_spin=float(np.mean(spin_log)), dropped_at=dropped_at,
-                realtime=seconds / wall)
+    return dict(space=space, ctrl=np.array(ctrl_log), yaw=yaw, mean_spin=float(np.mean(spin_log)),
+                dropped_at=dropped_at, realtime=seconds / wall)
 
 
 def main() -> None:
@@ -184,6 +185,7 @@ def main() -> None:
     p.add_argument("--threads", type=int, default=4)
     p.add_argument("--synergies", default="out/synergies.npz")
     p.add_argument("--gif", default=None)
+    p.add_argument("--log", default=None, help="save the commanded joint targets (npz)")
     p.add_argument("--noise", type=float, default=NOISE_NORM, help="rad, expected perturbation norm")
     p.add_argument("--horizon", type=float, default=HORIZON_S, help="s")
     p.add_argument("--samples", type=int, default=N_SAMPLES)
@@ -191,6 +193,8 @@ def main() -> None:
     globals().update(NOISE_NORM=args.noise, HORIZON_S=args.horizon, N_SAMPLES=args.samples)
     pca = dict(np.load(args.synergies)) if args.space != "joint" else None
     r = run(args.space, args.seconds, pca, args.threads, args.seed, args.gif)
+    if args.log:
+        np.savez(args.log, ctrl=r["ctrl"], joint_names=np.array(JOINT_NAMES), control_dt=CONTROL_DT)
     drop = f"dropped at {r['dropped_at']:.1f} s" if r["dropped_at"] is not None else "never dropped"
     print(f"{r['space']} noise={NOISE_NORM} horizon={HORIZON_S} samples={N_SAMPLES}: turned {np.degrees(r['yaw']):.0f} deg in {args.seconds:.0f} s "
           f"(mean {r['mean_spin']:.2f} rad/s, target {TARGET_SPIN}), {drop}, {r['realtime']:.2f}x real time")
