@@ -4,6 +4,21 @@ source /opt/ros/jazzy/setup.bash
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Bag inputs use the ROS 2 node/playback workflow. Dataset directories keep
+# using the direct image-folder workflow below.
+FIRST_INPUT="${1:-}"
+if [[ "$FIRST_INPUT" == "--force" ]]; then
+  FIRST_INPUT="${2:-}"
+fi
+if [[ "$FIRST_INPUT" == *.bag || "$FIRST_INPUT" == *.mcap ]]; then
+  exec "$SCRIPT_DIR/run_bag_eval.sh" "$@"
+fi
+if [[ -d "$FIRST_INPUT" && ( -f "$FIRST_INPUT/metadata.yaml" || -n "$(find "$FIRST_INPUT" -maxdepth 1 -type f -name '*.mcap' -print -quit 2>/dev/null)" ) ]]; then
+  exec "$SCRIPT_DIR/run_bag_eval.sh" "$@"
+fi
+
 FORCE=false
 if [[ "${1:-}" == "--force" ]]; then
   FORCE=true
@@ -19,7 +34,6 @@ DATASET_PATH="$(realpath "$1")"
 GROUND_TRUTH="$DATASET_PATH/groundtruth.txt"
 ESTIMATED_POSES="$DATASET_PATH/rtabmap_poses.txt"
 DATABASE="$DATASET_PATH/rtabmap.db"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 if [[ ! -f "$GROUND_TRUTH" ]]; then
   echo "Error: ground truth not found: $GROUND_TRUTH" >&2
