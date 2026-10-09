@@ -6,73 +6,166 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Bag inputs use the ROS 2 node/playback workflow. Dataset directories keep
-# using the direct image-folder workflow below.
-FIRST_INPUT="${1:-}"
-if [[ "$FIRST_INPUT" == "--force" ]]; then
-  FIRST_INPUT="${2:-}"
-fi
-if [[ "$FIRST_INPUT" == *.bag || "$FIRST_INPUT" == *.mcap ]]; then
-  exec "$SCRIPT_DIR/run_bag_eval.sh" "$@"
-fi
-if [[ -d "$FIRST_INPUT" && ( -f "$FIRST_INPUT/metadata.yaml" || -n "$(find "$FIRST_INPUT" -maxdepth 1 -type f -name '*.mcap' -print -quit 2>/dev/null)" ) ]]; then
-  exec "$SCRIPT_DIR/run_bag_eval.sh" "$@"
-fi
-
 FORCE=false
 if [[ "${1:-}" == "--force" ]]; then
   FORCE=true
   shift
 fi
 
-if [[ $# -ne 1 ]]; then
-  echo "Usage: $0 [--force] /path/to/rgbd_dataset" >&2
+if [[ $# -lt 1 || $# -gt 2 ]]; then
+  echo "Usage: $0 [--force] /path/to/bag[.bag|.mcap|directory] [groundtruth.txt]" >&2
   exit 1
 fi
 
-DATASET_PATH="$(realpath "$1")"
-GROUND_TRUTH="$DATASET_PATH/groundtruth.txt"
-ESTIMATED_POSES="$DATASET_PATH/rtabmap_poses.txt"
-DATABASE="$DATASET_PATH/rtabmap.db"
+INPUT_PATH="$(realpath "$1")"
+GROUND_TRUTH="${2:-}"
+CONVERTER=/opt/evo-venv/bin/rosbags-convert
 
+if [[ -f "$INPUT_PATH" && "$INPUT_PATH" == *.bag ]]; then
+  BAG_STEM="${INPUT_PATH%.bag}"
+  ROS2_DIR="${BAG_STEM}_ros2"
+  ROS2_BAG="$ROS2_DIR/$(basename "$ROS2_DIR").mcap"
+
+  if [[ ! -f "$ROS2_BAG" ]]; then
+    if [[ ! -x "$CONVERTER" ]]; then
+      echo "Error: ROS 1 bag detected, but $CONVERTER is unavailable." >&2
+      exit 1
+    fi
+
+    echo "ROS 1 bag detected; converting it to ROS 2 (one time only)..." >&2
+    "$CONVERTER" \
+      --src "$INPUT_PATH" \
+      --dst "$ROS2_DIR" \
+      --dst-storage mcap \
+      --dst-typestore ros2_jazzy >&2
+  else
+    echo "Reusing converted ROS 2 bag: $ROS2_BAG" >&2
+  fi
+
+  if [[ -z "$GROUND_TRUTH" ]]; then
+    GROUND_TRUTH="$BAG_STEM/groundtruth.txt"
+  fi
+elif [[ -f "$INPUT_PATH" && "$INPUT_PATH" == *.mcap ]]; then
+  ROS2_BAG="$INPUT_PATH"
+  BAG_STEM="${INPUT_PATH%.mcap}"
+elif [[ -d "$INPUT_PATH" ]]; then
+  ROS2_BAG="$(find "$INPUT_PATH" -maxdepth 1 -type f -name '*.mcap' -print -quit)"
+  BAG_STEM="$INPUT_PATH"
+  if [[ -z "$ROS2_BAG" && -f "$INPUT_PATH/metadata.yaml" ]]; then
+    ROS2_BAG="$INPUT_PATH"
+  fi
+else
+  echo "Error: unsupported bag path: $INPUT_PATH" >&2
+  exit 1
+fi
+
+if [[ -z "${ROS2_BAG:-}" ]]; then
+  echo "Error: no ROS 2 MCAP file found in $INPUT_PATH" >&2
+  exit 1
+fi
+
+if [[ -z "$GROUND_TRUTH" ]]; then
+  echo "Error: ground truth was not inferred; pass groundtruth.txt as the second argument." >&2
+  exit 1
+fi
+GROUND_TRUTH="$(realpath "$GROUND_TRUTH")"
 if [[ ! -f "$GROUND_TRUTH" ]]; then
   echo "Error: ground truth not found: $GROUND_TRUTH" >&2
   exit 1
 fi
 
-if [[ ! -d "$DATASET_PATH/rgb_sync" || ! -d "$DATASET_PATH/depth_sync" ]]; then
-  echo "Associating RGB and depth frames..." >&2
-  python3 "$SCRIPT_DIR/associate_rgbd.py" "$DATASET_PATH" --force >&2
-fi
+OUTPUT_DIR="${BAG_STEM}_bag_eval"
+DATABASE="$OUTPUT_DIR/rtabmap.db"
+ESTIMATED_POSES="$OUTPUT_DIR/rtabmap_poses.txt"
+LOG_FILE="$OUTPUT_DIR/rtabmap_ros.log"
+mkdir -p "$OUTPUT_DIR"
 
-POSE_COUNT=0
-if [[ -f "$ESTIMATED_POSES" ]]; then
-  POSE_COUNT="$(awk '!/^#/ {count++} END {print count+0}' "$ESTIMATED_POSES")"
-fi
+if [[ "$FORCE" == true || ! -s "$ESTIMATED_POSES" ]]; then
+  rm -f "$DATABASE" "$ESTIMATED_POSES"
 
-if [[ "$FORCE" == true || "$POSE_COUNT" -lt 3 ]]; then
-  echo "Running RTAB-Map SLAM..." >&2
-  rtabmap-rgbd_dataset "$DATASET_PATH" >&2
-else
-  echo "Reusing existing trajectory ($POSE_COUNT poses): $ESTIMATED_POSES" >&2
-fi
+  echo "Normalizing legacy ROS frame IDs..." >&2
+  python3 "$SCRIPT_DIR/normalize_rgbd_frames.py" >>"$LOG_FILE" 2>&1 &
+  RELAY_PID=$!
 
-# The dataset runner can finish successfully but fail to export poses when the
-# database contains disconnected map segments. Recover its connected graph.
-if [[ ! -s "$ESTIMATED_POSES" ]]; then
-  if [[ ! -f "$DATABASE" ]]; then
-    echo "Error: RTAB-Map did not create a trajectory or database." >&2
+  echo "Launching RTAB-Map ROS 2 nodes..." >&2
+  ros2 launch rtabmap_launch rtabmap.launch.py \
+    use_sim_time:=true \
+    frame_id:=openni_rgb_optical_frame \
+    rgb_topic:=/eval/camera/rgb/image \
+    depth_topic:=/eval/camera/depth/image \
+    camera_info_topic:=/eval/camera/rgb/camera_info \
+    approx_sync:=true \
+    rgbd_sync:=true \
+    publish_tf_odom:=false \
+    rtabmap_viz:=false \
+    rviz:=false \
+    database_path:="$DATABASE" \
+    args:="-d" \
+    >"$LOG_FILE" 2>&1 &
+  LAUNCH_PID=$!
+
+  cleanup() {
+    if kill -0 "$LAUNCH_PID" 2>/dev/null; then
+      kill -INT "$LAUNCH_PID" 2>/dev/null || true
+      for _ in {1..20}; do
+        kill -0 "$LAUNCH_PID" 2>/dev/null || break
+        sleep 0.25
+      done
+      if kill -0 "$LAUNCH_PID" 2>/dev/null; then
+        kill -TERM "$LAUNCH_PID" 2>/dev/null || true
+        for _ in {1..20}; do
+          kill -0 "$LAUNCH_PID" 2>/dev/null || break
+          sleep 0.25
+        done
+      fi
+      if kill -0 "$LAUNCH_PID" 2>/dev/null; then
+        kill -KILL "$LAUNCH_PID" 2>/dev/null || true
+      fi
+      wait "$LAUNCH_PID" 2>/dev/null || true
+    fi
+    if kill -0 "$RELAY_PID" 2>/dev/null; then
+      kill -TERM "$RELAY_PID" 2>/dev/null || true
+      wait "$RELAY_PID" 2>/dev/null || true
+    fi
+  }
+  trap cleanup EXIT INT TERM
+
+  sleep 4
+  if ! kill -0 "$LAUNCH_PID" 2>/dev/null; then
+    echo "Error: RTAB-Map exited before bag playback. See $LOG_FILE" >&2
     exit 1
   fi
 
-  echo "Exporting the connected trajectory from rtabmap.db..." >&2
+  echo "Playing RGB-D topics from the ROS 2 bag..." >&2
+  # /tf is intentionally excluded because it contains motion-capture ground
+  # truth. The relay gives registered RGB and depth data one optical frame.
+  ros2 bag play "$ROS2_BAG" \
+    --clock \
+    --topics \
+      /camera/rgb/image_color \
+      /camera/depth/image \
+      /camera/rgb/camera_info \
+      /camera/depth/camera_info >&2
+
+  sleep 2
+  cleanup
+  trap - EXIT INT TERM
+
+  if [[ ! -f "$DATABASE" ]]; then
+    echo "Error: RTAB-Map did not create $DATABASE. See $LOG_FILE" >&2
+    exit 1
+  fi
+
+  echo "Exporting the estimated camera trajectory..." >&2
   rtabmap-export \
     --poses \
-    --poses_format 1 \
+    --poses_format 10 \
     --opt 2 \
     --output rtabmap \
-    --output_dir "$DATASET_PATH" \
+    --output_dir "$OUTPUT_DIR" \
     "$DATABASE" >&2
+else
+  echo "Reusing existing bag trajectory: $ESTIMATED_POSES" >&2
 fi
 
 if command -v evo_ape >/dev/null 2>&1; then
@@ -96,33 +189,9 @@ if ! ROTATION_OUTPUT="$($EVO_APE tum "$GROUND_TRUTH" "$ESTIMATED_POSES" -a -r an
 fi
 ROTATION_RMSE="$(printf '%s\n' "$ROTATION_OUTPUT" | awk '$1 == "rmse" {print $2; exit}')"
 
-if [[ -z "$POSITION_RMSE" || -z "$ROTATION_RMSE" ]]; then
-  echo "Error: evo did not report both RMSE values." >&2
-  exit 1
-fi
+POSE_COUNT="$(awk '!/^#/ {count++} END {print count+0}' "$ESTIMATED_POSES")"
 
-printf '\n\nPositional RMSE: %s m\n' "$POSITION_RMSE"
+printf '\nPositional RMSE: %s m\n' "$POSITION_RMSE"
 printf 'Rotational RMSE: %s deg\n' "$ROTATION_RMSE"
-
-if [[ -f "$DATABASE" ]] && command -v rtabmap-info >/dev/null 2>&1; then
-  if DATABASE_INFO="$(rtabmap-info "$DATABASE" 2>/dev/null)"; then
-    TOTAL_NODES="$(printf '%s\n' "$DATABASE_INFO" | awk '$1 == "WM:" {print $2; exit}')"
-    CONNECTED_POSES="$(printf '%s\n' "$DATABASE_INFO" | awk '$1 == "Optimized" && $2 == "graph:" {print $3; exit}')"
-    MAP_COUNTS="$(printf '%s\n' "$DATABASE_INFO" | awk '$1 == "Maps" && $2 == "in" && $3 == "graph:" {print $4; exit}')"
-
-    if [[ "$TOTAL_NODES" =~ ^[0-9]+$ && "$CONNECTED_POSES" =~ ^[0-9]+$ && "$TOTAL_NODES" -gt 0 ]]; then
-      EXCLUDED_POSES=$((TOTAL_NODES - CONNECTED_POSES))
-      CONNECTED_PERCENT="$(awk -v connected="$CONNECTED_POSES" -v total="$TOTAL_NODES" 'BEGIN {printf "%.1f", 100 * connected / total}')"
-      EXCLUDED_PERCENT="$(awk -v excluded="$EXCLUDED_POSES" -v total="$TOTAL_NODES" 'BEGIN {printf "%.1f", 100 * excluded / total}')"
-
-      printf 'Connected SLAM nodes: %s/%s (%s%%)\n' "$CONNECTED_POSES" "$TOTAL_NODES" "$CONNECTED_PERCENT"
-      printf 'Excluded SLAM nodes: %s (%s%%)\n' "$EXCLUDED_POSES" "$EXCLUDED_PERCENT"
-    fi
-
-    if [[ "$MAP_COUNTS" =~ ^[0-9]+/[0-9]+$ ]]; then
-      printf 'Connected map segments: %s\n' "$MAP_COUNTS"
-    fi
-  fi
-fi
-
-printf '\n'
+printf 'Evaluated poses: %s\n' "$POSE_COUNT"
+printf 'RTAB-Map log: %s\n\n' "$LOG_FILE"
