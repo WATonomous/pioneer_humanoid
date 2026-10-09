@@ -24,8 +24,80 @@ BOTTLE3_POS = (0.65, 0.10)
 
 # ---- hooks
 
+# Reset: every new episode, scatter the bottles to random spots on the table, each lying on its
+# side and pointing in a random direction, so the policy can't just memorise one layout.
+BOTTLE_NAMES = ["bottle1", "bottle2", "bottle3"]
+
+# Where bottle centres may land (m, robot frame), on the left arm's side of the table. The near
+# edges keep every bottle clear of the robot's stand, whose collision shape bulges out over the
+# table near the centre line (checked over 2000 random resets: no bottle spawns touching it).
+# TODO: check the far edges against what the left arm can actually reach.
+SPAWN_X = (0.30, 0.55)
+SPAWN_Y = (0.18, 0.50)
+
+# Overlap check: each bottle is marked by dots along its length, and two bottles are too close
+# if any of their dots are nearer than MIN_DOT_GAP (about one bottle width plus 2 cm of air).
+DOTS_PER_BOTTLE = 7
+MIN_DOT_GAP = BOTTLE_SIZE + 0.02
+MAX_TRIES = 20000              # ~1% of random layouts fit, so this many tries never runs out
+
+
+def lying_quat(yaw: float) -> list[float]:
+    """Orientation of a bottle lying on its side, then turned by ``yaw`` (rad) about the vertical.
+
+    MuJoCo stores orientations as quaternions [w, x, y, z]. This is two rotations combined:
+    tip over 90 degrees about the x axis (long axis now horizontal), then spin by yaw about z.
+    """
+    tip = math.pi / 2
+    return [
+        math.cos(yaw / 2) * math.cos(tip / 2),
+        math.cos(yaw / 2) * math.sin(tip / 2),
+        math.sin(yaw / 2) * math.sin(tip / 2),
+        math.sin(yaw / 2) * math.cos(tip / 2),
+    ]
+
+
+def bottle_dots(x: float, y: float, yaw: float) -> list[tuple[float, float]]:
+    """Points evenly spaced from one end of a lying bottle to the other, seen from above.
+    """
+    half = BOTTLE_HEIGHT / 2
+    dots = []
+    for k in range(DOTS_PER_BOTTLE):
+        t = -half + k * (2 * half) / (DOTS_PER_BOTTLE - 1)   # -half ... +half
+        dots.append((x - t * math.sin(yaw), y + t * math.cos(yaw)))
+    return dots
+
+
+def too_close(a: list[tuple[float, float]], b: list[tuple[float, float]]) -> bool:
+    return any(math.dist(p, q) < MIN_DOT_GAP for p in a for q in b)
+
+
+def pick_layout(rng, count: int) -> list[tuple[float, float, float]]:
+    """``count`` random (x, y, yaw) bottle poses in the spawn area that don't overlap.
+
+    Draws a whole layout at once and simply redraws it if any two bottles are too close.
+    """
+    for _ in range(MAX_TRIES):
+        layout = [
+            (rng.uniform(*SPAWN_X), rng.uniform(*SPAWN_Y), rng.uniform(0, 2 * math.pi))
+            for _ in range(count)
+        ]
+        dots = [bottle_dots(x, y, yaw) for x, y, yaw in layout]
+        overlap = any(too_close(dots[i], dots[j]) for i in range(count) for j in range(i + 1, count))
+        if not overlap:
+            return layout
+    raise RuntimeError("bowling: couldn't fit the bottles apart; widen SPAWN_X/Y")
+
+
+def reset(model: mujoco.MjModel, data: mujoco.MjData, rng) -> None:
+    z = TABLE_TOP_Z + BOTTLE_SIZE / 2 + 0.001   # lying on its side, 1 mm above the table
+    for name, (x, y, yaw) in zip(BOTTLE_NAMES, pick_layout(rng, len(BOTTLE_NAMES))):
+        adr = model.joint(f"{name}_free").qposadr[0]   # where this bottle's 7 numbers start in qpos
+        data.qpos[adr:adr + 7] = [x, y, z, *lying_quat(yaw)]
+
 # ---- scene
-@scene("bowling", camera=dict(lookat=[0.38, 0.29, 0.75], distance=2.0, azimuth=200, elevation=-35))
+@scene("bowling", camera=dict(lookat=[0.38, 0.29, 0.75], distance=2.0, azimuth=200, elevation=-35),
+       reset=reset)
 def build(spec: mujoco.MjSpec) -> None:
     add_floor(spec)
     world = spec.worldbody
