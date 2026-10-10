@@ -15,6 +15,7 @@ OUTPUT_DIR="${2:-$(dirname "$BAG_PATH")/${BAG_NAME}_rtabmap}"
 
 DATABASE="$OUTPUT_DIR/rtabmap.db"
 FRONTEND_POSES="$OUTPUT_DIR/frontend_poses.txt"
+CORRECTED_POSES="$OUTPUT_DIR/live_corrected_poses.txt"
 BACKEND_POSES="$OUTPUT_DIR/backend_poses.txt"
 LOG_FILE="$OUTPUT_DIR/rtabmap_ros.log"
 
@@ -24,7 +25,7 @@ if [[ ! -d "$BAG_PATH" && ! ( -f "$BAG_PATH" && "$BAG_PATH" == *.mcap ) ]]; then
 fi
 
 mkdir -p "$OUTPUT_DIR"
-rm -f "$DATABASE" "$FRONTEND_POSES" "$BACKEND_POSES" "$LOG_FILE"
+rm -f "$DATABASE" "$FRONTEND_POSES" "$CORRECTED_POSES" "$BACKEND_POSES" "$LOG_FILE"
 
 stop_process() {
   local pid="$1"
@@ -57,10 +58,12 @@ setsid python3 "$SCRIPT_DIR/normalize_rgbd_frames.py" --ros-args \
   >>"$LOG_FILE" 2>&1 &
 RELAY_PID=$!
 
-echo "Recording frontend visual odometry..." >&2
+echo "Recording frontend and live-corrected trajectories..." >&2
 setsid python3 "$SCRIPT_DIR/record_odom_trajectory.py" --ros-args \
   -p odom_topic:=/rtabmap/odom \
   -p output_path:="$FRONTEND_POSES" \
+  -p corrected_output_path:="$CORRECTED_POSES" \
+  -p map_frame:=map \
   >>"$LOG_FILE" 2>&1 &
 ODOM_RECORDER_PID=$!
 
@@ -78,6 +81,8 @@ setsid ros2 launch rtabmap_launch rtabmap.launch.py \
   sync_queue_size:=100 \
   qos:=1 \
   publish_tf_odom:=true \
+  publish_tf_map:=true \
+  map_frame_id:=map \
   rtabmap_viz:=false \
   rviz:=false \
   database_path:="$DATABASE" \
@@ -86,8 +91,8 @@ setsid ros2 launch rtabmap_launch rtabmap.launch.py \
 RTABMAP_PID=$!
 
 sleep 4
-if ! kill -0 "$RTABMAP_PID" 2>/dev/null; then
-  echo "Error: RTAB-Map exited before playback. See $LOG_FILE" >&2
+if ! kill -0 "$RTABMAP_PID" 2>/dev/null || ! kill -0 "$ODOM_RECORDER_PID" 2>/dev/null || ! kill -0 "$RELAY_PID" 2>/dev/null; then
+  echo "Error: a required process exited before playback. See $LOG_FILE" >&2
   exit 1
 fi
 
@@ -117,13 +122,15 @@ rtabmap-export \
 
 FRONTEND_COUNT="$(awk '!/^#/ {count++} END {print count+0}' "$FRONTEND_POSES")"
 BACKEND_COUNT="$(awk '!/^#/ {count++} END {print count+0}' "$BACKEND_POSES")"
+CORRECTED_COUNT="$(awk 'NF && !/^#/ {count++} END {print count+0}' "$CORRECTED_POSES")"
 
-if [[ "$FRONTEND_COUNT" -eq 0 || "$BACKEND_COUNT" -eq 0 ]]; then
-  echo "Error: one or both trajectories are empty. See $LOG_FILE" >&2
+if [[ "$FRONTEND_COUNT" -eq 0 || "$BACKEND_COUNT" -eq 0 || "$CORRECTED_COUNT" -eq 0 ]]; then
+  echo "Error: at least one trajectory is empty. See $LOG_FILE" >&2
   exit 1
 fi
 
 printf '\nFrontend trajectory: %s (%s poses)\n' "$FRONTEND_POSES" "$FRONTEND_COUNT"
 printf 'Backend trajectory:  %s (%s poses)\n' "$BACKEND_POSES" "$BACKEND_COUNT"
+printf 'Live-corrected trajectory: %s (%s poses)\n' "$CORRECTED_POSES" "$CORRECTED_COUNT"
 printf 'RTAB-Map database:   %s\n' "$DATABASE"
 printf 'RTAB-Map log:        %s\n\n' "$LOG_FILE"
