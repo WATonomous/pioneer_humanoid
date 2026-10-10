@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+
+# The scene is a BUILD ARTIFACT, not source: scene/build_room.py generates room.xml
+# and the 59 textures it references, deterministically from a fixed seed, so every
+# checkout regenerates an identical room. Committing room.xml without the textures
+# would ship a scene file pointing at files that are not there.
+scene/room.xml
+scene/textures/
+scene/preview.png
