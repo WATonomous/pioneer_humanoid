@@ -173,8 +173,8 @@ if "whisk" in only:
     sim.move("l", [cup[0], cup[1], 1.06] - HANDSHAKE @ tip_v() * [1, 1, 0], HANDSHAKE, t=1.4)
     for z, t in ((0.15, 0.8), (0.15, 0.4), (0.035, 1.0)):                   # over the cup, then tines in
         sim.move("l", cup + [0, 0, z] - HANDSHAKE @ tip_v(), HANDSHAKE, t=t)
-    vh = tip_v(); c0 = cup + [0, 0, 0.05]
-    rad, revs, per = 0.016, 10, 0.9
+    vh = tip_v(); c0 = cup + [0, 0, 0.055]
+    rad, revs, per = 0.018, 12, 0.9
     n = int(revs * per / 0.01)
     for i in range(n + 1):                                                  # circles, as with a chasen
         a = 2 * math.pi * i / (per / 0.01)

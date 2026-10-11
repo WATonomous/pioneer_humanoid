@@ -16,19 +16,23 @@ MUJOCO_GL=egl python -m humanoid_hands_sim.render matcha.npy matcha.mp4 --size 3
 MUJOCO_GL=egl python -m humanoid_hands_sim.render matcha.npy matcha.mp4 --size 720,1280 --shadow  # full
 ```
 
+Tuned on the URDF as of Prometheus `dd5a01c9` (PR #23: the hand links written un-posed, so a finger joint at 0
+is a straight finger hinging on its real pivots). An older URDF still runs, but its whisking falls short.
+
 The demo prints each step as the scene's checks latch it, and where every tool ends up:
 
 ```
 [ 17.6s] ladle: step 1/4  matcha in cup 8/8  water 0/24  whisk path 0.00 m
-[ 35.7s] pitcher: step 2/4  matcha in cup 8/8  water 22/24  whisk path 0.00 m
-[ 58.1s] whisked: step 3/4  matcha in cup 8/8  water 22/24  whisk path 0.62 m
-[ 75.4s] served: step 4/4  matcha in cup 8/8  water 22/24  whisk path 0.64 m
+[ 35.7s] pitcher: step 2/4  matcha in cup 8/8  water 23/24  whisk path 0.00 m
+[ 60.2s] whisked: step 3/4  matcha in cup 8/8  water 23/24  whisk path 0.32 m
+[ 77.6s] served: step 4/4  matcha in cup 8/8  water 23/24  whisk path 0.33 m
 ```
 
 Then check that nothing passed through anything (the arms collide with nothing in the sim, see below):
 
 ```bash
-python -m humanoid_hands_sim.check matcha.npy        # "OK: nothing passes through anything"; closest: right elbow 8.9 mm
+python -m humanoid_hands_sim.check matcha.npy   # closest: left forearm 0.8 mm from the scoop (against the forearm's
+                                                # convex hull, larger than the forearm) for 0.5 s; everything else >= 9.9 mm
 ```
 
 ## Files
