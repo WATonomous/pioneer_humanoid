@@ -91,3 +91,6 @@ def to_tum(T):
 def covariance_from_sigmas(rot, trans):
     sig = np.concatenate([np.broadcast_to(rot, 3), np.broadcast_to(trans, 3)]).astype(float)
     return np.diag(sig ** 2)
+
+
+
