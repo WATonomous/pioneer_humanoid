@@ -78,4 +78,3 @@ class Keyframe:
     @property
     def is_first(self):
         return self.prev_id == -1
-
