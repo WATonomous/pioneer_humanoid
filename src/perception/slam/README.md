@@ -62,7 +62,13 @@ Working on `slam_core`:
 ```bash
 cd src/perception/slam/slam_core
 python3 -m venv .venv && source .venv/bin/activate
-pip install -e .
+pip install -e .                 # add '.[realsense]' to use the D455
+```
+
+Check the D455 setup (settings in `config/d455.yaml`):
+
+```bash
+python -m slam_core.io.realsense --config ../config/d455.yaml
 ```
 
 ## Layout
