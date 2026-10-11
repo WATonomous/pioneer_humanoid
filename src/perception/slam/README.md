@@ -55,7 +55,7 @@ Why:
 
 Nodes are split by rate, not by module. Loop closure lives with the backend because it needs the keyframe database and adds factors straight into the graph.
 
-Language: Python throughout. GTSAM via its Python bindings. Hot paths can be ported later without touching the ROS side. ROS 2 Jazzy for the ROS side; keep ROS out of anything that can run without it.
+Language: Python throughout. GTSAM via its Python bindings. Hot paths can be ported later without touching the ROS side. ROS 2 Humble for the ROS side; keep ROS out of anything that can run without it.
 
 Working on `slam_core`:
 
