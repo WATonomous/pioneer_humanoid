@@ -16,6 +16,7 @@ src/simulation/
 │   └── humanoid_isaac_scenes/  #   bare/  vial_rack/  push_block/
 ├── mujoco_scenes/          # plain-MuJoCo (CPU) scenes — @scene-discovered
 │   └── humanoid_mujoco_scenes/ #   bare/  peg_insert/
+├── mujoco_humanoid_hands/  # the humanoid with tendon hands (Prometheus URDF) doing matcha in MuJoCo — see its README
 ├── so101_vial_task/        # SO101 imitation-learning task
 └── badminton/              # mjlab (MuJoCo Warp) badminton receive RL — see badminton/README.md
 └── whole_body_motion_tracking/  # Links to whole body motion tracking pipeline

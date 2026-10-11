@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "humanoid-hands-sim"
+version = "0.1.0"
+description = "Plain-MuJoCo (CPU) scripted tasks for the Pioneer humanoid with tendon hands (the Prometheus URDF)"
+requires-python = ">=3.10"
+dependencies = ["mujoco>=3.3", "numpy", "scipy", "humanoid-mujoco-scenes"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["humanoid_hands_sim*"]
