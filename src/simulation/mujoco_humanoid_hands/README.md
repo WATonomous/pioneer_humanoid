@@ -20,9 +20,15 @@ The demo prints each step as the scene's checks latch it, and where every tool e
 
 ```
 [ 17.6s] ladle: step 1/4  matcha in cup 8/8  water 0/24  whisk path 0.00 m
-[ 35.7s] pitcher: step 2/4  matcha in cup 8/8  water 23/24  whisk path 0.00 m
-[ 58.1s] whisked: step 3/4  matcha in cup 8/8  water 23/24  whisk path 0.81 m
-[ 75.4s] served: step 4/4  matcha in cup 8/8  water 23/24  whisk path 0.82 m
+[ 35.7s] pitcher: step 2/4  matcha in cup 8/8  water 22/24  whisk path 0.00 m
+[ 58.1s] whisked: step 3/4  matcha in cup 8/8  water 22/24  whisk path 0.62 m
+[ 75.4s] served: step 4/4  matcha in cup 8/8  water 22/24  whisk path 0.64 m
+```
+
+Then check that nothing passed through anything (the arms collide with nothing in the sim, see below):
+
+```bash
+python -m humanoid_hands_sim.check matcha.npy        # "OK: nothing passes through anything"; closest: right elbow 8.9 mm
 ```
 
 ## Files
@@ -34,6 +40,7 @@ The demo prints each step as the scene's checks latch it, and where every tool e
 | `control.py` | `Sim`: Cartesian moves (IK every 10 ms, PD joint targets), finger closure, `attach`/`detach` |
 | `matcha_demo.py` | the scripted task |
 | `render.py` | qpos record to MP4 (parallel chunks) or one PNG |
+| `check.py` | arm links vs the torso and thighs, tools vs arm links, over a whole record: closest approach and when |
 
 ## What is real and what is not
 
@@ -60,7 +67,10 @@ Not real, or assumed:
   gravity compensated on every robot body; base fixed (the legs and inertia are placeholders in the URDF, so
   the robot stands on a fixed base, it does not balance).
 - **No arm, torso or leg collision.** The URDF's collision is each link's bounding box (the forearm's is
-  ~10 cm square and drags on the table), so only the hands collide. The script keeps the arms clear of things.
+  ~10 cm square and drags on the table), so only the hands collide. Instead the IK keeps each arm (capsules,
+  50 mm left, 60 mm right) out of three boxes fitted to the torso and pelvis, and the layout keeps the
+  forearms off the tools; `check.py` measures what is left on the real meshes. A first version tucked the
+  left elbow into the torso while pouring: that is what this is for.
 
 ## matcha_hands vs matcha (gripper)
 
@@ -73,5 +83,6 @@ Same balls, cup size, checks and step order. Changed for a 1.28 m robot with han
   30 mm off the wall on a base plate, like a jug handle: the fingers wrap it through the gap, and rolling the
   forearm tips the container over its far lip. The cup is a mug (same cup, a handle on its -Y side): the plain
   66 mm cup is shorter than the hand's finger span, and only the little finger reaches it.
-- **Layout** spread out for the hand's footprint (a hand on a post covers ~24 cm along the fingers); the
-  tray is on the right for the right hand. No `reset` randomisation yet.
+- **Layout** spread out for the hand's footprint (a hand on a post covers ~24 cm along the fingers) and so the
+  pouring forearm passes over no tool; the cup where both hands reach it without the elbows meeting the body;
+  the tray on the right for the right hand. No `reset` randomisation yet.

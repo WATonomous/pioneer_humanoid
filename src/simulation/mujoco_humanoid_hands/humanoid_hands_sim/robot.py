@@ -7,6 +7,7 @@ Changed here, not in the URDF (all sim-side assumptions, see README.md):
   - collision: the URDF's per-link bounding boxes are dropped; the hands collide with their own visual meshes
     (MuJoCo uses each mesh's convex hull). The arms, torso and legs do not collide at all.
   - elbow and forearm-roll ranges widened (the URDF's +-90 deg arm limits are placeholders).
+  - the arms do not collide with the body: Arm.ik keeps them out of it (BODY_BOXES).
   - base fixed, gravity compensated on every robot body; PD position actuators with guessed gains.
 """
 from __future__ import annotations
@@ -32,6 +33,17 @@ ROBOT_POS = (-0.10, 0.0, 0.02)               # feet on the floor, standing behin
 ELBOW_RANGE = [-2.53, 0.0]
 # Same for the forearm roll: pouring palm-down needs ~140 deg. Assumed +-150 deg.
 FOREARM_ROLL_RANGE = [-2.6, 2.6]
+# The arms do not collide with the body in the sim (the URDF's boxes are useless for it), so the IK keeps them out
+# of it: the torso as three boxes fitted to base_link's mesh (base frame: x to the robot's left, y back, z up),
+# each arm as capsules of ARM_RADIUS along the upper arm and the forearm. (center, half-size) in metres.
+BODY_BOXES = (
+    ((0.0, 0.0325, 0.760), (0.222, 0.1075, 0.110)),   # pelvis with the hip drums, z 0.65-0.87
+    ((0.0, -0.0025, 0.965), (0.112, 0.0775, 0.095)),  # waist, z 0.87-1.06
+    ((0.0, -0.0125, 1.195), (0.165, 0.1125, 0.135)),  # chest, z 1.06-1.33
+)
+# Capsule radius per arm (the links are ~50 mm in radius). The right arm reaches across the body for the cup and
+# came within 2 mm of it at 50 mm, so it gets 10 mm of margin; the left arm's poses clear the body by >15 mm.
+ARM_RADIUS = {"l": 0.05, "r": 0.06}
 FINGER_TORQUE = 1.5                          # N m per finger joint: the real tendon hand's is unknown
 TOOLS = ("ladle", "pitcher", "whisk", "cup")
 
@@ -149,6 +161,13 @@ class Arm:
         self.site = m.site(f"{side}_grasp").id
         self.kd = mujoco.MjData(m)          # kinematics scratch: IK never touches the simulated state
         self.rest = np.zeros(7)             # null-space posture
+        # Arm capsule axis: (body, from-point body, to-point body); points sampled along each segment.
+        b = lambda n: m.body(f"{side}_{n}").id
+        self.segments = ((b("arm_link3"), b("arm_link3"), b("arm_link4")), (b("arm_link4"), b("arm_link4"), b("forearm")),
+                         (b("forearm"), b("forearm"), b("hand_W")))
+        self.base = m.body("base_link").id
+        mujoco.mj_kinematics(m, self.kd)
+        self.base_p, self.base_R = self.kd.xpos[self.base].copy(), self.kd.xmat[self.base].reshape(3, 3).copy()
 
     def fk(self, q):
         self.kd.qpos[self.qadr] = q
@@ -156,8 +175,30 @@ class Arm:
         mujoco.mj_comPos(self.m, self.kd)
         return self.kd.site_xpos[self.site].copy(), self.kd.site_xmat[self.site].reshape(3, 3).copy()
 
+    def body_clearance(self):
+        """Rows (Jacobian 1x7, needed outward motion m) for arm-capsule points closer than ARM_RADIUS to the body."""
+        rows, jp = [], np.zeros((3, self.m.nv))
+        for body, b0, b1 in self.segments:
+            p0, p1 = self.kd.xpos[b0], self.kd.xpos[b1]
+            for u in (0.0, 0.25, 0.5, 0.75, 1.0):
+                p = p0 + (p1 - p0) * u
+                local = self.base_R.T @ (p - self.base_p)
+                for c, h in BODY_BOXES:
+                    rel = local - np.array(c)
+                    out = np.abs(rel) - np.array(h)                 # >0: outside the box along that axis
+                    if (out > 0).any():
+                        v = np.where(out > 0, out, 0.0) * np.sign(rel)
+                        dist = np.linalg.norm(v); n = v / dist
+                    else:                                            # inside: leave by the nearest face
+                        k = int(np.argmax(out)); dist = out[k]; n = np.zeros(3); n[k] = np.sign(rel[k]) or 1.0
+                    if dist < ARM_RADIUS[self.s]:
+                        mujoco.mj_jac(self.m, self.kd, jp, None, p, body)
+                        rows.append(((self.base_R @ n) @ jp[:, self.dof], ARM_RADIUS[self.s] - dist))
+        return rows
+
     def ik(self, pos, R, q0, iters=60, wrot=0.3):
-        """Joint angles putting the site at pos with rotation R; returns (q, position error m, angle error deg)."""
+        """Joint angles putting the site at pos with rotation R, keeping the arm off the body; returns
+        (q, position error m, angle error deg)."""
         q = q0.copy()
         jp = np.zeros((3, self.m.nv))
         jr = np.zeros((3, self.m.nv))
@@ -165,12 +206,13 @@ class Arm:
             p, Rc = self.fk(q)
             ep = pos - p
             er = 0.5 * sum(np.cross(Rc[:, i], R[:, i]) for i in range(3))
-            if np.linalg.norm(ep) < 2e-4 and np.linalg.norm(er) < 2e-3:
+            clear = self.body_clearance()
+            if np.linalg.norm(ep) < 2e-4 and np.linalg.norm(er) < 2e-3 and not clear:
                 break
             mujoco.mj_jacSite(self.m, self.kd, jp, jr, self.site)
-            J = np.vstack([jp[:, self.dof], wrot * jr[:, self.dof]])
-            e = np.concatenate([ep, wrot * er])
-            JJ = J @ J.T + 1e-3 * np.eye(6)
+            J = np.vstack([jp[:, self.dof], wrot * jr[:, self.dof]] + [3.0 * r[0][None] for r in clear])
+            e = np.concatenate([ep, wrot * er, [3.0 * r[1] for r in clear]])
+            JJ = J @ J.T + 1e-3 * np.eye(len(e))
             dq = J.T @ np.linalg.solve(JJ, e)
             N = np.eye(7) - J.T @ np.linalg.solve(JJ, J)
             dq += N @ (0.05 * (self.rest - q))

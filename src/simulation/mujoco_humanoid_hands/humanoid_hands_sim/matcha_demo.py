@@ -20,10 +20,14 @@ from .robot import HANDSHAKE
 ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
 ap.add_argument("--out", default="matcha.npy", help="qpos record (30 Hz) for render.py")
 ap.add_argument("--phases", default="ladle,pitcher,whisk,serve", help="comma list: ladle, pitcher, whisk, serve")
+ap.add_argument("--verbose", action="store_true", help="print the targets and where things really went")
 args = ap.parse_args()
 only = args.phases.split(",")
 sim = Sim()
 m, d = sim.m, sim.d
+def log(msg):
+    if args.verbose:
+        print(f"    {d.time:5.1f}s {msg}", flush=True)
 def Rx(deg): return Rot.from_euler("x", deg, degrees=True).as_matrix()
 def report(tag):
     k, n, txt = S.progress(m, d)
@@ -56,6 +60,8 @@ def grab(side, geom, sign=1, g=None, c=0.9, thumb=0.8, tool=None, short=0.006, u
     sim.move(side, g + 0.08 * out, t=0.8)
     g = g + short * out                            # stop short of the palm: the closing fingers pull the post in
     sim.move(side, g, t=0.8); sim.wait(0.1)
+    log(f"{side} at {geom or tool}: site error {np.linalg.norm(sim.site(side)[0] - g) * 1000:.0f} mm, post at "
+        f"{(post_grasp_point(geom) if geom else g).round(3)}, hand at {sim.site(side)[0].round(3)}")
     if until:                                      # close fingers and thumb together until they touch
         sim.ramp_hand(side, c, thumb, t=1.0, until=tool or geom.split("_")[0])
     else:
@@ -80,10 +86,13 @@ def pour(side, body, lip_off, up=0.12, angle=110, hold=1.5, h=0.15, shakes=3, dy
     for t in (1.2, 0.5, 0.3):                      # re-aim twice on the measured offset
         sim.move(side, over - HANDSHAKE @ v_hand() + [0, 0.02, 0], HANDSHAKE, t=t)
     vh = v_hand()
+    log(f"over the cup: container {container().round(3)} cup {cup.round(3)}")
     rest = sim.arms[side].rest; sim.arms[side].rest = POUR_REST
     for a in (30, 60, angle):
         R = Rx(a) @ HANDSHAKE
         sim.move(side, over + [0, 0, -0.01] - R @ vh, R, t=0.7)
+        log(f"pour {a}: tool tilt {np.degrees(np.arccos(min(1, sim.body(body)[1][2, 2]))):.0f} deg, container "
+            f"{container().round(3)}, site error {np.linalg.norm(sim.site(side)[0] - sim.tgt[side][0]) * 1000:.0f} mm")
     for k in range(shakes):                        # tap it out: rock the roll a little
         for da in (-15, 12):
             R = Rx(angle + da) @ HANDSHAKE; sim.move(side, over + [0, 0, -0.01] - R @ vh, R, t=0.18)
@@ -135,7 +144,7 @@ def put_back(side, tool, up=1.05):
 HOME = {n: sim.body(n)[0] for n in ("ladle", "pitcher", "whisk", "cup")}   # where each tool starts
 if "ladle" in only:
     g = grab("l", "ladle_handle")
-    pour("l", "ladle", [0, 0, 0.015], angle=95, h=0.11, shakes=0)
+    pour("l", "ladle", [0, 0, 0.015], angle=95, h=0.11, shakes=0, dy=0.015)
     put_back("l", "ladle"); report("ladle")
 if "pitcher" in only:
     g = grab("l", "pitcher_handle")

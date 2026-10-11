@@ -20,10 +20,10 @@ from humanoid_mujoco_scenes.matcha import scene as M
 # A counter at 0.78 m (the gripper scene's table is 0.705 m): with the elbow no lower than 0.96 m, this
 # humanoid holds a handle at 0.705 m only with its wrist bent past its range.
 T = 0.78
-CUP_POS = (0.30, 0.02)
-LADLE_POS = (0.24, 0.30)
+CUP_POS = (0.30, 0.10)
+LADLE_POS = (0.22, 0.42)      # out from under the left forearm when it pours
 PITCHER_POS = (0.42, 0.20)
-WHISK_POS = (0.50, 0.42)
+WHISK_POS = (0.48, 0.47)
 TRAY = ((0.24, 0.36), (-0.27, -0.15))
 # Side handles for a hand: a square post standing HANDLE_GAP off the container wall on a base plate, like a
 # jug's handle. The fingers wrap the post through the gap; rolled about the forearm, the container tips over
