@@ -7,7 +7,10 @@ name = "slam_core"
 version = "0.0.0"
 description = "ROS-free SLAM library for the WATonomous humanoid"
 requires-python = ">=3.10"
-dependencies = ["numpy"]
+dependencies = ["numpy", "pyyaml"]
+
+[project.optional-dependencies]
+realsense = ["pyrealsense2"]
 
 [tool.setuptools.packages.find]
 include = ["slam_core*"]

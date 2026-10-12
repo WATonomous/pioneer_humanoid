@@ -1,0 +1,12 @@
+# D455 settings for slam_core.io.realsense (RealSenseConfig). Use this one file for
+# live runs and recordings so they match.
+
+width: 848
+height: 480
+fps: 60               # on_off needs 60 to get ~30 tracking frames/s
+emitter: on_off       # off | on | on_off (emitter off on tracking frames, on for depth)
+laser_power: null     # emitter power in mW, null = camera default
+exposure_us: null     # null = auto. Try 3000 (3 ms) to cut motion blur in fast turns
+gain: null            # only used with exposure_us
+imu: true             # record gyro + accel when recording
+settle_frames: 30     # live: frames dropped while auto exposure settles
