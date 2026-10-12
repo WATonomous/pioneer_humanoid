@@ -55,7 +55,15 @@ Why:
 
 Nodes are split by rate, not by module. Loop closure lives with the backend because it needs the keyframe database and adds factors straight into the graph.
 
-Language: Python throughout. GTSAM via its Python bindings. Hot paths can be ported later without touching the ROS side.
+Language: Python throughout. GTSAM via its Python bindings. Hot paths can be ported later without touching the ROS side. ROS 2 Humble for the ROS side; keep ROS out of anything that can run without it.
+
+Working on `slam_core`:
+
+```bash
+cd src/perception/slam/slam_core
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e .
+```
 
 ## Layout
 
@@ -76,7 +84,7 @@ slam/
 ├── slam_ros/            ROS 2 nodes, message conversions, launch files, Foxglove layout
 ├── slam_msgs/           Keyframe, LoopClosure, TrackingStats messages
 ├── slam_tools/          offline runner, evo evaluation, RTAB-Map baseline, benchmarks
-├── prototype/           throwaway end-to-end prototypes; reference only, nothing imports from here
+├── prototype/           end-to-end VO prototype (RealSense -> VO -> GTSAM); frontend logic moves into slam_core as it matures
 ├── docs/                architecture, failure cases, benchmarks
 └── data/                datasets and bags (gitignored, local only)
 ```
