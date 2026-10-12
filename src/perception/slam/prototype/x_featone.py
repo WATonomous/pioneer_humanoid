@@ -1,4 +1,6 @@
-import glob, cv2, torch
+import glob
+import cv2
+import torch
 
 # list every RGB frame in the TUM sequence and loads the first one as a BGR image
 frames = sorted(glob.glob("data/rgbd_dataset_freiburg1_desk/rgb/*.png"))
@@ -17,4 +19,4 @@ print(len(kps), "keypoints, descripter shape:", tuple(out["descriptors"].shape))
 # draws a green dot at each of the keypoints and save the result
 for x, y in kps:
     cv2.circle(img, (int(x), int(y)), 2, (0, 255, 0), -1)
-cv2.imwrite("kps.png", img)                                                                                                                                                                                                                                                                                                                                                                                
+cv2.imwrite("kps.png", img)
