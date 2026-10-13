@@ -35,12 +35,17 @@ def main() -> None:
     p.add_argument("--retry_after_s", type=float, default=0.0, help="no success this long after the start / last retry: rewind and retry (0 = off)")
     p.add_argument("--rewind_s", type=float, default=4.0)
     p.add_argument("--retry_offset_std", type=float, default=0.005)
+    p.add_argument("--jitter_scale", type=float, default=1.0, help="peg_insert: scale the peg/block position randomisation (robustness test)")
     p.add_argument("--temperature", type=float, default=0.02)
     p.add_argument("--max_s", type=float, default=40.0)
     p.add_argument("--n_exec", type=int, default=0, help="actions executed per chunk (default: the whole chunk)")
     p.add_argument("--probe", action="store_true", help="print the spread of the candidates")
     args = p.parse_args()
 
+    if args.jitter_scale != 1.0:
+        from humanoid_mujoco_scenes.peg_insert import scene as peg_scene
+        peg_scene.PEG_JITTER *= args.jitter_scale
+        peg_scene.BLOCK_JITTER *= args.jitter_scale
     prop = qplan.Proposer(args.policy)
     rng = np.random.default_rng(args.seed)
     gen = torch.Generator().manual_seed(args.seed)

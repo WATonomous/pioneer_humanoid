@@ -103,6 +103,9 @@ class Proposer:
         return chunks.float(), obs_feat
 
 
+PROBE = None      # optional callback(sim) after every executed frame (measurements; see peg_tilt_probe.py)
+
+
 def observe_state(sim):
     """The 7-value state without rendering."""
     data = sim.data
@@ -110,8 +113,9 @@ def observe_state(sim):
     return np.append(data.qpos[sim.arm_qpos], min(max(closure, 0.0), 1.0))
 
 
-def execute(sim, task, actions, held, hold_s):
-    """Run a chunk (H, 7) of real-unit actions, one per 1/FPS frame. Returns (frames run, success, held seconds)."""
+def execute(sim, task, actions, held, hold_s, on_frame=None):
+    """Run a chunk (H, 7) of real-unit actions, one per 1/FPS frame. Returns (frames run, success, held seconds).
+    ``on_frame(sim)`` is called after every other frame (video)."""
     model, data = sim.model, sim.data
     lo, hi = model.jnt_range[[model.joint(j).id for j in sim.joints]].T
     ticks = round(1.0 / FPS / sim.control_dt)
@@ -123,6 +127,10 @@ def execute(sim, task, actions, held, hold_s):
             if sim.hook is not None:
                 sim.hook(model, data)
             sim.mujoco.mj_step(model, data, nstep=sim.substeps)
+        if on_frame is not None and i % 2 == 0:
+            on_frame(sim)
+        if PROBE is not None:
+            PROBE(sim)
         held = held + 1.0 / FPS if task.success(model, data) else 0.0
         if held >= hold_s:
             return i + 1, True, held
@@ -141,6 +149,16 @@ def rollout(scene, seed, proposer, select, n=16, z_std=1.0, noise_std=0.0, max_s
     n_exec = n_exec or proposer.H
     steps, frames, held, ok = [], 0, 0.0, False
     instruction = task.instruction
+    video = on_frame = None
+    if os.environ.get("QPLAN_VIDEO_DIR"):            # an mp4 per episode: ego | wrist, half speed frames (12.5 fps)
+        import imageio
+        Path(os.environ["QPLAN_VIDEO_DIR"]).mkdir(parents=True, exist_ok=True)
+        video = imageio.get_writer(Path(os.environ["QPLAN_VIDEO_DIR"]) / f"{scene}_seed{seed}.mp4", fps=FPS / 2, macro_block_size=1)
+
+        def on_frame(sim):
+            imgs = observe(sim)[1]
+            frame = np.concatenate([imgs[c] for c in sorted(imgs)], axis=1)
+            video.append_data(frame if frame.shape[0] >= 480 else frame.repeat(2, 0).repeat(2, 1))
     history, since, retries = [], 0, 0          # executed actions; frames since the start or the last retry
     while frames < int(max_s * FPS):
         if retry_after_s and since >= int(retry_after_s * FPS) and len(history) > 1:
@@ -170,7 +188,7 @@ def rollout(scene, seed, proposer, select, n=16, z_std=1.0, noise_std=0.0, max_s
             chunk, extra = select(chunks, obs_feat, {"frame": frames, "seed": seed})
         actions = proposer.unnormalise(chunk)[:n_exec].cpu().numpy().astype(float)
         actions = actions[: int(max_s * FPS) - frames]
-        ran, ok, held = execute(sim, task, actions, held, hold_s)
+        ran, ok, held = execute(sim, task, actions, held, hold_s, on_frame)
         steps.append({"obs": obs_feat, "chunk": chunk.float().cpu(), "base": chunks[0].float().cpu(), "ran": ran, "frame": frames, **extra})
         if os.environ.get("QPLAN_KEEP_IMAGES"):          # what the policy saw at each planning step, for a contact sheet
             steps[-1]["img"] = np.concatenate([images[c][::2, ::2] for c in sorted(images)], axis=1)
@@ -179,6 +197,10 @@ def rollout(scene, seed, proposer, select, n=16, z_std=1.0, noise_std=0.0, max_s
         frames, since = frames + ran, since + ran
         if ok:
             break
+    if video is not None:
+        for _ in range(12):                          # hold the last view for a second
+            on_frame(sim)
+        video.close()
     diag = None
     if scene == "peg_insert":                    # how it ended: peg tilt (deg), height of its centre over the table, xy miss, grip
         m, d = sim.model, sim.data

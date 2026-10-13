@@ -28,7 +28,7 @@ D=$PWD/datasets/pioneer_v1_left_arm/sim_synthetic; cd src/teleop/pioneer_leader_
 # 1. Demos. --num_episodes is the TOTAL the dataset should reach; a rerun resumes. Keep eval seeds (1000-1199) free.
 MUJOCO_GL=egl python synthetic_teleop.py --scene peg_insert --record --dataset_root $D/peg_insert --num_episodes 180 --workers 2
 
-# 2. 320x240 copy: 3.3x faster ACT training, no measured loss of precision.
+# 2. 320x240 copy: 3.3x faster ACT training. (Resolution was never isolated: the 640x480 runs had fewer demos and steps.)
 python downscale_dataset.py $D/peg_insert $D/peg_insert_320 --height 240 --width 320 --jobs 6
 
 # 3. Multi-step scenes only (drawer_stow, duplo, matcha): put the current instruction into the state (see Findings 5).
@@ -61,9 +61,10 @@ If the demos were recorded at 320x240 directly (matcha: `--schema` with 240x320 
 | peg_insert | same + low-LR finish | 84.5% (3 runs, 600 layouts) |
 | peg_insert | ACT, 180 clean + 250 DAgger takeovers, 50k + low-LR finish | **~90%** (181/200; 177–182/200 on re-runs) |
 | drawer_stow | ACT, 40 demos, no instruction | 3/12 |
-| drawer_stow | ACT, 84 demos, instruction one-hot in state, 40k + low-LR | **55/100** |
+| drawer_stow | ACT, 84 demos, 40k + low-LR (instruction in state, unused: see Findings 5) | 55/100 by the scene check |
+| drawer_stow | ACT, 116 demos, same | **61/100** by the scene check; announced order followed in 9/65 |
 | duplo | ACT, 40 demos, no instruction | 0/12 |
-| duplo | ACT, 110 demos, instruction one-hot | 6/100 (stacks bricks, wrong order) |
+| duplo | ACT, 110 demos one-hot / 271 demos `words` | 6/100 / 4/100 (stacks bricks, ignores the order) |
 | zip_tie | ACT, 10 demos, 1.5k steps | 20/20 (layout barely varies) |
 | matcha | ACT, 60 demos (recorded at 320x240), instruction one-hot, 40k + low-LR | **11/40**; mean 2.0 of 4 steps, most stop at the water pour |
 
@@ -78,10 +79,13 @@ If the demos were recorded at 320x240 directly (matcha: `--schema` with 240x320 
    Takeovers that begin with a pause taught the policy to hover: fixed in `peg_plan(resume=True)`.
 4. **Inference settings**: 100-step chunks executed open-loop are best. Replanning every 50 / 25 steps: 72% / 35%.
    Temporal ensembling and checkpoint weight averaging: worse.
-5. **Multi-step scenes need the instruction.** drawer_stow and duplo announce a new order every episode as the
-   frame's task string; ACT never reads it. `add_subtask_state.py` appends it to the state. A one-hot over whole
-   instructions was enough for drawer_stow (5 instructions) but not duplo (9); the `words` encoding (object and
-   target as separate word sets) is the next thing to try, with more demos.
+5. **ACT does not use the instruction, even when it is in the state.** drawer_stow and duplo announce a new order
+   every episode as the frame's task string. `add_subtask_state.py` appends it to the state (one-hot or `words`), but
+   swapping the instruction changes the predicted chunk by <= 0.08 rad in both scenes. drawer_stow still scores
+   55-61/100 because its check does not enforce order (step k = "the k-th announced block is in the drawer"; blocks put
+   in early fail nothing): logging the order blocks enter, the first block matches the announcement in 27/84 rollouts
+   (chance 1/3) and the full order in 9/65 (chance 1/6). duplo, where the order is physical, stays at 4-6/100.
+   Hypothesis under test: ACT's CVAE latent carries "which brick" in training (`--policy.use_vae=false`).
 6. **peg_insert failures are fragile, not systematic.** Of 21 failures in 200 layouts: 11 jams (peg tilted ~10° in
    the grip, on the rim, 1–4 mm off), 7 fallen pegs, 3 other. On failing layouts a sub-milliradian change to the
    action chunk makes it succeed 60–75% of the time (38% unchanged). Evals are therefore not exactly repeatable.
@@ -92,6 +96,8 @@ If the demos were recorded at 320x240 directly (matcha: `--schema` with 240x320 
    - A Q-function trained on 2400 exploration rollouts is near chance (AUC 0.55–0.64 on early chunks). Trained on the
      oracle's paired labels (300 layouts) its top pick is no better than the policy's own chunk (92.8% vs 92.8%;
      oracle 96.2%); it orders a success above a failure 62% of the time within a state.
+   - On a frozen **Diffusion Policy** (same data, 40k steps; 11% alone on 200 layouts) it does work: Q trained on the
+     planner's own rollouts lifts it to 37-45% (Q-weighted average of 16 samples; `qplan_dp.py`), then plateaus.
 8. **Rewind-and-retry on stall does not help** (178–179/200 vs 177–182 without): the peg is already tilted in the
    grip, so lowering again jams again. A jam needs a regrasp.
 
@@ -119,3 +125,14 @@ machine that ran them (git-ignored).
   peak near 18 GB at 640x480). Run long jobs detached (`setsid nohup`), since a crash of the host app kills children.
 - ACT, batch 8: 0.10 s/step at 320x240 (0.33 at 640x480). Each checkpoint is ~200 MB plus ~400 MB of
   `training_state` (delete it once a run is done).
+
+## Later additions (2026-10-13)
+
+- **Out-of-range layouts** (best ACT peg_insert, 200 layouts each, `qplan_collect.py --jitter_scale`): training range ~89%,
+  1.5x 62%, 2x 33.5%, 3x 6.5%. The policy is fit to a narrow position range; nothing else (lighting, cameras, physics) varies.
+- **Where the peg's tilt comes from** (`peg_tilt_probe.py`): the peg arrives over the hole upright in demos and rollouts alike
+  (median 0.8 deg, max 4.5 deg); the ~10 deg tilt of a jam is made when it lands on the rim. The scripted operator itself
+  succeeds on 178/200 seeds, the same rate as the policy.
+- **Replication on a second machine** (own demos, H.264 copy): ACT 154/200 at 40k, 175/200 after the low-LR finish.
+- **pi0.5** (frozen VLM, action expert trained 6000 updates) on peg_insert: 19/200; underfit.
+- **matcha**: 150 demos recorded; retrain in progress.
