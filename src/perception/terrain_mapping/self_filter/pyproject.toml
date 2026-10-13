@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "self_filter"
+version = "0.0.0"
+description = "Removes the robot's own body from sensor point clouds (terrain mapping input)"
+requires-python = ">=3.10"
+dependencies = ["numpy"]
+
+[project.optional-dependencies]
+prototype = ["matplotlib", "yourdfpy"]
+
+[tool.setuptools.packages.find]
+include = ["self_filter*"]
