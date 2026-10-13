@@ -1,6 +1,6 @@
 # Policies from synthetic teleop demos (MuJoCo): status and handoff
 
-State as of 2026-10-12. Everything here runs headless on the Pioneer left arm in the MuJoCo scenes
+State as of 2026-10-12 (late evening). Everything here runs headless on the Pioneer left arm in the MuJoCo scenes
 (`src/simulation/mujoco_scenes`), on demos recorded by the scripted operator
 (`src/teleop/pioneer_leader_arm_teleop/synthetic_teleop.py`). All code is in
 `src/teleop/pioneer_leader_arm_teleop/`. Datasets and checkpoints are git-ignored: re-record or copy them.
@@ -65,7 +65,7 @@ If the demos were recorded at 320x240 directly (matcha: `--schema` with 240x320 
 | duplo | ACT, 40 demos, no instruction | 0/12 |
 | duplo | ACT, 110 demos, instruction one-hot | 6/100 (stacks bricks, wrong order) |
 | zip_tie | ACT, 10 demos, 1.5k steps | 20/20 (layout barely varies) |
-| matcha | scripted plan added; 60 demos recorded; first ACT run in progress | — |
+| matcha | ACT, 60 demos (recorded at 320x240), instruction one-hot, 40k + low-LR | **11/40**; mean 2.0 of 4 steps, most stop at the water pour |
 
 ## Findings
 
@@ -108,8 +108,9 @@ machine that ran them (git-ignored).
   `--policy.vision_backbone=resnet_dinov2s --policy.pretrained_backbone_weights=null`; trains (62M params,
   ~2.3x slower per step than ResNet-18). Full run not done.
 - **Grounded Action Model idea (arXiv 2609.23863)**: upper-bound test by feeding true object poses in the state. Not started.
-- **duplo / drawer_stow**: retrain with the `words` encoding and 190–300 demos.
-- **matcha**: evaluate the first ACT run; the plan succeeds on roughly half to all seeds depending on the batch.
+- **duplo / drawer_stow**: retrain with the `words` encoding (`add_subtask_state.py <root> words`, the default) on 271 / 116 demos. Queued on the laptop.
+- **pi0.5** (reads the instruction natively) on peg_insert and the multi-step scenes: being run on the desktop session.
+- **matcha**: more demos (recording towards 150); the scripted plan succeeds on roughly half to all seeds depending on the batch.
 - **A policy with observation history or a regrasp behaviour** for peg jams.
 
 ## Machine notes (8 GB GPU laptop, 31 GB RAM)
