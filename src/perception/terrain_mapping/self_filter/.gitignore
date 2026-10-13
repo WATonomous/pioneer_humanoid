@@ -1,0 +1,7 @@
+# Datasets and recorded bags; never committed
+data/
+
+# Local Python environments and build metadata
+.venv/
+*.egg-info/
+__pycache__/
