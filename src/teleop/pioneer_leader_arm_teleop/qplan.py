@@ -183,7 +183,12 @@ def rollout(scene, seed, proposer, select, n=16, z_std=1.0, noise_std=0.0, max_s
             index, _, instruction = sim.progress(sim.model, sim.data)
             if isinstance(proposer.subtasks, dict) and proposer.subtasks.get("mode") == "order":
                 import importlib
-                order = importlib.import_module(f"humanoid_mujoco_scenes.{scene}.scene")._order(sim.data)
+                mod = importlib.import_module(f"humanoid_mujoco_scenes.{scene}.scene")
+                if hasattr(mod, "_step_text"):          # every step's object word, as in the dataset (drawer_stow: open, colours, close)
+                    from add_subtask_state import split
+                    order = [split(mod._step_text(sim.data, k))[0][0] for k in range(proposer.subtasks["steps"])]
+                else:
+                    order = mod._order(sim.data)
                 instruction = ",".join(order) + f"|{int(index)}"
         state, images = observe(sim)
         batch = proposer.encode(state, images, instruction)

@@ -38,7 +38,9 @@ def main() -> None:
         def swapped(state, images, instruction):
             seq, step = instruction.split("|")
             o = seq.split(",")
-            return encode(state, images, ",".join(o[1:] + o[:1]) + "|" + step)
+            cols = [w for w in o if w in S.COLOURS]          # rotate the colours only (drawer_stow also has open / close)
+            rot = iter(cols[1:] + cols[:1])
+            return encode(state, images, ",".join(next(rot) if w in S.COLOURS else w for w in o) + "|" + step)
         prop.encode = swapped
     body = "brick_{}" if args.scene == "duplo" else "block_{}"
     rows = []

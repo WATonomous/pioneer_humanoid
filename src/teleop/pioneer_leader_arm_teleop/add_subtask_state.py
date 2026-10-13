@@ -30,11 +30,11 @@ STOP = {"the", "a", "put", "brick", "block"}
 PREPOSITIONS = (" on ", " in ", " into ", " onto ")
 
 
-def make_spec(names, mode):
+def make_spec(names, mode, steps=3):
     if mode == "onehot":
         return {"mode": "onehot", "names": names}
     if mode == "order":           # the whole announced order from the first frame on, plus which step it is
-        return {"mode": "order", "objects": sorted({w for n in names for w in split(n)[0]}), "steps": 3}
+        return {"mode": "order", "objects": sorted({split(n)[0][0] for n in names}), "steps": steps}
     sides = [split(n) for n in names]
     return {"mode": "words", "object": sorted({w for a, _ in sides for w in a}), "target": sorted({w for _, b in sides for w in b})}
 
@@ -79,7 +79,13 @@ def main(root: str, mode: str = "words") -> None:
     tasks = pq.read_table(root / "meta/tasks.parquet").to_pandas().reset_index()
     name_col = [c for c in tasks.columns if c != "task_index"][0]
     names = [str(t) for t in tasks.sort_values("task_index")[name_col]]
-    spec = make_spec(names, mode)
+    steps = 3
+    if mode == "order":           # the longest sequence of distinct instructions in an episode (duplo 3, drawer_stow 5)
+        steps = 0
+        for path in sorted(glob.glob(str(root / "data/*/*.parquet"))):
+            t = pq.read_table(path, columns=["task_index", "episode_index"]).to_pandas()
+            steps = max(steps, int(t.groupby("episode_index")["task_index"].nunique().max()))
+    spec = make_spec(names, mode, steps)
     table_enc = None if mode == "order" else np.stack([encode(n, spec) for n in names])
     k = (spec["steps"] * len(spec["objects"]) + spec["steps"]) if mode == "order" else table_enc.shape[1]
     dim = feat["shape"][0]
