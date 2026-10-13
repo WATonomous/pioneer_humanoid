@@ -103,7 +103,7 @@ python synthetic_teleop.py --scene peg_insert --num_episodes 3 --preview peg.mp4
   drift, wrist wobble, noisy judgement of where objects are, hesitation before grasps. Speed, accuracy, tremor and so on
   are drawn per episode, like different people. `--pace` sets the tempo: 1 (default) a practised operator, 0.5 a slow
   careful beginner, 1.5 brisk; a faster operator also aims worse and corrects more.
-- **Plans** (`synthetic_tasks.py`): `drawer_stow`, `peg_insert`, `zip_tie`, `duplo`, written like instructions to a person:
+- **Plans** (`synthetic_tasks.py`): `drawer_stow`, `peg_insert`, `zip_tie`, `duplo`, `matcha`, written like instructions to a person:
   look, reach, grasp, check it worked and recover if not (re-grasp, pull again, re-open a drawer that got pushed in,
   pick up a block that missed it, stand a crooked peg back up, press a brick that didn't click), place.
 - **Seeds:** episode *i* uses `--seed + i` for the layout and the operator. Takes are first run without cameras on
@@ -165,3 +165,10 @@ python3 pioneer_leader_arm_teleop.py --target real --self-test           # angle
 | `encoder_test.py` | servo bring-up, no simulator |
 | `synthetic_teleop.py` | synthetic demos: simulated operator → same mapping and recorder as `mujoco_sim.py` |
 | `human_operator.py` / `synthetic_tasks.py` | the operator's motion model / what it does in each scene |
+| `sim_policy_eval.py` | roll a trained LeRobot policy out in a scene, report success on unseen layouts (videos) |
+| `downscale_dataset.py` / `add_subtask_state.py` | 320×240 copy of a dataset / put the current instruction into the state (multi-step scenes) |
+| `dagger_collect.py` | DAgger: the policy drives, the synthetic operator takes over, its segment is recorded |
+| `qplan*.py` | Q-Planning experiments on a frozen ACT policy; `qplan_collect.py` is also the fast evaluator |
+| `patch_backbone.py` / `train_patch_act.py` | ACT with DINOv2 patch tokens as its vision backbone |
+
+Training recipe, results and findings: `docs/research/synthetic_teleop_policy_learning.md`.
