@@ -33,6 +33,8 @@ FROM ${BASE_IMAGE} AS dependencies
 # Install Rosdep requirements
 COPY --from=source /tmp/colcon_install_list /tmp/colcon_install_list
 
+RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key \
+    -o /usr/share/keyrings/ros2-latest-archive-keyring.gpg
 RUN apt-get update && \
     apt-fast install -qq -y --no-install-recommends $(cat /tmp/colcon_install_list)
 
