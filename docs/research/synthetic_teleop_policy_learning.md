@@ -132,7 +132,17 @@ machine that ran them (git-ignored).
   1.5x 62%, 2x 33.5%, 3x 6.5%. The policy is fit to a narrow position range; nothing else (lighting, cameras, physics) varies.
 - **Where the peg's tilt comes from** (`peg_tilt_probe.py`): the peg arrives over the hole upright in demos and rollouts alike
   (median 0.8 deg, max 4.5 deg); the ~10 deg tilt of a jam is made when it lands on the rim. The scripted operator itself
-  succeeds on 178/200 seeds, the same rate as the policy.
+  succeeds on 178/200 seeds, but all 22 failures are grasp give-ups (three missed grasps; such takes are discarded and never
+  become demos). Once it holds the peg it inserts almost every time, by feel: push a little, ease off if the peg stops, nudge.
+  The policy's failures are different (11 jams, 7 fallen pegs of 21): it does not reproduce that reactive loop when it
+  replays 4 s chunks open-loop. So the equal 89% is a coincidence, not a teacher ceiling.
 - **Replication on a second machine** (own demos, H.264 copy): ACT 154/200 at 40k, 175/200 after the low-LR finish.
 - **pi0.5** (frozen VLM, action expert trained 6000 updates) on peg_insert: 19/200; underfit.
 - **matcha**: 150 demos recorded; retrain in progress.
+- **Out-of-range test on valid layouts** (`PEG_INSERT_RANGE` env var in the scene scales the shifts and redraws layouts where
+  peg and block would touch): 1x 179/200, 1.5x 124/200, 2x 71/200. The scripted operator still succeeds on 17/20 takes at 2x.
+- **`PEG_PLAN=wiggle`**: variant of `peg_plan` that works the peg in with a small outward spiral while easing down, so the
+  demonstrated motion tolerates a millimetre or two of misalignment without feeling the rim. Operator success unchanged
+  (58/60 with and without, +0.6 s per take). Whether a policy trained on it jams less is untested.
+- **ACT with `use_vae=false` on duplo**: the policy starts to respond to the instruction on about half the layouts
+  (0.18-0.46 rad chunk change vs <= 0.03 with the latent) but success is unchanged (8/100).

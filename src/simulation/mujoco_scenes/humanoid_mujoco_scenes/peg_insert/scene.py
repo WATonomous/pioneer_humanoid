@@ -6,6 +6,8 @@ the block a little. ``is_inserted``: the peg is in the hole, at least INSERT_DEP
 """
 from __future__ import annotations
 
+import os
+
 import mujoco
 import numpy as np
 
@@ -32,9 +34,16 @@ INSERT_DEPTH = 0.02             # peg bottom this far below the block top counts
 def reset(model: mujoco.MjModel, data: mujoco.MjData, rng: np.random.Generator) -> None:
     """New episode: shift the peg (upright, square) and the block. Call after mj_resetData."""
     adr = model.joint("peg").qposadr[0]
-    px, py = np.add(PEG_POS, rng.uniform(-PEG_JITTER, PEG_JITTER, 2))
+    # PEG_INSERT_RANGE=2 doubles both shifts (wider layouts for robustness tests / training); then a layout where the
+    # peg would stand in or against the block (less than 1 cm between them) is drawn again.
+    scale = float(os.environ.get("PEG_INSERT_RANGE", 1.0))
+    while True:
+        px, py = np.add(PEG_POS, rng.uniform(-PEG_JITTER, PEG_JITTER, 2) * scale)
+        bx, by = np.add(BLOCK_POS, rng.uniform(-BLOCK_JITTER, BLOCK_JITTER, 2) * scale)
+        if scale == 1.0 or max(abs(px - bx), abs(py - by)) > (PEG_SIZE + BLOCK_SIZE) / 2 + 0.01:
+            break
     data.qpos[adr:adr + 7] = [px, py, TABLE_TOP_Z + PEG_HEIGHT / 2, 1, 0, 0, 0]
-    model.body_pos[model.body("hole_block").id, :2] = np.add(BLOCK_POS, rng.uniform(-BLOCK_JITTER, BLOCK_JITTER, 2))
+    model.body_pos[model.body("hole_block").id, :2] = [bx, by]
 
 
 def is_inserted(model: mujoco.MjModel, data: mujoco.MjData) -> bool:

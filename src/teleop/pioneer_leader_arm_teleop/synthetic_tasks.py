@@ -8,6 +8,8 @@ operator's human motion model. ``success`` decides whether the take is kept.
 """
 from __future__ import annotations
 
+import math
+import os
 from dataclasses import dataclass
 from typing import Callable
 
@@ -259,6 +261,15 @@ def peg_plan(op, model, data, notes, resume: bool = False) -> None:
         align(tries=4)
         lower_peg_to(block_top - 0.004, 0.4)     # into the mouth, look again
         align(tries=2)
+        if os.environ.get("PEG_PLAN") == "wiggle":
+            # Variant for imitation: instead of relying only on feel, work the peg in with a small outward spiral
+            # while easing it down (what people do with a tight fit). The motion itself tolerates a millimetre or two
+            # of misalignment, so a policy that replays it without feeling the rim still gets the peg in.
+            for k in range(14):
+                if in_hole():
+                    break
+                r, a = 0.0006 + 0.00016 * k, 2.4 * k
+                op.nudge((r * math.cos(a), r * math.sin(a), -0.0015), size=0.002)
         # Push it in a bit at a time, feeling for it: if it stops going down it's caught on the rim, so ease off
         # (don't lean on it, it twists in the jaws) and nudge it towards the hole.
         for _ in range(10):
