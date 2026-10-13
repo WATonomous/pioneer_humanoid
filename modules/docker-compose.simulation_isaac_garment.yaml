@@ -9,6 +9,8 @@ x-simulation_isaac_garment_volumes: &simulation_isaac_garment_volumes
   - ${XAUTHORITY:-${HOME}/.Xauthority}:/root/.Xauthority:rw
   - ${MONO_DIR}:/workspace/humanoid:rw
   - ${MONO_DIR}/docker/simulation/isaac_lab/entrypoint.sh:/entrypoint.sh:ro
+  # Quest VR teleop's WebXR/WSS cert (same mount as simulation_isaac).
+  - ${MONO_DIR}/src/teleop/quest_teleop/certs:/certs:ro
   - /dev:/dev
   - /run/udev:/run/udev:ro
   - ${HF_HOME:-${HOME}/.cache/huggingface}:/root/.cache/huggingface:rw

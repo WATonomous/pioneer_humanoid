@@ -1,0 +1,54 @@
+# Dataset schema: pioneer_bimanual_arm, BOTH arms, Quest VR teleop via
+# run_quest_bimanual_teleop.py (pass --schema <this file> --scene <task>).
+# Task-agnostic: name the task with --task_description, and give each task its
+# own --dataset_root so episodes from different tasks don't share a dataset.
+robot_id: pioneer_bimanual_quest_sim_v1
+repo_id: humanoid/pioneer_bimanual_quest
+# Sets info.json robot_type explicitly; without it the recorder falls back to
+# "so101_follower", which mislabels this arm.
+robot_type: wato_arm_v2
+
+# Fallback only -- run_quest_bimanual_teleop.py overrides with its derived _RECORD_FPS.
+fps: 10
+
+# observation.state AND action are joint positions, 14-D: left arm then right
+# arm. Must match _RECORD_JOINTS_BIMANUAL in run_quest_bimanual_teleop.py
+# exactly (it fails fast otherwise). Per arm only the primary gripper joint is
+# logged -- joint8l/joint8 are driven as its synchronized opposite.
+joint_names:
+  # left (L-suffixed chain, link6l -- left Quest wrist)
+  - joint1L
+  - joint2l
+  - joint3l
+  - joint4l
+  - joint5l
+  - joint6l
+  - joint7l
+  # right (unsuffixed chain, link6 -- right Quest wrist)
+  - joint1
+  - joint2
+  - joint3
+  - joint4
+  - joint5
+  - joint6
+  - joint7
+
+# Keys map to scene cameras in run_quest_bimanual_teleop.py's _RECORD_CAMERAS:
+# ego -> ego_cam, wrist -> wrist_cam (link6l), wrist_right -> wrist_cam_right (link6).
+images:
+  ego:
+    height: 480
+    width: 640
+    enabled: true
+  wrist:
+    height: 480
+    width: 640
+    enabled: true
+  wrist_right:
+    height: 480
+    width: 640
+    enabled: true
+
+record:
+  root: datasets/record_pioneer_bimanual_quest
+  use_videos: true

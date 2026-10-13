@@ -456,9 +456,11 @@
           const useAr = await navigator.xr.isSessionSupported("immersive-ar");
           const sessionMode = useAr ? "immersive-ar" : "immersive-vr";
 
-          const session = await navigator.xr.requestSession(sessionMode, {
-            requiredFeatures: ["hand-tracking"]
-          });
+          // Quest 2 CONTROLLERS, not hand tracking: no required features. Hand tracking was:
+          // const session = await navigator.xr.requestSession(sessionMode, {
+          //   requiredFeatures: ["hand-tracking"]
+          // });
+          const session = await navigator.xr.requestSession(sessionMode);
 
           const canvas = document.getElementById("xr-canvas"); //needed for scene and getting pose data
           const gl = canvas.getContext("webgl", {
@@ -559,23 +561,57 @@
               right_wrist: emptyPose(),
               left_hand_joints: Array(75).fill(0),
               right_hand_joints: Array(75).fill(0),
-              head_pose: emptyPose()
+              head_pose: emptyPose(),
+              left_trigger: 0,
+              right_trigger: 0,
+              reset_button: false,
+              save_button: false
             };
 
-            for (const inputSource of session.inputSources) {
-              if (!inputSource.hand) continue;
+            // Hand tracking (wrist joint pose + 25 hand joints for pinch), disabled for controllers:
+            // for (const inputSource of session.inputSources) {
+            //   if (!inputSource.hand) continue;
+            //
+            //   const wristSpace = inputSource.hand.get("wrist");
+            //   const wristPose = wristSpace ? frame.getJointPose(wristSpace, refSpace) : null;
+            //
+            //   if (inputSource.handedness === "left") {
+            //     payload.left_wrist = poseToJson(wristPose);
+            //     payload.left_hand_joints = handJointsToArray(inputSource.hand, frame, refSpace);
+            //   }
+            //
+            //   if (inputSource.handedness === "right") {
+            //     payload.right_wrist = poseToJson(wristPose);
+            //     payload.right_hand_joints = handJointsToArray(inputSource.hand, frame, refSpace);
+            //   }
+            // }
 
-              const wristSpace = inputSource.hand.get("wrist");
-              const wristPose = wristSpace ? frame.getJointPose(wristSpace, refSpace) : null;
+            // Quest 2 controllers: the grip space (where the controller is held) stands in for the
+            // wrist pose, and the trigger (gamepad button 0, 0..1) drives the gripper. Inputs with
+            // a .hand are skipped, so putting the controllers down sends nothing rather than
+            // switching to hand poses mid-session.
+            for (const inputSource of session.inputSources) {
+              if (inputSource.hand || !inputSource.gripSpace) continue;
+
+              const gripPose = frame.getPose(inputSource.gripSpace, refSpace);
+              const trigger = inputSource.gamepad && inputSource.gamepad.buttons.length > 0
+                ? inputSource.gamepad.buttons[0].value
+                : 0;
 
               if (inputSource.handedness === "left") {
-                payload.left_wrist = poseToJson(wristPose);
-                payload.left_hand_joints = handJointsToArray(inputSource.hand, frame, refSpace);
+                payload.left_wrist = poseToJson(gripPose);
+                payload.left_trigger = trigger;
+                // Y button (xr-standard index 5 on the left controller): resets the sim scene.
+                const buttons = inputSource.gamepad ? inputSource.gamepad.buttons : [];
+                payload.reset_button = buttons.length > 5 && buttons[5].pressed;
               }
 
               if (inputSource.handedness === "right") {
-                payload.right_wrist = poseToJson(wristPose);
-                payload.right_hand_joints = handJointsToArray(inputSource.hand, frame, refSpace);
+                payload.right_wrist = poseToJson(gripPose);
+                payload.right_trigger = trigger;
+                // B button (xr-standard index 5 on the right controller): save demo + reset.
+                const buttons = inputSource.gamepad ? inputSource.gamepad.buttons : [];
+                payload.save_button = buttons.length > 5 && buttons[5].pressed;
               }
             }
 
@@ -626,23 +662,24 @@
                 drawPovQuad(gl, wristHudRendererRight, view.projectionMatrix,
                             wristCamTextureRight, -1.45, WRIST_HUD_OPACITY);
 
-                drawHandPoints(
-                  gl,
-                  pointRenderer,
-                  payload.left_hand_joints,
-                  view.projectionMatrix,
-                  view.transform.inverse.matrix,
-                  [0.1, 1.0, 0.25, 1.0]
-                );
-
-                drawHandPoints(
-                  gl,
-                  pointRenderer,
-                  payload.right_hand_joints,
-                  view.projectionMatrix,
-                  view.transform.inverse.matrix,
-                  [0.0, 0.75, 1.0, 1.0]
-                );
+                // Hand-joint point overlay, disabled with hand tracking (no joints from controllers):
+                // drawHandPoints(
+                //   gl,
+                //   pointRenderer,
+                //   payload.left_hand_joints,
+                //   view.projectionMatrix,
+                //   view.transform.inverse.matrix,
+                //   [0.1, 1.0, 0.25, 1.0]
+                // );
+                //
+                // drawHandPoints(
+                //   gl,
+                //   pointRenderer,
+                //   payload.right_hand_joints,
+                //   view.projectionMatrix,
+                //   view.transform.inverse.matrix,
+                //   [0.0, 0.75, 1.0, 1.0]
+                // );
 
                 // IK-target indicators (blue=left, red=right, matching the retired Isaac Sim USD
                 // markers' colors) -- drawn at the backend-projected UV for THIS eye (view.eye),
@@ -664,7 +701,7 @@
               ws.send(JSON.stringify(payload));
             }
 
-            status.textContent = `Streaming hand data (${sessionMode})`;
+            status.textContent = `Streaming controller data (${sessionMode})`;
           }
 
           session.requestAnimationFrame(onFrame);

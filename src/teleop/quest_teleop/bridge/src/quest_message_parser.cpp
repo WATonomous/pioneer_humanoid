@@ -72,5 +72,11 @@ common_msgs::msg::QuestHandPose QuestMessageParser::parse(const std::string& jso
     fill_float_array(data.at("right_hand_joints"), msg.right_hand_joints);
   }
 
+  // Controller triggers (0..1); absent under hand tracking, so they stay 0.
+  msg.left_trigger = data.value("left_trigger", 0.0f);
+  msg.right_trigger = data.value("right_trigger", 0.0f);
+  msg.reset_button = data.value("reset_button", false);
+  msg.save_button = data.value("save_button", false);
+
   return msg;
 }
