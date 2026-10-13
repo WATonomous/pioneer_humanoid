@@ -72,7 +72,8 @@ If the demos were recorded at 320x240 directly (matcha: `--schema` with 240x320 
 
 1. **Data volume and training steps were the main levers** on peg_insert (60 → 180 demos, 6k → 40k steps).
    Past 40k steps at a constant lr the score only swings between checkpoints (77–90%).
-2. **A low-LR finish (10k steps at 1e-6) is a cheap, robust gain**: +5 points for clean-only runs, and it removes the
+2. **A low-LR finish (10k steps at 1e-6) usually helps, but not always** (one later run lost 24 layouts to dropped pegs; evaluate before and after)
+   Earlier reading:: +5 points for clean-only runs, and it removes the
    57–90% run-to-run spread of the DAgger runs.
 3. **DAgger with the scripted expert adds little** (+1 to +6 points, not separable from noise). The expert only
    takes over from states the policy already handles; it gives up on the real failures (fallen or jammed peg).
@@ -146,3 +147,23 @@ machine that ran them (git-ignored).
   (58/60 with and without, +0.6 s per take). Whether a policy trained on it jams less is untested.
 - **ACT with `use_vae=false` on duplo**: the policy starts to respond to the instruction on about half the layouts
   (0.18-0.46 rad chunk change vs <= 0.03 with the latent) but success is unchanged (8/100).
+
+## Language conditioning (2026-10-13)
+
+duplo, first brick the policy goes for vs the announcement (chance 1/3), and scene success on layouts 1000-1099:
+
+| policy | brick choice | scene success |
+|---|---|---|
+| ACT, instruction as symbols in the state (one-hot, words, whole order; with and without the CVAE latent) | 38-41/100 | 4-8/100 |
+| ACT, true brick poses in the state (diagnostic, second machine, 150 demos) | 100/100 | 24/100 |
+| FiLM-ACT: the instruction scales and shifts each camera's ResNet feature map (`film_act.py`, `train_film_act.py`) | 100/100 | 25/100 |
+
+- FiLM-ACT uses images, joint state and the instruction only. Told a different order, it goes for the brick it was told (60/60).
+- Recipe: `python add_subtask_state.py <dataset_320> order`, then `python train_film_act.py <lerobot-train args>
+  --policy.type=act --policy.use_vae=false`; copy `meta/subtask_state.json` into the checkpoint with `"film": true` added.
+- Symbols appended to the state do not work in any encoding; ACT does use continuous object positions there (perturbing the
+  reported hole position moves the insertion). On peg_insert, true peg/hole poses (172/200) and 640x480 images (158/200)
+  give no gain over the 320x240 baseline (175/200): perception is not the limit there.
+- Wider layouts: ACT trained on 200 demos at `PEG_INSERT_RANGE=2` scores 165 / 160 / 138 of 200 at 1x / 1.5x / 2x range
+  (narrow-trained: 179 / 124 / 71).
+- matcha with 150 demos at 40k steps: 1/40 (1.1 epochs; the 60-demo run had 2.8 and got 11/40). Longer run in progress.

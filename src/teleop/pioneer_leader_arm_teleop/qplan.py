@@ -33,6 +33,12 @@ class Proposer:
     """The frozen ACT policy as a proposal distribution over action chunks."""
 
     def __init__(self, path, device="cuda"):
+        names = Path(path) / "subtask_state.json"
+        spec = json.loads(names.read_text()) if names.exists() else None
+        if isinstance(spec, dict) and spec.get("film"):       # checkpoint trained with train_film_act.py
+            os.environ["ACT_FILM"] = "1"
+            import film_act
+            film_act._install()
         self.policy, self.pre, self.post, self.cfg, self.cameras = load_policy(path, device)
         self.device = torch.device(device)
         self.model = self.policy.model
@@ -174,7 +180,11 @@ def rollout(scene, seed, proposer, select, n=16, z_std=1.0, noise_std=0.0, max_s
             if ok or frames >= int(max_s * FPS):
                 break
         if sim.progress is not None:
-            instruction = sim.progress(sim.model, sim.data)[2]
+            index, _, instruction = sim.progress(sim.model, sim.data)
+            if isinstance(proposer.subtasks, dict) and proposer.subtasks.get("mode") == "order":
+                import importlib
+                order = importlib.import_module(f"humanoid_mujoco_scenes.{scene}.scene")._order(sim.data)
+                instruction = ",".join(order) + f"|{int(index)}"
         state, images = observe(sim)
         batch = proposer.encode(state, images, instruction)
         chunks, obs_feat = proposer.propose(batch, n, z_std, noise_std, rng=rng, offset_std=offset_std)
