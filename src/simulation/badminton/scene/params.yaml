@@ -223,11 +223,11 @@ control:
                          # enough to stay inside the natural-posture shell)
   landing_target: [0.0, 3.35]    # x, y on far court (mid-court, centered)
   return_net_clearance: 0.5      # m, required clearance for the return shot
-  # bimanual arm assignment (humanoid_badminton/perception_command.py): the
-  # arm on the side where the predicted flight crosses y = assign_strike_y
-  # (the mean of the launcher's p* y) takes the shot; the other arm holds
-  # its ready pose. The student's EKF-based choice is fixed after
-  # assign_latch_s (the EKF has converged ~5x by 0.5 s; t* >= 0.9 s leaves
-  # >= 0.6 s for the swing).
+  # bimanual arm selection (humanoid_badminton/shuttle_action.py): the
+  # policy's first action output picks the arm (> 0 right, <= 0 left). The
+  # choice locks on the first tick with |output| > arm_select_threshold;
+  # until then both arms hold the ready pose. assign_strike_y only feeds
+  # the logged reference rule: the arm on the side where the true flight
+  # crosses y = assign_strike_y (the mean of the launcher's p* y).
+  arm_select_threshold: 0.5
   assign_strike_y: -1.6          # m
-  assign_latch_s: 0.3            # s

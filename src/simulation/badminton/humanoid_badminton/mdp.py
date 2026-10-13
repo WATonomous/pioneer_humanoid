@@ -52,9 +52,16 @@ def _state(env: "ManagerBasedRlEnv") -> dict:
             "t_star": torch.zeros(n, device=dev),
             "hit": torch.zeros(n, dtype=torch.bool, device=dev),
             "first": torch.zeros(n, dtype=torch.bool, device=dev),
-            # arm assigned to the shot (0 right, 1 left), written each tick
-            # by PerceptionCommand
+            # arm the policy picked for the shot (0 right, 1 left) and
+            # whether the pick is locked, written by ArmSelectAction
             "assign": torch.zeros(n, dtype=torch.long, device=dev),
+            "committed": torch.zeros(n, dtype=torch.bool, device=dev),
+            # logged only: tick time of the lock, and the reference rule's
+            # side (true flight's strike-plane crossing; PerceptionCommand
+            # writes rule_side each tick) at the lock
+            "commit_t": torch.zeros(n, device=dev),
+            "rule_side": torch.zeros(n, dtype=torch.long, device=dev),
+            "commit_rule": torch.zeros(n, dtype=torch.long, device=dev),
             "p0_xy": torch.zeros(n, 2, device=dev),
             # per actuated joint, right arm then left (same motors)
             "tau_rated": t(aero.load_params()["arm"]["torque_rated"] * 2),
@@ -162,8 +169,11 @@ def intercept_target(env: "ManagerBasedRlEnv") -> torch.Tensor:
 
 
 def arm_assign(env: "ManagerBasedRlEnv") -> torch.Tensor:
-    """One-hot of the arm assigned to this shot, [right, left]."""
-    return torch.nn.functional.one_hot(_state(env)["assign"], 2).float()
+    """One-hot of the arm the policy locked for this shot, [right, left];
+    zeros before the lock."""
+    store = _state(env)
+    return (torch.nn.functional.one_hot(store["assign"], 2).float()
+            * store["committed"].unsqueeze(-1).float())
 
 
 def face_state(env: "ManagerBasedRlEnv",
@@ -188,13 +198,17 @@ def face_contact(env: "ManagerBasedRlEnv", sensor_name: str) -> torch.Tensor:
 
 def approach_intercept(env: "ManagerBasedRlEnv", std: float,
                        asset_cfg: SceneEntityCfg) -> torch.Tensor:
-    """Dense shaping before the intercept: pull the assigned arm's face
+    """Dense shaping before the intercept: pull the chosen arm's face
     toward p* (asset_cfg lists the faces right first, so the assignment
-    index selects the face)."""
+    index selects the face). Before the lock it grades the closer face, so
+    the shaping does not prefer either arm."""
     store = _state(env)
     pos, _ = _face_pose(env, asset_cfg)
-    pos = pos[torch.arange(env.num_envs, device=env.device), store["assign"]]
-    d2 = ((pos - store["p_star"]) ** 2).sum(dim=-1)
+    d2_all = ((pos - store["p_star"].unsqueeze(1)) ** 2).sum(dim=-1)
+    d2 = torch.where(
+        store["committed"],
+        d2_all[torch.arange(env.num_envs, device=env.device), store["assign"]],
+        d2_all.min(dim=-1).values)
     t_now = env.episode_length_buf.float() * env.step_dt
     pending = (~store["hit"]) & (t_now < store["t_star"] + 0.1)
     return torch.exp(-d2 / std**2) * pending.float()

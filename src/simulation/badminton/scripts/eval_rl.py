@@ -5,7 +5,9 @@
 Rolls the policy over the launcher bank and reports contact rate overall
 and binned by p*'s distance in front of the chest plane (y - arm.base_y)
 and by height, to test whether body-line intercepts are the miss cluster,
-plus which arm made each hit (the face closest to the cork at contact).
+plus which arm made each hit (the face closest to the cork at contact)
+and how the policy picked the arm (lock rate, agreement with the
+strike-plane rule at the lock, lock time).
 A hit that lands on the very tick the episode terminates is not counted
 (the reset clears the latch first); this undercounts by a negligible
 amount.
@@ -111,7 +113,9 @@ def main() -> None:
     land_err = torch.full((n,), float("nan"), device=dev)
     land_ok = torch.zeros(n, dtype=torch.bool, device=dev)
 
-    rows = []  # (front_dist, z, x, hit, u, v, d_min, land_err, land_ok, side)
+    # (front_dist, z, x, hit, u, v, d_min, land_err, land_ok, side,
+    #  committed, chosen arm, rule arm at the lock, lock time)
+    rows = []
     warm = torch.zeros(n, dtype=torch.bool, device=dev)  # env past its 1st episode
     qv_rows, tau_rows, duty_rows = [], [], []  # per-episode, per-joint
     with torch.no_grad():
@@ -126,6 +130,9 @@ def main() -> None:
             prev_side = near_side.clone()
             prev_land = land_err.clone()
             prev_ok = land_ok.clone()
+            prev_pick = torch.stack(
+                [store["committed"].float(), store["assign"].float(),
+                 store["commit_rule"].float(), store["commit_t"]], dim=-1)
             obs, _, dones, _ = env.step(policy(obs))
             done = dones.bool()
             # closest approach so far; stop updating once the face has hit
@@ -158,7 +165,8 @@ def main() -> None:
                 rows.append((p[1] - base_y, p[2], p[0], bool(prev_hit[i]),
                              float(uv[0]), float(uv[1]), float(prev_d[i]),
                              float(prev_land[i]), float(prev_ok[i]),
-                             float(prev_side[i])))
+                             float(prev_side[i]),
+                             *prev_pick[i].tolist()))
             near_uv[done] = float("nan")
             near_d[done] = float("inf")
             near_side[done] = -1
@@ -173,6 +181,8 @@ def main() -> None:
     uv, dmin = r[:, 4:6], r[:, 6]
     land, lok = r[:, 7], r[:, 8].astype(bool)
     side = r[:, 9]
+    locked, chosen, rule, t_lock = (r[:, 10].astype(bool), r[:, 11],
+                                    r[:, 12], r[:, 13])
     has_land = np.isfinite(land)
     if has_land.any():
         cleared = has_land & lok
@@ -192,6 +202,18 @@ def main() -> None:
     if hit.any():
         print(f"hits by arm: right {(side[hit] == 0).mean():.3f}, "
               f"left {(side[hit] == 1).mean():.3f}")
+    print(f"arm pick: locked {locked.mean():.3f} of episodes", end="")
+    if locked.any():
+        agree = chosen[locked] == rule[locked]
+        print(f"; right {(chosen[locked] == 0).mean():.3f}"
+              f"; agrees with strike-plane rule {agree.mean():.3f}"
+              f" (hit rate agree {hit[locked][agree].mean():.3f}"
+              + (f", disagree {hit[locked][~agree].mean():.3f}"
+                 if (~agree).any() else "") + ")"
+              f"; lock time median {np.median(t_lock[locked]):.2f} s,"
+              f" p90 {np.percentile(t_lock[locked], 90):.2f} s")
+    else:
+        print()
 
     def table(label, v, edges):
         print(f"\n{label}")
@@ -220,7 +242,7 @@ def main() -> None:
         print(f"  {joint_label(j):4s}  {q[0]:5.1f} / {q[1]:5.1f} / {q[2]:5.1f}"
               f"    {t[0]:5.2f} / {t[1]:5.2f} / {t[2]:5.2f} ({peak[j]:5.2f})"
               f"   {at_clamp:5.1%}        {duty[:, j].mean():5.1%} (rated {rated[j]})")
-    np.save("runs/eval_pstar_hits.npy", r)  # cols: front,z,x,hit,u,v,d_min,land_err,land_ok,side
+    np.save("runs/eval_pstar_hits.npy", r)  # cols: front,z,x,hit,u,v,d_min,land_err,land_ok,side,locked,chosen,rule,t_lock
     np.savez("runs/eval_feasibility.npz", qvel_peak=qv, tau_peak=tau, duty=duty)
     print("\nraw rows saved to runs/eval_pstar_hits.npy")
 

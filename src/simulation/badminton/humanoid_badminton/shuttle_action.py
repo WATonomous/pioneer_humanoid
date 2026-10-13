@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING
 import torch
 
 from mjlab.envs.mdp.actions import JointPositionAction, JointPositionActionCfg
+from mjlab.managers.action_manager import ActionTerm, ActionTermCfg
 from mjlab.utils.lab_api.math import quat_mul
 
 import aero
@@ -117,11 +118,13 @@ class BadmintonAction(JointPositionAction):
         from humanoid_badminton import mdp  # lazy: mdp imports this module
         tgt = self._processed_actions
         store = mdp._state(self._env)
-        # bimanual: the arm not assigned to the shot holds the ready pose
-        # (the action offset), so only one racket goes for the shuttle
+        # bimanual: both arms hold the ready pose (the action offset) until
+        # ArmSelectAction locks a choice, then the arm not chosen keeps
+        # holding it, so only one racket goes for the shuttle
         ready = self._offset if torch.is_tensor(self._offset) else \
             torch.full_like(tgt, self._offset)
-        idle = self._arm_side.unsqueeze(0) != store["assign"].unsqueeze(-1)
+        idle = ((self._arm_side.unsqueeze(0) != store["assign"].unsqueeze(-1))
+                | ~store["committed"].unsqueeze(-1))
         tgt = torch.where(idle, ready, tgt)
         hit = store["hit"]
         tgt = torch.where(hit.unsqueeze(-1), self._rest.expand_as(tgt), tgt)
@@ -186,6 +189,64 @@ class BadmintonAction(JointPositionAction):
         new_q = new_q / new_q.norm(dim=-1, keepdim=True)
         apply = active & (angle > 1e-6)
         qpos[:, self._q_adr[3:7]] = torch.where(apply.unsqueeze(-1), new_q, quat)
+
+
+class ArmSelectAction(ActionTerm):
+    """One action output that picks the arm for the shot: > 0 right, <= 0
+    left. The first tick with |output| > control.arm_select_threshold locks
+    the choice for the rest of the episode; later outputs are ignored.
+    Writes env._badminton["assign"] (0 right, 1 left) and "committed".
+
+    List this term before the joint term in the actions dict: the action
+    manager processes terms in dict order, and BadmintonAction reads the
+    choice in its process_actions."""
+
+    cfg: "ArmSelectActionCfg"
+
+    def __init__(self, cfg: "ArmSelectActionCfg", env: "ManagerBasedRlEnv"):
+        super().__init__(cfg=cfg, env=env)
+        self._threshold = float(
+            aero.load_params()["control"]["arm_select_threshold"])
+        self._raw_actions = torch.zeros(self.num_envs, 1, device=self.device)
+
+    @property
+    def action_dim(self) -> int:
+        return 1
+
+    @property
+    def raw_action(self) -> torch.Tensor:
+        return self._raw_actions
+
+    def process_actions(self, actions: torch.Tensor) -> None:
+        from humanoid_badminton import mdp  # lazy: mdp imports this module
+        self._raw_actions[:] = actions
+        store = mdp._state(self._env)
+        a = actions[:, 0]
+        lock = (~store["committed"]) & (a.abs() > self._threshold)
+        store["assign"] = torch.where(lock, (a <= 0.0).long(), store["assign"])
+        store["committed"] |= lock
+        t_now = self._env.episode_length_buf.float() * self._env.step_dt
+        store["commit_t"] = torch.where(lock, t_now, store["commit_t"])
+        store["commit_rule"] = torch.where(lock, store["rule_side"],
+                                           store["commit_rule"])
+
+    def apply_actions(self) -> None:
+        pass
+
+    def reset(self, env_ids: torch.Tensor | slice | None = None) -> None:
+        from humanoid_badminton import mdp  # lazy: mdp imports this module
+        if env_ids is None:
+            env_ids = slice(None)
+        self._raw_actions[env_ids] = 0.0
+        store = mdp._state(self._env)
+        store["committed"][env_ids] = False
+        store["assign"][env_ids] = 0
+
+
+@dataclass(kw_only=True)
+class ArmSelectActionCfg(ActionTermCfg):
+    def build(self, env: "ManagerBasedRlEnv") -> ArmSelectAction:
+        return ArmSelectAction(self, env)
 
 
 @dataclass(kw_only=True)

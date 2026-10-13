@@ -5,13 +5,14 @@ contacts only through the scene's explicit pairs (shuttle vs both racket
 faces, floor and net; inter-arm racket/forearm clashes), shuttle drag and
 cork orientation applied per substep by BadmintonAction.
 
-Bimanual: both arms are actuated (12 joint targets, right arm first) with a
-racket in each hand. Each shot is assigned to one arm by a fixed rule (side
-of the predicted strike-plane crossing, see perception_command.py); the
-other arm is held at its ready pose, the approach reward grades only the
-assigned face, and both observation groups carry the assignment one-hot.
-assign_source picks the prediction: "true" state for the teacher, "ekf"
-for the student tasks.
+Bimanual: both arms are actuated with a racket in each hand. The action is
+[arm_select (1), 12 joint targets (right arm first)]. The policy picks the
+arm with arm_select (> 0 right, <= 0 left); the first tick with |arm_select|
+> control.arm_select_threshold locks the choice for the episode. Both arms
+hold the ready pose until the lock, and the arm not chosen keeps holding it
+after. The approach reward grades the chosen face (the closer one before
+the lock), and both observation groups carry the locked choice as a
+one-hot (zeros before the lock).
 
 Observation groups:
   student  proprioception + EKF-tracked shuttle and noisy trajectory prior
@@ -47,7 +48,8 @@ import aero
 from humanoid_badminton import assets, mdp
 from humanoid_badminton.feasibility import FeasibilityCommandCfg
 from humanoid_badminton.perception_command import PerceptionCommandCfg
-from humanoid_badminton.shuttle_action import BadmintonActionCfg
+from humanoid_badminton.shuttle_action import (ArmSelectActionCfg,
+                                               BadmintonActionCfg)
 
 CLASH_SENSORS = ("arm_clash_l", "arm_clash_face_l")
 DECIMATION = 20          # 1 ms physics, 50 Hz control — same as the CPU env
@@ -57,8 +59,7 @@ FACE_SITES = SceneEntityCfg("robot", site_names=assets.FACE_SITES,
                             preserve_order=True)
 
 
-def make_env_cfg(play: bool = False,
-                 assign_source: str = "true") -> ManagerBasedRlEnvCfg:
+def make_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     params = aero.load_params()
 
     # The scene XML already places arm_base_link (pos + mount yaw); passing
@@ -176,6 +177,9 @@ def make_env_cfg(play: bool = False,
     }
 
     actions = {
+        # first: the action manager processes terms in dict order, and the
+        # joint term reads this tick's choice
+        "arm_select": ArmSelectActionCfg(entity_name="robot"),
         "joint_pos": BadmintonActionCfg(
             entity_name="robot",
             shuttle_entity_name="shuttle",
@@ -187,8 +191,7 @@ def make_env_cfg(play: bool = False,
     }
 
     commands = {
-        "perception": PerceptionCommandCfg(entity_name="shuttle",
-                                           assign_source=assign_source),
+        "perception": PerceptionCommandCfg(entity_name="shuttle"),
         # logs Metrics/feasibility/* (peak joint vel / torque, rated-torque
         # duty cycle) so every run carries its own sim2real feasibility data
         "feasibility": FeasibilityCommandCfg(),

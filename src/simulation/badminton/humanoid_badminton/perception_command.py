@@ -9,14 +9,11 @@ blocks each control tick, both laid out as [p(3), v(3), traj(n_traj*3)]:
   teacher_features  the same layout computed from the true state (the
                     privileged trajectory prior)
 
-It also owns the bimanual arm assignment (0 right, 1 left), written to
-env._badminton["assign"] each tick: the arm on the side (x relative to the
-stand centre) where the predicted flight crosses the strike plane y =
-control.assign_strike_y. The prediction comes from the true state
-(assign_source "true", the teacher task) or the EKF state ("ekf", the
-student tasks, deployable as is). The EKF assignment follows the estimate
-until control.assign_latch_s into the episode and is fixed after that.
-BadmintonAction holds the other arm at its ready pose.
+The policy picks the arm (ArmSelectAction). This term writes the
+reference rule's side to env._badminton["rule_side"] each tick, for logging
+only: the arm on the side (x relative to the stand centre) where the true
+flight crosses the strike plane y = control.assign_strike_y. Metrics
+compare the policy's locked choice with the rule at the lock tick.
 
 The command lifecycle fits exactly: _resample_command fires on episode reset
 (after the shuttle reset event wrote the new true state) and re-initializes
@@ -84,14 +81,8 @@ class PerceptionCommand(CommandTerm):
         self._dist_at_tstar = torch.zeros(n, device=dev)
         self._tstar_seen = torch.zeros(n, dtype=torch.bool, device=dev)
 
-        c = params["control"]
-        self._strike_y = c["assign_strike_y"]
-        self._latch_s = c["assign_latch_s"]
+        self._strike_y = params["control"]["assign_strike_y"]
         self._center_x = params["arm"].get("base_x", 0.0)
-        # per-episode agreement of the EKF assignment with the true one at
-        # the latch (logged; 1 for the true-source teacher by construction)
-        self._assign_agree = torch.ones(n, device=dev)
-
     def _strike_x(self, p: torch.Tensor, v: torch.Tensor,
                   sub_dt: float = 0.05, max_steps: int = 40) -> torch.Tensor:
         """x where the drag-model flight from (p, v) crosses the strike
@@ -112,23 +103,11 @@ class PerceptionCommand(CommandTerm):
             p, v = p_next, v_next
         return x
 
-    def _update_assign(self, p_true, v_true, env_ids=None) -> None:
+    def _update_rule_side(self, p_true, v_true) -> None:
         from humanoid_badminton import mdp  # lazy: mdp imports this module
         store = mdp._state(self._env)
-        true_side = (self._strike_x(p_true, v_true) <= self._center_x).long()
-        if self.cfg.assign_source == "true":
-            store["assign"][:] = true_side
-            self._assign_agree = torch.ones_like(self._assign_agree)
-            return
-        ekf_side = (self._strike_x(self._x[:, :3], self._x[:, 3:])
-                    <= self._center_x).long()
-        t_now = self._env.episode_length_buf.float() * self._env.step_dt
-        live = t_now <= self._latch_s
-        if env_ids is not None:
-            live[env_ids] = True
-        store["assign"][:] = torch.where(live, ekf_side, store["assign"])
-        self._assign_agree = torch.where(
-            live, (ekf_side == true_side).float(), self._assign_agree)
+        store["rule_side"] = (self._strike_x(p_true, v_true)
+                              <= self._center_x).long()
 
     @property
     def command(self) -> torch.Tensor:
@@ -182,19 +161,27 @@ class PerceptionCommand(CommandTerm):
         self.teacher_features[:] = pt.feature_layout(
             p_true, v_true, self._k, self._n_traj,
             self._traj_dt, self._sub_dt, self._g)
-        self._update_assign(p_true, v_true, env_ids)
+        self._update_rule_side(p_true, v_true)
 
     def _update_metrics(self) -> None:
         p_true, v_true = self._true_state()
         self.metrics["ekf_pos_err"] = (self._x[:, :3] - p_true).norm(dim=-1)
         self.metrics["ekf_vel_err"] = (self._x[:, 3:] - v_true).norm(dim=-1)
-        self.metrics["assign_agree"] = self._assign_agree
 
         # lazy: mdp imports this module, so import it only at call time
         from humanoid_badminton import mdp
         store = getattr(self._env, "_badminton", None)
         if store is None:
             return
+        # arm choice, logged at episode reset (last value): locked at all,
+        # agreed with the reference rule at the lock, lock time. The last
+        # two are 0 for episodes without a lock, so their per-locked-episode
+        # means are the logged means divided by arm_committed.
+        done = store["committed"].float()
+        self.metrics["arm_committed"] = done
+        self.metrics["arm_agree_rule"] = (
+            (store["assign"] == store["commit_rule"]).float() * done)
+        self.metrics["arm_commit_time"] = store["commit_t"] * done
         if self._face_cfg is None:
             from mjlab.managers.scene_entity_config import SceneEntityCfg
             from humanoid_badminton.assets import FACE_SITES
@@ -219,7 +206,6 @@ class PerceptionCommand(CommandTerm):
 @dataclass(kw_only=True)
 class PerceptionCommandCfg(CommandTermCfg):
     entity_name: str = "shuttle"
-    assign_source: str = "true"     # "true" (teacher) or "ekf" (student)
     resampling_time_range: tuple[float, float] = field(
         default=(1.0e9, 1.0e9))  # never; reset() re-inits per episode
 
