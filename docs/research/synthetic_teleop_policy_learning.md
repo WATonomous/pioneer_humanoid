@@ -159,6 +159,13 @@ duplo, first brick the policy goes for vs the announcement (chance 1/3), and sce
 | FiLM-ACT: the instruction scales and shifts each camera's ResNet feature map (`film_act.py`, `train_film_act.py`) | 100/100 | 25/100 |
 
 - FiLM-ACT uses images, joint state and the instruction only. Told a different order, it goes for the brick it was told (60/60).
+- **It does not transfer to drawer_stow** (second machine, 120 demos, `order` encoding, 40k steps): first block in the drawer =
+  announced first 31/86 (chance 1/3), full order 10/38 (chance 1/6), swap test at chance. In duplo the bricks lie in three
+  fixed slots in shuffled order, so the policy can learn a colour-to-slot rule; in drawer_stow the blocks stand anywhere in a
+  strip, which needs real colour-to-location binding. So the duplo result shows instruction-driven choice among slots, not
+  general instruction following. (The FiLM output layer stays at its initialisation in both runs.)
+- Other policies on the same duplo brick-choice test (second machine): pi0.5 with the VLM frozen, 3000 updates, free-text
+  instruction 63/100 (scene success 5/100); SmolVLA fully fine-tuned 40/100.
 - Recipe: `python add_subtask_state.py <dataset_320> order`, then `python train_film_act.py <lerobot-train args>
   --policy.type=act --policy.use_vae=false`; copy `meta/subtask_state.json` into the checkpoint with `"film": true` added.
 - Symbols appended to the state do not work in any encoding; ACT does use continuous object positions there (perturbing the
