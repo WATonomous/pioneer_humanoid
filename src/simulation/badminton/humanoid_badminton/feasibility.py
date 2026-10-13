@@ -73,10 +73,17 @@ class FeasibilityCommand(CommandTerm):
         # data.actuator_force is the servo's unclamped request
         idx = self._robot.data.indexing.joint_v_adr
         tau = self._robot.data.data.qfrc_actuator[:, idx].abs()
+        # skip rows reset this tick: their qfrc_actuator comes from the reset
+        # forward pass with the previous episode's servo target (j1, j5 and
+        # j6 read at the clamp), which no physics substep applies, because
+        # the next step writes new targets first
+        live = (self._env.episode_length_buf > 0).unsqueeze(-1)
+        qvel = qvel * live
+        tau = tau * live
         self._qvel_peak = torch.maximum(self._qvel_peak, qvel)
         self._tau_peak = torch.maximum(self._tau_peak, tau)
         self._over += (tau > self._rated).float()
-        self._ticks += 1.0
+        self._ticks += live.float()
 
     def _update_metrics(self) -> None:
         duty = self._over / self._ticks.clamp_min(1.0)
