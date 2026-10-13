@@ -124,6 +124,13 @@ RUN mkdir -p /root/models && \
     wget -q https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-s_simcc-body7_pt-body7_420e-256x192-acd4a1ef_20230504.pth \
     -O /root/models/rtmpose-s.pth
 
+# Foxglove visualization support
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      ros-humble-foxglove-bridge \
+      ros-humble-rosbag2-storage-mcap && \
+    rm -rf /var/lib/apt/lists/*
+
 ################################ Build ################################
 FROM dependencies AS build
 COPY --from=source ${AMENT_WS}/src ${AMENT_WS}/src
