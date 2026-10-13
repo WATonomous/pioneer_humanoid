@@ -3,7 +3,8 @@ samples are genuinely different action chunks.
 
     # rollouts: --select sample (the policy as is), random (exploration data), qmax / qavg (the planner)
     python qplan_dp.py collect --policy <ckpt>/pretrained_model --out r0.pt --seed 10000 --episodes 400 --select random
-    python qplan_dp.py train --data r0.pt --out q0.pt
+    python qplan_dp.py train --data r0.pt --out q0.pt            # --td: the paper's chunked Bellman target
+    python qplan_dp.py demos --policy <ckpt>/pretrained_model --dataset_root <demos_320> --out demos.pt   # Q data from the BC demonstrations
     python qplan_dp.py collect --policy <ckpt>/pretrained_model --out e1.pt --seed 1000 --episodes 200 --select qavg --q q0.pt
 
 Per planning step the policy's observation encoding is computed once and N chunks are denoised from different noise.
@@ -202,14 +203,22 @@ def collect(args):
 
 def train(args):
     torch.manual_seed(0)
-    gamma, rows, n_ep = 0.997, [], 0
+    gamma, rows, ran, n_ep = 0.997, [], [], 0
     for path in sorted(sum((glob.glob(d) for d in args.data), [])):
         for ep in torch.load(path, map_location="cpu", weights_only=False)["episodes"]:
             for k, s in enumerate(ep["steps"]):
                 rows.append((s["cond"], s["chunk"], gamma ** (ep["frames"] - s["frame"]) if ep["success"] else 0.0, n_ep, float(ep["success"]), k))
+                ran.append(s["ran"])
             n_ep += 1
     C, A = torch.stack([r[0] for r in rows]), torch.stack([r[1] for r in rows])
     R, E, S, K = (torch.tensor([r[i] for r in rows]) for i in (2, 3, 4, 5))
+    # For the paper's chunked Bellman target (--td): the next executed chunk of the same rollout, the discount over the
+    # frames this chunk ran, and whether it ended the rollout.
+    NXT = torch.arange(len(rows)) + 1
+    LAST = torch.ones(len(rows), dtype=torch.bool)
+    LAST[:-1] = E[1:] != E[:-1]
+    NXT[LAST] = torch.nonzero(LAST)[:, 0]
+    DISC = torch.tensor([gamma ** r for r in ran])
     val_ep = torch.randperm(n_ep, generator=torch.Generator().manual_seed(0))[: max(1, n_ep // 10)]
     is_val = torch.isin(E, val_ep)
     tr, va = torch.nonzero(~is_val)[:, 0], torch.nonzero(is_val)[:, 0]
@@ -225,13 +234,19 @@ def train(args):
     for step in range(1, args.steps + 1):
         q.train()
         i = tr[torch.randint(len(tr), (args.batch,))]
-        loss = -(hl.probs(R[i].float().to(dev)) * q(C[i].to(dev), A[i].to(dev)).log_softmax(-1)).sum(-1).mean()
+        target = R[i].float().to(dev)
+        if args.td:                # Q(o_t, a_t) <- gamma^ran * Q_ema(o_t+H, a_t+H); a rollout's last chunk: gamma^ran if it succeeded, else 0
+            with torch.inference_mode():
+                boot = hl.value(ema(C[NXT[i]].to(dev), A[NXT[i]].to(dev)))
+            last, disc, succ = LAST[i].to(dev), DISC[i].float().to(dev), S[i].to(dev) > 0.5
+            target = torch.where(last, torch.where(succ, disc, torch.zeros_like(disc)), disc * boot).clone()
+        loss = -(hl.probs(target) * q(C[i].to(dev), A[i].to(dev)).log_softmax(-1)).sum(-1).mean()
         opt.zero_grad(set_to_none=True)
         loss.backward()
         opt.step(); sched.step()
         with torch.no_grad():
             for pe, pq in zip(ema.parameters(), q.parameters()):
-                pe.lerp_(pq, 0.005)
+                pe.lerp_(pq, args.ema_rate)
         if step % 1000 == 0 or step == args.steps:
             with torch.inference_mode():
                 pred = hl.value(ema(C[va].to(dev), A[va].to(dev))).cpu().numpy()
@@ -240,6 +255,49 @@ def train(args):
             print(f"[QDP] step {step}: loss {loss.item():.3f}  val " + "  ".join(f"{a} {b:.3f}" for a, b in m.items()), flush=True)
     torch.save({"ema": ema.state_dict(), "arch": arch, "val": m}, args.out)
     print(f"[QDP] -> {args.out}")
+
+
+def demos(args):
+    """Encode a demonstration dataset as Q training data (the paper initialises Q on the BC demonstrations): for every
+    ``--stride`` frames t of every episode, the policy's observation encoding at t and the demonstrated chunk a[t:t+H],
+    chained with the chunk at t+H. Demonstrations are successes: reward 1 at the last frame."""
+    from lerobot.datasets.lerobot_dataset import LeRobotDataset
+    prop = DPProposer(args.policy)
+    kw = {"video_backend": args.video_backend} if args.video_backend else {}
+    ds = LeRobotDataset("humanoid/pioneer_v1_left_arm", root=args.dataset_root, **kw)
+    ep_idx = np.array(ds.hf_dataset["episode_index"]).reshape(-1)
+    actions = torch.tensor(np.stack(ds.hf_dataset["action"]), dtype=torch.float32)
+    cams = [f"observation.images.{c}" for c in prop.cameras]
+    H, episodes = prop.H, []
+
+    def push(i):
+        x = ds[int(i)]
+        images = {k.removeprefix("observation.images."): (x[k].permute(1, 2, 0).numpy() * 255).astype(np.uint8) for k in cams}
+        prop.push(x["observation.state"][:7].numpy(), images, x["task"])
+
+    todo = np.unique(ep_idx)[: args.episodes or None]
+    for n, e in enumerate(todo):
+        rows = np.nonzero(ep_idx == e)[0]
+        T, a = len(rows), (actions[rows].to(prop.device) - prop.a_mean) / prop.a_std
+        conds = {}
+        for t in range(0, T, args.stride):
+            prop.reset()
+            push(rows[max(t - 1, 0)])
+            push(rows[t])
+            conds[t] = prop.propose(1)[1]
+        for o in range(0, H, args.stride):            # one chain of consecutive chunks per start offset
+            steps = []
+            for t in range(o, T, H):
+                chunk = a[t:t + H]
+                if len(chunk) < H:
+                    chunk = torch.cat([chunk, chunk[-1:].expand(H - len(chunk), -1)])
+                steps.append({"cond": conds[t], "chunk": chunk.float().cpu(), "ran": min(H, T - t), "frame": t})
+            if steps:
+                episodes.append({"seed": int(e), "success": True, "frames": T, "steps": steps})
+        if n % 20 == 0:
+            print(f"[QDP] demos: episode {n + 1}/{len(todo)}", flush=True)
+    torch.save({"args": vars(args), "episodes": episodes}, args.out)
+    print(f"[QDP] {len(todo)} demonstrations -> {len(episodes)} chains, {sum(len(e['steps']) for e in episodes)} chunk transitions -> {args.out}")
 
 
 def main() -> None:
@@ -265,8 +323,17 @@ def main() -> None:
     t.add_argument("--steps", type=int, default=5000)
     t.add_argument("--batch", type=int, default=256)
     t.add_argument("--lr", type=float, default=3e-4)
+    t.add_argument("--td", action="store_true", help="the paper's chunked Bellman target (bootstrap from the next executed chunk, EMA target network) instead of Monte-Carlo returns")
+    t.add_argument("--ema_rate", type=float, default=0.005)
+    d = sub.add_parser("demos")
+    d.add_argument("--policy", required=True)
+    d.add_argument("--dataset_root", required=True)
+    d.add_argument("--out", required=True)
+    d.add_argument("--stride", type=int, default=8)
+    d.add_argument("--episodes", type=int, default=0, help="first N episodes only (default: all)")
+    d.add_argument("--video_backend", default=None, help="e.g. pyav")
     args = p.parse_args()
-    collect(args) if args.cmd == "collect" else train(args)
+    {"collect": collect, "train": train, "demos": demos}[args.cmd](args)
 
 
 if __name__ == "__main__":
