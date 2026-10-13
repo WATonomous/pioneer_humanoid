@@ -107,6 +107,11 @@ python3 pioneer_leader_arm_teleop.py --target real --self-test           # angle
 - Gripper: compared as position (0 open .. 1 closed), leader vs the real GL40 (id 21); `>0.1` warns.
 
 `--live`:
+0. Optionally homes the real elbow.pitch first. Once every active joint has feedback, it asks `[y/N]`.
+   On `y` it ramps elbow.pitch from its measured angle to home (−90°) at `--home-rate` deg/s (default 5,
+   at most its `velocity_max`), holding the other joints where they are. It then keeps publishing that
+   pose until the leader takes over. It refuses if elbow.pitch is not `active` or home is outside its
+   `arm_calibration.yaml` limits (re-run `calibrate_arm.py` sweeping past home).
 1. Shows the dry run until the gate passes: on every joint `active` in `arm_actuators.yaml`, the leader is
    within 3° of home and within 5° of the real arm, and the gripper within 0.1. The screen lists what fails.
 2. Asks you to type `live` (anything else quits), re-checks the gate, then publishes `ArmPose` on
