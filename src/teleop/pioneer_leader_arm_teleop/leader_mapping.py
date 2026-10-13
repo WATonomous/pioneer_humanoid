@@ -86,7 +86,7 @@ class LeaderMapping:
         self.engaged = False
         self.target = list(self.home)
         self.grip = 0.0
-        self.off_home: list[tuple[str, float]] = []
+        self.home_errors: list[tuple[str, float]] = []
 
     def update(self, angles: tuple[float, ...]) -> tuple[list[float], float]:
         desired = [
@@ -95,14 +95,15 @@ class LeaderMapping:
         ]
         grip = gripper_fraction(angles[self.gripper_axis], self.signs[self.gripper_axis])
         if not self.engaged:
-            self.off_home = [
+            self.home_errors = [
                 (label, math.degrees(d - h))
                 for label, d, h in zip(ARM_SERVOS, desired, self.home)
-                if abs(math.degrees(d - h)) > ENGAGE_TOL_DEG
             ]
-            if grip > ENGAGE_GRIP_TOL:
-                self.off_home.append((GRIPPER_SERVO, grip))
-            if self.off_home:
+            self.home_errors.append((GRIPPER_SERVO, grip))
+            if any(
+                abs(err) > (ENGAGE_GRIP_TOL if label == GRIPPER_SERVO else ENGAGE_TOL_DEG)
+                for label, err in self.home_errors
+            ):
                 return self.target, self.grip
             self.engaged = True
         self.target = [t + self.alpha * (d - t) for t, d in zip(self.target, desired)]
@@ -151,8 +152,8 @@ class LeaderInput:
             )
         else:
             line = "move leader to home (elbow 90, gripper open): " + " ".join(
-                f"{label} {err:+.0f}deg" if label != GRIPPER_SERVO else f"{label} {err:.2f}"
-                for label, err in mapping.off_home
+                f"{label} {err:+6.1f}deg" if label != GRIPPER_SERVO else f"{label} {err:4.2f}"
+                for label, err in mapping.home_errors
             )
         print(f"\r[LEADER] {line:<100}", end="", flush=True)
 
