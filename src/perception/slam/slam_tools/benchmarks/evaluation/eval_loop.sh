@@ -17,6 +17,7 @@ if [[ ! -s "$ESTIMATED_TRAJECTORY" ]]; then
     exit 1
 fi
 
+# Python script/file or wtv
 python3 - "$ESTIMATED_TRAJECTORY" <<'PY'
 import math
 import sys
