@@ -174,14 +174,15 @@ class PerceptionCommand(CommandTerm):
         if store is None:
             return
         # arm choice, logged at episode reset (last value): locked at all,
-        # agreed with the reference rule at the lock, lock time. The last
-        # two are 0 for episodes without a lock, so their per-locked-episode
+        # agreed with the reference rule at the lock, lock time, right arm
+        # chosen. The last three are 0 for episodes without a lock, so their per-locked-episode
         # means are the logged means divided by arm_committed.
         done = store["committed"].float()
         self.metrics["arm_committed"] = done
         self.metrics["arm_agree_rule"] = (
             (store["assign"] == store["commit_rule"]).float() * done)
         self.metrics["arm_commit_time"] = store["commit_t"] * done
+        self.metrics["arm_right"] = (store["assign"] == 0).float() * done
         if self._face_cfg is None:
             from mjlab.managers.scene_entity_config import SceneEntityCfg
             from humanoid_badminton.assets import FACE_SITES

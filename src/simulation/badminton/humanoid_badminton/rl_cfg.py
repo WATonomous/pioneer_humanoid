@@ -12,15 +12,33 @@ student (on the "student" group) learns to match its actions.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
 
 from mjlab.rl.config import (RslRlBaseRunnerCfg, RslRlModelCfg,
                              RslRlOnPolicyRunnerCfg, RslRlPpoAlgorithmCfg)
 
 HIDDEN = (512, 256, 128)
+# left/right mirror augmentation + mirror loss (humanoid_badminton.symmetry).
+# Without it the cold teacher (cold1) gave the centre band to the right arm:
+# 64% of hits on a bank the strike-plane rule splits 51/49.
+SYMMETRY = {
+    "data_augmentation_func": "humanoid_badminton.symmetry:mirror_obs_actions",
+    "use_data_augmentation": True,
+    "use_mirror_loss": True,
+    "mirror_loss_coeff": 1.0,
+}
+
 # bimanual actor: twice the single-arm width, so scripts/widen_checkpoint.py
 # can warm-start it as two block-diagonal copies of the single-arm actor
 # (right arm, mirrored left arm). The critic keeps HIDDEN.
 ACTOR_HIDDEN = (1024, 512, 256)
+
+
+@dataclass
+class BadmintonPpoAlgorithmCfg(RslRlPpoAlgorithmCfg):
+    """mjlab's PPO cfg plus rsl_rl's symmetry_cfg (None disables it)."""
+
+    symmetry_cfg: dict[str, Any] | None = None
 
 
 def make_teacher_ppo_cfg() -> RslRlOnPolicyRunnerCfg:
@@ -36,7 +54,7 @@ def make_teacher_ppo_cfg() -> RslRlOnPolicyRunnerCfg:
             distribution_cfg={"class_name": "GaussianDistribution",
                               "init_std": 0.5, "std_type": "scalar"}),
         critic=RslRlModelCfg(hidden_dims=HIDDEN, obs_normalization=True),
-        algorithm=RslRlPpoAlgorithmCfg(
+        algorithm=BadmintonPpoAlgorithmCfg(
             learning_rate=3e-4,
             # The early-run collapses at 0.005 (runs 1-2) were caused by the
             # broken arm mount (run 6), not the coefficient: with
@@ -45,7 +63,8 @@ def make_teacher_ppo_cfg() -> RslRlOnPolicyRunnerCfg:
             # the kernels saturated and precision (d@t*) paid for it (run 7).
             entropy_coef=0.005,
             num_learning_epochs=5,
-            num_mini_batches=4),
+            num_mini_batches=4,
+            symmetry_cfg=dict(SYMMETRY)),
     )
 
 
@@ -70,13 +89,14 @@ def make_student_ppo_cfg() -> RslRlOnPolicyRunnerCfg:
             distribution_cfg={"class_name": "GaussianDistribution",
                               "init_std": 0.1, "std_type": "scalar"}),
         critic=RslRlModelCfg(hidden_dims=HIDDEN, obs_normalization=True),
-        algorithm=RslRlPpoAlgorithmCfg(
+        algorithm=BadmintonPpoAlgorithmCfg(
             # fine-tune: a third of the teacher's lr so the first updates
             # (fresh critic, meaningless advantages) do not wreck the init
             learning_rate=1e-4,
             entropy_coef=0.005,
             num_learning_epochs=5,
-            num_mini_batches=4),
+            num_mini_batches=4,
+            symmetry_cfg=dict(SYMMETRY)),
     )
 
 
