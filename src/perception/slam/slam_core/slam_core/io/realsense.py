@@ -20,6 +20,7 @@ dense depth plus a dot-free tracking image.
 Recordings are ROS 2 bags (.db3): librealsense 2.58 can't write the old ROS 1 .bag.
 IMU (gyro + accel) is recorded for later VIO, but not yielded yet.
 """
+import os
 from dataclasses import dataclass
 from typing import Optional
 
@@ -79,6 +80,8 @@ class RealSense:
             cfg.enable_stream(rs.stream.accel)
             cfg.enable_stream(rs.stream.gyro)
         if record:
+            if os.path.exists(record):   # never silently replace a recording
+                raise FileExistsError(f"{record} already exists, pick a new name")
             cfg.enable_record_to_file(record)
         if not play:
             # Apply settings before streaming starts. Changing them mid-stream fails
@@ -256,7 +259,6 @@ if __name__ == "__main__":
     if args.exposure:
         cfg.exposure_us = args.exposure
     if args.record:
-        import os
         if not args.record.endswith(".db3"):
             raise SystemExit("--record path must end in .db3")
         os.makedirs(os.path.dirname(os.path.abspath(args.record)), exist_ok=True)
