@@ -1,6 +1,15 @@
-"""Upright bottle: a cylinder lying horizontally on the table in front of the left arm.
+"""Bowling: stand three bottles back up, cap end on top, on the table in front of the left arm.
 
-Task is for the robot to have the cylinder stand upright, with the cap up.
+Three bottles (8 x 8 x 21 cm boxes for now, 150 g; the cap goes on each one's local +z end) lie on
+their sides. Every reset scatters them to random, non-overlapping spots and directions inside
+SPAWN_X / SPAWN_Y, clear of the robot's stand.
+
+Long horizon, 3 steps, one per bottle in any order: step k is done once k + 1 bottles stand upright
+together, latched in data.userdata[0], so the last step needs all three standing at once. Knocking
+a bottle over after its step doesn't undo the step.
+
+Checks: ``is_upright(model, data, name)`` (long axis within UPRIGHT_TILT of vertical, cap end up,
+centre at standing height on the table, nearly still) and ``all_upright(model, data)``.
 """
 from __future__ import annotations
 
@@ -44,11 +53,6 @@ MAX_TRIES = 20000              # ~1% of random layouts fit, so this many tries n
 
 
 def lying_quat(yaw: float) -> list[float]:
-    """Orientation of a bottle lying on its side, then turned by ``yaw`` (rad) about the vertical.
-
-    MuJoCo stores orientations as quaternions [w, x, y, z]. This is two rotations combined:
-    tip over 90 degrees about the x axis (long axis now horizontal), then spin by yaw about z.
-    """
     tip = math.pi / 2
     return [
         math.cos(yaw / 2) * math.cos(tip / 2),
@@ -59,8 +63,6 @@ def lying_quat(yaw: float) -> list[float]:
 
 
 def bottle_dots(x: float, y: float, yaw: float) -> list[tuple[float, float]]:
-    """Points evenly spaced from one end of a lying bottle to the other, seen from above.
-    """
     half = BOTTLE_HEIGHT / 2
     dots = []
     for k in range(DOTS_PER_BOTTLE):
@@ -74,10 +76,6 @@ def too_close(a: list[tuple[float, float]], b: list[tuple[float, float]]) -> boo
 
 
 def pick_layout(rng, count: int) -> list[tuple[float, float, float]]:
-    """``count`` random (x, y, yaw) bottle poses in the spawn area that don't overlap.
-
-    Draws a whole layout at once and simply redraws it if any two bottles are too close.
-    """
     for _ in range(MAX_TRIES):
         layout = [
             (rng.uniform(*SPAWN_X), rng.uniform(*SPAWN_Y), rng.uniform(0, 2 * math.pi))
@@ -96,11 +94,24 @@ def reset(model: mujoco.MjModel, data: mujoco.MjData, rng) -> None:
         adr = model.joint(f"{name}_free").qposadr[0]   # where this bottle's 7 numbers start in qpos
         data.qpos[adr:adr + 7] = [x, y, z, *lying_quat(yaw)]
 
+
+def step(model: mujoco.MjModel, data: mujoco.MjData) -> None:
+    k = int(data.userdata[0])
+    if k < len(BOTTLE_NAMES) and sum(is_upright(model, data, n) for n in BOTTLE_NAMES) > k:
+        data.userdata[0] = k + 1
+
+
+def progress(model: mujoco.MjModel, data: mujoco.MjData) -> tuple[int, int, str]:
+    k = int(data.userdata[0])
+    total = len(BOTTLE_NAMES)
+    return k, total, f"stand up bottle {min(k, total - 1) + 1} of {total}, cap end on top"
+
 # ---- scene
 @scene("bowling", camera=dict(lookat=[0.38, 0.29, 0.75], distance=2.0, azimuth=200, elevation=-35),
-       reset=reset)
+       step=step, reset=reset, progress=progress)
 def build(spec: mujoco.MjSpec) -> None:
     add_floor(spec)
+    spec.nuserdata = 1                  # [latched step]
     world = spec.worldbody
     box = mujoco.mjtGeom.mjGEOM_BOX     # should make it cylinder (?)
 
@@ -137,17 +148,14 @@ def build(spec: mujoco.MjSpec) -> None:
         mass=BOTTLE_MASS, friction=[1.0, 0.02, 0.001], condim=4, rgba=[0.85, 0.3, 0.2, 1],
     )
 
-# ---- checks
 
-# A bottle counts as upright when its long axis is within UPRIGHT_TILT of vertical with the +z end
-# (where the cap goes) on top, its centre is at standing height above the table, and it is nearly still.
 UPRIGHT_TILT = math.radians(10)
-STANDING_Z_TOL = 0.01          # m, centre height vs. TABLE_TOP_Z + BOTTLE_HEIGHT / 2
-STILL_SPEED = 0.05             # m/s and rad/s
+STANDING_Z_TOL = 0.01
+STILL_SPEED = 0.05
 
 
+# ---- check
 def is_upright(model: mujoco.MjModel, data: mujoco.MjData, name: str) -> bool:
-    """Bottle ``name`` standing cap-up on the table and nearly still."""
     b = model.body(name).id
     long_axis = data.xmat[b].reshape(3, 3)[:, 2]      # bottle's local z in the world frame
     standing = long_axis[2] > math.cos(UPRIGHT_TILT)
