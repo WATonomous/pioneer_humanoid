@@ -45,6 +45,7 @@ setup(
             "perception.dummy_shuttlecock_publisher:main",
             "shuttlecock_localizer_node = "
             "perception.shuttlecock_localizer_node:main",
+            "latency_logger_node = perception.latency_logger_node:main",
         ],
     },
 )
