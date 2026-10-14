@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-# batch GTSAM pose graph over the keyframes written by vo.py
+# Batch GTSAM pose graph over the keyframes written by vo.py
 #
-# the graph has a prior pinning keyframe 0 at the origin, one odometry edge per keyframe
-# (T_prev_kf with kf.covariance as noise), and one edge per loop in loops.txt. the loops are
+# The graph has a prior pinning keyframe 0 at the origin, one odometry edge per keyframe
+# (T_prev_kf with kf.covariance as noise), and one edge per loop in loops.txt. The loops are
 # what correct the drift: with none, the result is the same as the VO trajectory
 #
-# writes <run>/kf_before.txt, kf_after.txt, trajectory_after.txt (TUM format)
-# plot with: evo_traj tum <run>/trajectory_vo.txt <run>/trajectory_after.txt -p --plot_mode xz
+# Writes <run>/kf_before.txt, kf_after.txt, trajectory_after.txt (TUM format)
+# Plot with: evo_traj tum <run>/trajectory_vo.txt <run>/trajectory_after.txt -p --plot_mode xz
 #
-# the real backend will be incremental (iSAM2) and take Keyframes straight from the VO
+# The real backend will be incremental (iSAM2) and take Keyframes straight from the VO
 import argparse
 import os
 
@@ -20,7 +20,7 @@ from slam_core.types import Keyframe
 from slam_core.types.pose import covariance_from_sigmas, from_tum, to_tum
 
 
-# reads a text file into split rows, skipping blank lines and # comments (missing file = no rows)
+# Reads a text file into split rows, skipping blank lines and # comments (missing file = no rows)
 def rows(path):
     if not os.path.exists(path):
         return []
@@ -28,7 +28,7 @@ def rows(path):
         return [line.split() for line in fh if line.strip() and not line.startswith("#")]
 
 
-# reads keyframes.txt back into Keyframe objects, rebuilding each T_odom_kf by chaining T_prev_kf
+# Reads keyframes.txt back into Keyframe objects, rebuilding each T_odom_kf by chaining T_prev_kf
 def read_keyframes(path):
     kfs, odom = [], {}
     for v in rows(path):
@@ -41,7 +41,7 @@ def read_keyframes(path):
     return kfs
 
 
-# writes poses as "stamp tx ty tz qx qy qz qw" lines
+# Writes poses as "stamp tx ty tz qx qy qz qw" lines
 def write_tum(path, stamps, poses):
     with open(path, "w") as fh:
         for s, T in zip(stamps, poses):
@@ -67,18 +67,18 @@ def main():
     def sigmas(rot, trans):
         return gtsam.noiseModel.Diagonal.Sigmas(np.array([rot] * 3 + [trans] * 3))
 
-    # one pose per keyframe, starting from the raw VO pose
+    # One pose per keyframe, starting from the raw VO pose
     for kf in kfs:
         initial.insert(X(kf.id), gtsam.Pose3(kf.T_odom_kf))
         if kf.is_first:
-            # pins the first keyframe, without a prior the whole graph could slide and rotate freely
+            # Pins the first keyframe, without a prior the whole graph could slide and rotate freely
             graph.add(gtsam.PriorFactorPose3(X(kf.id), gtsam.Pose3(kf.T_odom_kf), sigmas(1e-6, 1e-6)))
         else:
-            # odometry edge to the previous keyframe; tracking gaps already carry a huge covariance (~1 m / 1 rad)
+            # Odometry edge to the previous keyframe; tracking gaps already carry a huge covariance (~1 m / 1 rad)
             graph.add(gtsam.BetweenFactorPose3(X(kf.prev_id), X(kf.id), gtsam.Pose3(kf.T_prev_kf),
                                                gtsam.noiseModel.Gaussian.Covariance(kf.covariance)))
 
-    # loop edges say "keyframe new is at T_old_new in keyframe old's frame". Huber
+    # Loop edges say "keyframe new is at T_old_new in keyframe old's frame". Huber
     # down-weights a loop that disagrees strongly with everything else (likely false),
     # so one wrong loop can't drag the whole map
     loops = rows(os.path.join(args.run, "loops.txt"))
@@ -91,12 +91,12 @@ def main():
 
     first, last = kfs[0].id, kfs[-1].id
 
-    # solves the whole graph at once with Levenberg-Marquardt
+    # Solves the whole graph at once with Levenberg-Marquardt
     params = gtsam.LevenbergMarquardtParams()
     params.setMaxIterations(100)
     result = gtsam.LevenbergMarquardtOptimizer(graph, initial, params).optimize()
 
-    # prints how much the graph error and the end to start distance dropped
+    # Prints how much the graph error and the end to start distance dropped
     before = {kf.id: kf.T_odom_kf for kf in kfs}
     after = {kf.id: result.atPose3(X(kf.id)).matrix() for kf in kfs}
 
@@ -108,12 +108,12 @@ def main():
     print(f"graph error   before {graph.error(initial):.3f}   after {graph.error(result):.3f}")
     print(f"last KF to first KF   before {gap(before):.3f} m   after {gap(after):.3f} m")
 
-    # saves the keyframe poses before and after optimizing
+    # Saves the keyframe poses before and after optimizing
     stamps = [kf.stamp for kf in kfs]
     write_tum(os.path.join(args.run, "kf_before.txt"), stamps, [before[kf.id] for kf in kfs])
     write_tum(os.path.join(args.run, "kf_after.txt"), stamps, [after[kf.id] for kf in kfs])
 
-    # moves every frame along with its optimized keyframe: T_odom_cur = T_odom_kf(after) @ T_kf_cur
+    # Moves every frame along with its optimized keyframe: T_odom_cur = T_odom_kf(after) @ T_kf_cur
     fs, fT = [], []
     for v in rows(os.path.join(args.run, "frames.txt")):
         fs.append(float(v[0]))
