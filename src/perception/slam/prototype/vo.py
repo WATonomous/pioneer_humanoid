@@ -300,7 +300,10 @@ class VO:
 
         # candidates are keyframes from long enough ago that VO places nearby, closest first
         t = new.kf.T_odom_kf[:3, 3]
-        dist = lambda r: np.linalg.norm(r.kf.T_odom_kf[:3, 3] - t)   # noqa: E731
+
+        def dist(r):
+            return np.linalg.norm(r.kf.T_odom_kf[:3, 3] - t)
+
         old = [r for r in self.refs if r.kf.stamp < new.kf.stamp - p.loop_min_time and dist(r) < p.loop_radius]
         old.sort(key=dist)
 

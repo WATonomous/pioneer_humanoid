@@ -61,9 +61,11 @@ def main():
 
     graph = gtsam.NonlinearFactorGraph()
     initial = gtsam.Values()
+
     # GTSAM's Pose3 noise is rotation first (rx ry rz tx ty tz), the same order as
     # Keyframe.covariance, so it can be passed straight in
-    sigmas = lambda rot, trans: gtsam.noiseModel.Diagonal.Sigmas(np.array([rot] * 3 + [trans] * 3))  # noqa: E731
+    def sigmas(rot, trans):
+        return gtsam.noiseModel.Diagonal.Sigmas(np.array([rot] * 3 + [trans] * 3))
 
     # one pose per keyframe, starting from the raw VO pose
     for kf in kfs:
@@ -97,7 +99,10 @@ def main():
     # prints how much the graph error and the end to start distance dropped
     before = {kf.id: kf.T_odom_kf for kf in kfs}
     after = {kf.id: result.atPose3(X(kf.id)).matrix() for kf in kfs}
-    gap = lambda P: np.linalg.norm(P[last][:3, 3] - P[first][:3, 3])   # noqa: E731
+
+    def gap(P):
+        return np.linalg.norm(P[last][:3, 3] - P[first][:3, 3])
+
     n_gaps = sum(kf.tracking_gap for kf in kfs)
     print(f"{len(kfs)} keyframes, {n_gaps} tracking gaps, {len(loops)} loops")
     print(f"graph error   before {graph.error(initial):.3f}   after {graph.error(result):.3f}")

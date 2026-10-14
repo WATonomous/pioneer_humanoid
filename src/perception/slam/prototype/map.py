@@ -118,7 +118,7 @@ def write_reveal(path, run, images, poses, args):
     line = m.LinePrimitive(type=m.LinePrimitiveLineType.LineStrip, thickness=3, scale_invariant=True,
                            points=[p3(t) for t in traj[:, 1:4]], color=m.Color(r=0.2, g=0.6, b=1.0, a=1.0))
     foxglove.log("/vo/trajectory", m.SceneUpdate(entities=[m.SceneEntity(timestamp=stamp, frame_id="odom",
-                                                                          id="trajectory", lines=[line])]), log_time=t_ns)
+                                                                         id="trajectory", lines=[line])]), log_time=t_ns)
 
     # the corrected keyframes as green cubes, with a yellow line between each loop pair
     cubes = [m.CubePrimitive(pose=pose(T), size=m.Vector3(x=0.04, y=0.04, z=0.04), color=m.Color(r=0.3, g=1.0, b=0.3, a=1.0))
@@ -129,7 +129,7 @@ def write_reveal(path, run, images, poses, args):
         lines.append(m.LinePrimitive(type=m.LinePrimitiveLineType.LineList, thickness=4, scale_invariant=True,
                                      points=lp, color=m.Color(r=1.0, g=0.9, b=0.0, a=1.0)))
     foxglove.log("/vo/keyframes", m.SceneUpdate(entities=[m.SceneEntity(timestamp=stamp, frame_id="odom",
-                                                                         id="keyframes", cubes=cubes, lines=lines)]),
+                                                                        id="keyframes", cubes=cubes, lines=lines)]),
                  log_time=t_ns)
 
     # moves the camera to its optimized final pose too, and clears the live depth cloud
@@ -231,8 +231,11 @@ def main():
     if args.foxglove:
         # uses the same poses as the map: the optimized trajectory with --poses after, else the raw VO
         traj = os.path.join(args.run, "trajectory_after.txt" if args.poses == "after" else "trajectory_vo.txt")
+
         # rotates odom positions into the z-up world frame
-        to_world = lambda P: P @ R_WORLD_ODOM.T   # noqa: E731
+        def to_world(P):
+            return P @ R_WORLD_ODOM.T
+
         path = to_world(np.loadtxt(traj, ndmin=2)[:, 1:4]) if os.path.exists(traj) else np.zeros((0, 3))
         kf_pos = to_world(np.array([T[:3, 3] for T in poses]))
         show_foxglove(pts, gray, path, kf_pos)

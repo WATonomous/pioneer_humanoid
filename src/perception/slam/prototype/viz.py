@@ -69,7 +69,7 @@ class FoxgloveViz:
             line = m.LinePrimitive(type=m.LinePrimitiveLineType.LineStrip, thickness=3, scale_invariant=True,
                                    points=pts, color=m.Color(r=0.2, g=0.6, b=1.0, a=1.0))
             log("/vo/trajectory", m.SceneUpdate(entities=[m.SceneEntity(timestamp=stamp, frame_id="odom",
-                                                                         id="trajectory", lines=[line])]),
+                                                                        id="trajectory", lines=[line])]),
                 log_time=t_ns)
 
         # when VO made a new keyframe, redraws the keyframes and adds its depth to the live map
