@@ -1,7 +1,7 @@
 # Per-motor MIT (Force Control) protocol scaling constants, from the CubeMars AK-series
 # manual (V3.2.0, section 4.2 "Parameter Ranges"). These are the physical MIN/MAX each
 # motor model uses to pack floats into the MIT CAN frame's raw fixed-point fields -- they
-# are NOT the same as hardware_mapping.yaml's calibration (zero_offset/direction/limits),
+# are NOT the same as arm_calibration.yaml's calibration (zero_offset/direction/limits),
 # which only applies to POSITION_LOOP. Wrong values here would pack an incorrect raw code
 # and command an unintended stiffness/torque/position via MIT_CONTROL.
 # GL40 ranges are the GL II manual V1.0 section 5 defaults. Ranges are per-drive settings
@@ -14,7 +14,7 @@
 #
 # position (rad), velocity (rad/s), torque (N.m); kp/kd ranges are shared across AK models.
 # gl2 velocity is in the drive's "r/s".
-# Keyed by motor CAN id (decimal), matching hardware_mapping.yaml's left-arm can_id values.
+# Keyed by motor CAN id (decimal), matching arm_calibration.yaml's left-arm can_id values.
 
 motors:
   # AK10-9 -- shoulder_pitch (0x0E), shoulder_roll (0x0D)

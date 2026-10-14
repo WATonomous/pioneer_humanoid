@@ -1,19 +1,18 @@
 """Vial-rack manipulation scene for the pioneer bimanual arm.
 
 Registered as ``@scene("vial_rack")`` -- teleop picks it up via discovery, no
-wiring anywhere else. Grounding follows
-``tools/isaac_harness/scenes/bimanual_vial_rack.sh``: the arm at the origin (no
-floor-stand lift) and a low table (top at ``TABLE_TOP_Z``) so the rack/vials sit
-in the arm's manipulation reach. Rack + vial USDs are the so101 vial task's
-assets.
+wiring anywhere else. Built on the lightbox workcell
+(``humanoid_rl_tasks.workcell``): arm on its floor stand at ``ROBOT_BASE_POS``,
+rack + vials on the 30.5-inch table top at ``TABLE_TOP_Z``. Rack + vial USDs
+are the so101 vial task's assets.
 
 ``robot`` / ``ee_frame`` are ``MISSING`` -- ``humanoid_isaac_scenes.make_scene_cfg``
 plugs in the caller's arm.
 
-FIRST PASS: the rack / vial xy placement is the harness starting point, pulled
-in ~0.1 m. It should get a reach-tuning pass against the arm that actually
-drives it (keyboard_teleop drives the LEFT / L-suffix chain) -- driving the
-scene once is that loop.
+FIRST PASS: the vials sit ~0.30 m in front of the arm base -- the same reach
+as the push task's block -- with the rack just behind them. It should get a
+reach-tuning pass against the arm that actually drives it (keyboard_teleop
+drives the LEFT / L-suffix chain) -- driving the scene once is that loop.
 """
 from __future__ import annotations
 
@@ -21,29 +20,24 @@ from dataclasses import MISSING
 from pathlib import Path
 
 import isaaclab.sim as sim_utils
-from isaaclab.assets import ArticulationCfg, AssetBaseCfg, RigidObjectCfg
-from isaaclab.scene import InteractiveSceneCfg
+from isaaclab.assets import AssetBaseCfg, RigidObjectCfg
 from isaaclab.sensors.frame_transformer.frame_transformer_cfg import FrameTransformerCfg
 from isaaclab.utils import configclass
 
 from humanoid_isaac_scenes import scene
+from humanoid_rl_tasks.workcell import ROBOT_BASE_POS, ROBOT_BASE_X, TABLE_TOP_Z, LightboxWorkcellCfg
 
 _ASSETS = Path(__file__).resolve().parents[5] / "assets" / "lerobot" / "so101_vial_task" / "usd"
 VIAL_RACK_USD = str(_ASSETS / "Vial_rack_simple.usda")
 VIAL_USD = str(_ASSETS / "Vial_opaque.usda")
 
-# ── grounding (harness bimanual_vial_rack.sh) ────────────────────────────────
-GROUND_Z = -1.05
-TABLE_SIZE = (0.9, 1.2, 0.05)
-TABLE_POS = (0.55, -0.15, -0.275)   # top at TABLE_TOP_Z
-TABLE_TOP_Z = TABLE_POS[2] + TABLE_SIZE[2] / 2  # -0.25
-
 # ── rack + vials (first pass; reach-tune against the LEFT arm) ────────────────
-RACK_POS = (0.48, -0.32, TABLE_TOP_Z)
+# Offsets from the arm base in x; y is negative = the LEFT arm's side.
+RACK_POS = (ROBOT_BASE_X + 0.37, -0.32, TABLE_TOP_Z)
 VIAL_INIT_POS = [
-    (0.42, -0.05, TABLE_TOP_Z + 0.03),
-    (0.42, -0.13, TABLE_TOP_Z + 0.03),
-    (0.42, -0.21, TABLE_TOP_Z + 0.03),
+    (ROBOT_BASE_X + 0.30, -0.05, TABLE_TOP_Z + 0.03),
+    (ROBOT_BASE_X + 0.30, -0.13, TABLE_TOP_Z + 0.03),
+    (ROBOT_BASE_X + 0.30, -0.21, TABLE_TOP_Z + 0.03),
 ]
 
 _VIAL_RIGID_PROPS = sim_utils.RigidBodyPropertiesCfg(
@@ -54,33 +48,16 @@ _VIAL_RIGID_PROPS = sim_utils.RigidBodyPropertiesCfg(
 )
 
 
-@scene("vial_rack", robot_pos=(0.0, 0.0, 0.0), camera=([1.1, -1.1, 0.4], [0.45, -0.2, -0.2]))
+@scene(
+    "vial_rack",
+    robot_pos=ROBOT_BASE_POS,
+    camera=([1.3, -1.3, TABLE_TOP_Z + 0.65], [ROBOT_BASE_X + 0.35, -0.2, TABLE_TOP_Z]),
+)
 @configclass
-class VialRackSceneCfg(InteractiveSceneCfg):
-    """Table + vial rack + 3 loose vials, for pioneer-arm vial-placement teleop."""
+class VialRackSceneCfg(LightboxWorkcellCfg):
+    """Vial rack + 3 loose vials in the lightbox workcell, for vial-placement teleop."""
 
-    robot: ArticulationCfg = MISSING
     ee_frame: FrameTransformerCfg = MISSING
-
-    ground = AssetBaseCfg(
-        prim_path="/World/GroundPlane",
-        init_state=AssetBaseCfg.InitialStateCfg(pos=(0.0, 0.0, GROUND_Z)),
-        spawn=sim_utils.GroundPlaneCfg(),
-    )
-    light = AssetBaseCfg(
-        prim_path="/World/light",
-        spawn=sim_utils.DomeLightCfg(color=(0.75, 0.75, 0.75), intensity=3000.0),
-    )
-
-    table = AssetBaseCfg(
-        prim_path="{ENV_REGEX_NS}/Table",
-        init_state=AssetBaseCfg.InitialStateCfg(pos=TABLE_POS),
-        spawn=sim_utils.CuboidCfg(
-            size=TABLE_SIZE,
-            collision_props=sim_utils.CollisionPropertiesCfg(),
-            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.35, 0.25, 0.15)),
-        ),
-    )
 
     # kinematic rack (collidable, not physics-driven)
     vial_rack = AssetBaseCfg(

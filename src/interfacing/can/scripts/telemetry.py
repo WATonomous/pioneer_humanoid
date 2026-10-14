@@ -15,7 +15,7 @@ CSV columns:
     t_s        seconds since the run started
     source     "script" (raw SocketCAN bench tool) or "ros" (joint_command pipeline)
     motor_id   CAN node id
-    joint      human name from hardware_mapping.yaml, e.g. shoulder.pitch
+    joint      human name from arm_calibration.yaml, e.g. shoulder.pitch
     phase      hold | ramp | settle | monitor | step | stream | dwell | return | rest
     sp_deg     setpoint actually SENT to the motor, degrees (after clamp/rate limiting)
     sp_raw_deg the angle that was REQUESTED before moderation (ros source only)
@@ -402,7 +402,7 @@ def motor_metrics(rows, meta: Optional[Dict[str, Any]] = None) -> Dict[str, Any]
               (hi is None or m["max_pos_deg"] <= hi + margin))
         checks.append(("position stayed inside soft limits", ok,
                        f"[{m['min_pos_deg']:.1f}, {m['max_pos_deg']:.1f}] vs {soft} deg"))
-    # ROS runs: commanded must sit exactly inside hardware_mapping.yaml's range; measured gets
+    # ROS runs: commanded must sit exactly inside arm_calibration.yaml's range; measured gets
     # 2 deg for sag. Joints joint_command never commanded are not judged.
     joint = next((r.get("joint") for r in rows if r.get("joint")), "")
     per_joint = (limits.get("per_joint_deg") or {}).get(joint)

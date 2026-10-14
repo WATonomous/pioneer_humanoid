@@ -32,7 +32,7 @@ from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy
 
 from common_msgs.msg import ArmPose, MotorCmd, MotorFeedback
 
-from joint_config import find_mapping, load_joint_map, load_safety_limits, max_torque_by_joint
+from joint_config import find_calibration, load_joint_map, load_actuator_limits, max_torque_by_joint
 from telemetry import RunFolder
 
 # GL II status nibble (MIT feedback). Servo feedback uses the DBC's own error codes.
@@ -142,16 +142,16 @@ def main(argv=None) -> int:
     ap.add_argument("--duration", type=float, default=0.0,
                     help="seconds to record; 0 = until Ctrl-C (default)")
     ap.add_argument("--rate", type=float, default=50.0, help="sampling rate, Hz (default 50)")
-    ap.add_argument("--mapping", help="path to hardware_mapping.yaml")
-    ap.add_argument("--safety-limits", help="path to safety_limits.yaml")
+    ap.add_argument("--calibration", "--mapping", dest="mapping", help="path to arm_calibration.yaml")
+    ap.add_argument("--actuators", "--safety-limits", dest="actuators", help="path to arm_actuators.yaml")
     ap.add_argument("--arm-side", default="left")
     ap.add_argument("--motors", help="comma-separated motor ids to record (default: all seen)")
     ap.add_argument("--no-log", action="store_true", help="print only, write nothing")
     args = ap.parse_args(argv)
 
-    mapping_path = find_mapping(args.mapping)
+    mapping_path = find_calibration(args.mapping)
     joint_map = load_joint_map(mapping_path, args.arm_side)
-    velocity_max, mit_limits = load_safety_limits(args.safety_limits)
+    velocity_max, mit_limits = load_actuator_limits(args.actuators)
     motors = [int(x) for x in args.motors.split(",")] if args.motors else None
 
     log = RunFolder(
@@ -161,7 +161,7 @@ def main(argv=None) -> int:
         meta={
             "tool": "telemetry_record.py",
             "arm_side": args.arm_side,
-            "mapping": str(mapping_path),
+            "calibration": str(mapping_path),
             "rate_hz": args.rate,
             "frame": "command frame (degrees) for both sp_deg and pos_deg",
             "joints": {str(mid): info["name"] for mid, info in sorted(joint_map.items())},
@@ -176,7 +176,7 @@ def main(argv=None) -> int:
                 "mit": mit_limits,
                 "max_torque_nm": min((v["max_torque_nm"] for v in mit_limits.values()
                                       if v.get("max_torque_nm") is not None), default=None),
-                "max_torque_nm_by_joint": max_torque_by_joint(args.safety_limits),
+                "max_torque_nm_by_joint": max_torque_by_joint(args.actuators),
                 "max_track_err_deg": min((v["max_track_err_deg"] for v in mit_limits.values()
                                           if v.get("max_track_err_deg") is not None),
                                          default=None),

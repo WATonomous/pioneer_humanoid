@@ -9,11 +9,8 @@ its ``MISSING`` robot slot.
 from __future__ import annotations
 
 from humanoid_isaac_scenes import scene
-from humanoid_rl_tasks.push_block.scene import PushBlockSceneCfg, ROBOT_STAND_LIFT_Z
+from humanoid_rl_tasks.push_block.scene import PushBlockSceneCfg, ROBOT_BASE_POS
+from humanoid_rl_tasks.workcell import WORKCELL_CAMERA
 
-# Arm lifted onto its floor stand; camera framed on the table + ramp box.
-scene(
-    "push",
-    robot_pos=(0.0, 0.0, ROBOT_STAND_LIFT_Z),
-    camera=([1.4, -1.0, 0.9], [0.35, -0.2, 0.05]),
-)(PushBlockSceneCfg)
+# Arm on its floor stand in the lightbox workcell; camera framed on the table top.
+scene("push", robot_pos=ROBOT_BASE_POS, camera=WORKCELL_CAMERA)(PushBlockSceneCfg)
