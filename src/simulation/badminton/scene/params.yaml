@@ -80,7 +80,12 @@ arm:
   # from the body (right arm), j4 + = elbow flexes forward.
   # Same joint order as control.kp.
   joint_range:
-    - [-2.3, 0.6]    # joint1 shoulder pitch (forward flexion negative); URDF lower -2.304
+    # joint1 shoulder pitch (forward flexion negative). URDF lower -2.304,
+    # but the URDF gives joint1L the same unmirrored [-2.304, 1.780] although
+    # every other left joint is mirrored, which capped left forward flexion
+    # at 1.78. Both arms use the more restrictive 1.78 until the mechanical
+    # stops are measured on the robot.
+    - [-1.78, 0.6]
     - [-1.57, 0.349] # joint2 shoulder roll (abduction negative); URDF [-1.571, 0.349]
     - [-1.39, 1.6]   # joint3 upper-arm rotation; URDF lower -1.396
     - [-0.1, 2.31]   # joint4 elbow (flexes forward only); URDF upper 2.313
