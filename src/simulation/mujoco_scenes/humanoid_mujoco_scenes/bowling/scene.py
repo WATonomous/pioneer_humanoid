@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import math
 import mujoco
+import numpy as np
 
 from humanoid_mujoco_scenes import add_floor, scene
 
@@ -135,3 +136,26 @@ def build(spec: mujoco.MjSpec) -> None:
         name="bottle3", type=box, size=[BOTTLE_SIZE / 2, BOTTLE_SIZE / 2, BOTTLE_HEIGHT / 2],
         mass=BOTTLE_MASS, friction=[1.0, 0.02, 0.001], condim=4, rgba=[0.85, 0.3, 0.2, 1],
     )
+
+# ---- checks
+
+# A bottle counts as upright when its long axis is within UPRIGHT_TILT of vertical with the +z end
+# (where the cap goes) on top, its centre is at standing height above the table, and it is nearly still.
+UPRIGHT_TILT = math.radians(10)
+STANDING_Z_TOL = 0.01          # m, centre height vs. TABLE_TOP_Z + BOTTLE_HEIGHT / 2
+STILL_SPEED = 0.05             # m/s and rad/s
+
+
+def is_upright(model: mujoco.MjModel, data: mujoco.MjData, name: str) -> bool:
+    """Bottle ``name`` standing cap-up on the table and nearly still."""
+    b = model.body(name).id
+    long_axis = data.xmat[b].reshape(3, 3)[:, 2]      # bottle's local z in the world frame
+    standing = long_axis[2] > math.cos(UPRIGHT_TILT)
+    on_table = abs(data.xpos[b][2] - (TABLE_TOP_Z + BOTTLE_HEIGHT / 2)) < STANDING_Z_TOL
+    v = np.zeros(6)
+    mujoco.mj_objectVelocity(model, data, mujoco.mjtObj.mjOBJ_BODY, b, v, 0)
+    return bool(standing and on_table and np.linalg.norm(v) < STILL_SPEED)
+
+
+def all_upright(model: mujoco.MjModel, data: mujoco.MjData) -> bool:
+    return all(is_upright(model, data, name) for name in BOTTLE_NAMES)
