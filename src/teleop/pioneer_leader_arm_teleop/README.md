@@ -69,17 +69,40 @@ python pioneer_leader_arm_teleop.py --target mujoco --scene peg_insert   # macOS
 
 Scenes: `bare`, `peg_insert`, `zip_tie`, `drawer_stow`, `matcha`, `duplo`, or any scene in `humanoid_mujoco_scenes` (see `src/simulation/mujoco_scenes/`).
 
-- **Home:** the arm starts at home (elbow bent 90°, forearm forward, gripper open) and follows the leader only once every leader joint is within 3° of home and the gripper is open. The status line lists the joints still off.
+The MuJoCo backend runs in its own window (click it once; keys go there), not `mujoco.viewer`, whose letter keys
+toggle display options. Mouse: left drag orbits, right drag pans, wheel zooms.
+
+### No calibration: `--relative`
+
+```bash
+python pioneer_leader_arm_teleop.py --target mujoco --scene tidy_table --relative --record --cameras top,wrist_left
+```
+
+The sim arm waits at home wherever the leader is. Put the leader where you want it (gripper open), then press
+`S` in the scene window: that pose becomes the reference, and each sim joint then moves by as much as its
+leader joint does from there. With `--record`, `S` also starts the take. No `leader_calibration.json`, no moving
+the leader to home. After every reset or saved take the arm is back at home, waiting for `S` again.
+MuJoCo backend only.
+The leader's pose no longer matches the arm's, only its motion does, so rest the leader somewhere comfortable
+with room to move in every direction. Joint for joint, signs, limits and smoothing are as below.
+**Sim only:** a real arm must never be driven from a leader whose zero is wherever it happened to be.
+
+- **Home:** the arm starts at home (elbow bent 90°, forearm forward, gripper open) and follows the leader only once every leader joint is within 3° of home and the gripper is open. The status line lists the joints still off. (`--relative`: once you press `S`, see above.)
 - **Directions:** move one leader joint at a time. If a sim joint goes the wrong way, restart with that entry flipped in `--signs` (order A..G, default `1,-1,-1,1,1,-1,1`).
 - **R:** reset the arm and every object in the scene; the arm waits at home until the leader is back at home. During a take, it also discards the take.
-- **`--record`:** `S` start · `N` save (then auto-reset) · `D` discard → `<repo>/datasets/pioneer_v1_left_arm/sim/` · `--cameras ego,wrist_left` / `none`.
+- **`--record`** → `<repo>/datasets/pioneer_v1_left_arm/sim/` · `--cameras ego,wrist_left` / `none`.
+  Isaac: `S` start · `N` save (then auto-reset) · `D` discard.
+  MuJoCo: `S` starts a take (the window shows `RECORDING`); when the scene's last step is done the arm glides
+  home by itself, the leader ignored, and the take is saved, then a new layout comes up. `N` save now ·
+  `B` discard.
   Besides the arm cameras, `--cameras` takes a camera the scene itself has (`tidy_table`: `--cameras top,wrist_left`).
-  Every frame also stores the leader's encoders, servos A..G: `leader_angles` (rad, calibrated, hanging = 0) and
+  Every frame also stores the leader's encoders, servos A..G: `leader_angles` (rad, calibrated, hanging = 0; with
+  `--relative`, from where the leader was at startup) and
   `leader_counts` (raw counts). They are not `observation.*` features, so policies don't train on them.
 - **Multi-step scenes** (`drawer_stow`, `matcha`, `duplo`): the terminal prints `[TASK] step k/n: <instruction>` as each step is done and
-  `all steps done -- N to save` at the end. Recorded frames carry the current step's instruction as their `task` and a
+  `all steps done` at the end. Recorded frames carry the current step's instruction as their `task` and a
   `subtask_index`, so a take is labelled step by step with no hand annotation.
-  In the MuJoCo viewer these keys (and R) also toggle display flags (shadows, reflections, …); harmless.
+
 - Other flags: `--port`, `--baud`, `--calibration` (default `leader_calibration.json`), `--filter-alpha` (target smoothing, default 0.35).
 
 Targets are clamped to the arm's URDF limits. Wrist damping is lowered to 2.5 in this teleop only, so the sim wrist keeps up with the leader.
@@ -90,7 +113,7 @@ Targets are clamped to the arm's URDF limits. Wrist damping is lowered to 2.5 in
 |------|------|
 | `pioneer_leader_arm_teleop.py` | entry; `--target` picks the backend before any simulator import |
 | `isaac_sim.py` / `mujoco_sim.py` | backends |
-| `leader_mapping.py` | shared: 1:1 mapping, home check, filter, gripper closure, leader read, wall-clock pacing |
+| `leader_mapping.py` | shared: 1:1 mapping, home check or `--relative` start, filter, gripper closure, leader read, wall-clock pacing |
 | `servo_leader.py` / `arm_limits.py` | servo bus reader / clamp + gripper fraction |
 | `calibrate_leader.py` | stores the hanging-pose zero |
 | `encoder_test.py` | servo bring-up, no simulator |
