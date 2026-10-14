@@ -31,11 +31,13 @@ def main() -> None:
     ap.add_argument("--student", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--device", default="cuda:0")
+    ap.add_argument("--task", default=TASK,
+                    help="student-PPO task (e.g. Mjlab-Badminton-Shared-Student-PPO)")
     args = ap.parse_args()
 
-    env_cfg = load_env_cfg(TASK)
+    env_cfg = load_env_cfg(args.task)
     env_cfg.scene.num_envs = 16
-    agent_cfg = load_rl_cfg(TASK)
+    agent_cfg = load_rl_cfg(args.task)
     env = ManagerBasedRlEnv(cfg=env_cfg, device=args.device)
     env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
     runner = MjlabOnPolicyRunner(env, asdict(agent_cfg), device=args.device)

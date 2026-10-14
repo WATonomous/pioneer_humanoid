@@ -236,3 +236,8 @@ control:
   # crosses y = assign_strike_y (the mean of the launcher's p* y).
   arm_select_threshold: 0.5
   assign_strike_y: -1.6          # m
+  # shared-arm tasks (humanoid_badminton/shared.py): in training the active
+  # arm holds the ready pose for a random delay in [0, shared_go_max_s]
+  # before the policy drives it; in deployment the critic-based chooser
+  # must lock an arm by this time. 0.2 s = 10 control ticks.
+  shared_go_max_s: 0.2

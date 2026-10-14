@@ -143,3 +143,38 @@ def make_distill_cfg() -> RslRlDistillationRunnerCfg:
         load_run=".*badminton_teacher.*",
         obs_groups={"student": ("student",), "teacher": ("teacher",)},
     )
+
+
+# -- shared-arm tasks (humanoid_badminton/shared.py) ------------------------
+# One single-arm network drives whichever arm is active, so the actor keeps
+# the single-arm width (HIDDEN) and loads models/badminton_teacher/
+# model_5996.pt as is. No symmetry augmentation: the mirror is in the
+# observation frame. The student PPO critic reads the "student" group (not
+# "teacher") because at deployment the critic picks the arm and must run on
+# what the robot observes.
+
+
+def make_shared_teacher_ppo_cfg() -> RslRlOnPolicyRunnerCfg:
+    cfg = make_teacher_ppo_cfg()
+    cfg.experiment_name = "badminton_shared_teacher"
+    cfg.actor.hidden_dims = HIDDEN
+    cfg.algorithm.symmetry_cfg = None
+    return cfg
+
+
+def make_shared_student_ppo_cfg() -> RslRlOnPolicyRunnerCfg:
+    cfg = make_student_ppo_cfg()
+    cfg.experiment_name = "badminton_shared_student_ppo"
+    cfg.obs_groups = {"actor": ("student",), "critic": ("student",)}
+    cfg.actor.hidden_dims = HIDDEN
+    cfg.algorithm.symmetry_cfg = None
+    return cfg
+
+
+def make_shared_distill_cfg() -> RslRlDistillationRunnerCfg:
+    cfg = make_distill_cfg()
+    cfg.experiment_name = "badminton_shared_student"
+    cfg.load_run = ".*badminton_shared_teacher.*"
+    cfg.student.hidden_dims = HIDDEN
+    cfg.teacher.hidden_dims = HIDDEN
+    return cfg

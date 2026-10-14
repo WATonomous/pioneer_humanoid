@@ -162,7 +162,9 @@ class RecordedData:
 
 
 def load_policy(task: str, checkpoint: str, device: str, num_envs: int):
-    env_cfg = load_env_cfg(task)
+    # shared-arm tasks: the play cfg waits for the critic chooser's lock
+    shared_task = task.startswith("Mjlab-Badminton-Shared")
+    env_cfg = load_env_cfg(task, play=shared_task)
     env_cfg.scene.num_envs = num_envs
     agent_cfg = load_rl_cfg(task)
     env = ManagerBasedRlEnv(cfg=env_cfg, device=device)
@@ -174,7 +176,13 @@ def load_policy(task: str, checkpoint: str, device: str, num_envs: int):
     runner.load(checkpoint,
                 load_cfg={"student": True} if distilled else {"actor": True},
                 strict=True, map_location=device)
-    return env, runner.get_inference_policy(device=device)
+    policy = runner.get_inference_policy(device=device)
+    if shared_task:
+        assert not distilled, "demo a shared PPO checkpoint (it has the critic)"
+        from humanoid_badminton import shared
+        policy = shared.make_chooser(env, policy, task, checkpoint, device,
+                                     margin=0.5)
+    return env, policy
 
 
 @torch.no_grad()

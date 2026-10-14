@@ -45,9 +45,24 @@ def main() -> None:
                          "global reset (default: skipped - those hit 90-95%% "
                          "vs 98-99.6%% steady state, so they bias the bank "
                          "number down)")
+    ap.add_argument("--margin", type=float, default=0.5,
+                    help="shared-arm tasks: critic value gap that locks an "
+                         "arm (ChooserPolicy)")
+    ap.add_argument("--t-max", type=float, default=None,
+                    help="shared-arm tasks: lock by this time regardless "
+                         "(default params control.shared_go_max_s)")
+    ap.add_argument("--critic-task", default=None,
+                    help="shared-arm tasks: task whose critic picks the arm "
+                         "(default: --task; required for a distilled student)")
+    ap.add_argument("--critic-checkpoint", default=None,
+                    help="checkpoint holding that critic (default: "
+                         "--checkpoint-file)")
     args = ap.parse_args()
 
-    env_cfg = load_env_cfg(args.task)
+    shared_task = args.task.startswith("Mjlab-Badminton-Shared")
+    # shared-arm tasks: the play cfg waits for the chooser's lock and adds
+    # the per-arm observation groups the critic reads
+    env_cfg = load_env_cfg(args.task, play=shared_task)
     env_cfg.scene.num_envs = args.num_envs
     agent_cfg = load_rl_cfg(args.task)
     env = ManagerBasedRlEnv(cfg=env_cfg, device=args.device)
@@ -63,6 +78,17 @@ def main() -> None:
                 load_cfg={"student": True} if distilled else {"actor": True},
                 strict=True, map_location=args.device)
     policy = runner.get_inference_policy(device=args.device)
+    if shared_task:
+        from humanoid_badminton import shared
+        if distilled and args.critic_checkpoint is None:
+            sys.exit("a distilled student has no critic: pass "
+                     "--critic-task/--critic-checkpoint (its teacher's)")
+        policy = shared.make_chooser(
+            env, policy, args.critic_task or args.task,
+            args.critic_checkpoint or args.checkpoint_file, args.device,
+            args.margin, args.t_max)
+        print(f"chooser: critic of {args.critic_task or args.task}, margin "
+              f"{policy.margin}, lock by {policy.t_max} s")
 
     base_y = aero.load_params()["arm"]["base_y"]
     store = env.unwrapped._badminton

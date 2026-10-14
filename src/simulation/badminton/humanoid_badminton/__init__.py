@@ -1,6 +1,6 @@
 """mjlab (MuJoCo Warp) training tasks for the badminton receive env.
 
-Importing this package registers three tasks (bimanual: two arms, a racket
+Importing this package registers six tasks (bimanual: two arms, a racket
 in each hand, the policy picks one arm per shot):
 
   Mjlab-Badminton-Receive-Teacher   PPO on privileged observations (true
@@ -9,6 +9,13 @@ in each hand, the policy picks one arm per shot):
                                     student observation set (EKF-tracked
                                     shuttle + noisy trajectory prior)
   Mjlab-Badminton-Receive-Student-PPO PPO fine-tune of the distilled student
+
+  Mjlab-Badminton-Shared-{Teacher,Student,Student-PPO}
+                                    the same three phases with the shared-
+                                    arm architecture (humanoid_badminton/
+                                    shared.py): one single-arm policy drives
+                                    either arm in that arm's frame, and the
+                                    critic picks the arm at deployment
 
 Run from the stationary/ directory (the package imports aero/launcher/
 perception_torch from there):
@@ -30,8 +37,12 @@ from mjlab.tasks.registry import register_mjlab_task  # noqa: E402
 from rsl_rl.runners import DistillationRunner  # noqa: E402
 
 from humanoid_badminton.env_cfg import make_env_cfg  # noqa: E402
+from humanoid_badminton.env_cfg_shared import make_shared_env_cfg  # noqa: E402
 from humanoid_badminton.rl_cfg import (make_distill_cfg, make_student_ppo_cfg,  # noqa: E402
-                                       make_teacher_ppo_cfg)
+                                       make_teacher_ppo_cfg,
+                                       make_shared_distill_cfg,
+                                       make_shared_student_ppo_cfg,
+                                       make_shared_teacher_ppo_cfg)
 
 
 class BadmintonDistillationRunner(DistillationRunner):
@@ -75,4 +86,26 @@ register_mjlab_task(
     env_cfg=make_env_cfg(),
     play_env_cfg=make_env_cfg(play=True),
     rl_cfg=make_student_ppo_cfg(),
+)
+
+register_mjlab_task(
+    "Mjlab-Badminton-Shared-Teacher",
+    env_cfg=make_shared_env_cfg(),
+    play_env_cfg=make_shared_env_cfg(play=True, chooser=True),
+    rl_cfg=make_shared_teacher_ppo_cfg(),
+)
+
+register_mjlab_task(
+    "Mjlab-Badminton-Shared-Student",
+    env_cfg=make_shared_env_cfg(),
+    play_env_cfg=make_shared_env_cfg(play=True, chooser=True),
+    rl_cfg=make_shared_distill_cfg(),
+    runner_cls=BadmintonDistillationRunner,
+)
+
+register_mjlab_task(
+    "Mjlab-Badminton-Shared-Student-PPO",
+    env_cfg=make_shared_env_cfg(),
+    play_env_cfg=make_shared_env_cfg(play=True, chooser=True),
+    rl_cfg=make_shared_student_ppo_cfg(),
 )
