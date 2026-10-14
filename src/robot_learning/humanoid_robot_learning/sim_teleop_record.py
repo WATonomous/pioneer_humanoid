@@ -87,6 +87,7 @@ def make_sim_recorder(
     sim_dt: float,
     joint_names: list[str] = LEFT_ARM_RECORD_JOINTS,
     extra_features: dict[str, list[str]] | None = None,
+    wall_clock_resample: bool = False,
 ):
     """Return (recorder, record_every): record one frame every `record_every` physics steps.
 
@@ -125,10 +126,12 @@ def make_sim_recorder(
         num_episodes=args.num_episodes,
         robot_type=str(cfg.get("robot_id", "pioneer_v1_left_arm")),
         rate_limit=False,
+        wall_clock_resample=wall_clock_resample,
         extra_features=extra_features,
     )
     recorder.init_dataset()
-    print(f"[RECORD] Writing to {dataset_root} at {fps} fps (every {record_every} physics steps)")
+    timing = "wall-clock resampled" if wall_clock_resample else f"every {record_every} physics steps"
+    print(f"[RECORD] Writing to {dataset_root} at {fps} fps ({timing})")
     if cameras:
         print(f"[RECORD] Cameras: {sorted(cameras)}")
     return recorder, record_every
