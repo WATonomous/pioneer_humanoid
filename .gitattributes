@@ -1,0 +1,2 @@
+datasets/tidy_table_keyboard/**/*.mp4 filter=lfs diff=lfs merge=lfs -text
+datasets/tidy_table_keyboard/**/*.parquet filter=lfs diff=lfs merge=lfs -text
