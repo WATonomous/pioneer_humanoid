@@ -1,4 +1,4 @@
-"""tidy_table: randomisation stays valid and the task checks (steps, dropped, toppled, early) fire when they should.
+"""tidy_table: randomisation stays valid and the task checks (binned, dropped, toppled) fire when they should.
 
     pip install mujoco pytest && pip install -e src/pioneer_humanoid -e src/simulation/mujoco_scenes
     pytest src/simulation/mujoco_scenes/tests/test_tidy_table.py
@@ -99,7 +99,7 @@ def test_objects_settle_untouched(model):
         assert status["step"] == 0 and not (status["dropped"] or status["toppled"] or status["early"])
 
 
-def test_in_order_succeeds(model):
+def test_binning_everything_succeeds(model):
     data = _episode(model, 3)
     objs = S.episode_objects(model, data)
     used = {s: 0 for s in S.SHAPES}
@@ -112,21 +112,29 @@ def test_in_order_succeeds(model):
     assert status["step"] == len(objs) and status["tidiness"] == 1.0 and status["success"], status
 
 
-def test_out_of_order_is_flagged(model):
+def test_any_order_counts_and_each_object_once(model):
     data = _episode(model, 3)
     objs = S.episode_objects(model, data)
-    _put_in_bin(model, data, objs[1], 0)
-    _run(model, data, 0.6)
-    status = S.episode_status(model, data)
-    assert status["step"] == 0
-    assert status["early"] == [f"{objs[1]['colour']} {objs[1]['shape']}"]
+    for count, k in enumerate(reversed(range(len(objs))), start=1):       # last first
+        _put_in_bin(model, data, objs[k], 0)
+        _run(model, data, 0.6)
+        status = S.episode_status(model, data)
+        assert status["step"] == count and status["homed"] == count and not status["early"], status
+    assert status["success"]
+    _run(model, data, 0.6)                                                 # resting there longer adds nothing
+    assert S.episode_status(model, data)["step"] == len(objs)
 
 
-def test_any_bin_counts(model):
+def test_anywhere_in_the_bin_counts_and_beside_it_does_not(model):
     data = _episode(model, 3)
     obj = S.episode_objects(model, data)[0]
-    other = next(s for s in S.SHAPES if s != obj["shape"])
-    _put_in_bin(model, data, dict(obj, bin=S.BINS[other]), 0)
+    (bx, by), = S.BINS.values()
+    hx, hy = S.BIN_INNER[0] / 2, S.BIN_INNER[1] / 2
+    assert max(hx, hy) >= 0.1 and min(hx, hy) >= 0.05 and S.BIN_WALL_H <= 0.03   # long, wide, and still low
+    _put_in_bin(model, data, dict(obj, bin=(bx + hx + 0.06, by)), 0)       # on the table past its side
+    _run(model, data, 0.6)
+    assert S.episode_status(model, data)["step"] == 0
+    _put_in_bin(model, data, dict(obj, bin=(bx + hx - 0.03, by + hy - 0.035)), 0)   # in a corner
     _run(model, data, 0.6)
     status = S.episode_status(model, data)
     assert status["step"] == 1 and status["homed"] == 1
@@ -186,7 +194,7 @@ def test_messy_layouts_have_lying_cylinders_and_any_yaw(model):
     assert max(np.abs(yaws)) > math.radians(90)
 
 
-def test_condition_names_the_current_target(model):
+def test_condition_is_done_only_at_the_end(model):
     from humanoid_mujoco_scenes import scene_condition
     names, cond = scene_condition("tidy_table")
     data = _episode(model, 3)
@@ -194,8 +202,8 @@ def test_condition_names_the_current_target(model):
     used = {sh: 0 for sh in S.SHAPES}
     for obj in objs:
         v = cond(model, data)
-        assert len(v) == len(names) and v.sum() == 2
-        assert {names[i] for i in np.flatnonzero(v)} == {f"colour_{obj['colour']}", f"shape_{obj['shape']}"}
+        assert list(names) == ["done"] and len(v) == 1 and v[0] == 0
+        assert scene_progress("tidy_table")(model, data)[2] == S.INSTRUCTION
         _put_in_bin(model, data, obj, used[obj["shape"]])
         used[obj["shape"]] += 1
         _run(model, data, 0.6)
@@ -219,7 +227,8 @@ def test_boxes_and_lying_cylinders_are_graspable_from_above(model):
             else:
                 yaw, period = math.atan2(R[1, 2], R[0, 2]), math.pi
             lo, hi = S.grasp_yaw_range(x, y)
-            g = (yaw - lo) % period + lo                     # the side / axis direction nearest above lo
-            assert g <= hi + math.radians(2), (seed, o["colour"], o["shape"], math.degrees(yaw))
+            tol = math.radians(2)
+            g = (yaw - lo + tol) % period + lo - tol         # the side / axis direction nearest above lo (or on it)
+            assert g <= hi + tol, (seed, o["colour"], o["shape"], math.degrees(yaw))
             checked += 1
     assert checked > 20

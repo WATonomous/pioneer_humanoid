@@ -42,6 +42,12 @@ class LeftArmIK:
     def solve(self, qpos_full, q0, pos, yaw, iters: int = 30, tol: float = 5e-4):
         """Joint angles putting the grasp point at ``pos`` pointing down turned ``yaw``; (q, position error)."""
         Rt = np.array([[math.cos(yaw), -math.sin(yaw), 0], [math.sin(yaw), math.cos(yaw), 0], [0, 0, 1]])
+        return self.solve_pose(qpos_full, q0, pos, Rt, iters, tol)
+
+    def solve_pose(self, qpos_full, q0, pos, Rt, iters: int = 30, tol: float = 5e-4, rot_weight: float = 0.6):
+        """Joint angles putting the grasp point at ``pos`` with link6l's frame at rotation ``Rt`` (any gripper
+        angle, not just pointing down); (q, position error). The arm can't reach every rotation: a lower
+        ``rot_weight`` gives up rotation before position."""
         q = np.array(q0, dtype=float)
         for _ in range(iters):
             p, R = self.fk(qpos_full, q)
@@ -52,8 +58,8 @@ class LeftArmIK:
                 break
             jp, jr = np.zeros((3, self.m.nv)), np.zeros((3, self.m.nv))
             mujoco.mj_jac(self.m, self.scratch, jp, jr, p, self.body)
-            J = np.vstack([jp[:, self.dadr], 0.6 * jr[:, self.dadr]])
-            err = np.concatenate([ep, 0.6 * ang])
+            J = np.vstack([jp[:, self.dadr], rot_weight * jr[:, self.dadr]])
+            err = np.concatenate([ep, rot_weight * ang])
             q = np.clip(q + 0.7 * J.T @ np.linalg.solve(J @ J.T + 1e-4 * np.eye(6), err), self.lo, self.hi)
         p, _ = self.fk(qpos_full, q)
         return q, float(np.linalg.norm(np.asarray(pos) - p))

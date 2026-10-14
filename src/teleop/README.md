@@ -53,8 +53,9 @@ python src/teleop/keyboard_teleop/mujoco_keyboard_teleop.py --scene tidy_table -
 - **Move:** `W/S` x · `A/D` y · `Q/E` up/down · `C/V` turn · **hold `Shift`** = fine (quarter speed)
 - **`K`** open / close (eases over 0.4 s) · **`J`** narrow (default, ~66 mm) / wide opening · **`H`** glide home
   (end each take with it) · **`R`** reset arm + scene · `Esc` quit
-- **`--record`:** a take starts by itself with the first move key from home (the window shows `RECORDING`) ·
-  `N` save (then a new layout) · `B` discard · `P` start again after a discard. Not `S`/`D`, which move the arm.
+- **`--record`:** a take starts by itself with the first move key from home (the window shows `RECORDING`).
+  When the scene's last step is done, the arm glides home and the take is saved by itself, then a new layout
+  comes up. `N` save now · `B` discard · `P` start again after a discard. Not `S`/`D`, which move the arm.
 - Contacts stay calm: speeds ramp, joint targets are rate-limited, the finger tips can't be commanded into the
   table, and pushing into something holds the arm where it stopped (~4 N held, not the ~110 N the stiff
   joints would otherwise press with). Hitting something at full speed still taps it (~140 N for an instant);

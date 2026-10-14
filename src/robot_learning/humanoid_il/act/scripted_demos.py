@@ -146,16 +146,23 @@ def grasp_plan(model, data, obj, S):
     return 0.0, 2 * size[0], size[0]
 
 
-def release_yaw(demo: Demo, yaw: float, off, bin_xy, release_z: float) -> float:
-    """The grasp yaw if the arm reaches the release poses with it, else the nearest of a few that it does."""
+RELEASE_RAISE = (0.0, 0.03, 0.06, 0.09, 0.12)   # m: higher release heights to try -- pointing down, the arm
+                                                 # reaches further out the higher it is (the bin is near its limit)
+
+
+def release_yaw(demo: Demo, yaw: float, off, bin_xy, release_z: float) -> tuple[float, float]:
+    """(yaw, height): the lowest release height the arm reaches over the bin, with the grasp yaw if it can,
+    else the nearest of a few that it does. Higher means a longer drop, so the lowest that works wins."""
     d = demo.sim.data
-    for cand in sorted({yaw, 0.0, 0.25, -0.25, 0.45}, key=lambda c: abs(c - yaw)):
-        c, s_ = math.cos(cand - yaw), math.sin(cand - yaw)
-        o = (c * off[0] - s_ * off[1], s_ * off[0] + c * off[1])
-        pos = (bin_xy[0] - o[0], bin_xy[1] - o[1])
-        if all(demo.ik.solve_any(d.qpos, [demo.sim.target, demo.sim.home], (*pos, z), cand, restarts=2)[1] < 0.002
-               for z in (release_z, release_z + 0.05)):
-            return cand
+    for raise_z in RELEASE_RAISE:
+        z0 = release_z + raise_z
+        for cand in sorted({yaw, 0.0, 0.25, -0.25, 0.45}, key=lambda c: abs(c - yaw)):
+            c, s_ = math.cos(cand - yaw), math.sin(cand - yaw)
+            o = (c * off[0] - s_ * off[1], s_ * off[0] + c * off[1])
+            pos = (bin_xy[0] - o[0], bin_xy[1] - o[1])
+            if all(demo.ik.solve_any(d.qpos, [demo.sim.target, demo.sim.home], (*pos, z), cand, restarts=2)[1] < 0.002
+                   for z in (z0, z0 + 0.05)):
+                return cand, z0
     raise Abort("no reachable release pose over the bin")
 
 
@@ -190,7 +197,7 @@ def run_episode(demo: Demo, seed: int, S) -> dict:
         release_z = S.T + S.BIN_T + S.BIN_WALL_H + 0.012 + under
         # How it lands in the bin doesn't matter: release at a yaw the arm reaches over this bin. The object
         # turns with the gripper, so its offset from the grasp point turns too.
-        r_yaw = release_yaw(demo, yaw, off, (bx, by), release_z)
+        r_yaw, release_z = release_yaw(demo, yaw, off, (bx, by), release_z)
         c, s_ = math.cos(r_yaw - yaw), math.sin(r_yaw - yaw)
         off = np.array([c * off[0] - s_ * off[1], s_ * off[0] + c * off[1]])
         demo.move((bx - off[0], by - off[1], release_z + 0.05), r_yaw, SPEED["carry"])

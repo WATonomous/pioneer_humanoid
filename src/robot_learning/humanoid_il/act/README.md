@@ -19,7 +19,8 @@ python src/teleop/pioneer_leader_arm_teleop/pioneer_leader_arm_teleop.py \
     --target mujoco --scene tidy_table --record --cameras top,wrist_left
 ```
 
-or the keyboard (no leader arm needed; keys go to the scene window: a take starts with the first move key, `N` save, `B` discard, `H` home):
+or the keyboard (no leader arm needed; keys go to the scene window: a take starts with the first move key and, once
+the last object is binned, goes home and saves by itself; `B` discards):
 
 ```bash
 python src/teleop/keyboard_teleop/mujoco_keyboard_teleop.py --scene tidy_table --record --cameras top,wrist_left

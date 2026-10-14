@@ -82,15 +82,18 @@ def sim():
 
 
 def _seed_first_object_round():
-    """A layout whose first object is a ball or a standing cylinder (graspable without turning)."""
+    """A layout whose first object is a ball or a standing cylinder (graspable without turning), not on the
+    zone's far side: pointing down, the arm's reach ends there (see the scene's BINS)."""
     m = make_model("tidy_table")
     d = mujoco.MjData(m)
     for seed in range(100):
         mujoco.mj_resetData(m, d)
         set_home(m, d)
         scene_reset("tidy_table")(m, d, np.random.default_rng(seed))
+        mujoco.mj_forward(m, d)
         o = S.episode_objects(m, d)[0]
-        if o["shape"] == "ball" or (o["shape"] == "cylinder" and not o["lying"]):
+        near = d.xpos[m.body(o["name"]).id][0] < 0.38
+        if near and (o["shape"] == "ball" or (o["shape"] == "cylinder" and not o["lying"])):
             return seed
     raise AssertionError("no such layout in 100 seeds")
 
@@ -145,8 +148,8 @@ def test_pick_and_bin_an_object_by_keys():
     assert sim.drive_to((p[0], p[1], grasp_z + 0.003), tol=0.003)
     sim.arm.toggle_grip()
     sim.run((), 0.8)
-    assert sim.drive_to((p[0], p[1], grasp_z + 0.12))
-    lifted = sim.d.xpos[sim.m.body(obj["name"]).id][2] - p[2]
+    sim.run({"q"}, 1.1)             # straight up, the lift key alone: closing on it can shift the gripper a few mm
+    lifted =sim.d.xpos[sim.m.body(obj["name"]).id][2] - p[2]
     assert lifted > 0.08                                    # it came up with the gripper
     bx, by = obj["bin"]
     assert sim.drive_to((bx, by, kt.TABLE_Z + 0.20), tol=0.006)
@@ -207,8 +210,8 @@ def test_home_glides_back(sim):
 def test_pushing_into_something_presses_lightly_and_lets_go(sim):
     """Hold "down" with a finger over a bin wall: the arm holds where it stops instead of winding up force."""
     sim.run({"w"}, kt.GLIDE_S + 0.1)
-    bx, by = S.BINS["box"]
-    assert sim.drive_to((bx - 0.03, by - S.BIN_INNER / 2 - 0.045, 0.90), tol=0.005)   # a finger over the near wall
+    (bx, by), = S.BINS.values()
+    assert sim.drive_to((bx - S.BIN_INNER[0] / 2 - S.BIN_T / 2, by, 0.90), tol=0.005)   # the fingers over the near wall
     f6, held = np.zeros(6), []
     for k in range(300):
         sim.run({"e"}, kt.CONTROL_DT)
