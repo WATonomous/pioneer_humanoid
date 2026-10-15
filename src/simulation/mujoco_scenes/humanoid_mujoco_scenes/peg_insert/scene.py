@@ -1,11 +1,15 @@
 """Peg insertion: a square peg on the table and a block with a matching square hole, in front of the LEFT arm.
 
 All primitives (boxes), so the fit is exact: the hole is ``PEG_SIZE + CLEARANCE`` wide and runs
-down to the table top. Change CLEARANCE to make it harder or easier.
+down to the table top. Change CLEARANCE to make it harder or easier. Every reset shifts the peg and
+the block a little. ``is_inserted``: the peg is in the hole, at least INSERT_DEPTH deep.
 """
 from __future__ import annotations
 
+import os
+
 import mujoco
+import numpy as np
 
 from humanoid_mujoco_scenes import add_floor, scene
 
@@ -18,13 +22,38 @@ PEG_HEIGHT = 0.10
 PEG_MASS = 0.05
 PEG_POS = (0.32, 0.26)          # xy on the table; both inside the left arm's gripper-down reach
 
-CLEARANCE = 0.001               # hole width minus peg width (m)
+CLEARANCE = 0.004               # hole width minus peg width (m): 2 mm a side, about what a person manages by teleop
 BLOCK_SIZE = 0.12
 BLOCK_HEIGHT = 0.06
 BLOCK_POS = (0.43, 0.32)
+PEG_JITTER = 0.015              # m, random shift of the peg's start per reset (each axis)...
+BLOCK_JITTER = 0.01             # ...and of the block; the two never overlap
+INSERT_DEPTH = 0.02             # peg bottom this far below the block top counts as inserted
 
 
-@scene("peg_insert", camera=dict(lookat=[0.38, 0.29, 0.75], distance=1.0, azimuth=200, elevation=-35))
+def reset(model: mujoco.MjModel, data: mujoco.MjData, rng: np.random.Generator) -> None:
+    """New episode: shift the peg (upright, square) and the block. Call after mj_resetData."""
+    adr = model.joint("peg").qposadr[0]
+    # PEG_INSERT_RANGE=2 doubles both shifts (wider layouts for robustness tests / training); then a layout where the
+    # peg would stand in or against the block (less than 1 cm between them) is drawn again.
+    scale = float(os.environ.get("PEG_INSERT_RANGE", 1.0))
+    while True:
+        px, py = np.add(PEG_POS, rng.uniform(-PEG_JITTER, PEG_JITTER, 2) * scale)
+        bx, by = np.add(BLOCK_POS, rng.uniform(-BLOCK_JITTER, BLOCK_JITTER, 2) * scale)
+        if scale == 1.0 or max(abs(px - bx), abs(py - by)) > (PEG_SIZE + BLOCK_SIZE) / 2 + 0.01:
+            break
+    data.qpos[adr:adr + 7] = [px, py, TABLE_TOP_Z + PEG_HEIGHT / 2, 1, 0, 0, 0]
+    model.body_pos[model.body("hole_block").id, :2] = [bx, by]
+
+
+def is_inserted(model: mujoco.MjModel, data: mujoco.MjData) -> bool:
+    peg, block = data.xpos[model.body("peg").id], data.xpos[model.body("hole_block").id]
+    bottom = peg[2] - PEG_HEIGHT / 2
+    inside = np.all(np.abs(peg[:2] - block[:2]) < (PEG_SIZE + CLEARANCE) / 2)
+    return bool(inside and bottom < TABLE_TOP_Z + BLOCK_HEIGHT - INSERT_DEPTH)
+
+
+@scene("peg_insert", camera=dict(lookat=[0.38, 0.29, 0.75], distance=1.0, azimuth=200, elevation=-35), reset=reset)
 def build(spec: mujoco.MjSpec) -> None:
     add_floor(spec)
     world = spec.worldbody
