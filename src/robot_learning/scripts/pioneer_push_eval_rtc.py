@@ -44,7 +44,7 @@ parser.add_argument(
 )
 parser.add_argument("--task_description", type=str, default="push the block into the box")
 parser.add_argument("--execution_horizon", type=int, default=10)
-parser.add_argument("--max_guidance_weight", type=float, default=1.0)
+parser.add_argument("--max_guidance_weight", type=float, default=10.0)
 parser.add_argument("--num_episodes", type=int, default=10)
 parser.add_argument("--episode_s", type=float, default=30.0, help="timeout per episode, seconds")
 parser.add_argument("--settle_ticks", type=int, default=5, help="policy ticks to hold home after reset")

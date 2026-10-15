@@ -27,10 +27,9 @@ Two bugs worth knowing about if you extend this:
 
 2. ``max_guidance_weight`` (how strongly RTC pulls the new chunk toward
    consistency with the old one) is baked into the policy at *load* time via
-   ``policy.config.rtc_config`` -- it is not a per-call parameter here. Tune
-   it low (we found ~1.0 clearly better than lerobot's ACTConfig default of
-   10.0 on our SO101 task); too-strong guidance over-constrains the new chunk
-   toward a trajectory that may already be failing.
+   ``policy.config.rtc_config`` -- it is not a per-call parameter here. ~1.0
+   scored better on our SO101 task; on pioneer peg_insert (25 Hz) 1.0 left a
+   jolt at almost every chunk switch and 10.0 removed them at equal success.
 """
 
 from __future__ import annotations
@@ -163,7 +162,7 @@ class RTCDrivenPolicy:
             self.queue.merge(
                 original_actions=raw_chunk_sq,
                 processed_actions=processed_chunk,
-                real_delay=self.d,
+                real_delay=self.queue.get_action_index() - action_index_before,
                 action_index_before_inference=action_index_before,
             )
         finally:
