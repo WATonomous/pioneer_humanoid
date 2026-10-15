@@ -151,8 +151,33 @@ def make_sampler(path, device="cuda"):
     return MTDiTSampler(path, device) if kind == "multi_task_dit" else DPSampler(path, device)
 
 
+class ChunkPolicy:
+    """The policy alone without the qplanning package installed: the same protocol as their QPlanningPolicy + NoPlanner
+    (one draw with the full step budget, execute its first n_action_steps, replan when the queue runs dry)."""
+
+    def __init__(self, sampler, n_action_steps, denoise_steps):
+        self.sampler, self.n_action_steps, self.denoise_steps = sampler, n_action_steps, denoise_steps
+        self.last_plan, self._queue = None, deque()
+
+    def reset(self):
+        self._queue.clear()
+        self.sampler.reset()
+
+    def select_action(self, batch):
+        if not self._queue:
+            chunk = self.sampler.sample_chunks(batch, 1, denoise_steps=self.denoise_steps)[0, : self.n_action_steps]
+            self._queue.extend(chunk[i : i + 1] for i in range(chunk.shape[0]))
+        return self._queue.popleft()
+
+
 def build_policy(args, sampler, q_checkpoint):
     """Their QPlanningPolicy: the unguided baseline (NoPlanner) or their QWeightedPlanner on a Q checkpoint."""
+    try:
+        import qplanning  # noqa: F401
+    except ImportError:
+        if q_checkpoint:
+            raise
+        return ChunkPolicy(sampler, args.n_action_steps, args.baseline_denoise_steps)
     from qplanning.planner import NoPlanner, QWeightedPlanner
     from qplanning.policies.base import BCBundle
     from qplanning.policy import QPlanningPolicy
