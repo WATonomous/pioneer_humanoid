@@ -118,8 +118,10 @@ def rollout(scene, seed, policy, sampler, max_s=40.0, hold_s=0.4, keep_frames=Fa
     """One episode. Returns the dict their online buffer stores (action, images, success, task) plus frames run."""
     from synthetic_tasks import TASKS
     task = TASKS[scene]
-    size = next(iter(sampler.cameras.values()))
-    sim = TeleopSim(scene, seed, {c: size for c in sampler.cameras})      # rendered at the policy's own size
+    # Rendered at the policy's own size, or (RENDER=480x640) at the recording size and area-downscaled, for a policy trained on
+    # downscale_dataset.py copies.
+    size = tuple(int(v) for v in os.environ["RENDER"].split("x")) if os.environ.get("RENDER") else next(iter(sampler.cameras.values()))
+    sim = TeleopSim(scene, seed, {c: size for c in sampler.cameras})
     model, data = sim.model, sim.data
     lo, hi = model.jnt_range[[model.joint(j).id for j in sim.joints]].T
     ticks = round(1.0 / FPS / sim.control_dt)
@@ -133,6 +135,9 @@ def rollout(scene, seed, policy, sampler, max_s=40.0, hold_s=0.4, keep_frames=Fa
             closure = sum((data.qpos[q] - o) / (c - o) for q, o, c in zip(sim.grip_qpos, sim.grip_open, sim.grip_closed)) / len(sim.grip_qpos)
             state = np.append(data.qpos[sim.arm_qpos], min(max(closure, 0.0), 1.0)).astype(np.float32)
             images = sim.render_at(data.qpos.copy())
+            if any(img.shape[:2] != sampler.cameras[c] for c, img in images.items()):
+                import cv2
+                images = {c: cv2.resize(img, sampler.cameras[c][::-1], interpolation=cv2.INTER_AREA) for c, img in images.items()}
             sampler.observe(state, images, task.instruction)
             batch = {"task": [task.instruction]}
             for c, img in images.items():
@@ -148,9 +153,9 @@ def rollout(scene, seed, policy, sampler, max_s=40.0, hold_s=0.4, keep_frames=Fa
                 sim.hook(model, data)
             sim.mujoco.mj_step(model, data, nstep=sim.substeps)
         actions.append(torch.tensor(action, dtype=torch.float32))
-        if keep_frames:
-            for k in frames:
-                frames[k].append(batch[k][0].cpu())
+        if keep_frames:                      # kept as uint8 (a float copy of a 40 s episode is ~1.8 GB)
+            for c, img in images.items():
+                frames[f"observation.images.{c}"].append(torch.from_numpy(img.copy()).permute(2, 0, 1))
         held = held + 1.0 / FPS if task.success(model, data) else 0.0
         if held >= hold_s:
             ok = True
@@ -162,7 +167,7 @@ def rollout(scene, seed, policy, sampler, max_s=40.0, hold_s=0.4, keep_frames=Fa
         for k, v in frames.items():
             # Their save_episodes_lerobot flips H and W (a LIBERO convention). Our demonstrations are stored unflipped,
             # so flip here first: the two cancel and online frames match the demonstrations.
-            episode[k] = torch.flip(torch.stack(v), dims=[2, 3])
+            episode[k] = torch.flip(torch.stack(v), dims=[2, 3])         # uint8; to_buffer_format() makes it float
     return episode
 
 
@@ -178,6 +183,14 @@ def evaluate(args, policy, sampler, seeds, label, keep_frames=False):
     print(f"[QOFF] {label}: success {ok / len(episodes):.1%} ({ok}/{len(episodes)}), mean episode {np.mean([e['frames'] for e in episodes]) / FPS:.1f} s"
           + (f", mean Q std across candidates {np.mean(qs):.4f}" if qs else ""), flush=True)
     return episodes, ok
+
+
+def to_buffer_format(episode, cams):
+    """The episode dict their save_episodes_lerobot expects: images as float [0, 1]."""
+    out = {k: v for k, v in episode.items() if k in ("action", "success", "task")}
+    for k in cams:
+        out[k] = episode[k].float().div_(255)
+    return out
 
 
 def improve(args, sampler):
@@ -202,22 +215,27 @@ def improve(args, sampler):
                          resolved_min_shards=lambda: 1)
     cfg = SimpleNamespace(self_improve=si)
     q_ckpt, step = str(args.q), 0
-    if args.start == 0:
+    if args.start == 0 and not args.skip_initial:
         _, ok = evaluate(args, build_policy(args, sampler, None), sampler, heldout, "policy alone")
         note(f"policy alone (their NoPlanner, {args.baseline_denoise_steps} denoise steps, {args.n_action_steps} of {sampler.chunk_size} executed): {ok}/{len(heldout)}")
         _, ok = evaluate(args, build_policy(args, sampler, q_ckpt), sampler, heldout, "offline Q")
         note(f"offline Q-Planning (Q trained on demonstrations only): {ok}/{len(heldout)}")
-    else:
+    if args.start > 0:
         q_ckpt = str(out / f"q_iter{args.start:02d}")
     for it in range(args.start + 1, args.iterations + 1):
         policy = build_policy(args, sampler, q_ckpt)
         seeds = [1_000_000 + 1000 * it + i for i in range(args.train_episodes)]
-        episodes, ok = evaluate(args, policy, sampler, seeds, f"iteration {it} collection", keep_frames=True)
         cams = tuple(f"observation.images.{c}" for c in sampler.cameras)
-        save_iteration([{k: v for k, v in e.items() if k in ("action", "success", "task") or k in cams} for e in episodes],
-                       iteration_dir(out, it) / EPISODES_DIRNAME, camera_keys=cams, image_shape=image_shape, action_dim=7,
-                       manifest={"iteration": it, "q_checkpoint": q_ckpt, "successes": ok, "episodes": len(episodes)})
-        del episodes, policy
+        ok, t0 = 0, time.time()
+        for i, seed in enumerate(seeds):     # one buffer shard per episode, so only one episode is ever held in memory
+            ep = rollout(args.scene, seed, policy, sampler, args.max_s, keep_frames=True)
+            ok += ep["success"]
+            save_iteration([to_buffer_format(ep, cams)], iteration_dir(out, it, shard=i) / EPISODES_DIRNAME, camera_keys=cams,
+                           image_shape=image_shape, action_dim=7,
+                           manifest={"iteration": it, "q_checkpoint": q_ckpt, "seed": seed, "success": ep["success"]})
+            del ep
+        print(f"[QOFF] iteration {it} collection: {ok}/{len(seeds)} ({time.time() - t0:.0f} s)", flush=True)
+        del policy
         torch.cuda.empty_cache()
         q_policy, _ = load_q_function(q_ckpt, device="cuda", eval_mode=False)
         new_ckpt = out / f"q_iter{it:02d}"
@@ -263,6 +281,7 @@ def main() -> None:
     p.add_argument("--finetune_lr", type=float, default=1e-5)
     p.add_argument("--batch_size", type=int, default=16)
     p.add_argument("--eval_every", type=int, default=2)
+    p.add_argument("--skip_initial", action="store_true", help="skip the policy-alone and offline-Q evaluations")
     args = p.parse_args()
 
     sampler = DPSampler(args.policy)

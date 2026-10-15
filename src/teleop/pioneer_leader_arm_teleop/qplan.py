@@ -25,7 +25,7 @@ from torch import nn
 from sim_policy_eval import RENDER_SIZE, load_policy, observe  # noqa: E402
 from synthetic_teleop import TeleopSim  # noqa: E402
 
-FPS = 25
+FPS = int(os.environ.get("QPLAN_FPS", 25))      # the policy's control rate (QPLAN_FPS=50 for a 50 Hz dataset)
 ROBOT = "pioneer_v1_left_arm"
 
 
@@ -72,6 +72,8 @@ class Proposer:
         if self.subtasks is not None:
             from add_subtask_state import encode
             state = np.concatenate([state, encode(instruction, self.subtasks)]).astype(np.float32)
+        if os.environ.get("QPLAN_BLANK"):                  # diagnostic: show the policy a black image from these cameras
+            seen = {n: (img * 0 if n in os.environ["QPLAN_BLANK"].split(",") else img) for n, img in seen.items()}
         obs = {"observation.state": state, **{f"observation.images.{n}": img for n, img in seen.items()}}
         return self.pre(prepare_observation_for_inference(obs, self.device, instruction, ROBOT))
 

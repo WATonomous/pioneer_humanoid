@@ -107,18 +107,7 @@ machine that ran them (git-ignored).
 
 ## Open work
 
-- **Diffusion Policy on peg_insert, then Q-Planning on top of it** (real multi-modal candidates). Config that trains
-  (78M params): `--policy.type=diffusion --policy.horizon=64 --policy.n_action_steps=32 --policy.n_obs_steps=2
-  --policy.drop_n_last_frames=31 --policy.crop_shape='[216,288]' --policy.down_dims='[256,512,1024]'
-  --policy.noise_scheduler_type=DDIM --policy.num_inference_steps=10 --batch_size=16`. Not yet evaluated.
-- **Patch Policy idea (arXiv 2607.18236)**: DINOv2 ViT-S patch tokens as ACT's backbone. `train_patch_act.py` with
-  `--policy.vision_backbone=resnet_dinov2s --policy.pretrained_backbone_weights=null`; trains (62M params,
-  ~2.3x slower per step than ResNet-18). Full run not done.
-- **Grounded Action Model idea (arXiv 2609.23863)**: upper-bound test by feeding true object poses in the state. Not started.
-- **duplo / drawer_stow**: retrain with the `words` encoding (`add_subtask_state.py <root> words`, the default) on 271 / 116 demos. Queued on the laptop.
-- **pi0.5** (reads the instruction natively) on peg_insert and the multi-step scenes: being run on the desktop session.
-- **matcha**: more demos (recording towards 150); the scripted plan succeeds on roughly half to all seeds depending on the batch.
-- **A policy with observation history or a regrasp behaviour** for peg jams.
+See "Final results (2026-10-14)" at the end; the earlier open items there are resolved or listed as not done.
 
 ## Machine notes (8 GB GPU laptop, 31 GB RAM)
 
@@ -174,3 +163,44 @@ duplo, first brick the policy goes for vs the announcement (chance 1/3), and sce
 - Wider layouts: ACT trained on 200 demos at `PEG_INSERT_RANGE=2` scores 165 / 160 / 138 of 200 at 1x / 1.5x / 2x range
   (narrow-trained: 179 / 124 / 71).
 - matcha with 150 demos at 40k steps: 1/40 (1.1 epochs; the 60-demo run had 2.8 and got 11/40). Longer run in progress.
+
+## Final results (2026-10-14)
+
+Full write-up with every number: https://claude.ai/artifact/2JE6MmHZ9MoJKaZrahbvEo (private to the owner).
+
+**Q-Planning with the authors' code** (`varungiridhar/qplanning-code` + their LeRobot fork; glue `qplan_official_pioneer.py`),
+peg_insert, 100 held-out layouts. Base: Diffusion Policy on 180 clean demos (60k checkpoint); their Q at reduced size
+(DINOv2-small, T5-small, dim 384, 6 decoder layers), 10k steps on the demos. Their default 3 denoise steps gives unusable DDIM
+samples (0/30); 10 used.
+
+| | success |
+|---|---|
+| policy alone (their NoPlanner protocol) | 9/100 |
+| offline Q-Planning (Q on demos only) | **49/100** |
+| self-improvement, 15 rollouts per round, rounds 2 / 4 / 6 / 8 | 21 / 32 / 22 / 0 |
+| self-improvement, 45 rollouts per round, round 2 | 13/100 |
+| their fine-tune step on the demos only, 400 steps (`qplan_official_demo_finetune.py`) | 41/100 |
+
+The fine-tune procedure itself is fine; adding the planner's own rollouts degrades Q. Untested suspect: rollouts store the executed
+chunk (softmax-weighted mean of the top 16 samples), a different action distribution from the raw samples Q has to rank.
+
+**Other results**
+- Diffusion Policy alone on 180 clean demos: 3 / 1 / 17 / 8 of 100 at 20k / 40k / 60k / 80k steps.
+- **25 vs 50 Hz** (no documented reason for the schema's 25 Hz; same 180 takes recorded at both, `QPLAN_FPS` for rollouts, 100-step
+  chunks = 4 s vs 2 s, equal passes): 25 Hz 176/200 at 40k, 161/200 after the low-LR finish; 50 Hz 143/200 at 80k, 172/200 after.
+  Best 88% vs 86%, one seed each: the control rate is not the limit.
+- Low-LR finish: helped on six runs (+5 to +29), hurt on three (-7 to -24). Evaluate before and after.
+- duplo FiLM-ACT, 450 demos: 17/100 at 60k, **54/100 at 120k** (brick choice 100/100). drawer_stow FiLM-ACT, 300 demos, 100k
+  steps: order still at chance (first block 34/97).
+- The policy looks before reaching: ego camera blacked out 89 -> 3/100 on peg_insert, and the first reach becomes identical across
+  layouts; with it the peg position explains 69-98% of the first reach (per joint). Second machine: ego black for the first 3 s
+  only, 35/40 -> 21/40.
+- **Patch Policy, authors' trainer** (`gaoyuezhou/patch_policy`, unmodified; second machine, LIBERO-Goal two-camera recipe):
+  one-step actions freeze at the start (0/50); 10-step chunks grasp, carry and hold the peg over the hole but never insert (0/46
+  at epoch 30 of 50, run ended by a crash).
+- **Grounded Action Model, authors' code** (second machine, in progress): "hole" prompt lands on the other gripper; named objects
+  within 6 px; 3D error 24-32 cm monocular, 3-7 cm with the simulator's depth. Label any result "GAM with sim depth and named slots".
+- Labels: grounded duplo (100/100, 24/100) is a privileged diagnostic; SmolVLA (1.3 passes) and pi0.5 (frozen VLM, 0.4 passes on
+  duplo, 6000 updates on peg) are under-trained.
+- Not done: pi0.5 on drawer_stow; 160k-step Diffusion Policy sweep; spline demos vs the scripted operator; fair Diffusion Policy
+  recipe (full width, EMA, 16-step horizon, 200k+ steps).

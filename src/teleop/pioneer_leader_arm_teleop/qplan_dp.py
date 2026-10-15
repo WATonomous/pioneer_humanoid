@@ -94,7 +94,8 @@ class QMLP(nn.Module):
 def rollout(scene, seed, prop, select, n, max_s=40.0, hold_s=0.4, generator=None, oracle=False):
     from synthetic_tasks import TASKS
     task = TASKS[scene]
-    sim = TeleopSim(scene, seed, {c: RENDER_SIZE for c in prop.cameras})
+    size = tuple(int(v) for v in os.environ["QPLAN_RENDER"].split("x")) if os.environ.get("QPLAN_RENDER") else RENDER_SIZE
+    sim = TeleopSim(scene, seed, {c: size for c in prop.cameras})
     prop.reset()
     prop.policy.reset()
     steps, frames, held, ok, limit = [], 0, 0.0, False, int(max_s * FPS)
