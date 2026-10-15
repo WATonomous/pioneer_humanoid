@@ -5,8 +5,8 @@ Duplo-size 2x4 bricks (64 x 32 x 19.2 mm, studs 16 mm apart): big enough for thi
 geometry, so a brick only seats when it is square on the stud grid; otherwise it rests on the studs.
 
 Snapping (``step``): MuJoCo can't do the slight interference fit that holds real bricks, so a brick that
-sits seated and square on a support (the baseplate or another brick) is welded to it, pulled exactly onto
-the grid. Pulling it off harder than SNAP_BREAK_FORCE (or twisting past SNAP_BREAK_TORQUE) releases it.
+sits seated and square on a support (the baseplate or another brick), overlapping it by at least one stud,
+is welded to it, pulled exactly onto the grid. Pulling it off harder than SNAP_BREAK_FORCE (or twisting past SNAP_BREAK_TORQUE) releases it.
 Bricks lie in a row beside the baseplate, long side along X so the jaws pinch their 32 mm width.
 
 Steps, checked automatically and latched in order (``progress``):
@@ -162,6 +162,11 @@ def _seat(model, data, brick: str, support: str):
     # in either orientation, so a seated brick is a whole number of pitches from its support's centre.
     gx, gy = round(rel[0] / PITCH) * PITCH, round(rel[1] / PITCH) * PITCH
     if math.hypot(rel[0] - gx, rel[1] - gy) > SNAP_POS_TOL:
+        return None
+    # ...and actually on it: the footprints overlap by at least one stud each way (not a brick floating beside it).
+    bx, by = (4, 2) if quarter % 2 == 0 else (2, 4)            # the brick's studs along the support's x, y
+    sx, sy = PLATE_STUDS if support == "baseplate" else (4, 2)
+    if abs(gx) > ((bx + sx) / 2 - 1) * PITCH + 1e-6 or abs(gy) > ((by + sy) / 2 - 1) * PITCH + 1e-6:
         return None
     return gx, gy, quarter
 
