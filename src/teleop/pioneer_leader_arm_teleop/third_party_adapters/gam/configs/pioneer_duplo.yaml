@@ -1,0 +1,82 @@
+# Pioneer left arm, duplo, from our LeRobot dataset (not part of the GAM release): configs/lerobot_single_arm.yaml with
+# the dataset, the exact simulator calibration and the arm's URDF filled in. Two changes from that template, both forced
+# by the arm: pcd_ref none instead of ee (ee uses Franka kinematics), and gripper_dims [6] (6 joints + gripper).
+task: pioneer_duplo
+
+checkpoints:
+  wilddet3d: hf://gehaozhang/gam-wilddet3d/wilddet3d_general_v1.pt   # general detector (trained on DROID and other real data); the RoboTwin / LIBERO ones are fine-tuned for those scenes
+  span_head: hf://gehaozhang/gam-wilddet3d/span_head_universal.pt     # task string -> object phrases (universal head: RoboTwin + LIBERO + DROID instructions)
+  cotracker_offline: hf://facebook/cotracker3/scaled_offline.pth                       # follows the objects through each episode
+
+data:
+  source: lerobot
+  repo_id: duplo
+  root: /home/wilson/pioneer_humanoid_synth/datasets/pioneer_v1_left_arm/sim_synthetic/duplo
+  camera: observation.images.ego                  # the head camera, fixed to the robot base
+  depth_key: null                                 # a depth feature (H,W) if your dataset has one; null = monocular
+  depth_unit: m
+  state_key: observation.state                    # [joint1L, joint2l..joint6l, gripper closure 0..1]
+  action_key: action                              # absolute joint targets, same layout
+  # CALIBRATION REQUIRED: LeRobot datasets carry none. K and the base->camera extrinsics drive the 3D boxes, the point clouds and the
+  # URDF robot silhouette; with these placeholders everything runs but is geometrically wrong. Check with GAM.tools.check_calibration.
+  camera_intrinsics: [[380.45, 0.0, 320.0], [0.0, 380.45, 240.0], [0.0, 0.0, 1.0]]   # from MuJoCo: fovy 64.49 deg at 640x480
+  camera_extrinsics: [[0.0, -1.0, 0.0, -0.00008], [-0.76604, 0.0, -0.64279, 1.00303], [0.64279, 0.0, -0.76604, 1.06436]]   # MuJoCo world -> camera (OpenCV), exact
+  extrinsic_is_cam2base: false                    # true if camera_extrinsics is the 4x4 camera pose in the base frame
+  slots: auto                                     # object names from the task string (span head); or list them: [cube, bowl]
+  n_slots: 3                                      # detection slots of the policy (objects beyond this are ignored)
+  clicks:   # written by GAM.tools.track
+    source: tracks
+    tracks_dir: ${GAM_CACHE:-./cache}/lerobot/pioneer_duplo_tracks
+  val_episodes: 2
+
+perception:
+  grounding: click                                # per-frame point prompts from the tracks (text = re-detect by name every frame, no tracks)
+  text_score_min: 0.3
+  detector_depth: zero
+  geometry_depth: pred
+  geometry_source: box3d
+  patch_grid: 36
+  n_points: 512
+  table_remove: true                           # drop the table plane from the geometry depth: the dominant height of the back-projected points (base z up) plus table_margin
+  table_margin: 0.008
+  cell_min_overlap: 0.3
+  image_channel_swap: false
+  letterbox: true
+  box_whl_perm: [1, 2, 0]                       # extents axis order of the general detector ([0, 1, 2] for the RoboTwin / LIBERO fine-tuned ones)
+  precision: fp32
+  deterministic: true
+  robot:                                          # URDF silhouette mask
+    urdf: /home/wilson/pioneer_humanoid_synth/assets/pioneer_bimanual_arm/urdf/pioneer_bimanual_arm.urdf
+    joint_names: [joint1L, joint2l, joint3l, joint4l, joint5l, joint6l]   # the gripper value (closure 0..1) is not a URDF joint angle: fingers are drawn open
+    T_base_root: [[1,0,0,0],[0,1,0,0],[0,0,1,1.1997],[0,0,0,1]]           # base_link in the MuJoCo world frame the extrinsics use
+
+train:
+  cache_dir: ${GAM_CACHE:-./cache}/lerobot/pioneer_duplo
+  cache_glob: "*.npz"
+  out_dir: ${GAM_RUNS:-./runs}/lerobot/pioneer_duplo
+  horizon: 16
+  n_action_steps: 16
+  state_hist: 2
+  batch_size: 16
+  grad_accum: 3
+  lr: 2.0e-4
+  weight_decay: 1.0e-3
+  warmup_steps: 300
+  max_steps: 12000
+  save_every: 2000
+  snapshot_every_saves: 1
+  state_dropout: 0.2
+  det_xyz_dropout: 0.0
+  patch_dropout: 0.3
+  det_role_cam: false
+  pcd_ref: none                                   # base-frame geometry: `ee` runs Franka Panda FK on state[:7], which our 6-joint arm is not
+  lang_mode: none
+
+eval:                                             # GAM.eval.run (--env your adapter | replay) / inprocess_policy
+  precision: bf16
+  chunking: tempens
+  replan: {exec_steps: 8, seam_blend: true}
+  tempens: {k: 0.01, query_every: 1}
+  rtc: {exec_steps: 8, delay: 1}
+  gripper_dims: [6]
+  out_dir: ${GAM_RUNS:-./runs}/lerobot/pioneer_duplo/eval

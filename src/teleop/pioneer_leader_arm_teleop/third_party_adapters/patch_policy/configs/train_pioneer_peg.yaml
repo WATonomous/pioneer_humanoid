@@ -1,0 +1,93 @@
+# Pioneer left arm, peg_insert (not part of the Patch Policy release). The authors' two-camera recipe
+# (train_libero_goal + train_libero_goal_1gpu: DINOv2 ViT-S patch tokens, window 2, one-step actions, 6 layers /
+# 6 heads / 120, batch 32, 50 epochs, lr 5.5e-5), without goal conditioning (one task), on datasets/pioneer.py.
+# No simulator of ours runs inside this trainer: the env is their DummyEnv and the policy is rolled out afterwards
+# in MuJoCo from the saved snapshot (pioneer_adapter/rollout.py).
+defaults:
+  - env_vars: env_vars
+  - encoder: dino_patch
+  - _self_
+  - cluster: local
+
+hydra:
+  run:
+    dir: ${env_vars.save_path}/outputs/${env.gym.id}/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  job:
+    chdir: True
+
+seed: 42
+window_size: 2
+goal_window_size: 2
+eval_window_size: 2
+
+num_workers: 8
+
+batch_size: 32
+epochs: 50
+eval_freq: 10
+eval_on_env_freq: 100000        # never during training (see above)
+num_env_evals: 1
+num_envs: 1
+num_final_evals: 1
+action_window_size: 1
+
+precompute_embeddings: False     # 90k frames x 2 views x 256 x 384 floats would not fit in RAM
+
+goal_dim: 0
+wandb:
+  project: patch_policy
+  entity: ${env_vars.wandb_entity}
+train_fraction: 0.9
+
+device: cuda
+optim:
+  lr: 5.5e-5
+  weight_decay: 2e-4
+  betas: [0.9, 0.999]
+
+env:
+  gym:
+    _target_: envs.pioneer_dummy.PioneerDummyEnv
+    id: pioneer_peg_insert
+    action_dim: 7
+  obs_dim: 7
+  act_dim: 7
+  goal_dim: ${goal_dim}
+  views: 2
+
+dataset:
+  _target_: datasets.pioneer.PioneerDataset
+  data_directory: ${env_vars.dataset_root}/pioneer_peg_insert
+
+data:
+  window_size: ${window_size}
+  action_window_size: ${action_window_size}
+  vqbet_get_future_action_chunk: false
+  goal_conditional: future
+  future_seq_len: ${goal_window_size}
+  min_future_sep: ${action_window_size}
+
+save_ckpt: true
+save_path: "${env_vars.save_path}/outputs/${env.gym.id}/${now:%Y-%m-%d}/${now:%H-%M-%S}"
+load_path: null
+
+model:
+  _target_: models.vq_behavior_transformer.bet.BehaviorTransformer
+  obs_dim: ${encoder.output_dim}
+  act_dim: ${env.act_dim}
+  goal_dim: ${env.goal_dim}
+  views: ${env.views}
+  n_patches: ${encoder.n_patches}
+  vqvae_latent_dim: 512
+  vqvae_n_embed: 16
+  vqvae_groups: 2
+  vqvae_fit_steps: null
+  vqvae_iters: 300
+  n_layer: 6
+  n_head: 6
+  n_embd: 120
+  vqvae_batch_size: 2048
+  act_scale: 1
+  obs_window_size: ${window_size}
+  act_window_size: ${action_window_size}
+  offset_loss_multiplier: 100

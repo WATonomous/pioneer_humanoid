@@ -22,6 +22,7 @@ os.environ.setdefault("MUJOCO_GL", "egl")
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import patch_backbone  # noqa: E402,F401  (so checkpoints trained with the patch-token backbone load)
+import patch_vqbet  # noqa: E402,F401  (Patch Policy on VQ-BeT; active with PATCH_VQBET=1)
 from synthetic_teleop import TeleopSim  # noqa: E402  (also puts the repo packages on sys.path)
 
 
@@ -159,7 +160,7 @@ def main() -> None:
     rate = sum(r["success"] for r in results) / max(1, len(results))
     summary = {"scene": args.scene, "policy": str(path), "episodes": len(results), "success_rate": rate,
                "mean_steps_done": sum(r["steps_done"] for r in results) / max(1, len(results)),
-               "n_action_steps": cfg.n_action_steps, "results": results}
+               "n_action_steps": getattr(cfg, "n_action_steps", None), "results": results}
     out.write_text(json.dumps(summary, indent=2))
     print(f"[EVAL] {args.scene}: success {rate:.0%} ({sum(r['success'] for r in results)}/{len(results)})  -> {out}")
 

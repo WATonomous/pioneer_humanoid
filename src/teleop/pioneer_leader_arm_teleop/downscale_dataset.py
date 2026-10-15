@@ -22,6 +22,8 @@ def main() -> None:
     parser.add_argument("--height", type=int, default=240)
     parser.add_argument("--width", type=int, default=320)
     parser.add_argument("--jobs", type=int, default=6)
+    parser.add_argument("--codec", choices=["libsvtav1", "libx264"], default="libsvtav1",
+                        help="libx264 for an ffmpeg built without SVT-AV1 (e.g. the one imageio-ffmpeg ships)")
     args = parser.parse_args()
     # An existing copy is updated: metadata and frames again, only the new videos (one file per episode) are scaled.
     shutil.copytree(args.src, args.dst, ignore=shutil.ignore_patterns("videos", "images"), dirs_exist_ok=True)
@@ -30,9 +32,11 @@ def main() -> None:
     def scale(path: Path) -> None:
         out = args.dst / path.relative_to(args.src)
         out.parent.mkdir(parents=True, exist_ok=True)
+        encode = (["-c:v", "libsvtav1", "-preset", "10", "-crf", "24", "-g", "2", "-pix_fmt", "yuv420p", "-svtav1-params", "lp=1"]
+                  if args.codec == "libsvtav1" else
+                  ["-c:v", "libx264", "-preset", "medium", "-crf", "18", "-g", "2", "-pix_fmt", "yuv420p", "-threads", "1"])
         subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(path), "-vf", f"scale={args.width}:{args.height}:flags=area",
-                        "-c:v", "libsvtav1", "-preset", "10", "-crf", "24", "-g", "2", "-pix_fmt", "yuv420p", "-svtav1-params", "lp=1", str(out)],
-                       check=True)
+                        *encode, str(out)], check=True)
 
     with ThreadPoolExecutor(args.jobs) as pool:
         list(pool.map(scale, videos))
@@ -42,6 +46,8 @@ def main() -> None:
         if ft.get("dtype") == "video":
             ft["shape"] = [args.height, args.width, 3]
             ft["info"]["video.height"], ft["info"]["video.width"] = args.height, args.width
+            if args.codec == "libx264":
+                ft["info"]["video.codec"] = "h264"
     info_path.write_text(json.dumps(info, indent=4))
     print(f"{len(videos)} videos -> {args.dst} at {args.width}x{args.height}")
 
