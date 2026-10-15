@@ -15,6 +15,29 @@ from tqdm import tqdm
 from humanoid_robot_learning.episode_keys import EpisodeFlags, EpisodeKeyboard
 
 
+def _open_for_append(repo_id: str, root: Path):
+    """Open an existing LeRobot dataset to append episodes, without leaving a Hugging Face cache copy behind.
+
+    ``LeRobotDataset(...)`` converts all of the dataset's parquet data into an Arrow copy in the ``datasets``
+    cache (~/.cache/huggingface/datasets) every time it is opened, and the recorder re-opens after every saved
+    episode. Each copy holds the whole dataset so far, so a long recording session fills the disk (one
+    synthetic-demo run left 19 GB). The recorder only appends and never reads frames back, so the copy goes
+    to a temporary folder that is deleted as soon as the dataset is open.
+    """
+    import tempfile
+
+    import datasets
+    from lerobot.datasets.lerobot_dataset import LeRobotDataset
+
+    with tempfile.TemporaryDirectory(prefix="lerobot_append_") as tmp:
+        keep = datasets.config.HF_DATASETS_CACHE
+        datasets.config.HF_DATASETS_CACHE = Path(tmp)
+        try:
+            return LeRobotDataset(repo_id, root=root)
+        finally:
+            datasets.config.HF_DATASETS_CACHE = keep
+
+
 def _encode_video_frames_subprocess(
     imgs_dir: Path | str,
     video_path: Path | str,
@@ -256,7 +279,7 @@ class SimLeRobotRecorder:
         root = self.dataset_root
         if root.exists():
             try:
-                self.dataset = LeRobotDataset(self.repo_id, root=root)
+                self.dataset = _open_for_append(self.repo_id, root)
                 print(f"[INFO]: Opened existing dataset at {root}")
                 return
             except Exception as exc:
@@ -419,6 +442,10 @@ class SimLeRobotRecorder:
         self._clear_buffers()
         print("[INFO]: Episode queued for saving.")
 
+    def wait_saved(self) -> None:
+        """Block until every queued episode is written (keeps memory down: one episode in flight)."""
+        self._episode_queue.join()
+
     def cancel_recording(self) -> None:
         """Discard the current episode buffer without saving."""
         self._clear_buffers()
@@ -475,7 +502,6 @@ class SimLeRobotRecorder:
         copies/encodes everything before this method returns, after which
         the slot is recycled by the caller.
         """
-        from lerobot.datasets.lerobot_dataset import LeRobotDataset
 
         n = episode["total_frames"]
         tasks = episode.get("tasks") or [None] * n
@@ -501,7 +527,7 @@ class SimLeRobotRecorder:
 
         self.dataset.save_episode()
         self.dataset.finalize()
-        self.dataset = LeRobotDataset(self.repo_id, root=self.dataset_root)
+        self.dataset = _open_for_append(self.repo_id, self.dataset_root)
 
     def finalize(self) -> None:
         """Block until all queued episodes are saved, then stop the worker thread."""
