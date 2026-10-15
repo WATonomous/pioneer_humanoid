@@ -70,14 +70,9 @@ class RTCDrivenPolicy:
             inference latency (wall-clock seconds) into a tick count for
             ``real_delay``. Must match the caller's actual tick rate, not
             necessarily the training dataset's fps.
-        initial_action: safe fallback action tensor, returned by
-            ``get_action`` on the rare tick where the queue is empty but a
-            replan is already in flight (so a fresh action can't be served
-            yet either). Should be whatever safe/home pose the caller
-            already uses to warm-start an episode -- this class has no
-            embodiment knowledge of its own to invent one. After the first
-            real action is produced, this is replaced by that action (held,
-            not reused) for any later gap; ``reset()`` restores it.
+        initial_action: safe action in the policy's action space, returned by
+            ``get_action`` until the episode's first chunk arrives. Later gaps
+            hold the last action instead.
         device: inference device; defaults to ``policy.config.device``.
     """
 
@@ -102,28 +97,21 @@ class RTCDrivenPolicy:
         self.tick_length_s = 1.0 / control_hz
         self.device = device or get_safe_torch_device(policy.config.device)
         self.queue = ActionQueue(RTCConfig(enabled=True, execution_horizon=execution_horizon))
-        # Rolling window of the last 10 measured delays (in ticks); `self.d`
-        # (the estimate fed to merge()) is the max of this window, biased
-        # toward overestimating since under-triggering is the worse failure
-        # mode (queue runs dry mid-inference) than over-triggering (mildly
-        # stale guidance target). Seeded with 1 tick so the very first
-        # _replan call -- before any real measurement exists -- isn't 0.
+        # Delay estimate in ticks: max of the last 10 inferences (overestimating is the safe side).
         self.d_arr = deque([1], maxlen=10)
         self.d = 1
         self._replanning = False
-        self._episode_id = 0
         self._initial_action = initial_action
         self._last_action = initial_action
 
     def reset(self) -> None:
         self.policy.reset()
         self.queue = ActionQueue(RTCConfig(enabled=True, execution_horizon=self.execution_horizon))
-        self._episode_id += 1
-        # Otherwise the new episode's first ticks (queue empty, replan in flight) would
-        # replay the previous episode's final action.
         self._last_action = self._initial_action
 
-    def _replan(self, obs_frame: dict, prev_left_over, action_index_before) -> None:
+    def _replan(self, queue: ActionQueue, obs_frame: dict, prev_left_over, action_index_before) -> None:
+        # Merges into the queue it was started for: after a reset() that queue is orphaned, so a
+        # replan still in flight cannot leak into the next episode.
         try:
             obs = dict(obs_frame)
             obs = prepare_observation_for_inference(
@@ -134,7 +122,6 @@ class RTCDrivenPolicy:
             start = time.perf_counter()
             raw_chunk = self.policy.predict_action_chunk(
                 obs,
-                # inference_delay is estimated delay based on highest delay from last 10 calls
                 inference_delay=self.d,
                 prev_chunk_left_over=prev_left_over,
                 execution_horizon=self.execution_horizon,
@@ -147,27 +134,17 @@ class RTCDrivenPolicy:
                 processed_chunk = processed_chunk.squeeze(1)
             raw_chunk_sq = raw_chunk.squeeze(0)  # (chunk_size, action_dim)
 
-            end = time.perf_counter()
-            elapsed_s = end - start
-            # Seconds -> ticks, rounded UP: underestimating real_delay is the bad
-            # direction (merge() would keep stale slots it should have dropped),
-            # so always err toward a larger tick count, never a smaller one.
-            elapsed_ticks = math.ceil(elapsed_s / self.tick_length_s)
-            self.d_arr.append(elapsed_ticks)
+            self.d_arr.append(math.ceil((time.perf_counter() - start) / self.tick_length_s))
             self.d = max(self.d_arr)
 
-            if self._temp_episode_id != self._episode_id:
-                return
-
-            self.queue.merge(
+            queue.merge(
                 original_actions=raw_chunk_sq,
                 processed_actions=processed_chunk,
-                real_delay=self.queue.get_action_index() - action_index_before,
+                real_delay=queue.get_action_index() - action_index_before,
                 action_index_before_inference=action_index_before,
             )
         finally:
-            # always reset _replanning to prevent soft lock in case of exception
-            self._replanning = False
+            self._replanning = False  # also on exceptions, or replanning would stop for good
 
     def get_action(self, obs_frame: dict) -> torch.Tensor:
         """Returns the next postprocessed action tensor for ``obs_frame``.
@@ -179,8 +156,10 @@ class RTCDrivenPolicy:
         """
         if (self.queue.queue is None or self.queue.get_action_index() >= self.execution_horizon - self.d) and not self._replanning:
             self._replanning = True
-            self._temp_episode_id = self._episode_id
-            threading.Thread(target=self._replan, args=(obs_frame, self.queue.get_left_over(), self.queue.get_action_index())).start()
+            threading.Thread(
+                target=self._replan,
+                args=(self.queue, obs_frame, self.queue.get_left_over(), self.queue.get_action_index()),
+            ).start()
 
         action_values = self.queue.get()
 

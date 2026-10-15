@@ -9,6 +9,7 @@
 import argparse
 import json
 import random
+import time
 from copy import copy
 from tqdm import tqdm
 
@@ -77,11 +78,9 @@ class SO101RTCPolicy:
             task_description=task_description,
             robot_type=self._iface.robot.robot_type,
             execution_horizon=execution_horizon,
-            # robot_iface.fps is this script's actual control-loop rate (set via
-            # LeRobotSO101Interface(..., fps=30, ...) in main()) -- reused here
-            # instead of a second hardcoded 30, so the two can't drift apart.
             control_hz=robot_iface.fps,
-            initial_action=initial_action,
+            # initial_action is a sim command (rad); the driver works in the policy's action space.
+            initial_action=robot_iface.get_raw_actions_from_radians(initial_action).unsqueeze(0),
         )
 
     def reset(self):
@@ -130,8 +129,6 @@ def main():
     )
     robot_iface.init_device(visualize=False)
 
-    # Defined before SO101RTCPolicy below -- also doubles as RTCDrivenPolicy's
-    # safe fallback action (see initial_action in SO101RTCPolicy.__init__).
     initial_action = torch.tensor([-0.2736, -0.6109, -0.0745, 1.5148, -1.6034, -0.1465], device=env.unwrapped.device)
 
     policy = SO101RTCPolicy(
@@ -142,6 +139,10 @@ def main():
     policy.reset()
 
     actions = torch.zeros(env.action_space.shape, device=env.unwrapped.device)
+    # The async driver turns inference time into ticks with robot_iface.fps, so ticks must run in real time.
+    tick_period = 1.0 / robot_iface.fps
+    next_tick = time.perf_counter()
+    lag_warned = False
 
     step = 0
     num_episodes = 0
@@ -187,6 +188,17 @@ def main():
             if pbar is not None:
                 pbar.update(1)
 
+            next_tick += tick_period
+            slack = next_tick - time.perf_counter()
+            if slack > 0:
+                time.sleep(slack)
+            else:
+                if not lag_warned and -slack > tick_period:
+                    print(f"[WARN]: sim slower than real time ({-slack * 1000:.0f} ms behind) -- "
+                          "RTC delay estimates will be too large")
+                    lag_warned = True
+                next_tick = time.perf_counter()
+
             is_terminated = terminated.item() if terminated.numel() == 1 else terminated.any().item()
             is_truncated = truncated.item() if truncated.numel() == 1 else truncated.any().item()
 
@@ -208,6 +220,7 @@ def main():
 
                 obs, _ = env.reset()
                 policy.reset()
+                next_tick = time.perf_counter()
                 step = 0
                 continue
 
@@ -218,6 +231,7 @@ def main():
                     pbar = None
                 obs, _ = env.reset()
                 policy.reset()
+                next_tick = time.perf_counter()
                 step = 0
                 continue
 

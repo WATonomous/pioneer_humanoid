@@ -36,8 +36,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-import torch
 import os
+
+import torch
 
 from humanoid_robot_learning.schema import build_features, load_yaml
 from pioneer_humanoid.bimanual_arm import JOINT_POS_LIMITS
@@ -94,8 +95,7 @@ class PioneerLeftArmInterface:
         self.robot_type: str = cfg["robot_type"]
         self.dataset_features: dict[str, Any] = build_features(cfg)
 
-        # Clamp table for the 7 recorded joints, in self.joint_names order. Pulled
-        # straight from the URDF-derived table -- no hand-copied numbers.
+        # Clamp table for the 7 recorded joints, in self.joint_names order (URDF limits).
         mins, maxs = [], []
         for name in self.joint_names:
             lo, hi = JOINT_POS_LIMITS[name]
@@ -112,40 +112,26 @@ class PioneerLeftArmInterface:
         """Load a checkpoint + its matching pre/postprocessor pipeline.
 
         Call once, before any get_action calls. Mirrors
-        LeRobotSO101Interface.make_policy, minus the RTC/ACT research-knob env
-        vars (set policy_config.rtc_config yourself before calling this, or add
-        those knobs back in if you want them) and minus the Robot-derived
-        feature-building (we already built self.dataset_features in __init__).
+        LeRobotSO101Interface.make_policy, including its RTC_EXECUTION_HORIZON /
+        RTC_MAX_GUIDANCE_WEIGHT env knobs, minus the Robot-derived feature-building
+        (self.dataset_features is built in __init__).
         """
         policy_config = PreTrainedConfig.from_pretrained(name_or_path)
         policy_config.pretrained_path = name_or_path
         policy_config.device = self.device
 
-        # Research knob: enable Real-Time Chunking (RTC) for flow-matching policies
-        # (pi0/pi0.5/SmolVLA). Off unless RTC_EXECUTION_HORIZON is set -- mirrors
-        # LeRobotSO101Interface.make_policy's identical knob.
+        # RTC for flow-matching policies (pi0/pi0.5/SmolVLA), off unless RTC_EXECUTION_HORIZON is set.
         rtc_execution_horizon = os.environ.get("RTC_EXECUTION_HORIZON")
         if rtc_execution_horizon is not None and hasattr(policy_config, "rtc_config"):
-            try:
-                from importlib import import_module
+            from lerobot.policies.rtc.configuration_rtc import RTCConfig
 
-                rtc_config_module = import_module("lerobot.policies.rtc.configuration_rtc")
-                RTCConfig = rtc_config_module.RTCConfig
-            except Exception:
-                RTCConfig = None
-
-            if RTCConfig is not None:
-                rtc_guidance_weight = float(os.environ.get("RTC_MAX_GUIDANCE_WEIGHT", "10.0"))
-                policy_config.rtc_config = RTCConfig(
-                    enabled=True,
-                    execution_horizon=int(rtc_execution_horizon),
-                    max_guidance_weight=rtc_guidance_weight,
-                )
-                print(
-                    "[INFO]: Enabling RTC, "
-                    f"execution_horizon={rtc_execution_horizon}, "
-                    f"max_guidance_weight={rtc_guidance_weight}"
-                )
+            rtc_guidance_weight = float(os.environ.get("RTC_MAX_GUIDANCE_WEIGHT", "10.0"))
+            policy_config.rtc_config = RTCConfig(
+                enabled=True,
+                execution_horizon=int(rtc_execution_horizon),
+                max_guidance_weight=rtc_guidance_weight,
+            )
+            print(f"[INFO]: Enabling RTC, execution_horizon={rtc_execution_horizon}, max_guidance_weight={rtc_guidance_weight}")
 
         dataset_meta = DummyDatasetMeta(self.dataset_features, self.robot_type)
         self.policy = make_policy(policy_config, ds_meta=dataset_meta)
