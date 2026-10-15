@@ -32,6 +32,15 @@ else
   exit 1
 fi
 
+if command -v evo_rpe >/dev/null 2>&1; then
+  EVO_RPE="$(command -v evo_rpe)"
+elif [[ -x /opt/evo-venv/bin/evo_rpe ]]; then
+  EVO_RPE=/opt/evo-venv/bin/evo_rpe
+else
+  echo "Error: evo_rpe is not installed or available." >&2
+  exit 1
+fi
+
 # Calcs position error
 POSITION_OUTPUT="$($EVO_APE tum "$GROUND_TRUTH" "$ESTIMATED_TRAJECTORY" -a 2>&1)" || {
   echo "$POSITION_OUTPUT" >&2
@@ -45,8 +54,8 @@ ROTATION_OUTPUT="$($EVO_APE tum "$GROUND_TRUTH" "$ESTIMATED_TRAJECTORY" -a -r an
 }
 
 # Calcs relative pose errors
-RPE_TRANSLATION_OUTPUT="$(evo_rpe tum "$GROUND_TRUTH" "$ESTIMATED_TRAJECTORY" -a -r trans_part 2>&1)" || { echo "$RPE_TRANSLATION_OUTPUT" >&2; exit 1; }
-RPE_ROTATION_OUTPUT="$(evo_rpe tum "$GROUND_TRUTH" "$ESTIMATED_TRAJECTORY" -a -r angle_deg 2>&1)" || { echo "$RPE_ROTATION_OUTPUT" >&2; exit 1; }
+RPE_TRANSLATION_OUTPUT="$($EVO_RPE tum "$GROUND_TRUTH" "$ESTIMATED_TRAJECTORY" -a -r trans_part 2>&1)" || { echo "$RPE_TRANSLATION_OUTPUT" >&2; exit 1; }
+RPE_ROTATION_OUTPUT="$($EVO_RPE tum "$GROUND_TRUTH" "$ESTIMATED_TRAJECTORY" -a -r angle_deg 2>&1)" || { echo "$RPE_ROTATION_OUTPUT" >&2; exit 1; }
 
 # Gets the values
 POSITION_RMSE="$(printf '%s\n' "$POSITION_OUTPUT" | awk '$1 == "rmse" {print $2; exit}')"
