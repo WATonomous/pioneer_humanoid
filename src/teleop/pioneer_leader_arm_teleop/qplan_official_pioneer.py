@@ -100,6 +100,57 @@ class DPSampler:
         return self.policy.parameters()
 
 
+class MTDiTSampler(DPSampler):
+    """A frozen Multi-Task DiT policy (mtdit/, flow matching or diffusion) as the planner's proposal distribution."""
+
+    def __init__(self, path, device="cuda"):
+        import mtdit
+        mtdit.install()
+        from lerobot.policies.factory import make_pre_post_processors
+
+        from mtdit.modeling_multi_task_dit import MultiTaskDiTPolicy
+        self.policy = MultiTaskDiTPolicy.from_pretrained(str(path)).to(device).eval()
+        self.cfg = self.policy.config
+        self.pre, self.post = make_pre_post_processors(self.cfg, pretrained_path=str(path),
+                                                       preprocessor_overrides={"device_processor": {"device": device}})
+        self.device = torch.device(device)
+        self.chunk_size, self.action_dim = int(self.cfg.n_action_steps), 7
+        self.cameras = {k.removeprefix("observation.images."): tuple(f.shape[-2:]) for k, f in self.cfg.input_features.items()
+                        if k.startswith("observation.images.")}
+        zero = torch.zeros(1, 1, 7, device=self.device)
+        with torch.inference_mode():
+            self.a_mean = self.post(zero.clone()).reshape(7).to(self.device).float()
+            self.a_std = self.post(zero.clone() + 1).reshape(7).to(self.device).float() - self.a_mean
+        self.history = deque(maxlen=self.cfg.n_obs_steps)
+
+    @torch.no_grad()
+    def sample_chunks(self, batch, n_samples, *, denoise_steps=None, generator=None):
+        from lerobot.utils.constants import OBS_IMAGES, OBS_LANGUAGE_ATTENTION_MASK, OBS_LANGUAGE_TOKENS, OBS_STATE
+        last = self.history[-1]
+        stacked = {OBS_STATE: torch.stack([b[OBS_STATE] for b in self.history], dim=1),
+                   OBS_IMAGES: torch.stack([torch.stack([b[k] for k in self.cfg.image_features], dim=-4) for b in self.history], dim=1),
+                   OBS_LANGUAGE_TOKENS: last[OBS_LANGUAGE_TOKENS], OBS_LANGUAGE_ATTENTION_MASK: last[OBS_LANGUAGE_ATTENTION_MASK]}
+        cond = self.policy.observation_encoder.encode(stacked)          # encoded once, shared by all N draws
+        objective = self.policy.objective
+        # Flow matching reads its step count from the config at each call; the diffusion objective keeps its own copy.
+        owner, attr = (objective.config, "num_integration_steps") if self.cfg.is_flow_matching else (objective, "num_inference_steps")
+        keep = getattr(owner, attr)
+        if denoise_steps:
+            setattr(owner, attr, int(denoise_steps))
+        try:
+            actions = objective.conditional_sample(self.policy.noise_predictor, n_samples, cond.expand(n_samples, -1))
+        finally:
+            setattr(owner, attr, keep)
+        start = self.cfg.n_obs_steps - 1
+        return actions[:, start:start + self.chunk_size].float()
+
+
+def make_sampler(path, device="cuda"):
+    """The proposal sampler for a checkpoint: Diffusion Policy or Multi-Task DiT, by the checkpoint's policy type."""
+    kind = json.loads((Path(path) / "config.json").read_text()).get("type")
+    return MTDiTSampler(path, device) if kind == "multi_task_dit" else DPSampler(path, device)
+
+
 def build_policy(args, sampler, q_checkpoint):
     """Their QPlanningPolicy: the unguided baseline (NoPlanner) or their QWeightedPlanner on a Q checkpoint."""
     from qplanning.planner import NoPlanner, QWeightedPlanner
@@ -128,6 +179,13 @@ def rollout(scene, seed, policy, sampler, max_s=40.0, hold_s=0.4, keep_frames=Fa
     policy.reset()
     actions, frames, held, ok = [], {f"observation.images.{c}": [] for c in sampler.cameras}, 0.0, False
     q_spread = []
+    instruction = task.instruction
+    # duplo: which brick the policy disturbs first (15 mm) vs the announced first brick (chance 1/3), as in order_probe.py.
+    probe = None
+    if scene == "duplo":
+        import importlib
+        S = importlib.import_module("humanoid_mujoco_scenes.duplo.scene")
+        probe = {"order": list(S._order(data)), "p0": {c: data.body(f"brick_{c}").xpos.copy() for c in S.COLOURS}, "moved": None}
     for _ in range(int(max_s * FPS)):
         # Cameras are only needed when the planner is about to replan, and one step earlier (the policy conditions on
         # two frames); when frames are kept for the online buffer every step is rendered.
@@ -138,8 +196,10 @@ def rollout(scene, seed, policy, sampler, max_s=40.0, hold_s=0.4, keep_frames=Fa
             if any(img.shape[:2] != sampler.cameras[c] for c, img in images.items()):
                 import cv2
                 images = {c: cv2.resize(img, sampler.cameras[c][::-1], interpolation=cv2.INTER_AREA) for c, img in images.items()}
-            sampler.observe(state, images, task.instruction)
-            batch = {"task": [task.instruction]}
+            if sim.progress is not None:              # multi-step scenes: the current step's instruction, as recorded
+                instruction = sim.progress(model, data)[2]
+            sampler.observe(state, images, instruction)
+            batch = {"task": [instruction]}
             for c, img in images.items():
                 batch[f"observation.images.{c}"] = torch.from_numpy(img.copy()).permute(2, 0, 1)[None].float().div(255).to(sampler.device)
         action = sampler.unnormalize_actions(policy.select_action(batch))[0].cpu().numpy().astype(float)
@@ -156,13 +216,19 @@ def rollout(scene, seed, policy, sampler, max_s=40.0, hold_s=0.4, keep_frames=Fa
         if keep_frames:                      # kept as uint8 (a float copy of a 40 s episode is ~1.8 GB)
             for c, img in images.items():
                 frames[f"observation.images.{c}"].append(torch.from_numpy(img.copy()).permute(2, 0, 1))
+        if probe is not None and probe["moved"] is None:
+            for c, p0 in probe["p0"].items():
+                if np.linalg.norm(data.body(f"brick_{c}").xpos - p0) > 0.015:
+                    probe["moved"] = c
+                    break
         held = held + 1.0 / FPS if task.success(model, data) else 0.0
         if held >= hold_s:
             ok = True
             break
     sim.close()
     episode = {"action": torch.stack(actions), "success": bool(ok), "task": task.instruction, "frames": len(actions),
-               "q_std": float(np.mean(q_spread)) if q_spread else None}
+               "q_std": float(np.mean(q_spread)) if q_spread else None,
+               "first_moved_ok": None if probe is None or probe["moved"] is None else probe["moved"] == probe["order"][0]}
     if keep_frames:
         for k, v in frames.items():
             # Their save_episodes_lerobot flips H and W (a LIBERO convention). Our demonstrations are stored unflipped,
@@ -173,13 +239,28 @@ def rollout(scene, seed, policy, sampler, max_s=40.0, hold_s=0.4, keep_frames=Fa
 
 def evaluate(args, policy, sampler, seeds, label, keep_frames=False):
     episodes, t0 = [], time.time()
+    video_dir = os.environ.get("QOFF_VIDEO_DIR")    # an mp4 per successful episode: ego | wrist, played at half speed
     for i, seed in enumerate(seeds):
-        ep = rollout(args.scene, seed, policy, sampler, args.max_s, keep_frames=keep_frames)
+        ep = rollout(args.scene, seed, policy, sampler, args.max_s, keep_frames=keep_frames or bool(video_dir))
+        if video_dir and ep["success"]:
+            import imageio
+            Path(video_dir).mkdir(parents=True, exist_ok=True)
+            cams = sorted(k for k in ep if k.startswith("observation.images."))
+            with imageio.get_writer(Path(video_dir) / f"{args.scene}_seed{seed}.mp4", fps=FPS / 2, macro_block_size=1) as video:
+                for t in range(ep["frames"]):
+                    frame = np.concatenate([torch.flip(ep[c][t], dims=[1, 2]).permute(1, 2, 0).numpy() for c in cams], axis=1)
+                    video.append_data(frame.repeat(2, 0).repeat(2, 1))
+        if video_dir and not keep_frames:
+            for k in [k for k in ep if k.startswith("observation.images.")]:
+                del ep[k]
         episodes.append(ep)
         if (i + 1) % 10 == 0 or i + 1 == len(seeds):
             print(f"[QOFF] {label}: {sum(e['success'] for e in episodes)}/{len(episodes)} ({time.time() - t0:.0f} s)", flush=True)
     ok = sum(e["success"] for e in episodes)
     qs = [e["q_std"] for e in episodes if e["q_std"] is not None]
+    choice = [e["first_moved_ok"] for e in episodes if e.get("first_moved_ok") is not None]
+    if choice:
+        print(f"[QOFF] {label}: first brick moved = the announced one: {sum(choice)}/{len(choice)} (chance 1/3)", flush=True)
     print(f"[QOFF] {label}: success {ok / len(episodes):.1%} ({ok}/{len(episodes)}), mean episode {np.mean([e['frames'] for e in episodes]) / FPS:.1f} s"
           + (f", mean Q std across candidates {np.mean(qs):.4f}" if qs else ""), flush=True)
     return episodes, ok
@@ -284,7 +365,7 @@ def main() -> None:
     p.add_argument("--skip_initial", action="store_true", help="skip the policy-alone and offline-Q evaluations")
     args = p.parse_args()
 
-    sampler = DPSampler(args.policy)
+    sampler = make_sampler(args.policy)
     if args.cmd == "eval":
         policy = build_policy(args, sampler, args.q)
         evaluate(args, policy, sampler, range(args.seed, args.seed + args.episodes), "Q-Planning" if args.q else "policy alone")
