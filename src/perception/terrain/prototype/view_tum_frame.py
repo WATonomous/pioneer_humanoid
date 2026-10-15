@@ -1,7 +1,14 @@
+import sys
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 
 from terrain_core.preprocess.depth import depth_to_points
-from tum import load_tum_frame
+
+# tum.py lives in terrain_tools/, not next to this script, so add that folder
+# to the places Python looks for imports (parents[1] = the terrain/ folder).
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "terrain_tools"))
+from tum import load_tum_frame  # noqa: E402
 
 
 frame = load_tum_frame(450)
