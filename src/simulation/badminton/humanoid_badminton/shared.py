@@ -19,18 +19,21 @@ one (58 teacher dims), so the single-arm checkpoint loads directly.
 Who takes the shot:
 
   training ("random")    the active arm is drawn 50/50 at reset and holds
-                         the ready pose for a random go delay in
+                         the start pose for a random go delay in
                          [0, control.shared_go_max_s]; the critic learns how
                          well that arm does from that state, including shots
                          it cannot reach
-  deployment ("external") both arms hold ready while ChooserPolicy compares
+  deployment ("external") both arms hold the start pose while ChooserPolicy
+                         compares
                          the critic on the right-arm frame with the critic
                          on the left-arm frame; the first tick the gap
                          exceeds the margin (or at the go delay cap) locks
                          the higher-value arm
 
-After the lock (the go tick in training) the arm not chosen drops to the
-rest pose, and after the hit both arms go to rest, as before.
+The start pose is control.shared_start_pose: "rest" (both arms hang at
+arm.rest_joint_pos from the reset on) or "ready" (the action offset, arms
+out sideways). After the lock (the go tick in training) the arm not chosen
+goes to rest, and after the hit both arms go to rest, as before.
 """
 
 from __future__ import annotations
@@ -174,8 +177,9 @@ def approach_assigned(env: "ManagerBasedRlEnv", std: float,
 class SharedArmAction(BadmintonAction):
     """6 joint targets for the active arm, in its frame (offsets from its
     ready pose; the left arm gets the mirrored targets). Until the go tick
-    (store "committed") both arms hold ready; after it the other arm goes
-    to rest; after the hit both go to rest."""
+    (store "committed") both arms hold the start pose
+    (control.shared_start_pose); after it the other arm goes to rest; after
+    the hit both go to rest."""
 
     cfg: "SharedArmActionCfg"
 
@@ -185,8 +189,10 @@ class SharedArmAction(BadmintonAction):
         # the 12-target buffers (offset, clip, moderation) stay; only the
         # policy-facing dimension is one arm
         self._action_dim = N_ARM
-        self._go_max = float(
-            aero.load_params()["control"]["shared_go_max_s"])
+        c = aero.load_params()["control"]
+        self._go_max = float(c["shared_go_max_s"])
+        assert c["shared_start_pose"] in ("rest", "ready")
+        self._start_rest = c["shared_start_pose"] == "rest"
         n = self.num_envs
         self._go_t = torch.zeros(n, device=self.device)
         self._raw6 = torch.zeros(n, N_ARM, device=self.device)
@@ -212,12 +218,13 @@ class SharedArmAction(BadmintonAction):
                            torch.where(arm == 1, -actions, zero)], dim=-1)
         self._raw_actions[:] = raw12
         tgt = raw12 * self._scale + self._offset
-        ready = self._offset if torch.is_tensor(self._offset) else \
-            torch.full_like(tgt, self._offset)
+        rest = self._rest.expand_as(tgt)
+        start = rest if self._start_rest else (
+            self._offset if torch.is_tensor(self._offset)
+            else torch.full_like(tgt, self._offset))
         go = store["committed"].unsqueeze(-1)
         other = self._arm_side.unsqueeze(0) != arm
-        tgt = torch.where(go, tgt, ready)
-        rest = self._rest.expand_as(tgt)
+        tgt = torch.where(go, tgt, start)
         tgt = torch.where(go & other, rest, tgt)
         tgt = torch.where(store["hit"].unsqueeze(-1), rest, tgt)
         # same moderation as BadmintonAction: per-tick step cap, low-pass,
@@ -235,6 +242,9 @@ class SharedArmAction(BadmintonAction):
         if env_ids is None:
             env_ids = slice(None)
         store = mdp._state(self._env)
+        if self._start_rest:
+            # the arms start at rest (reset_arms_to_rest): moderate from there
+            self._prev_target[env_ids] = self._rest
         self._raw6[env_ids] = 0.0
         store["committed"][env_ids] = False
         store["commit_t"][env_ids] = 0.0
@@ -246,6 +256,22 @@ class SharedArmAction(BadmintonAction):
                 n, device=self.device)
         else:
             store["assign"][env_ids] = 0
+
+
+def reset_arms_to_rest(env: "ManagerBasedRlEnv",
+                       env_ids: torch.Tensor | None) -> None:
+    """Reset event: both arms at arm.rest_joint_pos (left mirrored), at
+    rest. The default joint pos (the action offset and the joint_pos obs
+    origin) stays the ready pose."""
+    if env_ids is None:
+        env_ids = torch.arange(env.num_envs, device=env.device)
+    robot = env.scene["robot"]
+    rest = env.action_manager.get_term("joint_pos")._rest   # (1, 12)
+    pos = robot.data.default_joint_pos[env_ids].clone()
+    assert pos.shape[-1] == rest.shape[-1], (pos.shape, rest.shape)
+    pos[:] = rest
+    vel = torch.zeros_like(pos)
+    robot.write_joint_state_to_sim(pos, vel, env_ids=env_ids)
 
 
 @dataclass(kw_only=True)

@@ -1,7 +1,7 @@
 """Env config for the shared-arm tasks (humanoid_badminton/shared.py).
 
 Same scene, physics, perception, terminations and rewards as the bimanual
-env (env_cfg.make_env_cfg), with three changes:
+env (env_cfg.make_env_cfg), with these changes:
 
   action        SharedArmAction: 6 targets for the active arm, in its frame
   observations  the single-arm layout in the active arm's frame
@@ -9,6 +9,8 @@ env (env_cfg.make_env_cfg), with three changes:
                 intercept = 58 dims; student: ... shuttle,
                 shuttle_uncertainty), so single-arm checkpoints load as is
   approach      graded on the active arm's face from the first tick
+  reset         with control.shared_start_pose "rest", both arms start at
+                arm.rest_joint_pos instead of the ready pose
 
 With chooser=True the action waits for an external lock (ChooserPolicy)
 and every group gets <group>_right and <group>_left copies in the fixed
@@ -17,11 +19,13 @@ arm frames, which the chooser feeds to the critic.
 
 from __future__ import annotations
 
+from mjlab.managers.event_manager import EventTermCfg
 from mjlab.managers.observation_manager import (ObservationGroupCfg,
                                                 ObservationTermCfg)
 from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 
+import aero
 from humanoid_badminton import assets, shared
 from humanoid_badminton.env_cfg import FACE_SITES, make_env_cfg
 
@@ -88,5 +92,8 @@ def make_shared_env_cfg(play: bool = False, chooser: bool = False):
         cfg.rewards[name] = RewardTermCfg(
             func=shared.approach_assigned, weight=term.weight,
             params=dict(term.params))
+    if aero.load_params()["control"]["shared_start_pose"] == "rest":
+        cfg.events["reset_arm"] = EventTermCfg(
+            func=shared.reset_arms_to_rest, mode="reset", params={})
     assert assets.FACE_SITES[0] == "face_center"   # right face first
     return cfg

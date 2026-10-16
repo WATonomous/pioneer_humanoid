@@ -241,3 +241,8 @@ control:
   # before the policy drives it; in deployment the critic-based chooser
   # must lock an arm by this time. 0.2 s = 10 control ticks.
   shared_go_max_s: 0.2
+  # pose both arms start each episode in and hold until the go tick / lock:
+  # "rest" (arm.rest_joint_pos, hanging down) or "ready" (the action
+  # offset, arms out sideways; checkpoints up to priv1b trained with it).
+  # The action offset stays the ready pose either way.
+  shared_start_pose: rest
