@@ -171,6 +171,16 @@ def make_shared_student_ppo_cfg() -> RslRlOnPolicyRunnerCfg:
     return cfg
 
 
+def make_shared_student_ppo_priv_cfg() -> RslRlOnPolicyRunnerCfg:
+    """Shared student PPO with the privileged critic of the single-arm
+    recipe. This critic cannot pick the arm on the robot, so the chooser
+    uses the critic of a Shared-Student-PPO run (student obs)."""
+    cfg = make_shared_student_ppo_cfg()
+    cfg.experiment_name = "badminton_shared_student_ppo_priv"
+    cfg.obs_groups = {"actor": ("student",), "critic": ("teacher",)}
+    return cfg
+
+
 def make_shared_distill_cfg() -> RslRlDistillationRunnerCfg:
     cfg = make_distill_cfg()
     cfg.experiment_name = "badminton_shared_student"

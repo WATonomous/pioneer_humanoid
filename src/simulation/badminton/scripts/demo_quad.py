@@ -161,7 +161,9 @@ class RecordedData:
         self.mocap_pos, self.mocap_quat = mocap_pos, mocap_quat
 
 
-def load_policy(task: str, checkpoint: str, device: str, num_envs: int):
+def load_policy(task: str, checkpoint: str, device: str, num_envs: int,
+                critic_task: str | None = None,
+                critic_checkpoint: str | None = None):
     # shared-arm tasks: the play cfg waits for the critic chooser's lock
     shared_task = task.startswith("Mjlab-Badminton-Shared")
     env_cfg = load_env_cfg(task, play=shared_task)
@@ -180,7 +182,8 @@ def load_policy(task: str, checkpoint: str, device: str, num_envs: int):
     if shared_task:
         assert not distilled, "demo a shared PPO checkpoint (it has the critic)"
         from humanoid_badminton import shared
-        policy = shared.make_chooser(env, policy, task, checkpoint, device,
+        policy = shared.make_chooser(env, policy, critic_task or task,
+                                     critic_checkpoint or checkpoint, device,
                                      margin=0.5)
     return env, policy
 
@@ -315,6 +318,12 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--task", default="Mjlab-Badminton-Receive-Student-PPO")
     ap.add_argument("--checkpoint-file", required=True)
+    ap.add_argument("--critic-task", default=None,
+                    help="shared-arm tasks: task whose critic picks the arm "
+                         "(default: --task)")
+    ap.add_argument("--critic-checkpoint", default=None,
+                    help="checkpoint holding that critic (default: "
+                         "--checkpoint-file)")
     ap.add_argument("--device", default="cuda:0")
     ap.add_argument("--port", type=int, default=8080)
     ap.add_argument("--batch", type=int, default=128,
@@ -352,7 +361,8 @@ def main() -> None:
         args.no_web, args.seconds, args.batch = True, 3.0, 4
 
     env, policy = load_policy(args.task, args.checkpoint_file, args.device,
-                              args.batch)
+                              args.batch, args.critic_task,
+                              args.critic_checkpoint)
     uenv = env.unwrapped
     renderers = make_renderers(uenv, args.panel_width, args.panel_height,
                                args.supersample)

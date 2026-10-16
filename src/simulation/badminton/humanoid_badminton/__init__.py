@@ -10,12 +10,14 @@ in each hand, the policy picks one arm per shot):
                                     shuttle + noisy trajectory prior)
   Mjlab-Badminton-Receive-Student-PPO PPO fine-tune of the distilled student
 
-  Mjlab-Badminton-Shared-{Teacher,Student,Student-PPO}
+  Mjlab-Badminton-Shared-{Teacher,Student,Student-PPO,Student-PPO-Priv}
                                     the same three phases with the shared-
                                     arm architecture (humanoid_badminton/
                                     shared.py): one single-arm policy drives
                                     either arm in that arm's frame, and the
                                     critic picks the arm at deployment
+                                    (-Priv: privileged critic, picks with
+                                    a Student-PPO critic)
 
 Run from the stationary/ directory (the package imports aero/launcher/
 perception_torch from there):
@@ -42,6 +44,7 @@ from humanoid_badminton.rl_cfg import (make_distill_cfg, make_student_ppo_cfg,  
                                        make_teacher_ppo_cfg,
                                        make_shared_distill_cfg,
                                        make_shared_student_ppo_cfg,
+                                       make_shared_student_ppo_priv_cfg,
                                        make_shared_teacher_ppo_cfg)
 
 
@@ -108,4 +111,11 @@ register_mjlab_task(
     env_cfg=make_shared_env_cfg(),
     play_env_cfg=make_shared_env_cfg(play=True, chooser=True),
     rl_cfg=make_shared_student_ppo_cfg(),
+)
+
+register_mjlab_task(
+    "Mjlab-Badminton-Shared-Student-PPO-Priv",
+    env_cfg=make_shared_env_cfg(),
+    play_env_cfg=make_shared_env_cfg(play=True, chooser=True),
+    rl_cfg=make_shared_student_ppo_priv_cfg(),
 )
