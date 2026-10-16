@@ -204,3 +204,28 @@ chunk (softmax-weighted mean of the top 16 samples), a different action distribu
   duplo, 6000 updates on peg) are under-trained.
 - Not done: pi0.5 on drawer_stow; 160k-step Diffusion Policy sweep; spline demos vs the scripted operator; fair Diffusion Policy
   recipe (full width, EMA, 16-step horizon, 200k+ steps).
+
+## Multi-Task DiT and Q-Planning on a stronger base (2026-10-15/16)
+
+Multi-Task DiT = Bryson Jones' LBM-style policy (LeRobot 0.6 `policies/multi_task_dit`), ported to LeRobot 0.4.x in
+`src/teleop/pioneer_leader_arm_teleop/mtdit/` (`train_mtdit.py --policy.type=multi_task_dit`). Recipe used: flow matching,
+horizon 33 (32-action chunks), 10 Euler steps, images squashed to 236×236 + 224 crop, AMP, 180 clean peg demos at 320×240.
+Batch 16 does not fit 8 GB. Evaluation: `qplan_official_pioneer.py eval` (authors' NoPlanner protocol), layouts 1000-1099.
+
+| peg_insert, 100 layouts | success |
+|---|---|
+| MT-DiT 50k, batch 8, 10 / 32 actions per replan (25k: 1/100; 20 Euler steps: 36) | 39 / 53 |
+| + authors' Q-Planning, Q trained on demos only (32 per replan) | 60 |
+| + authors' self-improvement, 30 rollouts/round, rounds 1-5 | 68, 71, 65, 63, 63 |
+| same loop executing only the top-1 candidate: offline, round 1 | 50, 37 |
+| **MT-DiT + `--policy.vision_spatial_keypoints=32`, batch 6, 50k** | **70** |
+| ACT (own protocol, 200 layouts) | 88% |
+
+- Self-improvement collapsed on the 9% Diffusion Policy (0/100 by round 8) but works on the 53% DiT: the base must be strong
+  enough that most rollouts succeed. Plateau after round 2; rounds 3-5 ran without rounds 1-2's shards (deleted for disk).
+- Spatial-softmax keypoints over CLIP's patch grid (`vision_spatial_keypoints`, a port addition) took the DiT from 53 to 70:
+  the CLS-only conditioning loses where things are.
+- duplo, 450 demos, current step's spoken instruction as CLIP text, 80k: first brick = announced 33/100 (chance), stacks 1/100.
+  A text vector concatenated into the conditioning does not steer it; FiLM-ACT on the same takes: 100/100, 54/100.
+- Real-robot cost of the self-improvement loop: 30 success/failure labels per round, no new demos.
+- Next: Q-Planning / self-improvement on the keypoint DiT; ACT-style feature-map tokens + diffusion loss (as ALOHA Unleashed).
