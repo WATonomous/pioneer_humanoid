@@ -121,11 +121,14 @@ def make_sim_recorder(
         ) from exc
 
     cfg = schema.cfg
+    missing = [key for key in ("fps", "repo_id", "robot_id", "joint_names") if key not in cfg]
+    if missing:
+        raise ValueError(f"{schema.path}: missing {', '.join(missing)}")
     if list(cfg["joint_names"]) != joint_names:
         raise ValueError(
             f"{schema.path}: joint_names must be {joint_names}, got {list(cfg['joint_names'])}"
         )
-    fps = int(cfg.get("fps", 25))
+    fps = int(cfg["fps"])
     physics_hz = 1.0 / sim_dt
     record_every = round(physics_hz / fps)
     if record_every < 1 or abs(record_every * fps - physics_hz) > 1e-6:
@@ -134,14 +137,14 @@ def make_sim_recorder(
     cameras = {name: {"height": spec["height"], "width": spec["width"]} for name, spec in schema.images.items()}
     recorder = SimLeRobotRecorder(
         task_name=args.task_description,
-        repo_id=str(cfg.get("repo_id", "humanoid/sim")),
+        repo_id=str(cfg["repo_id"]),
         dataset_root=dataset_root,
         fps=fps,
         device=device,
         joint_names=list(cfg["joint_names"]),
         cameras=cameras,
         num_episodes=args.num_episodes,
-        robot_type=str(cfg.get("robot_id", "pioneer_v1_left_arm")),
+        robot_type=str(cfg["robot_id"]),
         rate_limit=False,
         extra_features=extra_features,
         buffer_capacity_s=buffer_capacity_s,

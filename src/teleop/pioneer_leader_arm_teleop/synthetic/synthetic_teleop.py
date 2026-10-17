@@ -17,6 +17,7 @@ MUJOCO_GL=osmesa (CPU only, slower).
 from __future__ import annotations
 
 import argparse
+import json
 import multiprocessing
 import os
 import sys
@@ -239,9 +240,12 @@ def main() -> None:
     record = load_record_schema(parser, args)
     os.environ.setdefault("MUJOCO_GL", "egl")
 
-    from synthetic_tasks import TASKS
+    from synthetic_tasks import TASKS, variant_settings
     if args.scene is None or args.scene not in TASKS:
         raise SystemExit(f"no synthetic plan for --scene {args.scene!r}; have: {sorted(TASKS)}")
+    variants = variant_settings()
+    if variants:
+        print(f"[SYNTH] variants: {variants}")
     args.task_description = args.task_description or TASKS[args.scene].instruction
     if args.record and args.dataset_root is None:   # never mixed into the human recordings under <root>/sim
         from humanoid_robot_learning.record_utils import resolve_dataset_root
@@ -250,6 +254,10 @@ def main() -> None:
     # Takes already in the dataset (an interrupted run picks up where it stopped).
     done = _recorded_takes(args.dataset_root) if args.record else []
     done_seeds = {t["seed"] for t in done}
+    mixed = sorted({json.dumps(t.get("variants", {}), sort_keys=True) for t in done} - {json.dumps(variants, sort_keys=True)})
+    if mixed:
+        raise SystemExit(f"{args.dataset_root} holds takes recorded with other variants ({', '.join(mixed)}); "
+                         f"this run has {variants or 'none'}: use another --dataset_root")
     if done:
         print(f"[SYNTH] {len(done)} takes already in {args.dataset_root}: seeds {sorted(done_seeds)}")
 
@@ -271,9 +279,13 @@ def main() -> None:
                 pool.terminate()
                 break
     print(f"[SYNTH] {len(kept)}/{want} successful takes: seeds {kept}", flush=True)
+    short = (f"only {len(kept)} of {want} takes succeeded in {len(jobs)} tries; raise --max_tries for the rest"
+             if len(kept) < want else None)
 
     # 2. Re-run the kept seeds with cameras into the dataset (and/or the preview video).
     if not (args.record or args.preview) or not kept:
+        if short:
+            raise SystemExit(short)
         return
     preview = _Preview(args.preview, args.scene) if args.preview else None
     try:
@@ -287,13 +299,13 @@ def main() -> None:
                 child = ctx_spawn.Process(target=_record_take, args=(args, record, seed, takes[seed], result))
                 child.start()
                 child.join()
-                try:
-                    ok, sim_t, _ = result.get(timeout=5)
-                except Exception:   # the child died before reporting (e.g. out of memory)
-                    ok, sim_t = False, 0.0
-                print(f"[SYNTH] seed {seed}: {'saved' if ok else 'NOT SAVED'} ({sim_t:.1f} s, {time.time() - t0:.0f} s wall)", flush=True)
-                if child.exitcode != 0:
+                if child.exitcode != 0:   # e.g. out of memory, or the recorder failed to write the episode
                     raise SystemExit(f"recording seed {seed} failed (exit code {child.exitcode}); rerun to resume")
+                ok, sim_t, _ = result.get(timeout=5)
+                if not ok:
+                    raise SystemExit(f"seed {seed} succeeded without cameras but failed when replayed with them: the "
+                                     "simulation is not deterministic here, so replayed takes can't be trusted")
+                print(f"[SYNTH] seed {seed}: saved ({sim_t:.1f} s, {time.time() - t0:.0f} s wall)", flush=True)
             if preview is not None:
                 run_episode(args.scene, seed, record_every=4, on_frame=preview.frame, pace=args.pace)
     finally:
@@ -302,21 +314,23 @@ def main() -> None:
             print(f"[SYNTH] preview: {args.preview}")
     if args.record:
         print(f"[RECORD] Saved under {args.dataset_root}")
+    if short:
+        raise SystemExit(short)
 
 
 TAKES_FILE = "meta/synthetic_takes.jsonl"   # one line per saved episode: seed, operator style, what happened
 
 
 def _recorded_takes(dataset_root) -> list[dict]:
-    import json
     path = Path(dataset_root) / TAKES_FILE
     return [json.loads(line) for line in path.read_text().splitlines() if line.strip()] if path.exists() else []
 
 
 def _record_take(args, record, seed: int, take_s: float, result) -> None:
     """Child process: replay one (known good) take with cameras, append it to the dataset, note it in TAKES_FILE."""
-    import json
     from concurrent.futures import ProcessPoolExecutor
+
+    from synthetic_tasks import variant_settings
 
     cameras = {n: (int(s["height"]), int(s["width"])) for n, s in record.images.items()}
     probe = TeleopSim(args.scene, seed, None)
@@ -339,7 +353,7 @@ def _record_take(args, record, seed: int, take_s: float, result) -> None:
         recorder.wait_saved()
         with open(Path(recorder.dataset_root) / TAKES_FILE, "a") as f:
             f.write(json.dumps({"episode_index": episode, "scene": args.scene, "seed": seed, "pace": args.pace, "take_s": round(sim_t, 2),
-                                "notes": notes, "operator": style}) + "\n")
+                                "notes": notes, "operator": style, "variants": variant_settings()}) + "\n")
     else:   # physics is deterministic, so this would be a bug; never save a failed take
         recorder.cancel_recording()
     recorder.finalize()

@@ -136,6 +136,10 @@ TASKS["my_scene"] = Task(my_plan, my_success, "pick up the cube")
 - Recording is slow on CPU (rendering the cameras); use `MUJOCO_GL=egl` with a free GPU, and `--image_size 320x240`
   if the policy takes that size.
 - `--pace`: 0.5 slow beginner, 1 practised operator (default), 1.5 brisk.
+- Variants by environment variable: `PEG_PLAN=wiggle` (work the peg in with a small spiral), `PEG_INSERT_RANGE=2`
+  (wider peg layouts). Both are checked at startup and written into each take's record; a dataset can't mix them.
+- The run exits non-zero if fewer than `--num_episodes` takes succeed within `--max_tries`, or if a take that
+  succeeded fails when replayed with cameras.
 
 ## Real arm (dry run, then `--live`)
 

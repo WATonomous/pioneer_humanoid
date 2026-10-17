@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import queue
+import shutil
 import subprocess
 import threading
 import time
+import traceback
 from pathlib import Path
 from typing import Any, Callable
 
@@ -131,6 +133,8 @@ class SimLeRobotRecorder:
         extra_features: dict[str, list[str]] | None = None,
         rate_limit: bool = True,
     ) -> None:
+        if save_mp4 and shutil.which("ffmpeg") is None:
+            raise RuntimeError("save_mp4=True needs the ffmpeg CLI on PATH")
         self.fps = fps
         self.save_mp4 = save_mp4
         self.depth = depth
@@ -159,6 +163,9 @@ class SimLeRobotRecorder:
         self._frame_tasks: list[str | None] = []
 
         self._episode_queue: queue.Queue = queue.Queue()
+        # First episode write that failed. The dataset may hold part of that episode, so nothing more is
+        # written; save_episode / wait_saved / finalize raise it.
+        self._write_error: BaseException | None = None
         # reusable pinned CPU episode slots; see _allocate_cpu_slots
         self._free_slots: queue.Queue = queue.Queue()
         self._stop_event = threading.Event()
@@ -417,6 +424,7 @@ class SimLeRobotRecorder:
 
         Blocks while both CPU slots are in flight (writer backpressure).
         """
+        self._raise_if_write_failed()
         if self._action_buf is None:
             print("[WARN]: save_episode called with no buffered frames, skipping")
             return
@@ -443,8 +451,18 @@ class SimLeRobotRecorder:
         print("[INFO]: Episode queued for saving.")
 
     def wait_saved(self) -> None:
-        """Block until every queued episode is written (keeps memory down: one episode in flight)."""
+        """Block until every queued episode is written (keeps memory down: one episode in flight).
+
+        Raises if writing an episode failed.
+        """
         self._episode_queue.join()
+        self._raise_if_write_failed()
+
+    def _raise_if_write_failed(self) -> None:
+        if self._write_error is not None:
+            raise RuntimeError(
+                f"writing an episode to {self.dataset_root} failed; the dataset may hold part of it"
+            ) from self._write_error
 
     def cancel_recording(self) -> None:
         """Discard the current episode buffer without saving."""
@@ -468,11 +486,15 @@ class SimLeRobotRecorder:
             except queue.Empty:
                 continue
             try:
-                self._process_episode(episode)
-                self.num_recorded_episodes += 1
-                print(f"[INFO]: Episode {self.num_recorded_episodes} saved.")
+                if self._write_error is None:
+                    self._process_episode(episode)
+                    self.num_recorded_episodes += 1
+                    print(f"[INFO]: Episode {self.num_recorded_episodes} saved.")
             except Exception as exc:
-                print(f"[ERROR]: Episode processing failed: {exc}")
+                self._write_error = exc
+                traceback.print_exc()
+                print(f"[ERROR]: Writing episode {self.num_recorded_episodes + 1} failed; no further episodes "
+                      "will be written.")
             finally:
                 self._free_slots.put(episode)  # recycle the pinned slot
                 self._episode_queue.task_done()
@@ -537,6 +559,7 @@ class SimLeRobotRecorder:
         self._episode_queue.join()
         self._stop_event.set()
         self._processor_thread.join(timeout=5.0)
+        self._raise_if_write_failed()
 
     # --- video helpers ---
 
@@ -561,22 +584,18 @@ class SimLeRobotRecorder:
             "-c:v", "libx264", "-preset", "medium", "-crf", "23",
             "-pix_fmt", "yuv420p", str(out),
         ]
-        try:
-            proc = subprocess.Popen(
-                cmd,
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
-            _, stderr = proc.communicate(
-                input=b"".join(f.tobytes() for f in frames_rgb)
-            )
-            if proc.returncode != 0:
-                print(f"[ERROR]: ffmpeg failed: {stderr.decode()}")
-            else:
-                print(f"[INFO]: Saved {data_type} video → {out}")
-        except FileNotFoundError:
-            print("[ERROR]: ffmpeg not found")
+        proc = subprocess.Popen(
+            cmd,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        _, stderr = proc.communicate(
+            input=b"".join(f.tobytes() for f in frames_rgb)
+        )
+        if proc.returncode != 0:
+            raise RuntimeError(f"ffmpeg failed writing {out}: {stderr.decode()}")
+        print(f"[INFO]: Saved {data_type} video → {out}")
 
     def _save_depth_video(self, frames: np.ndarray, camera_name: str) -> None:
         if frames.ndim == 4 and frames.shape[-1] == 1:

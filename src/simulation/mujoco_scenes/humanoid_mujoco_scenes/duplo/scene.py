@@ -219,7 +219,10 @@ def _snapped_to(model, data, brick: str):
 def _order(data):
     names = list(COLOURS)
     idx = [int(i) for i in data.userdata[1:1 + len(names)]]
-    return [names[i] for i in idx] if sorted(idx) == list(range(len(names))) else names
+    if sorted(idx) != list(range(len(names))):
+        # The order is drawn by reset(); userdata is zero after make_model or mj_resetData.
+        raise RuntimeError("no colour order in data.userdata: run the scene's reset (scene_reset) first")
+    return [names[i] for i in idx]
 
 
 def _step_text(data, k):

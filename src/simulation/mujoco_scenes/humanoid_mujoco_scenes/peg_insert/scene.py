@@ -31,12 +31,24 @@ BLOCK_JITTER = 0.01             # ...and of the block; the two never overlap
 INSERT_DEPTH = 0.02             # peg bottom this far below the block top counts as inserted
 
 
+def layout_range() -> float:
+    """PEG_INSERT_RANGE (default 1): scale of the per-reset shifts; anything but a positive number is an error."""
+    raw = os.environ.get("PEG_INSERT_RANGE", "1")
+    try:
+        scale = float(raw)
+    except ValueError:
+        scale = 0.0
+    if not scale > 0:
+        raise ValueError(f"PEG_INSERT_RANGE must be a positive number, got {raw!r}")
+    return scale
+
+
 def reset(model: mujoco.MjModel, data: mujoco.MjData, rng: np.random.Generator) -> None:
     """New episode: shift the peg (upright, square) and the block. Call after mj_resetData."""
     adr = model.joint("peg").qposadr[0]
     # PEG_INSERT_RANGE=2 doubles both shifts (wider layouts for robustness tests / training); then a layout where the
     # peg would stand in or against the block (less than 1 cm between them) is drawn again.
-    scale = float(os.environ.get("PEG_INSERT_RANGE", 1.0))
+    scale = layout_range()
     while True:
         px, py = np.add(PEG_POS, rng.uniform(-PEG_JITTER, PEG_JITTER, 2) * scale)
         bx, by = np.add(BLOCK_POS, rng.uniform(-BLOCK_JITTER, BLOCK_JITTER, 2) * scale)

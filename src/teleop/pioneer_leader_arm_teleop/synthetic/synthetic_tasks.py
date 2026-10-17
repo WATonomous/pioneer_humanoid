@@ -27,6 +27,25 @@ class Task:
     instruction: str        # dataset task text (multi-step scenes label each frame with its step instead)
 
 
+# Variants chosen by environment variable (unlike a module setting, they reach the spawned recording processes).
+# synthetic_teleop.py checks them at startup and writes them into each take's record.
+PEG_PLANS = ("default", "wiggle")
+
+
+def variant_settings() -> dict[str, str]:
+    """The variant environment variables in effect, checked: a typo stops the run instead of being ignored."""
+    settings = {}
+    plan = os.environ.get("PEG_PLAN")
+    if plan is not None:
+        if plan not in PEG_PLANS:
+            raise ValueError(f"PEG_PLAN must be one of {PEG_PLANS}, got {plan!r}")
+        settings["PEG_PLAN"] = plan
+    if "PEG_INSERT_RANGE" in os.environ:
+        from humanoid_mujoco_scenes.peg_insert.scene import layout_range
+        settings["PEG_INSERT_RANGE"] = str(layout_range())
+    return settings
+
+
 # Gripper pointing down: the tool point (finger-box centre) is this far above the jaws' lower ends.
 JAW_HALF = 0.044
 
@@ -261,7 +280,7 @@ def peg_plan(op, model, data, notes, resume: bool = False) -> None:
         align(tries=4)
         lower_peg_to(block_top - 0.004, 0.4)     # into the mouth, look again
         align(tries=2)
-        if os.environ.get("PEG_PLAN") == "wiggle":
+        if variant_settings().get("PEG_PLAN") == "wiggle":
             # Variant for imitation: instead of relying only on feel, work the peg in with a small outward spiral
             # while easing it down (what people do with a tight fit). The motion itself tolerates a millimetre or two
             # of misalignment, so a policy that replays it without feeling the rim still gets the peg in.
