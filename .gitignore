@@ -39,6 +39,3 @@ src/teleop/quest_teleop/bridge/static/marker_uv.json
 src/simulation/garment_fold_task/
 src/simulation/humanoid_rl/logs/
 src/simulation/humanoid_rl/outputs/
-
-# phone teleop: per-session axes (src/teleop/phone_teleop)
-phone_calibration.json

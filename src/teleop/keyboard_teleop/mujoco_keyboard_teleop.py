@@ -359,7 +359,7 @@ def run() -> None:
         status_of = None
 
     def save_take():
-        """Only a take the scene scores a success is kept (as the phone teleop and the scripted demos)."""
+        """Only a take the scene scores a success is kept (as the scripted demos)."""
         nonlocal recording, saved, shown, finishing, home_steps
         status = status_of(model, data) if status_of is not None else None
         if status is not None and not status["success"]:
