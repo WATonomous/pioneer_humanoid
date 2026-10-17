@@ -24,20 +24,23 @@ MESH_DIR = Path(__file__).resolve().parents[4] / "assets" / "props" / "lightbox_
 
 _ISAAC_ROBOT_BASE_X = 0.15          # Isaac's ROBOT_BASE_X; MuJoCo's arm base is at x = 0
 
-# Table: 30.5 inches high, 24 deep (X) by 60 wide (Y), centred where Isaac's lightbox is.
-TABLE_TOP_Z = 30.5 * 0.0254
+# Table: 30.5 inches high, 24 deep (X) by 60 wide (Y), centred where Isaac's lightbox is. Objects stand on the
+# lightbox's white bottom panel (3/16 in, scaled like the rest of the CAD), not on the table itself.
+TABLE_HEIGHT = 30.5 * 0.0254
+BOTTOM_PANEL = 0.1875 * 0.0254 * 30.5 / 30.0
+TABLE_TOP_Z = TABLE_HEIGHT + BOTTOM_PANEL      # the work surface
 TABLE_CENTER = (0.69 - _ISAAC_ROBOT_BASE_X, 0.00612)
 TABLE_X = (TABLE_CENTER[0] - 12 * 0.0254, TABLE_CENTER[0] + 12 * 0.0254)   # front (robot side), back edge
 TABLE_HALF_Y = 30 * 0.0254
 
 # Lightbox CAD: X = table width, Y = depth, vertical is -Z, origin at the table top's centre. Same pose
 # and scale as Isaac's LIGHTBOX_ROT / LIGHTBOX_SCALE: width along world Y, open face toward the robot.
-LIGHTBOX_POS = (*TABLE_CENTER, TABLE_TOP_Z)
+LIGHTBOX_POS = (*TABLE_CENTER, TABLE_HEIGHT)
 LIGHTBOX_QUAT = (0.0, 0.70710678, -0.70710678, 0.0)   # wxyz
 LIGHTBOX_SCALE = (1.0, 1.0, 30.5 / 30.0)              # CAD table is 30 in; the real one is 30.5 in
 # The two 90 cm fill lights under the top panel (CAD x = +-0.42 m, 0.605 m above the table top).
 FILL_LIGHT_Y = 0.42
-FILL_LIGHT_Z = TABLE_TOP_Z + 0.605 * LIGHTBOX_SCALE[2]
+FILL_LIGHT_Z = TABLE_HEIGHT + 0.605 * LIGHTBOX_SCALE[2]
 
 
 def add_workcell(spec: mujoco.MjSpec) -> None:
@@ -53,7 +56,7 @@ def add_workcell(spec: mujoco.MjSpec) -> None:
                        material=f"lightbox_{part}", pos=list(LIGHTBOX_POS), quat=list(LIGHTBOX_QUAT),
                        contype=0, conaffinity=0, group=1)
 
-    # Table collision (invisible; the CAD table above is what you see). Solid down to the floor.
+    # Table + bottom panel collision (invisible; the CAD above is what you see). Solid down to the floor.
     (x0, x1), (cx, cy) = TABLE_X, TABLE_CENTER
     world.add_geom(name="table", type=mujoco.mjtGeom.mjGEOM_BOX, size=[(x1 - x0) / 2, TABLE_HALF_Y, TABLE_TOP_Z / 2],
                    pos=[cx, cy, TABLE_TOP_Z / 2], rgba=[0, 0, 0, 0], group=3)

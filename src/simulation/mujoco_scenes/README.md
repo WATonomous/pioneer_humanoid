@@ -30,7 +30,7 @@ humanoid_mujoco_scenes/my_scene/
 Every scene builds on the **lightbox workcell** (`workcell.py`), the same rig as Isaac's
 `humanoid_rl_tasks.workcell.LightboxWorkcellCfg`: floor, the CAD lightbox (visual only, lit by its two fill
 lights) and the 30.5-inch table, whose top collides as a box. `add_workcell(spec)` adds it; put your objects on
-`TABLE_TOP_Z` (0.775 m), inside `TABLE_X` (0.235–0.845 m in front of the arm base) and `TABLE_HALF_Y`.
+`TABLE_TOP_Z` (0.780 m: the lightbox's bottom panel on the 30.5-inch table), inside `TABLE_X` (0.235–0.845 m in front of the arm base) and `TABLE_HALF_Y`.
 
 ```python
 # humanoid_mujoco_scenes/my_scene/scene.py
