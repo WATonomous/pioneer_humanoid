@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import queue
-import shutil
 import subprocess
 import threading
 import time
@@ -133,8 +132,6 @@ class SimLeRobotRecorder:
         extra_features: dict[str, list[str]] | None = None,
         rate_limit: bool = True,
     ) -> None:
-        if save_mp4 and shutil.which("ffmpeg") is None:
-            raise RuntimeError("save_mp4=True needs the ffmpeg CLI on PATH")
         self.fps = fps
         self.save_mp4 = save_mp4
         self.depth = depth
@@ -163,8 +160,6 @@ class SimLeRobotRecorder:
         self._frame_tasks: list[str | None] = []
 
         self._episode_queue: queue.Queue = queue.Queue()
-        # First episode write that failed. The dataset may hold part of that episode, so nothing more is
-        # written; save_episode / wait_saved / finalize raise it.
         self._write_error: BaseException | None = None
         # reusable pinned CPU episode slots; see _allocate_cpu_slots
         self._free_slots: queue.Queue = queue.Queue()
@@ -451,10 +446,7 @@ class SimLeRobotRecorder:
         print("[INFO]: Episode queued for saving.")
 
     def wait_saved(self) -> None:
-        """Block until every queued episode is written (keeps memory down: one episode in flight).
-
-        Raises if writing an episode failed.
-        """
+        """Block until every queued episode is written (keeps memory down: one episode in flight)."""
         self._episode_queue.join()
         self._raise_if_write_failed()
 
@@ -493,8 +485,6 @@ class SimLeRobotRecorder:
             except Exception as exc:
                 self._write_error = exc
                 traceback.print_exc()
-                print(f"[ERROR]: Writing episode {self.num_recorded_episodes + 1} failed; no further episodes "
-                      "will be written.")
             finally:
                 self._free_slots.put(episode)  # recycle the pinned slot
                 self._episode_queue.task_done()
@@ -584,18 +574,21 @@ class SimLeRobotRecorder:
             "-c:v", "libx264", "-preset", "medium", "-crf", "23",
             "-pix_fmt", "yuv420p", str(out),
         ]
-        proc = subprocess.Popen(
-            cmd,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        _, stderr = proc.communicate(
-            input=b"".join(f.tobytes() for f in frames_rgb)
-        )
-        if proc.returncode != 0:
-            raise RuntimeError(f"ffmpeg failed writing {out}: {stderr.decode()}")
-        print(f"[INFO]: Saved {data_type} video → {out}")
+        try:
+            proc = subprocess.Popen(
+                cmd,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            _, stderr = proc.communicate(
+                input=b"".join(f.tobytes() for f in frames_rgb)
+            )
+            if proc.returncode != 0:
+                raise RuntimeError(f"ffmpeg failed writing {out}: {stderr.decode()}")
+            print(f"[INFO]: Saved {data_type} video → {out}")
+        except FileNotFoundError as exc:
+            raise RuntimeError("save_mp4 needs the ffmpeg CLI on PATH") from exc
 
     def _save_depth_video(self, frames: np.ndarray, camera_name: str) -> None:
         if frames.ndim == 4 and frames.shape[-1] == 1:
