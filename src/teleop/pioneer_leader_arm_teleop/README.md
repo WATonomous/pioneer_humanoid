@@ -82,6 +82,61 @@ Scenes: `bare`, `peg_insert`, `zip_tie`, `drawer_stow`, `matcha`, `duplo`, or an
 
 Targets are clamped to the arm's URDF limits. Wrist damping is lowered to 2.5 in this teleop only, so the sim wrist keeps up with the leader.
 
+## Synthetic demos (MuJoCo, no leader)
+
+A simulated person "uses" the leader arm, so you get teleop demos without a human. Demos go through the same
+`LeaderMapping` and recorder as `--target mujoco --record`, so the dataset format is identical (same features,
+per-step `task` and `subtask_index`). Output: `<repo>/datasets/pioneer_v1_left_arm/sim_synthetic/<scene>/`, kept apart
+from human takes (`--dataset_root` to override).
+
+```bash
+python synthetic/synthetic_teleop.py --scene peg_insert --num_episodes 3 --preview peg.mp4   # watch, no dataset
+MUJOCO_GL=egl python synthetic/synthetic_teleop.py --scene duplo --record --num_episodes 100  # CPU only: MUJOCO_GL=osmesa
+```
+
+Scenes: `drawer_stow`, `peg_insert`, `zip_tie`, `duplo`, `matcha`.
+
+### How it works
+
+```
+for seed in seed, seed+1, ...:                       # 1. try takes without cameras (fast, --workers in parallel)
+    reset the scene with seed                        #    random layout
+    operator = random person (speed, aim, tremor)    #    random style
+    run the scene's plan; keep seed if success       #    stop at --num_episodes successes
+for each kept seed:                                  # 2. replay it with cameras and save (same seed = same take)
+    record the episode; log seed + style + notes to meta/synthetic_takes.jsonl
+```
+
+A rerun with the same `--dataset_root` skips seeds already saved, so an interrupted run resumes.
+
+### Files
+
+| File | What it is |
+|---|---|
+| `synthetic/synthetic_teleop.py` | entry point: the loop above, recording, preview |
+| `synthetic/human_operator.py` | how the person moves: `op.see`, `op.move`, `op.arc`, `op.set_grip` (motion model in its docstring) |
+| `synthetic/synthetic_tasks.py` | what the person does in each scene: one `plan` + `success` per scene |
+
+### Adding a scene
+
+```python
+def my_plan(op, model, data, notes):
+    p = op.see("cube")                          # where it is (a few mm off, like an eye)
+    op.arc(p + (0, 0, 0.05), clear_z=0.15)      # lift, across, down
+    op.move(p, tol=0.003); op.set_grip(1.0)     # grasp
+    if not lifted(model, data):                 # check, retry or give up (the take is discarded)
+        raise TaskFailed("grasp")
+    ...
+
+TASKS["my_scene"] = Task(my_plan, my_success, "pick up the cube")
+```
+
+### Notes
+
+- Recording is slow on CPU (rendering the cameras); use `MUJOCO_GL=egl` with a free GPU, and `--image_size 320x240`
+  if the policy takes that size.
+- `--pace`: 0.5 slow beginner, 1 practised operator (default), 1.5 brisk.
+
 ## Real arm (dry run, then `--live`)
 
 Without `--live` it is read-only: subscribes to `/interfacing/motorFeedback`, creates no publisher, so it
@@ -125,3 +180,5 @@ python3 pioneer_leader_arm_teleop.py --target real --self-test           # angle
 | `servo_leader.py` / `arm_limits.py` | servo bus reader / clamp + gripper fraction |
 | `calibrate_leader.py` | stores the hanging-pose zero |
 | `encoder_test.py` | servo bring-up, no simulator |
+| `synthetic/synthetic_teleop.py` | synthetic demos: simulated operator → same mapping and recorder as `mujoco_sim.py` |
+| `synthetic/human_operator.py` / `synthetic/synthetic_tasks.py` | the operator's motion model / what it does in each scene |
