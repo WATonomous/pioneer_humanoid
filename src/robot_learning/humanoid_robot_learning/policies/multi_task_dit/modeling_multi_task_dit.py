@@ -27,7 +27,7 @@ References:
 
 import math
 from collections import deque
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import einops
 import torch
@@ -36,30 +36,10 @@ import torch.nn.functional as F  # noqa: N812
 import torchvision
 from torch import Tensor
 
-from lerobot.utils.import_utils import _transformers_available
-
-_diffusers_available = True
-
-
-def require_package(*_args, **_kwargs):  # LeRobot 0.6 helper; the packages are installed here
-    return None
-
-
-from .configuration_multi_task_dit import MultiTaskDiTConfig
-
-# Conditional import for type checking and lazy loading
-if TYPE_CHECKING or _transformers_available:
-    from transformers import CLIPTextModel, CLIPVisionModel
-else:
-    CLIPTextModel = None
-    CLIPVisionModel = None
-
-if TYPE_CHECKING or _diffusers_available:
-    from diffusers.schedulers.scheduling_ddim import DDIMScheduler
-    from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
-else:
-    DDIMScheduler = None
-    DDPMScheduler = None
+from diffusers.schedulers.scheduling_ddim import DDIMScheduler
+from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
+from lerobot.policies.pretrained import PreTrainedPolicy
+from lerobot.policies.utils import populate_queues
 from lerobot.utils.constants import (
     ACTION,
     OBS_IMAGES,
@@ -67,9 +47,13 @@ from lerobot.utils.constants import (
     OBS_LANGUAGE_TOKENS,
     OBS_STATE,
 )
+from transformers import CLIPTextModel, CLIPVisionModel
 
-from lerobot.policies.pretrained import PreTrainedPolicy
-from lerobot.policies.utils import populate_queues
+from .configuration_multi_task_dit import MultiTaskDiTConfig
+
+
+def require_package(*_args, **_kwargs):  # LeRobot 0.6 helper; the [dit] extra installs the packages
+    return None
 
 # -- Policy --
 
@@ -296,11 +280,12 @@ class ObservationEncoder(nn.Module):
 
             if config.use_separate_rgb_encoder_per_camera:
                 self.vision_encoders = nn.ModuleList(
-                    [CLIPVisionEncoder(model_name=config.vision_encoder_name, spatial_keypoints=getattr(config, "vision_spatial_keypoints", 0)) for _ in self.camera_names]
+                    [CLIPVisionEncoder(model_name=config.vision_encoder_name, spatial_keypoints=config.vision_spatial_keypoints)
+                     for _ in self.camera_names]
                 )
                 self.vision_encoder = None
             else:
-                self.vision_encoder = CLIPVisionEncoder(model_name=config.vision_encoder_name, spatial_keypoints=getattr(config, "vision_spatial_keypoints", 0))
+                self.vision_encoder = CLIPVisionEncoder(model_name=config.vision_encoder_name, spatial_keypoints=config.vision_spatial_keypoints)
                 self.vision_encoders = None
         else:
             self.vision_encoder = None
@@ -459,7 +444,7 @@ class RotaryPositionalEmbedding(nn.Module):
 
     def _rotate_half(self, x: Tensor) -> Tensor:
         x1 = x[..., : x.shape[-1] // 2]
-        x2 = x[..., x.shape[-1] // 2 :]
+        x2 = x[..., x.shape[-1] // 2:]
         return torch.cat((-x2, x1), dim=-1)
 
     def forward(self, q: Tensor, k: Tensor) -> tuple[Tensor, Tensor]:
