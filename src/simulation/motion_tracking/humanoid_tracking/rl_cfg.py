@@ -9,3 +9,11 @@ def wato_tracking_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
   cfg = unitree_g1_tracking_ppo_runner_cfg()
   cfg.experiment_name = "wato_tracking"
   return cfg
+
+
+def wato_power_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
+  """Stage 2 (punch power): twice the entropy bonus, so a policy resumed from a
+  converged tracker tries new punching mechanics instead of only refining."""
+  cfg = wato_tracking_ppo_runner_cfg()
+  cfg.algorithm.entropy_coef = 0.01
+  return cfg
