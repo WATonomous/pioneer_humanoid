@@ -104,8 +104,8 @@ def scene_progress(name: str) -> Optional[Callable]:
     return _REGISTRY[name].progress
 
 
-def add_floor(spec: mujoco.MjSpec) -> None:
-    """Checker floor at z=0, a light, and a skybox."""
+def add_floor(spec: mujoco.MjSpec, light: bool = True) -> None:
+    """Checker floor at z=0, a skybox and (``light``) an overhead light. Scenes use ``add_workcell``."""
     tex = spec.add_texture(
         name="grid", type=mujoco.mjtTexture.mjTEXTURE_2D, builtin=mujoco.mjtBuiltin.mjBUILTIN_CHECKER,
         rgb1=[0.2, 0.3, 0.4], rgb2=[0.1, 0.2, 0.3], width=512, height=512,
@@ -117,7 +117,8 @@ def add_floor(spec: mujoco.MjSpec) -> None:
     mat = spec.add_material(name="grid", texrepeat=[8, 8], reflectance=0.1)
     mat.textures[mujoco.mjtTextureRole.mjTEXROLE_RGB] = tex.name
     spec.worldbody.add_geom(name="floor", type=mujoco.mjtGeom.mjGEOM_PLANE, size=[4, 4, 0.05], material="grid")
-    spec.worldbody.add_light(pos=[0.5, 0, 3.0], dir=[0, 0, -1], diffuse=[0.8, 0.8, 0.8], castshadow=True)
+    if light:
+        spec.worldbody.add_light(pos=[0.5, 0, 3.0], dir=[0, 0, -1], diffuse=[0.8, 0.8, 0.8], castshadow=True)
 
 
 def make_model(name: str, cameras: dict[str, tuple[int, int]] | None = None) -> mujoco.MjModel:
