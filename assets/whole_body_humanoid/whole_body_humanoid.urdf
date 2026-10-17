@@ -7,7 +7,7 @@
   <!-- Isaac Lab: Z-up root. CAD base_link is Y-long; fixed joint stands the robot.
        Extra -90 deg yaw on top of the up-axis fix: the X-only rotation above left
        CAD's true forward (Z) mapped onto Isaac's Y axis, and CAD's lateral (X, the
-       Hip_F_L/Hip_F_R separation axis) mapped onto Isaac's X -- i.e. "forward" was on
+       Hip_F_L/Hip_F_R separation axis) mapped onto Isaac's X; i.e. "forward" was on
        Y and "sideways" was on X, opposite of Isaac Lab's local-+X-forward convention.
        This produced a persistent crab-like gait: lin_vel_x commands were being
        satisfied by strafing along the robot's true lateral axis. This yaw term
@@ -47,7 +47,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/base_link.STL" />
+          filename="meshes/base_link.STL" />
       </geometry>
       <material
         name="">
@@ -61,7 +61,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/base_link.STL" />
+          filename="meshes/base_link.STL" />
       </geometry>
     </collision>
   </link>
@@ -87,7 +87,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/Hip_F_L.STL" />
+          filename="meshes/Hip_F_L.STL" />
       </geometry>
       <material
         name="">
@@ -101,7 +101,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/Hip_F_L.STL" />
+          filename="meshes/Hip_F_L.STL" />
       </geometry>
     </collision>
   </link>
@@ -145,7 +145,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/Hip_A_L.STL" />
+          filename="meshes/Hip_A_L.STL" />
       </geometry>
       <material
         name="">
@@ -159,7 +159,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/Hip_A_L.STL" />
+          filename="meshes/Hip_A_L.STL" />
       </geometry>
     </collision>
   </link>
@@ -203,7 +203,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/Thigh_L.STL" />
+          filename="meshes/Thigh_L.STL" />
       </geometry>
       <material
         name="">
@@ -217,7 +217,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/Thigh_L.STL" />
+          filename="meshes/Thigh_L.STL" />
       </geometry>
     </collision>
   </link>
@@ -261,7 +261,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/Calf_L.STL" />
+          filename="meshes/Calf_L.STL" />
       </geometry>
       <material
         name="">
@@ -275,7 +275,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/Calf_L.STL" />
+          filename="meshes/Calf_L.STL" />
       </geometry>
     </collision>
   </link>
@@ -290,10 +290,10 @@
     <child
       link="Calf_L" />
     <axis
-      xyz="-1 0 0" />
+      xyz="1 0 0" />
     <limit
-      lower="-1.0472"
-      upper="0.0873"
+      lower="-1.134464014"
+      upper="0"
       effort="222"
       velocity="3.6652" />
   </joint>
@@ -319,7 +319,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/Ankle_L.STL" />
+          filename="meshes/Ankle_L.STL" />
       </geometry>
       <material
         name="">
@@ -333,7 +333,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/Ankle_L.STL" />
+          filename="meshes/Ankle_L.STL" />
       </geometry>
     </collision>
   </link>
@@ -377,7 +377,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/Foot_L.STL" />
+          filename="meshes/Foot_L.STL" />
       </geometry>
       <material
         name="">
@@ -391,7 +391,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/Foot_L.STL" />
+          filename="meshes/Foot_L.STL" />
       </geometry>
     </collision>
   </link>
@@ -435,7 +435,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/Hip_F_R.STL" />
+          filename="meshes/Hip_F_R.STL" />
       </geometry>
       <material
         name="">
@@ -449,7 +449,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/Hip_F_R.STL" />
+          filename="meshes/Hip_F_R.STL" />
       </geometry>
     </collision>
   </link>
@@ -493,7 +493,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/Hip_A_R.STL" />
+          filename="meshes/Hip_A_R.STL" />
       </geometry>
       <material
         name="">
@@ -507,7 +507,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/Hip_A_R.STL" />
+          filename="meshes/Hip_A_R.STL" />
       </geometry>
     </collision>
   </link>
@@ -551,7 +551,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/Thigh_R.STL" />
+          filename="meshes/Thigh_R.STL" />
       </geometry>
       <material
         name="">
@@ -565,7 +565,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/Thigh_R.STL" />
+          filename="meshes/Thigh_R.STL" />
       </geometry>
     </collision>
   </link>
@@ -609,7 +609,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/Calf_R.STL" />
+          filename="meshes/Calf_R.STL" />
       </geometry>
       <material
         name="">
@@ -623,7 +623,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/Calf_R.STL" />
+          filename="meshes/Calf_R.STL" />
       </geometry>
     </collision>
   </link>
@@ -638,10 +638,10 @@
     <child
       link="Calf_R" />
     <axis
-      xyz="-1 0 0" />
+      xyz="1 0 0" />
     <limit
-      lower="-1.0472"
-      upper="0.0873"
+      lower="-1.134464014"
+      upper="0"
       effort="222"
       velocity="3.6652" />
   </joint>
@@ -667,7 +667,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/Ankle_R.STL" />
+          filename="meshes/Ankle_R.STL" />
       </geometry>
       <material
         name="">
@@ -681,7 +681,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/Ankle_R.STL" />
+          filename="meshes/Ankle_R.STL" />
       </geometry>
     </collision>
   </link>
@@ -725,7 +725,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/Foot_R.STL" />
+          filename="meshes/Foot_R.STL" />
       </geometry>
       <material
         name="">
@@ -739,7 +739,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="../meshes/Foot_R.STL" />
+          filename="meshes/Foot_R.STL" />
       </geometry>
     </collision>
   </link>
