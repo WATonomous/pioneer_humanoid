@@ -2,8 +2,8 @@
 
 The same rig as Isaac's ``humanoid_rl_tasks.workcell.LightboxWorkcellCfg`` (not imported: that module
 needs Isaac): the arm on its floor stand in front of the 30.5-inch table inside the lightbox. The visible
-lightbox and table are the Onshape CAD (``assets/props/lightbox.usd``, baked to STL by
-``bake_lightbox.py``), visual only like in Isaac; the table top collides as a plain box.
+lightbox and table are the Onshape CAD (``assets/props/lightbox.usd``, converted to the STLs in
+``assets/props/lightbox_mujoco/``), visual only like in Isaac; the table top collides as a plain box.
 
 MuJoCo scenes keep the arm base at the world origin (``make_model``'s default ``robot_pos``), so every
 Isaac x here is shifted by Isaac's ``ROBOT_BASE_X``: the table is where it is relative to the arm.
