@@ -271,10 +271,13 @@ def main() -> None:
                 pool.terminate()
                 break
     print(f"[SYNTH] {len(kept)}/{want} successful takes: seeds {kept}", flush=True)
+    status = 0 if len(kept) == want else 1
+    if status:
+        print(f"[SYNTH] ERROR: only {len(kept)} of {want} takes succeeded; raise --max_tries", flush=True)
 
     # 2. Re-run the kept seeds with cameras into the dataset (and/or the preview video).
     if not (args.record or args.preview) or not kept:
-        return
+        sys.exit(status)
     preview = _Preview(args.preview, args.scene) if args.preview else None
     try:
         for seed in kept:
@@ -287,13 +290,12 @@ def main() -> None:
                 child = ctx_spawn.Process(target=_record_take, args=(args, record, seed, takes[seed], result))
                 child.start()
                 child.join()
-                try:
-                    ok, sim_t, _ = result.get(timeout=5)
-                except Exception:   # the child died before reporting (e.g. out of memory)
-                    ok, sim_t = False, 0.0
-                print(f"[SYNTH] seed {seed}: {'saved' if ok else 'NOT SAVED'} ({sim_t:.1f} s, {time.time() - t0:.0f} s wall)", flush=True)
                 if child.exitcode != 0:
                     raise SystemExit(f"recording seed {seed} failed (exit code {child.exitcode}); rerun to resume")
+                ok, sim_t, _ = result.get(timeout=5)
+                if not ok:
+                    raise SystemExit(f"seed {seed} succeeded without cameras but failed on its camera replay: not deterministic")
+                print(f"[SYNTH] seed {seed}: saved ({sim_t:.1f} s, {time.time() - t0:.0f} s wall)", flush=True)
             if preview is not None:
                 run_episode(args.scene, seed, record_every=4, on_frame=preview.frame, pace=args.pace)
     finally:
@@ -302,6 +304,7 @@ def main() -> None:
             print(f"[SYNTH] preview: {args.preview}")
     if args.record:
         print(f"[RECORD] Saved under {args.dataset_root}")
+    sys.exit(status)
 
 
 TAKES_FILE = "meta/synthetic_takes.jsonl"   # one line per saved episode: seed, operator style, what happened
@@ -339,7 +342,8 @@ def _record_take(args, record, seed: int, take_s: float, result) -> None:
         recorder.wait_saved()
         with open(Path(recorder.dataset_root) / TAKES_FILE, "a") as f:
             f.write(json.dumps({"episode_index": episode, "scene": args.scene, "seed": seed, "pace": args.pace, "take_s": round(sim_t, 2),
-                                "notes": notes, "operator": style}) + "\n")
+                                "notes": notes, "operator": style,
+                                "env": {k: os.environ[k] for k in ("PEG_PLAN", "PEG_INSERT_RANGE") if k in os.environ}}) + "\n")
     else:   # physics is deterministic, so this would be a bug; never save a failed take
         recorder.cancel_recording()
     recorder.finalize()

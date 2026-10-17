@@ -261,6 +261,8 @@ def peg_plan(op, model, data, notes, resume: bool = False) -> None:
         align(tries=4)
         lower_peg_to(block_top - 0.004, 0.4)     # into the mouth, look again
         align(tries=2)
+        if os.environ.get("PEG_PLAN", "default") not in ("default", "wiggle"):
+            raise ValueError(f"PEG_PLAN must be default or wiggle, got {os.environ['PEG_PLAN']!r}")
         if os.environ.get("PEG_PLAN") == "wiggle":
             # Variant for imitation: instead of relying only on feel, work the peg in with a small outward spiral
             # while easing it down (what people do with a tight fit). The motion itself tolerates a millimetre or two

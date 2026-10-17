@@ -37,6 +37,8 @@ def reset(model: mujoco.MjModel, data: mujoco.MjData, rng: np.random.Generator) 
     # PEG_INSERT_RANGE=2 doubles both shifts (wider layouts for robustness tests / training); then a layout where the
     # peg would stand in or against the block (less than 1 cm between them) is drawn again.
     scale = float(os.environ.get("PEG_INSERT_RANGE", 1.0))
+    if not scale > 0:
+        raise ValueError(f"PEG_INSERT_RANGE must be positive, got {scale}")
     while True:
         px, py = np.add(PEG_POS, rng.uniform(-PEG_JITTER, PEG_JITTER, 2) * scale)
         bx, by = np.add(BLOCK_POS, rng.uniform(-BLOCK_JITTER, BLOCK_JITTER, 2) * scale)

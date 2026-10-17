@@ -136,6 +136,7 @@ TASKS["my_scene"] = Task(my_plan, my_success, "pick up the cube")
 - Recording is slow on CPU (rendering the cameras); use `MUJOCO_GL=egl` with a free GPU, and `--image_size 320x240`
   if the policy takes that size.
 - `--pace`: 0.5 slow beginner, 1 practised operator (default), 1.5 brisk.
+- Exits with an error if fewer than `--num_episodes` takes succeed within `--max_tries` (the ones found are kept).
 
 ## Real arm (dry run, then `--live`)
 
