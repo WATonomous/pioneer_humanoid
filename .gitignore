@@ -39,3 +39,9 @@ src/teleop/quest_teleop/bridge/static/marker_uv.json
 src/simulation/garment_fold_task/
 src/simulation/humanoid_rl/logs/
 src/simulation/humanoid_rl/outputs/
+
+# pip install -e metadata
+*.egg-info/
+# humanoid_il/act: eval / live-view videos and their download caches
+src/robot_learning/humanoid_il/act/*.mp4
+src/robot_learning/humanoid_il/act/act_eval/
