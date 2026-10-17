@@ -32,6 +32,11 @@ images:
     width: 640
     enabled: false
     topic: null
+  top:  # world-mounted overhead camera of the MuJoCo scenes that have one (tidy_table); --cameras top,...
+    height: 480
+    width: 640
+    enabled: false
+    topic: null
 
 ros:  # real only
   action_topic: /arm/joint_targets
