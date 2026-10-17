@@ -98,11 +98,12 @@ class LeaderMapping:
             self.off_home = [
                 (label, math.degrees(d - h))
                 for label, d, h in zip(ARM_SERVOS, desired, self.home)
-                if abs(math.degrees(d - h)) > ENGAGE_TOL_DEG
             ]
-            if grip > ENGAGE_GRIP_TOL:
-                self.off_home.append((GRIPPER_SERVO, grip))
-            if self.off_home:
+            self.off_home.append((GRIPPER_SERVO, grip))
+            if any(
+                abs(err) > (ENGAGE_GRIP_TOL if label == GRIPPER_SERVO else ENGAGE_TOL_DEG)
+                for label, err in self.off_home
+            ):
                 return self.target, self.grip
             self.engaged = True
         self.target = [t + self.alpha * (d - t) for t, d in zip(self.target, desired)]
@@ -151,7 +152,7 @@ class LeaderInput:
             )
         else:
             line = "move leader to home (elbow 90, gripper open): " + " ".join(
-                f"{label} {err:+.0f}deg" if label != GRIPPER_SERVO else f"{label} {err:.2f}"
+                f"{label} {err:+6.1f}deg" if label != GRIPPER_SERVO else f"{label} {err:4.2f}"
                 for label, err in mapping.off_home
             )
         print(f"\r[LEADER] {line:<100}", end="", flush=True)
