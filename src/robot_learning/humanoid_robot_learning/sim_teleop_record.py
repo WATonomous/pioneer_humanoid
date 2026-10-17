@@ -60,12 +60,21 @@ def add_record_args(parser: argparse.ArgumentParser, *, task_description: str) -
         default=None,
         help="cameras to record, e.g. 'ego,wrist_left' or 'none' (default: schema's enabled images)",
     )
+    parser.add_argument(
+        "--image_size",
+        type=str,
+        default=None,
+        help="WIDTHxHEIGHT for every recorded camera, e.g. 320x240 (default: the schema's sizes). Rendering at the "
+        "policy's input size is faster and lighter than recording large and downscaling later.",
+    )
 
 
 def load_record_schema(parser: argparse.ArgumentParser, args: argparse.Namespace) -> RecordSchema:
     """Call before AppLauncher: recording cameras need --enable_cameras."""
     if args.cameras is not None and not args.record:
         parser.error("--cameras requires --record")
+    if args.image_size is not None and not args.record:
+        parser.error("--image_size requires --record")
     if not args.record:
         return RecordSchema()
     path = resolve_config_path(args.schema, anchor=PKG_ROOT)
@@ -74,6 +83,13 @@ def load_record_schema(parser: argparse.ArgumentParser, args: argparse.Namespace
     except ValueError as exc:
         parser.error(f"--cameras: {exc}")
     images = enabled_images(cfg)
+    if args.image_size is not None:
+        parts = args.image_size.lower().split("x")
+        if len(parts) != 2 or not all(p.isdigit() and int(p) > 0 for p in parts):
+            parser.error(f"--image_size: expected WIDTHxHEIGHT such as 320x240, got {args.image_size!r}")
+        width, height = int(parts[0]), int(parts[1])
+        for spec in images.values():           # the same dicts as cfg["images"]: renderers and recorder both see it
+            spec["width"], spec["height"] = width, height
     if images:
         args.enable_cameras = True
     return RecordSchema(path, cfg, images)
