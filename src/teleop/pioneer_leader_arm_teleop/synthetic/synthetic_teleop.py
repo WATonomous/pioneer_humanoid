@@ -23,10 +23,11 @@ import sys
 import time
 from pathlib import Path
 
-_SRC = Path(__file__).resolve().parents[2]
+_SRC = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(_SRC / "pioneer_humanoid"))
 sys.path.insert(0, str(_SRC / "simulation" / "mujoco_scenes"))
 sys.path.insert(0, str(_SRC / "robot_learning"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # leader_mapping, arm_limits, servo_leader
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from humanoid_robot_learning.sim_teleop_record import add_record_args, load_record_schema, make_sim_recorder  # noqa: E402
