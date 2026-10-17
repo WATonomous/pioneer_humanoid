@@ -2,7 +2,7 @@
 
 The same rig as Isaac's ``humanoid_rl_tasks.workcell.LightboxWorkcellCfg`` (not imported: that module
 needs Isaac): the arm on its floor stand in front of the 30.5-inch table inside the lightbox. The visible
-lightbox and table are the Onshape CAD (``assets/props/lightbox.usd``, baked to OBJ by
+lightbox and table are the Onshape CAD (``assets/props/lightbox.usd``, baked to STL by
 ``bake_lightbox.py``), visual only like in Isaac; the table top collides as a plain box.
 
 MuJoCo scenes keep the arm base at the world origin (``make_model``'s default ``robot_pos``), so every
@@ -49,7 +49,7 @@ def add_workcell(spec: mujoco.MjSpec) -> None:
     world = spec.worldbody
     colors = json.loads((MESH_DIR / "colors.json").read_text())
     for part, rgb in colors.items():
-        spec.add_mesh(name=f"lightbox_{part}", file=str(MESH_DIR / f"{part}.obj"), scale=list(LIGHTBOX_SCALE),
+        spec.add_mesh(name=f"lightbox_{part}", file=str(MESH_DIR / f"{part}.stl"), scale=list(LIGHTBOX_SCALE),
                       inertia=mujoco.mjtMeshInertia.mjMESH_INERTIA_SHELL)
         spec.add_material(name=f"lightbox_{part}", rgba=[*rgb, 1], specular=0.2 if part == "table" else 0.1)
         world.add_geom(name=f"lightbox_{part}", type=mujoco.mjtGeom.mjGEOM_MESH, meshname=f"lightbox_{part}",

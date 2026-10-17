@@ -1,15 +1,16 @@
-"""Bake ``assets/props/lightbox.usd`` (the Isaac workcell's CAD lightbox) into OBJ meshes for MuJoCo.
+"""Bake ``assets/props/lightbox.usd`` (the Isaac workcell's CAD lightbox) into STL meshes for MuJoCo.
 
     pip install usd-core
     python -m humanoid_mujoco_scenes.bake_lightbox
 
-Writes one OBJ per CAD material to ``assets/props/lightbox_mujoco/`` (colours in ``colors.json``), in the
+Writes one binary STL per CAD material to ``assets/props/lightbox_mujoco/`` (colours in ``colors.json``), in the
 USD's own frame: ``workcell.py`` applies the same pose and scale as Isaac's ``LightboxWorkcellCfg``. Only
-needed again when the USD changes; the scenes load the committed OBJs, so MuJoCo itself never needs pxr.
+needed again when the USD changes; the scenes load the committed STLs, so MuJoCo itself never needs pxr.
 """
 from __future__ import annotations
 
 import json
+import struct
 from pathlib import Path
 
 import numpy as np
@@ -55,11 +56,12 @@ def main() -> None:
 
     OUT.mkdir(parents=True, exist_ok=True)
     for part in PARTS.values():
-        with open(OUT / f"{part}.obj", "w") as f:
-            f.write(f"# {USD.name}: {part}, metres, USD frame (baked by humanoid_mujoco_scenes.bake_lightbox)\n")
-            f.writelines(f"v {x:.6f} {y:.6f} {z:.6f}\n" for x, y, z in verts[part])
-            f.writelines(f"f {a + 1} {b + 1} {c + 1}\n" for a, b, c in faces[part])
-        print(f"{part}: {len(verts[part])} vertices, {len(faces[part])} triangles")
+        tris = np.asarray(verts[part], dtype="<f4")[np.asarray(faces[part])]        # (n, 3 corners, xyz)
+        rec = np.zeros(len(tris), dtype=[("normal", "<f4", 3), ("v", "<f4", (3, 3)), ("attr", "<u2")])
+        rec["v"] = tris                                                           # MuJoCo computes its own normals
+        header = f"{USD.name}: {part}, metres, USD frame".encode()[:80].ljust(80, b" ")
+        (OUT / f"{part}.stl").write_bytes(header + struct.pack("<I", len(rec)) + rec.tobytes())
+        print(f"{part}: {len(tris)} triangles")
     (OUT / "colors.json").write_text(json.dumps(colors, indent=2) + "\n")
 
 

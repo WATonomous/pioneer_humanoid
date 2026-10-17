@@ -68,7 +68,7 @@ def build(spec: mujoco.MjSpec) -> None:
 
 ## Differences from Isaac
 
-- The lightbox meshes are baked from `assets/props/lightbox.usd` to `assets/props/lightbox_mujoco/*.obj`. After
+- The lightbox meshes are baked from `assets/props/lightbox.usd` to `assets/props/lightbox_mujoco/*.stl`. After
   changing the USD, re-bake: `pip install usd-core && python -m humanoid_mujoco_scenes.bake_lightbox`.
 - The arm base is at the world origin, not Isaac's x = 0.15 m: the workcell is shifted to match, so positions are
   relative to the arm in both.
