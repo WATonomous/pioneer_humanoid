@@ -109,7 +109,7 @@ def read_policy_state(robot, state_joint_ids: list[int]) -> torch.Tensor:
 #     pioneer_v1: one 0-1 closure value) -- pass the right --schema
 #   - camera keys the checkpoint expects (push_box: ego/wrist; pioneer_v1: ego/wrist_left)
 #   - absolute vs delta actions: the pi0.5 pipeline trains on deltas
-#     (humanoid_il/pi0.5/action_space.py) -- predicted chunks would need to_absolute()
+#     (pi05/action_space.py) -- predicted chunks would need to_absolute()
 #     against the state each chunk was planned from, which RTCDrivenPolicy doesn't do yet
 #   - dataset fps -> POLICY_HZ, and the task string
 # ======================================================================================
