@@ -63,6 +63,10 @@ train-policy \
 
 Flag pitfalls (`--steps`, not epochs; always `--policy.push_to_hub=false` for local runs) are listed in the [SO101 README](../simulation/so101_vial_task/README.md), which uses the same command.
 
+Policies LeRobot 0.4.x doesn't ship live in `humanoid_robot_learning/policies/` (install with `pip install -e src/robot_learning[dit]`). Train them with `python -m humanoid_robot_learning.train` (same flags), and call `humanoid_robot_learning.policies.register()` before loading their checkpoints:
+
+- `multi_task_dit`: Multi-Task DiT (CLIP vision and text, diffusion transformer, flow matching), from LeRobot 0.6. `--policy.vision_spatial_keypoints=32` adds spatial keypoints over the image patches (53 → 70/100 on synthetic peg_insert).
+
 Sim rollout for a flow-matching policy (pi0 / pi0.5 / SmolVLA) on the push-block scene, driven with Real-Time Chunking (`humanoid_robot_learning/rtc_driver.py`): [`scripts/pioneer_push_eval_rtc.py`](scripts/pioneer_push_eval_rtc.py). It expects a checkpoint trained on the `wato_arm_v2_push_box` schema; `--dry_run` runs it without one. **The VLA is not hooked up yet**: no real checkpoint has been run through it, and its schema, camera keys and action space (absolute vs delta) still need matching. See the `TODO(VLA)` block in the script.
 
 ```bash
