@@ -11,11 +11,7 @@ import os
 import mujoco
 import numpy as np
 
-from humanoid_mujoco_scenes import add_floor, scene
-
-TABLE_TOP_Z = 0.705             # same table height as the Isaac push scene
-TABLE_X = (0.15, 0.85)          # front/back edge, robot frame
-TABLE_HALF_Y = 0.6
+from humanoid_mujoco_scenes import TABLE_TOP_Z, add_workcell, scene
 
 PEG_SIZE = 0.04                 # square cross-section (m); the gripper's collision hulls close past 0
 PEG_HEIGHT = 0.10
@@ -55,17 +51,11 @@ def is_inserted(model: mujoco.MjModel, data: mujoco.MjData) -> bool:
     return bool(inside and bottom < TABLE_TOP_Z + BLOCK_HEIGHT - INSERT_DEPTH)
 
 
-@scene("peg_insert", camera=dict(lookat=[0.38, 0.29, 0.75], distance=1.0, azimuth=200, elevation=-35), reset=reset)
+@scene("peg_insert", camera=dict(lookat=[0.38, 0.29, TABLE_TOP_Z + 0.045], distance=0.5, azimuth=200, elevation=-35), reset=reset)
 def build(spec: mujoco.MjSpec) -> None:
-    add_floor(spec)
+    add_workcell(spec)
     world = spec.worldbody
     box = mujoco.mjtGeom.mjGEOM_BOX
-
-    x0, x1 = TABLE_X
-    world.add_geom(
-        name="table", type=box, size=[(x1 - x0) / 2, TABLE_HALF_Y, TABLE_TOP_Z / 2],
-        pos=[(x0 + x1) / 2, 0.0, TABLE_TOP_Z / 2], rgba=[0.55, 0.42, 0.3, 1],
-    )
 
     # Block = four walls around the hole; the table top is the hole's floor.
     hole = PEG_SIZE + CLEARANCE

@@ -22,11 +22,9 @@ import math
 import mujoco
 import numpy as np
 
-from humanoid_mujoco_scenes import add_floor, scene
+from humanoid_mujoco_scenes import TABLE_TOP_Z, add_workcell, scene
 
-T = TABLE_TOP_Z = 0.705
-TABLE_X = (0.15, 0.85)
-TABLE_HALF_Y = 0.6
+T = TABLE_TOP_Z
 
 PITCH = 0.016                     # stud pitch
 BRICK = (0.0638, 0.0318, 0.0192)  # 2x4 brick body (x, y, z)
@@ -45,7 +43,7 @@ PLATE_POS = (0.30, 0.395)         # baseplate centre; 6 x 4 studs, fixed
 PLATE_STUDS = (6, 4)
 PLATE_T = 0.004
 BRICK_ROW_Y = 0.262               # loose bricks lie in a row here, long side along X
-BRICK_ROW_X = (0.22, 0.30, 0.38)
+BRICK_ROW_X = (0.275, 0.355, 0.435)
 JITTER = 0.004                    # m, and BRICK_YAW rad, random per episode
 BRICK_YAW = 0.08
 
@@ -84,10 +82,10 @@ def progress(model: mujoco.MjModel, data: mujoco.MjData) -> tuple[int, int, str]
 
 
 # ----------------------------------------------------------------------------- scene
-@scene("duplo", camera=dict(lookat=[0.30, 0.34, 0.75], distance=0.6, azimuth=200, elevation=-40),
+@scene("duplo", camera=dict(lookat=[0.34, 0.34, T + 0.045], distance=0.6, azimuth=200, elevation=-40),
        step=step, reset=reset, progress=progress)
 def build(spec: mujoco.MjSpec) -> None:
-    add_floor(spec)
+    add_workcell(spec)
     spec.nuserdata = 1 + len(COLOURS)
     world = spec.worldbody
     box, cyl, mesh = mujoco.mjtGeom.mjGEOM_BOX, mujoco.mjtGeom.mjGEOM_CYLINDER, mujoco.mjtGeom.mjGEOM_MESH
@@ -95,9 +93,6 @@ def build(spec: mujoco.MjSpec) -> None:
     ring = [(math.cos(a), math.sin(a)) for a in np.linspace(0, 2 * math.pi, 16, endpoint=False)]
     spec.add_mesh(name="stud", uservert=[v for c, s_ in ring for v in (STUD_R * c, STUD_R * s_, 0.0)]
                   + [v for c, s_ in ring for v in (STUD_TIP_R * c, STUD_TIP_R * s_, STUD_H)])
-    x0, x1 = TABLE_X
-    world.add_geom(name="table", type=box, size=[(x1 - x0) / 2, TABLE_HALF_Y, T / 2], pos=[(x0 + x1) / 2, 0, T / 2],
-                   rgba=[0.55, 0.42, 0.3, 1])
 
     # Baseplate (fixed): a thin slab with a grid of studs; its frame is the slab's top centre.
     green = [0.2, 0.6, 0.25, 1]

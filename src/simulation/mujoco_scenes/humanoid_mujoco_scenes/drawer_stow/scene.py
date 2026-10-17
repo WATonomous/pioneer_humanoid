@@ -15,11 +15,9 @@ from __future__ import annotations
 import mujoco
 import numpy as np
 
-from humanoid_mujoco_scenes import add_floor, scene
+from humanoid_mujoco_scenes import TABLE_TOP_Z, add_workcell, scene
 
-T = TABLE_TOP_Z = 0.705         # same table as peg_insert
-TABLE_X = (0.15, 0.85)
-TABLE_HALF_Y = 0.6
+T = TABLE_TOP_Z
 
 # Cabinet (fixed): front face at CAB_X, beyond the arm's reach except for its front.
 CAB_X = 0.38
@@ -42,7 +40,7 @@ TAB = (0.06, 0.016, 0.03)       # handle tab: protrudes toward the robot (jaws a
 BLOCK = 0.04                    # cube edge
 BLOCK_MASS = 0.05
 COLOURS = {"red": [0.85, 0.2, 0.2, 1], "green": [0.2, 0.7, 0.3, 1], "blue": [0.2, 0.4, 0.85, 1]}
-BLOCK_AREA = ((0.21, 0.37), (0.222, 0.250))   # x, y ranges the blocks are shuffled in (beside the drawer)
+BLOCK_AREA = ((0.26, 0.42), (0.222, 0.250))   # x, y ranges the blocks are shuffled in (beside the drawer)
 # Centre-to-centre: the jaws are 61 mm long, so a closer neighbour gets clipped grasping its partner.
 BLOCK_SPACING = 0.07
 BLOCK_YAW = 0.2                 # rad, random turn of each block
@@ -84,14 +82,12 @@ def progress(model: mujoco.MjModel, data: mujoco.MjData) -> tuple[int, int, str]
     return k, STEPS_TOTAL, _step_text(data, min(k, STEPS_TOTAL - 1))
 
 
-@scene("drawer_stow", camera=dict(lookat=[0.33, 0.33, 0.76], distance=0.9, azimuth=210, elevation=-35),
+@scene("drawer_stow", camera=dict(lookat=[0.34, 0.31, T + 0.055], distance=0.6, azimuth=210, elevation=-40),
        step=step, reset=reset, progress=progress)
 def build(spec: mujoco.MjSpec) -> None:
-    add_floor(spec)
+    add_workcell(spec)
     spec.nuserdata = 1 + len(COLOURS)   # [latched step, block order...]
     world = spec.worldbody
-    x0, x1 = TABLE_X
-    _box(world, "table", [x0, -TABLE_HALF_Y, 0], [x1, TABLE_HALF_Y, T], [0.55, 0.42, 0.3, 1])
 
     # Cabinet: bottom, top, sides, back (world geoms).
     wood = [0.82, 0.78, 0.7, 1]

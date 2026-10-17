@@ -17,11 +17,7 @@ import math
 import mujoco
 import numpy as np
 
-from humanoid_mujoco_scenes import add_floor, scene
-
-TABLE_TOP_Z = 0.705             # same table height as the Isaac push scene
-TABLE_X = (0.15, 0.85)          # front/back edge, robot frame
-TABLE_HALF_Y = 0.6
+from humanoid_mujoco_scenes import TABLE_TOP_Z, add_workcell, scene
 
 BOTTLE_SIZE = 0.08              # square cross-section (m); the gripper's collision hulls close past 0
 BOTTLE_HEIGHT = 0.21
@@ -29,7 +25,7 @@ CAP_SIZE = 0.04
 CAP_HEIGHT = 0.03
 BOTTLE_MASS = 0.15              # in kg
 BOTTLE1_POS = (0.42, 0.26)       # xy on the table; both inside the left arm's gripper-down reach
-BOTTLE2_POS = (0.22, 0.40)
+BOTTLE2_POS = (0.30, 0.40)
 BOTTLE3_POS = (0.65, 0.10)
 
 # ---- hooks
@@ -107,19 +103,13 @@ def progress(model: mujoco.MjModel, data: mujoco.MjData) -> tuple[int, int, str]
     return k, total, f"stand up bottle {min(k, total - 1) + 1} of {total}, cap end on top"
 
 # ---- scene
-@scene("bowling", camera=dict(lookat=[0.38, 0.29, 0.75], distance=2.0, azimuth=200, elevation=-35),
+@scene("bowling", camera=dict(lookat=[0.42, 0.3, TABLE_TOP_Z], distance=0.7, azimuth=200, elevation=-55),
        step=step, reset=reset, progress=progress)
 def build(spec: mujoco.MjSpec) -> None:
-    add_floor(spec)
+    add_workcell(spec)
     spec.nuserdata = 1                  # [latched step]
     world = spec.worldbody
     box = mujoco.mjtGeom.mjGEOM_BOX     # should make it cylinder (?)
-
-    x0, x1 = TABLE_X
-    world.add_geom(
-        name="table", type=box, size=[(x1 - x0) / 2, TABLE_HALF_Y, TABLE_TOP_Z / 2],
-        pos=[(x0 + x1) / 2, 0.0, TABLE_TOP_Z / 2], rgba=[0.55, 0.42, 0.3, 1],
-    )
 
     bx1, by1 = BOTTLE1_POS
     lie = [0.683, 0.683, 0.183, 0.183]
