@@ -1,8 +1,9 @@
 import os
 
 import isaaclab.sim as sim_utils
-from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets.articulation import ArticulationCfg
+
+from .actuators import DelayedTrapezoidalPDActuatorCfg
 
 _ASSET_DIR = os.path.join(
     os.path.dirname(__file__), "..", "..", "..", "assets", "whole_body_humanoid"
@@ -62,41 +63,61 @@ WHOLE_BODY_HUMANOID_CFG = ArticulationCfg(
             "Ankle_R_R": 0.0,
         },
     ),
+    # NOTE: acceleration_limit and min_delay/max_delay below are PLACEHOLDER estimates
+    # (accel ~= velocity_limit_sim / 0.15s; delay ~= 0-4 control steps @ dt=0.005s),
+    # not values fit against real hardware. See PR description for the required
+    # step/sine sysID sweep per joint before these should be trusted for training a
+    # policy intended for real deployment.
     actuators={
-        "hip_flexion": ImplicitActuatorCfg(
+        "hip_flexion": DelayedTrapezoidalPDActuatorCfg(
             joint_names_expr=["Hip_F_.*"],
             effort_limit_sim=222.0,
             velocity_limit_sim=3.6652,
             stiffness=100.0,
             damping=8.0,
+            acceleration_limit=24.43,
+            min_delay=0,
+            max_delay=4,
         ),
-        "hip_abduction": ImplicitActuatorCfg(
+        "hip_abduction": DelayedTrapezoidalPDActuatorCfg(
             joint_names_expr=["Hip_A_.*"],
             effort_limit_sim=120.0,
             velocity_limit_sim=20.944,
             stiffness=80.0,
             damping=5.0,
+            acceleration_limit=139.63,
+            min_delay=0,
+            max_delay=4,
         ),
-        "hip_rotation": ImplicitActuatorCfg(
+        "hip_rotation": DelayedTrapezoidalPDActuatorCfg(
             joint_names_expr=["Hip_R_.*"],
             effort_limit_sim=60.0,
             velocity_limit_sim=20.42,
             stiffness=60.0,
             damping=4.0,
+            acceleration_limit=136.13,
+            min_delay=0,
+            max_delay=4,
         ),
-        "knee": ImplicitActuatorCfg(
+        "knee": DelayedTrapezoidalPDActuatorCfg(
             joint_names_expr=["Knee_.*"],
             effort_limit_sim=222.0,
             velocity_limit_sim=3.6652,
             stiffness=100.0,
             damping=8.0,
+            acceleration_limit=24.43,
+            min_delay=0,
+            max_delay=4,
         ),
-        "ankle": ImplicitActuatorCfg(
+        "ankle": DelayedTrapezoidalPDActuatorCfg(
             joint_names_expr=["Ankle_.*"],
             effort_limit_sim=60.0,
             velocity_limit_sim=20.42,
             stiffness=80.0,
             damping=6.0,
+            acceleration_limit=136.13,
+            min_delay=0,
+            max_delay=4,
         ),
     },
     soft_joint_pos_limit_factor=0.95,
