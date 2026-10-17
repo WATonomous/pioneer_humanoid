@@ -4,9 +4,9 @@ No Isaac Sim needed -- recorded camera frames + joint states go in, predicted 50
 chunks come out, and each prediction is compared with what the teleoperator actually did.
 
 Run from the repo root (in a normal terminal, not VS Code's -- loading needs ~15 GB RAM):
-    python src/robot_learning/humanoid_il/pi0.5/pioneer_eval_offline.py
+    python src/robot_learning/pi05/pioneer_eval_offline.py
 Redraw the plots from the last run's predictions, without loading the model:
-    python src/robot_learning/humanoid_il/pi0.5/pioneer_eval_offline.py --replot
+    python src/robot_learning/pi05/pioneer_eval_offline.py --replot
 
 Writes to eval/ next to this script:
     report_card.png       per-joint error over the 0.4 s the robot executes, vs. a "freeze" baseline
