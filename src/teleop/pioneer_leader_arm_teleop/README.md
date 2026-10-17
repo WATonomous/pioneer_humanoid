@@ -84,41 +84,58 @@ Targets are clamped to the arm's URDF limits. Wrist damping is lowered to 2.5 in
 
 ## Synthetic demos (MuJoCo, no leader)
 
-`synthetic/synthetic_teleop.py` records demos without a person: a simulated operator moves a virtual leader through the
-same `LeaderMapping` (home engage, filter, clamp) and recorder as `--target mujoco --record`, so the dataset has
-the same features, per-step `task` and `subtask_index`. Headless, CPU is fine. Output: `<repo>/datasets/pioneer_v1_left_arm/sim_synthetic/<scene>/`
-(kept apart from human takes; `--dataset_root` to override).
+A simulated person "uses" the leader arm, so you get teleop demos without a human. Demos go through the same
+`LeaderMapping` and recorder as `--target mujoco --record`, so the dataset format is identical (same features,
+per-step `task` and `subtask_index`). Output: `<repo>/datasets/pioneer_v1_left_arm/sim_synthetic/<scene>/`, kept apart
+from human takes (`--dataset_root` to override).
 
 ```bash
-MUJOCO_GL=egl python synthetic/synthetic_teleop.py --scene drawer_stow --record --num_episodes 10   # CPU only: MUJOCO_GL=osmesa
-python synthetic/synthetic_teleop.py --scene peg_insert --num_episodes 3 --preview peg.mp4          # just look, no dataset
+python synthetic/synthetic_teleop.py --scene peg_insert --num_episodes 3 --preview peg.mp4   # watch, no dataset
+MUJOCO_GL=egl python synthetic/synthetic_teleop.py --scene duplo --record --num_episodes 100  # CPU only: MUJOCO_GL=osmesa
 ```
 
-- **Human-like motion** (`synthetic/human_operator.py`): the operator aims the follower's gripper and moves the leader to match
-  (IK of the leader, a 1:1 copy of the arm). Reaches are overlapping minimum-jerk strokes (bell-shaped speed) timed by
-  Fitts' law, curved by a random bow and by a per-person share of the leader's joint-space path (people move a leader
-  arm partly joint by joint). Carrying over things is one swoop (lift, across and down overlap), not
-  up-stop-over-stop-down. The first stroke lands a few % off, and after a reaction time the operator
-  corrects what they see, stopping when the arm is blocked rather than pushing harder. Tremor (8–12 Hz, sub-mm), slow
-  drift, wrist wobble, noisy judgement of where objects are, hesitation before grasps. Speed, accuracy, tremor and so on
-  are drawn per episode, like different people. `--pace` sets the tempo: 1 (default) a practised operator, 0.5 a slow
-  careful beginner, 1.5 brisk; a faster operator also aims worse and corrects more.
-- **Plans** (`synthetic/synthetic_tasks.py`): `drawer_stow`, `peg_insert`, `zip_tie`, `duplo`, `matcha`, written like instructions to a person:
-  look, reach, grasp, check it worked and recover if not (re-grasp, pull again, re-open a drawer that got pushed in,
-  pick up a block that missed it, stand a crooked peg back up, press a brick that didn't click), place.
-- **Seeds:** episode *i* uses `--seed + i` for the layout and the operator. Takes are first run without cameras on
-  `--workers` processes; only successful ones are replayed (deterministically) with cameras and saved, like discarding
-  a botched take. At pace 1: drawer_stow 11/12 (33–50 s takes), peg_insert 12/12 (15–27 s), zip_tie 12/12 (8–16 s), duplo 11/12
-  (29–36 s) seeds succeed.
-- **Per-episode record:** `meta/synthetic_takes.jsonl` in the dataset lists each episode's seed, operator style (speed,
-  aim, reaction time, tremor, ...) and what happened (re-grasps, ...). A rerun with the same `--dataset_root` skips
-  those seeds and records only what's missing, so an interrupted run resumes.
-- **Speed / memory:** the physics and the operator run ~3–10× faster than real time; the cameras are the slow part
-  on CPU (osmesa: ~0.5 s per 640×480 frame), so recording renders them on 2 spawned processes (~1.3 GB each) from
-  each frame's poses, ~10–15 min per minute-long take. Each take is recorded in its own process (reopening the
-  dataset), which holds its frames in RAM (~0.9 GB per 10 s with two cameras, twice while saving) and frees it all on
-  exit: peak ~9 GB. With a GPU (`MUJOCO_GL=egl`) rendering is not the bottleneck.
-- Adding a scene: write `plan(op, model, data, notes)` and a success check in `synthetic/synthetic_tasks.py`.
+Scenes: `drawer_stow`, `peg_insert`, `zip_tie`, `duplo`, `matcha`.
+
+### How it works
+
+```
+for seed in seed, seed+1, ...:                       # 1. try takes without cameras (fast, --workers in parallel)
+    reset the scene with seed                        #    random layout
+    operator = random person (speed, aim, tremor)    #    random style
+    run the scene's plan; keep seed if success       #    stop at --num_episodes successes
+for each kept seed:                                  # 2. replay it with cameras and save (same seed = same take)
+    record the episode; log seed + style + notes to meta/synthetic_takes.jsonl
+```
+
+A rerun with the same `--dataset_root` skips seeds already saved, so an interrupted run resumes.
+
+### Files
+
+| File | What it is |
+|---|---|
+| `synthetic/synthetic_teleop.py` | entry point: the loop above, recording, preview |
+| `synthetic/human_operator.py` | how the person moves: `op.see`, `op.move`, `op.arc`, `op.set_grip` (motion model in its docstring) |
+| `synthetic/synthetic_tasks.py` | what the person does in each scene: one `plan` + `success` per scene |
+
+### Adding a scene
+
+```python
+def my_plan(op, model, data, notes):
+    p = op.see("cube")                          # where it is (a few mm off, like an eye)
+    op.arc(p + (0, 0, 0.05), clear_z=0.15)      # lift, across, down
+    op.move(p, tol=0.003); op.set_grip(1.0)     # grasp
+    if not lifted(model, data):                 # check, retry or give up (the take is discarded)
+        raise TaskFailed("grasp")
+    ...
+
+TASKS["my_scene"] = Task(my_plan, my_success, "pick up the cube")
+```
+
+### Notes
+
+- Recording is slow on CPU (rendering the cameras); use `MUJOCO_GL=egl` with a free GPU, and `--image_size 320x240`
+  if the policy takes that size.
+- `--pace`: 0.5 slow beginner, 1 practised operator (default), 1.5 brisk.
 
 ## Real arm (dry run, then `--live`)
 

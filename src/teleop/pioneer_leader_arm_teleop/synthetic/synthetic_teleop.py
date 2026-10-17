@@ -1,7 +1,7 @@
 """Synthetic leader-arm teleop demos in MuJoCo: a simulated person (human_operator.py) does the task.
 
-    python synthetic_teleop.py --scene drawer_stow --record --num_episodes 10
-    python synthetic_teleop.py --scene peg_insert --num_episodes 3 --preview peg.mp4   # look first, no dataset
+    python synthetic/synthetic_teleop.py --scene drawer_stow --record --num_episodes 10
+    python synthetic/synthetic_teleop.py --scene peg_insert --num_episodes 3 --preview peg.mp4   # look first, no dataset
 
 Same pipeline as ``pioneer_leader_arm_teleop.py --target mujoco --record``: the operator's leader angles
 go through the same LeaderMapping (engage at home, low-pass filter, URDF clamp), and frames are recorded
