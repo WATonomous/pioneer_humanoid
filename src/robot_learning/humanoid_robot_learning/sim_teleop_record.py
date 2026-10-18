@@ -60,12 +60,21 @@ def add_record_args(parser: argparse.ArgumentParser, *, task_description: str) -
         default=None,
         help="cameras to record, e.g. 'ego,wrist_left' or 'none' (default: schema's enabled images)",
     )
+    parser.add_argument(
+        "--image_size",
+        type=str,
+        default=None,
+        help="WIDTHxHEIGHT for every recorded camera, e.g. 320x240 (default: the schema's sizes). Rendering at the "
+        "policy's input size is faster and lighter than recording large and downscaling later.",
+    )
 
 
 def load_record_schema(parser: argparse.ArgumentParser, args: argparse.Namespace) -> RecordSchema:
     """Call before AppLauncher: recording cameras need --enable_cameras."""
     if args.cameras is not None and not args.record:
         parser.error("--cameras requires --record")
+    if args.image_size is not None and not args.record:
+        parser.error("--image_size requires --record")
     if not args.record:
         return RecordSchema()
     path = resolve_config_path(args.schema, anchor=PKG_ROOT)
@@ -74,6 +83,13 @@ def load_record_schema(parser: argparse.ArgumentParser, args: argparse.Namespace
     except ValueError as exc:
         parser.error(f"--cameras: {exc}")
     images = enabled_images(cfg)
+    if args.image_size is not None:
+        parts = args.image_size.lower().split("x")
+        if len(parts) != 2 or not all(p.isdigit() and int(p) > 0 for p in parts):
+            parser.error(f"--image_size: expected WIDTHxHEIGHT such as 320x240, got {args.image_size!r}")
+        width, height = int(parts[0]), int(parts[1])
+        for spec in images.values():           # the same dicts as cfg["images"]: renderers and recorder both see it
+            spec["width"], spec["height"] = width, height
     if images:
         args.enable_cameras = True
     return RecordSchema(path, cfg, images)
@@ -87,10 +103,12 @@ def make_sim_recorder(
     sim_dt: float,
     joint_names: list[str] = LEFT_ARM_RECORD_JOINTS,
     extra_features: dict[str, list[str]] | None = None,
+    buffer_capacity_s: float = 120.0,
 ):
     """Return (recorder, record_every): record one frame every `record_every` physics steps.
 
     ``extra_features``: extra float32 per-frame features, {name: [component names]} (see SimLeRobotRecorder).
+    ``buffer_capacity_s``: longest episode the frame buffers hold (they are allocated at that size).
     """
     if not args.record:
         return None, 0
@@ -103,11 +121,14 @@ def make_sim_recorder(
         ) from exc
 
     cfg = schema.cfg
+    missing = [key for key in ("fps", "repo_id", "robot_id", "joint_names") if key not in cfg]
+    if missing:
+        raise ValueError(f"{schema.path}: missing {', '.join(missing)}")
     if list(cfg["joint_names"]) != joint_names:
         raise ValueError(
             f"{schema.path}: joint_names must be {joint_names}, got {list(cfg['joint_names'])}"
         )
-    fps = int(cfg.get("fps", 25))
+    fps = int(cfg["fps"])
     physics_hz = 1.0 / sim_dt
     record_every = round(physics_hz / fps)
     if record_every < 1 or abs(record_every * fps - physics_hz) > 1e-6:
@@ -116,16 +137,17 @@ def make_sim_recorder(
     cameras = {name: {"height": spec["height"], "width": spec["width"]} for name, spec in schema.images.items()}
     recorder = SimLeRobotRecorder(
         task_name=args.task_description,
-        repo_id=str(cfg.get("repo_id", "humanoid/sim")),
+        repo_id=str(cfg["repo_id"]),
         dataset_root=dataset_root,
         fps=fps,
         device=device,
         joint_names=list(cfg["joint_names"]),
         cameras=cameras,
         num_episodes=args.num_episodes,
-        robot_type=str(cfg.get("robot_id", "pioneer_v1_left_arm")),
+        robot_type=str(cfg["robot_id"]),
         rate_limit=False,
         extra_features=extra_features,
+        buffer_capacity_s=buffer_capacity_s,
     )
     recorder.init_dataset()
     print(f"[RECORD] Writing to {dataset_root} at {fps} fps (every {record_every} physics steps)")

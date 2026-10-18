@@ -5,6 +5,7 @@ import queue
 import subprocess
 import threading
 import time
+import traceback
 from pathlib import Path
 from typing import Any, Callable
 
@@ -13,6 +14,29 @@ import torch
 from tqdm import tqdm
 
 from humanoid_robot_learning.episode_keys import EpisodeFlags, EpisodeKeyboard
+
+
+def _open_for_append(repo_id: str, root: Path):
+    """Open an existing LeRobot dataset to append episodes, without leaving a Hugging Face cache copy behind.
+
+    ``LeRobotDataset(...)`` converts all of the dataset's parquet data into an Arrow copy in the ``datasets``
+    cache (~/.cache/huggingface/datasets) every time it is opened, and the recorder re-opens after every saved
+    episode. Each copy holds the whole dataset so far, so a long recording session fills the disk (one
+    synthetic-demo run left 19 GB). The recorder only appends and never reads frames back, so the copy goes
+    to a temporary folder that is deleted as soon as the dataset is open.
+    """
+    import tempfile
+
+    import datasets
+    from lerobot.datasets.lerobot_dataset import LeRobotDataset
+
+    with tempfile.TemporaryDirectory(prefix="lerobot_append_") as tmp:
+        keep = datasets.config.HF_DATASETS_CACHE
+        datasets.config.HF_DATASETS_CACHE = Path(tmp)
+        try:
+            return LeRobotDataset(repo_id, root=root)
+        finally:
+            datasets.config.HF_DATASETS_CACHE = keep
 
 
 def _encode_video_frames_subprocess(
@@ -136,6 +160,7 @@ class SimLeRobotRecorder:
         self._frame_tasks: list[str | None] = []
 
         self._episode_queue: queue.Queue = queue.Queue()
+        self._write_error: BaseException | None = None
         # reusable pinned CPU episode slots; see _allocate_cpu_slots
         self._free_slots: queue.Queue = queue.Queue()
         self._stop_event = threading.Event()
@@ -256,7 +281,7 @@ class SimLeRobotRecorder:
         root = self.dataset_root
         if root.exists():
             try:
-                self.dataset = LeRobotDataset(self.repo_id, root=root)
+                self.dataset = _open_for_append(self.repo_id, root)
                 print(f"[INFO]: Opened existing dataset at {root}")
                 return
             except Exception as exc:
@@ -394,6 +419,7 @@ class SimLeRobotRecorder:
 
         Blocks while both CPU slots are in flight (writer backpressure).
         """
+        self._raise_if_write_failed()
         if self._action_buf is None:
             print("[WARN]: save_episode called with no buffered frames, skipping")
             return
@@ -419,6 +445,17 @@ class SimLeRobotRecorder:
         self._clear_buffers()
         print("[INFO]: Episode queued for saving.")
 
+    def wait_saved(self) -> None:
+        """Block until every queued episode is written (keeps memory down: one episode in flight)."""
+        self._episode_queue.join()
+        self._raise_if_write_failed()
+
+    def _raise_if_write_failed(self) -> None:
+        if self._write_error is not None:
+            raise RuntimeError(
+                f"writing an episode to {self.dataset_root} failed; the dataset may hold part of it"
+            ) from self._write_error
+
     def cancel_recording(self) -> None:
         """Discard the current episode buffer without saving."""
         self._clear_buffers()
@@ -441,11 +478,13 @@ class SimLeRobotRecorder:
             except queue.Empty:
                 continue
             try:
-                self._process_episode(episode)
-                self.num_recorded_episodes += 1
-                print(f"[INFO]: Episode {self.num_recorded_episodes} saved.")
+                if self._write_error is None:
+                    self._process_episode(episode)
+                    self.num_recorded_episodes += 1
+                    print(f"[INFO]: Episode {self.num_recorded_episodes} saved.")
             except Exception as exc:
-                print(f"[ERROR]: Episode processing failed: {exc}")
+                self._write_error = exc
+                traceback.print_exc()
             finally:
                 self._free_slots.put(episode)  # recycle the pinned slot
                 self._episode_queue.task_done()
@@ -475,7 +514,6 @@ class SimLeRobotRecorder:
         copies/encodes everything before this method returns, after which
         the slot is recycled by the caller.
         """
-        from lerobot.datasets.lerobot_dataset import LeRobotDataset
 
         n = episode["total_frames"]
         tasks = episode.get("tasks") or [None] * n
@@ -501,7 +539,7 @@ class SimLeRobotRecorder:
 
         self.dataset.save_episode()
         self.dataset.finalize()
-        self.dataset = LeRobotDataset(self.repo_id, root=self.dataset_root)
+        self.dataset = _open_for_append(self.repo_id, self.dataset_root)
 
     def finalize(self) -> None:
         """Block until all queued episodes are saved, then stop the worker thread."""
@@ -511,6 +549,7 @@ class SimLeRobotRecorder:
         self._episode_queue.join()
         self._stop_event.set()
         self._processor_thread.join(timeout=5.0)
+        self._raise_if_write_failed()
 
     # --- video helpers ---
 
@@ -546,11 +585,10 @@ class SimLeRobotRecorder:
                 input=b"".join(f.tobytes() for f in frames_rgb)
             )
             if proc.returncode != 0:
-                print(f"[ERROR]: ffmpeg failed: {stderr.decode()}")
-            else:
-                print(f"[INFO]: Saved {data_type} video → {out}")
-        except FileNotFoundError:
-            print("[ERROR]: ffmpeg not found")
+                raise RuntimeError(f"ffmpeg failed writing {out}: {stderr.decode()}")
+            print(f"[INFO]: Saved {data_type} video → {out}")
+        except FileNotFoundError as exc:
+            raise RuntimeError("save_mp4 needs the ffmpeg CLI on PATH") from exc
 
     def _save_depth_video(self, frames: np.ndarray, camera_name: str) -> None:
         if frames.ndim == 4 and frames.shape[-1] == 1:

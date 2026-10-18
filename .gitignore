@@ -6,6 +6,7 @@ __pycache__
 
 *.pkl
 *.html
+*.egg-info/
 
 watod-config.local.sh
 modules/docker-compose.*.local.yaml
@@ -22,9 +23,9 @@ outputs/
 
 src/simulation/humanoid_rl/datasets/
 # pi0.5 training outputs: checkpoints + train_log.csv, and pioneer_eval_offline.py's plots
-src/robot_learning/humanoid_il/pi0.5/checkpoint/
-src/robot_learning/humanoid_il/pi0.5/checkpoints/
-src/robot_learning/humanoid_il/pi0.5/eval/
+src/robot_learning/pi05/checkpoint/
+src/robot_learning/pi05/checkpoints/
+src/robot_learning/pi05/eval/
 
 modules/docker-compose.perception_override.yaml
 
