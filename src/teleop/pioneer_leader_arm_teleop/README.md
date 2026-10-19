@@ -74,6 +74,7 @@ Scenes: `bare`, `peg_insert`, `zip_tie`, `drawer_stow`, `matcha`, `duplo`, or an
 - **Directions:** move one leader joint at a time. If a sim joint goes the wrong way, restart with that entry flipped in `--signs` (order A..G, default `1,-1,-1,1,1,-1,1`).
 - **R:** reset the arm and every object in the scene; the arm waits at home until the leader is back at home. During a take, it also discards the take.
 - **`--record`:** `S` start · `N` save (then auto-reset) · `D` discard → `<repo>/datasets/pioneer_v1_left_arm/sim/` · `--cameras ego,wrist_left` / `none`.
+- **Bimanual recording (MuJoCo):** `--bimanual --record` automatically selects `dataset_schema_pioneer_bimanual.yaml`; no `--schema` is needed. The caller passes the 14-value joint order to `sim_teleop_record.make_sim_recorder()`, which validates the schema. Use `--schema` only for a custom schema with the same joint order. Output: `<repo>/datasets/pioneer_v1_bimanual/sim/`.
 - **Multi-step scenes** (`drawer_stow`, `matcha`, `duplo`): the terminal prints `[TASK] step k/n: <instruction>` as each step is done and
   `all steps done -- N to save` at the end. Recorded frames carry the current step's instruction as their `task` and a
   `subtask_index`, so a take is labelled step by step with no hand annotation.
