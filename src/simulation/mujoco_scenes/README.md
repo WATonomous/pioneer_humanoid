@@ -9,24 +9,34 @@ pip install mujoco pillow
 pip install -e src/pioneer_humanoid -e src/simulation/mujoco_scenes
 ```
 
+## Viewer
+
+```bash
+# macOS
+mjpython -m humanoid_mujoco_scenes.viewer --scene matcha
+
+# Linux / Windows
+python -m humanoid_mujoco_scenes.viewer --scene matcha
+
+# Task close-up instead of the default two-arm overview
+mjpython -m humanoid_mujoco_scenes.viewer --scene matcha --view task
+
+# Empty workcell; close automatically after 3 seconds
+mjpython -m humanoid_mujoco_scenes.viewer --scene bare --seconds 3
+```
+
+Use `--scene` to select a scene from the table below. Both arms load without teleop
+hardware or calibration. Physics runs with the arms at home; close the window to exit.
+
 ## Use a scene
 
 ```bash
-# interactive viewer, no leader hardware (macOS)
-mjpython -m humanoid_mujoco_scenes.viewer --scene matcha
-
-# interactive viewer (Linux / Windows)
-python -m humanoid_mujoco_scenes.viewer --scene matcha
-
 # leader-arm teleop (on macOS use mjpython)
 python src/teleop/pioneer_leader_arm_teleop/pioneer_leader_arm_teleop.py --target mujoco --scene peg_insert
 
 # headless PNG preview (Linux)
 MUJOCO_GL=egl python -m humanoid_mujoco_scenes.preview --scene peg_insert --png peg.png
 ```
-
-The simulation loads both arms by default; no `--bimanual`, ports or calibration
-arguments are needed. Add `--view task` for a close-up.
 
 ## Add a scene
 
