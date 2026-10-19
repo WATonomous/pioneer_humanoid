@@ -9,94 +9,35 @@ pip install mujoco pillow
 pip install -e src/pioneer_humanoid -e src/simulation/mujoco_scenes
 ```
 
-## View both arms without teleop hardware
-
-After installing the two packages above, launch the standalone viewer:
+## Use a scene
 
 ```bash
-# macOS (a normal Python process cannot host the passive viewer)
+# interactive viewer, no leader hardware (macOS)
 mjpython -m humanoid_mujoco_scenes.viewer --scene matcha
 
-# Linux / Windows
+# interactive viewer (Linux / Windows)
 python -m humanoid_mujoco_scenes.viewer --scene matcha
 
-# Brief launch check that closes automatically
-mjpython -m humanoid_mujoco_scenes.viewer --scene bare --seconds 3
+# leader-arm teleop (on macOS use mjpython)
+python src/teleop/pioneer_leader_arm_teleop/pioneer_leader_arm_teleop.py --target mujoco --scene peg_insert
+
+# headless PNG preview (Linux)
+MUJOCO_GL=egl python -m humanoid_mujoco_scenes.preview --scene peg_insert --png peg.png
 ```
 
-The default overview shows both arms. Add `--view task` for the scene’s original
-close-up; the matcha close-up focuses on the left arm. The viewer holds both arms
-at home while physics runs; it does not perform a task. Viewer camera choices do
-not change robot cameras. Use `--scene bare` for the empty workcell.
+The viewer shows both arms by default. Add `--view task` for a close-up.
 
-## Dual-leader MuJoCo teleop and recording
-
-Install the lightweight recording package and serial input support:
+For two leaders, add `--bimanual` and the right leader’s port, calibration and signs:
 
 ```bash
-pip install -e src/robot_learning feetech-servo-sdk
-```
-
-Use two calibrated leaders. The right leader needs its own port, calibration and
-servo directions; replace the example values below with your device configuration.
-Joint 1 has opposite axes on the two arms, so do not assume equal leader signs.
-
-```bash
-mjpython src/teleop/pioneer_leader_arm_teleop/pioneer_leader_arm_teleop.py \
+python src/teleop/pioneer_leader_arm_teleop/pioneer_leader_arm_teleop.py \
   --target mujoco --scene matcha --bimanual \
   --port /dev/left-leader --calibration /path/to/left.json \
   --right-port /dev/right-leader --right-calibration /path/to/right.json \
   --right-signs="$RIGHT_SIGNS"
 ```
 
-On Linux use `python`. R resets the scene and both leader mappings; each leader
-must re-engage at its home pose. Without `--bimanual`, the existing left-arm mode
-is unchanged. The current arm self-collision setting remains disabled.
-
-For optional dataset recording, install the recorder dependencies and `ffmpeg`:
-
-```bash
-pip install -e 'src/robot_learning[sim,keyboard]'
-# Add these flags to the dual-leader command:
-# --record --image_size 320x240
-```
-
-Recording waits until both leaders have engaged. S starts, N saves and resets,
-D discards. The bimanual schema is selected automatically and writes to
-`datasets/pioneer_v1_bimanual/sim`, separate from single-arm recordings.
-State/action order is `[left six joints, left gripper closure, right six joints,
-right gripper closure]`: arm angles in radians, grippers 0–1. Cameras are `ego`,
-`wrist_left`, and `wrist_right`; both arms are sampled at the same simulation step.
-`humanoid_robot_learning.bimanual.BimanualMapping` provides the shared named-joint
-mapping and converts each closure into two finger targets without model code.
-
-Run the setup checks after installing `src/robot_learning`:
-
-```bash
-python -m unittest discover -s src/simulation/mujoco_scenes/tests -v
-```
-
-The recorder round-trip test additionally needs the `sim` extra. No policy,
-training configuration, or expert is required to launch or control the scene.
-
-## Isaac Sim status
-
-The Isaac articulation and Quest VR controller already include both arms. However,
-`pioneer_leader_arm_teleop/isaac_sim.py` still drives the left arm, holds the right
-arm at home, and records seven left-arm values. The `--bimanual` leader mode and
-fourteen-value recording in this change are **MuJoCo only**. Isaac parity needs
-separate dual-leader control, both-arm reset/recording, and both-wrist camera
-validation. Isaac runtime behavior has not been tested for this change.
-
-## Use a scene
-
-```bash
-# leader-arm teleop (needs a display; on macOS use mjpython)
-python src/teleop/pioneer_leader_arm_teleop/pioneer_leader_arm_teleop.py --target mujoco --scene peg_insert
-
-# headless check: render the scene with the arm at home
-MUJOCO_GL=egl python -m humanoid_mujoco_scenes.preview --scene peg_insert --png peg.png
-```
+Use `mjpython` on macOS. Replace the ports, calibration paths and `RIGHT_SIGNS` for your leaders.
 
 ## Add a scene
 
