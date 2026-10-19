@@ -9,14 +9,17 @@ long across the table (BIN_INNER), so an object dropped anywhere over it lands i
 it (BIN_CLEAR).
 
 Laid out for the LEFT arm, as far from the robot as it can still work. Pointing down its reach is small, and
-ends near the bin (see BINS): objects lie in a ~9 x 24 cm zone in front of the robot, the bin beyond. It
+ends near the bin (see BINS): objects lie in a ~8 x 24 cm zone in front of the robot, the bin beyond. It
 has no wrist roll, so pointing down the gripper only turns so
 far about vertical, and less near the zone's edges (grasp_yaw_range): boxes and lying cylinders are turned so
 one of a box's sides, or a cylinder's axis, lines up with a yaw the gripper reaches where it lies. Objects
 are at least a finger width apart (each finger is 33 mm thick).
 
-The overhead RGB camera ``top`` looks down on the zone and the bin from above the table's far outer corner:
-from straight above or straight ahead, the gripper at home hides the objects under it.
+Built on the lightbox workcell (workcell.py), the rig every scene shares and the real arm's: objects and bin
+stand on its table top (TABLE_TOP_Z), the zone starting just behind the table's front edge.
+
+The overhead RGB camera ``top`` looks down on the zone and the bin from the far outer corner, inside the
+lightbox: from straight above or straight ahead, the gripper at home hides the objects under it.
 
 Progress (``progress``): how many objects have been put in the bin, of how many -- counted once each, in
 whatever order they go in; one taken out again still counts. The instruction is the same all along.
@@ -35,11 +38,9 @@ import math
 import mujoco
 import numpy as np
 
-from humanoid_mujoco_scenes import add_floor, scene
+from humanoid_mujoco_scenes import TABLE_TOP_Z, add_workcell, scene
 
-T = TABLE_TOP_Z = 0.705          # same table as peg_insert / drawer_stow / duplo
-TABLE_X = (0.15, 0.85)
-TABLE_HALF_Y = 0.6
+T = TABLE_TOP_Z                  # the workcell's work surface (0.780 m), as in every scene
 
 SHAPES = ("box", "cylinder", "ball")
 MAX_PER_SHAPE = 2
@@ -66,7 +67,7 @@ MASS = (0.01, 0.15)              # kg, clamp
 FRICTION = (0.5, 1.0)
 ROLL_FRICTION = 0.0005           # balls and lying cylinders stop rolling within a few cm, not across the table
 
-ZONE = ((0.19, 0.28), (0.17, 0.41))    # x, y ranges object centres are drawn in
+ZONE = ((0.27, 0.35), (0.17, 0.41))    # x, y ranges object centres are drawn in (table front edge: x 0.235)
 BIN_CLEAR = 0.02                 # the open jaws around every object stay this far from the bin's outer walls
 FINGER_T = 0.033                 # finger thickness; the jaws open to the object's width + JAW_SPARE around it
 JAW_SPARE = 0.03                 # (closer to a bin than that, the fingers land on its wall, not the table)
@@ -79,15 +80,14 @@ BIN_INNER = (0.10, 0.24)
 BIN_WALL_H = 0.03
 BIN_T = 0.005
 INSTRUCTION = "put everything in the trash bin"
-# Inner centre x, y. The whole layout sits as far from the robot as the arm can still work: its gripper reaches
-# x ~0.55 at table height at full stretch, pointing straight down only ~0.40 (at grasp height) to ~0.48 (higher
-# up). The objects lie nearest the robot; the bin is beyond them, centred on the arm, clear of them, and close
-# enough that pointing down -- the keyboard teleop, the scripted demos -- the arm reaches over all of it a few cm
-# up (low over the table it stops ~0.40 out). The leader arm and the phone reach everything.
-BINS = {"trash": (0.42, 0.29)}
+# Inner centre x, y. The objects lie nearest the robot, just behind the table's front edge; the bin is beyond
+# them, centred on the arm and clear of them. Pointing straight down the gripper reaches x ~0.45 at grasp height
+# and ~0.48 at release height over the bin (~13 cm up), so the scripted demos and the keyboard teleop reach
+# over all of it. The leader arm reaches everything.
+BINS = {"trash": (0.48, 0.29)}
 
 # The overhead camera: position, the point it looks at, vertical field of view, image size.
-TOP_CAMERA = dict(pos=(0.76, 0.75, 1.40), lookat=(0.31, 0.29, T), fovy=31.0, resolution=(640, 480))
+TOP_CAMERA = dict(pos=(0.80, 0.66, 1.32), lookat=(0.38, 0.29, T), fovy=42.0, resolution=(640, 480))
 
 PARK = (-2.0, 2.0, 1.0)          # hidden objects float here and beyond
 FINGER_BODIES = ("link7l", "link8l", "link7", "link8")
@@ -201,16 +201,13 @@ def progress(model: mujoco.MjModel, data: mujoco.MjData) -> tuple[int, int, str]
 
 
 # ----------------------------------------------------------------------------- scene
-@scene("tidy_table", camera=dict(lookat=[0.31, 0.29, 0.75], distance=1.25, azimuth=200, elevation=-45),
+@scene("tidy_table", camera=dict(lookat=[0.38, 0.29, TABLE_TOP_Z], distance=0.6, azimuth=200, elevation=-40),
        step=step, reset=reset, progress=progress, condition=condition, condition_names=CONDITION_NAMES)
 def build(spec: mujoco.MjSpec) -> None:
-    add_floor(spec)
+    add_workcell(spec)           # floor, lightbox and the table top (its collision geom is named "table")
     spec.nuserdata = _N_USER
     world = spec.worldbody
     box = mujoco.mjtGeom.mjGEOM_BOX
-    x0, x1 = TABLE_X
-    world.add_geom(name="table", type=box, size=[(x1 - x0) / 2, TABLE_HALF_Y, T / 2], pos=[(x0 + x1) / 2, 0, T / 2],
-                   rgba=[0.55, 0.42, 0.3, 1])
 
     grey = [0.78, 0.78, 0.8, 1]
     hx, hy, w = BIN_INNER[0] / 2, BIN_INNER[1] / 2, BIN_T / 2
@@ -347,15 +344,19 @@ def _stand_height(shape: str, size: tuple, lying: bool = False) -> float:
 
 # Gripper yaw (deg) the left arm reaches pointing down at grasp height, measured by inverse kinematics
 # (pioneer_humanoid.mujoco_left_arm_ik) on a grid over the table: rows y, columns x. None: out of reach.
-_YAW_X = (0.21, 0.24, 0.27, 0.30, 0.33, 0.36, 0.39, 0.42)
-_YAW_Y = (0.20, 0.24, 0.28, 0.32, 0.36, 0.40)
+# Grasp height: finger tips 4 mm above the workcell table (grasp point at TABLE_TOP_Z + 0.091). Each cell is the
+# contiguous yaw run, in 5 deg steps, that includes straight (about 0) where there is one.
+_YAW_X = (0.24, 0.27, 0.30, 0.33, 0.36, 0.39)
+_YAW_Y = (0.16, 0.20, 0.24, 0.28, 0.32, 0.36, 0.40, 0.44)
 _YAW = (
-    ((-65, 0), (-60, 0), (-60, 0), (-55, 0), (-50, 0), (-40, 0), (-35, 0), (-15, -10)),
-    ((-65, 10), (-60, 10), (-55, 10), (-50, 10), (-45, 10), (-40, 15), (-30, 15), (-15, 0)),
-    ((-60, 25), (-55, 25), (-50, 25), (-45, 25), (-40, 25), (-35, 25), (-25, 25), (-10, 10)),
-    ((-55, 35), (-50, 35), (-45, 35), (-40, 35), (-35, 40), (-30, 40), (-20, 30), (-5, 10)),
-    ((-50, 50), (-45, 50), (-40, 90), (-35, 75), (-30, 60), (-20, 45), (-10, 35), None),
-    ((-45, 90), (-40, 90), (-30, 90), (-25, 75), (-20, 60), (-10, 45), (0, 35), None),
+    ((-70, -10), (-80, -5), (-65, -10), (-85, -10), (-55, -10), (-55, -10)),
+    ((-70, 0), (-65, 0), (-90, 0), (-80, 25), (-65, 10), (-55, 5)),
+    ((-65, 10), (-60, 10), (-90, 10), (-80, 55), (-60, 40), (-50, 30)),
+    ((-60, 20), (-65, 85), (-85, 90), (-85, 60), (-55, 50), (-45, 40)),
+    ((-55, 35), (-70, 90), (-90, 90), (-70, 65), (-50, 60), (-40, 50)),
+    ((-50, 45), (-90, 90), (-90, 90), (-35, 50), (-40, 65), (-30, 50)),
+    ((-45, 70), (-60, 90), (-90, 90), (-40, 75), (-30, 65), (-20, 55)),
+    ((-90, 90), (-90, 90), (-40, 90), (-25, 75), (-20, 65), (-10, 55)),
 )
 _YAW_MARGIN, _YAW_MOST = 5.0, 45.0
 
