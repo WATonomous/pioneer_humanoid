@@ -25,10 +25,7 @@ mjpython -m humanoid_mujoco_scenes.viewer --scene matcha --view task
 mjpython -m humanoid_mujoco_scenes.viewer --scene bare --seconds 3
 ```
 
-**Bimanual simulation is the default:** both arms are enabled in the viewer; no
-`--bimanual` flag is needed. Use `--scene` to select a scene from the table below.
-No teleop hardware or calibration is required. Physics runs with the arms at home;
-close the window to exit.
+Bimanual simulation is the default. Use `--scene` to select a scene.
 
 ## Use a scene
 
