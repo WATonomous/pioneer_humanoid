@@ -51,11 +51,11 @@ sys.path.insert(0, str(_SRC / "simulation" / "mujoco_scenes"))
 sys.path.insert(0, str(_SRC / "robot_learning"))
 
 from humanoid_robot_learning.sim_teleop_record import add_record_args, load_record_schema, make_sim_recorder  # noqa: E402
+from humanoid_mujoco_scenes import TABLE_TOP_Z as TABLE_Z  # noqa: E402  (the workcell's table top)
 from pioneer_humanoid.mujoco_scene_window import SceneWindow  # noqa: E402
 
 CONTROL_DT = 0.01        # same as the leader teleop: one key read and target update per 10 ms of sim time
 WRIST_DAMPING = 2.5      # leader teleop's joint6l kv (the stock 18 makes the wrist lag)
-TABLE_Z = 0.705          # table top of every humanoid_mujoco_scenes table scene
 SPEED = 0.12             # m/s, grasp point, keys held
 YAW_RATE = 0.8           # rad/s
 FINE = 0.25              # Shift
@@ -73,7 +73,7 @@ WORKSPACE = ((0.10, 0.50), (0.12, 0.58), (None, 1.10))   # grasp point x, y, z b
 YAW_LIMIT = math.radians(60)
 TURN_TOL = math.radians(3)   # an IK answer further than this from the asked yaw, or from pointing down, is refused
 UNWIND_STEPS = (1, 4, 12)    # x YAW_RATE per step: how much of the turn a move it blocks may undo, smallest first
-READY = (0.27, 0.30, 0.96)   # grasp point, gripper down: high over the table, near the home pose's height
+READY = (0.30, 0.30, 1.03)   # grasp point, gripper down: high over the table, near the home pose's height
 GLIDE_S = 1.2            # home <-> ready
 HOME_HOLD_S = 0.5        # a finished take records this long at home before it is saved
 LEADER_SERVOS = ["A", "B", "C", "D", "E", "F", "G"]   # pioneer_leader_arm_teleop/servo_leader.SERVO_IDS
