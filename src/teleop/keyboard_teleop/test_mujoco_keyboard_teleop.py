@@ -127,8 +127,8 @@ def test_held_key_ramps_up_and_stops(sim):
 
 def test_fingers_never_dig_into_the_table(sim):
     sim.run({"w"}, kt.GLIDE_S + 0.1)
-    # over a clear patch of table between the zone and the robot, then hold "down" well past contact
-    assert sim.drive_to((0.14, 0.40, 0.90))
+    # over a clear patch of table beside the zone, then hold "down" well past contact
+    assert sim.drive_to((0.30, 0.52, kt.TABLE_Z + 0.195))
     sim.run({"e"}, 4.0)
     tips = min(sim.d.geom_xpos[g][2] - abs(sim.d.geom_xmat[g].reshape(3, 3) @ sim.m.geom_size[g])[2]
                for g in range(sim.m.ngeom)
@@ -174,7 +174,7 @@ def test_turn_keys_turn_the_gripper_smoothly_and_stay_down(sim):
 def test_turning_far_from_the_robot_keeps_the_gripper_down_and_in_place(sim):
     """Far out a turn needs big joint swings, and past the yaw the arm reaches it just stops."""
     sim.run({"w"}, kt.GLIDE_S + 0.1)
-    assert sim.drive_to((0.42, 0.45, 0.92))
+    assert sim.drive_to((0.42, 0.45, kt.TABLE_Z + 0.215))
     sim.run((), 0.4)
     p0 = sim.grasp_point()
     for held in ({"c"}, {"v"}):
@@ -187,7 +187,7 @@ def test_turning_far_from_the_robot_keeps_the_gripper_down_and_in_place(sim):
 def test_a_turned_gripper_still_moves_everywhere(sim):
     """Turned as far as it goes, a move the arm can't make at that yaw unwinds the turn instead of refusing."""
     sim.run({"w"}, kt.GLIDE_S + 0.1)
-    assert sim.drive_to((0.27, 0.30, 0.90))
+    assert sim.drive_to((0.30, 0.30, kt.TABLE_Z + 0.195))
     sim.run({"c"}, 0.6)
     sim.run((), 0.4)
     p0 = sim.grasp_point()

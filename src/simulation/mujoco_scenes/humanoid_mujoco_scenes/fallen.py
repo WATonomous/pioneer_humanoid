@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import mujoco
 
-TABLE_TOP_Z = 0.705      # table top of every table scene here
+from .workcell import TABLE_TOP_Z   # the workcell's table top, shared by every table scene here
+
 BELOW = 0.05             # m under the table top: well off it, not just tipped over its edge
 
 
