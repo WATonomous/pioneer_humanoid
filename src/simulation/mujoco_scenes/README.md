@@ -25,19 +25,8 @@ python src/teleop/pioneer_leader_arm_teleop/pioneer_leader_arm_teleop.py --targe
 MUJOCO_GL=egl python -m humanoid_mujoco_scenes.preview --scene peg_insert --png peg.png
 ```
 
-The viewer shows both arms by default. Add `--view task` for a close-up.
-
-For two leaders, add `--bimanual` and the right leader’s port, calibration and signs:
-
-```bash
-python src/teleop/pioneer_leader_arm_teleop/pioneer_leader_arm_teleop.py \
-  --target mujoco --scene matcha --bimanual \
-  --port /dev/left-leader --calibration /path/to/left.json \
-  --right-port /dev/right-leader --right-calibration /path/to/right.json \
-  --right-signs="$RIGHT_SIGNS"
-```
-
-Use `mjpython` on macOS. Replace the ports, calibration paths and `RIGHT_SIGNS` for your leaders.
+The simulation loads both arms by default; no `--bimanual`, ports or calibration
+arguments are needed. Add `--view task` for a close-up.
 
 ## Add a scene
 
