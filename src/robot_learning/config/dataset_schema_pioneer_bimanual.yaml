@@ -1,0 +1,41 @@
+# Bimanual MuJoCo contract: left 7, then right 7. Simulation recording schema; radians and 0-1 gripper closures.
+robot_id: pioneer_v1_bimanual
+repo_id: humanoid/pioneer_v1_bimanual
+fps: 25
+state_unit: rad; grippers are 0-1 closure fractions
+joint_names:
+- left_shoulder_pitch
+- left_shoulder_roll
+- left_shoulder_yaw
+- left_elbow_pitch
+- left_elbow_roll
+- left_wrist_pitch
+- left_gripper
+- right_shoulder_pitch
+- right_shoulder_roll
+- right_shoulder_yaw
+- right_elbow_pitch
+- right_elbow_roll
+- right_wrist_pitch
+- right_gripper
+images:
+  ego:
+    height: 480
+    width: 640
+    enabled: true
+    topic: null
+  wrist_left:
+    height: 480
+    width: 640
+    enabled: true
+    topic: /camera/color/image_raw
+  wrist_right:
+    height: 480
+    width: 640
+    enabled: true
+    topic: null
+record:
+  root: datasets/pioneer_v1_bimanual
+  use_videos: true
+  image_writer_threads: 4
+  image_writer_processes: 0

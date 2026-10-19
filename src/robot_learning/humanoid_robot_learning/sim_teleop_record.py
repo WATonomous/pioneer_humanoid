@@ -12,6 +12,7 @@ from humanoid_robot_learning.schema import enabled_images, load_yaml, select_cam
 
 PKG_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SCHEMA = PKG_ROOT / "config" / "dataset_schema_pioneer_v1.yaml"
+BIMANUAL_SCHEMA = PKG_ROOT / "config" / "dataset_schema_pioneer_bimanual.yaml"
 
 # Recorded joint order (real-robot names, joint_command_core.cpp); must match the schema.
 LEFT_ARM_RECORD_JOINTS = [
