@@ -16,10 +16,18 @@ def reset(model: mujoco.MjModel, data: mujoco.MjData, rng: np.random.Generator) 
     """Start each colour on the opposite side from its tray."""
     for color, (_, target_y) in TRAYS.items():
         for i in range(2):
-            adr = model.joint(f"{color}_{i}").qposadr[0]
-            x, y = np.array([0.34 + i * 0.10, -target_y]) + rng.uniform(-0.015, 0.015, 2)
-            angle = rng.uniform(-np.pi, np.pi)
-            data.qpos[adr:adr + 7] = [x, y, TABLE_TOP_Z + 0.006 + BLOCK_HALF, np.cos(angle / 2), 0, 0, np.sin(angle / 2)]
+            offset_x, offset_y = rng.uniform(-0.015, 0.015, 2)
+            position = [
+                0.34 + i * 0.10 + offset_x,
+                -target_y + offset_y,
+                TABLE_TOP_Z + 0.006 + BLOCK_HALF,
+            ]
+            yaw = rng.uniform(-np.pi, np.pi)
+            quaternion = [np.cos(yaw / 2), 0, 0, np.sin(yaw / 2)]  # MuJoCo order: w, x, y, z
+
+            qpos_start = model.joint(f"{color}_{i}").qposadr[0]
+            data.qpos[qpos_start:qpos_start + 3] = position
+            data.qpos[qpos_start + 3:qpos_start + 7] = quaternion
 
 
 def progress(model: mujoco.MjModel, data: mujoco.MjData) -> tuple[int, int, str]:
