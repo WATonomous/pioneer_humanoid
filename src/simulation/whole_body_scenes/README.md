@@ -44,11 +44,12 @@ as fast as real time).
 | `gear_train` | 6 steps, ~73 s. Walks up to the gearbox; turns round, walks to the parts table behind and takes a gear in each hand by its hub knob; walks back and turns round carrying both; lowers gear 1 over the right shaft onto its collar, then gear 2 over the left one, its teeth in gear 1's; runs the train in by twisting gear 1's hub (strokes): gear 2 turns the other way; presses the test button: the lamp comes up. |
 | `handover` | 5 steps, ~59 s. Walks up; picks a 26 cm bar up by the knob on its far end (right hand) and brings it across to the middle; the left hand takes the knob on its other end and the right lets go (a hand-over); sets it in the fixture on the left (it latches); side-steps to the bolt rack, takes the bolt, steps back, puts it through the bar's hole until it catches the thread and screws it home; presses "done" with its right thumb: the lamp comes up. |
 | `wrench` | 5 steps, ~79 s. Walks up; takes a T-handle socket wrench out of its holder by its knob (right hand); sets the socket over the first hex-head bolt (a hex head gives the fingers nothing to turn: the tool does) until it takes the head, and drives the bolt home by twisting the wrench's knob (strokes); lifts it off, the same for the second bolt; puts the wrench back in its holder; presses the test button with its left thumb: the lamp comes up. |
+| `sort_bins` | 2 steps, ~130 s. Sorting by colour, by sight: walks up; looks over a kitting tray of six knob-topped parts with its head camera and finds the red, green and blue tops in the images (each blob's ray met with the plane of the tops: where each part is and its colour come from the camera, not the simulator; which is where changes with every seed); then, from the middle out, looks straight at each part, takes it with the hand on its side and puts it in the bin of its colour: green in the middle (each hand its own half), red and blue out at the bench's ends (it side-steps along the bench carrying the part until the bin is by the hand, puts it in, steps back). |
 | `grasp_test` | A bolt in a rack and a plate with one threaded hole (tuning bench for the grasps). |
 | `bare` | The studio and an empty workbench. |
 
 Robustness (`--seeds 8`: every loose part up to 2 mm and 3 deg off; Oct 20): `bearing_block` 8/8, `gear_train` 8/8,
-`service_panel` 8/8, `tote_to_shelf` 6/8, `wheel_hub` 6/8, `handover` 5/6, `wrench` 6/6, `battery_module` 2/8 (its cells catch on the socket rims or
+`service_panel` 8/8, `tote_to_shelf` 6/8, `wheel_hub` 6/8, `handover` 5/6, `wrench` 6/6, `sort_bins` 8/8 (colours and parts shuffled), `battery_module` 2/8 (its cells catch on the socket rims or
 get flung when the hand lets go: the next thing to fix). Seed 0, the scene as built, is the one in the videos.
 
 Each scene registers `step` (mechanics: threads, clamp, button), `progress` (the current step and its instruction,
@@ -64,6 +65,7 @@ latched in order as in `humanoid_mujoco_scenes`) and `plan` (the demo).
 | `parts.py` | Knob bolts and threaded holes. A thread is a nut body in the part with a turn hinge and a feed slide coupled rigidly (pitch 12 mm, quick-acting); a bolt whose tip is in the hole's mouth, upright and centred gets welded onto it, from then on it only turns and feeds. Seated bolts stay tight. |
 | `studio.py` | The room: floor, lights, workbench. |
 | `view.py` | The interactive viewer (`--play`, `--tape`) and `--export` to MJCF. |
+| `vision.py` | What the robot sees: its head camera's image, colour blobs in it (hue / saturation thresholds, connected components) and each blob put back on the bench (its ray met with a known plane). |
 | `video.py`, `shots.py` | The tape, and the renderer: a camera that follows the robot's gaze target (smoothed), pulls back while it walks, stays in front of it when it turns round, the head camera inset, a caption bar with the current step. |
 
 ## Physics vs. scripting
@@ -81,7 +83,8 @@ latched in order as in `humanoid_mujoco_scenes`) and `plan` (the demo).
   - the drawer's and hatch's detents and soft-close (a small force near the ends of travel);
   - the testers' indicator flags;
   - the robot's balance (the pelvis is moved and the legs are solved so the feet don't slide).
-  Object poses come from the simulator (as a perfect perception stack would give them).
+  Object poses come from the simulator (as a perfect perception stack would give them), except in `sort_bins`:
+  there the parts' places and colours come from the head camera's images.
 - The plans are scripted, not learned; they check their results and retry where a person would (a part not
   seated, a lid whose screws didn't catch). Long scenes are sensitive to small changes: re-run the demo after
   editing a scene or a skill.
