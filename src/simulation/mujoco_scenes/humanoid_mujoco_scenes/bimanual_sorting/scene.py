@@ -5,6 +5,7 @@ import mujoco
 import numpy as np
 
 from humanoid_mujoco_scenes import TABLE_TOP_Z, add_workcell, scene
+from pioneer_humanoid.mujoco_bimanual_arm import ARM_CONTYPE
 
 COLORS = {"red": [0.85, 0.2, 0.15, 1], "blue": [0.15, 0.35, 0.85, 1]}
 TRAYS = {"red": (0.38, -0.47), "blue": (0.38, 0.47)}
@@ -39,61 +40,36 @@ def reset(model: mujoco.MjModel, data: mujoco.MjData, rng: np.random.Generator) 
 
 
 def _placed_blocks(model: mujoco.MjModel, data: mujoco.MjData) -> set[str]:
-    """Fully contained, slow blocks supported by their tray or an already placed block."""
-    candidates = {}
-    for name in BLOCK_NAMES:
+    """Check bounds and motion like drawer_stow, then require released, supported placement."""
+    placed = set()
+    # Check lower blocks first so a stack's support is already known to be placed.
+    for name in sorted(BLOCK_NAMES, key=lambda name: data.xpos[model.body(name).id, 2]):
         color = name.split("_")[0]
-        body = model.body(name).id
         geom = model.geom(f"{name}_geom").id
-        # Project the rotated cube onto world axes: every corner must clear the inner walls.
+        pos = data.geom_xpos[geom]
         half_extent = np.abs(data.geom_xmat[geom].reshape(3, 3)) @ model.geom_size[geom]
-        contained = np.all(
-            np.abs(data.geom_xpos[geom, :2] - TRAYS[color]) + half_extent[:2]
-            <= TRAY_HALF - TRAY_WALL
-        )
-        dof = model.joint(name).dofadr[0]
-        velocity = data.qvel[dof:dof + 6]
-        slow = (np.linalg.norm(velocity[:3]) < MAX_LINEAR_SPEED
-                and np.linalg.norm(velocity[3:]) < MAX_ANGULAR_SPEED)
-        if contained and slow:
-            candidates[name] = (body, geom)
+        inside = np.all(np.abs(pos[:2] - TRAYS[color]) + half_extent[:2] <= TRAY_HALF - TRAY_WALL)
+        velocity = np.zeros(6)
+        mujoco.mj_objectVelocity(model, data, mujoco.mjtObj.mjOBJ_BODY, model.body(name).id, velocity, 0)
+        still = (np.linalg.norm(velocity[3:]) < MAX_LINEAR_SPEED
+                 and np.linalg.norm(velocity[:3]) < MAX_ANGULAR_SPEED)
+        if not (inside and still):
+            continue
 
-    # Any contact with the robot means the block has not yet been released.
-    robot = model.body("base_link").id
-    robot_bodies = {robot}
-    for body in range(robot + 1, model.nbody):
-        if model.body_parentid[body] in robot_bodies:
-            robot_bodies.add(body)
-    supports = {name: set() for name in candidates}
-    held = set()
-    for contact_id, contact in enumerate(data.contact):
-        for name, (body, geom) in candidates.items():
+        supports = {model.geom(f"{color}_tray_floor").id}
+        supports.update(model.geom(f"{lower}_geom").id for lower in placed if lower.startswith(f"{color}_"))
+        supported, released = False, True
+        for contact in data.contact:
             if geom not in (contact.geom1, contact.geom2):
                 continue
             other = contact.geom2 if contact.geom1 == geom else contact.geom1
-            other_body = model.geom_bodyid[other]
-            if other_body in robot_bodies:
-                held.add(name)
-            # A supporting contact must push upwards below the centre of the block.
+            if model.geom_contype[other] & ARM_CONTYPE:
+                released = False
             normal_z = contact.frame[2] * (1 if contact.geom2 == geom else -1)
-            if normal_z < 0.5 or contact.pos[2] >= data.xpos[body, 2]:
-                continue
-            force = np.zeros(6)
-            mujoco.mj_contactForce(model, data, contact_id, force)
-            if force[0] < 0.001:
-                continue
-            color = name.split("_")[0]
-            if other == model.geom(f"{color}_tray_floor").id:
-                supports[name].add("tray")
-            for lower, (lower_body, _) in candidates.items():
-                if lower.split("_")[0] == color and other_body == lower_body:
-                    supports[name].add(lower)
-
-    placed = set()
-    for _ in BLOCK_NAMES:
-        for name in candidates.keys() - held - placed:
-            if "tray" in supports[name] or supports[name] & placed:
-                placed.add(name)
+            if other in supports and normal_z > 0.5 and contact.pos[2] < pos[2]:
+                supported = True
+        if supported and released:
+            placed.add(name)
     return placed
 
 
@@ -107,7 +83,7 @@ def step(model: mujoco.MjModel, data: mujoco.MjData) -> None:
 
 def progress(model: mujoco.MjModel, data: mujoco.MjData) -> tuple[int, int, str]:
     placed = _placed_blocks(model, data)
-    count = sum(name in placed and data.time - data.userdata[i] >= SETTLE_SECONDS
+    count = sum(int(name in placed and data.time - data.userdata[i] >= SETTLE_SECONDS)
                 for i, name in enumerate(BLOCK_NAMES))
     return count, len(BLOCK_NAMES), "sort the blocks into matching trays"
 
