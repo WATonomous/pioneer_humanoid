@@ -44,7 +44,7 @@ from leader_mapping import (  # noqa: E402
 _KEY_R = 82  # GLFW key code
 
 
-class TeleopMode:
+class TeleopConfig:
     """Leader configuration and recording format for single-arm or bimanual control."""
 
     def __init__(self, parser: argparse.ArgumentParser, args: argparse.Namespace):
@@ -85,8 +85,8 @@ def run() -> None:
     parser.add_argument("--right-signs", help="Explicit calibrated servo directions for the right arm")
     add_record_args(parser, task_description="sim leader teleop demonstration")
     args = parser.parse_args()
-    mode = TeleopMode(parser, args)
-    record = load_record_schema(parser, args, default_schema=mode.get_default_schema())
+    config = TeleopConfig(parser, args)
+    record = load_record_schema(parser, args, default_schema=config.get_default_schema())
 
     import mujoco
     import mujoco.viewer
@@ -112,7 +112,7 @@ def run() -> None:
         scene_randomise(model, data, rng)
     mujoco.mj_forward(model, data)
     arms = []
-    for side, leader_args in mode.get_leader_args():
+    for side, leader_args in config.get_leader_args():
         joints = getattr(arm_params, f"{side}_ARM_JOINTS")
         fingers = getattr(arm_params, f"{side}_GRIPPER_JOINTS")
         arm_acts = [model.actuator(j).id for j in joints]
@@ -142,7 +142,7 @@ def run() -> None:
     # Multi-step scenes record the current step's instruction as each frame's task, plus its index.
     extra = {"subtask_index": ["subtask_index"]} if scene_steps is not None else None
     recorder, record_every = make_sim_recorder(args, record, device="cpu", sim_dt=control_dt, extra_features=extra,
-                                               joint_names=mode.get_record_joints())
+                                               joint_names=config.get_record_joints())
     if recorder is not None:
         print("[RECORD] Keys: S=start, N=save episode (then reset), D=discard")
         recorder.start_keyboard()
