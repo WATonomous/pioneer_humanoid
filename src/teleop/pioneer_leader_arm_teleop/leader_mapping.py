@@ -6,12 +6,6 @@ home (arm_params.DEFAULT_JOINT_POS, elbow bent 90 deg) and only follows the lead
 leader joint is within ENGAGE_TOL_DEG of home with the gripper open -- at startup and after every
 reset -- so it never jumps to wherever the leader happens to be.
 
---relative needs no calibration and no trip to home: the arm waits at home, wherever the leader is, until
-start() is called (the MuJoCo backend's S key) -- at startup and after every reset. The leader's pose at that
-moment becomes the reference, and a joint target is home + sign x (leader angle - reference). The gripper is
-taken to be open then. Sim only: the leader's pose no longer says where the arm is, which a real arm must
-never be driven from.
-
 Plain Python: no simulator imports. The leader is an input device with torque always off.
 """
 from __future__ import annotations
@@ -54,12 +48,6 @@ def add_leader_args(parser: argparse.ArgumentParser, *, scene_help: str) -> None
         default=DEFAULT_CALIBRATION,
         help="leader zero file from calibrate_leader.py (default: leader_calibration.json here)",
     )
-    parser.add_argument(
-        "--relative",
-        action="store_true",
-        help="MuJoCo only: the arm waits at home wherever the leader is; S starts it, measuring the leader's "
-             "motion from its pose at that moment (no calibration file, no moving the leader to home)",
-    )
     parser.add_argument("--signs", default=DEFAULT_SIGNS, help=f"direction per servo A..G (default: {DEFAULT_SIGNS})")
     parser.add_argument(
         "--filter-alpha",
@@ -76,10 +64,8 @@ def check_leader_args(parser: argparse.ArgumentParser, args: argparse.Namespace)
         parse_signs(args.signs)
     except ValueError as exc:
         parser.error(f"--signs: {exc}")
-    if args.relative and args.target != "mujoco":
-        parser.error("--relative is only wired up for --target mujoco (it needs the scene window's S key)")
-    if not args.relative and not args.calibration.is_file():
-        parser.error(f"no leader calibration at {args.calibration}; run calibrate_leader.py first, or pass --relative")
+    if not args.calibration.is_file():
+        parser.error(f"no leader calibration at {args.calibration}; run calibrate_leader.py first")
 
 
 class LeaderMapping:
@@ -89,7 +75,6 @@ class LeaderMapping:
         if len(home_rad) != len(ARM_SERVOS):
             raise ValueError(f"leader drives {len(ARM_SERVOS)} joints but the arm has {len(home_rad)}")
         self.signs = parse_signs(args.signs)
-        self.relative = bool(getattr(args, "relative", False))
         self.alpha = args.filter_alpha
         self.home = list(home_rad)
         self.limits_deg = [(math.degrees(lo), math.degrees(hi)) for lo, hi in limits_rad]
@@ -102,27 +87,14 @@ class LeaderMapping:
         self.target = list(self.home)
         self.grip = 0.0
         self.off_home: list[tuple[str, float]] = []
-        self._reference = None             # --relative: leader angles that map to home
-        self._start = False
-
-    def start(self) -> None:
-        """--relative: take the leader's pose at the next update as the reference and follow it from home."""
-        self._start = True
 
     def update(self, angles: tuple[float, ...]) -> tuple[list[float], float]:
-        if self.relative:
-            if self._reference is None:
-                if not self._start:
-                    return self.target, self.grip
-                self._reference = angles
-            angles = tuple(a - r for a, r in zip(angles, self._reference))
-        offsets = self.home if self.relative else [0.0] * len(ARM_SERVOS)
         desired = [
-            limited_target(angles[i], self.signs[i], 1.0, self.limits_deg[i], offsets[i])
+            limited_target(angles[i], self.signs[i], 1.0, self.limits_deg[i])
             for i in range(len(ARM_SERVOS))
         ]
         grip = gripper_fraction(angles[self.gripper_axis], self.signs[self.gripper_axis])
-        if not self.engaged and not self.relative:
+        if not self.engaged:
             self.off_home = [
                 (label, math.degrees(d - h))
                 for label, d, h in zip(ARM_SERVOS, desired, self.home)
@@ -132,14 +104,14 @@ class LeaderMapping:
                 self.off_home.append((GRIPPER_SERVO, grip))
             if self.off_home:
                 return self.target, self.grip
-        self.engaged = True
+            self.engaged = True
         self.target = [t + self.alpha * (d - t) for t, d in zip(self.target, desired)]
         self.grip += self.alpha * (grip - self.grip)
         return self.target, self.grip
 
     def describe(self, joints: list[str]) -> str:
         return (
-            f"[LEADER] Mapping ({'from the leader pose at S' if self.relative else '1:1 from hanging zero'}): "
+            "[LEADER] Mapping (1:1 from hanging zero): "
             + " | ".join(
                 f"{label}(ID{SERVO_IDS[label]}) {sign:+.0f} -> {joint}"
                 for label, joint, sign in zip(ARM_SERVOS, joints, self.signs)
@@ -152,9 +124,7 @@ class LeaderInput:
     """Calibrated ServoLeader that holds the last reading on a dropped serial frame instead of stopping the sim."""
 
     def __init__(self, args: argparse.Namespace):
-        # --relative: no zeros, so angles are measured from wherever the leader is at startup.
-        zeros = None if getattr(args, "relative", False) else load_calibration(args.calibration)
-        self.leader = ServoLeader(args.port, args.baud, zeros=zeros)
+        self.leader = ServoLeader(args.port, args.baud, zeros=load_calibration(args.calibration))
         self.angles = (0.0,) * len(SERVO_IDS)
         self._last_warning = 0.0
         self._last_report = time.monotonic()
@@ -184,8 +154,6 @@ class LeaderInput:
                 " ".join(f"{label}={math.degrees(a):+6.1f}" for label, a in zip(SERVO_IDS, self.angles))
                 + f" grip={mapping.grip:.2f}"
             )
-        elif mapping.relative:
-            line = "put the leader where you want it, gripper open, then press S in the scene window"
         else:
             line = "move leader to home (elbow 90, gripper open): " + " ".join(
                 f"{label} {err:+.0f}deg" if label != GRIPPER_SERVO else f"{label} {err:.2f}"

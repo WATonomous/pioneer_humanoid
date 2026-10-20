@@ -60,7 +60,6 @@ python src/teleop/keyboard_teleop/mujoco_keyboard_teleop.py --scene tidy_table -
   table, and pushing into something holds the arm where it stopped (~4 N held, not the ~110 N the stiff
   joints would otherwise press with). Hitting something at full speed still taps it (~140 N for an instant);
   hold Shift near things (~75 N).
-- Tests: `pytest src/teleop/keyboard_teleop/test_mujoco_keyboard_teleop.py` (headless).
 
 ## Notes
 

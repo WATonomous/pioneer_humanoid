@@ -8,9 +8,7 @@ toggle display options):
   R   reset the arm and every object in the scene; the arm then waits for the leader again
   Esc quit
 
-  S   start. With --relative the arm waits at home, wherever the leader is, until S: put the leader where you
-      want it first (no calibration; see leader_mapping.py). Without it the arm follows once the leader is at
-      home, as in Isaac. With --record, S also starts a take.
+  S   start: the arm follows once the leader is at home, as in Isaac. With --record, S also starts a take.
 
 Recording (--record): same schema and features as the Isaac backend. When the scene's last step is done the
 arm glides home by itself (the leader is ignored meanwhile) and the take is saved, then a new layout comes up
@@ -113,9 +111,8 @@ def run() -> None:
 
     substeps = max(1, round(CONTROL_DT / model.opt.timestep))
     control_dt = substeps * model.opt.timestep
-    # Leader encoders every frame: angles (rad; calibrated, hanging = 0 -- with --relative, from where the
-    # leader was at startup) and raw counts, in servo order. Not "observation.*" -- LeRobot would feed those
-    # to the policy, and the leader IS the action.
+    # Leader encoders every frame: angles (rad; calibrated, hanging = 0) and raw counts, in servo order.
+    # Not "observation.*" -- LeRobot would feed those to the policy, and the leader IS the action.
     extra = {"leader_angles": list(SERVO_IDS), "leader_counts": list(SERVO_IDS)}
     # Multi-step scenes record the current step's instruction as each frame's task, plus its index.
     if scene_steps is not None:
@@ -166,8 +163,7 @@ def run() -> None:
         print(f"\n[RECORD] Take {saved} saved; new layout.", flush=True)
         reset_all()
 
-    wait_for = "put the leader where you want it, gripper open, then press S" if args.relative else \
-        "move the leader to home: elbow bent 90 deg, forearm forward, gripper open"
+    wait_for = "move the leader to home: elbow bent 90 deg, forearm forward, gripper open"
     print(f"[INFO] To start, {wait_for}. Keys (in the scene window): S start, R reset, Esc quit"
           + (", N save, B discard." if recorder is not None else "."), flush=True)
     try:
@@ -187,9 +183,7 @@ def run() -> None:
                     reset_all()
                     print("\n[LEADER] Arm and scene reset.", flush=True)
                 elif ev == "s" and finish is None:
-                    if args.relative and not mapping.engaged:
-                        mapping.start()            # the leader's pose right now maps to the arm's home
-                    elif not mapping.engaged:
+                    if not mapping.engaged:
                         print("\n[LEADER] Not started: the leader is not at home yet.", flush=True)
                         continue
                     if recorder is not None and not recording:
