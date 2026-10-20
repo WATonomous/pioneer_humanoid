@@ -45,19 +45,20 @@ def knob_pose(top: np.ndarray, yaw: float, above: float | None = None):
 
 
 def pick_knob(wb: WholeBody, side: str, top_site: str, body: str, yaw: float, lift: float = 0.08,
-              speed: float = 1.0) -> None:
-    """Grasp a knob-topped part from above and lift it ``lift`` m."""
+              speed: float = 1.0, shape: str = "lid") -> None:
+    """Grasp a knob-topped part from above and lift it ``lift`` m. ``shape``: "lid" (wrapped over the top, the
+    firmest) or "knob" (fingertips round the rim, lets go straight outward: for parts set among others)."""
     top = site(wb, top_site)
-    p, r = knob_pose(top, yaw)
+    p, r = knob_pose(top, yaw, None if shape == "lid" else TWIST_ABOVE)
     wb.look(top, dur=0.4)
-    wb.fingers(side, "lid_pre", dur=0.5)
+    wb.fingers(side, f"{shape}_pre", dur=0.5)
     wb.reach(side, p + [0, 0, CLEAR], r, 1.2 / speed)
     wb.settle()
     _dbg(wb, side, "pick above")
     wb.reach(side, p, r, 0.7 / speed)
     wb.settle()
     _dbg(wb, side, "pick at")
-    wb.fingers(side, "lid", amount=SQUEEZE, dur=0.45)
+    wb.fingers(side, shape, amount=SQUEEZE if shape == "lid" else TWIST_SQUEEZE, dur=0.45)
     wb.settle()
     wb.wait(0.15)
     z0 = body_pos(wb, body)[2]
@@ -97,6 +98,26 @@ def pick_two(wb: WholeBody, grips: dict, body: str, lift: float = 0.06, shape: s
     wb.settle()
     if body_pos(wb, body)[2] - z0 < 0.6 * lift:
         raise TaskFailed(f"lost {body} while lifting it with both hands")
+
+
+def align_two(wb: WholeBody, body: str, point_site: str, target, yaw: float, rounds: int = 3,
+              dur: float = 0.6, sym: float = math.pi) -> None:
+    """``align_held`` for a part held in both hands: both hands turn about the part's point and shift together."""
+    for _ in range(rounds):
+        wb.wait(0.15)
+        dyaw = _wrap(yaw - body_yaw(wb, body))
+        dyaw = (dyaw + sym / 2) % sym - sym / 2
+        rz = rot_z(dyaw)
+        pt = site(wb, point_site)
+        shift = np.asarray(target, float)[:2] - pt[:2]
+        for side in ("l", "r"):
+            p, r = wb.hand_goal[side]
+            p_new = pt + rz @ (p - pt)
+            p_new[:2] += shift
+            wb.reach(side, p_new, rz @ r, dur)
+        wb.settle()
+        if DEBUG:
+            print(f"align_two: dyaw {math.degrees(dyaw):.1f} err {np.round(shift, 4)}")
 
 
 def move_two(wb: WholeBody, shift, dur: float = 1.2) -> None:
@@ -202,11 +223,23 @@ def press(wb: WholeBody, side: str, tip_site: str, target, depth: float = 0.012,
     wb.settle()
 
 
-def release(wb: WholeBody, side: str | tuple = "l", up: float = 0.06, dur: float = 0.5) -> None:
+def release(wb: WholeBody, side: str | tuple = "l", up: float = 0.06, dur: float = 0.5, held: bool = False) -> None:
     """Let go gently: the fingers uncurl, the thumb stays put (moving it would shove the part), then the thumb
-    backs off, lift clear, relax. ``side`` may be both hands, ("l", "r")."""
+    backs off, lift clear, relax. ``side`` may be both hands, ("l", "r"). ``held``: the part sits in something that
+    holds it (a socket): open the whole hand first, then lift (a half-open hand would drag it out)."""
     from .robot import hand_joints
     sides = (side,) if isinstance(side, str) else tuple(side)
+    if held:
+        for s_ in sides:
+            wb.fingers(s_, "knob_pre", dur=0.4)
+        wb.settle()
+        for s_ in sides:
+            p, r = wb.hand_goal[s_]
+            wb.reach(s_, p + [0, 0, up], r, dur)
+        wb.settle()
+        for s_ in sides:
+            wb.fingers(s_, "relaxed", dur=0.4)
+        return
     uncurl = {f"{f}{j}": 0.15 for f in ("", "i_", "r_", "l_") for j in ("mcp", "pip")}
     keep = {s_: {j[2:]: wb.cmd[j] for j in hand_joints(s_) if j[2:].startswith("th_")} for s_ in sides}
     for s_ in sides:
@@ -285,3 +318,56 @@ def tighten(wb: WholeBody, side: str, thread: Thread, bolt: str, yaw0: float, ya
     if not thread.seated(wb.d):
         raise TaskFailed(f"{bolt} not seated after {max_strokes} strokes")
     return max_strokes
+
+
+def tighten_two(wb: WholeBody, jobs: list, max_strokes: int = 12, speed: float = 1.0) -> list[int]:
+    """Both hands screw their bolts home at the same time: ``jobs`` = [(side, thread, bolt, yaw0, yaw1), ...].
+    Each stroke as in ``tighten``, the hands moving together; a hand whose bolt is home rests."""
+    strokes = [0] * len(jobs)
+    phase = lambda: wb.settle()                                         # noqa: E731
+    for side, *_ in jobs:                                               # off the carrying grip first
+        wb.fingers(side, "knob_pre", dur=0.3)
+    phase()
+    for side, *_ in jobs:
+        p0, r0 = wb.hand_goal[side]
+        wb.reach(side, p0 + [0, 0, 0.05], r0, 0.4 / speed)
+    phase()
+    for _ in range(max_strokes):
+        active = [j for j in jobs if not j[1].seated(wb.d)]
+        if not active:
+            break
+        plan = {}
+        for side, thread, bolt, yaw0, yaw1 in active:
+            axis = wb.d.xpos[thread.hole_id]
+            top = site(wb, f"{bolt}_top")
+            top[:2] = axis[:2]
+            plan[side] = (top, *knob_pose(top, yaw0, TWIST_ABOVE), yaw1 - yaw0)
+            wb.fingers(side, "knob_pre", dur=0.3)
+            wb.reach(side, plan[side][1] + [0, 0, 0.05], plan[side][2], 0.55 / speed)
+        phase()
+        for side, (top, p, r, a) in plan.items():
+            wb.reach(side, p, r, 0.35 / speed)
+        phase()
+        for side in plan:
+            wb.fingers(side, "knob", amount=TWIST_SQUEEZE, dur=0.3)
+        phase()
+        for side, (top, p, r, a) in plan.items():
+            p2 = top + rot_z(a) @ (p - top)
+            p2[2] -= PITCH * abs(a) / (2 * math.pi)
+            wb.reach(side, p2, rot_z(a) @ r, 0.85 / speed)
+        phase()
+        for side in plan:
+            wb.fingers(side, "knob_pre", dur=0.25)
+        phase()
+        for side in plan:
+            p3, r3 = wb.hand_goal[side]
+            wb.reach(side, p3 + [0, 0, 0.05], r3, 0.3 / speed)
+        phase()
+        for k, j in enumerate(jobs):
+            if j in active:
+                strokes[k] += 1
+        if DEBUG:
+            print("strokes", strokes, [round(j[1].depth(wb.d) * 1000, 1) for j in jobs])
+    if not all(j[1].seated(wb.d) for j in jobs):
+        raise TaskFailed(f"not every bolt seated after {max_strokes} strokes")
+    return strokes

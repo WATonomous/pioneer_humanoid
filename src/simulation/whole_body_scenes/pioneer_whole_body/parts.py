@@ -82,6 +82,18 @@ def add_thread_hole(spec: mujoco.MjSpec, part, name: str, pos, travel: float):
     return h
 
 
+def add_weld(spec: mujoco.MjSpec, name: str, body1: str, body2: str, active: bool = True):
+    """A weld holding body2 where it is relative to body1 in the model's reference pose (anchor at body2's origin).
+    (MjSpec's default equality data is the joint one, "0 1 0 0 0", which as a weld anchor sits a metre off.)"""
+    eq = spec.add_equality(name=name, type=mujoco.mjtEq.mjEQ_WELD, name1=body1, name2=body2,
+                           objtype=mujoco.mjtObj.mjOBJ_BODY, active=active)
+    eq.data[:] = [0.0] * len(eq.data)
+    eq.data[10] = 1.0                      # torquescale; relpose quaternion 0 = use the reference pose
+    eq.solref = [0.004, 1.0]
+    eq.solimp = [0.95, 0.99, 0.001, 0.5, 2.0]
+    return eq
+
+
 def add_bolt_weld(spec: mujoco.MjSpec, hole: str, bolt: str):
     """The (initially off) weld that holds ``bolt`` on the thread of ``hole`` once engaged."""
     eq = spec.add_equality(name=f"{hole}__{bolt}", type=mujoco.mjtEq.mjEQ_WELD, name1=hole, name2=bolt,

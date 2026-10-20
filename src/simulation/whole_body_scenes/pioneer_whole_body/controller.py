@@ -35,6 +35,9 @@ ARM_REST = WORK
 # idle: the hand up and out to the side of the work area (palm ~0.37, 0.41 out, 0.95 high), clear of the bench
 READY = {"shoulder_pitch": -0.05, "shoulder_roll": 1.07, "upper_arm_yaw": 0.54, "elbow": -1.57, "forearm_roll": 0.69,
          "wrist_dev": 0.21, "wrist_flex": -0.29}
+# hands up (forearms raised in front of the chest, ~1.3 m): an idle pose that clears everything on the bench, for
+# side steps along it; reached from READY by the shoulder alone
+HIGH = {**READY, "shoulder_pitch": -0.9, "shoulder_roll": 0.4}
 # on the way from hanging to READY: forearm up first (it would swing into the bench edge otherwise)
 LIFT = {"shoulder_pitch": 0.7, "shoulder_roll": 0.25, "upper_arm_yaw": 0.3, "elbow": -1.57, "forearm_roll": 0.5,
         "wrist_dev": 0.0, "wrist_flex": 0.0}

@@ -27,7 +27,7 @@ import numpy as np
 from pioneer_whole_body import scene
 from pioneer_whole_body.controller import READY
 from pioneer_whole_body.parts import (DARK, KNOB, ORANGE, STEEL, Thread, add_bolt_weld, add_knob_bolt,
-                                      add_thread_hole, bolt_length, quat_z)
+                                      add_thread_hole, add_weld, bolt_length, quat_z)
 from pioneer_whole_body.studio import BENCH_TOP_Z, add_bench, add_studio
 
 T = BENCH_TOP_Z
@@ -224,9 +224,7 @@ def build(spec: mujoco.MjSpec) -> None:
     for b in ("bolt_l", "bolt_r"):
         spec.add_exclude(bodyname1="plate", bodyname2=b)
     # the jig's clamp: holds the plate while it's worked on (a toggle clamp, released with its lever)
-    clamp = spec.add_equality(name="jig_clamp", type=mujoco.mjtEq.mjEQ_WELD, name1="jig", name2="plate",
-                              objtype=mujoco.mjtObj.mjOBJ_BODY, active=True)
-    clamp.solref = [0.004, 1.0]
+    add_weld(spec, "jig_clamp", "jig", "plate")
 
 
 # ----------------------------------------------------------------------------- the demo
