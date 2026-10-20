@@ -54,6 +54,8 @@ def build(spec: mujoco.MjSpec) -> None:
 - **`progress`** — optional `progress(model, data) -> (index, total, instruction)` for multi-step tasks.
   The teleop prints each new step, and `--record` stores the instruction as each frame's `task` (LeRobot's
   per-frame task) plus a `subtask_index` feature; `index == total` once everything is done.
+- **`success`** — optional `success(model, data) -> bool`: the task is done. Defaults to all `progress` steps done.
+  The synthetic demos keep only successful takes, and `humanoid_robot_learning.sim.evaluate` scores a policy with it.
 
 ## Scenes
 
