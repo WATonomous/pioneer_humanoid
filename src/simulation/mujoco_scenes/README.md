@@ -12,17 +12,13 @@ pip install -e src/pioneer_humanoid -e src/simulation/mujoco_scenes
 ## Viewer
 
 ```bash
-# macOS
-mjpython -m humanoid_mujoco_scenes.preview --interactive --scene matcha
-
-# Linux / Windows
 python -m humanoid_mujoco_scenes.preview --interactive --scene matcha
 
 # Sorting
-mjpython -m humanoid_mujoco_scenes.preview --interactive --scene sorting
+python -m humanoid_mujoco_scenes.preview --interactive --scene sorting
 
 # Empty workcell
-mjpython -m humanoid_mujoco_scenes.preview --interactive --scene bare
+python -m humanoid_mujoco_scenes.preview --interactive --scene bare
 ```
 
 Bimanual simulation is the default. Use `--scene` to select a scene.
