@@ -152,13 +152,13 @@ def robot_spec() -> mujoco.MjSpec:
     spec.body("head").add_site(name="eyes", pos=[0, -0.09, 0.05], size=[0.006, 0, 0], group=4)
     # the head camera, behind the visor, looking where the face looks (URDF -Y), tilted 15 degrees down;
     # MuJoCo cameras look along their -Z with +Y up
-    tilt = math.radians(15)
+    tilt = math.radians(20)
     fwd = np.array([0, -math.cos(tilt), -math.sin(tilt)])
     up = np.array([0, -math.sin(tilt), math.cos(tilt)])
     rot = np.column_stack([np.cross(up, -fwd), up, -fwd])
     q = np.zeros(4)
     mujoco.mju_mat2Quat(q, rot.flatten())
-    spec.body("head").add_camera(name="head_cam", pos=[0, -0.07, 0.04], quat=q, fovy=75)
+    spec.body("head").add_camera(name="head_cam", pos=[0, -0.135, 0.05], quat=q, fovy=70)   # just outside the visor
 
     # movable pelvis: x, y, z slides and a yaw hinge between the world and base_link
     base_link = spec.body("base_link")

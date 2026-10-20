@@ -1,0 +1,52 @@
+# pioneer_whole_body — whole-body Pioneer v2 scenes (MuJoCo, CPU)
+
+Long-horizon manipulation demos for the **whole-body Pioneer v2 humanoid** (graphite helmet, taller torso, hands D,
+1010 legs; 69 joints) in plain MuJoCo: the robot walks up to a workbench, looks at what it works on, and assembles
+things with its two 22-joint hands. Every demo is a scripted plan (like the arm's synthetic teleop), run in physics
+and recorded to a video.
+
+```bash
+pip install mujoco pillow numpy scipy
+pip install -e src/simulation/whole_body_scenes
+# run a demo, record its tape, render the video (CPU: MUJOCO_GL=osmesa or egl)
+MUJOCO_GL=osmesa python -m pioneer_whole_body.run_demo --scene bearing_block --out out/bearing_block --render
+```
+
+`--out PREFIX` writes `PREFIX.json` (the result: steps done, success, notes), `PREFIX.npz` (the tape: the simulation
+state at 30 fps, the step captions, the gaze target) and, with `--render`, `PREFIX.mp4` (1280x720, `--size`), drawn
+afterwards in `--workers` processes (CPU rendering is ~0.6 s a frame, the physics ~0.1 s per simulated second).
+
+## Scenes
+
+| name | what the robot does |
+|------|---------------------|
+| `bearing_block` | 7 steps, ~85 s. Walks up to the bench; picks the bearing block by its boss (left hand), lines it up over the base plate and sets it in the plate's pocket; picks a knob bolt from its rack (left hand), stands it upright over the hole, lowers it until the thread catches and screws it home (release, turn back, regrasp, ~5 strokes); the same with the right bolt and right hand; presses the jig's clamp release with its thumb; takes the bolted assembly by both bolt knobs, side-steps 0.45 m carrying it and sets it in the outbound tray. |
+| `battery_module` | 5 steps, ~120 s. Walks up with its hands raised; side-steps to the cell rack, takes a cell in each hand, side-steps back and loads them into the holder's sockets (twice: four cells); side-steps to the lid stand, lifts the lid by its two captive screws with both hands, carries it back, lines it up and sets it on the holder's pillars (the screws catch their threads); screws both down at once, one per hand; side-steps to the tester and presses its button: the indicator flips up. |
+| `grasp_test` | A bolt in a rack and a plate with one threaded hole (tuning bench for the grasps). |
+| `bare` | The studio and an empty workbench. |
+
+Each scene registers `step` (mechanics: threads, clamp, button), `progress` (the current step and its instruction,
+latched in order as in `humanoid_mujoco_scenes`) and `plan` (the demo).
+
+## How it works
+
+| file | what it is |
+|------|------------|
+| `robot.py` | The robot: `assets/pioneer_v2_humanoid` (the Pioneer v2 URDF from the Prometheus CAD, meshes decimated to 18 MB by `convert.py` there) with its CAD colours, a movable pelvis (x, y, z, yaw, pitch at the hips), a position actuator per joint (the DIP joints follow the PIPs: URDF mimic), gravity compensation, palm / fingertip sites and a head camera. Arms and hands collide with the world, not with each other; the legs are visual. |
+| `controller.py` | `WholeBody`: every motion is a timed blend of targets turned into joint commands at 100 Hz by IK on a scratch `MjData` — palms along straight lines (7-joint arm IK, damped least squares, a posture in the null space), fingertips (position only), the gaze (neck yaw / pitch at a point), the pelvis, and the legs solved each tick so the feet stay planted (`step`, `walk`: quasi-static steps; balance isn't simulated). Finger synergies (`SHAPES`), solved for the knobs and cells by fitting fingertip positions. |
+| `skills.py` | What plans are written in: `pick_knob`, `carry`, `align_held` (hover, level and turn the held part, correct by looking), `lower_until`, `release`, `insert_bolt`, `tighten` (release / turn back / regrasp strokes), `press`, and two-handed `pick_two`, `align_two`, `move_two`, `tighten_two`, `let_go`. A failed skill raises `TaskFailed`. |
+| `parts.py` | Knob bolts and threaded holes. A thread is a nut body in the part with a turn hinge and a feed slide coupled rigidly (pitch 12 mm, quick-acting); a bolt whose tip is in the hole's mouth, upright and centred gets welded onto it, from then on it only turns and feeds. Seated bolts stay tight. |
+| `studio.py` | The room: floor, lights, workbench. |
+| `video.py`, `shots.py` | The tape, and the renderer: a camera that follows the robot's gaze target (smoothed), pulls back while it walks, the head camera inset, a caption bar with the current step. |
+
+## Physics vs. scripting
+
+- Contact physics: every object moves only because fingers, palms or other parts push it; grasps hold by friction
+  (no attachment welds); bolts turn because the fingertips twist the knobs; a part put down a few mm off settles
+  into its pocket on its chamfers; a cell dropped into a socket stands in it.
+- Not physics: the thread (a rigid helix coupling, see `parts.py`), the jig clamp (a weld that the button
+  releases), the lid's captive screws (welded to the lid until they catch their threads), the robot's balance (the pelvis is moved; the legs are solved so the feet don't slide), the tester's
+  indicator. Object poses come from the simulator (as a perfect perception stack would give them).
+- The plans are scripted, not learned; they check their results and retry where a person would (a part not
+  seated, a lid whose screws didn't catch). Long scenes are sensitive to small changes: re-run the demo after
+  editing a scene or a skill.

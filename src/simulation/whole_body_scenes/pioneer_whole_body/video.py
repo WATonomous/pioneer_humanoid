@@ -75,6 +75,7 @@ def _font(size):
 def _render_chunk(args):
     scene, tape_path, shots_mod, frames, out, size, title, inset = args
     os.environ.setdefault("MUJOCO_GL", "osmesa")
+    os.environ.setdefault("LP_NUM_THREADS", "1")     # one llvmpipe thread per worker: the workers are the parallelism
     import importlib
 
     import mujoco

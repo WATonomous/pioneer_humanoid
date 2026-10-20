@@ -120,6 +120,41 @@ def align_two(wb: WholeBody, body: str, point_site: str, target, yaw: float, rou
             print(f"align_two: dyaw {math.degrees(dyaw):.1f} err {np.round(shift, 4)}")
 
 
+def ease_off(wb: WholeBody, sides=("l", "r"), lift: float = 0.003) -> None:
+    """Stop pushing: a hand that was lowered onto something until it stopped is still driven toward a target
+    below it, pressing the part into its palm. Re-aim each hand where it really is (a hair up)."""
+    for s_ in sides:
+        p, r = wb.palm_pose(s_, commanded=False)
+        _, r_goal = wb.hand_goal[s_]
+        wb.reach(s_, p + [0, 0, lift], r_goal, 0.3)
+    wb.settle()
+
+
+def let_go(wb: WholeBody, body: str, sides=("l", "r"), up: float = 0.08) -> bool:
+    """Let go of a part held by its knobs and set down somewhere that keeps it (a wheel on its axle, a plate in a
+    tray): open the hands right up where they are, give the fingers time to come off, then lift.
+    Returns whether the part stayed down."""
+    z0 = body_pos(wb, body)[2]
+    ease_off(wb, sides)
+    for s_ in sides:            # open with the fingers spread: straight fingers otherwise straddle the knob
+        wb.fingers(s_, {"i_abd": -0.26, "r_abd": 0.26, "l_abd": 0.26}, dur=0.6)
+    wb.settle()
+    wb.wait(0.3)
+    for s_ in sides:            # back off along the fingers, then up
+        p, r = wb.hand_goal[s_]
+        back = -r[:, 0].copy()
+        back[2] = 0.0
+        wb.reach(s_, p + 0.05 * back / np.linalg.norm(back), r, 0.6)
+    wb.settle()
+    for s_ in sides:
+        p, r = wb.hand_goal[s_]
+        wb.reach(s_, p + [0, 0, up], r, 0.9)
+    wb.settle()
+    for s_ in sides:
+        wb.fingers(s_, "relaxed", dur=0.4)
+    return body_pos(wb, body)[2] - z0 < 0.004
+
+
 def move_two(wb: WholeBody, shift, dur: float = 1.2) -> None:
     """Both hands (holding one thing) move together by ``shift``."""
     for side in ("l", "r"):
@@ -229,6 +264,7 @@ def release(wb: WholeBody, side: str | tuple = "l", up: float = 0.06, dur: float
     holds it (a socket): open the whole hand first, then lift (a half-open hand would drag it out)."""
     from .robot import hand_joints
     sides = (side,) if isinstance(side, str) else tuple(side)
+    ease_off(wb, sides)
     if held:
         for s_ in sides:
             wb.fingers(s_, "knob_pre", dur=0.4)
@@ -248,6 +284,14 @@ def release(wb: WholeBody, side: str | tuple = "l", up: float = 0.06, dur: float
     for s_ in sides:
         wb.fingers(s_, {**uncurl, **keep[s_], "th_mcp": 0.0, "th_ip": 0.0}, dur=0.3)
     wb.settle()
+    for s_ in sides:                            # and swings out of the way
+        wb.fingers(s_, {**uncurl, "th_c": 0.0, "th_f": 0.0, "th_mcp": 0.0, "th_ip": 0.0}, dur=0.3)
+    wb.settle()
+    if DEBUG:
+        hands = {wb.m.body(b).id for b in range(wb.m.nbody) if "_hand_" in wb.m.body(b).name}
+        print("release contacts:", sorted({(wb.m.body(wb.m.geom_bodyid[c.geom1]).name, wb.m.body(wb.m.geom_bodyid[c.geom2]).name)
+                                          for c in wb.d.contact[:wb.d.ncon]
+                                          if wb.m.geom_bodyid[c.geom1] in hands or wb.m.geom_bodyid[c.geom2] in hands}))
     for s_ in sides:
         p, r = wb.hand_goal[s_]
         wb.reach(s_, p + [0, 0, up], r, dur)

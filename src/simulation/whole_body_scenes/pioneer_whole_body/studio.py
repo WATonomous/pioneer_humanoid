@@ -28,7 +28,7 @@ def add_studio(spec: mujoco.MjSpec) -> None:
     world.add_light(name="fill", pos=[1.5, 2.5, 2.6], dir=[-0.4, -0.6, -0.6], diffuse=[0.16, 0.16, 0.18],
                     specular=[0, 0, 0], castshadow=False, cutoff=70)
     world.add_light(name="top", pos=[0.6, 0, 3.0], dir=[0, 0, -1], diffuse=[0.22, 0.22, 0.22],
-                    specular=[0.05, 0.05, 0.05], castshadow=True, cutoff=60, exponent=1)
+                    specular=[0.05, 0.05, 0.05], castshadow=False, cutoff=60, exponent=1)   # one shadow pass: CPU
 
 
 def add_bench(spec: mujoco.MjSpec, x=BENCH_X, half_y=BENCH_HALF_Y, top_z=BENCH_TOP_Z, name="bench") -> None:

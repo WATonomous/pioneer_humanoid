@@ -62,7 +62,7 @@ _BOUND: dict = {}
 def threads(model):
     key = id(model)
     if key not in _BOUND:
-        _BOUND[key] = [Thread(t.hole, t.bolts, t.travel).bind(model) for t in THREADS]
+        _BOUND[key] = [Thread(t.hole, t.bolts, t.travel, t.radius).bind(model) for t in THREADS]
     return _BOUND[key]
 
 

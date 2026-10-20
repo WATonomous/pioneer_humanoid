@@ -42,10 +42,11 @@ def add_knob_bolt(world, name: str, pos, yaw: float = 0.0, shaft: float = 0.05, 
     b = world.add_body(name=name, pos=list(pos), quat=quat_z(yaw))
     b.add_freejoint(name=name)
     cyl = mujoco.mjtGeom.mjGEOM_CYLINDER
-    b.add_geom(name=f"{name}_shaft", type=cyl, size=[SHAFT_R, shaft / 2, 0], pos=[0, 0, shaft / 2], rgba=STEEL,
-               mass=0.02)
-    b.add_geom(name=f"{name}_tip", type=mujoco.mjtGeom.mjGEOM_SPHERE, size=[SHAFT_R, 0, 0], pos=[0, 0, 0.0005],
-               rgba=STEEL, mass=0.001)
+    if shaft > 0:                     # (a nut has none: its underside goes onto the thread)
+        b.add_geom(name=f"{name}_shaft", type=cyl, size=[SHAFT_R, shaft / 2, 0], pos=[0, 0, shaft / 2], rgba=STEEL,
+                   mass=0.02)
+        b.add_geom(name=f"{name}_tip", type=mujoco.mjtGeom.mjGEOM_SPHERE, size=[SHAFT_R, 0, 0], pos=[0, 0, 0.0005],
+                   rgba=STEEL, mass=0.001)
     b.add_geom(name=f"{name}_washer", type=cyl, size=[0.011, 0.0015, 0], pos=[0, 0, shaft + 0.0015], rgba=STEEL,
                mass=0.003)
     b.add_geom(name=f"{name}_knob", type=cyl, size=[KNOB_R, KNOB_H / 2, 0], pos=[0, 0, shaft + 0.003 + KNOB_H / 2],
@@ -109,6 +110,7 @@ class Thread:
     hole: str
     bolts: tuple[str, ...]
     travel: float
+    radius: float = ENGAGE_RADIUS     # how far off the axis a tip may be and still catch (a nut over an axle: wide)
 
     def bind(self, model: mujoco.MjModel):
         self.hole_id = model.body(self.hole).id
@@ -144,7 +146,7 @@ class Thread:
             return
         lo, hi = -self.travel / k, 0.0005 / k
         if self.seated(data):                  # latch the tightest turn reached: it never comes back out
-            self.home = min(getattr(self, "home", 0.0), float(data.qpos[self.turn]))
+            self.home = max(lo, min(getattr(self, "home", 0.0), float(data.qpos[self.turn])))
             hi = self.home
         if data.qpos[self.turn] < lo or data.qpos[self.turn] > hi:
             data.qpos[self.turn] = min(max(data.qpos[self.turn], lo), hi)
@@ -163,7 +165,7 @@ class Thread:
             br = data.xmat[self.bolt_ids[b]].reshape(3, 3)
             rel = hr.T @ (data.site_xpos[self.tips[b]] - hp)
             tilt = math.acos(min(1.0, float(hr[:, 2] @ br[:, 2])))
-            if math.hypot(rel[0], rel[1]) < ENGAGE_RADIUS and abs(rel[2]) < ENGAGE_DEPTH and tilt < ENGAGE_TILT:
+            if math.hypot(rel[0], rel[1]) < self.radius and abs(rel[2]) < ENGAGE_DEPTH and tilt < ENGAGE_TILT:
                 self.home = 0.0
                 # the thread body is where its joints put it (feed 0 at the mouth); the bolt goes on it upright at
                 # its current turn angle, so the weld only straightens it

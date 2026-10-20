@@ -25,7 +25,7 @@ import mujoco
 import numpy as np
 
 from pioneer_whole_body import scene
-from pioneer_whole_body.controller import READY
+from pioneer_whole_body.controller import HIGH, READY
 from pioneer_whole_body.parts import (DARK, KNOB, ORANGE, STEEL, Thread, add_bolt_weld, add_knob_bolt,
                                       add_thread_hole, add_weld, bolt_length, quat_z)
 from pioneer_whole_body.studio import BENCH_TOP_Z, add_bench, add_studio
@@ -53,8 +53,8 @@ SHAFT = 2 * FLANGE[2] + TRAVEL - 0.0005     # the washer clamps the flange just 
 RACK_H = 0.04
 RACKS = {"l": (0.48, 0.20), "r": (0.48, -0.20)}
 # outbound tray (a side step to the left)
-OUT_POS = (0.52, 0.60)
-OUT_HALF = (0.12, 0.16)
+OUT_POS = (0.52, 0.64)
+OUT_HALF = (0.14, 0.18)
 
 STEPS = ("set the bearing block on the base plate", "insert the left bolt", "tighten the left bolt",
          "insert the right bolt", "tighten the right bolt", "release the jig's clamp",
@@ -74,7 +74,7 @@ _BOUND: dict[int, list[Thread]] = {}
 def threads(model) -> list[Thread]:
     key = id(model)
     if key not in _BOUND:
-        _BOUND[key] = [Thread(t.hole, t.bolts, t.travel).bind(model) for t in THREADS]
+        _BOUND[key] = [Thread(t.hole, t.bolts, t.travel, t.radius).bind(model) for t in THREADS]
     return _BOUND[key]
 
 
@@ -145,7 +145,7 @@ def build(spec: mujoco.MjSpec) -> None:
                          pos=[sx * (PLATE[0] + 0.0125), sy * (PLATE[1] + 0.0125), JIG_H + PLATE[2] - 0.0015], rgba=blue)
     plate = world.add_body(name="plate", pos=[jx, jy, T + JIG_H + PLATE[2]])
     plate.add_freejoint(name="plate")
-    plate.add_geom(name="plate", type=BOX, size=list(PLATE), rgba=alu, mass=0.25, friction=[0.9, 0.01, 0.001])
+    plate.add_geom(name="plate", type=BOX, size=list(PLATE), rgba=alu, mass=0.12, friction=[0.9, 0.01, 0.001])
     # pocket rim for the flange: 3 mm walls with a 45 degree lead-in on top (a funnel ~4 mm wide), so a block put
     # down a few mm or degrees off slides in
     px, py = FLANGE[0] + POCKET_CLEAR, FLANGE[1] + POCKET_CLEAR
@@ -303,20 +303,11 @@ def plan(wb, notes: dict) -> None:
         wb.reach(side, p - [0, 0, 0.05], r, 1.0)
     wb.until(lambda: _touching(m, d, "plate", "out_tray"), 1.3)
     wb.wait(0.2)
-    from pioneer_whole_body.robot import hand_joints
-    for side in ("l", "r"):                     # fingers off the knobs, thumbs left where they are, lift off
-        keep = {j[2:]: wb.cmd[j] for j in hand_joints(side) if j[2:].startswith("th_")}
-        wb.fingers(side, {**{f"{f}{j}": 0.0 for f in ("", "i_", "r_", "l_") for j in ("mcp", "pip")}, **keep},
-                   dur=0.5)
-    wb.settle()
-    for side in ("l", "r"):
+    S.release(wb, ("l", "r"), up=0.1)
+    for side in ("l", "r"):                     # hands back toward the body, clear of the tray
         p, r = wb.hand_goal[side]
-        wb.reach(side, p + [0, 0, 0.08], r, 0.9)
+        wb.reach(side, p + [-0.12, 0, 0.02], r, 1.0)
     wb.settle()
-    for side in ("l", "r"):
-        wb.fingers(side, "relaxed", dur=0.5)
-    for side in ("l", "r"):
-        wb.arm_joints_to(side, READY, 1.0)
     wb.look([OUT_POS[0], OUT_POS[1], T + 0.04], dur=0.5)
     wb.wait(1.5)
     p = d.xpos[m.body("plate").id]

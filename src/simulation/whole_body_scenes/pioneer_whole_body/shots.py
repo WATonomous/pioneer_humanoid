@@ -50,10 +50,13 @@ def follow(t: float, tape, i: int) -> Shot:
     p = _CACHE[key]
     look, w, T = p["look"][i], p["wide"][i], p["T"]
     u = t / max(T, 1e-6)
-    az = 205 - 55 * u + 8 * np.sin(2 * np.pi * t / 37)          # a slow orbit from front-right to front-left
-    el = -24 + 6 * np.sin(2 * np.pi * t / 53)
-    dist = 1.05 + 1.5 * w
-    target = (1 - 0.55 * w) * look + 0.55 * w * np.array([look[0] - 0.25, look[1], 1.0])
+    # a slow orbit in front of the robot, from its front right to its front left and back a little
+    az = 212 - 70 * np.sin(np.pi * u) ** 1.5 * (1 if u < 0.5 else 0.8) + 6 * np.sin(2 * np.pi * t / 41)
+    el = -20 + 5 * np.sin(2 * np.pi * t / 53)
+    dist = 1.3 + 1.4 * w
+    # aim between the work and the robot's chest, so the head stays in the picture
+    work = (1 - 0.6 * w) * look + 0.6 * w * np.array([look[0] - 0.3, look[1], look[2]])
+    target = np.array([work[0] - 0.08, work[1], 0.55 * work[2] + 0.45 * 1.15])
     return Shot(tuple(target), dist, az, el)
 
 
