@@ -19,7 +19,8 @@ MUJOCO_GL=osmesa python -m pioneer_whole_body.run_demo --scene bearing_block --s
 
 `--out PREFIX` writes `PREFIX.json` (the result: steps done, success, notes), `PREFIX.npz` (the tape: the simulation
 state at 30 fps, the step captions, the gaze target) and, with `--render`, `PREFIX.mp4` (1280x720, `--size`), drawn
-afterwards in `--workers` processes (CPU rendering is ~0.6 s a frame, the physics ~0.1 s per simulated second).
+afterwards in `--workers` processes (on 4 CPU cores ~20 min for a 75 s demo; the physics alone runs about twice
+as fast as real time).
 
 ## Scenes
 
@@ -53,10 +54,16 @@ latched in order as in `humanoid_mujoco_scenes`) and `plan` (the demo).
 - Contact physics: every object moves only because fingers, palms or other parts push it; grasps hold by friction
   (no attachment welds); bolts turn because the fingertips twist the knobs; a part put down a few mm off settles
   into its pocket on its chamfers; a cell dropped into a socket stands in it.
-- Not physics: the thread (a rigid helix coupling, see `parts.py`), the jig clamp (a weld that the button
-  releases), the outbound and shelf fixtures' latches (welds made when the part is set flat in them), the drawer's and hatch's detents and soft-close (a small force near the end of travel), the lid's captive
-  screws (welded to the lid until they catch their threads), the gear mesh (the second gear's turn is coupled to the first's, teeth in phase; a gear set on its shaft is welded to the shaft's pivot), the robot's balance (the pelvis is moved; the legs are solved so the feet don't slide), the tester's
-  indicator. Object poses come from the simulator (as a perfect perception stack would give them).
+- Not physics (scripted mechanisms, each a few lines in its scene's `step`):
+  - the threads (a rigid helix coupling, see `parts.py`) and the lid's captive screws (welded to the lid until
+    they catch their threads);
+  - the latches: the jig clamp (a weld the button releases), the outbound and shelf fixtures (a weld made when
+    the part is set flat in them), a gear set on its shaft (welded to the shaft's pivot);
+  - the gear mesh (the second gear's turn coupled to the first's, teeth in phase; the teeth aren't collided);
+  - the drawer's and hatch's detents and soft-close (a small force near the ends of travel);
+  - the testers' indicator flags;
+  - the robot's balance (the pelvis is moved and the legs are solved so the feet don't slide).
+  Object poses come from the simulator (as a perfect perception stack would give them).
 - The plans are scripted, not learned; they check their results and retry where a person would (a part not
   seated, a lid whose screws didn't catch). Long scenes are sensitive to small changes: re-run the demo after
   editing a scene or a skill.
