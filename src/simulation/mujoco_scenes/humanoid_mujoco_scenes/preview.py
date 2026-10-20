@@ -36,6 +36,10 @@ def main() -> None:
     if args.interactive:
         from mujoco import viewer
 
+        # Wider viewing lenses; recording keeps the calibrated robot-camera settings.
+        model.cam_fovy[model.camera("ego").id] = 100
+        for name in ("wrist_left", "wrist_right"):
+            model.cam_fovy[model.camera(name).id] = 90
         viewer.launch(model, data)
         return
     mujoco.mj_step(model, data, nstep=int(args.settle / model.opt.timestep))
