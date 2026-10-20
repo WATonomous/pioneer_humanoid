@@ -68,7 +68,7 @@ def _in_cradle(model, data) -> bool:
     r = data.xmat[model.body("bar").id].reshape(3, 3)
     flat = r[2, 2] > math.cos(math.radians(4))
     along = abs(r[1, 1]) > math.cos(math.radians(6))
-    return abs(p[0] - FIX[0]) < CRADLE_PLAY + 0.002 and abs(p[1] - FIX[1]) < 0.02 and \
+    return abs(p[0] - FIX[0]) < CRADLE_PLAY + 0.002 and abs(p[1] - FIX[1]) < 0.006 and \
         p[2] < T + FIX_H + BAR[2] + 0.003 and flat and along
 
 
