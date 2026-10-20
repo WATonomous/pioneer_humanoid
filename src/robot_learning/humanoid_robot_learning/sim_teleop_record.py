@@ -47,8 +47,8 @@ def add_record_args(parser: argparse.ArgumentParser, *, task_description: str) -
     parser.add_argument(
         "--schema",
         type=str,
-        default=str(DEFAULT_SCHEMA),
-        help="dataset_schema YAML (default: src/robot_learning/config/dataset_schema_pioneer_v1.yaml)",
+        default=None,
+        help="dataset_schema YAML override (default: selected by arm mode)",
     )
     parser.add_argument(
         "--dataset_root",
@@ -73,7 +73,9 @@ def add_record_args(parser: argparse.ArgumentParser, *, task_description: str) -
     )
 
 
-def load_record_schema(parser: argparse.ArgumentParser, args: argparse.Namespace) -> RecordSchema:
+def load_record_schema(
+    parser: argparse.ArgumentParser, args: argparse.Namespace, *, default_schema: Path = DEFAULT_SCHEMA
+) -> RecordSchema:
     """Call before AppLauncher: recording cameras need --enable_cameras."""
     if args.cameras is not None and not args.record:
         parser.error("--cameras requires --record")
@@ -81,7 +83,8 @@ def load_record_schema(parser: argparse.ArgumentParser, args: argparse.Namespace
         parser.error("--image_size requires --record")
     if not args.record:
         return RecordSchema()
-    path = resolve_config_path(args.schema, anchor=PKG_ROOT)
+    schema_path = default_schema if args.schema is None else args.schema
+    path = resolve_config_path(schema_path, anchor=PKG_ROOT)
     try:
         cfg = select_cameras(load_yaml(path), args.cameras)
     except ValueError as exc:

@@ -44,25 +44,46 @@ from leader_mapping import (  # noqa: E402
 _KEY_R = 82  # GLFW key code
 
 
+class TeleopMode:
+    """Leader configuration and recording format for single-arm or bimanual control."""
+
+    def __init__(self, parser: argparse.ArgumentParser, args: argparse.Namespace):
+        self._leader_args = [("LEFT", args)]
+        self._record_joints = LEFT_ARM_RECORD_JOINTS
+        self._default_schema = DEFAULT_SCHEMA
+        if args.bimanual:
+            if not all((args.right_port, args.right_calibration, args.right_signs)):
+                parser.error("--bimanual requires --right-port, --right-calibration and --right-signs")
+            if args.right_port == args.port:
+                parser.error("Left and right leaders must use different serial ports")
+            right_args = argparse.Namespace(**vars(args))
+            right_args.port = args.right_port
+            right_args.calibration = args.right_calibration
+            right_args.signs = args.right_signs
+            self._leader_args.append(("RIGHT", right_args))
+            self._record_joints = BIMANUAL_RECORD_JOINTS
+            self._default_schema = BIMANUAL_SCHEMA
+        for _, leader_args in self._leader_args:
+            check_leader_args(parser, leader_args)
+
+    def get_leader_args(self) -> list[tuple[str, argparse.Namespace]]:
+        return self._leader_args
+
+    def get_record_joints(self) -> list[str]:
+        return self._record_joints
+
+    def get_default_schema(self) -> Path:
+        return self._default_schema
+
+
 def run() -> None:
     parser = argparse.ArgumentParser(description="Pioneer MuJoCo leader teleoperation (left arm, or two leaders with --bimanual).")
     add_leader_args(parser, scene_help="scene registered in humanoid_mujoco_scenes (an unknown name lists them)",
                     bimanual=True)
     add_record_args(parser, task_description="sim leader teleop demonstration")
     args = parser.parse_args()
-    right_args = None
-    if args.bimanual:
-        if not all((args.right_port, args.right_calibration, args.right_signs)):
-            parser.error("--bimanual requires --right-port, --right-calibration and --right-signs")
-        if args.right_port == args.port:
-            parser.error("Left and right leaders must use different serial ports")
-        right_args = argparse.Namespace(**vars(args))
-        right_args.port, right_args.calibration, right_args.signs = args.right_port, args.right_calibration, args.right_signs
-        check_leader_args(parser, right_args)
-        if Path(args.schema) == DEFAULT_SCHEMA:
-            args.schema = str(BIMANUAL_SCHEMA)
-    check_leader_args(parser, args)
-    record = load_record_schema(parser, args)
+    mode = TeleopMode(parser, args)
+    record = load_record_schema(parser, args, default_schema=mode.get_default_schema())
 
     import mujoco
     import mujoco.viewer
@@ -88,7 +109,7 @@ def run() -> None:
         scene_randomise(model, data, rng)
     mujoco.mj_forward(model, data)
     arms = []
-    for side, leader_args in [("LEFT", args)] + ([("RIGHT", right_args)] if args.bimanual else []):
+    for side, leader_args in mode.get_leader_args():
         joints = getattr(arm_params, f"{side}_ARM_JOINTS")
         fingers = getattr(arm_params, f"{side}_GRIPPER_JOINTS")
         arm_acts = [model.actuator(j).id for j in joints]
@@ -118,7 +139,7 @@ def run() -> None:
     # Multi-step scenes record the current step's instruction as each frame's task, plus its index.
     extra = {"subtask_index": ["subtask_index"]} if scene_steps is not None else None
     recorder, record_every = make_sim_recorder(args, record, device="cpu", sim_dt=control_dt, extra_features=extra,
-                                               joint_names=BIMANUAL_RECORD_JOINTS if args.bimanual else LEFT_ARM_RECORD_JOINTS)
+                                               joint_names=mode.get_record_joints())
     if recorder is not None:
         print("[RECORD] Keys: S=start, N=save episode (then reset), D=discard")
         recorder.start_keyboard()
