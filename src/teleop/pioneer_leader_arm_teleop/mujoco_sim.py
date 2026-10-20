@@ -62,7 +62,7 @@ def run() -> None:
     import mujoco
     import numpy as np
     from humanoid_mujoco_scenes import (
-        list_scenes, make_model, scene_camera, scene_condition, scene_progress, scene_reset, scene_step,
+        list_scenes, make_model, scene_camera, scene_progress, scene_reset, scene_step,
     )
     from pioneer_humanoid.arm_params import (
         LEFT_ARM_JOINTS,
@@ -88,7 +88,6 @@ def run() -> None:
     scene_hook = scene_step(args.scene)  # per-step scene mechanics (e.g. zip_tie's ratchet), or None
     scene_randomise = scene_reset(args.scene)  # new layout per episode, or None
     scene_steps = scene_progress(args.scene)  # multi-step task: (index, total, instruction), or None
-    scene_cond = scene_condition(args.scene)  # (names, fn): the instruction as numbers, or None
     rng = np.random.default_rng()
     data = mujoco.MjData(model)
     # Position actuator bias is [0, -kp, -kv]: lower the wrist's kv (see WRIST_DAMPING).
@@ -114,12 +113,11 @@ def run() -> None:
     # Leader encoders every frame: angles (rad; calibrated, hanging = 0) and raw counts, in servo order.
     # Not "observation.*" -- LeRobot would feed those to the policy, and the leader IS the action.
     extra = {"leader_angles": list(SERVO_IDS), "leader_counts": list(SERVO_IDS)}
-    # Multi-step scenes record the current step's instruction as each frame's task, plus its index.
+    # Multi-step scenes record the current step's instruction as each frame's task, plus its index, and whether
+    # every step is done (go home) as a policy input: ACT has no language input.
     if scene_steps is not None:
         extra["subtask_index"] = ["subtask_index"]
-    # ... and as numbers (e.g. tidy_table's one-hot target), a policy input: ACT has no language input.
-    if scene_cond is not None:
-        extra["observation.environment_state"] = scene_cond[0]
+        extra["observation.environment_state"] = ["done"]
     recorder, record_every = make_sim_recorder(args, record, device="cpu", sim_dt=control_dt, extra_features=extra)
     renderers = {name: mujoco.Renderer(model, h, w) for name, (h, w) in cameras.items()}
     arm_qpos = [model.joint(j).qposadr[0] for j in LEFT_ARM_JOINTS]
@@ -225,10 +223,9 @@ def run() -> None:
                     "leader_counts": np.asarray(leader.counts(), dtype=np.float32),
                 }
                 if scene_steps is not None:
-                    index, _, task = scene_steps(model, data)
+                    index, total, task = scene_steps(model, data)
                     extras["subtask_index"] = np.array([index], dtype=np.float32)
-                if scene_cond is not None:
-                    extras["observation.environment_state"] = scene_cond[1](model, data)
+                    extras["observation.environment_state"] = np.array([float(index >= total)], dtype=np.float32)
                 recorder.push_frame_to_buffer(action, state, read_images(), extras=extras, task=task)
 
             with window.lock:

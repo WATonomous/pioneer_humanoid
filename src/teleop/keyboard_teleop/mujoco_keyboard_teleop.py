@@ -29,8 +29,8 @@ the finger tips can't be commanded into the table, and a pose the arm can't reac
 
 Recording (--record, src/robot_learning/config/dataset_schema_pioneer_v1.yaml), the leader teleop's features:
 observation.state, action (6 joint targets + gripper 0..1), observation.images.*, task / subtask_index and
-observation.environment_state for multi-step scenes. leader_angles / leader_counts are NaN (no leader arm),
-so keyboard, leader and scripted takes can share one dataset.
+observation.environment_state (done: 1 once every step is, from the scene's progress) for multi-step scenes.
+leader_angles / leader_counts are NaN (no leader arm), so keyboard, leader and scripted takes can share one dataset.
 """
 from __future__ import annotations
 
@@ -286,7 +286,7 @@ def run() -> None:
 
     import mujoco
     from humanoid_mujoco_scenes import (
-        list_scenes, make_model, scene_camera, scene_condition, scene_progress, scene_reset, scene_step,
+        list_scenes, make_model, scene_camera, scene_progress, scene_reset, scene_step,
     )
     from humanoid_mujoco_scenes.fallen import off_table
     from pioneer_humanoid.arm_params import (
@@ -306,7 +306,7 @@ def run() -> None:
     model.actuator_biasprm[model.actuator("joint6l").id, 2] = -WRIST_DAMPING
     data = mujoco.MjData(model)
     hook, randomise = scene_step(args.scene), scene_reset(args.scene)
-    steps_of, cond = scene_progress(args.scene), scene_condition(args.scene)
+    steps_of = scene_progress(args.scene)
     rng = np.random.default_rng()
     arm_acts = [model.actuator(j).id for j in LEFT_ARM_JOINTS]
     grip_acts = [model.actuator(j).id for j in LEFT_GRIPPER_JOINTS]
@@ -332,8 +332,7 @@ def run() -> None:
     extra = {"leader_angles": LEADER_SERVOS, "leader_counts": LEADER_SERVOS}
     if steps_of is not None:
         extra["subtask_index"] = ["subtask_index"]
-    if cond is not None:
-        extra["observation.environment_state"] = cond[0]
+        extra["observation.environment_state"] = ["done"]    # 1 once every step is done (go home): a policy input
     recorder, record_every = make_sim_recorder(args, record, device="cpu", sim_dt=CONTROL_DT, extra_features=extra)
     renderers = {name: mujoco.Renderer(model, h, w) for name, (h, w) in cameras.items()}
     nan7 = np.full(len(LEADER_SERVOS), np.nan, dtype=np.float32)
@@ -421,10 +420,9 @@ def run() -> None:
                 extras = {"leader_angles": nan7, "leader_counts": nan7}
                 task = None
                 if steps_of is not None:
-                    index, _, task = steps_of(model, data)
+                    index, total, task = steps_of(model, data)
                     extras["subtask_index"] = np.array([index], dtype=np.float32)
-                if cond is not None:
-                    extras["observation.environment_state"] = cond[1](model, data)
+                    extras["observation.environment_state"] = np.array([float(index >= total)], dtype=np.float32)
                 recorder.push_frame_to_buffer(np.append(q, grip).astype(np.float32), state, read_images(),
                                               extras=extras, task=task)
             with window.lock:
