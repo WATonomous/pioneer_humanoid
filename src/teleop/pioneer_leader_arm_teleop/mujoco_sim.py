@@ -1,4 +1,4 @@
-"""MuJoCo backend of pioneer_leader_arm_teleop.py: the leader arm drives the Pioneer left arm in plain MuJoCo (CPU).
+"""MuJoCo leader teleop: left arm by default, both arms with --bimanual.
 
 Same leader mapping as the Isaac backend (leader_mapping.py). Scenes: humanoid_mujoco_scenes.
 
@@ -22,6 +22,10 @@ sys.path.insert(0, str(_SRC / "simulation" / "mujoco_scenes"))
 sys.path.insert(0, str(_SRC / "robot_learning"))
 
 from humanoid_robot_learning.sim.sim_teleop_record import (  # noqa: E402
+    BIMANUAL_SCHEMA,
+    BIMANUAL_RECORD_JOINTS,
+    DEFAULT_SCHEMA,
+    LEFT_ARM_RECORD_JOINTS,
     add_record_args,
     load_record_schema,
     make_sim_recorder,
@@ -40,32 +44,62 @@ from leader_mapping import (  # noqa: E402
 _KEY_R = 82  # GLFW key code
 
 
+class TeleopConfig:
+    """Leader configuration and recording format for single-arm or bimanual control."""
+
+    def __init__(self, parser: argparse.ArgumentParser, args: argparse.Namespace):
+        self._leader_args = [("LEFT", args)]
+        self._record_joints = LEFT_ARM_RECORD_JOINTS
+        self._default_schema = DEFAULT_SCHEMA
+        if args.bimanual:
+            if not all((args.right_port, args.right_calibration, args.right_signs)):
+                parser.error("--bimanual requires --right-port, --right-calibration and --right-signs")
+            if args.right_port == args.port:
+                parser.error("Left and right leaders must use different serial ports")
+            right_args = argparse.Namespace(**vars(args))
+            right_args.port = args.right_port
+            right_args.calibration = args.right_calibration
+            right_args.signs = args.right_signs
+            self._leader_args.append(("RIGHT", right_args))
+            self._record_joints = BIMANUAL_RECORD_JOINTS
+            self._default_schema = BIMANUAL_SCHEMA
+        for _, leader_args in self._leader_args:
+            check_leader_args(parser, leader_args)
+
+    def get_leader_args(self) -> list[tuple[str, argparse.Namespace]]:
+        return self._leader_args
+
+    def get_record_joints(self) -> list[str]:
+        return self._record_joints
+
+    def get_default_schema(self) -> Path:
+        return self._default_schema
+
+
 def run() -> None:
-    parser = argparse.ArgumentParser(description="7-servo leader teleoperation of the Pioneer left arm in MuJoCo.")
+    parser = argparse.ArgumentParser(description="Pioneer MuJoCo leader teleoperation (left arm, or two leaders with --bimanual).")
     add_leader_args(parser, scene_help="scene registered in humanoid_mujoco_scenes (an unknown name lists them)")
+    parser.add_argument("--bimanual", action="store_true", help="Control and record both arms using two leaders")
+    parser.add_argument("--right-port", help="Serial port of the right-arm leader")
+    parser.add_argument("--right-calibration", type=Path, help="Calibration for the right-arm leader")
+    parser.add_argument("--right-signs", help="Explicit calibrated servo directions for the right arm")
     add_record_args(parser, task_description="sim leader teleop demonstration")
     args = parser.parse_args()
-    check_leader_args(parser, args)
-    record = load_record_schema(parser, args)
+    config = TeleopConfig(parser, args)
+    record = load_record_schema(parser, args, default_schema=config.get_default_schema())
 
     import mujoco
     import mujoco.viewer
     import numpy as np
     from humanoid_mujoco_scenes import list_scenes, make_model, scene_camera, scene_progress, scene_reset, scene_step
-    from pioneer_humanoid.arm_params import (
-        LEFT_ARM_JOINTS,
-        LEFT_GRIPPER_CLOSED,
-        LEFT_GRIPPER_JOINTS,
-        LEFT_GRIPPER_OPEN,
-    )
-    from pioneer_humanoid.arm_params import CAMERA_NAMES
+    from pioneer_humanoid import arm_params
     from pioneer_humanoid.mujoco_bimanual_arm import set_home
 
     if args.scene not in list_scenes():
         raise SystemExit(f"unknown --scene {args.scene!r}; available: {list_scenes()}")
-    unknown = sorted(set(record.images) - set(CAMERA_NAMES))
+    unknown = sorted(set(record.images) - set(arm_params.CAMERA_NAMES))
     if unknown:
-        raise SystemExit(f"{record.path}: unknown images {unknown}; available: {list(CAMERA_NAMES)}")
+        raise SystemExit(f"{record.path}: unknown images {unknown}; available: {list(arm_params.CAMERA_NAMES)}")
     cameras = {name: (int(spec["height"]), int(spec["width"])) for name, spec in record.images.items()}
     model = make_model(args.scene, cameras=cameras)
     scene_hook = scene_step(args.scene)  # per-step scene mechanics (e.g. zip_tie's ratchet), or None
@@ -73,23 +107,29 @@ def run() -> None:
     scene_steps = scene_progress(args.scene)  # multi-step task: (index, total, instruction), or None
     rng = np.random.default_rng()
     data = mujoco.MjData(model)
-    # Position actuator bias is [0, -kp, -kv]: lower the wrist's kv (see WRIST_DAMPING).
-    model.actuator_biasprm[model.actuator("joint6l").id, 2] = -WRIST_DAMPING
-
-    arm_acts = [model.actuator(j).id for j in LEFT_ARM_JOINTS]
-    grip_acts = [model.actuator(j).id for j in LEFT_GRIPPER_JOINTS]
-    grip_open = [LEFT_GRIPPER_OPEN[j] for j in LEFT_GRIPPER_JOINTS]
-    grip_closed = [LEFT_GRIPPER_CLOSED[j] for j in LEFT_GRIPPER_JOINTS]
     set_home(model, data)
     if scene_randomise is not None:
         scene_randomise(model, data, rng)
-        mujoco.mj_forward(model, data)
-    mapping = LeaderMapping(
-        args,
-        home_rad=[data.ctrl[a] for a in arm_acts],
-        limits_rad=[tuple(model.jnt_range[model.joint(j).id]) for j in LEFT_ARM_JOINTS],
-    )
-    print(mapping.describe(LEFT_ARM_JOINTS), flush=True)
+    mujoco.mj_forward(model, data)
+    arms = []
+    for side, leader_args in config.get_leader_args():
+        joints = getattr(arm_params, f"{side}_ARM_JOINTS")
+        fingers = getattr(arm_params, f"{side}_GRIPPER_JOINTS")
+        arm_acts = [model.actuator(j).id for j in joints]
+        mapping = LeaderMapping(
+            leader_args, home_rad=[data.ctrl[a] for a in arm_acts],
+            limits_rad=[tuple(model.joint(j).range) for j in joints],
+        )
+        arms.append(dict(
+            args=leader_args, mapping=mapping, arm_acts=arm_acts,
+            grip_acts=[model.actuator(j).id for j in fingers],
+            arm_qpos=[model.joint(j).qposadr[0] for j in joints],
+            grip_qpos=[model.joint(j).qposadr[0] for j in fingers],
+            grip_open=np.array([getattr(arm_params, f"{side}_GRIPPER_OPEN")[j] for j in fingers]),
+            grip_closed=np.array([getattr(arm_params, f"{side}_GRIPPER_CLOSED")[j] for j in fingers]),
+        ))
+        model.actuator_biasprm[model.actuator(joints[-1]).id, 2] = -WRIST_DAMPING
+        print(mapping.describe(joints), flush=True)
 
     reset_requested = [False]
 
@@ -101,13 +141,12 @@ def run() -> None:
     control_dt = substeps * model.opt.timestep
     # Multi-step scenes record the current step's instruction as each frame's task, plus its index.
     extra = {"subtask_index": ["subtask_index"]} if scene_steps is not None else None
-    recorder, record_every = make_sim_recorder(args, record, device="cpu", sim_dt=control_dt, extra_features=extra)
+    recorder, record_every = make_sim_recorder(args, record, device="cpu", sim_dt=control_dt, extra_features=extra,
+                                               joint_names=config.get_record_joints())
     if recorder is not None:
         print("[RECORD] Keys: S=start, N=save episode (then reset), D=discard")
         recorder.start_keyboard()
     renderers = {name: mujoco.Renderer(model, h, w) for name, (h, w) in cameras.items()}
-    arm_qpos = [model.joint(j).qposadr[0] for j in LEFT_ARM_JOINTS]
-    grip_qpos = [model.joint(j).qposadr[0] for j in LEFT_GRIPPER_JOINTS]
 
     # Called by tick() only on recorded frames.
     def read_images():
@@ -124,14 +163,17 @@ def run() -> None:
         if scene_randomise is not None:
             scene_randomise(model, data, rng)
         mujoco.mj_forward(model, data)
-        mapping.reset()
+        for arm in arms:
+            arm["mapping"].reset()
 
-    leader = LeaderInput(args)
+    leaders = []
     clock = WallClock(control_dt)
     step = 0
     shown_step = None  # last task step announced
     print("[INFO] Leader calibrated (hanging = 0). Move it to home: elbow bent 90 deg, forearm forward, gripper open. R = reset.", flush=True)
     try:
+        for arm in arms:
+            leaders.append(LeaderInput(arm["args"]))
         with mujoco.viewer.launch_passive(model, data, key_callback=on_key) as viewer:
             for key, value in (scene_camera(args.scene) or {}).items():
                 setattr(viewer.cam, key, value)
@@ -148,18 +190,24 @@ def run() -> None:
                     reset_all()
                     print("\n[LEADER] Arm and scene reset; bring the leader back to home.", flush=True)
 
-                target, grip = mapping.update(leader.read())
-                data.ctrl[arm_acts] = target
-                data.ctrl[grip_acts] = [o + grip * (c - o) for o, c in zip(grip_open, grip_closed)]
+                actions = []
+                for arm, leader in zip(arms, leaders):
+                    target, grip = arm["mapping"].update(leader.read())
+                    data.ctrl[arm["arm_acts"]] = target
+                    o, c = arm["grip_open"], arm["grip_closed"]
+                    data.ctrl[arm["grip_acts"]] = o + grip * (c - o)
+                    actions.extend([*target, grip])
 
-                # No frames until the leader is at home: a take starts from home.
-                if recorder is not None and mapping.engaged and step % record_every == 0:
-                    # Same features as the Isaac backend: 6 joints + mean finger closure / 6 targets + leader grip.
-                    closure = sum(
-                        (data.qpos[q] - o) / (c - o) for q, o, c in zip(grip_qpos, grip_open, grip_closed)
-                    ) / len(grip_qpos)
-                    state = np.append(data.qpos[arm_qpos], min(max(closure, 0.0), 1.0)).astype(np.float32)
-                    action = np.append(target, grip).astype(np.float32)
+                # Record one synchronized frame only once every active leader is at home.
+                if recorder is not None and all(arm["mapping"].engaged for arm in arms) and step % record_every == 0:
+                    states = []
+                    for arm in arms:
+                        q = data.qpos[arm["grip_qpos"]]
+                        o, c = arm["grip_open"], arm["grip_closed"]
+                        closure = ((q - o) / (c - o)).mean()
+                        states.extend([*data.qpos[arm["arm_qpos"]], np.clip(closure, 0, 1)])
+                    state = np.asarray(states, dtype=np.float32)
+                    action = np.asarray(actions, dtype=np.float32)
                     task, extras = None, None
                     if scene_steps is not None:
                         index, _, task = scene_steps(model, data)
@@ -182,10 +230,12 @@ def run() -> None:
                         print(f"\n[TASK] {msg}", flush=True)
                 viewer.sync()
 
-                leader.report(mapping)
+                for arm, leader in zip(arms, leaders):
+                    leader.report(arm["mapping"])
                 clock.wait()
     finally:
-        leader.close()
+        for leader in leaders:
+            leader.close()
         print("\n[INFO] Stopped. Leader torque is OFF.", flush=True)
         for renderer in renderers.values():
             renderer.close()
