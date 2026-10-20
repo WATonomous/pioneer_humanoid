@@ -24,6 +24,7 @@ LEFT_ARM_RECORD_JOINTS = [
     "left_wrist_pitch",
     "left_gripper",
 ]
+BIMANUAL_RECORD_JOINTS = LEFT_ARM_RECORD_JOINTS + [name.replace("left_", "right_", 1) for name in LEFT_ARM_RECORD_JOINTS]
 
 
 @dataclass
