@@ -15,16 +15,18 @@ DEFAULT_SCHEMA = PKG_ROOT / "config" / "dataset_schema_pioneer_v1.yaml"
 BIMANUAL_SCHEMA = PKG_ROOT / "config" / "dataset_schema_pioneer_bimanual.yaml"
 
 # Recorded joint order (real-robot names, joint_command_core.cpp); must match the schema.
-LEFT_ARM_RECORD_JOINTS = [
-    "left_shoulder_pitch",
-    "left_shoulder_roll",
-    "left_shoulder_yaw",
-    "left_elbow_pitch",
-    "left_elbow_roll",
-    "left_wrist_pitch",
-    "left_gripper",
+JOINTS = [
+    "shoulder_pitch",
+    "shoulder_roll",
+    "shoulder_yaw",
+    "elbow_pitch",
+    "elbow_roll",
+    "wrist_pitch",
+    "gripper",
 ]
-BIMANUAL_RECORD_JOINTS = LEFT_ARM_RECORD_JOINTS + [name.replace("left_", "right_", 1) for name in LEFT_ARM_RECORD_JOINTS]
+LEFT_ARM_RECORD_JOINTS = [f"left_{joint}" for joint in JOINTS]
+RIGHT_ARM_RECORD_JOINTS = [f"right_{joint}" for joint in JOINTS]
+BIMANUAL_RECORD_JOINTS = LEFT_ARM_RECORD_JOINTS + RIGHT_ARM_RECORD_JOINTS
 
 
 @dataclass
