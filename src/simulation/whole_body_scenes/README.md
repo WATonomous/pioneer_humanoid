@@ -35,6 +35,10 @@ as fast as real time).
 | `grasp_test` | A bolt in a rack and a plate with one threaded hole (tuning bench for the grasps). |
 | `bare` | The studio and an empty workbench. |
 
+Robustness (`--seeds 8`: every loose part up to 2 mm and 3 deg off; Oct 20): `bearing_block` 8/8, `gear_train` 8/8,
+`service_panel` 8/8, `tote_to_shelf` 6/8, `wheel_hub` 6/8, `battery_module` 2/8 (its cells catch on the socket rims or
+get flung when the hand lets go: the next thing to fix). Seed 0, the scene as built, is the one in the videos.
+
 Each scene registers `step` (mechanics: threads, clamp, button), `progress` (the current step and its instruction,
 latched in order as in `humanoid_mujoco_scenes`) and `plan` (the demo).
 
