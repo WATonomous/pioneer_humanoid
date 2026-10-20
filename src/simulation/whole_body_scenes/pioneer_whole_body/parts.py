@@ -16,7 +16,6 @@ import math
 from dataclasses import dataclass
 
 import mujoco
-import numpy as np
 
 STEEL = [0.66, 0.68, 0.72, 1]
 DARK = [0.10, 0.11, 0.13, 1]

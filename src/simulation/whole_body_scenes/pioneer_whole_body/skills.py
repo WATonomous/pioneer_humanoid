@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import math
 
-import mujoco
 import numpy as np
 
 from .controller import WholeBody, palm_down, rot_z

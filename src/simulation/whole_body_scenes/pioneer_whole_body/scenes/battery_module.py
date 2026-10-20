@@ -24,8 +24,8 @@ import mujoco
 import numpy as np
 
 from pioneer_whole_body import scene
-from pioneer_whole_body.controller import HIGH, READY, palm_down
-from pioneer_whole_body.parts import (DARK, ORANGE, STEEL, Thread, add_bolt_weld, add_knob_bolt, add_thread_hole,
+from pioneer_whole_body.controller import HIGH, READY
+from pioneer_whole_body.parts import (ORANGE, STEEL, Thread, add_bolt_weld, add_knob_bolt, add_thread_hole,
                                       add_weld, quat_z)
 from pioneer_whole_body.studio import BENCH_TOP_Z, add_bench, add_studio
 
