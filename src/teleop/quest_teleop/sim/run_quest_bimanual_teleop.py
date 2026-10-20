@@ -1057,9 +1057,9 @@ def _init_recorder(device: str):
         return None, None
     _ensure_robot_learning_on_path()
     try:
-        from humanoid_robot_learning.record_utils import resolve_config_path, resolve_dataset_root
-        from humanoid_robot_learning.schema import enabled_images, load_yaml
-        from humanoid_robot_learning.sim_recorder import SimLeRobotRecorder
+        from humanoid_robot_learning.recording.record_utils import resolve_config_path, resolve_dataset_root
+        from humanoid_robot_learning.recording.schema import enabled_images, load_yaml
+        from humanoid_robot_learning.sim.sim_recorder import SimLeRobotRecorder
     except ImportError as exc:
         raise ImportError("Recording requires humanoid-robot-learning. Install with:\n  pip install -e src/robot_learning[sim]") from exc
 
@@ -1285,7 +1285,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         # carb.input listener as R/T instead, calling save_episode()/cancel_recording() directly
         # so recording continues straight into the next demo. EpisodeFlags is still needed
         # (tick() no-ops without it) but is constructed directly.
-        from humanoid_robot_learning.episode_keys import EpisodeFlags
+        from humanoid_robot_learning.recording.episode_keys import EpisodeFlags
         recorder._flags = EpisodeFlags(start=False)
 
     def _sphere_cfg(color, radius, opacity=1.0):

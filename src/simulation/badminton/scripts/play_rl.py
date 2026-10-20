@@ -1,6 +1,6 @@
 """mjlab play/replay entry point (viser web viewer on headless machines).
 
-  uv run scripts/play_rl.py Mjlab-Badminton-Receive-Teacher --viewer viser
+  uv run scripts/play_rl.py Mjlab-Badminton-Shared-Teacher --viewer viser
   # then open http://localhost:8080 (or SSH-tunnel the port)
 """
 

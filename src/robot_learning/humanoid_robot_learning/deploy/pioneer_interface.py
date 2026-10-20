@@ -6,11 +6,11 @@ role, but simplified for this robot:
 - No lerobot.robots/lerobot.teleoperators Robot class exists for this arm (it's not
   a LeRobot-registered robot), so we never call make_robot_from_config. Instead we
   build the dataset feature dict directly from the recording schema YAML via
-  humanoid_robot_learning.schema.build_features -- the same function the recorder
+  humanoid_robot_learning.recording.schema.build_features -- the same function the recorder
   itself uses to create the dataset, so this is guaranteed to match what the policy
   was trained on rather than being a hand-maintained duplicate.
 
-- The recorded frame format (humanoid_robot_learning.frame.build_lerobot_frame) is already a
+- The recorded frame format (humanoid_robot_learning.recording.frame.build_lerobot_frame) is already a
   flat vector -- observation.state / action are (7,) float32 arrays, not SO101's
   per-joint named dict ("shoulder_pan.pos", etc). So sim_obs_to_policy_processor
   builds the frame directly instead of going through build_dataset_frame +
@@ -21,7 +21,7 @@ role, but simplified for this robot:
   both the sim and the dataset already speak radians directly. This is simpler
   than SO101's -100..100 leader convention for that reason.
 
-- RTCDrivenPolicy owns pre/postprocessing (see humanoid_robot_learning.rtc_driver._replan) --
+- RTCDrivenPolicy owns pre/postprocessing (see humanoid_robot_learning.deploy.rtc_driver._replan) --
   this class only ever produces/consumes RAW, unprocessed frames and actions.
 
 Joint order note: the 7 recorded joints are [joint1L, joint2l, joint3l, joint4l,
@@ -40,7 +40,7 @@ import os
 
 import torch
 
-from humanoid_robot_learning.schema import build_features, load_yaml
+from humanoid_robot_learning.recording.schema import build_features, load_yaml
 from pioneer_humanoid.bimanual_arm import JOINT_POS_LIMITS
 
 from lerobot.configs.policies import PreTrainedConfig
@@ -158,7 +158,7 @@ class PioneerLeftArmInterface:
                 is (e.g. visual_obs["rgb_ego"], visual_obs["rgb_wrist"] -- adjust the
                 "rgb_" prefix here if your sim env names these differently).
 
-        Returns: a dict matching humanoid_robot_learning.frame.build_lerobot_frame's shape,
+        Returns: a dict matching humanoid_robot_learning.recording.frame.build_lerobot_frame's shape,
             minus "task" -- NOT yet preprocessed/normalized; RTCDrivenPolicy._replan does that.
             The task string is deliberately left out: _replan's
             prepare_observation_for_inference runs torch.from_numpy on every key (a string

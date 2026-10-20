@@ -32,13 +32,19 @@ if TYPE_CHECKING:
     from mjlab.envs import ManagerBasedRlEnv
 
 
+def joint_label(i: int) -> str:
+    """Metric suffix for actuated joint i: j1..j6 right arm, j1l..j6l left."""
+    return f"j{i % 6 + 1}" + ("l" if i >= 6 else "")
+
+
 class FeasibilityCommand(CommandTerm):
     cfg: "FeasibilityCommandCfg"
 
     def __init__(self, cfg: "FeasibilityCommandCfg", env: "ManagerBasedRlEnv"):
         super().__init__(cfg, env)
         self._robot = env.scene[cfg.entity_name]
-        rated = aero.load_params()["arm"]["torque_rated"]
+        # right arm j1-j6 then left arm j1-j6 (actuator order), same motors
+        rated = aero.load_params()["arm"]["torque_rated"] * 2
         n, dev = self.num_envs, self.device
         self._rated = torch.tensor(rated, device=dev)
         self._nj = len(rated)
@@ -67,15 +73,22 @@ class FeasibilityCommand(CommandTerm):
         # data.actuator_force is the servo's unclamped request
         idx = self._robot.data.indexing.joint_v_adr
         tau = self._robot.data.data.qfrc_actuator[:, idx].abs()
+        # skip rows reset this tick: their qfrc_actuator comes from the reset
+        # forward pass with the previous episode's servo target (j1, j5 and
+        # j6 read at the clamp), which no physics substep applies, because
+        # the next step writes new targets first
+        live = (self._env.episode_length_buf > 0).unsqueeze(-1)
+        qvel = qvel * live
+        tau = tau * live
         self._qvel_peak = torch.maximum(self._qvel_peak, qvel)
         self._tau_peak = torch.maximum(self._tau_peak, tau)
         self._over += (tau > self._rated).float()
-        self._ticks += 1.0
+        self._ticks += live.float()
 
     def _update_metrics(self) -> None:
         duty = self._over / self._ticks.clamp_min(1.0)
         for i in range(self._nj):
-            j = f"j{i + 1}"
+            j = joint_label(i)
             self.metrics[f"qvel_peak_{j}"] = self._qvel_peak[:, i]
             self.metrics[f"tau_peak_{j}"] = self._tau_peak[:, i]
             self.metrics[f"tau_duty_{j}"] = duty[:, i]

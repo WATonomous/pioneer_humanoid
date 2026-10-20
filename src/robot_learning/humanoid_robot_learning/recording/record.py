@@ -9,17 +9,17 @@ import time
 from pathlib import Path
 from typing import Any
 
-from humanoid_robot_learning.record_loop import run_record_loop
-from humanoid_robot_learning.recorder import RecordSettings
-from humanoid_robot_learning.record_utils import resolve_config_path, resolve_dataset_root
-from humanoid_robot_learning.arm_pose_io import ARM_POSE_JOINT_NAMES
-from humanoid_robot_learning.schema import enabled_images, load_yaml, select_cameras
-from humanoid_robot_learning.sinks import parse_sink_names
-from humanoid_robot_learning.snapshot import ObservationSnapshot
+from humanoid_robot_learning.recording.record_loop import run_record_loop
+from humanoid_robot_learning.recording.recorder import RecordSettings
+from humanoid_robot_learning.recording.record_utils import resolve_config_path, resolve_dataset_root
+from humanoid_robot_learning.recording.arm_pose_io import ARM_POSE_JOINT_NAMES
+from humanoid_robot_learning.recording.schema import enabled_images, load_yaml, select_cameras
+from humanoid_robot_learning.recording.sinks import parse_sink_names
+from humanoid_robot_learning.recording.snapshot import ObservationSnapshot
 
 logger = logging.getLogger(__name__)
 
-_PKG_ROOT = Path(__file__).resolve().parents[1]
+_PKG_ROOT = Path(__file__).resolve().parents[2]
 _DEFAULT_SCHEMA = _PKG_ROOT / "config" / "dataset_schema_pioneer_v1.yaml"
 
 
@@ -111,7 +111,7 @@ class _DryRunSource(_SnapshotSource):
         self._t0 = time.monotonic()
 
     def __call__(self) -> ObservationSnapshot:
-        from humanoid_robot_learning.record_loop import dry_snapshot
+        from humanoid_robot_learning.recording.record_loop import dry_snapshot
 
         return dry_snapshot(time.monotonic() - self._t0, self._image_shapes, self._dim)
 
@@ -121,7 +121,7 @@ class _RosSource(_SnapshotSource):
         import rclpy
         from rclpy.node import Node
 
-        from humanoid_robot_learning.ros_buffer import RosRecordBuffer
+        from humanoid_robot_learning.recording.ros_buffer import RosRecordBuffer
 
         self._rclpy = rclpy
         rclpy.init()

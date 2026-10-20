@@ -7,10 +7,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from humanoid_robot_learning.record_utils import resolve_config_path, resolve_dataset_root
-from humanoid_robot_learning.schema import enabled_images, load_yaml, select_cameras
+from humanoid_robot_learning.recording.record_utils import resolve_config_path, resolve_dataset_root
+from humanoid_robot_learning.recording.schema import enabled_images, load_yaml, select_cameras
 
-PKG_ROOT = Path(__file__).resolve().parents[1]
+PKG_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_SCHEMA = PKG_ROOT / "config" / "dataset_schema_pioneer_v1.yaml"
 BIMANUAL_SCHEMA = PKG_ROOT / "config" / "dataset_schema_pioneer_bimanual.yaml"
 
@@ -120,7 +120,7 @@ def make_sim_recorder(
     if not args.record:
         return None, 0
     try:
-        from humanoid_robot_learning.sim_recorder import SimLeRobotRecorder
+        from humanoid_robot_learning.sim.sim_recorder import SimLeRobotRecorder
     except ImportError as exc:
         raise ImportError(
             "Recording requires humanoid-robot-learning. Install with:\n"
