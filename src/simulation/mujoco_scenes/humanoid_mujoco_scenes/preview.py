@@ -8,7 +8,7 @@ import argparse
 
 import mujoco
 
-from humanoid_mujoco_scenes import list_scenes, make_model, scene_reset
+from humanoid_mujoco_scenes import list_scenes, make_model, scene_camera, scene_reset
 
 
 def main() -> None:
@@ -39,7 +39,8 @@ def main() -> None:
     mujoco.mj_step(model, data, nstep=int(args.settle / model.opt.timestep))
 
     camera = mujoco.MjvCamera()
-    mujoco.mjv_defaultFreeCamera(model, camera)
+    for key, value in (scene_camera(args.scene) or {}).items():
+        setattr(camera, key, value)
     from PIL import Image
 
     with mujoco.Renderer(model, 960, 1280) as renderer:
