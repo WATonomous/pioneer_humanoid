@@ -73,6 +73,10 @@ uv run scripts/eval_rl.py --task Mjlab-Badminton-Shared-Student-PPO-Priv \
     --episodes 8192        # hit rate, per-arm split, return quality, joint feasibility
 MUJOCO_GL=egl uv run scripts/demo_quad.py <same task/checkpoint/critic args> \
     --record runs/demo.mp4 --no-web --supersample 2   # four-camera video
+uv run scripts/plot_eval.py --label "<model>"         # figures from runs/eval_pstar_hits.npy:
+uv run scripts/plot_eval_story.py --label "<model>"   # picks, hit chance, returns, face map,
+                                                      # scorecard, strike zone, landing map,
+                                                      # net view, rally -> runs/figs/
 ```
 
 Baselines are checked in under `models/` (repo root):
@@ -90,7 +94,7 @@ baseline in `baseline/` drives the right arm only.
 aero.py, launcher.py, perception*.py, predictor.py, mjsim.py   physics, serve bank, EKF prior, plain-MuJoCo sim
 baseline/        scripted receive (IK + min-jerk swing) used as the reference before RL
 humanoid_badminton/ the mjlab task: env config, rewards, observations, action moderation, perception command
-scripts/         build_scene, mesh_prep, train_rl, student_to_ppo, eval_rl, play_rl
+scripts/         build_scene, mesh_prep, train_rl, student_to_ppo, eval_rl, play_rl, plot_eval, plot_eval_story
 scene/           params.yaml, generated badminton.xml, meshes
 ```
 

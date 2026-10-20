@@ -135,9 +135,14 @@ def main() -> None:
     # launch origin (the run-12 target zone) and net-clearance flag
     land_err = torch.full((n,), float("nan"), device=dev)
     land_ok = torch.zeros(n, dtype=torch.bool, device=dev)
+    # landing point, launch origin and net-crossing point of the return
+    land_xy = torch.full((n, 2), float("nan"), device=dev)
+    p0_xy = torch.full((n, 2), float("nan"), device=dev)
+    cross_xz = torch.full((n, 2), float("nan"), device=dev)
 
     # (front_dist, z, x, hit, u, v, d_min, land_err, land_ok, side,
-    #  committed, chosen arm, rule arm at the lock, lock time)
+    #  committed, chosen arm, rule arm at the lock, lock time,
+    #  land_x, land_y, p0_x, p0_y, net-crossing x, net-crossing z)
     rows = []
     warm = torch.zeros(n, dtype=torch.bool, device=dev)  # env past its 1st episode
     qv_rows, tau_rows, duty_rows = [], [], []  # per-episode, per-joint
@@ -153,6 +158,7 @@ def main() -> None:
             prev_side = near_side.clone()
             prev_land = land_err.clone()
             prev_ok = land_ok.clone()
+            prev_geo = torch.cat([land_xy, p0_xy, cross_xz], dim=-1).clone()
             prev_pick = torch.stack(
                 [store["committed"].float(), store["assign"].float(),
                  store["commit_rule"].float(), store["commit_t"]], dim=-1)
@@ -173,10 +179,14 @@ def main() -> None:
             first = store["first"] & (~done)
             if bool(first.any()):
                 spos, svel = mdp._shuttle_state(uenv)
-                xy, ok = mdp.predict_landing(spos[first], svel[first])
+                xy, ok, cxz = mdp.predict_landing(spos[first], svel[first],
+                                                  with_crossing=True)
                 land_err[first] = (
                     (xy - store["p0_xy"][first]).norm(dim=-1))
                 land_ok[first] = ok
+                land_xy[first] = xy
+                p0_xy[first] = store["p0_xy"][first]
+                cross_xz[first] = cxz
             if args.count_first_episodes:
                 done_ids = done.nonzero(as_tuple=False).squeeze(-1)
             else:
@@ -189,12 +199,16 @@ def main() -> None:
                              float(uv[0]), float(uv[1]), float(prev_d[i]),
                              float(prev_land[i]), float(prev_ok[i]),
                              float(prev_side[i]),
-                             *prev_pick[i].tolist()))
+                             *prev_pick[i].tolist(),
+                             *prev_geo[i].tolist()))
             near_uv[done] = float("nan")
             near_d[done] = float("inf")
             near_side[done] = -1
             land_err[done] = float("nan")
             land_ok[done] = False
+            land_xy[done] = float("nan")
+            p0_xy[done] = float("nan")
+            cross_xz[done] = float("nan")
             if len(done_ids):
                 qv_rows.append(prev_qv[done_ids].cpu().numpy())
                 tau_rows.append(prev_tau[done_ids].cpu().numpy())
@@ -265,7 +279,7 @@ def main() -> None:
         print(f"  {joint_label(j):4s}  {q[0]:5.1f} / {q[1]:5.1f} / {q[2]:5.1f}"
               f"    {t[0]:5.2f} / {t[1]:5.2f} / {t[2]:5.2f} ({peak[j]:5.2f})"
               f"   {at_clamp:5.1%}        {duty[:, j].mean():5.1%} (rated {rated[j]})")
-    np.save("runs/eval_pstar_hits.npy", r)  # cols: front,z,x,hit,u,v,d_min,land_err,land_ok,side,locked,chosen,rule,t_lock
+    np.save("runs/eval_pstar_hits.npy", r)  # cols: front,z,x,hit,u,v,d_min,land_err,land_ok,side,locked,chosen,rule,t_lock,land_x,land_y,p0_x,p0_y,cross_x,cross_z
     np.savez("runs/eval_feasibility.npz", qvel_peak=qv, tau_peak=tau, duty=duty)
     print("\nraw rows saved to runs/eval_pstar_hits.npy")
 

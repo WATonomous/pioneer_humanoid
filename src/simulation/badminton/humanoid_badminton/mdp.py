@@ -178,13 +178,15 @@ def return_flight(env: "ManagerBasedRlEnv", v_scale: float = 6.0) -> torch.Tenso
 
 
 def predict_landing(p: torch.Tensor, v: torch.Tensor,
-                    sub_dt: float = 0.05, max_steps: int = 80
-                    ) -> tuple[torch.Tensor, torch.Tensor]:
+                    sub_dt: float = 0.05, max_steps: int = 80,
+                    with_crossing: bool = False):
     """Roll (B,3) shuttle states through the drag model to the floor.
 
     Returns (landing_xy, ok): ok = the flight crosses the net line going
     forward with clearance above the net top, and lands in the far court.
     Positions where the flight never lands within the horizon get ok False.
+    With with_crossing, also returns the (x, z) point where the flight
+    crosses the net line y = 0 (nan where it never does).
     """
     import perception_torch as pt
     prm = aero.load_params()
@@ -194,6 +196,7 @@ def predict_landing(p: torch.Tensor, v: torch.Tensor,
     land_xy = p[:, :2].clone()
     landed = torch.zeros(p.shape[0], dtype=torch.bool, device=p.device)
     cleared = torch.zeros_like(landed)
+    cross_xz = torch.full_like(land_xy, float("nan"))
     for _ in range(max_steps):
         p_next, v_next = pt.rk4_step(p, v, k, sub_dt, g)
         # net-line crossing inside this step: interpolate z at y = 0
@@ -204,6 +207,9 @@ def predict_landing(p: torch.Tensor, v: torch.Tensor,
             z_at_net = p[crossing, 2] + t * (p_next[crossing, 2]
                                              - p[crossing, 2])
             cleared[crossing] = z_at_net > net_top
+            cross_xz[crossing, 0] = p[crossing, 0] + t * (p_next[crossing, 0]
+                                                          - p[crossing, 0])
+            cross_xz[crossing, 1] = z_at_net
         # floor contact inside this step: interpolate xy at z = 0
         touch = (~landed) & (p_next[:, 2] <= 0.0)
         if bool(touch.any()):
@@ -217,6 +223,8 @@ def predict_landing(p: torch.Tensor, v: torch.Tensor,
         if bool(landed.all()):
             break
     ok = landed & cleared & (land_xy[:, 1] > 0.0)
+    if with_crossing:
+        return land_xy, ok, cross_xz
     return land_xy, ok
 
 
