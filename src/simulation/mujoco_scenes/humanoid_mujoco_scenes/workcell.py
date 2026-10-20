@@ -67,7 +67,6 @@ def add_workcell(spec: mujoco.MjSpec) -> None:
                         castshadow=True)
 
 
-# Plain-table workcell used by the recorded peg-insertion videos.
 OPEN_TABLE_TOP_Z = 0.705
 
 
