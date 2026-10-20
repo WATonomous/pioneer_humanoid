@@ -9,6 +9,16 @@ pip install mujoco pillow
 pip install -e src/pioneer_humanoid -e src/simulation/mujoco_scenes
 ```
 
+## Viewer
+
+```bash
+python -m humanoid_mujoco_scenes.preview --interactive --scene matcha
+```
+
+Use `--scene` to select a scene. No teleop hardware is required.
+Select `ego`, `wrist_left` or `wrist_right` under **Rendering → Camera**, or cycle with `[` / `]`.
+Tab and Shift+Tab toggle camera and joint/actuator controls. Keep the camera viewport at 4:3 to match recorded frames.
+
 ## Use a scene
 
 ```bash
