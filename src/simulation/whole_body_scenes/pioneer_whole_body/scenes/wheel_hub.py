@@ -226,7 +226,7 @@ def plan(wb, notes: dict) -> None:
 
     # 4. spin test: the index finger pushes a handle round, twice
     wb.fingers("l", "point", dur=0.4)
-    for push in range(7):
+    for push in range(11):
         if d.userdata[_U_TURN] >= 2 * math.pi:
             break
         _push_round(wb, "l", S)

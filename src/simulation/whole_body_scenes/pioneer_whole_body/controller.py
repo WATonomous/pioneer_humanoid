@@ -542,13 +542,27 @@ class WholeBody:
         while self.t < end:
             self.tick()
             if cond():
-                for s in SIDES:
-                    if self.hand_track[s] is not None and not self.hand_track[s].done(self.t):
-                        p, r = self._hand_now(s)
-                        self.hand_track[s] = _Track((p, r), (p, r), self.t, 0.0)
-                        self.hand_goal[s] = (p, r)
+                self.hold()
                 return True
         return False
+
+    def watch(self, cond: Callable[[], bool], dur: float) -> bool:
+        """``wait(dur)``, but stop every arm where it is commanded now as soon as ``cond()`` (returns whether)."""
+        end = self.t + dur
+        while self.t < end - 1e-9:
+            self.tick()
+            if cond():
+                self.hold()
+                return True
+        return False
+
+    def hold(self):
+        """Every arm moving in a straight line stops where it is commanded now."""
+        for s in SIDES:
+            if self.hand_track[s] is not None and not self.hand_track[s].done(self.t):
+                p, r = self._hand_now(s)
+                self.hand_track[s] = _Track((p, r), (p, r), self.t, 0.0)
+                self.hand_goal[s] = (p, r)
 
     def wait(self, dur: float):
         end = self.t + dur

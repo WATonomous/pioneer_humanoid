@@ -146,18 +146,41 @@ def let_go(wb: WholeBody, body: str, sides=("l", "r"), up: float = 0.08, back: f
                                            wb.m.geom(c.geom1).name or wb.m.geom(c.geom2).name)
                                           for c in wb.d.contact[:wb.d.ncon]
                                           if (wb.m.geom_bodyid[c.geom1] in hands) != (wb.m.geom_bodyid[c.geom2] in hands)}))
-    for s_ in sides:            # fingers tipped up off the knob (and back off along them), then up
-        p, r = wb.hand_goal[s_]
-        away = -r[:, 0].copy()
-        away[2] = 0.0
-        c, s2 = math.cos(tilt), math.sin(tilt)
-        r_up = r @ np.array([[c, 0, s2], [0, 1, 0], [-s2, 0, c]])
-        wb.reach(s_, p + back * away / np.linalg.norm(away) + [0, 0, 0.012], r_up, 0.6)
-    wb.settle()
-    for s_ in sides:
-        p, r = wb.hand_goal[s_]
-        wb.reach(s_, p + [0, 0, up], r, 0.9)
-    wb.settle()
+    lifted = lambda: body_pos(wb, body)[2] - z0 > 0.006          # noqa: E731  (caught: it comes up with the hand)
+    z_let = {s_: wb.hand_goal[s_][0][2] for s_ in sides}
+    for attempt in range(3):
+        for s_ in sides:        # fingers tipped up off the knob (and back off along them), then up
+            p, r = wb.hand_goal[s_]
+            away = -r[:, 0].copy()
+            away[2] = 0.0
+            c, s2 = math.cos(tilt), math.sin(tilt)
+            r_up = r @ np.array([[c, 0, s2], [0, 1, 0], [-s2, 0, c]])
+            wb.reach(s_, p + back * away / np.linalg.norm(away) + [0, 0, 0.012], r_up, 0.6)
+        if not wb.watch(lifted, 0.6):
+            for s_ in sides:
+                p, r = wb.hand_goal[s_]
+                wb.reach(s_, p + [0, 0, up], r, 0.9)
+            if not wb.watch(lifted, 0.9):
+                # the hands came up? (a finger hooked under the part holds a hand down)
+                wb.wait(0.3)
+                if all(wb.palm_pose(s_, True)[0][2] - wb.palm_pose(s_, False)[0][2] < 0.03 for s_ in sides):
+                    break
+        # caught: back down to where they let go, open right up, slide in a little, and again
+        c = body_pos(wb, body)
+        dz = max(0.0, c[2] - z0)
+        for s_ in sides:
+            p, r = wb.hand_goal[s_]
+            wb.reach(s_, [p[0], p[1], z_let[s_] - dz], r, 0.5)
+        wb.settle()
+        for s_ in sides:
+            wb.fingers(s_, "open", dur=0.4)
+        wb.settle()
+        for s_ in sides:        # in towards the part's middle: a thumb that went down inside it comes free
+            p, r = wb.hand_goal[s_]
+            inn = c[:2] - p[:2]
+            inn = 0.015 * inn / max(1e-6, np.linalg.norm(inn))
+            wb.reach(s_, [p[0] + inn[0], p[1] + inn[1], p[2]], r, 0.5)
+        wb.settle()
     for s_ in sides:
         wb.fingers(s_, "relaxed", dur=0.4)
     return body_pos(wb, body)[2] - z0 < 0.004
