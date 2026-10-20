@@ -32,7 +32,7 @@ WRIST_DAMPING = 2.5
 CONTROL_DT = 0.01
 
 
-def add_leader_args(parser: argparse.ArgumentParser, *, scene_help: str) -> None:
+def add_leader_args(parser: argparse.ArgumentParser, *, scene_help: str, bimanual: bool = False) -> None:
     parser.add_argument(
         "--target",
         choices=("isaac", "mujoco", "real"),
@@ -55,6 +55,12 @@ def add_leader_args(parser: argparse.ArgumentParser, *, scene_help: str) -> None
         default=0.35,
         help="target low-pass coefficient in (0,1]; 1 disables filtering",
     )
+
+    if bimanual:
+        parser.add_argument("--bimanual", action="store_true", help="Control and record both arms using two leaders")
+        parser.add_argument("--right-port", help="Serial port of the right-arm leader")
+        parser.add_argument("--right-calibration", type=Path, help="Calibration for the right-arm leader")
+        parser.add_argument("--right-signs", help="Explicit calibrated servo directions for the right arm")
 
 
 def check_leader_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
