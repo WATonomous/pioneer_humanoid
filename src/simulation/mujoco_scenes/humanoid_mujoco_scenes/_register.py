@@ -36,14 +36,18 @@ class _Entry:
     step: Optional[Callable[[mujoco.MjModel, mujoco.MjData], None]] = None
     reset: Optional[Callable] = None      # reset(model, data, rng): randomise a new episode
     progress: Optional[Callable] = None   # progress(model, data) -> (step index, n steps, instruction)
+    initial_camera: Optional[str] = None  # named camera to select when mounted
 
 
 _REGISTRY: dict[str, _Entry] = {}
 _DISCOVERED = False
 
 
-def scene(name: str, *, robot_pos=(0.0, 0.0, ROBOT_STAND_LIFT_Z), camera=None, step=None, reset=None, progress=None):
+def scene(name: str, *, robot_pos=(0.0, 0.0, ROBOT_STAND_LIFT_Z), camera=None, step=None, reset=None, progress=None,
+          initial_camera=None):
     """Register ``build(spec)`` under ``name``. ``robot_pos``: arm base placement (default: on its stand).
+
+    ``initial_camera``: optional mounted camera name to select when the viewer opens.
 
     ``step(model, data)``: optional, called by the teleop once per control step before stepping the
     physics -- for scene mechanics a static model can't express (e.g. a one-way ratchet). It must keep
@@ -55,7 +59,7 @@ def scene(name: str, *, robot_pos=(0.0, 0.0, ROBOT_STAND_LIFT_Z), camera=None, s
     instruction, shown by the teleop and recorded per frame.
     """
     def deco(build):
-        _REGISTRY[name] = _Entry(build, tuple(robot_pos), camera, step, reset, progress)
+        _REGISTRY[name] = _Entry(build, tuple(robot_pos), camera, step, reset, progress, initial_camera)
         return build
 
     return deco
@@ -150,15 +154,22 @@ def make_model(name: str, cameras: dict[str, tuple[int, int]] | None = None) -> 
         if np.allclose(geom.solref, _DEFAULT_SOLREF) and np.allclose(geom.solimp, _DEFAULT_SOLIMP):
             geom.solref = CONTACT_SOLREF
             geom.solimp = CONTACT_SOLIMP
+    model = spec.compile()
     # Load the scene's initial view into the model instead of automatic framing,
     # giving each scene a centered, full view with a consistent starting configuration.
     camera = entry.camera or {}
     if "lookat" in camera:
-        spec.stat.center = camera["lookat"]
+        model.stat.center[:] = camera["lookat"]
     if "distance" in camera:
         # MuJoCo's default free camera uses distance = 1.5 * extent.
-        spec.stat.extent = camera["distance"] / 1.5
+        original_extent = model.stat.extent
+        model.stat.extent = camera["distance"] / 1.5
+        # Preserve clipping distances for robot cameras when changing free-camera framing.
+        model.vis.map.znear *= original_extent / model.stat.extent
+        model.vis.map.zfar *= original_extent / model.stat.extent
     for key in ("azimuth", "elevation"):
         if key in camera:
-            setattr(spec.visual.global_, key, camera[key])
-    return spec.compile()
+            setattr(model.vis.global_, key, camera[key])
+    if entry.initial_camera in [model.camera(i).name for i in range(model.ncam)]:
+        model.vis.global_.cameraid = model.camera(entry.initial_camera).id
+    return model
