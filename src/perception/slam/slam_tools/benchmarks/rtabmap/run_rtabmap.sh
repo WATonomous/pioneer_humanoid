@@ -3,8 +3,8 @@ set -e
 source /opt/ros/jazzy/setup.bash
 set -uo pipefail
 
-if [[ $# -ne 6 ]]; then
-  echo "Usage: $0 ROS2_BAG OUTPUT_DIR RGB_TOPIC DEPTH_TOPIC CAMERA_INFO_TOPIC FRAME_ID" >&2
+if [[ $# -lt 6 || $# -gt 8 ]]; then
+  echo "Usage: $0 ROS2_BAG OUTPUT_DIR RGB_TOPIC DEPTH_TOPIC CAMERA_INFO_TOPIC FRAME_ID [IMU_TOPIC | GYRO_TOPIC ACCEL_TOPIC]" >&2
   exit 1
 fi
 
@@ -14,6 +14,8 @@ RGB_TOPIC="$3"
 DEPTH_TOPIC="$4"
 CAMERA_INFO_TOPIC="$5"
 FRAME_ID="$6"
+IMU_TOPIC="${7:-}"
+ACCEL_TOPIC="${8:-}"
 DB="$OUT/rtabmap.db"
 LOG="$OUT/rtabmap.log"
 PLAYER_LOG="$OUT/player.log"
@@ -21,15 +23,19 @@ mkdir -p "$OUT"
 rm -f "$DB" "$OUT/trajectory.txt" "$LOG" "$PLAYER_LOG"
 
 cleanup() {
-  for pid in "${PLAYER_PID:-}" "${RECORDER_PID:-}"; do
+  for pid in "${PLAYER_PID:-}" "${RECORDER_PID:-}" "${COMBINER_PID:-}" "${FILTER_PID:-}"; do
     [[ -n "$pid" ]] && kill "$pid" 2>/dev/null || true
   done
   [[ -n "${RTABMAP_PID:-}" ]] && kill -- "-$RTABMAP_PID" 2>/dev/null || true
 }
 trap cleanup EXIT INT TERM
 
+PLAYER_EXCLUDES=(/tf /tf_static)
+if [[ -n "$ACCEL_TOPIC" ]]; then
+  PLAYER_EXCLUDES=(/tf)
+fi
 ros2 bag play "$BAG" --clock --rate 0.1 --read-ahead-queue-size 1000 \
-  --exclude-topics /tf /tf_static \
+  --exclude-topics "${PLAYER_EXCLUDES[@]}" \
   --start-paused --disable-keyboard-controls >"$PLAYER_LOG" 2>&1 &
 PLAYER_PID=$!
 CLOCK_READY=false
@@ -47,16 +53,36 @@ if [[ "$CLOCK_READY" != true ]]; then
 fi
 kill -0 "$PLAYER_PID" 2>/dev/null || { echo "Error: bag player exited. See $PLAYER_LOG" >&2; exit 1; }
 
+if [[ -n "$ACCEL_TOPIC" ]]; then
+  python3 "$(dirname "$0")/combine_imu.py" --ros-args \
+    -p use_sim_time:=true -p gyro_topic:="$IMU_TOPIC" -p accel_topic:="$ACCEL_TOPIC" \
+    -p output_topic:=/rtabmap/imu_raw >"$OUT/imu_combiner.log" 2>&1 &
+  COMBINER_PID=$!
+  ros2 run imu_filter_madgwick imu_filter_madgwick_node --ros-args \
+    -p use_sim_time:=true -p use_mag:=false -p publish_tf:=false \
+    --remap /imu/data_raw:=/rtabmap/imu_raw \
+    --remap /imu/data:=/rtabmap/imu_filtered >"$OUT/imu_filter.log" 2>&1 &
+  FILTER_PID=$!
+  IMU_TOPIC=/rtabmap/imu_filtered
+fi
+
+RTABMAP_ARGS=(
+  use_sim_time:=true frame_id:="$FRAME_ID"
+  rgb_topic:="$RGB_TOPIC" depth_topic:="$DEPTH_TOPIC"
+  camera_info_topic:="$CAMERA_INFO_TOPIC" approx_sync:=true
+  approx_sync_max_interval:=0.05 topic_queue_size:=100 queue_size:=100 qos:=1 rgbd_sync:=true
+  odom_always_process_most_recent_frame:=false
+  odom_args:="--Odom/ResetCountdown 5 --Odom/GuessMotion true"
+  rtabmap_viz:=false rviz:=false publish_tf_odom:=true publish_tf_map:=true
+  map_frame_id:=map database_path:="$DB"
+  args:="-d --Rtabmap/DetectionRate 10"
+)
+if [[ -n "$IMU_TOPIC" ]]; then
+  RTABMAP_ARGS+=(imu_topic:="$IMU_TOPIC" wait_imu_to_init:=true)
+fi
+
 setsid ros2 launch rtabmap_launch rtabmap.launch.py \
-  use_sim_time:=true frame_id:="$FRAME_ID" \
-  rgb_topic:="$RGB_TOPIC" depth_topic:="$DEPTH_TOPIC" \
-  camera_info_topic:="$CAMERA_INFO_TOPIC" approx_sync:=true \
-  approx_sync_max_interval:=0.05 topic_queue_size:=100 queue_size:=100 qos:=1 rgbd_sync:=true \
-  odom_always_process_most_recent_frame:=false \
-  odom_args:="--Odom/ResetCountdown 5 --Odom/GuessMotion true" \
-  rtabmap_viz:=false rviz:=false publish_tf_odom:=true publish_tf_map:=true \
-  map_frame_id:=map database_path:="$DB" \
-  args:="-d --Rtabmap/DetectionRate 10" >"$LOG" 2>&1 &
+  "${RTABMAP_ARGS[@]}" >"$LOG" 2>&1 &
 RTABMAP_PID=$!
 
 READY=false
