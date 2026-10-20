@@ -369,8 +369,55 @@ class WholeBody:
         move_pelvis(y=mid[1] - self.base0[1], z=self.cmd["base_z"] + 0.01, d=0.25 * dur)
         self.settle()
 
-    def walk(self, dx: float, step: float = 0.14, dur: float = 0.9):
-        """Walk ``dx`` m along +X: the trailing foot steps at most ``step`` past the other, feet together at the end."""
+    def turn(self, angle: float, step: float = math.radians(30), dur: float = 0.9, lift: float = 0.04,
+             carry: bool = False):
+        """Turn on the spot by ``angle`` (rad, + is left) in steps of at most ``step``: each step the leading foot
+        swings to its place turned about the pelvis, then the other; the pelvis turns with them. ``carry``: the
+        hands turn with the pelvis (they hold something); else they should be in a joint-space pose (they follow
+        the body)."""
+        n = max(1, math.ceil(abs(angle) / step - 1e-9))
+        da = angle / n
+        lead, trail = ("l", "r") if angle > 0 else ("r", "l")
+        for _ in range(n):
+            c = np.array([*self.pelvis_world(), 0.0])
+            yaw0 = self.cmd["base_yaw"]
+            for k, side in enumerate((lead, trail)):
+                other = "r" if side == "l" else "l"
+                sp = self.foot_goal[other][0]
+                cur = self.pelvis_world()
+                # weight over the stance foot
+                shift = 0.5 * (sp[:2] - cur)
+                self.pelvis(x=cur[0] + shift[0] - self.base0[0], y=cur[1] + shift[1] - self.base0[1],
+                            z=self.cmd["base_z"] - 0.01, dur=0.3 * dur)
+                self.settle()
+                p0, _ = self.foot_goal[side]
+                rel = p0 - c
+                p1 = c + rot_z(da) @ rel
+                p1[2] = p0[2]
+                self.foot(side, p1, yaw0 + da, dur=0.45 * dur, lift=lift)
+                # the pelvis turns half way with each foot
+                y1 = yaw0 + da * (k + 1) / 2
+                if carry:
+                    self._turn_hands(c, y1 - self.cmd["base_yaw"], 0.45 * dur)
+                self.pelvis(yaw=y1, dur=0.45 * dur)
+                self.settle()
+                self.pelvis(x=c[0] - self.base0[0], y=c[1] - self.base0[1], z=self.cmd["base_z"] + 0.01,
+                            dur=0.25 * dur)
+                self.settle()
+
+    def _turn_hands(self, c, da: float, dur: float):
+        """Turn both hands' targets by ``da`` about the vertical through ``c`` (they hold something)."""
+        R = rot_z(da)
+        for s_ in SIDES:
+            if self.hand_goal[s_] is not None and self.hand_goal[s_][1] is not None:
+                p_, r_ = self.hand_goal[s_]
+                p1 = c + R @ (p_ - c)
+                p1[2] = p_[2]
+                self.reach(s_, p1, R @ r_, dur)
+
+    def walk(self, dx: float, step: float = 0.14, dur: float = 0.9, carry: bool = False):
+        """Walk ``dx`` m along +X: the trailing foot steps at most ``step`` past the other, feet together at the end.
+        ``carry``: as for ``step``."""
         goal = {f: self.foot_goal[f][0][0] + dx for f in SIDES}
         while True:
             x = {f: self.foot_goal[f][0][0] for f in SIDES}
@@ -382,7 +429,7 @@ class WholeBody:
             lead = x[other] - x[side] + (goal[side] - goal[other])
             nxt = goal[side] - (goal[other] - x[other]) + math.copysign(step, dx)
             nxt = min(nxt, goal[side]) if dx > 0 else max(nxt, goal[side])
-            self.step(side, nxt - x[side], dur=dur)
+            self.step(side, nxt - x[side], dur=dur, carry=carry)
 
     @property
     def _foot_rest_rot(self):

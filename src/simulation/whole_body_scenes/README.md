@@ -25,6 +25,7 @@ afterwards in `--workers` processes (CPU rendering is ~0.6 s a frame, the physic
 | `wheel_hub` | 4 steps, ~77 s. Walks up with its hands raised; side-steps to the wheel stand, lifts the wheel by its two handle knobs with both hands, carries it back and lowers it over the axle onto its collar; takes the hub nut from its rack (right hand), lowers it down over the axle until its thread catches and screws it home; spins the wheel a full turn by pushing a handle round with its index finger. |
 | `tote_to_shelf` | 3 steps, ~68 s. Walks up with its hands raised; takes the three cells from the rack one at a time (right hand), side-steps along the bench to each slot of the tote and stands the cell in it; lifts the loaded tote by its two handle knobs with both hands, side-steps 0.9 m to the low shelf carrying it, crouches and leans, and sets it in the shelf's fixture (its latch snaps), the cells still in it. |
 | `service_panel` | 8 steps, ~71 s. Walks up; pulls the parts cabinet's drawer out by its knob (left hand) and takes the cartridge out of it; slides the panel's hatch open (right hand); stands the cartridge in its bay; slides the hatch shut; takes the knob bolt from its rack, puts it through the hatch's hole until it catches the thread and screws it home; pushes the drawer shut with its fist; presses the power button with its thumb: the lamp flag comes up. |
+| `gear_train` | 6 steps, ~73 s. Walks up to the gearbox; turns round, walks to the parts table behind and takes a gear in each hand by its hub knob; walks back and turns round carrying both; lowers gear 1 over the right shaft onto its collar, then gear 2 over the left one, its teeth in gear 1's; runs the train in by twisting gear 1's hub (strokes): gear 2 turns the other way; presses the test button: the lamp comes up. |
 | `grasp_test` | A bolt in a rack and a plate with one threaded hole (tuning bench for the grasps). |
 | `bare` | The studio and an empty workbench. |
 
@@ -36,11 +37,11 @@ latched in order as in `humanoid_mujoco_scenes`) and `plan` (the demo).
 | file | what it is |
 |------|------------|
 | `robot.py` | The robot: `assets/pioneer_v2_humanoid` (the Pioneer v2 URDF from the Prometheus CAD, meshes decimated to 18 MB by `convert.py` there) with its CAD colours, a movable pelvis (x, y, z, yaw, pitch at the hips), a position actuator per joint (the DIP joints follow the PIPs: URDF mimic), gravity compensation, palm / fingertip sites and a head camera. Arms and hands collide with the world, not with each other; the legs are visual. |
-| `controller.py` | `WholeBody`: every motion is a timed blend of targets turned into joint commands at 100 Hz by IK on a scratch `MjData` — palms along straight lines (7-joint arm IK, damped least squares, a posture in the null space), fingertips (position only), the gaze (neck yaw / pitch at a point), the pelvis, and the legs solved each tick so the feet stay planted (`step`, `walk`: quasi-static steps; balance isn't simulated). Finger synergies (`SHAPES`), solved for the knobs and cells by fitting fingertip positions. |
+| `controller.py` | `WholeBody`: every motion is a timed blend of targets turned into joint commands at 100 Hz by IK on a scratch `MjData` — palms along straight lines (7-joint arm IK, damped least squares, a posture in the null space), fingertips (position only), the gaze (neck yaw / pitch at a point), the pelvis, and the legs solved each tick so the feet stay planted (`step`, `walk`: quasi-static steps; balance isn't simulated). Turning on the spot (`turn`: the feet step round the pelvis, the hands turn with it when they carry something). Finger synergies (`SHAPES`), solved for the knobs and cells by fitting fingertip positions. |
 | `skills.py` | What plans are written in: `pick_knob`, `carry`, `align_held` (hover, level and turn the held part, correct by looking), `lower_until`, `release`, `insert_bolt`, `tighten` (release / turn back / regrasp strokes), `press`, and two-handed `pick_two`, `align_two`, `move_two`, `tighten_two`, `let_go`. A failed skill raises `TaskFailed`. |
 | `parts.py` | Knob bolts and threaded holes. A thread is a nut body in the part with a turn hinge and a feed slide coupled rigidly (pitch 12 mm, quick-acting); a bolt whose tip is in the hole's mouth, upright and centred gets welded onto it, from then on it only turns and feeds. Seated bolts stay tight. |
 | `studio.py` | The room: floor, lights, workbench. |
-| `video.py`, `shots.py` | The tape, and the renderer: a camera that follows the robot's gaze target (smoothed), pulls back while it walks, the head camera inset, a caption bar with the current step. |
+| `video.py`, `shots.py` | The tape, and the renderer: a camera that follows the robot's gaze target (smoothed), pulls back while it walks, stays in front of it when it turns round, the head camera inset, a caption bar with the current step. |
 
 ## Physics vs. scripting
 
@@ -49,7 +50,7 @@ latched in order as in `humanoid_mujoco_scenes`) and `plan` (the demo).
   into its pocket on its chamfers; a cell dropped into a socket stands in it.
 - Not physics: the thread (a rigid helix coupling, see `parts.py`), the jig clamp (a weld that the button
   releases), the outbound and shelf fixtures' latches (welds made when the part is set flat in them), the drawer's and hatch's detents and soft-close (a small force near the end of travel), the lid's captive
-  screws (welded to the lid until they catch their threads), the robot's balance (the pelvis is moved; the legs are solved so the feet don't slide), the tester's
+  screws (welded to the lid until they catch their threads), the gear mesh (the second gear's turn is coupled to the first's, teeth in phase; a gear set on its shaft is welded to the shaft's pivot), the robot's balance (the pelvis is moved; the legs are solved so the feet don't slide), the tester's
   indicator. Object poses come from the simulator (as a perfect perception stack would give them).
 - The plans are scripted, not learned; they check their results and retry where a person would (a part not
   seated, a lid whose screws didn't catch). Long scenes are sensitive to small changes: re-run the demo after

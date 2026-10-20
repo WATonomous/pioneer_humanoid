@@ -85,6 +85,7 @@ def _render_chunk(args):
     model = make_model(scene)
     data = mujoco.MjData(model)
     tape = Tape.load(tape_path)
+    tape.base_adr = int(model.jnt_qposadr[model.joint("base_x").id])     # the robot's base in qpos (for the camera)
     shot_fn = getattr(importlib.import_module(shots_mod[0]), shots_mod[1])
     w, h = size
     r = mujoco.Renderer(model, h, w)

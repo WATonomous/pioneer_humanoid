@@ -24,7 +24,7 @@ def _plan(tape) -> dict:
     q = np.array(tape.qpos)
     fps = tape.fps
     focus = np.array(tape.focus, float)
-    pelvis = q[:, :2] + np.array(tape.base0[:2]) if hasattr(tape, "base0") else q[:, :2]
+    adr = getattr(tape, "base_adr", 0)                # the robot's base joints in qpos: x, y, z, yaw, pitch
     # gaps (no gaze yet): hold the first known focus
     good = ~np.isnan(focus[:, 0])
     first = focus[good][0] if good.any() else np.array([0.5, 0.0, 0.9])
@@ -35,11 +35,13 @@ def _plan(tape) -> dict:
         else:
             focus[i] = last
     look = _smooth(focus, fps, 1.2)
-    speed = np.r_[0, np.linalg.norm(np.diff(q[:, :2], axis=0), axis=1)] * fps   # pelvis x/y speed (m/s)
+    speed = np.r_[0, np.linalg.norm(np.diff(q[:, adr:adr + 2], axis=0), axis=1)] * fps   # pelvis x/y speed (m/s)
     wide = _smooth((speed > 0.02).astype(float), fps, 1.5)
     wide = np.clip(_smooth(wide, fps, 1.0) * 1.6, 0, 1)
+    # the robot's heading (pelvis yaw): the camera stays in front of it when it turns round (slowly)
+    yaw = _smooth(q[:, adr + 3].copy(), fps, 1.0)
     t = np.array(tape.t)
-    return dict(look=look, wide=wide, t=t, T=t[-1])
+    return dict(look=look, wide=wide, yaw=yaw, t=t, T=t[-1])
 
 
 def follow(t: float, tape, i: int) -> Shot:
@@ -48,15 +50,17 @@ def follow(t: float, tape, i: int) -> Shot:
         _CACHE.clear()
         _CACHE[key] = _plan(tape)
     p = _CACHE[key]
-    look, w, T = p["look"][i], p["wide"][i], p["T"]
+    look, w, T, yaw = p["look"][i], p["wide"][i], p["T"], p["yaw"][i]
+    h = np.array([np.cos(yaw), np.sin(yaw), 0.0])          # the way the robot faces
     u = t / max(T, 1e-6)
     # a slow orbit in front of the robot, from its front right to its front left and back a little
-    az = 212 - 70 * np.sin(np.pi * u) ** 1.5 * (1 if u < 0.5 else 0.8) + 6 * np.sin(2 * np.pi * t / 41)
+    az = 212 - 70 * np.sin(np.pi * u) ** 1.5 * (1 if u < 0.5 else 0.8) + 6 * np.sin(2 * np.pi * t / 41) \
+        + np.degrees(yaw)
     el = -16 + 4 * np.sin(2 * np.pi * t / 53)
     dist = 1.3 + 1.4 * w
     # aim between the work and the robot's chest, so the head stays in the picture
-    work = (1 - 0.6 * w) * look + 0.6 * w * np.array([look[0] - 0.3, look[1], look[2]])
-    target = np.array([work[0] - 0.1, work[1], 0.45 * work[2] + 0.55 * 1.22])
+    work = look - 0.6 * w * 0.3 * h
+    target = np.array([*(work[:2] - 0.1 * h[:2]), 0.45 * work[2] + 0.55 * 1.22])
     return Shot(tuple(target), dist, az, el)
 
 
