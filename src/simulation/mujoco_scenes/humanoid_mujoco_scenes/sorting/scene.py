@@ -8,9 +8,9 @@ from humanoid_mujoco_scenes import scene
 from humanoid_mujoco_scenes.workcell import OPEN_TABLE_TOP_Z as TABLE_TOP_Z, add_open_workcell
 
 COLORS = {"red": [0.85, 0.2, 0.15, 1], "blue": [0.15, 0.35, 0.85, 1]}
-TRAYS = {"red": (0.40, -0.42), "blue": (0.40, 0.42)}
+TRAYS = {"red": (0.72, -0.38), "blue": (0.72, 0.38)}
 BLOCK_X = (0.56, 0.70)
-BLOCK_Y = 0.28
+BLOCK_Y = 0.18
 BLOCK_HALF = 0.02
 TRAY_HALF = 0.09
 
