@@ -33,11 +33,12 @@ as fast as real time).
 | `service_panel` | 8 steps, ~71 s. Walks up; pulls the parts cabinet's drawer out by its knob (left hand) and takes the cartridge out of it; slides the panel's hatch open (right hand); stands the cartridge in its bay; slides the hatch shut; takes the knob bolt from its rack, puts it through the hatch's hole until it catches the thread and screws it home; pushes the drawer shut with its fist; presses the power button with its thumb: the lamp flag comes up. |
 | `gear_train` | 6 steps, ~73 s. Walks up to the gearbox; turns round, walks to the parts table behind and takes a gear in each hand by its hub knob; walks back and turns round carrying both; lowers gear 1 over the right shaft onto its collar, then gear 2 over the left one, its teeth in gear 1's; runs the train in by twisting gear 1's hub (strokes): gear 2 turns the other way; presses the test button: the lamp comes up. |
 | `handover` | 5 steps, ~59 s. Walks up; picks a 26 cm bar up by the knob on its far end (right hand) and brings it across to the middle; the left hand takes the knob on its other end and the right lets go (a hand-over); sets it in the fixture on the left (it latches); side-steps to the bolt rack, takes the bolt, steps back, puts it through the bar's hole until it catches the thread and screws it home; presses "done" with its right thumb: the lamp comes up. |
+| `wrench` | 5 steps, ~74 s. Walks up; takes a T-handle socket wrench out of its holder by its knob (right hand); sets the socket over the first hex-head bolt (a hex head gives the fingers nothing to turn: the tool does) until it takes the head, and drives the bolt home by twisting the wrench's knob (strokes); lifts it off, the same for the second bolt; puts the wrench back in its holder; presses the test button with its left thumb: the lamp comes up. |
 | `grasp_test` | A bolt in a rack and a plate with one threaded hole (tuning bench for the grasps). |
 | `bare` | The studio and an empty workbench. |
 
 Robustness (`--seeds 8`: every loose part up to 2 mm and 3 deg off; Oct 20): `bearing_block` 8/8, `gear_train` 8/8,
-`service_panel` 8/8, `tote_to_shelf` 6/8, `wheel_hub` 6/8, `handover` 3/6, `battery_module` 2/8 (its cells catch on the socket rims or
+`service_panel` 8/8, `tote_to_shelf` 6/8, `wheel_hub` 6/8, `handover` 3/6, `wrench` 4/6, `battery_module` 2/8 (its cells catch on the socket rims or
 get flung when the hand lets go: the next thing to fix). Seed 0, the scene as built, is the one in the videos.
 
 Each scene registers `step` (mechanics: threads, clamp, button), `progress` (the current step and its instruction,
@@ -63,7 +64,8 @@ latched in order as in `humanoid_mujoco_scenes`) and `plan` (the demo).
   - the threads (a rigid helix coupling, see `parts.py`) and the lid's captive screws (welded to the lid until
     they catch their threads);
   - the latches: the jig clamp (a weld the button releases), the outbound and shelf fixtures and the hand-over
-    bar's cradle (a weld made when the part is set flat in them), a gear set on its shaft (welded to the shaft's pivot);
+    bar's cradle (a weld made when the part is set flat in them), a gear set on its shaft (welded to the shaft's pivot), the wrench's socket on a hex head (welded
+    once it is over the head, let go when the bolt is home and the hand has the wrench again);
   - the gear mesh (the second gear's turn coupled to the first's, teeth in phase; the teeth aren't collided);
   - the drawer's and hatch's detents and soft-close (a small force near the ends of travel);
   - the testers' indicator flags;
