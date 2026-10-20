@@ -36,18 +36,15 @@ class _Entry:
     step: Optional[Callable[[mujoco.MjModel, mujoco.MjData], None]] = None
     reset: Optional[Callable] = None      # reset(model, data, rng): randomise a new episode
     progress: Optional[Callable] = None   # progress(model, data) -> (step index, n steps, instruction)
-    initial_camera: Optional[str] = None  # named camera to select when mounted
+    success: Optional[Callable] = None    # success(model, data) -> bool
 
 
 _REGISTRY: dict[str, _Entry] = {}
 _DISCOVERED = False
 
 
-def scene(name: str, *, robot_pos=(0.0, 0.0, ROBOT_STAND_LIFT_Z), camera=None, step=None, reset=None, progress=None,
-          initial_camera=None):
+def scene(name: str, *, robot_pos=(0.0, 0.0, ROBOT_STAND_LIFT_Z), camera=None, step=None, reset=None, progress=None, success=None):
     """Register ``build(spec)`` under ``name``. ``robot_pos``: arm base placement (default: on its stand).
-
-    ``initial_camera``: optional mounted camera name to select when the viewer opens.
 
     ``step(model, data)``: optional, called by the teleop once per control step before stepping the
     physics -- for scene mechanics a static model can't express (e.g. a one-way ratchet). It must keep
@@ -56,10 +53,11 @@ def scene(name: str, *, robot_pos=(0.0, 0.0, ROBOT_STAND_LIFT_Z), camera=None, s
     ``reset(model, data, rng)``: optional, called after every reset (and at startup) to randomise the
     new episode, e.g. object placement. ``progress(model, data) -> (index, total, instruction)``:
     optional, for multi-step tasks: which step the operator is on (index == total when done) and its
-    instruction, shown by the teleop and recorded per frame.
+    instruction, shown by the teleop and recorded per frame. ``success(model, data) -> bool``: optional,
+    whether the task is done (default for a multi-step task: all its steps are).
     """
     def deco(build):
-        _REGISTRY[name] = _Entry(build, tuple(robot_pos), camera, step, reset, progress, initial_camera)
+        _REGISTRY[name] = _Entry(build, tuple(robot_pos), camera, step, reset, progress, success)
         return build
 
     return deco
@@ -108,6 +106,18 @@ def scene_progress(name: str) -> Optional[Callable]:
     return _REGISTRY[name].progress
 
 
+def scene_success(name: str) -> Optional[Callable]:
+    _discover()
+    entry = _REGISTRY[name]
+    if entry.success is not None or entry.progress is None:
+        return entry.success
+
+    def all_steps_done(model, data) -> bool:
+        index, total, _ = entry.progress(model, data)
+        return index >= total
+    return all_steps_done
+
+
 def add_floor(spec: mujoco.MjSpec, light: bool = True) -> None:
     """Checker floor at z=0, a skybox and (``light``) an overhead light. Scenes use ``add_workcell``."""
     tex = spec.add_texture(
@@ -154,22 +164,4 @@ def make_model(name: str, cameras: dict[str, tuple[int, int]] | None = None) -> 
         if np.allclose(geom.solref, _DEFAULT_SOLREF) and np.allclose(geom.solimp, _DEFAULT_SOLIMP):
             geom.solref = CONTACT_SOLREF
             geom.solimp = CONTACT_SOLIMP
-    model = spec.compile()
-    # Load the scene's initial view into the model instead of automatic framing,
-    # giving each scene a centered, full view with a consistent starting configuration.
-    camera = entry.camera or {}
-    if "lookat" in camera:
-        model.stat.center[:] = camera["lookat"]
-    if "distance" in camera:
-        # MuJoCo's default free camera uses distance = 1.5 * extent.
-        original_extent = model.stat.extent
-        model.stat.extent = camera["distance"] / 1.5
-        # Preserve clipping distances for robot cameras when changing free-camera framing.
-        model.vis.map.znear *= original_extent / model.stat.extent
-        model.vis.map.zfar *= original_extent / model.stat.extent
-    for key in ("azimuth", "elevation"):
-        if key in camera:
-            setattr(model.vis.global_, key, camera[key])
-    if entry.initial_camera in [model.camera(i).name for i in range(model.ncam)]:
-        model.vis.global_.cameraid = model.camera(entry.initial_camera).id
-    return model
+    return spec.compile()

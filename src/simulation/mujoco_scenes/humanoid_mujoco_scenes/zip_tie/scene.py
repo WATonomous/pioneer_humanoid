@@ -135,7 +135,8 @@ def step(model: mujoco.MjModel, data: mujoco.MjData) -> None:
     data.eq_active[_weld_ids(model)] = _in_slot(fed)
 
 
-@scene("zip_tie", camera=dict(lookat=[0.40, 0.29, TABLE_TOP_Z + 0.065], distance=0.5, azimuth=215, elevation=-35), step=step)
+@scene("zip_tie", camera=dict(lookat=[0.40, 0.29, TABLE_TOP_Z + 0.065], distance=0.5, azimuth=215, elevation=-35), step=step,
+       success=lambda model, data: is_tight(model, data))
 def build(spec: mujoco.MjSpec) -> None:
     add_workcell(spec)
     spec.nuserdata = 1

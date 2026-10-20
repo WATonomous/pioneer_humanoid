@@ -51,8 +51,8 @@ def is_inserted(model: mujoco.MjModel, data: mujoco.MjData) -> bool:
     return bool(inside and bottom < TABLE_TOP_Z + BLOCK_HEIGHT - INSERT_DEPTH)
 
 
-@scene("peg_insert", camera=dict(lookat=[0.38, 0.29, TABLE_TOP_Z + 0.045], distance=0.5, azimuth=200, elevation=-35),
-       reset=reset, initial_camera="ego")
+@scene("peg_insert", camera=dict(lookat=[0.38, 0.29, TABLE_TOP_Z + 0.045], distance=0.5, azimuth=200, elevation=-35), reset=reset,
+       success=is_inserted)
 def build(spec: mujoco.MjSpec) -> None:
     add_workcell(spec)
     world = spec.worldbody

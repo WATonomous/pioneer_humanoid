@@ -9,30 +9,13 @@ pip install mujoco pillow
 pip install -e src/pioneer_humanoid -e src/simulation/mujoco_scenes
 ```
 
-## Viewer
-
-```bash
-python -m humanoid_mujoco_scenes.preview --interactive --scene matcha
-
-# Sorting
-python -m humanoid_mujoco_scenes.preview --interactive --scene sorting
-
-# Empty workcell
-python -m humanoid_mujoco_scenes.preview --interactive --scene bare
-```
-
-Bimanual simulation is the default. Use `--scene` to select a scene.
-All scenes use the shared lightbox workcell. Peg insertion, matcha and sorting start in `ego`.
-Use `[` / `]` to cycle cameras, or select `ego`, `wrist_left` or `wrist_right` under **Rendering → Camera**.
-Matcha and sorting also provide `front`. Tab toggles camera controls and Shift+Tab toggles joint/actuator controls; keep the camera viewport at 4:3 to match recorded frames.
-
 ## Use a scene
 
 ```bash
-# leader-arm teleop (on macOS use mjpython)
+# leader-arm teleop (needs a display; on macOS use mjpython)
 python src/teleop/pioneer_leader_arm_teleop/pioneer_leader_arm_teleop.py --target mujoco --scene peg_insert
 
-# headless PNG preview (Linux)
+# headless check: render the scene with the arm at home
 MUJOCO_GL=egl python -m humanoid_mujoco_scenes.preview --scene peg_insert --png peg.png
 ```
 
@@ -71,13 +54,14 @@ def build(spec: mujoco.MjSpec) -> None:
 - **`progress`** — optional `progress(model, data) -> (index, total, instruction)` for multi-step tasks.
   The teleop prints each new step, and `--record` stores the instruction as each frame's `task` (LeRobot's
   per-frame task) plus a `subtask_index` feature; `index == total` once everything is done.
+- **`success`** — optional `success(model, data) -> bool`: the task is done. Defaults to all `progress` steps done.
+  The synthetic demos keep only successful takes, and `humanoid_robot_learning.sim.evaluate` scores a policy with it.
 
 ## Scenes
 
 | name | notes |
 |------|-------|
 | `bare` | Empty lightbox workcell + arm. |
-| `sorting` | Sort red and blue blocks into matching trays on opposite sides of the table. Reset randomises block positions; progress counts correctly placed blocks. |
 | `drawer_stow` | Long horizon, 5 steps: open the drawer (pinch the tab on its front, pull), put the red, green and blue 4 cm blocks in it in the order announced, close it. Every reset shuffles the blocks' places (a strip beside the cabinet) and the order. Each step is checked and latched in order; `progress` gives the current step and its instruction. Laid out for the gripper pointing down: the jaws are 61 mm long and ~16 cm across fully open, so half-close it before reaching for a block. |
 | `matcha` | Long horizon, 4 steps: spoon the matcha into the cup, pour the water in, whisk it, serve the cup on the tray. Matcha and water are 5 mm balls (green in a pre-filled ladle, blue in a pitcher). Tools have chunky 25 mm square handles sticking up, for the gripper pointing down; the ladle and pitcher handles are posts on the side away from the cup, so held at the top and tipped toward the cup (wrist pitch) they empty over the far lip. Checks: ≥5/8 matcha and ≥12/24 water in the cup, whisk tines moved 20 cm inside the cup (circles or zig-zag), cup upright on the tray with most of the drink. Reset shifts the cup and pitcher. ~0.35 s physics per simulated second (32 balls; the slowest scene). |
 | `duplo` | Long horizon, 3 steps: stack the red, blue and yellow Duplo 2x4 bricks (64 x 32 x 19 mm) on the green baseplate in the colour order announced (first on the plate, each next one on the previous). Studs, walls and tubes are real collision geometry; the studs taper, so a brick put down within ~4 mm of the grid slides onto it. A brick seated square on the grid, overlapping what it sits on by at least one stud, is welded there (MuJoCo can't do the press fit); pulling it off with more than 6 N, or twisting it, releases it. Bricks lie in a row beside the plate, long side along X, for the gripper pointing down pinching their 32 mm width. Reset shuffles the order and the bricks' places. |

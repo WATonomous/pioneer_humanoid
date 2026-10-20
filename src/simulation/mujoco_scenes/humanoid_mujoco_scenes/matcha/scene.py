@@ -26,17 +26,16 @@ from humanoid_mujoco_scenes import TABLE_TOP_Z, add_workcell, scene
 
 T = TABLE_TOP_Z
 
-# Items sit beyond the resting grippers, spread across both sides of the table.
-CUP_POS = (0.55, 0.0)
+CUP_POS = (0.34, 0.34)
 CUP = dict(r=0.030, h=0.065, wall=0.003, n=14, mass=0.2)    # ceramic: heavy enough not to topple at a brush
-LADLE_POS = (0.56, 0.44)                      # ladle (already holding the matcha) stands in its holder
+LADLE_POS = (0.275, 0.435)                      # ladle (already holding the matcha) stands in its holder
 # Scooping a handful of 5 mm balls out of a jar isn't reliable with one arm in this space (tipped steeply
 # enough to scoop, the ladle's hand end hits its neighbours), so the ladle starts filled: carry it level, tip it.
-PITCHER_POS = (0.58, -0.42)
+PITCHER_POS = (0.425, 0.43)
 PITCHER = dict(r=0.030, h=0.06, wall=0.003, n=14, mass=0.05)
 PITCHER_HANDLE = 0.07                          # post above the rim (jaws, 44 mm half-length, clear the rim)
-WHISK_POS = (0.53, -0.18)
-TRAY = ((0.54, 0.68), (0.15, 0.27))         # x, y extent on the table
+WHISK_POS = (0.28, 0.265)
+TRAY = ((0.395, 0.495), (0.215, 0.29))         # x, y extent on the table
 RANDOM_SHIFT = 0.012                           # cup and pitcher placed within +-this per episode
 
 # 40 balls of 5 mm: physics ~0.3 s per simulated second (84 balls of 4 mm took 3 s: they touch each other).
@@ -85,14 +84,10 @@ def progress(model: mujoco.MjModel, data: mujoco.MjData) -> tuple[int, int, str]
 
 
 # ----------------------------------------------------------------------------- scene
-@scene("matcha", camera=dict(lookat=[0.05, 0.0, 0.99], distance=0.8, azimuth=180, elevation=-25),
-       step=step, reset=reset, progress=progress, initial_camera="ego")
+@scene("matcha", camera=dict(lookat=[0.35, 0.35, T + 0.055], distance=0.6, azimuth=200, elevation=-40),
+       step=step, reset=reset, progress=progress)
 def build(spec: mujoco.MjSpec) -> None:
     add_workcell(spec)
-    # Keep the observer camera inside the lightbox, clear of its back panel.
-    spec.visual.global_.fovy = 75
-    spec.worldbody.add_camera(name="front", pos=[0.775, 0.0, 1.328],
-                              xyaxes=[0, 1, 0, -0.422618, 0, 0.906308], fovy=75)
     spec.nuserdata = 5
     world = spec.worldbody
     box = mujoco.mjtGeom.mjGEOM_BOX

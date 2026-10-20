@@ -174,7 +174,7 @@
     <child
       link="Hip_A_L" />
     <axis
-      xyz="0 -1 0" />
+      xyz="0 1 0" />
     <limit
       lower="-0.1745"
       upper="1.0472"
@@ -408,8 +408,8 @@
     <axis
       xyz="0 -1 0" />
     <limit
-      lower="-0.5236"
-      upper="0.5236"
+      lower="-0.2618"
+      upper="0.2618"
       effort="120"
       velocity="20.42" />
   </joint>
@@ -696,7 +696,7 @@
     <child
       link="Ankle_R" />
     <axis
-      xyz="1 0 0" />
+      xyz="-1 0 0" />
     <limit
       lower="-0.5236"
       upper="0.8727"
@@ -756,8 +756,8 @@
     <axis
       xyz="0 1 0" />
     <limit
-      lower="-0.5236"
-      upper="0.5236"
+      lower="-0.2618"
+      upper="0.2618"
       effort="120"
       velocity="20.42" />
   </joint>
