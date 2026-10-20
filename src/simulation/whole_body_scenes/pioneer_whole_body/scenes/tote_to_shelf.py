@@ -44,7 +44,7 @@ SHELF_SIDE = 6 * STEP                      # the shelf is this far to the left (
 SHELF_Z = 0.73
 SHELF_X = (0.30, 0.70)
 SHELF_HALF_Y = 0.28
-FIX_PLAY = 0.02                            # the fixture's play round the tote (the latch takes it where it lies)
+FIX_PLAY = 0.03                            # the fixture's play round the tote (the latch takes it where it lies)
 CROUCH = 0.09                              # pelvis down (m)
 LEAN = 0.22                                # pelvis pitch (rad, forward)
 
@@ -209,8 +209,15 @@ def plan(wb, notes: dict) -> None:
         tp = d.xpos[m.body("tote").id].copy()                    # where the tote is now
         slot = tp + d.xmat[m.body("tote").id].reshape(3, 3) @ np.array([0, y, 0.006])
         S.carry(wb, "r", f"cell{k}_base", slot, clear=0.03, dur=1.4, over=0.08)   # well over the tote's handle
-        S.align_held(wb, "r", f"cell{k}", f"cell{k}_base", slot, yaw=None, rounds=2)
-        S.lower_until(wb, "r", 0.045, lambda c=k: d.xpos[m.body(f"cell{c}").id][2] < tp[2] + 0.008, dur=1.0)
+        down = lambda c=k: d.xpos[m.body(f"cell{c}").id][2] < tp[2] + 0.008     # noqa: E731
+        for _ in range(3):
+            S.align_held(wb, "r", f"cell{k}", f"cell{k}_base", slot, yaw=None, rounds=2)
+            S.lower_until(wb, "r", 0.045, down, dur=1.0)
+            if down():
+                break
+            p, r = wb.hand_goal["r"]                 # on the slot's rim: up a little, line up again
+            wb.reach("r", p + [0, 0, 0.02], r, 0.5)
+            wb.settle()
         S.release(wb, "r", up=0.08)
         wb.arm_joints_to("r", HIGH, 0.8)
         wb.settle()
@@ -237,12 +244,18 @@ def plan(wb, notes: dict) -> None:
         base = S.site(wb, "tote_base")
         S.move_two(wb, [dest[0] - base[0], dest[1] - base[1], 0.03 + dest[2] - base[2]], dur=dur)
         wb.wait(0.15)
-    S.align_two(wb, "tote", "tote_base", dest, yaw=0.0, rounds=2)
-    for side in ("l", "r"):
-        p, r = wb.hand_goal[side]
-        wb.reach(side, p - [0, 0, 0.05], r, 1.0)
-    wb.until(lambda: bool(d.eq_active[m.equality("shelf_latch").id]), 1.4)
-    wb.wait(0.2)
+    latched = lambda: bool(d.eq_active[m.equality("shelf_latch").id])      # noqa: E731
+    for attempt in range(3):
+        S.align_two(wb, "tote", "tote_base", dest, yaw=0.0, rounds=2)
+        for side in ("l", "r"):
+            p, r = wb.hand_goal[side]
+            wb.reach(side, p - [0, 0, 0.05], r, 1.0)
+        wb.until(latched, 1.4)
+        wb.wait(0.2)
+        if latched():
+            break
+        S.move_two(wb, [0, 0, 0.03], dur=0.6)       # on the fixture's rim: up a little, line up again
+    notes["shelf_tries"] = attempt + 1
     S.let_go(wb, "tote", up=0.1, back=0.0)
     wb.pelvis(z=wb.cmd["base_z"] + CROUCH, pitch=0.0, dur=1.4)
     for side in ("l", "r"):
