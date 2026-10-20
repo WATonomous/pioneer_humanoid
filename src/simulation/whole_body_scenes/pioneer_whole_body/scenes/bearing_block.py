@@ -65,7 +65,8 @@ STEPS = ("set the bearing block on the base plate", "insert the left bolt", "tig
 BUTTON_POS = (0.60, -0.30)
 BUTTON_R = 0.02
 BUTTON_TRAVEL = 0.008
-THREADS = (Thread("hole_l", ("bolt_l", "bolt_r"), TRAVEL), Thread("hole_r", ("bolt_l", "bolt_r"), TRAVEL))
+THREADS = (Thread("hole_l", ("bolt_l", "bolt_r"), TRAVEL, radius=0.005),     # 5 mm: the hole's chamfer (the block
+           Thread("hole_r", ("bolt_l", "bolt_r"), TRAVEL, radius=0.005))     # may sit 3 mm off in its pocket)
 _U_STEP = 0
 
 

@@ -317,14 +317,18 @@ def insert_bolt(wb: WholeBody, side: str, thread: Thread, bolt: str, over: float
     mouth = wb.d.xpos[thread.hole_id].copy()
     carry(wb, side, f"{bolt}_tip", mouth, clear=clear, over=over)
     wb.look(mouth, dur=0.3)
+    aim = mouth.copy()
     for attempt in range(3):
         # stand the bolt upright over the hole (it hangs a little crooked in the fingers), watching the tip
-        align_held(wb, side, bolt, f"{bolt}_tip", mouth, yaw=None, rounds=3, dur=0.4)
+        align_held(wb, side, bolt, f"{bolt}_tip", aim, yaw=None, rounds=3, dur=0.4)
         hover = wb.hand_goal[side]
         if lower_until(wb, side, clear + 0.015, lambda: thread.engaged(wb.d) == bolt,
                        dur=1.6 * (clear + 0.015) / 0.045):
             break
-        wb.reach(side, *hover, 0.6)                 # missed: back up over the hole, line it up again
+        # missed: where did the tip end up? Back up over the hole and aim off by as much the other way
+        miss = site(wb, f"{bolt}_tip")[:2] - mouth[:2]
+        aim[:2] -= np.clip(miss, -0.006, 0.006)
+        wb.reach(side, *hover, 0.6)
         wb.settle()
     else:
         raise TaskFailed(f"{bolt} did not catch the thread of {thread.hole}")
