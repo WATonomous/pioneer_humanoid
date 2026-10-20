@@ -16,8 +16,7 @@ def main() -> None:
     parser.add_argument("--scene", default="bare", help="scene name (an unknown name lists them)")
     parser.add_argument("--png", default="preview.png")
     parser.add_argument("--settle", type=float, default=1.0, help="seconds simulated before the frame")
-    parser.add_argument("--interactive", action="store_true", help="Open the MuJoCo viewer (macOS: use mjpython)")
-    parser.add_argument("--view", choices=("overview", "task"), default="overview", help="Interactive camera view")
+    parser.add_argument("--interactive", action="store_true", help="Open the MuJoCo viewer")
     args = parser.parse_args()
     if args.scene not in list_scenes():
         raise SystemExit(f"unknown --scene {args.scene!r}; available: {list_scenes()}")
@@ -37,8 +36,7 @@ def main() -> None:
         from mujoco import viewer
         hook = scene_step(args.scene)
         substeps = max(1, round(0.01 / model.opt.timestep))
-        camera = (scene_camera(args.scene) or {}) if args.view == "task" else dict(
-            lookat=[0.25, 0.0, 1.0], distance=1.8, azimuth=35, elevation=-20)
+        camera = scene_camera(args.scene) or {}
         with viewer.launch_passive(model, data) as handle:
             for key, value in camera.items():
                 setattr(handle.cam, key, value)

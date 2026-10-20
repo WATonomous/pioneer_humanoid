@@ -84,7 +84,7 @@ def progress(model: mujoco.MjModel, data: mujoco.MjData) -> tuple[int, int, str]
 
 
 # ----------------------------------------------------------------------------- scene
-@scene("matcha", camera=dict(lookat=[0.35, 0.35, T + 0.055], distance=0.6, azimuth=200, elevation=-40),
+@scene("matcha", camera=dict(lookat=[0.25, 0.0, 1.0], distance=1.8, azimuth=35, elevation=-20),
        step=step, reset=reset, progress=progress)
 def build(spec: mujoco.MjSpec) -> None:
     add_workcell(spec)

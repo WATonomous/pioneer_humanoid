@@ -18,8 +18,8 @@ mjpython -m humanoid_mujoco_scenes.preview --interactive --scene matcha
 # Linux / Windows
 python -m humanoid_mujoco_scenes.preview --interactive --scene matcha
 
-# Task close-up instead of the default two-arm overview
-mjpython -m humanoid_mujoco_scenes.preview --interactive --scene matcha --view task
+# Sorting
+mjpython -m humanoid_mujoco_scenes.preview --interactive --scene sorting
 
 # Empty workcell
 mjpython -m humanoid_mujoco_scenes.preview --interactive --scene bare
@@ -78,6 +78,7 @@ def build(spec: mujoco.MjSpec) -> None:
 | name | notes |
 |------|-------|
 | `bare` | Empty lightbox workcell + arm. |
+| `sorting` | Sort red and blue blocks into matching trays on opposite sides of the table. Reset randomises block positions; progress counts correctly placed blocks. |
 | `drawer_stow` | Long horizon, 5 steps: open the drawer (pinch the tab on its front, pull), put the red, green and blue 4 cm blocks in it in the order announced, close it. Every reset shuffles the blocks' places (a strip beside the cabinet) and the order. Each step is checked and latched in order; `progress` gives the current step and its instruction. Laid out for the gripper pointing down: the jaws are 61 mm long and ~16 cm across fully open, so half-close it before reaching for a block. |
 | `matcha` | Long horizon, 4 steps: spoon the matcha into the cup, pour the water in, whisk it, serve the cup on the tray. Matcha and water are 5 mm balls (green in a pre-filled ladle, blue in a pitcher). Tools have chunky 25 mm square handles sticking up, for the gripper pointing down; the ladle and pitcher handles are posts on the side away from the cup, so held at the top and tipped toward the cup (wrist pitch) they empty over the far lip. Checks: ≥5/8 matcha and ≥12/24 water in the cup, whisk tines moved 20 cm inside the cup (circles or zig-zag), cup upright on the tray with most of the drink. Reset shifts the cup and pitcher. ~0.35 s physics per simulated second (32 balls; the slowest scene). |
 | `duplo` | Long horizon, 3 steps: stack the red, blue and yellow Duplo 2x4 bricks (64 x 32 x 19 mm) on the green baseplate in the colour order announced (first on the plate, each next one on the previous). Studs, walls and tubes are real collision geometry; the studs taper, so a brick put down within ~4 mm of the grid slides onto it. A brick seated square on the grid, overlapping what it sits on by at least one stud, is welded there (MuJoCo can't do the press fit); pulling it off with more than 6 N, or twisting it, releases it. Bricks lie in a row beside the plate, long side along X, for the gripper pointing down pinching their 32 mm width. Reset shuffles the order and the bricks' places. |

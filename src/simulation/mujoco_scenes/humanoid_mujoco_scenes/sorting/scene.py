@@ -1,0 +1,56 @@
+"""Sort coloured blocks across the table into matching trays."""
+from __future__ import annotations
+
+import mujoco
+import numpy as np
+
+from humanoid_mujoco_scenes import TABLE_TOP_Z, add_workcell, scene
+
+COLORS = {"red": [0.85, 0.2, 0.15, 1], "blue": [0.15, 0.35, 0.85, 1]}
+TRAYS = {"red": (0.40, -0.42), "blue": (0.40, 0.42)}
+BLOCK_HALF = 0.02
+TRAY_HALF = 0.09
+
+
+def reset(model: mujoco.MjModel, data: mujoco.MjData, rng: np.random.Generator) -> None:
+    """Start each colour on the opposite side from its tray."""
+    for color, (_, target_y) in TRAYS.items():
+        for i in range(2):
+            adr = model.joint(f"{color}_{i}").qposadr[0]
+            x, y = np.array([0.34 + i * 0.10, -target_y]) + rng.uniform(-0.015, 0.015, 2)
+            angle = rng.uniform(-np.pi, np.pi)
+            data.qpos[adr:adr + 7] = [x, y, TABLE_TOP_Z + 0.006 + BLOCK_HALF, np.cos(angle / 2), 0, 0, np.sin(angle / 2)]
+
+
+def progress(model: mujoco.MjModel, data: mujoco.MjData) -> tuple[int, int, str]:
+    count = 0
+    for color, center in TRAYS.items():
+        for i in range(2):
+            pos = data.xpos[model.body(f"{color}_{i}").id]
+            inside = np.all(np.abs(pos[:2] - center) < TRAY_HALF - BLOCK_HALF)
+            resting = abs(pos[2] - (TABLE_TOP_Z + 0.006 + BLOCK_HALF)) < 0.01
+            count += int(inside and resting)
+    return count, 4, "sort the blocks into matching trays"
+
+
+@scene("sorting", camera=dict(lookat=[0.25, 0.0, 1.0], distance=1.8, azimuth=35, elevation=-20),
+       reset=reset, progress=progress)
+def build(spec: mujoco.MjSpec) -> None:
+    add_workcell(spec)
+    box = mujoco.mjtGeom.mjGEOM_BOX
+    for color, (x, y) in TRAYS.items():
+        tray = spec.worldbody.add_body(name=f"{color}_tray", pos=[x, y, TABLE_TOP_Z])
+        tray.add_geom(type=box, size=[TRAY_HALF, TRAY_HALF, 0.003], pos=[0, 0, 0.003], rgba=COLORS[color])
+        for axis in range(2):
+            for sign in (-1, 1):
+                pos = [0, 0, 0.016]
+                size = [TRAY_HALF, TRAY_HALF, 0.016]
+                pos[axis] = sign * (TRAY_HALF - 0.003)
+                size[axis] = 0.003
+                tray.add_geom(type=box, size=size, pos=pos, rgba=COLORS[color])
+        for i in range(2):
+            block = spec.worldbody.add_body(name=f"{color}_{i}",
+                                           pos=[0.34 + i * 0.10, -y, TABLE_TOP_Z + 0.006 + BLOCK_HALF])
+            block.add_freejoint(name=f"{color}_{i}")
+            block.add_geom(type=box, size=[BLOCK_HALF] * 3, mass=0.05,
+                           friction=[1.0, 0.02, 0.001], condim=4, rgba=COLORS[color])
