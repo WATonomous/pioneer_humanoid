@@ -59,6 +59,11 @@ def list_scenes() -> list[str]:
 
 def make_model(name: str) -> mujoco.MjModel:
     """Compile scene ``name`` with the humanoid's pelvis at ``robot_pos``, facing +X."""
+    return make_spec(name).compile()
+
+
+def make_spec(name: str) -> mujoco.MjSpec:
+    """The scene's MjSpec (``make_model`` compiles it; ``view --export`` writes it out as MJCF)."""
     from .robot import robot_spec
 
     e = entry(name)
@@ -77,4 +82,4 @@ def make_model(name: str) -> mujoco.MjModel:
         if np.allclose(geom.solref, _DEFAULT_SOLREF) and np.allclose(geom.solimp, _DEFAULT_SOLIMP):
             geom.solref = CONTACT_SOLREF
             geom.solimp = CONTACT_SOLIMP
-    return spec.compile()
+    return spec

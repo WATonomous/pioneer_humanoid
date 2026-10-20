@@ -13,6 +13,16 @@ MUJOCO_GL=osmesa python -m pioneer_whole_body.run_demo --scene bearing_block --o
 ```
 
 ```bash
+# watch in MuJoCo's interactive viewer: the scene, its demo live, or a recorded run
+python -m pioneer_whole_body.view --scene bearing_block --play
+python -m pioneer_whole_body.view --scene bearing_block --tape out/bearing_block.npz
+# any scene as an MJCF file (static: threads and latches are Python); the robot alone: assets/pioneer_v2_humanoid/pioneer_v2.xml
+python -m pioneer_whole_body.view --scene bearing_block --export bearing_block.xml
+```
+
+Don't open the URDF in MuJoCo's viewer directly: its collision boxes cover the CAD meshes (a robot of grey boxes).
+
+```bash
 # robustness: seeds 1..N with every loose part a little off (up to 2 mm and 3 deg), in parallel: the success rate
 MUJOCO_GL=osmesa python -m pioneer_whole_body.run_demo --scene bearing_block --seeds 20
 ```
@@ -53,6 +63,7 @@ latched in order as in `humanoid_mujoco_scenes`) and `plan` (the demo).
 | `skills.py` | What plans are written in: `pick_knob`, `carry`, `align_held` (hover, level and turn the held part, correct by looking), `lower_until`, `release`, `insert_bolt`, `tighten` (release / turn back / regrasp strokes), `press`, and two-handed `pick_two`, `align_two`, `move_two`, `tighten_two`, `let_go`. A failed skill raises `TaskFailed`. |
 | `parts.py` | Knob bolts and threaded holes. A thread is a nut body in the part with a turn hinge and a feed slide coupled rigidly (pitch 12 mm, quick-acting); a bolt whose tip is in the hole's mouth, upright and centred gets welded onto it, from then on it only turns and feeds. Seated bolts stay tight. |
 | `studio.py` | The room: floor, lights, workbench. |
+| `view.py` | The interactive viewer (`--play`, `--tape`) and `--export` to MJCF. |
 | `video.py`, `shots.py` | The tape, and the renderer: a camera that follows the robot's gaze target (smoothed), pulls back while it walks, stays in front of it when it turns round, the head camera inset, a caption bar with the current step. |
 
 ## Physics vs. scripting
