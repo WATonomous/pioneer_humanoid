@@ -36,7 +36,7 @@ def main() -> None:
     if args.interactive:
         from mujoco import viewer
 
-        viewer.launch(model, data, show_right_ui=False)
+        viewer.launch(model, data)
         return
     mujoco.mj_step(model, data, nstep=int(args.settle / model.opt.timestep))
 
