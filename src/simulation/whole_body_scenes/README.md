@@ -46,11 +46,12 @@ as fast as real time).
 | `wrench` | 5 steps, ~79 s. Walks up; takes a T-handle socket wrench out of its holder by its knob (right hand); sets the socket over the first hex-head bolt (a hex head gives the fingers nothing to turn: the tool does) until it takes the head, and drives the bolt home by twisting the wrench's knob (strokes); lifts it off, the same for the second bolt; puts the wrench back in its holder; presses the test button with its left thumb: the lamp comes up. |
 | `sort_bins` | 2 steps, ~130 s. Sorting by colour, by sight: walks up; looks over a kitting tray of six knob-topped parts with its head camera and finds the red, green and blue tops in the images (each blob's ray met with the plane of the tops: where each part is and its colour come from the camera, not the simulator; which is where changes with every seed); then, from the middle out, looks straight at each part, takes it with the hand on its side and puts it in the bin of its colour: green in the middle (each hand its own half), red and blue out at the bench's ends (it side-steps along the bench carrying the part until the bin is by the hand, puts it in, steps back). |
 | `wipe_table` | 4 steps, ~40 s. Wiping the bench, by sight, both hands, non-prehensile: walks up; finds twelve spilled crumbs with its head camera; takes a squeegee from its tray in each hand; then pass after pass, both hands together (never both in the middle lanes), sets each blade down behind the nearest crumb in its lane, pushes the crumbs into the gutter at the back of the bench, lifts the blade back; looks again (hands out of the camera's view) and passes the lanes that still have crumbs in them until the bench is clean; drops the squeegees back in their trays. The crumbs move only by being pushed. The video is seed 7 (one crumb slips past a blade's end and takes a second pass); in seed 0 a squeegee tips out of the grip. |
+| `simon_panel` | 4 steps, ~60 s. Watch and repeat: walks up; presses the panel's start button; watches the display with its head camera (an image every 0.1 s: which colour flag stands) while the panel plays a sequence of colours, one flag at a time; then presses the coloured buttons back in that order, the left hand the two on the left, the right hand the two on the right; checks the panel took it and starts the second, longer round (4 then 6 colours, random per seed); the lamp comes up. A wrong press shows every flag and the round is played again. |
 | `grasp_test` | A bolt in a rack and a plate with one threaded hole (tuning bench for the grasps). |
 | `bare` | The studio and an empty workbench. |
 
 Robustness (`--seeds 8`: every loose part up to 2 mm and 3 deg off; Oct 20): `bearing_block` 8/8, `gear_train` 8/8,
-`service_panel` 8/8, `tote_to_shelf` 6/8, `wheel_hub` 6/8, `handover` 5/6, `wrench` 6/6, `sort_bins` 8/8 (colours and parts shuffled), `wipe_table` 6/8 (a squeegee tips over in the grip), `battery_module` 2/8 (its cells catch on the socket rims or
+`service_panel` 8/8, `tote_to_shelf` 6/8, `wheel_hub` 6/8, `handover` 5/6, `wrench` 6/6, `sort_bins` 8/8 (colours and parts shuffled), `wipe_table` 6/8 (a squeegee tips over in the grip), `simon_panel` 8/8 (sequences random), `battery_module` 2/8 (its cells catch on the socket rims or
 get flung when the hand lets go: the next thing to fix). Seed 0, the scene as built, is the one in the videos.
 
 Each scene registers `step` (mechanics: threads, clamp, button), `progress` (the current step and its instruction,
@@ -84,8 +85,9 @@ latched in order as in `humanoid_mujoco_scenes`) and `plan` (the demo).
   - the drawer's and hatch's detents and soft-close (a small force near the ends of travel);
   - the testers' indicator flags;
   - the robot's balance (the pelvis is moved and the legs are solved so the feet don't slide).
-  Object poses come from the simulator (as a perfect perception stack would give them), except in `sort_bins` and
-  `wipe_table`: there the parts' places and colours, and the crumbs, come from the head camera's images.
+  Object poses come from the simulator (as a perfect perception stack would give them), except in `sort_bins`,
+  `wipe_table` and `simon_panel`: there the parts' places and colours, the crumbs and the colour sequence come from
+  the head camera's images.
 - The plans are scripted, not learned; they check their results and retry where a person would (a part not
   seated, a lid whose screws didn't catch). Long scenes are sensitive to small changes: re-run the demo after
   editing a scene or a skill.

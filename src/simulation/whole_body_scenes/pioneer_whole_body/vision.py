@@ -14,7 +14,7 @@ import numpy as np
 from scipy import ndimage
 
 # hue ranges (degrees) of the colour classes; pixels must also be saturated and bright enough
-HUES = {"red": ((345, 360), (0, 12)), "green": ((95, 160),), "blue": ((200, 245),)}
+HUES = {"red": ((345, 360), (0, 12)), "green": ((95, 160),), "blue": ((200, 245),), "yellow": ((42, 66),)}
 MIN_SAT, MIN_VAL = 0.45, 0.2
 
 
