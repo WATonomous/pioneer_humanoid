@@ -68,12 +68,12 @@ from isaaclab.scene import InteractiveScene  # noqa: E402
 
 from humanoid_isaac_scenes import make_scene_cfg, scene_camera  # noqa: E402
 from humanoid_rl_tasks.push_block.push_env_cfg import RewardsCfg, TerminationsCfg  # noqa: E402
-from humanoid_robot_learning.pioneer_interface import (  # noqa: E402
+from humanoid_robot_learning.deploy.pioneer_interface import (  # noqa: E402
     SIM_ACTION_JOINT_ORDER,
     PioneerLeftArmInterface,
 )
-from humanoid_robot_learning.rtc_driver import RTCDrivenPolicy  # noqa: E402
-from humanoid_robot_learning.schema import enabled_images, load_yaml  # noqa: E402
+from humanoid_robot_learning.deploy.rtc_driver import RTCDrivenPolicy  # noqa: E402
+from humanoid_robot_learning.recording.schema import enabled_images, load_yaml  # noqa: E402
 from pioneer_humanoid.bimanual_arm import (  # noqa: E402
     BIMANUAL_ARM_CFG,
     RIGHT_ARM_JOINTS,

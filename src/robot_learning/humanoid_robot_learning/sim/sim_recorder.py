@@ -13,7 +13,7 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
-from humanoid_robot_learning.episode_keys import EpisodeFlags, EpisodeKeyboard
+from humanoid_robot_learning.recording.episode_keys import EpisodeFlags, EpisodeKeyboard
 
 
 def _open_for_append(repo_id: str, root: Path):

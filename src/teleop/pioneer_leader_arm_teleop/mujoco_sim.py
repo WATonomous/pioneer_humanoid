@@ -21,7 +21,7 @@ sys.path.insert(0, str(_SRC / "pioneer_humanoid"))
 sys.path.insert(0, str(_SRC / "simulation" / "mujoco_scenes"))
 sys.path.insert(0, str(_SRC / "robot_learning"))
 
-from humanoid_robot_learning.sim_teleop_record import (  # noqa: E402
+from humanoid_robot_learning.sim.sim_teleop_record import (  # noqa: E402
     add_record_args,
     load_record_schema,
     make_sim_recorder,

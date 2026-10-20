@@ -8,10 +8,10 @@ from typing import Any
 
 import numpy as np
 
-from humanoid_robot_learning.arm_pose_io import arm_pose_to_vector
-from humanoid_robot_learning.observation import fit_image, image_msg_to_hwc
-from humanoid_robot_learning.schema import enabled_images
-from humanoid_robot_learning.snapshot import ObservationSnapshot
+from humanoid_robot_learning.recording.arm_pose_io import arm_pose_to_vector
+from humanoid_robot_learning.recording.observation import fit_image, image_msg_to_hwc
+from humanoid_robot_learning.recording.schema import enabled_images
+from humanoid_robot_learning.recording.snapshot import ObservationSnapshot
 
 logger = logging.getLogger(__name__)
 

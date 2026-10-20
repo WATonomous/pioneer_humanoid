@@ -5,9 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from humanoid_robot_learning.record_utils import get_next_experiment_path_with_gap
-from humanoid_robot_learning.sinks.hdf5 import Hdf5Sink
-from humanoid_robot_learning.sinks.lerobot import LeRobotSink
+from humanoid_robot_learning.recording.record_utils import get_next_experiment_path_with_gap
+from humanoid_robot_learning.recording.sinks.hdf5 import Hdf5Sink
+from humanoid_robot_learning.recording.sinks.lerobot import LeRobotSink
 
 SINK_ALIASES = {
     "lerobot": "lerobot",

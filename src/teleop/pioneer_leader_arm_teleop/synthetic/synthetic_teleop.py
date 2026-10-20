@@ -30,7 +30,7 @@ sys.path.insert(0, str(_SRC / "robot_learning"))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # leader_mapping, arm_limits, servo_leader
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from humanoid_robot_learning.sim_teleop_record import add_record_args, load_record_schema, make_sim_recorder  # noqa: E402
+from humanoid_robot_learning.sim.sim_teleop_record import add_record_args, load_record_schema, make_sim_recorder  # noqa: E402
 
 from arm_limits import GRIPPER_OPEN_DEG  # noqa: E402
 from leader_mapping import CONTROL_DT, DEFAULT_SIGNS, WRIST_DAMPING, LeaderMapping  # noqa: E402
@@ -244,7 +244,7 @@ def main() -> None:
         raise SystemExit(f"no synthetic plan for --scene {args.scene!r}; have: {sorted(TASKS)}")
     args.task_description = args.task_description or TASKS[args.scene].instruction
     if args.record and args.dataset_root is None:   # never mixed into the human recordings under <root>/sim
-        from humanoid_robot_learning.record_utils import resolve_dataset_root
+        from humanoid_robot_learning.recording.record_utils import resolve_dataset_root
         args.dataset_root = str(resolve_dataset_root(record.cfg, subdir=f"sim_synthetic/{args.scene}"))
 
     # Takes already in the dataset (an interrupted run picks up where it stopped).
