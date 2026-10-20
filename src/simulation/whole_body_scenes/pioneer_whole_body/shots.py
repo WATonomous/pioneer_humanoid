@@ -57,10 +57,10 @@ def follow(t: float, tape, i: int) -> Shot:
     az = 212 - 70 * np.sin(np.pi * u) ** 1.5 * (1 if u < 0.5 else 0.8) + 6 * np.sin(2 * np.pi * t / 41) \
         + np.degrees(yaw)
     el = -16 + 4 * np.sin(2 * np.pi * t / 53)
-    dist = 1.3 + 1.4 * w
+    dist = 1.45 + 1.3 * w
     # aim between the work and the robot's chest, so the head stays in the picture
     work = look - 0.6 * w * 0.3 * h
-    target = np.array([*(work[:2] - 0.1 * h[:2]), 0.45 * work[2] + 0.55 * 1.22])
+    target = np.array([*(work[:2] - 0.1 * h[:2]), 0.4 * work[2] + 0.6 * 1.26])
     return Shot(tuple(target), dist, az, el)
 
 

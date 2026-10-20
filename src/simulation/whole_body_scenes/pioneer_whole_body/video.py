@@ -117,7 +117,7 @@ def _render_chunk(args):
         dr.rectangle([0, 0, w, int(h * 0.105)], fill=(18, 20, 24, 175))
         dr.text((22, 12), title, font=font_t, fill=(245, 245, 245, 255))
         dr.text((22, 14 + h // 26), step or cap_title, font=font_s, fill=(250, 176, 80, 255))
-        dr.text((w - 130, 14), f"{tape.t[i]:6.1f} s", font=font_s, fill=(210, 210, 210, 255))
+        dr.text((w - 130, 14 + h // 26), f"{tape.t[i]:6.1f} s", font=font_s, fill=(210, 210, 210, 255))
         if inset:
             dr.text((w - w // 4 - 18, h - h // 4 - 44), "head camera", font=font_s, fill=(235, 235, 235, 255))
         proc.stdin.write(np.asarray(im).tobytes())
