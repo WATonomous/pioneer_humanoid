@@ -115,7 +115,7 @@ A rerun with the same `--dataset_root` skips seeds already saved, so an interrup
 |---|---|
 | `synthetic/synthetic_teleop.py` | entry point: the loop above, recording, preview |
 | `synthetic/human_operator.py` | how the person moves: `op.see`, `op.move`, `op.arc`, `op.set_grip` (motion model in its docstring) |
-| `synthetic/synthetic_tasks.py` | what the person does in each scene: one `plan` + `success` per scene |
+| `synthetic/synthetic_tasks.py` | what the person does in each scene: one `plan` per scene (success comes from the scene's `success`) |
 
 ### Adding a scene
 
@@ -128,8 +128,10 @@ def my_plan(op, model, data, notes):
         raise TaskFailed("grasp")
     ...
 
-TASKS["my_scene"] = Task(my_plan, my_success, "pick up the cube")
+TASKS["my_scene"] = Task(my_plan, "pick up the cube")
 ```
+
+The scene itself registers `success` (or a multi-step `progress`): see [mujoco_scenes](../../simulation/mujoco_scenes/README.md).
 
 ### Notes
 
