@@ -20,8 +20,10 @@ afterwards in `--workers` processes (CPU rendering is ~0.6 s a frame, the physic
 
 | name | what the robot does |
 |------|---------------------|
-| `bearing_block` | 7 steps, ~85 s. Walks up to the bench; picks the bearing block by its boss (left hand), lines it up over the base plate and sets it in the plate's pocket; picks a knob bolt from its rack (left hand), stands it upright over the hole, lowers it until the thread catches and screws it home (release, turn back, regrasp, ~5 strokes); the same with the right bolt and right hand; presses the jig's clamp release with its thumb; takes the bolted assembly by both bolt knobs, side-steps 0.45 m carrying it and sets it in the outbound tray. |
-| `battery_module` | 5 steps, ~120 s. Walks up with its hands raised; side-steps to the cell rack, takes a cell in each hand, side-steps back and loads them into the holder's sockets (twice: four cells); side-steps to the lid stand, lifts the lid by its two captive screws with both hands, carries it back, lines it up and sets it on the holder's pillars (the screws catch their threads); screws both down at once, one per hand; side-steps to the tester and presses its button: the indicator flips up. |
+| `bearing_block` | 7 steps, ~87 s. Walks up to the bench; picks the bearing block by its boss (left hand), lines it up over the base plate (position, level, yaw: look, correct, look again) and sets it in the plate's pocket; picks a knob bolt from its rack (left hand), stands it upright over the hole, lowers it until the thread catches and screws it home (grip, turn, let go, turn back, regrasp: ~5 strokes); the same with the right bolt and right hand; presses the jig's clamp release with its thumb; takes the bolted assembly by both bolt knobs, side-steps 0.45 m carrying it and sets it in the outbound fixture (its latch snaps over the plate). |
+| `battery_module` | 5 steps, ~155 s. Walks up with its hands raised; side-steps to the cell rack, takes a cell in each hand, side-steps back and loads them into the holder's sockets (twice: four cells); side-steps to the lid stand, lifts the lid by its two captive screws with both hands, carries it back, lines it up and sets it on the holder's pillars (the screws catch their threads); screws both down at once, one per hand; side-steps to the tester and presses its button: the indicator flips up. |
+| `wheel_hub` | 4 steps, ~77 s. Walks up with its hands raised; side-steps to the wheel stand, lifts the wheel by its two handle knobs with both hands, carries it back and lowers it over the axle onto its collar; takes the hub nut from its rack (right hand), lowers it down over the axle until its thread catches and screws it home; spins the wheel a full turn by pushing a handle round with its index finger. |
+| `tote_to_shelf` | 3 steps, ~68 s. Walks up with its hands raised; takes the three cells from the rack one at a time (right hand), side-steps along the bench to each slot of the tote and stands the cell in it; lifts the loaded tote by its two handle knobs with both hands, side-steps 0.9 m to the low shelf carrying it, crouches and leans, and sets it in the shelf's fixture (its latch snaps), the cells still in it. |
 | `grasp_test` | A bolt in a rack and a plate with one threaded hole (tuning bench for the grasps). |
 | `bare` | The studio and an empty workbench. |
 
@@ -45,7 +47,8 @@ latched in order as in `humanoid_mujoco_scenes`) and `plan` (the demo).
   (no attachment welds); bolts turn because the fingertips twist the knobs; a part put down a few mm off settles
   into its pocket on its chamfers; a cell dropped into a socket stands in it.
 - Not physics: the thread (a rigid helix coupling, see `parts.py`), the jig clamp (a weld that the button
-  releases), the lid's captive screws (welded to the lid until they catch their threads), the robot's balance (the pelvis is moved; the legs are solved so the feet don't slide), the tester's
+  releases), the outbound and shelf fixtures' latches (welds made when the part is set flat in them), the lid's captive
+  screws (welded to the lid until they catch their threads), the robot's balance (the pelvis is moved; the legs are solved so the feet don't slide), the tester's
   indicator. Object poses come from the simulator (as a perfect perception stack would give them).
 - The plans are scripted, not learned; they check their results and retry where a person would (a part not
   seated, a lid whose screws didn't catch). Long scenes are sensitive to small changes: re-run the demo after

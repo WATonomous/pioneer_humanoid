@@ -173,7 +173,7 @@ def move_two(wb: WholeBody, shift, dur: float = 1.2) -> None:
 
 
 def carry(wb: WholeBody, side: str, point_site: str, target: np.ndarray, yaw: float | None = None,
-          clear: float = 0.04, dur: float = 1.4, look=True) -> None:
+          clear: float = 0.04, dur: float = 1.4, look=True, over: float = 0.03) -> None:
     """Move the held part so that its ``point_site`` comes to rest ``clear`` above ``target`` (an arc over)."""
     p_cmd, r_cmd = wb.hand_goal[side]
     offset = site(wb, point_site) - p_cmd                # where the part sits relative to the commanded palm
@@ -183,7 +183,7 @@ def carry(wb: WholeBody, side: str, point_site: str, target: np.ndarray, yaw: fl
     goal = np.asarray(target, float) - offset + [0, 0, clear]
     if look:
         wb.look(target, dur=0.6)
-    top_z = max(p_cmd[2], goal[2]) + 0.03
+    top_z = max(p_cmd[2], goal[2]) + over                # the arc's top: ``over`` above the higher end
     wb.reach(side, [*(0.5 * (p_cmd[:2] + goal[:2])), top_z], _mid(r_cmd, r1), dur * 0.5)
     wb.settle()
     wb.reach(side, goal, r1, dur * 0.5)
