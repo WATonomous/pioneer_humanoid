@@ -8,7 +8,54 @@ import argparse
 
 import mujoco
 
-from humanoid_mujoco_scenes import list_scenes, make_model, scene_camera, scene_reset
+from humanoid_mujoco_scenes import list_scenes, make_model, scene_camera, scene_reset, scene_step
+
+
+def _launch_interactive(scene_name: str, model: mujoco.MjModel, data: mujoco.MjData) -> None:
+    """Run scene mechanics in the managed viewer's physics thread, including on macOS."""
+    from mujoco import viewer
+
+    hook = scene_step(scene_name)
+    if hook is None:
+        viewer.launch(model, data)
+        return
+
+    reset_hook = scene_reset(scene_name)
+    previous_control = mujoco.get_mjcb_control()
+    last_hook_time = float("-inf")
+    last_observed_time = float("-inf")
+
+    def control(current_model, current_data):
+        nonlocal last_hook_time, last_observed_time
+        if previous_control is not None:
+            previous_control(current_model, current_data)
+        if current_model is not model or current_data is not data:
+            return  # The managed viewer also permits loading another model.
+        now = current_data.time
+        if now < last_observed_time:
+            last_hook_time = float("-inf")
+            if now == 0:
+                from pioneer_humanoid.mujoco_bimanual_arm import set_home
+                import numpy as np
+
+                set_home(model, data)
+                if reset_hook is not None:
+                    reset_hook(model, data, np.random.default_rng())
+                # The callback runs during actuation: refresh positions/velocities after reset
+                # without recursively entering mj_forward and its control callback.
+                mujoco.mj_fwdPosition(model, data)
+                mujoco.mj_fwdVelocity(model, data)
+        last_observed_time = now
+        # Match teleop's 10 ms control cadence; paused mj_forward calls must not advance task state.
+        if now - last_hook_time >= 0.01 - 1e-9:
+            last_hook_time = now
+            hook(current_model, current_data)
+
+    mujoco.set_mjcb_control(control)
+    try:
+        viewer.launch(model, data)
+    finally:
+        mujoco.set_mjcb_control(previous_control)
 
 
 def main() -> None:
@@ -34,9 +81,7 @@ def main() -> None:
         reset_hook(model, data, np.random.default_rng())
     mujoco.mj_forward(model, data)
     if args.interactive:
-        from mujoco import viewer
-
-        viewer.launch(model, data)
+        _launch_interactive(args.scene, model, data)
         return
     mujoco.mj_step(model, data, nstep=int(args.settle / model.opt.timestep))
 
