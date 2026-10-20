@@ -4,7 +4,8 @@ from __future__ import annotations
 import mujoco
 import numpy as np
 
-from humanoid_mujoco_scenes import TABLE_TOP_Z, add_workcell, scene
+from humanoid_mujoco_scenes import scene
+from humanoid_mujoco_scenes.workcell import OPEN_TABLE_TOP_Z as TABLE_TOP_Z, add_open_workcell
 
 COLORS = {"red": [0.85, 0.2, 0.15, 1], "blue": [0.15, 0.35, 0.85, 1]}
 TRAYS = {"red": (0.40, -0.42), "blue": (0.40, 0.42)}
@@ -41,14 +42,12 @@ def progress(model: mujoco.MjModel, data: mujoco.MjData) -> tuple[int, int, str]
     return count, 4, "sort the blocks into matching trays"
 
 
-@scene("sorting", camera=dict(lookat=[0.05, 0.0, 0.99], distance=0.8, azimuth=180, elevation=-25),
-       reset=reset, progress=progress)
+@scene("sorting", camera=dict(lookat=[0.15, 0.0, 0.95], distance=1.8, azimuth=180, elevation=-15),
+       reset=reset, progress=progress, initial_camera="ego")
 def build(spec: mujoco.MjSpec) -> None:
-    add_workcell(spec)
-    # View from inside the lightbox so its back panel does not hide the task.
-    spec.visual.global_.fovy = 110
-    spec.worldbody.add_camera(name="front", pos=[0.775, 0.0, 1.328],
-                              xyaxes=[0, 1, 0, -0.422618, 0, 0.906308], fovy=110)
+    add_open_workcell(spec)
+    spec.worldbody.add_camera(name="front", pos=[1.889, 0.0, 1.416],
+                              xyaxes=[0, 1, 0, -0.258819, 0, 0.965926])
     box = mujoco.mjtGeom.mjGEOM_BOX
     for color, (x, y) in TRAYS.items():
         tray = spec.worldbody.add_body(name=f"{color}_tray", pos=[x, y, TABLE_TOP_Z])

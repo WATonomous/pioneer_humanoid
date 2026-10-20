@@ -22,7 +22,8 @@ import math
 import mujoco
 import numpy as np
 
-from humanoid_mujoco_scenes import TABLE_TOP_Z, add_workcell, scene
+from humanoid_mujoco_scenes import scene
+from humanoid_mujoco_scenes.workcell import OPEN_TABLE_TOP_Z as TABLE_TOP_Z, add_open_workcell
 
 T = TABLE_TOP_Z
 
@@ -85,14 +86,12 @@ def progress(model: mujoco.MjModel, data: mujoco.MjData) -> tuple[int, int, str]
 
 
 # ----------------------------------------------------------------------------- scene
-@scene("matcha", camera=dict(lookat=[0.05, 0.0, 0.99], distance=0.8, azimuth=180, elevation=-25),
-       step=step, reset=reset, progress=progress)
+@scene("matcha", camera=dict(lookat=[0.15, 0.0, 0.95], distance=1.8, azimuth=180, elevation=-15),
+       step=step, reset=reset, progress=progress, initial_camera="ego")
 def build(spec: mujoco.MjSpec) -> None:
-    add_workcell(spec)
-    # View from inside the lightbox so its back panel does not hide the task.
-    spec.visual.global_.fovy = 110
-    spec.worldbody.add_camera(name="front", pos=[0.775, 0.0, 1.328],
-                              xyaxes=[0, 1, 0, -0.422618, 0, 0.906308], fovy=110)
+    add_open_workcell(spec)
+    spec.worldbody.add_camera(name="front", pos=[1.889, 0.0, 1.416],
+                              xyaxes=[0, 1, 0, -0.258819, 0, 0.965926])
     spec.nuserdata = 5
     world = spec.worldbody
     box = mujoco.mjtGeom.mjGEOM_BOX

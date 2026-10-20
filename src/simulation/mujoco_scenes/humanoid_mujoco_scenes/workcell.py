@@ -1,4 +1,4 @@
-"""Lightbox workcell for MuJoCo: the room every manipulation scene builds on, as in Isaac.
+"""Shared lightbox and plain-table workcells for MuJoCo scenes.
 
 The same rig as Isaac's ``humanoid_rl_tasks.workcell.LightboxWorkcellCfg`` (not imported: that module
 needs Isaac): the arm on its floor stand in front of the 30.5-inch table inside the lightbox. The visible
@@ -65,3 +65,17 @@ def add_workcell(spec: mujoco.MjSpec) -> None:
         world.add_light(name=f"fill_light{'_l' if y > 0 else '_r'}", pos=[cx, cy + y, FILL_LIGHT_Z - 0.02],
                         dir=[0, 0, -1], cutoff=75, exponent=1, diffuse=[0.45, 0.45, 0.45], specular=[0.1, 0.1, 0.1],
                         castshadow=True)
+
+
+# Plain-table workcell used by the recorded peg-insertion videos.
+OPEN_TABLE_TOP_Z = 0.705
+
+
+def add_open_workcell(spec: mujoco.MjSpec) -> None:
+    """Brown table, checker floor and overhead lighting shared by viewing and recording."""
+    add_floor(spec)
+    spec.worldbody.add_geom(
+        name="table", type=mujoco.mjtGeom.mjGEOM_BOX,
+        size=[0.35, 0.6, OPEN_TABLE_TOP_Z / 2],
+        pos=[0.5, 0.0, OPEN_TABLE_TOP_Z / 2], rgba=[0.55, 0.42, 0.3, 1],
+    )
