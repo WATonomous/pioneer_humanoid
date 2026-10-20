@@ -198,8 +198,9 @@ def run() -> None:
                 if recorder is not None and all(arm["mapping"].engaged for arm in arms) and step % record_every == 0:
                     states = []
                     for arm in arms:
-                        closure = ((data.qpos[arm["grip_qpos"]] - arm["grip_open"])
-                                   / (arm["grip_closed"] - arm["grip_open"])).mean()
+                        q = data.qpos[arm["grip_qpos"]]
+                        o, c = arm["grip_open"], arm["grip_closed"]
+                        closure = ((q - o) / (c - o)).mean()
                         states.extend([*data.qpos[arm["arm_qpos"]], np.clip(closure, 0, 1)])
                     state = np.asarray(states, dtype=np.float32)
                     action = np.asarray(actions, dtype=np.float32)
