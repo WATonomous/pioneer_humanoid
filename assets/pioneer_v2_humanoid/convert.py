@@ -1,5 +1,5 @@
 """Convert the Pioneer v2 URDF (Prometheus repo, humanoid_urdf/pioneer_v2) for MuJoCo here: every visual mesh
-decimated to a binary STL (the CAD export is ~270 MB of OBJ; this is ~20 MB), the URDF rewritten to point at them.
+decimated to a binary STL (the CAD export is ~270 MB of OBJ; this is ~32 MB), the URDF rewritten to point at them.
 
     python convert.py <Prometheus>/Backend/cad_bench/projects/humanoid_urdf/pioneer_v2/pioneer_humanoid_v2_mujoco.urdf
 
@@ -28,9 +28,14 @@ def main(src):
     for f, m in meshes.items():
         # budget by area share and face share: big smooth shells need fewer triangles than small detailed parts
         target = int(np.clip(FACE_BUDGET * len(m.faces) / total, MIN_FACES, MAX_FACES))
-        v, fc = np.asarray(m.vertices, np.float32), np.asarray(m.faces)
-        if len(fc) > target:
-            v, fc = fast_simplification.simplify(v, fc, target_count=target)
+        m.merge_vertices()             # the OBJ splits vertices at every normal seam: unmerged, the decimator
+        v, fc = np.asarray(m.vertices, np.float32), np.asarray(m.faces)   # opens the seams (see-through legs)
+        while len(fc) > target:
+            dv, df = fast_simplification.simplify(v, fc, target_count=target)
+            if trimesh.Trimesh(dv, df, process=False).area > 0.95 * m.area or target >= MAX_FACES:
+                v, fc = dv, df
+                break
+            target = min(2 * target, MAX_FACES)   # it ate surface (thin plates, small holes): keep more triangles
         out = f.replace(".obj", ".stl")
         trimesh.Trimesh(v, fc, process=False).export(os.path.join(HERE, out))
         text = text.replace(f'"{f}"', f'"{out}"')
