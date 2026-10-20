@@ -23,8 +23,8 @@ python -m humanoid_mujoco_scenes.preview --interactive --scene bare
 
 Bimanual simulation is the default. Use `--scene` to select a scene.
 Peg insertion, matcha and sorting share the videos’ plain table and start in `ego`.
-Use `[` / `]` to cycle cameras, or press Tab to show the viewer controls and select `ego`, `wrist_left` or `wrist_right` under **Rendering → Camera**.
-Matcha and sorting also provide `front`. Keep the camera viewport at 4:3 to match recorded frames.
+Use `[` / `]` to cycle cameras, or select `ego`, `wrist_left` or `wrist_right` under **Rendering → Camera**.
+Matcha and sorting also provide `front`. Tab toggles the left controls; keep the camera viewport at 4:3 to match recorded frames.
 
 ## Use a scene
 

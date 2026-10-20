@@ -36,8 +36,7 @@ def main() -> None:
     if args.interactive:
         from mujoco import viewer
 
-        # Keep the camera viewport unobstructed, matching the recorded 4:3 views.
-        viewer.launch(model, data, show_left_ui=False, show_right_ui=False)
+        viewer.launch(model, data, show_right_ui=False)
         return
     mujoco.mj_step(model, data, nstep=int(args.settle / model.opt.timestep))
 
