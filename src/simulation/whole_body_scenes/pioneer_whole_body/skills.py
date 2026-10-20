@@ -130,7 +130,8 @@ def ease_off(wb: WholeBody, sides=("l", "r"), lift: float = 0.003) -> None:
     wb.settle()
 
 
-def let_go(wb: WholeBody, body: str, sides=("l", "r"), up: float = 0.08) -> bool:
+def let_go(wb: WholeBody, body: str, sides=("l", "r"), up: float = 0.08, back: float = 0.05,
+           tilt: float = 0.0) -> bool:
     """Let go of a part held by its knobs and set down somewhere that keeps it (a wheel on its axle, a plate in a
     tray): open the hands right up where they are, give the fingers time to come off, then lift.
     Returns whether the part stayed down."""
@@ -140,11 +141,19 @@ def let_go(wb: WholeBody, body: str, sides=("l", "r"), up: float = 0.08) -> bool
         wb.fingers(s_, {"i_abd": -0.26, "r_abd": 0.26, "l_abd": 0.26}, dur=0.6)
     wb.settle()
     wb.wait(0.3)
-    for s_ in sides:            # back off along the fingers, then up
+    if DEBUG:
+        hands = {wb.m.body(b).id for b in range(wb.m.nbody) if "_hand_" in wb.m.body(b).name}
+        print("let_go contacts:", sorted({(wb.m.body(wb.m.geom_bodyid[c.geom1]).name, wb.m.body(wb.m.geom_bodyid[c.geom2]).name,
+                                           wb.m.geom(c.geom1).name or wb.m.geom(c.geom2).name)
+                                          for c in wb.d.contact[:wb.d.ncon]
+                                          if (wb.m.geom_bodyid[c.geom1] in hands) != (wb.m.geom_bodyid[c.geom2] in hands)}))
+    for s_ in sides:            # fingers tipped up off the knob (and back off along them), then up
         p, r = wb.hand_goal[s_]
-        back = -r[:, 0].copy()
-        back[2] = 0.0
-        wb.reach(s_, p + 0.05 * back / np.linalg.norm(back), r, 0.6)
+        away = -r[:, 0].copy()
+        away[2] = 0.0
+        c, s2 = math.cos(tilt), math.sin(tilt)
+        r_up = r @ np.array([[c, 0, s2], [0, 1, 0], [-s2, 0, c]])
+        wb.reach(s_, p + back * away / np.linalg.norm(away) + [0, 0, 0.012], r_up, 0.6)
     wb.settle()
     for s_ in sides:
         p, r = wb.hand_goal[s_]
@@ -258,13 +267,16 @@ def press(wb: WholeBody, side: str, tip_site: str, target, depth: float = 0.012,
     wb.settle()
 
 
-def release(wb: WholeBody, side: str | tuple = "l", up: float = 0.06, dur: float = 0.5, held: bool = False) -> None:
+def release(wb: WholeBody, side: str | tuple = "l", up: float = 0.06, dur: float = 0.5, held: bool = False,
+            swing: bool = False, ease: bool = True) -> None:
     """Let go gently: the fingers uncurl, the thumb stays put (moving it would shove the part), then the thumb
     backs off, lift clear, relax. ``side`` may be both hands, ("l", "r"). ``held``: the part sits in something that
-    holds it (a socket): open the whole hand first, then lift (a half-open hand would drag it out)."""
+    holds it (a socket): open the whole hand first, then lift (a half-open hand would drag it out). ``swing``: then
+    swing the thumb aside too. ``ease``: first stop pushing down (see ``ease_off``)."""
     from .robot import hand_joints
     sides = (side,) if isinstance(side, str) else tuple(side)
-    ease_off(wb, sides)
+    if ease:
+        ease_off(wb, sides)
     if held:
         for s_ in sides:
             wb.fingers(s_, "knob_pre", dur=0.4)
@@ -284,9 +296,10 @@ def release(wb: WholeBody, side: str | tuple = "l", up: float = 0.06, dur: float
     for s_ in sides:
         wb.fingers(s_, {**uncurl, **keep[s_], "th_mcp": 0.0, "th_ip": 0.0}, dur=0.3)
     wb.settle()
-    for s_ in sides:                            # and swings out of the way
-        wb.fingers(s_, {**uncurl, "th_c": 0.0, "th_f": 0.0, "th_mcp": 0.0, "th_ip": 0.0}, dur=0.3)
-    wb.settle()
+    if swing:                                   # and swings out of the way
+        for s_ in sides:
+            wb.fingers(s_, {**uncurl, "th_c": 0.0, "th_f": 0.0, "th_mcp": 0.0, "th_ip": 0.0}, dur=0.3)
+        wb.settle()
     if DEBUG:
         hands = {wb.m.body(b).id for b in range(wb.m.nbody) if "_hand_" in wb.m.body(b).name}
         print("release contacts:", sorted({(wb.m.body(wb.m.geom_bodyid[c.geom1]).name, wb.m.body(wb.m.geom_bodyid[c.geom2]).name)

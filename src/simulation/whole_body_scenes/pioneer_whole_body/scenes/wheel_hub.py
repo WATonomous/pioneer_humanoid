@@ -226,7 +226,7 @@ def plan(wb, notes: dict) -> None:
 
     # 4. spin test: the index finger pushes a handle round, twice
     wb.fingers("l", "point", dur=0.4)
-    for push in range(5):
+    for push in range(7):
         if d.userdata[_U_TURN] >= 2 * math.pi:
             break
         _push_round(wb, "l", S)
@@ -260,7 +260,7 @@ def _push_round(wb, side, S) -> None:
     wb.settle()
     for i in range(1, 9):                                      # 140 degrees of arc, in short chords
         a = behind + math.radians(140) * i / 8
-        wb.reach_tip(side, tip, [c[0] + rad * math.cos(a), c[1] + rad * math.sin(a), z], 0.16)
+        wb.reach_tip(side, tip, [c[0] + rad * math.cos(a), c[1] + rad * math.sin(a), z], 0.11)
         wb.settle()
     p, _ = wb.hand_goal[side]
     wb.reach_tip(side, tip, p + [0, 0, 0.07], 0.4)

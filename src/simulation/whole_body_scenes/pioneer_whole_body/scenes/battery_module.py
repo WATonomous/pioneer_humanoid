@@ -283,7 +283,7 @@ def plan(wb, notes: dict) -> None:
 
     # both screws home at once
     notes["strokes"] = S.tighten_two(wb, [("l", th["thread_l"], "screw_l", -0.3, -1.05),
-                                          ("r", th["thread_r"], "screw_r", 1.1, 0.25)], max_strokes=16)
+                                          ("r", th["thread_r"], "screw_r", 1.1, 0.25)], max_strokes=22)
     S.release(wb, ("l", "r"), up=0.06)
     _hands(wb, HIGH)
 

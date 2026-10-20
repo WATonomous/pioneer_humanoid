@@ -13,7 +13,9 @@ Steps, each checked from the simulation and latched in order (``progress``):
   3. tighten the left bolt                        screwed home
   4. insert the right bolt
   5. tighten the right bolt
-  6. ship the assembly in the outbound tray      plate in the tray, block and both bolts still on it
+  6. release the jig's clamp                      its button pressed (thumb)
+  7. ship the assembly in the outbound fixture   set in it (its spring latch snaps over the plate), block and both
+                                                 bolts still on
 
 The robot looks at what it works on (its gaze leads the hands). Bolts turn on a quick-acting thread (``parts.PITCH``), about two thirds of a turn from catch to seated.
 """
@@ -54,7 +56,7 @@ RACK_H = 0.04
 RACKS = {"l": (0.48, 0.20), "r": (0.48, -0.20)}
 # outbound tray (a side step to the left)
 OUT_POS = (0.52, 0.64)
-OUT_HALF = (0.14, 0.18)
+OUT_HALF = (PLATE[0] + 0.014, PLATE[1] + 0.014)   # a snug fixture: the plate can't wander off in it
 
 STEPS = ("set the bearing block on the base plate", "insert the left bolt", "tighten the left bolt",
          "insert the right bolt", "tighten the right bolt", "release the jig's clamp",
@@ -88,9 +90,36 @@ def step(model, data) -> None:
             busy = {t.engaged(data) for t in ths} - {None}
     if data.qpos[model.joint("button").qposadr[0]] < -0.6 * BUTTON_TRAVEL:
         data.eq_active[model.equality("jig_clamp").id] = 0       # pressed: the clamp opens (and stays open)
+    latch = model.equality("out_latch").id
+    if not data.eq_active[latch] and _in_fixture(model, data):
+        # the outbound fixture's spring latch snaps over the plate: it stays where it was set
+        rel = np.zeros(3)
+        q = np.zeros(4)
+        po = data.xpos[model.body("out_tray").id]
+        ro = data.xmat[model.body("out_tray").id].reshape(3, 3)
+        rel[:] = ro.T @ (data.xpos[model.body("plate").id] - po)
+        mujoco.mju_mulQuat(q, _neg(data.xquat[model.body("out_tray").id]), data.xquat[model.body("plate").id])
+        model.eq_data[latch, 0:3] = 0
+        model.eq_data[latch, 3:6] = rel
+        model.eq_data[latch, 6:10] = q
+        model.eq_data[latch, 10] = 1.0
+        data.eq_active[latch] = 1
     k = int(data.userdata[_U_STEP])
     if k < len(STEPS) and _step_done(model, data, k):
         data.userdata[_U_STEP] = k + 1
+
+
+def _neg(q):
+    out = np.zeros(4)
+    mujoco.mju_negQuat(out, q)
+    return out
+
+
+def _in_fixture(model, data) -> bool:
+    p = data.xpos[model.body("plate").id]
+    flat = data.xmat[model.body("plate").id][8] > math.cos(math.radians(3))
+    return (abs(p[0] - OUT_POS[0]) < OUT_HALF[0] - PLATE[0] + 0.004 and
+            abs(p[1] - OUT_POS[1]) < OUT_HALF[1] - PLATE[1] + 0.004 and p[2] < T + 0.006 + PLATE[2] + 0.002 and flat)
 
 
 def progress(model, data):
@@ -120,9 +149,7 @@ def _step_done(model, data, k) -> bool:
         return th["hole_r"].seated(data)
     if k == 5:
         return not data.eq_active[model.equality("jig_clamp").id]
-    p = data.xpos[model.body("plate").id]
-    in_tray = (abs(p[0] - OUT_POS[0]) < OUT_HALF[0] - PLATE[0] + 0.01 and
-               abs(p[1] - OUT_POS[1]) < OUT_HALF[1] - PLATE[1] + 0.01 and p[2] < T + 0.03)
+    in_tray = bool(data.eq_active[model.equality("out_latch").id])
     return in_tray and block_seated(model, data, tol=POCKET_CLEAR + 0.002) and all(t.seated(data) for t in th.values())
 
 
@@ -215,8 +242,8 @@ def build(spec: mujoco.MjSpec) -> None:
     green = [0.22, 0.48, 0.32, 1]
     out.add_geom(type=BOX, size=[hx, hy, 0.003], pos=[0, 0, 0.003], rgba=green)
     for sx in (-1, 1):
-        out.add_geom(type=BOX, size=[0.004, hy, 0.012], pos=[sx * hx, 0, 0.012], rgba=green)
-        out.add_geom(type=BOX, size=[hx, 0.004, 0.012], pos=[0, sx * hy, 0.012], rgba=green)
+        out.add_geom(type=BOX, size=[0.005, hy + 0.005, 0.0125], pos=[sx * (hx + 0.005), 0, 0.0125], rgba=green)
+        out.add_geom(type=BOX, size=[hx + 0.01, 0.005, 0.0125], pos=[0, sx * (hy + 0.005), 0.0125], rgba=green)
 
     for t in THREADS:
         for b in t.bolts:
@@ -225,6 +252,7 @@ def build(spec: mujoco.MjSpec) -> None:
         spec.add_exclude(bodyname1="plate", bodyname2=b)
     # the jig's clamp: holds the plate while it's worked on (a toggle clamp, released with its lever)
     add_weld(spec, "jig_clamp", "jig", "plate")
+    add_weld(spec, "out_latch", "out_tray", "plate", active=False)    # set when it snaps (``step``)
 
 
 # ----------------------------------------------------------------------------- the demo
@@ -253,7 +281,7 @@ def plan(wb, notes: dict) -> None:
         S.carry(wb, "l", "block_base", seat, clear=0.02, dur=1.8 if attempt == 0 else 1.0)
         S.align_held(wb, "l", "block", "block_base", seat, yaw=S.body_yaw(wb, "plate"), sym=math.pi, rounds=4)
         S.lower_until(wb, "l", 0.035, lambda: block_seated(m, d, ztol=0.0012), dur=1.2)
-        S.release(wb, "l")
+        S.release(wb, "l", swing=True, ease=False)
         wb.wait(0.3)
         if block_seated(m, d):
             break
@@ -264,14 +292,14 @@ def plan(wb, notes: dict) -> None:
     S.pick_knob(wb, "l", "bolt_l_top", "bolt_l", yaw=-0.8)
     S.insert_bolt(wb, "l", th["hole_l"], "bolt_l")
     notes["strokes_l"] = S.tighten(wb, "l", th["hole_l"], "bolt_l", yaw0=-0.3, yaw1=-1.05, max_strokes=16)
-    S.release(wb, "l", up=0.05)
+    S.release(wb, "l", up=0.05, swing=True, ease=False)
     wb.arm_joints_to("l", READY, 1.0)
 
     # 4-5. right bolt
     S.pick_knob(wb, "r", "bolt_r_top", "bolt_r", yaw=1.0)
     S.insert_bolt(wb, "r", th["hole_r"], "bolt_r")
     notes["strokes_r"] = S.tighten(wb, "r", th["hole_r"], "bolt_r", yaw0=1.1, yaw1=0.25, max_strokes=16)
-    S.release(wb, "r", up=0.05)
+    S.release(wb, "r", up=0.05, swing=True, ease=False)
     wb.arm_joints_to("r", READY, 1.0)
 
     # 6. release the clamp: thumb on the button
@@ -303,7 +331,7 @@ def plan(wb, notes: dict) -> None:
         wb.reach(side, p - [0, 0, 0.05], r, 1.0)
     wb.until(lambda: _touching(m, d, "plate", "out_tray"), 1.3)
     wb.wait(0.2)
-    S.release(wb, ("l", "r"), up=0.1)
+    S.let_go(wb, "plate", up=0.1, back=0.0)
     for side in ("l", "r"):                     # hands back toward the body, clear of the tray
         p, r = wb.hand_goal[side]
         wb.reach(side, p + [-0.12, 0, 0.02], r, 1.0)

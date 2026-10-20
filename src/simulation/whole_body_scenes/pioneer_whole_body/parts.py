@@ -47,7 +47,8 @@ def add_knob_bolt(world, name: str, pos, yaw: float = 0.0, shaft: float = 0.05, 
                    mass=0.02)
         b.add_geom(name=f"{name}_tip", type=mujoco.mjtGeom.mjGEOM_SPHERE, size=[SHAFT_R, 0, 0], pos=[0, 0, 0.0005],
                    rgba=STEEL, mass=0.001)
-    b.add_geom(name=f"{name}_washer", type=cyl, size=[0.011, 0.0015, 0], pos=[0, 0, shaft + 0.0015], rgba=STEEL,
+    # a washer as wide as the knob: no lip under the knob for a thumb to hook under when letting go
+    b.add_geom(name=f"{name}_washer", type=cyl, size=[KNOB_R, 0.0015, 0], pos=[0, 0, shaft + 0.0015], rgba=STEEL,
                mass=0.003)
     b.add_geom(name=f"{name}_knob", type=cyl, size=[KNOB_R, KNOB_H / 2, 0], pos=[0, 0, shaft + 0.003 + KNOB_H / 2],
                rgba=color, mass=0.02, friction=[2.0, 0.03, 0.003], condim=4)
