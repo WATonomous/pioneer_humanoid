@@ -40,6 +40,7 @@ CYL = mujoco.mjtGeom.mjGEOM_CYLINDER
 
 CART_R, CART_H = 0.019, 0.062           # the cartridge (the cells' size: the grasp is solved for it)
 SOCKET_R = 0.025
+BAY_R, BAY_H = 0.027, 0.012                 # the bay's ring: 8 mm of play, low (a cartridge doesn't catch its rim)
 # the panel: a box along y, open on top, the hatch over it
 PANEL_X = 0.52
 PANEL = (0.08, 0.22)                    # outer half sizes (x, y), centred at y = PANEL_Y
@@ -70,7 +71,7 @@ RACK = (0.48, -0.44)
 BUTTON_POS = (0.60, -0.32)
 BUTTON_TRAVEL = 0.008
 DETENT, DETENT_F = 0.02, 12.0          # the slides' open-end detents (m, N)
-SOFT_CLOSE, SOFT_CLOSE_F = 0.03, 2.0    # the drawer's soft-close (m, N)
+SOFT_CLOSE, SOFT_CLOSE_F = 0.03, 2.0    # the drawer's and hatch's soft-close (m, N)
 
 STEPS = ("open the drawer", "take the cartridge out", "slide the hatch open", "fit the cartridge",
          "slide the hatch shut", "bolt the hatch", "close the drawer", "power on")
@@ -97,7 +98,7 @@ def hatch_open(model, data) -> float:
 def cartridge_in(model, data) -> bool:
     c = data.xpos[model.body("cartridge").id]
     up = data.xmat[model.body("cartridge").id][8] > math.cos(math.radians(12))
-    return math.hypot(c[0] - PANEL_X, c[1] - (PANEL_Y + BAY_Y)) < SOCKET_R and c[2] < T + 0.008 and up
+    return math.hypot(c[0] - PANEL_X, c[1] - (PANEL_Y + BAY_Y)) < BAY_R and c[2] < T + 0.008 and up
 
 
 def cartridge_out(model, data) -> bool:
@@ -117,8 +118,8 @@ def step(model, data) -> None:
     for j, sign, travel in (("drawer", 1.0, DRAWER_OPEN), ("hatch", -1.0, HATCH_OPEN)):
         q = sign * data.qpos[model.joint(j).qposadr[0]]
         f = sign * DETENT_F if q > travel - DETENT else 0.0
-        if j == "drawer" and q < SOFT_CLOSE:          # and the drawer's soft-close: pulled shut over the last 3 cm
-            f = -SOFT_CLOSE_F
+        if q < SOFT_CLOSE:                             # and soft-close: pulled shut over the last 3 cm (a hatch
+            f = -sign * SOFT_CLOSE_F                    # pushed on by the bolt stays put)
         data.qfrc_applied[model.joint(j).dofadr[0]] = f
     if data.qpos[model.joint("button").qposadr[0]] < -0.6 * BUTTON_TRAVEL:
         if cartridge_in(model, data) and ths[0].seated(data) and hatch_open(model, data) < 0.003:
@@ -202,14 +203,14 @@ def build(spec: mujoco.MjSpec) -> None:
     panel.add_geom(type=BOX, size=[px - WALL, 0.03, PANEL_H / 2], pos=[0, HOLE_Y, PANEL_H / 2], rgba=grey)
     panel.add_geom(type=BOX, size=[px - WALL, 0.012, PANEL_H / 2], pos=[0, 0.0, PANEL_H / 2], rgba=grey)
     bay = panel.add_body(name="bay", pos=[0, BAY_Y, 0.006])
-    _ring(bay, SOCKET_R, 0.02, 0.004, 12, [0.93, 0.47, 0.16, 1])
+    _ring(bay, BAY_R, BAY_H, 0.004, 12, [0.93, 0.47, 0.16, 1])
     add_thread_hole(spec, panel, "hatch_thread", [0, HOLE_Y, PANEL_H - THREAD_DEEP], TRAVEL)
     # the hatch: a plate on a slide, a hole for the bolt, a pull knob
     hatch = panel.add_body(name="hatch", pos=[0, 0, PANEL_H + HATCH[2]])
     hatch.add_joint(name="hatch", type=mujoco.mjtJoint.mjJNT_SLIDE, axis=[0, 1, 0], range=[-HATCH_OPEN, 0],
                     limited=mujoco.mjtLimited.mjLIMITED_TRUE, damping=6.0, frictionloss=0.4, armature=0.2)
     hx, hy, hz = HATCH
-    hole = 0.0075
+    hole = 0.0095                                     # 5 mm of play round the bolt
     for y0, y1 in ((-hy, HOLE_Y - hole), (HOLE_Y + hole, hy)):
         hatch.add_geom(type=BOX, size=[hx, (y1 - y0) / 2, hz], pos=[0, (y0 + y1) / 2, 0], rgba=[0.2, 0.45, 0.75, 1],
                        mass=0.08)
@@ -328,8 +329,16 @@ def plan(wb, notes: dict) -> None:
     # 4. the cartridge into the bay
     bay = np.array([PANEL_X, PANEL_Y + BAY_Y, T + 0.006])
     S.carry(wb, "l", "cartridge_base", bay, clear=0.03, dur=1.4, over=0.06)
-    S.align_held(wb, "l", "cartridge", "cartridge_base", bay, yaw=None, rounds=2)
-    S.lower_until(wb, "l", 0.045, lambda: d.xpos[m.body("cartridge").id][2] < T + 0.009, dur=1.0)
+    down = lambda: d.xpos[m.body("cartridge").id][2] < T + 0.009          # noqa: E731
+    for _ in range(3):
+        S.align_held(wb, "l", "cartridge", "cartridge_base", bay, yaw=None, rounds=2)
+        S.lower_until(wb, "l", 0.045, down, dur=1.0)
+        wb.wait(0.2)
+        if down():
+            break
+        p, r = wb.hand_goal["l"]                     # caught on the bay's rim: up a little, line up again
+        wb.reach("l", p + [0, 0, 0.02], r, 0.5)
+        wb.settle()
     S.release(wb, "l", up=0.10)
     wb.arm_joints_to("l", HIGH, 0.8)
     wb.settle()
