@@ -194,7 +194,8 @@ def run() -> None:
                 for arm, leader in zip(arms, leaders):
                     target, grip = arm["mapping"].update(leader.read())
                     data.ctrl[arm["arm_acts"]] = target
-                    data.ctrl[arm["grip_acts"]] = arm["grip_open"] + grip * (arm["grip_closed"] - arm["grip_open"])
+                    o, c = arm["grip_open"], arm["grip_closed"]
+                    data.ctrl[arm["grip_acts"]] = o + grip * (c - o)
                     actions.extend([*target, grip])
 
                 # Record one synchronized frame only once every active leader is at home.
