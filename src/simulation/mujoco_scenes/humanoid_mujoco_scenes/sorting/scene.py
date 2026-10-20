@@ -46,9 +46,9 @@ def progress(model: mujoco.MjModel, data: mujoco.MjData) -> tuple[int, int, str]
 def build(spec: mujoco.MjSpec) -> None:
     add_workcell(spec)
     # View from inside the lightbox so its back panel does not hide the task.
-    spec.visual.global_.fovy = 95
+    spec.visual.global_.fovy = 110
     spec.worldbody.add_camera(name="front", pos=[0.775, 0.0, 1.328],
-                              xyaxes=[0, 1, 0, -0.422618, 0, 0.906308], fovy=95)
+                              xyaxes=[0, 1, 0, -0.422618, 0, 0.906308], fovy=110)
     box = mujoco.mjtGeom.mjGEOM_BOX
     for color, (x, y) in TRAYS.items():
         tray = spec.worldbody.add_body(name=f"{color}_tray", pos=[x, y, TABLE_TOP_Z])
