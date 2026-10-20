@@ -214,10 +214,17 @@ def plan(wb, notes: dict) -> None:
     S.pick_knob(wb, "r", "nut_top", "nut", yaw=0.9, lift=0.06)
     mouth = d.xpos[th.hole_id].copy()
     S.carry(wb, "r", "nut_tip", mouth + [0, 0, AXLE_TOP + BASE_H - (MOUTH_Z - T)], clear=0.02, dur=1.4)
-    S.align_held(wb, "r", "nut", "nut_tip", mouth, yaw=None, rounds=2)
-    p, r = wb.hand_goal["r"]
-    wb.reach("r", p - [0, 0, (S.site(wb, "nut_tip") - mouth)[2] + 0.01], r, 1.6)
-    if not wb.until(lambda: th.engaged(d) is not None, 2.0):
+    aim = mouth.copy()
+    for attempt in range(3):
+        S.align_held(wb, "r", "nut", "nut_tip", aim, yaw=None, rounds=2)
+        p, r = wb.hand_goal["r"]
+        wb.reach("r", p - [0, 0, (S.site(wb, "nut_tip") - mouth)[2] + 0.01], r, 1.6)
+        if wb.until(lambda: th.engaged(d) is not None, 2.0):
+            break
+        aim[:2] -= np.clip(S.site(wb, "nut_tip")[:2] - mouth[:2], -0.006, 0.006)   # missed: aim off, again
+        wb.reach("r", p, r, 0.6)
+        wb.settle()
+    else:
         raise S.TaskFailed("hub nut did not catch")
     wb.wait(0.2)
     notes["strokes"] = S.tighten(wb, "r", th, "nut", yaw0=1.1, yaw1=0.25, max_strokes=16)
