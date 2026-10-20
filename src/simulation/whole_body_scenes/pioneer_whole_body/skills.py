@@ -313,14 +313,14 @@ def release(wb: WholeBody, side: str | tuple = "l", up: float = 0.06, dur: float
         wb.fingers(s_, "relaxed", dur=0.4)
 
 
-def insert_bolt(wb: WholeBody, side: str, thread: Thread, bolt: str) -> None:
-    """Hold the bolt over its hole, then lower it until the thread catches."""
+def insert_bolt(wb: WholeBody, side: str, thread: Thread, bolt: str, over: float = 0.03, clear: float = 0.03) -> None:
+    """Hold the bolt ``clear`` over its hole, then lower it until the thread catches (``over``: see ``carry``)."""
     mouth = wb.d.xpos[thread.hole_id].copy()
-    carry(wb, side, f"{bolt}_tip", mouth, clear=0.03)
+    carry(wb, side, f"{bolt}_tip", mouth, clear=clear, over=over)
     wb.look(mouth, dur=0.3)
     # stand the bolt upright over the hole (it hangs a little crooked in the fingers), watching the tip
     align_held(wb, side, bolt, f"{bolt}_tip", mouth, yaw=None, rounds=3, dur=0.4)
-    if not lower_until(wb, side, 0.045, lambda: thread.engaged(wb.d) == bolt, dur=1.6):
+    if not lower_until(wb, side, clear + 0.015, lambda: thread.engaged(wb.d) == bolt, dur=1.6 * (clear + 0.015) / 0.045):
         raise TaskFailed(f"{bolt} did not catch the thread of {thread.hole}")
     wb.wait(0.15)
 
