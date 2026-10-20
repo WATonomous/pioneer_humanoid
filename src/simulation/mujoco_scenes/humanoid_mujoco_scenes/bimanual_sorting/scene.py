@@ -7,9 +7,8 @@ import numpy as np
 from humanoid_mujoco_scenes import TABLE_TOP_Z, add_workcell, scene
 
 COLORS = {"red": [0.85, 0.2, 0.15, 1], "blue": [0.15, 0.35, 0.85, 1]}
-TRAYS = {"red": (0.46, -0.42), "blue": (0.46, 0.42)}
-BLOCK_X = (0.56, 0.70)
-BLOCK_Y = 0.28
+TRAYS = {"red": (0.34, -0.50), "blue": (0.34, 0.50)}
+BLOCK_POSITIONS = ((0.29, 0.18), (0.37, 0.28))
 BLOCK_HALF = 0.02
 TRAY_HALF = 0.09
 
@@ -17,8 +16,8 @@ TRAY_HALF = 0.09
 def reset(model: mujoco.MjModel, data: mujoco.MjData, rng: np.random.Generator) -> None:
     """Start each colour on the opposite side from its tray."""
     for color, (_, target_y) in TRAYS.items():
-        start_y = -np.sign(target_y) * BLOCK_Y
-        for i, start_x in enumerate(BLOCK_X):
+        for i, (start_x, source_y) in enumerate(BLOCK_POSITIONS):
+            start_y = -np.sign(target_y) * source_y
             offset_x, offset_y = rng.uniform(-0.015, 0.015, 2)
             position = [
                 start_x + offset_x,
@@ -63,9 +62,9 @@ def build(spec: mujoco.MjSpec) -> None:
                 pos[axis] = sign * (TRAY_HALF - 0.003)
                 size[axis] = 0.003
                 tray.add_geom(type=box, size=size, pos=pos, rgba=COLORS[color])
-        for i, start_x in enumerate(BLOCK_X):
+        for i, (start_x, source_y) in enumerate(BLOCK_POSITIONS):
             block = spec.worldbody.add_body(name=f"{color}_{i}",
-                                           pos=[start_x, -np.sign(y) * BLOCK_Y, TABLE_TOP_Z + BLOCK_HALF])
+                                           pos=[start_x, -np.sign(y) * source_y, TABLE_TOP_Z + BLOCK_HALF])
             block.add_freejoint(name=f"{color}_{i}")
             block.add_geom(type=box, size=[BLOCK_HALF] * 3, mass=0.05,
                            friction=[1.0, 0.02, 0.001], condim=4, rgba=COLORS[color])
