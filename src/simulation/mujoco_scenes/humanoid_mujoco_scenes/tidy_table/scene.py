@@ -185,16 +185,6 @@ def reset(model: mujoco.MjModel, data: mujoco.MjData, rng: np.random.Generator) 
     data.userdata[_U_STEP] = 0
 
 
-CONDITION_NAMES = ["done"]
-
-
-def condition(model: mujoco.MjModel, data: mujoco.MjData) -> np.ndarray:
-    """For a policy without language input: ``done``, 1 once every object has been binned (go home). There is
-    no target to name: any object may go next."""
-    k, n = int(data.userdata[_U_STEP]), int(data.userdata[_U_N])
-    return np.array([float(k >= n)], dtype=np.float32)
-
-
 def progress(model: mujoco.MjModel, data: mujoco.MjData) -> tuple[int, int, str]:
     """(objects binned so far, objects in all, the instruction); the first equals the second when finished."""
     return int(data.userdata[_U_STEP]), int(data.userdata[_U_N]), INSTRUCTION
@@ -202,7 +192,7 @@ def progress(model: mujoco.MjModel, data: mujoco.MjData) -> tuple[int, int, str]
 
 # ----------------------------------------------------------------------------- scene
 @scene("tidy_table", camera=dict(lookat=[0.38, 0.29, TABLE_TOP_Z], distance=0.6, azimuth=200, elevation=-40),
-       step=step, reset=reset, progress=progress, condition=condition, condition_names=CONDITION_NAMES)
+       step=step, reset=reset, progress=progress)
 def build(spec: mujoco.MjSpec) -> None:
     add_workcell(spec)           # floor, lightbox and the table top (its collision geom is named "table")
     spec.nuserdata = _N_USER
