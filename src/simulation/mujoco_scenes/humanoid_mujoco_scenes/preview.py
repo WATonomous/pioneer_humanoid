@@ -8,7 +8,7 @@ import argparse
 
 import mujoco
 
-from humanoid_mujoco_scenes import list_scenes, make_model, scene_camera, scene_reset
+from humanoid_mujoco_scenes import list_scenes, make_model, scene_reset
 
 
 def main() -> None:
@@ -34,21 +34,12 @@ def main() -> None:
     if args.interactive:
         from mujoco import viewer
 
-        camera = scene_camera(args.scene) or {}
-        if "lookat" in camera:
-            model.stat.center[:] = camera["lookat"]
-        if "distance" in camera:
-            model.stat.extent = camera["distance"] / 1.5
-        for key in ("azimuth", "elevation"):
-            if key in camera:
-                setattr(model.vis.global_, key, camera[key])
         viewer.launch(model, data)
         return
     mujoco.mj_step(model, data, nstep=int(args.settle / model.opt.timestep))
 
     camera = mujoco.MjvCamera()
-    for key, value in (scene_camera(args.scene) or {}).items():
-        setattr(camera, key, value)
+    mujoco.mjv_defaultFreeCamera(model, camera)
     from PIL import Image
 
     with mujoco.Renderer(model, 960, 1280) as renderer:

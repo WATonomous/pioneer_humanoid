@@ -150,4 +150,13 @@ def make_model(name: str, cameras: dict[str, tuple[int, int]] | None = None) -> 
         if np.allclose(geom.solref, _DEFAULT_SOLREF) and np.allclose(geom.solimp, _DEFAULT_SOLIMP):
             geom.solref = CONTACT_SOLREF
             geom.solimp = CONTACT_SOLIMP
+    camera = entry.camera or {}
+    if "lookat" in camera:
+        spec.stat.center = camera["lookat"]
+    if "distance" in camera:
+        # MuJoCo's default free camera uses distance = 1.5 * extent.
+        spec.stat.extent = camera["distance"] / 1.5
+    for key in ("azimuth", "elevation"):
+        if key in camera:
+            setattr(spec.visual.global_, key, camera[key])
     return spec.compile()
