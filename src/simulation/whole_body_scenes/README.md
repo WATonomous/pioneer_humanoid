@@ -38,7 +38,7 @@ as fast as real time).
 | `bare` | The studio and an empty workbench. |
 
 Robustness (`--seeds 8`: every loose part up to 2 mm and 3 deg off; Oct 20): `bearing_block` 8/8, `gear_train` 8/8,
-`service_panel` 8/8, `tote_to_shelf` 6/8, `wheel_hub` 6/8, `handover` 5/6, `wrench` 4/6, `battery_module` 2/8 (its cells catch on the socket rims or
+`service_panel` 8/8, `tote_to_shelf` 6/8, `wheel_hub` 6/8, `handover` 5/6, `wrench` 6/6, `battery_module` 2/8 (its cells catch on the socket rims or
 get flung when the hand lets go: the next thing to fix). Seed 0, the scene as built, is the one in the videos.
 
 Each scene registers `step` (mechanics: threads, clamp, button), `progress` (the current step and its instruction,
@@ -65,7 +65,7 @@ latched in order as in `humanoid_mujoco_scenes`) and `plan` (the demo).
     they catch their threads);
   - the latches: the jig clamp (a weld the button releases), the outbound and shelf fixtures and the hand-over
     bar's cradle (a weld made when the part is set flat in them), a gear set on its shaft (welded to the shaft's pivot), the wrench's socket on a hex head (welded
-    once it is over the head, let go when the bolt is home and the hand has the wrench again);
+    once it is over the head, let go when the bolt is home and the hand has taken the wrench again);
   - the gear mesh (the second gear's turn coupled to the first's, teeth in phase; the teeth aren't collided);
   - the drawer's and hatch's detents and soft-close (a small force near the ends of travel);
   - the testers' indicator flags;

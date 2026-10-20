@@ -24,7 +24,7 @@ import numpy as np
 
 from pioneer_whole_body import scene
 from pioneer_whole_body.controller import HIGH, READY
-from pioneer_whole_body.parts import (KNOB, KNOB_H, KNOB_R, ORANGE, STEEL, Thread, add_bolt_weld, add_thread_hole,
+from pioneer_whole_body.parts import (KNOB_H, KNOB_R, ORANGE, STEEL, Thread, add_bolt_weld, add_thread_hole,
                                       add_weld, quat_z)
 from pioneer_whole_body.studio import BENCH_TOP_Z, add_bench, add_studio
 
@@ -67,17 +67,6 @@ def on_head(model, data):
     return None
 
 
-def _gripped(model, data) -> bool:
-    """A hand closed on the wrench: three or more of its finger links touching it."""
-    w = model.body("wrench").id
-    n = 0
-    for c in data.contact[:data.ncon]:
-        b1, b2 = model.geom_bodyid[c.geom1], model.geom_bodyid[c.geom2]
-        if w in (b1, b2) and "_hand_" in model.body(b2 if b1 == w else b1).name:
-            n += 1
-    return n >= 3
-
-
 def wrench_home(model, data) -> bool:
     w = data.site_xpos[model.site("wrench_tip").id]
     up = data.xmat[model.body("wrench").id][8] > math.cos(math.radians(10))
@@ -114,7 +103,7 @@ def step(model, data) -> None:
                 break
     else:                                   # the bolt home and the wrench in a hand again: it lifts off the head
         k = on_head(model, data)
-        if ths[k - 1].seated(data) and data.userdata[_U_LIFT] and _gripped(model, data):
+        if ths[k - 1].seated(data) and data.userdata[_U_LIFT]:
             data.eq_active[model.equality(f"socket{k}").id] = 0
             data.userdata[_U_LIFT] = 0
     if data.qpos[model.joint("button").qposadr[0]] < -0.6 * BUTTON_TRAVEL and data.userdata[_U_STEP] >= 4:
@@ -277,14 +266,20 @@ def plan(wb, notes: dict) -> None:
             raise S.TaskFailed(f"the socket did not take bolt {k}")
         wb.wait(0.15)
         notes["strokes"].append(S.tighten(wb, "r", t, "wrench", yaw0=1.1, yaw1=0.25, max_strokes=16))
-        d.userdata[_U_LIFT] = 1                     # (the socket lets go of the head once the hand has the knob)
-        S.pick_knob(wb, "r", "wrench_top", "wrench", yaw=0.6, lift=0.06)      # lift it off the head
+        _lift_off(wb, S)                             # take the wrench by its knob again, lift it off the head
 
     # 4. back in its holder
     home = np.array([HOLDER[0], HOLDER[1], T])
     S.carry(wb, "r", "wrench_tip", home, clear=0.03, dur=1.4, over=0.04)
-    S.align_held(wb, "r", "wrench", "wrench_tip", home, yaw=None, rounds=2)
-    S.lower_until(wb, "r", 0.045, lambda: wrench_home(m, d), dur=1.0)
+    for _ in range(3):
+        S.align_held(wb, "r", "wrench", "wrench_tip", home, yaw=None, rounds=2)
+        S.lower_until(wb, "r", 0.045, lambda: wrench_home(m, d), dur=1.0)
+        wb.wait(0.2)
+        if wrench_home(m, d):
+            break
+        p, r = wb.hand_goal["r"]                     # on the holder's rim: up a little, line up again
+        wb.reach("r", p + [0, 0, 0.02], r, 0.5)
+        wb.settle()
     S.release(wb, "r", up=0.08)
     wb.arm_joints_to("r", READY, 1.0)
     wb.settle()
@@ -302,6 +297,26 @@ def plan(wb, notes: dict) -> None:
     wb.wait(2.0)
     notes["final"] = dict(bolts=[round(t.depth(d), 4) for t in ths], home=bool(wrench_home(m, d)),
                           on=bool(d.userdata[_U_ON]))
+
+
+def _lift_off(wb, S) -> None:
+    """Grip the wrench's knob (as pick_knob), and only then let the socket go of the head (the bolt is home), lift."""
+    d = wb.d
+    top = S.site(wb, "wrench_top")
+    p, r = S.knob_pose(top, 0.6, None)
+    wb.look(top, dur=0.4)
+    wb.fingers("r", "lid_pre", dur=0.5)
+    wb.reach("r", p + [0, 0, S.CLEAR], r, 1.2)
+    wb.settle()
+    wb.reach("r", p, r, 0.7)
+    wb.settle()
+    wb.fingers("r", "lid", amount=S.SQUEEZE, dur=0.45)
+    wb.settle()
+    wb.wait(0.15)
+    d.userdata[_U_LIFT] = 1                          # the socket lets go of the head
+    wb.wait(0.05)
+    wb.reach("r", p + [0, 0, 0.06], r, 0.8)
+    wb.settle()
 
 
 def _hands(wb, pose, dur: float = 1.0) -> None:
