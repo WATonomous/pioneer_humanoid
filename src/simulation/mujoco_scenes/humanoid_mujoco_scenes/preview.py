@@ -18,10 +18,7 @@ def main() -> None:
     parser.add_argument("--settle", type=float, default=1.0, help="seconds simulated before the frame")
     parser.add_argument("--interactive", action="store_true", help="Open the MuJoCo viewer (macOS: use mjpython)")
     parser.add_argument("--view", choices=("overview", "task"), default="overview", help="Interactive camera view")
-    parser.add_argument("--seconds", type=float, help="Close the interactive viewer automatically")
     args = parser.parse_args()
-    if args.seconds is not None and (not args.interactive or args.seconds <= 0):
-        parser.error("--seconds requires --interactive and a positive duration")
     if args.scene not in list_scenes():
         raise SystemExit(f"unknown --scene {args.scene!r}; available: {list_scenes()}")
 
@@ -45,8 +42,7 @@ def main() -> None:
         with viewer.launch_passive(model, data) as handle:
             for key, value in camera.items():
                 setattr(handle.cam, key, value)
-            start = time.monotonic()
-            while handle.is_running() and (args.seconds is None or time.monotonic() - start < args.seconds):
+            while handle.is_running():
                 tick = time.monotonic()
                 with handle.lock():
                     if hook is not None:

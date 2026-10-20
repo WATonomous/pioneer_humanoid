@@ -21,8 +21,8 @@ python -m humanoid_mujoco_scenes.preview --interactive --scene matcha
 # Task close-up instead of the default two-arm overview
 mjpython -m humanoid_mujoco_scenes.preview --interactive --scene matcha --view task
 
-# Empty workcell; close automatically after 3 seconds
-mjpython -m humanoid_mujoco_scenes.preview --interactive --scene bare --seconds 3
+# Empty workcell
+mjpython -m humanoid_mujoco_scenes.preview --interactive --scene bare
 ```
 
 Bimanual simulation is the default. Use `--scene` to select a scene.
