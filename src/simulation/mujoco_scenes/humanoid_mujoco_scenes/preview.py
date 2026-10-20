@@ -8,7 +8,7 @@ import argparse
 
 import mujoco
 
-from humanoid_mujoco_scenes import list_scenes, make_model, scene_camera, scene_reset, scene_step
+from humanoid_mujoco_scenes import list_scenes, make_model, scene_camera, scene_reset
 
 
 def main() -> None:
@@ -32,23 +32,17 @@ def main() -> None:
         reset_hook(model, data, np.random.default_rng())
     mujoco.mj_forward(model, data)
     if args.interactive:
-        import time
         from mujoco import viewer
-        hook = scene_step(args.scene)
-        substeps = max(1, round(0.01 / model.opt.timestep))
+
         camera = scene_camera(args.scene) or {}
-        with viewer.launch_passive(model, data) as handle:
-            for key, value in camera.items():
-                setattr(handle.cam, key, value)
-            while handle.is_running():
-                tick = time.monotonic()
-                with handle.lock():
-                    if hook is not None:
-                        hook(model, data)
-                    mujoco.mj_step(model, data, nstep=substeps)
-                handle.sync()
-                time.sleep(max(0, substeps * model.opt.timestep - (time.monotonic() - tick)))
-        print(f"Viewer stopped; simulated {data.time:.3f} seconds.")
+        if "lookat" in camera:
+            model.stat.center[:] = camera["lookat"]
+        if "distance" in camera:
+            model.stat.extent = camera["distance"] / 1.5
+        for key in ("azimuth", "elevation"):
+            if key in camera:
+                setattr(model.vis.global_, key, camera[key])
+        viewer.launch(model, data)
         return
     mujoco.mj_step(model, data, nstep=int(args.settle / model.opt.timestep))
 
