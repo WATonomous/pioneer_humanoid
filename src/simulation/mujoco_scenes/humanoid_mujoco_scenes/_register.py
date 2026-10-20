@@ -150,6 +150,8 @@ def make_model(name: str, cameras: dict[str, tuple[int, int]] | None = None) -> 
         if np.allclose(geom.solref, _DEFAULT_SOLREF) and np.allclose(geom.solimp, _DEFAULT_SOLIMP):
             geom.solref = CONTACT_SOLREF
             geom.solimp = CONTACT_SOLIMP
+    # Load the scene's initial view into the model instead of automatic framing,
+    # giving each scene a centered, full view with a consistent starting configuration.
     camera = entry.camera or {}
     if "lookat" in camera:
         spec.stat.center = camera["lookat"]
