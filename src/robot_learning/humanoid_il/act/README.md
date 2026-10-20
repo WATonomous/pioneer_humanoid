@@ -49,12 +49,6 @@ Every frame holds:
 | `leader_angles`, `leader_counts` | leader encoders, servos A..G: rad (calibrated) and raw counts; NaN in scripted demos | no |
 | `subtask_index`, `task` | objects binned so far and the instruction ("put everything in the trash bin") | no |
 
-Look inside a dataset, or export every value to CSV (one file per episode):
-
-```bash
-python -m humanoid_robot_learning.export_dataset <dataset root>          # from src/robot_learning
-```
-
 ## 2. Train
 
 ```bash
