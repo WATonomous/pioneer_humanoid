@@ -12,6 +12,11 @@ pip install -e src/simulation/whole_body_scenes
 MUJOCO_GL=osmesa python -m pioneer_whole_body.run_demo --scene bearing_block --out out/bearing_block --render
 ```
 
+```bash
+# robustness: seeds 1..N with every loose part a little off (up to 2 mm and 3 deg), in parallel: the success rate
+MUJOCO_GL=osmesa python -m pioneer_whole_body.run_demo --scene bearing_block --seeds 20
+```
+
 `--out PREFIX` writes `PREFIX.json` (the result: steps done, success, notes), `PREFIX.npz` (the tape: the simulation
 state at 30 fps, the step captions, the gaze target) and, with `--render`, `PREFIX.mp4` (1280x720, `--size`), drawn
 afterwards in `--workers` processes (CPU rendering is ~0.6 s a frame, the physics ~0.1 s per simulated second).
