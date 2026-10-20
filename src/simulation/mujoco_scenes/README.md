@@ -12,10 +12,13 @@ pip install -e src/pioneer_humanoid -e src/simulation/mujoco_scenes
 ## Viewer
 
 ```bash
+# Linux / Windows
 python -m humanoid_mujoco_scenes.preview --interactive --scene matcha
+
+# macOS (passive viewer requires mjpython)
+mjpython -m humanoid_mujoco_scenes.preview --interactive --scene matcha
 ```
 
-On macOS, replace `python` with `mjpython` for the passive viewer.
 Use `--scene` to select a scene. No teleop hardware is required.
 Press **Space** to pause/resume and **R** to reset the arm and scene.
 Select `ego`, `wrist_left` or `wrist_right` under **Rendering → Camera**, or cycle with `[` / `]`.
