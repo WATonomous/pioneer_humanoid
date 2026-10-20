@@ -32,11 +32,12 @@ as fast as real time).
 | `tote_to_shelf` | 3 steps, ~85 s. Walks up with its hands raised; takes the three cells from the rack one at a time (right hand), side-steps along the bench to each slot of the tote and stands the cell in it; lifts the loaded tote by its two handle knobs with both hands, side-steps 0.9 m to the low shelf carrying it, crouches and leans, and sets it in the shelf's fixture (its latch snaps), the cells still in it. |
 | `service_panel` | 8 steps, ~71 s. Walks up; pulls the parts cabinet's drawer out by its knob (left hand) and takes the cartridge out of it; slides the panel's hatch open (right hand); stands the cartridge in its bay; slides the hatch shut; takes the knob bolt from its rack, puts it through the hatch's hole until it catches the thread and screws it home; pushes the drawer shut with its fist; presses the power button with its thumb: the lamp flag comes up. |
 | `gear_train` | 6 steps, ~73 s. Walks up to the gearbox; turns round, walks to the parts table behind and takes a gear in each hand by its hub knob; walks back and turns round carrying both; lowers gear 1 over the right shaft onto its collar, then gear 2 over the left one, its teeth in gear 1's; runs the train in by twisting gear 1's hub (strokes): gear 2 turns the other way; presses the test button: the lamp comes up. |
+| `handover` | 5 steps, ~59 s. Walks up; picks a 26 cm bar up by the knob on its far end (right hand) and brings it across to the middle; the left hand takes the knob on its other end and the right lets go (a hand-over); sets it in the fixture on the left (it latches); side-steps to the bolt rack, takes the bolt, steps back, puts it through the bar's hole until it catches the thread and screws it home; presses "done" with its right thumb: the lamp comes up. |
 | `grasp_test` | A bolt in a rack and a plate with one threaded hole (tuning bench for the grasps). |
 | `bare` | The studio and an empty workbench. |
 
 Robustness (`--seeds 8`: every loose part up to 2 mm and 3 deg off; Oct 20): `bearing_block` 8/8, `gear_train` 8/8,
-`service_panel` 8/8, `tote_to_shelf` 6/8, `wheel_hub` 6/8, `battery_module` 2/8 (its cells catch on the socket rims or
+`service_panel` 8/8, `tote_to_shelf` 6/8, `wheel_hub` 6/8, `handover` 3/6, `battery_module` 2/8 (its cells catch on the socket rims or
 get flung when the hand lets go: the next thing to fix). Seed 0, the scene as built, is the one in the videos.
 
 Each scene registers `step` (mechanics: threads, clamp, button), `progress` (the current step and its instruction,
