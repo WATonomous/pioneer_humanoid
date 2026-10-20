@@ -6,7 +6,7 @@ Contract (pioneer_leader_arm_teleop/mujoco_sim.py --record, schema dataset_schem
   state  (7)    left arm joints (rad) + mean finger closure (0 open .. 1 closed)
   action (7)    left arm joint targets (rad) + gripper command (0 open .. 1 closed)
   images        arm cameras (ego, wrist_left, ...) and the scene's own cameras (top), RGB uint8 HxWx3
-  observation.environment_state   the scene's condition vector (tidy_table: done, 1 once everything is binned)
+  observation.environment_state   done: 1 once the scene's progress says every step is (go home)
   task          the current step's instruction; subtask_index its index
 
 Needs mujoco and the repo's pioneer_humanoid + humanoid_mujoco_scenes packages (installed, or on PYTHONPATH).
@@ -16,7 +16,7 @@ from __future__ import annotations
 import mujoco
 import numpy as np
 
-from humanoid_mujoco_scenes import make_model, scene_condition, scene_progress, scene_reset, scene_step
+from humanoid_mujoco_scenes import make_model, scene_progress, scene_reset, scene_step
 from pioneer_humanoid.arm_params import (
     CAMERA_NAMES,
     LEFT_ARM_JOINTS,
@@ -47,8 +47,7 @@ class TidySim:
         self.data = mujoco.MjData(m)
         self.hook, self.randomise = scene_step(scene), scene_reset(scene)
         self.progress = scene_progress(scene)
-        cond = scene_condition(scene)
-        self.condition_names, self.condition = cond if cond is not None else (None, None)
+        self.env_state_names = ["done"] if self.progress is not None else None   # observation.environment_state
         self.arm_act = [m.actuator(j).id for j in LEFT_ARM_JOINTS]
         self.grip_act = [m.actuator(j).id for j in LEFT_GRIPPER_JOINTS]
         self.arm_qpos = [m.joint(j).qposadr[0] for j in LEFT_ARM_JOINTS]
@@ -104,7 +103,10 @@ class TidySim:
         return out
 
     def env_state(self) -> np.ndarray | None:
-        return None if self.condition is None else self.condition(self.model, self.data).astype(np.float32)
+        if self.progress is None:
+            return None
+        index, total, _ = self.progress(self.model, self.data)
+        return np.array([float(index >= total)], dtype=np.float32)
 
     def step_info(self) -> tuple[int, int, str]:
         return self.progress(self.model, self.data)

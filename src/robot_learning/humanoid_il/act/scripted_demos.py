@@ -230,8 +230,8 @@ def main() -> None:
     from humanoid_mujoco_scenes.tidy_table import scene as S
 
     extra = {"leader_angles": LEADER_SERVOS, "leader_counts": LEADER_SERVOS, "subtask_index": ["subtask_index"]}
-    if sim.condition_names is not None:
-        extra["observation.environment_state"] = sim.condition_names
+    if sim.env_state_names is not None:
+        extra["observation.environment_state"] = sim.env_state_names
     args.num_episodes = None
     recorder, every = make_sim_recorder(args, schema, device="cpu", sim_dt=CONTROL_DT, extra_features=extra)
     if every != RECORD_EVERY:
