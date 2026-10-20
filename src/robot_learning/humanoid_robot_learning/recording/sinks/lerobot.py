@@ -5,9 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from humanoid_robot_learning.frame import build_lerobot_frame
-from humanoid_robot_learning.schema import create_dataset, enabled_images
-from humanoid_robot_learning.snapshot import ObservationSnapshot
+from humanoid_robot_learning.recording.frame import build_lerobot_frame
+from humanoid_robot_learning.recording.schema import create_dataset, enabled_images
+from humanoid_robot_learning.recording.snapshot import ObservationSnapshot
 
 
 class LeRobotSink:

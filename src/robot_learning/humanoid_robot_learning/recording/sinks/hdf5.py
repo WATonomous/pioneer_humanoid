@@ -8,8 +8,8 @@ from typing import Any
 
 import numpy as np
 
-from humanoid_robot_learning.schema import enabled_images
-from humanoid_robot_learning.snapshot import ObservationSnapshot
+from humanoid_robot_learning.recording.schema import enabled_images
+from humanoid_robot_learning.recording.snapshot import ObservationSnapshot
 
 logger = logging.getLogger(__name__)
 

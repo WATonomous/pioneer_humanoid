@@ -8,9 +8,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
 
-from humanoid_robot_learning.episode_keys import EpisodeFlags, EpisodeKeyboard
-from humanoid_robot_learning.schema import enabled_images
-from humanoid_robot_learning.snapshot import ObservationSnapshot
+from humanoid_robot_learning.recording.episode_keys import EpisodeFlags, EpisodeKeyboard
+from humanoid_robot_learning.recording.schema import enabled_images
+from humanoid_robot_learning.recording.snapshot import ObservationSnapshot
 
 logger = logging.getLogger(__name__)
 

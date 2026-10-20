@@ -10,12 +10,12 @@ from typing import Any
 
 import numpy as np
 
-from humanoid_robot_learning.frame import joints_to_snapshot
-from humanoid_robot_learning.recorder import RecordSession, RecordSettings, SnapshotSource
-from humanoid_robot_learning.record_utils import RateLimiter
-from humanoid_robot_learning.schema import enabled_images
-from humanoid_robot_learning.sinks import create_sinks, parse_sink_names
-from humanoid_robot_learning.snapshot import ObservationSnapshot
+from humanoid_robot_learning.recording.frame import joints_to_snapshot
+from humanoid_robot_learning.recording.recorder import RecordSession, RecordSettings, SnapshotSource
+from humanoid_robot_learning.recording.record_utils import RateLimiter
+from humanoid_robot_learning.recording.schema import enabled_images
+from humanoid_robot_learning.recording.sinks import create_sinks, parse_sink_names
+from humanoid_robot_learning.recording.snapshot import ObservationSnapshot
 
 logger = logging.getLogger(__name__)
 

@@ -49,9 +49,9 @@ def resolve_config_path(path: str | Path, *, anchor: Path) -> Path:
     return (anchor / p).resolve()
 
 
-# Repo root (src/robot_learning/humanoid_robot_learning/record_utils.py -> repo). Datasets live
+# Repo root (src/robot_learning/humanoid_robot_learning/recording/record_utils.py -> repo). Datasets live
 # under <repo>/datasets/ wherever a recorder is launched from.
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = Path(__file__).resolve().parents[4]
 
 
 def resolve_dataset_root(
