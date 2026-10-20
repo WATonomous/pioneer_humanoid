@@ -78,8 +78,11 @@ class TeleopMode:
 
 def run() -> None:
     parser = argparse.ArgumentParser(description="Pioneer MuJoCo leader teleoperation (left arm, or two leaders with --bimanual).")
-    add_leader_args(parser, scene_help="scene registered in humanoid_mujoco_scenes (an unknown name lists them)",
-                    bimanual=True)
+    add_leader_args(parser, scene_help="scene registered in humanoid_mujoco_scenes (an unknown name lists them)")
+    parser.add_argument("--bimanual", action="store_true", help="Control and record both arms using two leaders")
+    parser.add_argument("--right-port", help="Serial port of the right-arm leader")
+    parser.add_argument("--right-calibration", type=Path, help="Calibration for the right-arm leader")
+    parser.add_argument("--right-signs", help="Explicit calibrated servo directions for the right arm")
     add_record_args(parser, task_description="sim leader teleop demonstration")
     args = parser.parse_args()
     mode = TeleopMode(parser, args)
