@@ -225,7 +225,7 @@
     <light name="key" pos="1.8 -2.2 3.4" dir="-0.451129 0.55138 -0.701757" cutoff="50" exponent="2" diffuse="0.42 0.42 0.4" specular="0.2 0.2 0.2"/>
     <light name="fill" castshadow="false" pos="1.5 2.5 2.6" dir="-0.426401 -0.639602 -0.639602" cutoff="70" diffuse="0.16 0.16 0.18" specular="0 0 0"/>
     <light name="top" castshadow="false" pos="0.6 0 3" cutoff="60" exponent="1" diffuse="0.22 0.22 0.22" specular="0.05 0.05 0.05"/>
-    <body name="pelvis" pos="0 0 0.83" gravcomp="1"><inertial pos="nan 0.0 0.0" mass="5.0" diaginertia="0.1 0.1 0.1"/>
+    <body name="pelvis" pos="0 0 0.83" gravcomp="1"><inertial pos="0.0 0.0 0.0" mass="5.0" diaginertia="0.1 0.1 0.1"/>
       <joint name="base_x" type="slide" armature="1" axis="1 0 0"/>
       <joint name="base_y" type="slide" armature="1" axis="0 1 0"/>
       <joint name="base_z" type="slide" armature="1"/>

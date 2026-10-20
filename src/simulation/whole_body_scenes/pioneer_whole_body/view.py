@@ -28,7 +28,8 @@ def export(scene: str, path: str) -> str:
     xml = spec.to_xml()
     for body in spec.bodies:                         # bodies given a mass / inertia directly (the thread nuts): the
         if body.mass > 0 and body.name:              # XML writer leaves those out; put them back
-            inertial = (f'<inertial pos="{" ".join(map(str, body.ipos))}" mass="{body.mass}" '
+            ipos = [0.0 if v != v else v for v in body.ipos]          # (unset: NaN)
+            inertial = (f'<inertial pos="{" ".join(map(str, ipos))}" mass="{body.mass}" '
                         f'diaginertia="{" ".join(map(str, body.inertia))}"/>')
             xml = re.sub(rf'(<body name="{re.escape(body.name)}"[^>]*>)', rf"\1{inertial}", xml, count=1)
     xml = re.sub(r"\s*<default>\s*<default>\s*<default/>\s*</default>\s*</default>", "", xml)   # attach leftovers
