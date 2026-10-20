@@ -11,8 +11,7 @@ import os
 import mujoco
 import numpy as np
 
-from humanoid_mujoco_scenes import scene
-from humanoid_mujoco_scenes.workcell import OPEN_TABLE_TOP_Z as TABLE_TOP_Z, add_open_workcell
+from humanoid_mujoco_scenes import TABLE_TOP_Z, add_workcell, scene
 
 PEG_SIZE = 0.04                 # square cross-section (m); the gripper's collision hulls close past 0
 PEG_HEIGHT = 0.10
@@ -55,7 +54,7 @@ def is_inserted(model: mujoco.MjModel, data: mujoco.MjData) -> bool:
 @scene("peg_insert", camera=dict(lookat=[0.38, 0.29, TABLE_TOP_Z + 0.045], distance=0.5, azimuth=200, elevation=-35),
        reset=reset, initial_camera="ego")
 def build(spec: mujoco.MjSpec) -> None:
-    add_open_workcell(spec)
+    add_workcell(spec)
     world = spec.worldbody
     box = mujoco.mjtGeom.mjGEOM_BOX
 

@@ -22,7 +22,7 @@ python -m humanoid_mujoco_scenes.preview --interactive --scene bare
 ```
 
 Bimanual simulation is the default. Use `--scene` to select a scene.
-Peg insertion, matcha and sorting share the videos’ plain table and start in `ego`.
+All scenes use the shared lightbox workcell. Peg insertion, matcha and sorting start in `ego`.
 Use `[` / `]` to cycle cameras, or select `ego`, `wrist_left` or `wrist_right` under **Rendering → Camera**.
 Matcha and sorting also provide `front`. Tab toggles camera controls and Shift+Tab toggles joint/actuator controls; keep the camera viewport at 4:3 to match recorded frames.
 
@@ -44,8 +44,7 @@ humanoid_mujoco_scenes/my_scene/
 └── scene.py
 ```
 
-Peg insertion, matcha and sorting use `add_open_workcell()` with a 0.705 m table, as in the recorded peg videos.
-Other scenes build on the **lightbox workcell** (`workcell.py`), the same rig as Isaac's
+Every scene builds on the **lightbox workcell** (`workcell.py`), the same rig as Isaac's
 `humanoid_rl_tasks.workcell.LightboxWorkcellCfg`: floor, the CAD lightbox (visual only, lit by its two fill
 lights) and the 30.5-inch table, whose top collides as a box. `add_workcell(spec)` adds it; put your objects on
 `TABLE_TOP_Z` (0.780 m: the lightbox's bottom panel on the 30.5-inch table), inside `TABLE_X` (0.235–0.845 m in front of the arm base) and `TABLE_HALF_Y`.
