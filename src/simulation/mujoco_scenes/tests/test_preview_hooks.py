@@ -1,118 +1,138 @@
-"""Exercise the managed viewer's callback using real MuJoCo stepping without a GUI."""
+"""Exercise the passive viewer loop with real MuJoCo physics and a headless viewer handle."""
+import contextlib
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import mujoco
 import mujoco.viewer
 import numpy as np
 
-from humanoid_mujoco_scenes import make_model, scene_reset
+from humanoid_mujoco_scenes import make_model
 from humanoid_mujoco_scenes import preview
-from pioneer_humanoid.mujoco_bimanual_arm import set_home
+
+
+class FakeViewer:
+    def __init__(self, model, data, *, key_callback, frames=5, events=None):
+        self.model, self.data, self.key_callback = model, data, key_callback
+        self.frames, self.events = frames, events or {}
+        self.cam = mujoco.MjvCamera()
+        self.times = []
+        self.closed = False
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.closed = True
+
+    def lock(self):
+        return contextlib.nullcontext()
+
+    def is_running(self):
+        return len(self.times) < self.frames
+
+    def sync(self):
+        self.times.append(self.data.time)
+        event = self.events.get(len(self.times))
+        if event is not None:
+            event(self)
 
 
 class PreviewHookTests(unittest.TestCase):
-    def setUp(self):
-        self.previous = mujoco.get_mjcb_control()
-
-    def tearDown(self):
-        mujoco.set_mjcb_control(self.previous)
-
     def model_data(self, name):
         model = make_model(name)
         data = mujoco.MjData(model)
-        set_home(model, data)
-        reset = scene_reset(name)
-        if reset is not None:
-            reset(model, data, np.random.default_rng(0))
-        mujoco.mj_forward(model, data)
+        preview._reset_scene(name, model, data)
         return model, data
+
+    def run_viewer(self, name, model, data, **options):
+        handle = None
+
+        def launch(model, data, *, key_callback):
+            nonlocal handle
+            handle = FakeViewer(model, data, key_callback=key_callback, **options)
+            return handle
+
+        with patch.object(mujoco.viewer, 'launch_passive', launch), patch.object(preview.time, 'sleep'):
+            preview._launch_interactive(name, model, data)
+        self.assertTrue(handle.closed)
+        return handle
 
     def test_zip_tie_pawl_and_welds_follow_pulled_carriage(self):
         from humanoid_mujoco_scenes.zip_tie import scene as zip_tie
-        model, data = self.model_data("zip_tie")
+        model, data = self.model_data('zip_tie')
         original_welds = data.eq_active.copy()
+        data.qpos[model.joint('zip_carriage').qposadr[0]] = 4 * zip_tie.TOOTH_PITCH
+        self.run_viewer('zip_tie', model, data, frames=1)
+        self.assertGreater(data.ctrl[model.actuator('zip_pawl').id], 0)
+        self.assertTrue(np.any(data.eq_active != original_welds))
 
-        def simulate(model, data):
-            data.qpos[model.joint("zip_carriage").qposadr[0]] = 4 * zip_tie.TOOTH_PITCH
-            mujoco.mj_step(model, data)
-            self.assertGreater(data.ctrl[model.actuator("zip_pawl").id], 0)
-            self.assertTrue(np.any(data.eq_active != original_welds))
-
-        with patch.object(mujoco.viewer, "launch", simulate):
-            preview._launch_interactive("zip_tie", model, data)
-        self.assertIs(mujoco.get_mjcb_control(), self.previous)
-
-    def test_duplo_snaps_seated_brick_and_reset_reinitializes_order(self):
+    def test_duplo_snaps_and_native_reset_reinitializes_scene(self):
         from humanoid_mujoco_scenes.duplo import scene as duplo
-        model, data = self.model_data("duplo")
+        model, data = self.model_data('duplo')
+        adr = model.joint('brick_red').qposadr[0]
+        data.qpos[adr:adr + 7] = [*duplo.PLATE_POS, duplo.T + duplo.PLATE_T, 1, 0, 0, 0]
+        mujoco.mj_forward(model, data)
 
-        def simulate(model, data):
-            adr = model.joint("brick_red").qposadr[0]
-            data.qpos[adr:adr + 7] = [*duplo.PLATE_POS, duplo.T + duplo.PLATE_T, 1, 0, 0, 0]
-            mujoco.mj_step(model, data)
-            self.assertTrue(data.eq_active[model.equality("snap_red_on_baseplate").id])
-            mujoco.mj_step(model, data, nstep=20)
+        def check_snap(handle):
+            self.assertTrue(data.eq_active[model.equality('snap_red_on_baseplate').id])
+
+        def reset(handle):
             mujoco.mj_resetData(model, data)
-            mujoco.mj_forward(model, data)
-            self.assertEqual(sorted(data.userdata[1:].tolist()), [0, 1, 2])
-            self.assertAlmostEqual(data.ctrl[model.actuator("joint4l").id], -np.pi / 2)
-            self.assertTrue(np.isfinite(data.qpos).all())
 
-        with patch.object(mujoco.viewer, "launch", simulate):
-            preview._launch_interactive("duplo", model, data)
+        handle = self.run_viewer('duplo', model, data, events={1: check_snap, 3: reset})
+        self.assertAlmostEqual(handle.times[3], 0.01)
+        self.assertEqual(sorted(data.userdata[1:].tolist()), [0, 1, 2])
+        self.assertAlmostEqual(data.ctrl[model.actuator('joint4l').id], -np.pi / 2)
 
-    def test_paused_forward_calls_do_not_repeat_hook_and_rewind_resumes(self):
-        model, data = self.model_data("bare")
+    def test_space_pauses_physics_and_hooks_and_r_resets_while_paused(self):
+        model, data = self.model_data('bare')
+        calls = []
+        events = {1: lambda h: h.key_callback(32),
+                  2: lambda h: h.key_callback(82),
+                  3: lambda h: h.key_callback(32)}
+        with patch.object(preview, 'scene_step', return_value=lambda m, d: calls.append(d.time)):
+            handle = self.run_viewer('bare', model, data, events=events)
+        self.assertTrue(np.allclose(handle.times, [0.01, 0.01, 0, 0.01, 0.02]))
+        self.assertTrue(np.allclose(calls, [0, 0, 0.01]))
+
+    def test_scene_without_hook_advances_and_uses_scene_camera(self):
+        model, data = self.model_data('bare')
+        camera = dict(lookat=[0.2, 0.1, 0.8], distance=1.2, azimuth=210, elevation=-35)
+        with patch.object(preview, 'scene_camera', return_value=camera):
+            handle = self.run_viewer('bare', model, data)
+        self.assertAlmostEqual(data.time, 0.05)
+        self.assertTrue(np.allclose(handle.cam.lookat, camera['lookat']))
+        self.assertEqual(handle.cam.azimuth, camera['azimuth'])
+
+    def test_engine_callback_and_ui_actuator_targets_are_preserved(self):
+        model, data = self.model_data('bare')
+        before = mujoco.get_mjcb_control()
         calls = []
 
-        def simulate(model, data):
-            mujoco.mj_step(model, data, nstep=21)
-            self.assertTrue(np.allclose(calls, [0, 0.01, 0.02]))
-            mujoco.mj_forward(model, data)
-            count = len(calls)
-            for _ in range(5):
-                mujoco.mj_forward(model, data)
-            self.assertEqual(len(calls), count)
-            mujoco.mj_resetData(model, data)
-            mujoco.mj_forward(model, data)
-            self.assertEqual(calls[-1], 0)
+        def callback(model, data):
+            calls.append(data.time)
 
-        with patch.object(preview, "scene_step", return_value=lambda m, d: calls.append(d.time)), \
-             patch.object(mujoco.viewer, "launch", simulate):
-            preview._launch_interactive("bare", model, data)
+        mujoco.set_mjcb_control(callback)
+        try:
+            actuator = model.actuator('joint1L').id
+            self.run_viewer('bare', model, data,
+                            events={1: lambda h: data.ctrl.__setitem__(actuator, 0.2)})
+            self.assertEqual(data.ctrl[actuator], 0.2)
+            self.assertTrue(calls)
+            self.assertIs(mujoco.get_mjcb_control(), callback)
+        finally:
+            mujoco.set_mjcb_control(before)
 
-    def test_previous_callback_runs_and_is_restored_on_error(self):
-        model, data = self.model_data("zip_tie")
-        previous_calls = []
-
-        def previous(model, data):
-            previous_calls.append(data.time)
-
-        mujoco.set_mjcb_control(previous)
-
-        def fail(model, data):
-            mujoco.mj_step(model, data)
-            raise RuntimeError("viewer failed")
-
-        with patch.object(mujoco.viewer, "launch", fail):
-            with self.assertRaisesRegex(RuntimeError, "viewer failed"):
-                preview._launch_interactive("zip_tie", model, data)
-        self.assertTrue(previous_calls)
-        self.assertIs(mujoco.get_mjcb_control(), previous)
-
-    def test_loading_another_model_does_not_apply_original_scene_hook(self):
-        model, data = self.model_data("zip_tie")
-        other_model, other_data = self.model_data("bare")
-
-        def simulate(model, data):
-            mujoco.mj_step(other_model, other_data, nstep=20)
-            mujoco.mj_step(model, data, nstep=20)
-
-        with patch.object(mujoco.viewer, "launch", simulate):
-            preview._launch_interactive("zip_tie", model, data)
-        self.assertAlmostEqual(other_data.time, 0.02)
+    def test_viewer_closes_when_scene_hook_fails(self):
+        model, data = self.model_data('bare')
+        handle = FakeViewer(model, data, key_callback=lambda key: None)
+        with patch.object(mujoco.viewer, 'launch_passive', return_value=handle), \
+             patch.object(preview, 'scene_step', return_value=Mock(side_effect=RuntimeError('hook failed'))):
+            with self.assertRaisesRegex(RuntimeError, 'hook failed'):
+                preview._launch_interactive('bare', model, data)
+        self.assertTrue(handle.closed)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     unittest.main()

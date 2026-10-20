@@ -15,10 +15,12 @@ pip install -e src/pioneer_humanoid -e src/simulation/mujoco_scenes
 python -m humanoid_mujoco_scenes.preview --interactive --scene matcha
 ```
 
+On macOS, replace `python` with `mjpython` for the passive viewer.
 Use `--scene` to select a scene. No teleop hardware is required.
+Press **Space** to pause/resume and **R** to reset the arm and scene.
 Select `ego`, `wrist_left` or `wrist_right` under **Rendering → Camera**, or cycle with `[` / `]`.
 Tab and Shift+Tab toggle camera and joint/actuator controls. Keep the camera viewport at 4:3 to match recorded frames.
-Python scene mechanics and task progress run alongside physics at the teleop control cadence.
+An explicit loop runs Python scene mechanics, advances physics at the teleop control cadence, and synchronizes the passive viewer.
 
 ## Use a scene
 
