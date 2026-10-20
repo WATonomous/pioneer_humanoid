@@ -27,16 +27,16 @@ from humanoid_mujoco_scenes import TABLE_TOP_Z, add_workcell, scene
 T = TABLE_TOP_Z
 
 # Items are spread across the two arms within their grasping workspace.
-CUP_POS = (0.31, 0.12)
+CUP_POS = (0.38, 0.20)
 CUP = dict(r=0.030, h=0.065, wall=0.003, n=14, mass=0.2)    # ceramic: heavy enough not to topple at a brush
-LADLE_POS = (0.31, 0.43)                      # ladle (already holding the matcha) stands in its holder
+LADLE_POS = (0.39, 0.39)                      # ladle (already holding the matcha) stands in its holder
 # Scooping a handful of 5 mm balls out of a jar isn't reliable with one arm in this space (tipped steeply
 # enough to scoop, the ladle's hand end hits its neighbours), so the ladle starts filled: carry it level, tip it.
-PITCHER_POS = (0.37, -0.43)
+PITCHER_POS = (0.40, -0.36)
 PITCHER = dict(r=0.030, h=0.06, wall=0.003, n=14, mass=0.05)
 PITCHER_HANDLE = 0.07                          # post above the rim (jaws, 44 mm half-length, clear the rim)
-WHISK_POS = (0.30, -0.24)
-TRAY = ((0.35, 0.49), (0.20, 0.32))         # x, y extent on the table
+WHISK_POS = (0.39, -0.23)
+TRAY = ((0.43, 0.57), (0.23, 0.35))         # x, y extent on the table
 RANDOM_SHIFT = 0.012                           # cup and pitcher placed within +-this per episode
 
 # 40 balls of 5 mm: physics ~0.3 s per simulated second (84 balls of 4 mm took 3 s: they touch each other).

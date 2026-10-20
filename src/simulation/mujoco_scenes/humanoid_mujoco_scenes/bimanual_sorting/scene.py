@@ -7,8 +7,8 @@ import numpy as np
 from humanoid_mujoco_scenes import TABLE_TOP_Z, add_workcell, scene
 
 COLORS = {"red": [0.85, 0.2, 0.15, 1], "blue": [0.15, 0.35, 0.85, 1]}
-TRAYS = {"red": (0.35, -0.50), "blue": (0.35, 0.50)}
-BLOCK_POSITIONS = ((0.30, 0.18), (0.38, 0.28))
+TRAYS = {"red": (0.38, -0.47), "blue": (0.38, 0.47)}
+BLOCK_POSITIONS = ((0.33, 0.19), (0.40, 0.28))
 BLOCK_HALF = 0.02
 TRAY_HALF = 0.09
 
