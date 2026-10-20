@@ -168,6 +168,7 @@ def run_episode(scene: str, seed: int, frame_sink=None, record_every: int = 0, o
 
     import numpy as np
     from human_operator import HumanOperator, Style
+    from humanoid_mujoco_scenes import scene_success
     from synthetic_tasks import TASKS, TaskFailed
 
     sim = TeleopSim(scene, seed)
@@ -181,7 +182,7 @@ def run_episode(scene: str, seed: int, frame_sink=None, record_every: int = 0, o
         task.plan(op, sim.model, sim.data, notes)
     except TaskFailed as exc:
         notes.append(f"gave up: {exc}")
-    ok = bool(task.success(sim.model, sim.data))
+    ok = bool(scene_success(scene)(sim.model, sim.data))
     if os.environ.get("SYNTH_TRACE"):
         print("\n".join(op.trace))
     sim.close()
