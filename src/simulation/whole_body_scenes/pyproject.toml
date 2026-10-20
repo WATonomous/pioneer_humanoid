@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pioneer-whole-body-scenes"
+version = "0.1.0"
+description = "Plain-MuJoCo (CPU) long-horizon manipulation scenes for the whole-body Pioneer v2 humanoid, with scripted demos and video"
+requires-python = ">=3.10"
+dependencies = ["mujoco>=3.3", "numpy", "pillow"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["pioneer_whole_body*"]
