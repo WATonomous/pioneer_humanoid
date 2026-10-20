@@ -62,8 +62,8 @@ latched in order as in `humanoid_mujoco_scenes`) and `plan` (the demo).
 - Not physics (scripted mechanisms, each a few lines in its scene's `step`):
   - the threads (a rigid helix coupling, see `parts.py`) and the lid's captive screws (welded to the lid until
     they catch their threads);
-  - the latches: the jig clamp (a weld the button releases), the outbound and shelf fixtures (a weld made when
-    the part is set flat in them), a gear set on its shaft (welded to the shaft's pivot);
+  - the latches: the jig clamp (a weld the button releases), the outbound and shelf fixtures and the hand-over
+    bar's cradle (a weld made when the part is set flat in them), a gear set on its shaft (welded to the shaft's pivot);
   - the gear mesh (the second gear's turn coupled to the first's, teeth in phase; the teeth aren't collided);
   - the drawer's and hatch's detents and soft-close (a small force near the ends of travel);
   - the testers' indicator flags;
