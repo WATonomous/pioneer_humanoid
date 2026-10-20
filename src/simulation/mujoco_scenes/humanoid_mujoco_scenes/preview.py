@@ -21,9 +21,11 @@ def main() -> None:
     if args.scene not in list_scenes():
         raise SystemExit(f"unknown --scene {args.scene!r}; available: {list_scenes()}")
 
+    from pioneer_humanoid.arm_params import CAMERA_NAMES
     from pioneer_humanoid.mujoco_bimanual_arm import set_home
 
-    model = make_model(args.scene)
+    cameras = {name: (480, 640) for name in CAMERA_NAMES} if args.interactive else None
+    model = make_model(args.scene, cameras=cameras)
     data = mujoco.MjData(model)
     set_home(model, data)
     reset_hook = scene_reset(args.scene)

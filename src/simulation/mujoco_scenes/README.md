@@ -22,6 +22,7 @@ python -m humanoid_mujoco_scenes.preview --interactive --scene bare
 ```
 
 Bimanual simulation is the default. Use `--scene` to select a scene.
+For matcha and sorting, select `front`, `ego`, `wrist_left` or `wrist_right` under **Rendering → Camera**.
 
 ## Use a scene
 
