@@ -37,7 +37,7 @@ LIFT = 0.04 / (2 * math.pi)              # m of load per radian of crank
 TOP = 0.16                               # the latch: the load this high
 MAST = (0.66, -0.14)
 LOAD_Z0 = 0.03                           # the load's bottom above the bench at the start
-LEVER = (0.56, 0.16)
+LEVER = (0.60, 0.16)
 LEVER_TRAVEL = 0.5                       # rad
 STEPS = ("wind the load up", "lock it")
 _U_STEP, _U_LOCK = 0, 1
@@ -118,7 +118,7 @@ def build(spec: mujoco.MjSpec) -> None:
     mast.add_geom(type=BOX, size=[0.012, 0.016, 0.008], pos=[-0.005, 0, LOAD_Z0 + TOP + 0.075], rgba=yellow,
                   contype=0, conaffinity=0)                                                           # the latch
     load = mast.add_body(name="load", pos=[-0.02, 0, LOAD_Z0])
-    load.add_joint(name="load", type=mujoco.mjtJoint.mjJNT_SLIDE, axis=[0, 0, 1], range=[0, TOP + 0.01],
+    load.add_joint(name="load", type=mujoco.mjtJoint.mjJNT_SLIDE, axis=[0, 0, 1], range=[0, TOP + 0.04],
                    limited=mujoco.mjtLimited.mjLIMITED_TRUE, damping=0.5)
     load.add_geom(type=BOX, size=[0.025, 0.025, 0.02], pos=[0, 0, 0.02], rgba=[0.8, 0.3, 0.12, 1], mass=0.25,
                   contype=0, conaffinity=0)
@@ -131,7 +131,7 @@ def build(spec: mujoco.MjSpec) -> None:
     lb = world.add_body(name="lever_base", pos=[lx, ly, T])
     lb.add_geom(type=BOX, size=[0.03, 0.03, 0.025], pos=[0, 0, 0.025], rgba=dark)
     lever = lb.add_body(name="lever", pos=[0, 0, 0.05])
-    lever.add_joint(name="lever", type=mujoco.mjtJoint.mjJNT_HINGE, axis=[0, 1, 0], range=[-LEVER_TRAVEL, 0],
+    lever.add_joint(name="lever", type=mujoco.mjtJoint.mjJNT_HINGE, axis=[0, 1, 0], range=[-math.degrees(LEVER_TRAVEL), 0],   # (degrees: MjSpec's default)
                     limited=mujoco.mjtLimited.mjLIMITED_TRUE, stiffness=0.6, springref=0.0, damping=0.05)
     lever.add_geom(type=BOX, size=[0.05, 0.006, 0.004], pos=[-0.05, 0, 0.004], rgba=grey, mass=0.02,
                    quat=[math.cos(-0.25), 0, math.sin(-0.25), 0])
@@ -168,6 +168,13 @@ def plan(wb, notes: dict) -> None:
             break
         # a quarter turn at a time (anticlockwise: the load goes up), the last one just as far as the latch
         _crank(wb, "r", min(0.5 * math.pi, (TOP + 0.002 - _height(m, d)) / LIFT))
+        turns = (_angle(wb) - a0) / (2 * math.pi)
+    # the handle on the near half (by the body) is awkward to let go of: on round to the far half (the load has room
+    # above the latch)
+    knob = S.site(wb, "handle_top")
+    a = math.atan2(knob[1] - CRANK[1], knob[0] - CRANK[0])
+    if math.cos(a) < 0.2:
+        _crank(wb, "r", (-0.5 * math.pi + 0.5 - a) % (2 * math.pi))
         turns = (_angle(wb) - a0) / (2 * math.pi)
     notes["turns"] = round(turns, 2)
     notes["height"] = round(_height(m, d), 3)
