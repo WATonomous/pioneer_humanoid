@@ -168,13 +168,14 @@ python3 pioneer_leader_arm_teleop.py --target real --live   # needs joint_comman
 python3 pioneer_leader_arm_teleop.py --target real --self-test           # angle math only, no ROS / leader
 ```
 
-- Leader: `sign × leader` (clamped to the URDF limits, as in sim).
+- Leader: `sign × leader`, clamped to the `arm_calibration.yaml` limits `joint_command` enforces (the URDF
+  limits for a joint without `limit_range`; the sim backends keep the URDF limits).
   Real: `zero_offset + motor / direction` from `arm_calibration.yaml`. Same frame, compared directly.
 - Check: pose both arms the same, motors off; every joint should agree within 10° across its range.
   Fix the leader's signs (`calibrate_leader.py --signs`) or the real arm's `direction` / calibration (`calibrate_arm.py`) until it does.
-- Warnings (end of each row): `>10` (disagreement), `NO FEEDBACK` (none for 0.5 s), `urdf-clamp`, `outside hw [lo,hi]`
-  (the leader's target is outside `arm_calibration.yaml`'s limits; `joint_command` would clamp it).
-- Gripper: compared as position (0 open .. 1 closed), leader vs the real GL40 (id 21); `>0.1` warns.
+- Warnings (end of each row): `>10` (disagreement), `NO FEEDBACK` (none for 0.5 s), `limit-clamp` (the leader was cut to those
+  limits), `real outside hw [lo,hi]` (the real arm is outside `arm_calibration.yaml`'s limits: stale calibration).
+- Gripper: compared as position (0 open .. 1 closed), leader vs the real GL40 (id 21); `>0.1` and
 
 `--live`:
 0. Optionally homes the real elbow.pitch first. Once every active joint has feedback, it asks `[y/N]`.
@@ -182,9 +183,9 @@ python3 pioneer_leader_arm_teleop.py --target real --self-test           # angle
    at most its `velocity_max`), holding the other joints where they are. It then keeps publishing that
    pose until the leader takes over. It refuses if elbow.pitch is not `active` or home is outside its
    `arm_calibration.yaml` limits (re-run `calibrate_arm.py` sweeping past home).
-1. Shows the dry run until the gate passes: on every joint `active` in `arm_actuators.yaml`, the leader is
-   within 3° of home and within 10° of the real arm, and the gripper within 0.1. The screen lists what fails.
-2. Asks you to type `live` (anything else quits), re-checks the gate, then publishes `ArmPose` on
+1. Shows the dry run until the gate passes: on every joint `active` in `arm_actuators.yaml`, the real arm is
+   inside its `arm_calibration.yaml` limits and the leader is within 3° of home and within 10° of the real
+   arm; the gripper (if active) is inside its limits and within 0.1. The screen lists what fails.
    `/arm/joint_targets` at 50 Hz, gripper included. `joint_command` clamps, rate-limits and runs the watchdog.
 3. Ctrl-C stops publishing. `joint_command` holds the last pose for `command_timeout_sec` (10 s), then
    sets kp = 0 and the arm sinks: support it.
