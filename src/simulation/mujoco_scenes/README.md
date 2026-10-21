@@ -9,7 +9,7 @@ pip install mujoco pillow
 pip install -e src/pioneer_humanoid -e src/simulation/mujoco_scenes
 ```
 
-## Viewer
+## Scene Viewer
 
 ```bash
 # Linux / Windows
