@@ -354,6 +354,56 @@ def shelf_board():
     return p.part
 
 
+# the toolbox lift scene: a small steel toolbox (a lid, two latches, a bar handle on two ears) and a low riser block
+TOOLBOX = dict(length=0.18, depth=0.10, height=0.07, lid_h=0.02, handle_len=0.12, handle_r=0.0065, handle_h=0.032)
+RISER = dict(length=0.26, depth=0.20, height=0.026, mat=0.005)
+
+
+def toolbox_body():
+    """The toolbox (in its frame: centred in x and y, its bottom at z = 0, its length along y): a box, the lid's
+    seam and lip, two latches on the front (-x) and stamped ribs along the ends."""
+    c = TOOLBOX
+    L, d, H, lh = c["length"], c["depth"], c["height"], c["lid_h"]
+    with BuildPart() as p:
+        Box(d, L, H, align=(Align.CENTER, Align.CENTER, Align.MIN))
+        fillet(p.edges().filter_by(Axis.Z), 0.006)
+        with Locations(Location((0, 0, H - lh - 0.002))):   # the lid's seam
+            Box(d + 0.004, L + 0.004, 0.0015, align=(Align.CENTER, Align.CENTER, Align.MIN), mode=Mode.SUBTRACT)
+        with Locations(Location((0, 0, H - lh + 0.002))):   # its lip
+            Box(d + 0.002, L + 0.002, 0.004, align=(Align.CENTER, Align.CENTER, Align.MIN))
+        for s_ in (-1, 1):
+            with Locations(Location((-d / 2 - 0.002, s_ * 0.05, H - lh - 0.016))):   # latches
+                Box(0.006, 0.022, 0.026, align=(Align.CENTER, Align.CENTER, Align.MIN))
+            for k in (-1, 0, 1):                          # end ribs
+                with Locations(Location((k * 0.025, s_ * (L / 2 + 0.0008), 0.012))):
+                    Box(0.008, 0.002, H - lh - 0.024, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    return p.part
+
+
+def toolbox_handle():
+    """The bar handle (the same frame): a bar along y ``handle_h`` above the top, on two ears at its ends."""
+    c = TOOLBOX
+    H, hl, hr, hh = c["height"], c["handle_len"], c["handle_r"], c["handle_h"]
+    with BuildPart() as p:
+        with Locations(Location((0, 0, H + hh))):
+            Cylinder(hr, hl, rotation=(90, 0, 0))
+        for s_ in (-1, 1):
+            with Locations(Location((0, s_ * (hl / 2 + 0.002), H))):
+                Box(0.016, 0.004, hh + hr, align=(Align.CENTER, Align.CENTER, Align.MIN))
+            with Locations(Location((0, s_ * (hl / 2 + 0.002), H))):
+                Box(0.026, 0.012, 0.004, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    return p.part
+
+
+def riser():
+    """A low pine block (its front at x = 0, centred in y, its foot at z = 0), the rubber mat on it a separate box."""
+    c = RISER
+    with BuildPart() as p:
+        Box(c["depth"], c["length"], c["height"], align=(Align.MIN, Align.CENTER, Align.MIN))
+        fillet(p.edges().group_by(Axis.Z)[-1], 0.003)
+    return p.part
+
+
 def foam_insert():
     """Grey foam on the bottom drawer's floor, a row of round holes the sockets stand in (sunk about half their
     height: they ride in and out with the drawer)."""
@@ -451,6 +501,9 @@ if __name__ == "__main__":
     save(paint_label(), "paint_label")
     save(paint_lid(), "paint_lid")
     save(shelf_board(), "shelf_board")
+    save(toolbox_body(), "toolbox_body")
+    save(toolbox_handle(), "toolbox_handle")
+    save(riser(), "riser")
     save(foam_insert(), "foam_insert")
     save(tool_tray(), "tool_tray")
     save(wrench(), "wrench")
