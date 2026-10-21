@@ -65,7 +65,7 @@ as fast as real time).
 
 Robustness (`--seeds 8`: every loose part up to 2 mm and 3 deg off; Oct 20-21): `bearing_block` 8/8, `gear_train` 8/8,
 `service_panel` 8/8, `tote_to_shelf` 6/8, `wheel_hub` 6/8, `handover` 5/6, `wrench` 6/6, `sort_bins` 8/8 (colours and parts shuffled), `wipe_table` 6/8 (a squeegee tips over in the grip), `simon_panel` 8/8 (sequences random), `pour` 6/8 (an empty cup pushed off its coaster when the hand lets go), `winch` 8/8, `push_cart` 7/8, `weigh_sort` 6/8 (a part not taken from the tray), `drawer` 8/8 (parts placed and swapped), `lid_box` 8/8 (tag colours random), `valve` 8/8 (needles and marks random), `conveyor` 7/8 (colour order random), `battery_module` 2/8 (its cells catch on the socket rims or
-get flung when the hand lets go: the next thing to fix); the workshop scenes (with the final checks) `socket_rail` 8/8 (socket sizes measured), `oil_caddy` 8/8, `paint_shelf` 8/8 (lid colours random), `toolbox_lift` 8/8. Seed 0, the scene as built, is the one in the videos.
+get flung when the hand lets go: the next thing to fix); the workshop scenes (with the final checks) `socket_rail` 7/8 (socket sizes measured), `oil_caddy` 8/8, `paint_shelf` 8/8 (lid colours random), `toolbox_lift` 8/8. Seed 0, the scene as built, is the one in the videos.
 These rates were counted as "every step latched"; since Oct 21 a run counts only if the plan's own final checks pass
 as well (`run_demo`), so some may be a little lower when re-run.
 
