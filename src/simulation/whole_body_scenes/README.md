@@ -61,6 +61,13 @@ as fast as real time).
 Robustness (`--seeds 8`: every loose part up to 2 mm and 3 deg off; Oct 20-21): `bearing_block` 8/8, `gear_train` 8/8,
 `service_panel` 8/8, `tote_to_shelf` 6/8, `wheel_hub` 6/8, `handover` 5/6, `wrench` 6/6, `sort_bins` 8/8 (colours and parts shuffled), `wipe_table` 6/8 (a squeegee tips over in the grip), `simon_panel` 8/8 (sequences random), `pour` 6/8 (an empty cup pushed off its coaster when the hand lets go), `winch` 8/8, `push_cart` 7/8, `weigh_sort` 6/8 (a part not taken from the tray), `drawer` 8/8 (parts placed and swapped), `lid_box` 8/8 (tag colours random), `valve` 8/8 (needles and marks random), `conveyor` 7/8 (colour order random), `battery_module` 2/8 (its cells catch on the socket rims or
 get flung when the hand lets go: the next thing to fix). Seed 0, the scene as built, is the one in the videos.
+These rates were counted as "every step latched"; since Oct 21 a run counts only if the plan's own final checks pass
+as well (`run_demo`), so some may be a little lower when re-run.
+
+In progress, not yet robust: `ball_beam` (lifts a channel by its two handles and tilts it, one hand up and the other
+down, to roll a ball onto a mark by sight: the feedback works, the ball settles in ~5 s; set back down, the ball often
+rolls off the mark) and `copy_pattern` (reads a reference row of three colours with its head camera and builds it in
+an empty fixture from a tray with a decoy: a placed part still gets knocked over in most seeds).
 
 Each scene registers `step` (mechanics: threads, clamp, button), `progress` (the current step and its instruction,
 latched in order as in `humanoid_mujoco_scenes`) and `plan` (the demo).
@@ -76,7 +83,7 @@ latched in order as in `humanoid_mujoco_scenes`) and `plan` (the demo).
 | `studio.py` | The room: floor, lights, workbench. |
 | `view.py` | The interactive viewer (`--play`, `--tape`) and `--export` to MJCF. |
 | `vision.py` | What the robot sees: its head camera's image, colour blobs in it (hue / saturation thresholds, connected components) and each blob put back on the bench (its ray met with a known plane). |
-| `video.py`, `shots.py` | The tape, and the renderer: a camera that follows the robot's gaze target (smoothed), pulls back while it walks, stays in front of it when it turns round, the head camera inset, a caption bar with the current step. |
+| `video.py`, `shots.py` | The tape, and the renderer: a camera that follows the robot's gaze target (smoothed), pulls back while it walks, stays in front of it when it turns round, the head camera inset, a caption bar with the current step. The stretches where the robot steps are marked on the tape and cut from the video by default (locomotion will be its own policy's job; `render(..., walking=True)` keeps them). |
 
 ## Physics vs. scripting
 
