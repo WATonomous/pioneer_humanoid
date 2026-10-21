@@ -227,7 +227,7 @@ def _take(wb, side, part, est) -> None:
     raise S.TaskFailed(f"{part} not taken")
 
 
-def _place(wb, side, part, xy, bottom_z) -> None:
+def _place(wb, side, part, xy, bottom_z, up: float = 0.08) -> None:
     """Carry the part over ``xy`` and set it down there (its bottom at ``bottom_z``): where it hangs from the palm is
     felt (the simulator's pose, as everywhere outside the vision scenes), so a part that hangs tipped or off centre
     in the grip still goes down where it should."""
@@ -247,7 +247,7 @@ def _place(wb, side, part, xy, bottom_z) -> None:
     wb.settle()                                       # straight up off it
     wb.wait(0.3)
     p, r = wb.hand_goal[side]
-    wb.reach(side, p + [0, 0, 0.08], r, 0.8)
+    wb.reach(side, p + [0, 0, up], r, 0.8)
     wb.settle()
     wb.arm_joints_to(side, HIGH, 0.8)
     wb.settle()

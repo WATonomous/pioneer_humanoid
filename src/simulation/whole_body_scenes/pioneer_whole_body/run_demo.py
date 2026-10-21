@@ -68,7 +68,9 @@ def run(scene: str, out: str | None, fps: float = 30.0, seed: int = 0) -> dict:
     except TaskFailed as err:
         notes["failed"] = str(err)
     k, n, _ = e.progress(m, d) if e.progress else (0, 0, "")
-    notes.update(steps_done=k, steps=n, success=bool(e.progress and k >= n), sim_time=round(wb.t, 2),
+    # done: every step through and the plan's own final checks passed
+    notes.update(steps_done=k, steps=n, success=bool(e.progress and k >= n and notes["failed"] is None),
+                 sim_time=round(wb.t, 2),
                  wall_time=round(time.time() - t0, 1))
     if out:
         os.makedirs(os.path.dirname(os.path.abspath(out)) or ".", exist_ok=True)
