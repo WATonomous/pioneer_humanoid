@@ -17,8 +17,8 @@ role, but simplified for this robot:
   robot_observation_processor.
 
 - Joint limits come from pioneer_humanoid.bimanual_arm.JOINT_POS_LIMITS, parsed
-  from the URDF (radians) -- no degree/normalized-unit conversion needed for the
-  arm, since both the sim and the dataset speak radians directly. This is simpler
+  from the URDF (radians) -- no degree/normalized-unit conversion needed, since
+  both the sim and the dataset already speak radians directly. This is simpler
   than SO101's -100..100 leader convention for that reason.
 
 - RTCDrivenPolicy owns pre/postprocessing (see humanoid_robot_learning.deploy.rtc_driver._replan) --
@@ -102,8 +102,7 @@ class PioneerLeftArmInterface:
         self.joint_names: list[str] = list(cfg["joint_names"])  # 7: arm joints + left_gripper
         if self.joint_names != LEFT_ARM_RECORD_JOINTS:
             raise ValueError(f"{schema_path}: joint_names {self.joint_names} != {LEFT_ARM_RECORD_JOINTS}")
-        # Same fallback as the recorders: they label the dataset with robot_id.
-        self.robot_type: str = str(cfg.get("robot_type", cfg["robot_id"]))
+        self.robot_type: str = str(cfg["robot_id"])  # the recorders label the dataset with robot_id
         self.dataset_features: dict[str, Any] = build_features(cfg)
 
         # Clamp table for the 7 policy values: URDF limits for the arm, 0-1 for the gripper closure.

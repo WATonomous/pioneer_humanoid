@@ -28,8 +28,8 @@ LEFT_*/RIGHT_* are imported as-is.
 Cameras
 -------
     eye pair (RSD455)  stereo headset view, attached at runtime -> pov_left/right.jpg
-    wrist_cam          link6l (LEFT Quest hand) -- headset HUD panel + recording (schema key wrist_left)
-    wrist_cam_right    link6  (RIGHT Quest hand) -- headset HUD panel; recorded only if the schema enables wrist_right
+    wrist_cam          link6l (LEFT Quest hand) -- headset HUD panel + recording
+    wrist_cam_right    link6  (RIGHT Quest hand) -- headset HUD panel only
     ego_cam            recording only; left out of the scene entirely without --record
 
 Performance
@@ -1052,7 +1052,7 @@ class _ArmDlsController:
 # ── recording (see pioneer_humanoid_dataset_schema.yaml) ─────────────────────
 
 # schema image key -> scene camera
-RECORD_CAMERA_SENSORS = {"ego": "ego_cam", "wrist_left": "wrist_cam", "wrist_right": "wrist_cam_right"}
+RECORD_CAMERA_SENSORS = {"ego": "ego_cam", "wrist_left": "wrist_cam"}
 
 
 def _gripper_closure(finger_pos: torch.Tensor, open_pos: float, closed_pos: float) -> torch.Tensor:
@@ -1061,7 +1061,7 @@ def _gripper_closure(finger_pos: torch.Tensor, open_pos: float, closed_pos: floa
 
 
 def _init_recorder(device: str):
-    """Returns (recorder, camera_keys), or (None, None) if --record wasn't passed."""
+    """Returns (recorder, {schema image key: scene camera}), or (None, None) if --record wasn't passed."""
     if not args_cli.record:
         return None, None
     _ensure_robot_learning_on_path()
@@ -1078,9 +1078,7 @@ def _init_recorder(device: str):
     # append to the <root>/sim dataset the keyboard and leader teleops write.
     dataset_root = resolve_dataset_root(cfg, args_cli.dataset_root, subdir="quest_sim")
     cameras = {name: {"height": spec["height"], "width": spec["width"]} for name, spec in enabled_images(cfg).items()}
-    unknown = sorted(set(cameras) - set(RECORD_CAMERA_SENSORS))
-    if unknown:
-        raise SystemExit(f"{schema_path}: no scene camera for images {unknown}; known: {list(RECORD_CAMERA_SENSORS)}")
+    sensors = {name: RECORD_CAMERA_SENSORS[name] for name in cameras}  # KeyError: no scene camera for that image
     # device="cpu" always: the recorder's multi-GB circular frame buffer on "cuda" competes with
     # Isaac Sim's own GPU memory and silently kills the process. buffer_capacity_s=30 (not the
     # 120 default): at 2x 640x480x30fps, 120s is ~20GB RSS and hung the host twice; episodes run
@@ -1097,21 +1095,21 @@ def _init_recorder(device: str):
         num_episodes=args_cli.num_episodes,
         buffer_capacity_s=30.0,
         # else the dataset records itself as an SO-101 (recorder default)
-        robot_type=str(cfg.get("robot_type", cfg["robot_id"])),
+        robot_type=str(cfg["robot_id"]),
     )
     recorder.init_dataset()
     print(f"[RECORD] Writing to {dataset_root} at {_RECORD_FPS} fps "
           f"(1 frame / {_POV_CAPTURE_EVERY_N_STEPS} physics steps)", flush=True)
     # Key bindings differ from humanoid_robot_learning's defaults -- see run_simulator's _on_keyboard_event.
-    return recorder, list(cameras)
+    return recorder, sensors
 
 
-def _capture_record_images(scene: InteractiveScene, camera_keys: list[str]) -> dict:
+def _capture_record_images(scene: InteractiveScene, sensors: dict[str, str]) -> dict:
     """{schema_key: HxWx3 uint8 rgb} for the schema's enabled data-collection cameras --
     NOT the RSD455 headset pair, see module docstring."""
     images = {}
-    for schema_key in camera_keys:
-        rgb = scene[RECORD_CAMERA_SENSORS[schema_key]].data.output["rgb"]
+    for schema_key, scene_key in sensors.items():
+        rgb = scene[scene_key].data.output["rgb"]
         frame = rgb[0].detach().cpu().numpy()
         if frame.shape[-1] > 3:
             frame = frame[..., :3]
@@ -1292,7 +1290,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     left_closed = False
     right_closed = False
 
-    recorder, record_camera_keys = _init_recorder(device)
+    recorder, record_sensors = _init_recorder(device)
     if recorder is not None:
         # NOT recorder.start_keyboard() -- that attaches humanoid_robot_learning's shared pynput listener,
         # whose bindings other teleop scripts rely on. S/D are handled through the same
@@ -1761,7 +1759,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
                 ], dim=1)[0]
                 # images as a callable, not a dict: two 640x480 GPU->CPU copies that must only
                 # run on pushed frames. Every step tanked RTF -- looked like the arm barely moving.
-                recorder.tick(action, _record_state, lambda: _capture_record_images(scene, record_camera_keys))
+                recorder.tick(action, _record_state, lambda: _capture_record_images(scene, record_sensors))
 
         # Mounts are static while _HEAD_TRACKING_LIVE is False -- positioned once before the
         # loop by _sync_camera_mounts (see there for why this is not a cheap no-op).

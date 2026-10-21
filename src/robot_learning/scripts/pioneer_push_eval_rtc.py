@@ -89,22 +89,17 @@ DECIMATION = 5
 POLICY_HZ = 1.0 / (PHYSICS_DT * DECIMATION)  # 10 Hz, the Quest recording fps
 
 # dataset image key -> scene sensor name (run_quest_bimanual_teleop.py RECORD_CAMERA_SENSORS)
-CAMERA_SENSORS = {"ego": "ego_cam", "wrist_left": "wrist_cam", "wrist_right": "wrist_cam_right"}
-CAMERA_FACTORIES = {
-    "ego_cam": make_ego_cam_cfg,
-    "wrist_cam": make_wrist_cam_cfg,
-    "wrist_cam_right": lambda: make_wrist_cam_cfg(body="link6", name="wrist_cam_right", mirror=True),
-}
+CAMERA_SENSORS = {"ego": "ego_cam", "wrist_left": "wrist_cam"}
+CAMERA_FACTORIES = {"ego_cam": make_ego_cam_cfg, "wrist_cam": make_wrist_cam_cfg}
 
 
 def read_policy_state(robot, state_joint_ids: list[int]) -> torch.Tensor:
     """Sim state for this tick: (7,) absolute joint positions of env 0, in SIM_STATE_JOINTS order.
 
     Must match what the Quest teleop records (run_quest_bimanual_teleop.py, _record_state):
-    absolute (not joint_pos_rel), joint1L..joint6l then joint7l (state_joint_ids is already in
-    that order), no joint8l, read before stepping physics. The interface turns joint7l into the
-    schema's 0-1 gripper closure. A wrong order or joint set doesn't crash -- the policy just
-    sees a scrambled arm.
+    absolute (not joint_pos_rel), joint1L..joint6l then joint7l (the interface turns it into the
+    0-1 gripper closure), no joint8l, read before stepping physics. A wrong order or joint set
+    doesn't crash -- the policy just sees a scrambled arm.
     """
     return robot.data.joint_pos[0, state_joint_ids].clone()
 

@@ -47,8 +47,6 @@ Output: `<repo>/datasets/pioneer_v1_left_arm/sim/`. Later sessions append to the
 
 Camera poses and lenses: `pioneer_humanoid/arm_params.py`.
 
-The Quest teleop (`teleop/quest_teleop/sim/run_quest_bimanual_teleop.py --record`) records this same format, at its render rate (10 fps) instead of 25, into `datasets/pioneer_v1_left_arm/quest_sim/`.
-
 ## 3. Train
 
 In the `simulation_isaac` container, you can train a end2end policy with methods like ACT like listed below or use any other method to push for a high eval success rate:
