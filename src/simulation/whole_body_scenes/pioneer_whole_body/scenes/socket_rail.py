@@ -46,6 +46,9 @@ YAW = {"l": -0.6, "r": 0.6}              # the fingers on a socket: turned in (e
 GRIP_BACK = (0.015, 0.8)                 # the palm behind the socket's middle along the fingers: 15 mm for the biggest
                                          # (its far side is in reach), 0.8 mm more per mm narrower (as measured)
 TUCKED = {**SHAPES["fist"], "th_c": 0.0, "th_f": 0.0, "th_mcp": 0.0, "th_ip": 0.0}   # fingers curled, thumb flat
+STRAIGHT = {**SHAPES["lid_pre"], **{j: 0.0 for j in ("i_mcp", "i_pip", "mcp", "pip", "r_mcp", "r_pip", "l_mcp", "l_pip")}}
+                                         # (lid_pre with the fingers straight: the thumb stays where it is)
+LANE_X = 0.47                            # hands cross the bench no nearer the body than this
 RAISED = {**READY, "shoulder_pitch": -0.45, "shoulder_roll": 0.8}    # a hand up and out to its side
 CARRY = 0.08                             # a carried socket's bottom this far over the bench
 REACH = {"l": lambda y: y > -0.02, "r": lambda y: y < 0.02}     # (each hand on its own side, and the middle)
@@ -224,8 +227,10 @@ def _take(wb, side: str, body: str, width: float, over: float = 0.09, above: flo
         p = S.site(wb, f"{body}_top") - r[:, 0] * back + [0, 0, above]
         wb.fingers(side, TUCKED, dur=0.4)                # (fingers curled, thumb flat: nothing hangs down on the way)
         q, _ = wb.palm_pose(side)
-        for target, dur in (([q[0], q[1], T + 0.15], 0.5), ([p[0], q[1], T + 0.15], 0.5),   # (up, out, across: over
-                            ([p[0], p[1], T + 0.15], 0.7), (p + [0, 0, over], 0.4)):         # the others; down)
+        lane = max(p[0], LANE_X)                         # (crossing further out than the body: the arm sags close in)
+        for target, dur in (([q[0], q[1], T + 0.15], 0.5), ([lane, q[1], T + 0.15], 0.5),   # (up, out, across: over
+                            ([lane, p[1], T + 0.15], 0.7), ([p[0], p[1], T + 0.15], 0.3),    # the others; down)
+                            (p + [0, 0, over], 0.4)):
             wb.reach(side, target, r, dur)
             wb.settle()
         wb.fingers(side, "lid_pre", dur=0.4)
@@ -244,15 +249,23 @@ def _take(wb, side: str, body: str, width: float, over: float = 0.09, above: flo
     raise S.TaskFailed(f"{body} not taken")
 
 
-def _put(wb, side: str, body: str, xy, bottom_z: float, carry: float = None) -> None:
+def _put(wb, side: str, body: str, xy, bottom_z: float, carry: float = None, straighten: bool = False,
+         turn: bool = False) -> None:
     """Over ``xy`` (clear of the studs), down till its bottom is at ``bottom_z`` (where it hangs from the palm is
-    felt), let go slowly, straight up, back to READY."""
+    felt), let go slowly, straight up, back to READY. ``turn``: the hand first turned (with the part: it's round) to its
+    usual angle (one taken with the fingers well across can't reach down far that way)."""
     from pioneer_whole_body import skills as S
+    from pioneer_whole_body.controller import palm_down
     p, r = wb.hand_goal[side]
+    if turn:
+        r = palm_down(YAW[side])
+        wb.reach(side, p + [0, 0, 0.01], r, 0.6)
+        wb.settle()
+        p = p + [0, 0, 0.01]
     off = S.body_pos(wb, body) - wb.palm_pose(side, False)[0]
     goal = np.array([xy[0], xy[1], bottom_z]) - off
     top = max(p[2], goal[2] + (T + (CARRY if carry is None else carry) - bottom_z))      # (carried with its bottom over the others' tops)
-    for target, dur in (([*goal[:2], top], 1.0), (goal + [0, 0, 0.025], 0.5)):
+    for target, dur in (([*p[:2], top], 0.5), ([*goal[:2], top], 0.9), (goal + [0, 0, 0.025], 0.5)):   # (up, over, down)
         wb.reach(side, target, r, dur)
         wb.settle()
     q = goal + [0, 0, 0.025]
@@ -273,6 +286,11 @@ def _put(wb, side: str, body: str, xy, bottom_z: float, carry: float = None) -> 
     wb.settle()
     wb.wait(0.2)
     q, r = wb.hand_goal[side]
+    if straighten:                                       # (up a little, the fingers straightened: a curled one
+        wb.reach(side, q + [0, 0, 0.02], r, 0.4)         # can't drag across the top on the way)
+        wb.settle()
+        wb.fingers(side, STRAIGHT, dur=0.4)
+        wb.settle()
     for target, dur in ((q + [0, 0, 0.08], 0.6), (q + [-0.08, 0, 0.10], 0.6)):   # (up and back: READY's path would
         wb.reach(side, target, r, dur)                                       # sweep low through the mat)
         wb.settle()

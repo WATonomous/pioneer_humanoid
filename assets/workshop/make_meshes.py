@@ -296,6 +296,64 @@ def caddy_handle():
     return p.part
 
 
+# the paint shelf scene: paint sample tins (press lids, the colour on the lid) and a wooden riser shelf
+PAINT = dict(r=0.021, h=0.044, lid_r=0.0215, lid_h=0.007)
+SHELF = dict(length=0.34, depth=0.13, height=0.08, board=0.018, leg=0.018)
+
+
+def paint_tin():
+    """A paint sample tin's body (its bottom at z = 0): straight sides, rolled beads at the bottom and the top."""
+    c = PAINT
+    r, h = c["r"], c["h"]
+    with BuildPart() as p:
+        Cylinder(r, h, align=(Align.CENTER, Align.CENTER, Align.MIN))
+        for z in (0.0015, h - 0.0015):
+            with Locations(Location((0, 0, z))):
+                Cylinder(r + 0.0008, 0.002)
+        for z in (0.012, 0.024, 0.036):                  # rolled stiffening ribs
+            with Locations(Location((0, 0, z))):
+                Cylinder(r + 0.0004, 0.0012)
+    return p.part
+
+
+def paint_label():
+    c = PAINT
+    with BuildPart() as p:
+        with Locations(Location((0, 0, 0.005))):
+            Cylinder(c["r"] + 0.0006, 0.026, align=(Align.CENTER, Align.CENTER, Align.MIN))
+            Cylinder(c["r"] - 0.001, 0.026, align=(Align.CENTER, Align.CENTER, Align.MIN), mode=Mode.SUBTRACT)
+        with Locations(Location((c["r"], 0, 0.009))):    # the colour swatch: a separate mesh would do, this is a step
+            Box(0.003, 0.016, 0.010, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    return p.part
+
+
+def paint_lid():
+    """The press lid (its bottom at z = 0, on top of the body): a raised ring round a dished middle."""
+    c = PAINT
+    r, h = c["lid_r"], c["lid_h"]
+    with BuildPart() as p:
+        Cylinder(r, h, align=(Align.CENTER, Align.CENTER, Align.MIN))
+        fillet(p.edges().group_by(Axis.Z)[-1], 0.0015)
+        with Locations(Location((0, 0, h - 0.0015))):
+            Cylinder(r - 0.005, 0.0015, align=(Align.CENTER, Align.CENTER, Align.MIN), mode=Mode.SUBTRACT)
+    return p.part
+
+
+def shelf_board():
+    """A wooden riser shelf (in its frame: centred in y, its front at x = 0, its foot at z = 0): a board on two
+    end legs, the board's edges rounded."""
+    c = SHELF
+    L, d, H, b, lg = c["length"], c["depth"], c["height"], c["board"], c["leg"]
+    with BuildPart() as p:
+        with Locations(Location((d / 2, 0, H - b))):
+            Box(d, L, b, align=(Align.CENTER, Align.CENTER, Align.MIN))
+        fillet(p.edges().filter_by(Axis.Y), 0.004)
+        for s_ in (-1, 1):
+            with Locations(Location((d / 2, s_ * (L / 2 - lg / 2 - 0.01), 0))):
+                Box(d - 0.01, lg, H - b, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    return p.part
+
+
 def foam_insert():
     """Grey foam on the bottom drawer's floor, a row of round holes the sockets stand in (sunk about half their
     height: they ride in and out with the drawer)."""
@@ -389,6 +447,10 @@ if __name__ == "__main__":
         save(can_cap(kind), f"{kind}_cap")
     save(caddy(), "caddy")
     save(caddy_handle(), "caddy_handle")
+    save(paint_tin(), "paint_tin")
+    save(paint_label(), "paint_label")
+    save(paint_lid(), "paint_lid")
+    save(shelf_board(), "shelf_board")
     save(foam_insert(), "foam_insert")
     save(tool_tray(), "tool_tray")
     save(wrench(), "wrench")
