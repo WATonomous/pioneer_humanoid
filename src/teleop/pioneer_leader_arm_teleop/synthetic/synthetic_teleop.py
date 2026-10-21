@@ -237,7 +237,7 @@ def main() -> None:
     args = parser.parse_args()
     if args.self_test:
         return self_test()
-    record = load_record_schema(parser, args)
+    record = load_record_schema(parser, args, arms=["left"])
     os.environ.setdefault("MUJOCO_GL", "egl")
 
     from synthetic_tasks import TASKS

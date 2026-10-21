@@ -1,4 +1,4 @@
-"""MuJoCo leader teleop: left arm by default, both arms with --bimanual.
+"""MuJoCo leader teleop: one leader per arm, left arm by default (--arms left, right or left,right).
 
 Same leader mapping as the Isaac backend (leader_mapping.py). Scenes: humanoid_mujoco_scenes.
 
@@ -12,7 +12,9 @@ from __future__ import annotations
 
 import argparse
 import sys
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 _SRC = Path(__file__).resolve().parents[2]
 # pioneer_humanoid, humanoid_mujoco_scenes, humanoid_robot_learning; this fallback keeps an
@@ -22,10 +24,6 @@ sys.path.insert(0, str(_SRC / "simulation" / "mujoco_scenes"))
 sys.path.insert(0, str(_SRC / "robot_learning"))
 
 from humanoid_robot_learning.sim.sim_teleop_record import (  # noqa: E402
-    BIMANUAL_SCHEMA,
-    BIMANUAL_RECORD_JOINTS,
-    DEFAULT_SCHEMA,
-    LEFT_ARM_RECORD_JOINTS,
     add_record_args,
     load_record_schema,
     make_sim_recorder,
@@ -44,49 +42,56 @@ from leader_mapping import (  # noqa: E402
 _KEY_R = 82  # GLFW key code
 
 
-class TeleopConfig:
-    """Leader configuration and recording format for single-arm or bimanual control."""
+SIDES = ("left", "right")  # schema order: a recorded frame is the left arm's values, then the right's
 
-    def __init__(self, parser: argparse.ArgumentParser, args: argparse.Namespace):
-        self._leader_args = [("LEFT", args)]
-        self._record_joints = LEFT_ARM_RECORD_JOINTS
-        self._default_schema = DEFAULT_SCHEMA
-        if args.bimanual:
-            if not all((args.right_port, args.right_calibration, args.right_signs)):
-                parser.error("--bimanual requires --right-port, --right-calibration and --right-signs")
-            if args.right_port == args.port:
-                parser.error("Left and right leaders must use different serial ports")
-            right_args = argparse.Namespace(**vars(args))
-            right_args.port = args.right_port
-            right_args.calibration = args.right_calibration
-            right_args.signs = args.right_signs
-            self._leader_args.append(("RIGHT", right_args))
-            self._record_joints = BIMANUAL_RECORD_JOINTS
-            self._default_schema = BIMANUAL_SCHEMA
-        for _, leader_args in self._leader_args:
-            check_leader_args(parser, leader_args)
 
-    def get_leader_args(self) -> list[tuple[str, argparse.Namespace]]:
-        return self._leader_args
+@dataclass
+class Arm:
+    """One leader driving one arm: its mapping and the model ids it reads and writes."""
 
-    def get_record_joints(self) -> list[str]:
-        return self._record_joints
+    side: str
+    leader: Any  # LeaderInput, opened inside run()'s try so a failed open still closes the others
+    leader_args: argparse.Namespace
+    mapping: LeaderMapping
+    arm_acts: list[int]
+    grip_acts: list[int]
+    arm_qpos: list[int]
+    grip_qpos: list[int]
+    grip_open: Any  # np.ndarray, finger positions at closure 0
+    grip_closed: Any  # np.ndarray, finger positions at closure 1
 
-    def get_default_schema(self) -> Path:
-        return self._default_schema
+
+def leader_args_for(parser: argparse.ArgumentParser, args: argparse.Namespace, side: str) -> argparse.Namespace:
+    """--port/--calibration/--signs drive the left arm's leader, --right-port/... the right's."""
+    if side == "left":
+        leader_args = args
+    else:
+        if not all((args.right_port, args.right_calibration, args.right_signs)):
+            parser.error("--arms with right requires --right-port, --right-calibration and --right-signs")
+        leader_args = argparse.Namespace(**vars(args))
+        leader_args.port, leader_args.calibration, leader_args.signs = (
+            args.right_port, args.right_calibration, args.right_signs)
+    check_leader_args(parser, leader_args)
+    return leader_args
 
 
 def run() -> None:
-    parser = argparse.ArgumentParser(description="Pioneer MuJoCo leader teleoperation (left arm, or two leaders with --bimanual).")
+    parser = argparse.ArgumentParser(description="Pioneer MuJoCo leader teleoperation, one leader per arm.")
     add_leader_args(parser, scene_help="scene registered in humanoid_mujoco_scenes (an unknown name lists them)")
-    parser.add_argument("--bimanual", action="store_true", help="Control and record both arms using two leaders")
-    parser.add_argument("--right-port", help="Serial port of the right-arm leader")
-    parser.add_argument("--right-calibration", type=Path, help="Calibration for the right-arm leader")
-    parser.add_argument("--right-signs", help="Explicit calibrated servo directions for the right arm")
+    parser.add_argument("--arms", default="left", help="arms to drive and record: left, right or left,right")
+    parser.add_argument("--right-port", help="serial port of the right-arm leader")
+    parser.add_argument("--right-calibration", type=Path, help="leader zero file of the right-arm leader")
+    parser.add_argument("--right-signs", help="direction per servo A..G of the right-arm leader (no default: mirrored)")
     add_record_args(parser, task_description="sim leader teleop demonstration")
     args = parser.parse_args()
-    config = TeleopConfig(parser, args)
-    record = load_record_schema(parser, args, default_schema=config.get_default_schema())
+    requested = args.arms.split(",")
+    if not requested or set(requested) - set(SIDES) or len(set(requested)) != len(requested):
+        parser.error(f"--arms: expected left, right or left,right, got {args.arms!r}")
+    sides = [side for side in SIDES if side in requested]
+    leader_args = {side: leader_args_for(parser, args, side) for side in sides}
+    if len(sides) == 2 and args.port == args.right_port:
+        parser.error("the left and right leaders must use different serial ports")
+    record = load_record_schema(parser, args, arms=sides)
 
     import mujoco
     import mujoco.viewer
@@ -111,25 +116,31 @@ def run() -> None:
     if scene_randomise is not None:
         scene_randomise(model, data, rng)
     mujoco.mj_forward(model, data)
-    arms = []
-    for side, leader_args in config.get_leader_args():
-        joints = getattr(arm_params, f"{side}_ARM_JOINTS")
-        fingers = getattr(arm_params, f"{side}_GRIPPER_JOINTS")
+    # side -> (arm joints, gripper fingers, finger positions open, closed)
+    side_joints = {
+        "left": (arm_params.LEFT_ARM_JOINTS, arm_params.LEFT_GRIPPER_JOINTS,
+                 arm_params.LEFT_GRIPPER_OPEN, arm_params.LEFT_GRIPPER_CLOSED),
+        "right": (arm_params.RIGHT_ARM_JOINTS, arm_params.RIGHT_GRIPPER_JOINTS,
+                  arm_params.RIGHT_GRIPPER_OPEN, arm_params.RIGHT_GRIPPER_CLOSED),
+    }
+    arms: list[Arm] = []
+    for side in sides:
+        joints, fingers, grip_open, grip_closed = side_joints[side]
         arm_acts = [model.actuator(j).id for j in joints]
         mapping = LeaderMapping(
-            leader_args, home_rad=[data.ctrl[a] for a in arm_acts],
+            leader_args[side], home_rad=[data.ctrl[a] for a in arm_acts],
             limits_rad=[tuple(model.joint(j).range) for j in joints],
         )
-        arms.append(dict(
-            args=leader_args, mapping=mapping, arm_acts=arm_acts,
+        arms.append(Arm(
+            side=side, leader=None, leader_args=leader_args[side], mapping=mapping, arm_acts=arm_acts,
             grip_acts=[model.actuator(j).id for j in fingers],
             arm_qpos=[model.joint(j).qposadr[0] for j in joints],
             grip_qpos=[model.joint(j).qposadr[0] for j in fingers],
-            grip_open=np.array([getattr(arm_params, f"{side}_GRIPPER_OPEN")[j] for j in fingers]),
-            grip_closed=np.array([getattr(arm_params, f"{side}_GRIPPER_CLOSED")[j] for j in fingers]),
+            grip_open=np.array([grip_open[j] for j in fingers]),
+            grip_closed=np.array([grip_closed[j] for j in fingers]),
         ))
         model.actuator_biasprm[model.actuator(joints[-1]).id, 2] = -WRIST_DAMPING
-        print(mapping.describe(joints), flush=True)
+        print(f"[{side.upper()}] {mapping.describe(joints)}", flush=True)
 
     reset_requested = [False]
 
@@ -141,8 +152,7 @@ def run() -> None:
     control_dt = substeps * model.opt.timestep
     # Multi-step scenes record the current step's instruction as each frame's task, plus its index.
     extra = {"subtask_index": ["subtask_index"]} if scene_steps is not None else None
-    recorder, record_every = make_sim_recorder(args, record, device="cpu", sim_dt=control_dt, extra_features=extra,
-                                               joint_names=config.get_record_joints())
+    recorder, record_every = make_sim_recorder(args, record, device="cpu", sim_dt=control_dt, extra_features=extra)
     if recorder is not None:
         print("[RECORD] Keys: S=start, N=save episode (then reset), D=discard")
         recorder.start_keyboard()
@@ -164,16 +174,15 @@ def run() -> None:
             scene_randomise(model, data, rng)
         mujoco.mj_forward(model, data)
         for arm in arms:
-            arm["mapping"].reset()
+            arm.mapping.reset()
 
-    leaders = []
     clock = WallClock(control_dt)
     step = 0
     shown_step = None  # last task step announced
     print("[INFO] Leader calibrated (hanging = 0). Move it to home: elbow bent 90 deg, forearm forward, gripper open. R = reset.", flush=True)
     try:
         for arm in arms:
-            leaders.append(LeaderInput(arm["args"]))
+            arm.leader = LeaderInput(arm.leader_args, label=arm.side.upper() if len(arms) > 1 else "")
         with mujoco.viewer.launch_passive(model, data, key_callback=on_key) as viewer:
             for key, value in (scene_camera(args.scene) or {}).items():
                 setattr(viewer.cam, key, value)
@@ -191,21 +200,18 @@ def run() -> None:
                     print("\n[LEADER] Arm and scene reset; bring the leader back to home.", flush=True)
 
                 actions = []
-                for arm, leader in zip(arms, leaders):
-                    target, grip = arm["mapping"].update(leader.read())
-                    data.ctrl[arm["arm_acts"]] = target
-                    o, c = arm["grip_open"], arm["grip_closed"]
-                    data.ctrl[arm["grip_acts"]] = o + grip * (c - o)
+                for arm in arms:
+                    target, grip = arm.mapping.update(arm.leader.read())
+                    data.ctrl[arm.arm_acts] = target
+                    data.ctrl[arm.grip_acts] = arm.grip_open + grip * (arm.grip_closed - arm.grip_open)
                     actions.extend([*target, grip])
 
                 # Record one synchronized frame only once every active leader is at home.
-                if recorder is not None and all(arm["mapping"].engaged for arm in arms) and step % record_every == 0:
+                if recorder is not None and all(arm.mapping.engaged for arm in arms) and step % record_every == 0:
                     states = []
                     for arm in arms:
-                        q = data.qpos[arm["grip_qpos"]]
-                        o, c = arm["grip_open"], arm["grip_closed"]
-                        closure = ((q - o) / (c - o)).mean()
-                        states.extend([*data.qpos[arm["arm_qpos"]], np.clip(closure, 0, 1)])
+                        closure = ((data.qpos[arm.grip_qpos] - arm.grip_open) / (arm.grip_closed - arm.grip_open)).mean()
+                        states.extend([*data.qpos[arm.arm_qpos], np.clip(closure, 0, 1)])
                     state = np.asarray(states, dtype=np.float32)
                     action = np.asarray(actions, dtype=np.float32)
                     task, extras = None, None
@@ -230,12 +236,14 @@ def run() -> None:
                         print(f"\n[TASK] {msg}", flush=True)
                 viewer.sync()
 
-                for arm, leader in zip(arms, leaders):
-                    leader.report(arm["mapping"])
+                for arm in arms:
+                    # Two leaders: one line each, not one shared \r status line they would overwrite.
+                    arm.leader.report(arm.mapping, end="\n" if len(arms) > 1 else "")
                 clock.wait()
     finally:
-        for leader in leaders:
-            leader.close()
+        for arm in arms:
+            if arm.leader is not None:
+                arm.leader.close()
         print("\n[INFO] Stopped. Leader torque is OFF.", flush=True)
         for renderer in renderers.values():
             renderer.close()

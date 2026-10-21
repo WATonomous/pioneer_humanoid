@@ -8,25 +8,10 @@ from pathlib import Path
 from typing import Any
 
 from humanoid_robot_learning.recording.record_utils import resolve_config_path, resolve_dataset_root
-from humanoid_robot_learning.recording.schema import enabled_images, load_yaml, select_cameras
+from humanoid_robot_learning.recording.schema import enabled_images, load_yaml, select_arms, select_cameras
 
 PKG_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_SCHEMA = PKG_ROOT / "config" / "pioneer_humanoid_dataset_schema.yaml"
-BIMANUAL_SCHEMA = PKG_ROOT / "config" / "pioneer_humanoid_bimanual_dataset_schema.yaml"
-
-# Recorded joint order (real-robot names, joint_command_core.cpp); must match the schema.
-JOINTS = [
-    "shoulder_pitch",
-    "shoulder_roll",
-    "shoulder_yaw",
-    "elbow_pitch",
-    "elbow_roll",
-    "wrist_pitch",
-    "gripper",
-]
-LEFT_ARM_RECORD_JOINTS = [f"left_{joint}" for joint in JOINTS]
-RIGHT_ARM_RECORD_JOINTS = [f"right_{joint}" for joint in JOINTS]
-BIMANUAL_RECORD_JOINTS = LEFT_ARM_RECORD_JOINTS + RIGHT_ARM_RECORD_JOINTS
 
 
 @dataclass
@@ -47,8 +32,8 @@ def add_record_args(parser: argparse.ArgumentParser, *, task_description: str) -
     parser.add_argument(
         "--schema",
         type=str,
-        default=None,
-        help="dataset_schema YAML override (default: selected by arm mode)",
+        default=str(DEFAULT_SCHEMA),
+        help="dataset_schema YAML (default: src/robot_learning/config/pioneer_humanoid_dataset_schema.yaml)",
     )
     parser.add_argument(
         "--dataset_root",
@@ -73,22 +58,24 @@ def add_record_args(parser: argparse.ArgumentParser, *, task_description: str) -
     )
 
 
-def load_record_schema(
-    parser: argparse.ArgumentParser, args: argparse.Namespace, *, default_schema: Path = DEFAULT_SCHEMA
-) -> RecordSchema:
-    """Call before AppLauncher: recording cameras need --enable_cameras."""
+def load_record_schema(parser: argparse.ArgumentParser, args: argparse.Namespace, *, arms: list[str]) -> RecordSchema:
+    """Call before AppLauncher: recording cameras need --enable_cameras. `arms`: the arms this teleop drives
+    and records (schema `arms` keys); they set the joint list and the dataset (select_arms)."""
     if args.cameras is not None and not args.record:
         parser.error("--cameras requires --record")
     if args.image_size is not None and not args.record:
         parser.error("--image_size requires --record")
     if not args.record:
         return RecordSchema()
-    schema_path = default_schema if args.schema is None else args.schema
-    path = resolve_config_path(schema_path, anchor=PKG_ROOT)
+    path = resolve_config_path(args.schema, anchor=PKG_ROOT)
     try:
         cfg = select_cameras(load_yaml(path), args.cameras)
     except ValueError as exc:
         parser.error(f"--cameras: {exc}")
+    try:
+        cfg = select_arms(cfg, arms)
+    except ValueError as exc:
+        parser.error(f"{path}: {exc}")
     images = enabled_images(cfg)
     if args.image_size is not None:
         parts = args.image_size.lower().split("x")
@@ -108,7 +95,6 @@ def make_sim_recorder(
     *,
     device: str,
     sim_dt: float,
-    joint_names: list[str] = LEFT_ARM_RECORD_JOINTS,
     extra_features: dict[str, list[str]] | None = None,
     buffer_capacity_s: float = 120.0,
 ):
@@ -131,10 +117,6 @@ def make_sim_recorder(
     missing = [key for key in ("fps", "repo_id", "robot_id", "joint_names") if key not in cfg]
     if missing:
         raise ValueError(f"{schema.path}: missing {', '.join(missing)}")
-    if list(cfg["joint_names"]) != joint_names:
-        raise ValueError(
-            f"{schema.path}: joint_names must be {joint_names}, got {list(cfg['joint_names'])}"
-        )
     fps = int(cfg["fps"])
     physics_hz = 1.0 / sim_dt
     record_every = round(physics_hz / fps)
