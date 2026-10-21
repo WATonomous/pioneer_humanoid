@@ -47,6 +47,8 @@ def select_cameras(cfg: dict[str, Any], cameras: str | None) -> dict[str, Any]:
 
 # Arm order in a recorded frame (the left arm's values, then the right's); the schema's `arms` must list them so.
 ARM_ORDER = ("left", "right")
+# Arm sets a teleop can drive (the leader teleop's --arms choices), in ARM_ORDER.
+ARM_SETS = {"left": ("left",), "right": ("right",), "bimanual": ARM_ORDER}
 # Dataset name suffix per recorded arm set.
 ARM_SET_SUFFIX = {("left",): "_left_arm", ("right",): "_right_arm", ("left", "right"): "_bimanual"}
 

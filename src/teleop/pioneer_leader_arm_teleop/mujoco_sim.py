@@ -1,4 +1,4 @@
-"""MuJoCo leader teleop: one leader per arm, left arm by default (--arms left, right or left,right).
+"""MuJoCo leader teleop: one leader per arm, left arm by default (--arms left, right or bimanual).
 
 Same leader mapping as the Isaac backend (leader_mapping.py). Scenes: humanoid_mujoco_scenes.
 
@@ -23,7 +23,7 @@ sys.path.insert(0, str(_SRC / "pioneer_humanoid"))
 sys.path.insert(0, str(_SRC / "simulation" / "mujoco_scenes"))
 sys.path.insert(0, str(_SRC / "robot_learning"))
 
-from humanoid_robot_learning.recording.schema import ARM_ORDER  # noqa: E402
+from humanoid_robot_learning.recording.schema import ARM_SETS  # noqa: E402
 from humanoid_robot_learning.sim.sim_teleop_record import (  # noqa: E402
     add_record_args,
     load_record_schema,
@@ -41,9 +41,6 @@ from leader_mapping import (  # noqa: E402
 )
 
 _KEY_R = 82  # GLFW key code
-
-
-SIDES = ARM_ORDER  # a recorded frame is the left arm's values, then the right's (select_arms names them so)
 
 
 @dataclass
@@ -68,7 +65,7 @@ def leader_args_for(parser: argparse.ArgumentParser, args: argparse.Namespace, s
         leader_args = args
     else:
         if not all((args.right_port, args.right_calibration, args.right_signs)):
-            parser.error("--arms with right requires --right-port, --right-calibration and --right-signs")
+            parser.error("--arms right or bimanual requires --right-port, --right-calibration and --right-signs")
         leader_args = argparse.Namespace(**vars(args))
         leader_args.port, leader_args.calibration, leader_args.signs = (
             args.right_port, args.right_calibration, args.right_signs)
@@ -79,16 +76,13 @@ def leader_args_for(parser: argparse.ArgumentParser, args: argparse.Namespace, s
 def run() -> None:
     parser = argparse.ArgumentParser(description="Pioneer MuJoCo leader teleoperation, one leader per arm.")
     add_leader_args(parser, scene_help="scene registered in humanoid_mujoco_scenes (an unknown name lists them)")
-    parser.add_argument("--arms", default="left", help="arms to drive and record: left, right or left,right")
+    parser.add_argument("--arms", choices=tuple(ARM_SETS), default="left", help="arms to drive and record")
     parser.add_argument("--right-port", help="serial port of the right-arm leader")
     parser.add_argument("--right-calibration", type=Path, help="leader zero file of the right-arm leader")
     parser.add_argument("--right-signs", help="direction per servo A..G of the right-arm leader (no default: mirrored)")
     add_record_args(parser, task_description="sim leader teleop demonstration")
     args = parser.parse_args()
-    requested = args.arms.split(",")
-    if not requested or set(requested) - set(SIDES) or len(set(requested)) != len(requested):
-        parser.error(f"--arms: expected left, right or left,right, got {args.arms!r}")
-    sides = [side for side in SIDES if side in requested]
+    sides = list(ARM_SETS[args.arms])  # in ARM_ORDER: a recorded frame is the left arm's values, then the right's
     leader_args = {side: leader_args_for(parser, args, side) for side in sides}
     if len(sides) == 2 and args.port == args.right_port:
         parser.error("the left and right leaders must use different serial ports")
