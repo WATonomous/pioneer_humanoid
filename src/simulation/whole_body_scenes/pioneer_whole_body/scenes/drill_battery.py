@@ -1,12 +1,13 @@
 """Drill battery (a workshop scene modelled on the real thing): a cordless drill lies on its side on the bench, its
 big slide-on battery pack flat (its fuel gauge one red LED); to its right an empty charging dock, to its left a second
 dock with a charged pack in it (its status LED green). The right hand takes the drill's pack by its carry handle,
-slides it back off the drill's rails, lifts it across and sets it down in line with the empty dock's rails, pushes it
-on till it latches (the dock's LED turns red: charging); the left hand does the same with the charged pack, from its
+slides it back off the drill's rails, lifts it over the drill, sets it down beside the empty dock, squares it up in
+line with its rails and pushes it on till it latches (the dock's LED turns red: charging); the left hand does the same with the charged pack, from its
 dock onto the drill.
 
-The rails are modelled as they work: a pack on them moves only along them (held to the rail's line each step), latches
-at the end, and comes free when slid back past the rail's start (the hand pressing the release as it pulls).
+The rails are modelled as they work: a pack on them is welded to a carriage sliding in the mount, so it moves only
+along them; it latches at the end, and comes free when slid back past the rail's start (the hand pressing the release
+as it pulls). Everything collides: no pack passes through a mount, the drill or the other pack.
 The props are CAD models (``assets/workshop/make_meshes.py``, build123d) in the workshop room (``workshop.py``).
 The robot starts at the bench, its legs and base still: no walking.
 
@@ -34,7 +35,7 @@ _spec.loader.exec_module(_mm)
 BAT, DRILL, DOCK = _mm.BATTERY, _mm.DRILL, _mm.DOCK
 
 ZC = T + BAT["h"] / 2                  # a pack's middle, lying on the bench
-MOUNTS = {"drill": (0.60, 0.03), "dock_a": (0.60, -0.20), "dock_b": (0.60, 0.31)}   # their rail faces (x, y)
+MOUNTS = {"drill": (0.60, 0.03), "dock_a": (0.60, -0.20), "dock_b": (0.60, 0.345)}   # their rail faces (x, y)
 PACKS = ("pack_old", "pack_new")
 RAIL = BAT["rail"]                     # how far a pack slides on its rails
 SEAT = np.array([0.0, -BAT["w"] / 2, 0.0])   # a seated pack's middle, in its mount's frame
@@ -46,8 +47,9 @@ GREEN, RED, DARK = [0.1, 0.9, 0.2, 1], [0.95, 0.12, 0.08, 1], [0.05, 0.05, 0.05,
 STEPS = ("the flat pack off the drill", "on the charger", "the charged pack on the drill")
 PULL_YAW = {"l": 0.0, "r": 0.0}        # the fingers forward, square across the handle's bar
 HOOK_BACK, HOOK_ABOVE = 0.05, 0.02     # the palm from the bar's axis: back along the fingers, up (as on the vise's knob)
-LIFT = 0.03                            # carried this far up off the bench
+LIFT = 0.11                            # carried this far up off the bench (over the drill)
 BACK = 0.05                            # set down this far back off the next rails' seat (on them), then pushed on
+ASIDE = 0.012                          # ... and this far out from the mount, then slid across in line with it
 RAISED = {**READY, "shoulder_pitch": -0.45, "shoulder_roll": 0.8}
 _FINGERS = ("i_", "", "r_")
 HOOK_PRE = {**SHAPES["knob_pre"], **{f"{f}mcp": 0.2 for f in _FINGERS}, **{f"{f}pip": 0.8 for f in _FINGERS}}
@@ -67,37 +69,41 @@ def _in_mount(model, data, mount: str, pack: str) -> np.ndarray:
 
 
 def _rails(model, data) -> None:
-    """The rails: a pack near a rail's start, lined up, goes on; on them it moves only along them (held to the rail's
-    line, square to it: its other motion taken out each step); at the end it latches (held there, till the mount's
-    release is pressed); slid back past the rail's start, it's off."""
+    """The rails: a pack near a rail's start, lined up, goes on (welded to the rail's carriage, which slides along
+    it: so on them it moves only along them); at the end it latches (the carriage held there, till the mount's
+    release is pressed); slid back past the rail's start, it's off (the weld let go)."""
     for k, (mount, pack) in enumerate(PAIRS):
         state = int(data.userdata[_U_PAIR + k])
-        p = _in_mount(model, data, mount, pack) - SEAT
-        s = -p[0]                                       # (how far back off the seat, along the rail)
         release = data.userdata[_U_RELEASE + list(MOUNTS).index(mount)]
+        cj = model.joint(f"{mount}_carriage")
+        weld, latch = model.eq(f"{mount}_{pack}").id, model.eq(f"{mount}_latch").id
         if state == OFF:
+            p = _in_mount(model, data, mount, pack) - SEAT
+            s = -p[0]                                   # (how far back off the seat, along the rail)
             busy = any(int(data.userdata[_U_PAIR + _pair(mount, q)]) for q in PACKS if q != pack) or \
                 any(int(data.userdata[_U_PAIR + _pair(n, pack)]) for n in MOUNTS if n != mount)
-            if not busy and not release and abs(p[1]) < 0.012 and abs(p[2]) < 0.012 and 0 <= s < RAIL - 0.01:
+            R = data.xmat[model.body(pack).id].reshape(3, 3)  # (and near square to them: the lead-in squares it)
+            if not busy and not release and abs(p[1]) < 0.012 and abs(p[2]) < 0.012 and 0 <= s < RAIL - 0.01 \
+                    and abs(math.atan2(R[1, 0], R[0, 0])) < 0.15 and R[2, 2] > 0.99:
+                v = model.joint(pack).dofadr[0]
+                along = data.xmat[model.body(mount).id].reshape(3, 3)[:, 0]
+                data.qpos[cj.qposadr[0]] = s           # (the carriage under the pack, moving with it)
+                data.qvel[cj.dofadr[0]] = -(data.qvel[v:v + 3] @ along)
+                data.eq_active[weld] = 1
                 data.userdata[_U_PAIR + k] = state = ON
-        if state == ON and s <= 0.001 and not release:
-            data.userdata[_U_PAIR + k] = state = LATCHED
-        if state == LATCHED and release:
-            data.userdata[_U_PAIR + k] = state = ON
-        if state == ON and s > RAIL:
-            data.userdata[_U_PAIR + k] = OFF
             continue
-        if state:
-            mb = model.body(mount).id
-            R = data.xmat[mb].reshape(3, 3)
-            ds = 0.0 if state == LATCHED else min(max(s, 0.0), RAIL)
-            a = model.joint(pack).qposadr[0]
-            v = model.joint(pack).dofadr[0]
-            data.qpos[a:a + 3] = data.xpos[mb] + R @ (SEAT + [-ds, 0, 0])
-            data.qpos[a + 3:a + 7] = data.xquat[mb]
-            along = R[:, 0]
-            data.qvel[v:v + 3] = 0.0 if state == LATCHED else along * (data.qvel[v:v + 3] @ along)
-            data.qvel[v + 3:v + 6] = 0.0
+        s = data.qpos[cj.qposadr[0]]
+        if state == ON and s <= 0.001 and not release:
+            data.eq_active[latch] = 1
+            data.userdata[_U_PAIR + k] = LATCHED
+        elif state == LATCHED and release:
+            data.eq_active[latch] = 0
+            data.userdata[_U_PAIR + k] = ON
+        elif state == ON and s > RAIL:
+            data.eq_active[weld] = 0
+            data.qpos[cj.qposadr[0]] = 0.0              # (the carriage back at the seat's end, empty)
+            data.qvel[cj.dofadr[0]] = 0.0
+            data.userdata[_U_PAIR + k] = OFF
 
 
 def _leds(model, data) -> None:
@@ -146,6 +152,8 @@ def reset(model, data, rng) -> None:
         b = model.body(mount).id
         a = model.joint(pack).qposadr[0]
         data.qpos[a:a + 3] = model.body_pos[b] + SEAT
+        data.eq_active[model.eq(f"{mount}_{pack}").id] = 1
+        data.eq_active[model.eq(f"{mount}_latch").id] = 1
 
 
 @scene("drill_battery", robot_pos=(0.0, 0.0, 0.0), step=step, progress=progress, reset=reset,
@@ -198,18 +206,30 @@ def build(spec: mujoco.MjSpec) -> None:
         pk.add_freejoint(name=pack)
         pk.add_geom(type=MESH, meshname="battery_pack", material=pack_mat, **vis)
         pk.add_geom(type=MESH, meshname="battery_gauge", rgba=RED if pack == "pack_old" else GREEN, **vis)
-        pk.add_geom(type=BOX, size=[L / 2, W / 2, H / 2], mass=0.3, friction=[0.3, 0.02, 0.002], condim=4, priority=1,
-                    **col)                       # (its plastic case on the bench: it slides; its friction, not the bench's)
+        pk.add_geom(type=BOX, size=[L / 2, W / 2 - 0.003, H / 2], pos=[0, -0.003, 0], mass=0.3, friction=[0.3, 0.02, 0.002],
+                    condim=4, priority=1, **col)  # (its case: it slides on the bench, its friction not the bench's; 3 mm
+                                                  # short of its rail face, so seated it rides clear of the mount's)
         hl, hh, hr = BAT["handle_l"], BAT["handle_h"], BAT["handle_r"]
         pk.add_geom(type=mujoco.mjtGeom.mjGEOM_CAPSULE, size=[hr, hl / 2 - hr], pos=[0, 0, H / 2 + hh],
-                    quat=[0.7071, 0.7071, 0, 0], friction=[1.2, 0.02, 0.002], condim=4, mass=0.01, **col)
+                    quat=[0.7071, 0.7071, 0, 0], friction=[1.2, 0.05, 0.002], condim=6, mass=0.01, **col)
         for s_ in (-1, 1):
             pk.add_geom(type=BOX, size=[0.009, 0.004, (hh + hr) / 2], pos=[0, s_ * (hl / 2 - 0.004), H / 2 + (hh + hr) / 2],
                         mass=0.005, **col)
         pk.add_site(name=f"{pack}_handle", pos=[0, 0, H / 2 + hh])      # its carry handle's bar
+    # the rails: a carriage in each mount (hidden), sliding back from the seat; a pack on them is welded to it
     for mount in MOUNTS:
+        cr = spec.body(mount).add_body(name=f"{mount}_carriage", pos=list(SEAT))
+        cr.add_joint(name=f"{mount}_carriage", type=mujoco.mjtJoint.mjJNT_SLIDE, axis=[-1, 0, 0],
+                     range=[0, RAIL + 0.05], damping=0.5)
+        cr.add_geom(type=mujoco.mjtGeom.mjGEOM_SPHERE, size=[0.005], mass=0.02, contype=0, conaffinity=0, group=4)
+        eq = spec.add_equality(name=f"{mount}_latch", type=mujoco.mjtEq.mjEQ_JOINT, objtype=mujoco.mjtObj.mjOBJ_JOINT,
+                               name1=f"{mount}_carriage", active=False)
+        eq.data[0:5] = [0, 0, 0, 0, 0]
         for pack in PACKS:
-            spec.add_exclude(bodyname1=mount, bodyname2=pack)
+            eq = spec.add_equality(name=f"{mount}_{pack}", type=mujoco.mjtEq.mjEQ_WELD, objtype=mujoco.mjtObj.mjOBJ_BODY,
+                                   name1=f"{mount}_carriage", name2=pack, active=False)
+            eq.data[0:11] = [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1]     # (the anchor and the relative pose: none, square)
+            eq.solref = [0.02, 1]
 
 
 # ----------------------------------------------------------------------------- the demo
@@ -247,9 +267,19 @@ def _move_pack(wb, side: str, pack: str, src: str, dst: str) -> None:
     if side == "r":
         wb.arm_joints_to("r", RAISED, 0.9)
         wb.settle()
-    for target, dur in ((p + [0, 0, 0.10], 1.1), (p + [0, 0, 0.03], 0.6), (p, 0.5)):
+    for target, dur in ((p + [0, 0, 0.10], 1.1), (p + [0, 0, 0.03], 0.6)):
         wb.reach(side, target, r, dur)
         wb.settle()
+    aim = p + [0, 0, 0.03]
+    for _ in range(3):                                   # (where the palm is, not where it was sent: nudged by the miss)
+        err = wb.palm_pose(side, False)[0] - (p + [0, 0, 0.03])
+        if np.linalg.norm(err) < 0.003:
+            break
+        aim = aim - err
+        wb.reach(side, aim, r, 0.4)
+        wb.settle()
+    wb.reach(side, aim - [0, 0, 0.03], r, 0.5)
+    wb.settle()
     wb.fingers(side, "knob", amount=S.TWIST_SQUEEZE, dur=0.5)
     wb.settle()
     wb.wait(0.15)
@@ -260,24 +290,43 @@ def _move_pack(wb, side: str, pack: str, src: str, dst: str) -> None:
         raise S.TaskFailed(f"{pack} didn't come off the {src}")
     _slide(wb, side, [0, 0, LIFT], step=0.01)
     # across, over the start of dst's rails (where the pack hangs in the hand: felt)
-    seat = np.array([*MOUNTS[dst], ZC]) + SEAT
-    spot = seat + [-BACK, 0, 0]
+    seat = S.body_pos(wb, dst) + SEAT                   # (where the mount is: it may sit a few mm off its place)
+    spot = seat + [-BACK, -ASIDE, 0]                     # (set down a little out from it: the pack swings in the hook)
     held = S.body_pos(wb, pack) - wb.palm_pose(side, False)[0]
     goal = spot - held + [0, 0, LIFT]
     q, _ = wb.hand_goal[side]
-    for target, dur in (([q[0], goal[1], goal[2]], 1.4), (goal, 0.8)):
-        wb.reach(side, target, r, dur)
+    for target, dur in (((q + goal) / 2 + [0.03, 0, 0.01], 0.9), (goal, 0.9)):     # (lifted clear of the drill and
+        wb.reach(side, target, r, dur)                                              # the docks: out and across)
         wb.settle()
-    for _ in range(3):                                   # hovering: where the pack is (felt), nudged on
-        wb.wait(0.2)
+    yaw = PULL_YAW[side]
+    for _ in range(5):                                   # hovering: where the pack is and how it's turned (felt),
+        wb.wait(0.3)                                     # nudged on and turned square to the rails
+        turn = _turn(wb, pack)
         err = spot[:2] - S.body_pos(wb, pack)[:2]
-        if np.linalg.norm(err) < 0.002:
+        if np.linalg.norm(err) < 0.002 and abs(turn) < 0.04:
             break
         err *= min(1.0, 0.02 / np.linalg.norm(err))
         goal = goal + [err[0], err[1], 0]
+        yaw -= 0.5 * turn
+        r = palm_down(yaw)
         wb.reach(side, goal, r, 0.4)
         wb.settle()
-    _slide(wb, side, [0, 0, -LIFT - 0.004], step=0.008)
+    _slide(wb, side, [0, 0, -LIFT - 0.004], step=0.008)  # (down on the bench)
+    wb.fingers(side, HOOK_PRE, dur=0.4)                  # (the hook eased open: it settles flat; hooked again square
+    wb.settle()                                          # to how it lies)
+    wb.wait(0.3)
+    r = palm_down(PULL_YAW[side] + _turn(wb, pack))
+    wb.reach(side, _hook_at(wb, pack, r), r, 0.4)
+    wb.settle()
+    wb.fingers(side, "knob", amount=S.TWIST_SQUEEZE, dur=0.4)
+    wb.settle()
+    for _ in range(3):                                   # (across, in line with the rails: where it is, felt)
+        err = (spot + [0, ASIDE, 0] - S.body_pos(wb, pack))[:2]
+        if np.linalg.norm(err) < 0.002:
+            break
+        if np.linalg.norm(err) > 0.08:
+            raise S.TaskFailed(f"{pack} isn't by the {dst}'s rails")
+        _slide(wb, side, [err[0], err[1], 0], step=0.004)
     _slide(wb, side, [BACK + 0.012, 0, 0])               # (on along the rails, a little past the seat: it latches)
     wb.wait(0.2)
     wb.fingers(side, HOOK_PRE, dur=0.4)
@@ -291,6 +340,18 @@ def _move_pack(wb, side: str, pack: str, src: str, dst: str) -> None:
         wb.settle()
     wb.arm_joints_to(side, READY, 1.0)
     wb.settle()
+
+
+def _turn(wb, pack: str) -> float:
+    """How far the pack is turned (yaw) from square to the rails."""
+    R = wb.d.xmat[wb.m.body(pack).id].reshape(3, 3)
+    return math.atan2(R[1, 0], R[0, 0])
+
+
+def _hook_at(wb, pack: str, r) -> np.ndarray:
+    """The palm hooked over the pack's handle, its fingers along ``r``'s x."""
+    from pioneer_whole_body import skills as S
+    return S.site(wb, f"{pack}_handle") + np.array([0, 0, HOOK_ABOVE]) - r[:, 0] * HOOK_BACK
 
 
 def _slide(wb, side: str, delta, step: float = 0.01, dt: float = 0.1) -> None:
