@@ -161,6 +161,63 @@ def socket(af: str, od: float):
     return p.part
 
 
+# the socket rail scene: loose sockets of four sizes (a red size band round each: what the head camera measures), a
+# rail with a stud per socket
+RAIL_SOCKETS = (("17", 0.030), ("22", 0.034), ("24", 0.038), ("30", 0.042))
+BAND_Z = (0.029, 0.037)          # the band, up the socket's side
+RAIL = dict(length=0.46, width=0.032, height=0.014, pitch=0.11, stud_r=0.0075, stud_h=0.013)
+
+
+def socket_band(od: float):
+    """The red size band round a socket (a separate mesh: its own material)."""
+    r = od / 2
+    with BuildPart() as p:
+        with Locations(Location((0, 0, BAND_Z[0]))):
+            Cylinder(r + 0.0004, BAND_Z[1] - BAND_Z[0], align=(Align.CENTER, Align.CENTER, Align.MIN))
+            Cylinder(r - 0.001, BAND_Z[1] - BAND_Z[0], align=(Align.CENTER, Align.CENTER, Align.MIN),
+                     mode=Mode.SUBTRACT)
+    return p.part
+
+
+def socket_rail():
+    """A socket rail (in its frame: along y, centred, its base at z = 0): a black anodised aluminium channel with a
+    rounded top, red end caps (a separate mesh), a chrome stud per socket with a spring ball in its side."""
+    c = RAIL
+    L, w, h = c["length"], c["width"], c["height"]
+    with BuildPart() as p:
+        Box(w, L, h, align=(Align.CENTER, Align.CENTER, Align.MIN))
+        fillet(p.edges().filter_by(Axis.Y).group_by(Axis.Z)[-1], 0.004)
+        with Locations(Location((0, 0, 0))):           # the channel underneath
+            Box(w - 0.008, L, 0.006, align=(Align.CENTER, Align.CENTER, Align.MIN), mode=Mode.SUBTRACT)
+    return p.part
+
+
+def rail_studs():
+    c = RAIL
+    n = len(RAIL_SOCKETS)
+    with BuildPart() as p:
+        for k in range(n):
+            y = (k - (n - 1) / 2) * c["pitch"]
+            with Locations(Location((0, y, c["height"]))):
+                Cylinder(c["stud_r"], c["stud_h"], align=(Align.CENTER, Align.CENTER, Align.MIN))
+                Cylinder(c["stud_r"] + 0.003, 0.002, align=(Align.CENTER, Align.CENTER, Align.MIN))   # its collar
+            with Locations(Location((c["stud_r"], y, c["height"] + c["stud_h"] * 0.55))):
+                Sphere(0.0022)
+        chamfer(p.edges().group_by(Axis.Z)[-1], 0.002)
+    return p.part
+
+
+def rail_caps():
+    c = RAIL
+    L, w, h = c["length"], c["width"], c["height"]
+    with BuildPart() as p:
+        for s in (-1, 1):
+            with Locations(Location((0, s * (L / 2 + 0.006), 0))):
+                Box(w + 0.004, 0.012, h + 0.004, align=(Align.CENTER, Align.CENTER, Align.MIN))
+        fillet(p.edges().filter_by(Axis.Y), 0.003)
+    return p.part
+
+
 def foam_insert():
     """Grey foam on the bottom drawer's floor, a row of round holes the sockets stand in (sunk about half their
     height: they ride in and out with the drawer)."""
@@ -242,6 +299,12 @@ if __name__ == "__main__":
     save(drawer_pull(), "drawer_pull")
     for af, od in SOCKETS:
         save(socket(af, od), f"socket_{af}")
+    for af, od in RAIL_SOCKETS:
+        save(socket(af, od), f"rs_{af}")
+        save(socket_band(od), f"rs_{af}_band")
+    save(socket_rail(), "socket_rail")
+    save(rail_studs(), "rail_studs")
+    save(rail_caps(), "rail_caps")
     save(foam_insert(), "foam_insert")
     save(tool_tray(), "tool_tray")
     save(wrench(), "wrench")
