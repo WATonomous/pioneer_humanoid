@@ -93,10 +93,6 @@ def progress(model: mujoco.MjModel, data: mujoco.MjData) -> tuple[int, int, str]
 def build(spec: mujoco.MjSpec) -> None:
     add_workcell(spec)
     spec.nuserdata = len(BLOCK_NAMES)
-    # Keep the observer camera inside the lightbox, clear of its back panel.
-    spec.visual.global_.fovy = 75
-    spec.worldbody.add_camera(name="front", pos=[0.775, 0.0, 1.328],
-                              xyaxes=[0, 1, 0, -0.422618, 0, 0.906308], fovy=75)
     box = mujoco.mjtGeom.mjGEOM_BOX
     for color, (x, y) in TRAYS.items():
         tray = spec.worldbody.add_body(name=f"{color}_tray", pos=[x, y, TABLE_TOP_Z])
