@@ -15,6 +15,7 @@ teleported: objects move only because fingers and palms push them.
 """
 from __future__ import annotations
 
+import functools
 import math
 from dataclasses import dataclass
 from typing import Callable, Optional
@@ -152,6 +153,21 @@ class _Track:
         return t >= self.t0 + self.dur
 
 
+GAZE_SPEED = 0.8          # rad/s: the head's average turning speed (a look at something far round takes longer)
+
+
+def _locomotion(fn):
+    """Marks a stepping motion while it runs (``WholeBody.walking``: the videos cut it out)."""
+    @functools.wraps(fn)
+    def run(self, *args, **kwargs):
+        self.walking += 1
+        try:
+            return fn(self, *args, **kwargs)
+        finally:
+            self.walking -= 1
+    return run
+
+
 @dataclass
 class Hold:
     """Something the gaze can follow: a body, site or a fixed point (evaluated every tick)."""
@@ -186,6 +202,7 @@ class WholeBody:
         self.base_track: Optional[_Track] = None
         self.waist_track: Optional[_Track] = None
         self.gaze_target: Optional[Callable[[], np.ndarray]] = None
+        self.walking = 0                  # > 0 while a step, walk or turn runs
         self.gaze_track: Optional[_Track] = None
         self.foot_goal: dict[str, tuple] = {}
         self.foot_track: dict[str, Optional[tuple]] = {s: None for s in SIDES}
@@ -314,6 +331,8 @@ class WholeBody:
         """Aim the eyes at ``target``: a point, or a callable returning one (followed every tick)."""
         fn = target if callable(target) else (lambda p=np.asarray(target, float): p)
         y0, p0 = self.cmd["neck_yaw"], self.cmd["neck_pitch"]
+        y1, p1 = self._gaze_angles(fn())
+        dur = max(dur, math.hypot(y1 - y0, p1 - p0) / GAZE_SPEED)     # (no snapping round: a steady head)
         self.gaze_target = fn
         self.gaze_track = _Track((y0, p0), None, self.t, dur)
 
@@ -339,6 +358,7 @@ class WholeBody:
         """The pelvis's commanded world x, y (its joints are offsets from where the scene put it)."""
         return self.base0[:2] + np.array([self.cmd["base_x"], self.cmd["base_y"]])
 
+    @_locomotion
     def step(self, side: str, dx: float, dy: float = 0.0, dur: float = 0.9, lift: float = 0.045,
              carry: bool = False):
         """One step of ``side``'s foot by (dx, dy) in the world: weight onto the other foot, swing, plant, re-centre.
@@ -369,6 +389,7 @@ class WholeBody:
         move_pelvis(y=mid[1] - self.base0[1], z=self.cmd["base_z"] + 0.01, d=0.25 * dur)
         self.settle()
 
+    @_locomotion
     def turn(self, angle: float, step: float = math.radians(30), dur: float = 0.9, lift: float = 0.04,
              carry: bool = False):
         """Turn on the spot by ``angle`` (rad, + is left) in steps of at most ``step``: each step the leading foot
@@ -415,6 +436,7 @@ class WholeBody:
                 p1[2] = p_[2]
                 self.reach(s_, p1, R @ r_, dur)
 
+    @_locomotion
     def walk(self, dx: float, step: float = 0.14, dur: float = 0.9, carry: bool = False):
         """Walk ``dx`` m along +X: the trailing foot steps at most ``step`` past the other, feet together at the end.
         ``carry``: as for ``step``."""

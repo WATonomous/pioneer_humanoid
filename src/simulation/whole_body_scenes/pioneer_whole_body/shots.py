@@ -65,8 +65,15 @@ def follow(t: float, tape, i: int) -> Shot:
 
 
 def render(scene: str, tape_path: str, out: str, size=(1280, 720), workers: int = 4, title: str | None = None,
-           inset: str | None = "head_cam") -> str:
+           inset: str | None = "head_cam", walking: bool = False) -> str:
+    """``walking``: keep the stretches where the robot steps (by default they are cut: locomotion is its own
+    policy's job; the video jumps from where it starts stepping to where it stands again)."""
     from . import entry
+    from .video import Tape
     title = title or entry(scene).title or scene
+    frames = None
+    if not walking:
+        tape = Tape.load(tape_path)
+        frames = [i for i, w in enumerate(tape.walking) if not w]
     return render_tape(scene, tape_path, out, ("pioneer_whole_body.shots", "follow"), title, size=size,
-                       workers=workers, inset=inset)
+                       workers=workers, inset=inset, frames=frames)

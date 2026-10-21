@@ -39,12 +39,14 @@ class Tape:
     caption: list = field(default_factory=list)
     focus: list = field(default_factory=list)      # where the action is (for the camera), per frame
     seed: int = 0                                  # the run's seed (the renderer redoes the scene's ``reset`` with it)
+    walking: list = field(default_factory=list)    # per frame: is the robot stepping (videos can leave it out)
     caption_fn: object = None
     focus_fn: object = None
 
     def frame(self, wb) -> None:
         self.t.append(wb.t)
         self.qpos.append(wb.d.qpos.copy())
+        self.walking.append(bool(getattr(wb, "walking", 0)))
         self.caption.append(self.caption_fn() if self.caption_fn else ("", ""))
         f = None if self.focus_fn is None else self.focus_fn()
         self.focus.append(None if f is None else np.asarray(f, float))
@@ -52,6 +54,7 @@ class Tape:
     def save(self, path: str) -> None:
         np.savez_compressed(path, t=np.array(self.t), qpos=np.array(self.qpos),
                             caption=np.array(self.caption, dtype=object), fps=self.fps, seed=self.seed,
+                            walking=np.array(self.walking, bool),
                             focus=np.array([f if f is not None else [np.nan] * 3 for f in self.focus]))
 
     @classmethod
@@ -61,6 +64,7 @@ class Tape:
         tape.t, tape.qpos, tape.caption = list(z["t"]), list(z["qpos"]), [tuple(c) for c in z["caption"]]
         tape.focus = list(z["focus"])
         tape.seed = int(z["seed"]) if "seed" in z else 0
+        tape.walking = list(z["walking"]) if "walking" in z else [False] * len(tape.t)
         return tape
 
 
