@@ -135,7 +135,7 @@ def drawer_pull():
 SOCKETS = (("22", 0.034), ("24", 0.037), ("27", 0.040), ("30", 0.043))
 SOCKET_H = 0.045
 SOCKET_Y = (0.12, 0.065, -0.06, -0.125)  # where each stands across the drawer (from its middle)
-SOCKET_X = 0.148                 # ... and back from the foam's front edge
+SOCKET_X = 0.07                  # ... and back from the foam's front edge (near it: the drawer opens only as far as the arm pulls)
 TAKE = 2                         # the one the robot takes (27 mm)
 FOAM_L, FOAM_H, HOLE_Z = 0.245, 0.048, 0.024     # the foam (it fills the drawer), the holes' floor
 

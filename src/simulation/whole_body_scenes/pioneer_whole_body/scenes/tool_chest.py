@@ -1,7 +1,7 @@
 """Tool chest (a workshop scene modelled to look like the real thing): a red benchtop tool chest with two drawers on
 full-extension slides and black bar pulls stands on a butcher-block workbench; in its shallow bottom drawer, four 3/4"
-drive sockets stand in a foam rail. The left hand hooks the drawer's pull and draws it all the way out (the hips lean
-back with it), then holds out of the way; the right hand reaches down into the drawer (pitched, so the forearm rides
+drive sockets stand in a foam rail. The left hand hooks the drawer's pull and draws it out as far as the arm reaches
+(the legs and base stay still: the chest stands far enough out on the bench), then holds out of the way; the right hand reaches down into the drawer (pitched, so the forearm rides
 over the drawer's front: the arm has no wrist), takes the 27 mm socket out and sets it in the wooden tool tray on the
 bench; the left pushes the drawer shut.
 
@@ -33,10 +33,10 @@ _spec.loader.exec_module(_mm)
 CHEST = _mm.CHEST
 CHEST_H = _mm.height()
 
-CHEST_X, CHEST_Y = 0.60, 0.04          # the chest's front (x) and middle (y) on the bench
+CHEST_X, CHEST_Y = 0.71, 0.04          # the chest's front (x) and middle (y) on the bench
 TRAY = (0.58, -0.42)
 DRAWER = 0                             # the drawer the sockets are in (the bottom one: its pull at a good height)
-OPEN = 0.27                            # how far it opens: all the way, to the slides' stop
+OPEN = 0.21                            # how far it opens: as far as the arm pulls (the base stays put)
 PULL_AT = 0.07                         # ... and that far out along the bar, toward the hand's side
 PULL_BACK, PULL_ABOVE = 0.055, 0.018   # the palm from the bar's axis: back along the fingers, up
 PARK = np.array([0.36, 0.42, 0.97])    # the left hand while the right works: out past the chest's side
@@ -46,7 +46,6 @@ GRIP_YAW, GRIP_TILT = 0.45, 0.5       # the right hand on the socket: fingers tu
                                        # down, so the wrist and forearm ride high over the drawer's front
 GRIP_AT = np.array([0.02, 0.0, 0.015])    # the socket's top in the palm's frame (along the fingers, across, out of the
                                        # palm): the "lid" grasp, pitched
-LEAN = 0.22                            # the hips back this far while it pulls
 PULL_YAW = -0.25                       # the left hand's fingers on the pull: turned in (the arm's easy pose)
 FOAM_BIT = 4                           # the collision bit only the foam and the socket share
 STEPS = ("open the drawer", "take the socket out", "set it in the tray", "shut the drawer")
@@ -192,8 +191,8 @@ def plan(wb, notes: dict) -> None:
     wb.wait(0.8)
     # 1. the left hand takes the bottom drawer's pull and pulls it open
     _take_pull(wb, "l")
-    _move(wb, "l", -(OPEN + 0.02), hips=-LEAN)            # (a little past the stop: it ends against it)
-    _let_go_pull(wb, "l", park=PARK, hips=LEAN)
+    _move(wb, "l", -OPEN)
+    _let_go_pull(wb, "l", park=PARK)
     notes["opened"] = round(_slide(m, d), 3)
     if _slide(m, d) < OPEN - 0.02:
         raise S.TaskFailed(f"the drawer's open {_slide(m, d):.3f} m")
@@ -202,10 +201,8 @@ def plan(wb, notes: dict) -> None:
     _place(wb)
     notes["in_tray"] = _in_tray(m, d)
     # 4. the left hand takes the pull again and pushes the drawer shut
-    wb.pelvis(x=wb.cmd["base_x"] - LEAN, dur=1.0)
-    wb.settle()
     _take_pull(wb, "l")
-    _move(wb, "l", _slide(m, d) + 0.006, hips=LEAN)
+    _move(wb, "l", _slide(m, d) + 0.006)
     _let_go_pull(wb, "l")
     wb.wait(1.0)
     notes["shut"] = round(_slide(m, d), 4)
@@ -294,24 +291,20 @@ def _take_pull(wb, side: str):
     wb.wait(0.15)
 
 
-def _move(wb, side: str, dx: float, hips: float = 0.0, step: float = 0.01, dt: float = 0.12) -> None:
-    """The hand straight along x by ``dx`` in 1 cm steps (the drawer's slide); the hips go ``hips`` along x with it
-    (feet planted: leaning back to pull it out further than the arm reaches)."""
+def _move(wb, side: str, dx: float, step: float = 0.01, dt: float = 0.12) -> None:
+    """The hand straight along x by ``dx`` in 1 cm steps (the drawer's slide); the arm alone (the base stays put)."""
     p, r = wb.hand_goal[side]
     n = max(1, math.ceil(abs(dx) / step))
-    if hips:
-        wb.pelvis(x=wb.cmd["base_x"] + hips, dur=n * dt)
     for k in range(1, n + 1):
         wb.reach(side, p + [dx * k / n, 0, 0], r, dt)
-        wb.wait(dt)                                      # (not settle: that would wait for the hips' whole move)
+        wb.wait(dt)
     wb.settle()
 
 
-def _let_go_pull(wb, side: str, park=None, hips: float = 0.0) -> None:
+def _let_go_pull(wb, side: str, park=None) -> None:
     """The fingers eased off ("knob_pre"), the hand straight up (the curled tips come up out from behind the bar),
     a fist (nothing sticks out); then out sideways in front of the open drawer and held at ``park`` (a point, out to
-    the side of the chest) while the hips come ``hips`` forward (READY would sweep through the open drawer), or back
-    to READY."""
+    the side of the chest; READY would sweep through the open drawer), or back to READY."""
     from pioneer_whole_body.controller import READY
     wb.wait(0.2)
     wb.fingers(side, "knob_pre", dur=0.4)
@@ -330,8 +323,6 @@ def _let_go_pull(wb, side: str, park=None, hips: float = 0.0) -> None:
     wb.reach(side, [q[0], park[1], park[2]], r, 0.8)
     wb.settle()
     wb.reach(side, park, r, 0.6)
-    if hips:
-        wb.pelvis(x=wb.cmd["base_x"] + hips, dur=1.0)
     wb.settle()
 
 
