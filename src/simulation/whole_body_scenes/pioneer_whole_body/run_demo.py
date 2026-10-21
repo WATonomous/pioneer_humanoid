@@ -49,7 +49,7 @@ def run(scene: str, out: str | None, fps: float = 30.0, seed: int = 0) -> dict:
     elif seed:
         jitter(m, d, np.random.default_rng(seed))
         mujoco.mj_forward(m, d)
-    tape = Tape(fps)
+    tape = Tape(fps, seed=seed)
 
     def caption():
         if e.progress is None:

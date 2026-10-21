@@ -38,6 +38,7 @@ class Tape:
     qpos: list = field(default_factory=list)
     caption: list = field(default_factory=list)
     focus: list = field(default_factory=list)      # where the action is (for the camera), per frame
+    seed: int = 0                                  # the run's seed (the renderer redoes the scene's ``reset`` with it)
     caption_fn: object = None
     focus_fn: object = None
 
@@ -50,7 +51,7 @@ class Tape:
 
     def save(self, path: str) -> None:
         np.savez_compressed(path, t=np.array(self.t), qpos=np.array(self.qpos),
-                            caption=np.array(self.caption, dtype=object), fps=self.fps,
+                            caption=np.array(self.caption, dtype=object), fps=self.fps, seed=self.seed,
                             focus=np.array([f if f is not None else [np.nan] * 3 for f in self.focus]))
 
     @classmethod
@@ -59,6 +60,7 @@ class Tape:
         tape = cls(float(z["fps"]))
         tape.t, tape.qpos, tape.caption = list(z["t"]), list(z["qpos"]), [tuple(c) for c in z["caption"]]
         tape.focus = list(z["focus"])
+        tape.seed = int(z["seed"]) if "seed" in z else 0
         return tape
 
 
@@ -81,10 +83,12 @@ def _render_chunk(args):
     import mujoco
     from PIL import Image, ImageDraw
 
-    from . import make_model
+    from . import entry, make_model
     model = make_model(scene)
     data = mujoco.MjData(model)
     tape = Tape.load(tape_path)
+    if entry(scene).reset is not None:               # what the scene's reset changes in the model (a tag's colour, a
+        entry(scene).reset(model, data, np.random.default_rng(tape.seed))      # gauge's mark), as in the run
     tape.base_adr = int(model.jnt_qposadr[model.joint("base_x").id])     # the robot's base in qpos (for the camera)
     shot_fn = getattr(importlib.import_module(shots_mod[0]), shots_mod[1])
     w, h = size

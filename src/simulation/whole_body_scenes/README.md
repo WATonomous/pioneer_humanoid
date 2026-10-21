@@ -53,11 +53,12 @@ as fast as real time).
 | `weigh_sort` | 1 step, ~90 s. Sorting by weight, read off a dial: four parts that look the same, two light and two heavy (random per seed); reads the empty scale with its head camera (the angle of the red needle about its hub in the image); then for each part: takes it from the tray, sets it on the scale's platform (a spring; the needle is coupled to it by a joint equality: the physics weighs it), reads the dial again, and the hand on the bin's side takes it off and puts it in the light bin (left) or the heavy bin (right). The video is seed 2; in seed 0 a part isn't taken from the tray. |
 | `drawer` | 3 steps, ~68 s. A drawer, whole body: walks up; takes the drawer's handle knob (right hand, fingertips round its rim) and pulls the drawer open as far as the arm reaches, then steps back holding it to pull it the rest of the way (19 cm: far enough to reach in clear of the cabinet's roof; the slide has friction, the drawer moves only because the hand pulls it); lets go and steps in again; looks into the drawer and finds the two parts' red and blue tops with its head camera (which is where is random per seed, and they were under the roof, out of sight, till it was opened); takes each with the hand on its side and puts it on the pad of its colour, side-stepping along the bench carrying it when the pad is on the other side; steps back, takes the handle again and pushes the drawer shut, the arm and then a step in. |
 | `lid_box` | 4 steps, ~22 s. A hinged lid, both hands: walks up; reads a lit tag on a box's front with its head camera (red, green or blue, random per seed: which button to press); takes the lid's mushroom knob with the hand away from that button's side and lifts the lid open on an arc about its hinge, the hand turning with the lid, up to its stay; holds it there while the other hand reaches in under it and presses the button of the tag's colour with its thumb; lets go: the lid settles shut on its damped hinge (it doesn't stay open by itself); the lamp comes up. |
+| `valve` | 2 steps, ~45 s. Closed loop, by sight: two valve knobs on the bench, each turning a gauge's needle behind it (a joint equality, half as far); a yellow mark on each gauge's face is where its needle should point (needles and marks random per seed). For each valve: reads the needle's and the mark's angles from its head camera's image (their pixels put back on the face's plane, so the image's slant doesn't skew them), twists the knob by strokes (grip, turn, let go, turn back) toward the mark, reads again; how far the needle moves per turn of the hand is guessed at first and learnt from each stroke; stops when it reads within 3 degrees; the lamp comes up when both are on their marks. |
 | `grasp_test` | A bolt in a rack and a plate with one threaded hole (tuning bench for the grasps). |
 | `bare` | The studio and an empty workbench. |
 
 Robustness (`--seeds 8`: every loose part up to 2 mm and 3 deg off; Oct 20-21): `bearing_block` 8/8, `gear_train` 8/8,
-`service_panel` 8/8, `tote_to_shelf` 6/8, `wheel_hub` 6/8, `handover` 5/6, `wrench` 6/6, `sort_bins` 8/8 (colours and parts shuffled), `wipe_table` 6/8 (a squeegee tips over in the grip), `simon_panel` 8/8 (sequences random), `pour` 6/8 (an empty cup pushed off its coaster when the hand lets go), `winch` 8/8, `push_cart` 7/8, `weigh_sort` 6/8 (a part not taken from the tray), `drawer` 8/8 (parts placed and swapped), `lid_box` 8/8 (tag colours random), `battery_module` 2/8 (its cells catch on the socket rims or
+`service_panel` 8/8, `tote_to_shelf` 6/8, `wheel_hub` 6/8, `handover` 5/6, `wrench` 6/6, `sort_bins` 8/8 (colours and parts shuffled), `wipe_table` 6/8 (a squeegee tips over in the grip), `simon_panel` 8/8 (sequences random), `pour` 6/8 (an empty cup pushed off its coaster when the hand lets go), `winch` 8/8, `push_cart` 7/8, `weigh_sort` 6/8 (a part not taken from the tray), `drawer` 8/8 (parts placed and swapped), `lid_box` 8/8 (tag colours random), `valve` 8/8 (needles and marks random), `battery_module` 2/8 (its cells catch on the socket rims or
 get flung when the hand lets go: the next thing to fix). Seed 0, the scene as built, is the one in the videos.
 
 Each scene registers `step` (mechanics: threads, clamp, button), `progress` (the current step and its instruction,
@@ -89,14 +90,15 @@ latched in order as in `humanoid_mujoco_scenes`) and `plan` (the demo).
     once it is over the head, let go when the bolt is home and the hand has taken the wrench again);
   - the gear mesh (the second gear's turn coupled to the first's, teeth in phase; the teeth aren't collided);
   - the drawer's and hatch's detents and soft-close (a small force near the ends of travel);
-  - the winch's drum (the load's slide coupled to the crank by a joint equality: a mechanism, solved by the physics)
+  - the winch's drum and the valves' gauges (the load's slide coupled to the crank, a needle to its knob, by joint
+    equalities: mechanisms, solved by the physics)
     and the cart bay's latch (a weld made when the cart comes to rest in the bay);
   - the testers' indicator flags and lamps;
   - the robot's balance (the pelvis is moved and the legs are solved so the feet don't slide).
   Object poses come from the simulator (as a perfect perception stack would give them), except in `sort_bins`,
-  `wipe_table`, `simon_panel`, `weigh_sort`, `drawer` and `lid_box`: there the parts' places and colours, the
-  crumbs, the colour sequence, the scale's reading, the parts in the drawer and the tag's colour come from the head
-  camera's images.
+  `wipe_table`, `simon_panel`, `weigh_sort`, `drawer`, `lid_box` and `valve`: there the parts' places and colours,
+  the crumbs, the colour sequence, the scale's reading, the parts in the drawer, the tag's colour and the gauges'
+  needles and marks come from the head camera's images.
 - The plans are scripted, not learned; they check their results and retry where a person would (a part not
   seated, a lid whose screws didn't catch). Long scenes are sensitive to small changes: re-run the demo after
   editing a scene or a skill.
