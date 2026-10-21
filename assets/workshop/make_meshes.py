@@ -219,84 +219,80 @@ def rail_caps():
 
 
 # the oil caddy scene: three things to put away (each taken by its top: a cap or a lid) and the caddy
-CANS = dict(                                                     # (pocket sizes: a hand reaches over them)
-    spray=dict(r=0.0225, h=0.060, cap_r=0.021, cap_h=0.020),     # spray lube: steel can, domed top, cap
-    bottle=dict(r=0.022, h=0.062, cap_r=0.0155, cap_h=0.018),    # cutting oil: HDPE bottle, shoulder, flip cap
-    tin=dict(r=0.0235, h=0.052, cap_r=0.024, cap_h=0.012),       # grease: tin with a screw lid
+CANS = dict(                                                     # small screw-lid tins (squat: a hand takes them by the lid)
+    grease=dict(r=0.0210, h=0.045, cap_r=0.0215, cap_h=0.010),   # lithium grease
+    wax=dict(r=0.0200, h=0.040, cap_r=0.0205, cap_h=0.012),      # paste wax
+    flux=dict(r=0.0180, h=0.036, cap_r=0.0185, cap_h=0.010),     # solder flux
 )
-CADDY = dict(depth=0.20, length=0.32, wall_h=0.065, divider_h=0.13, t=0.0015, bays=3)
+CADDY = dict(depth=0.20, length=0.32, wall_h=0.045, bay_h=0.025, handle_h=0.19, handle_x=0.18, t=0.0015, bays=3)
 
 
 def can_body(kind: str):
-    """A can or bottle's body (its bottom at z = 0); the label band and the cap are separate meshes."""
+    """A tin's body (its bottom at z = 0): a drawn steel cup, rolled bottom edge, the screw thread's neck at the top;
+    the label band and the lid are separate meshes."""
     c = CANS[kind]
     r, h = c["r"], c["h"]
     with BuildPart() as p:
-        if kind == "bottle":
-            Cylinder(r, h - 0.014, align=(Align.CENTER, Align.CENTER, Align.MIN))
-            fillet(p.edges().group_by(Axis.Z)[-1], 0.009)          # the shoulder
-            with Locations(Location((0, 0, h - 0.016))):
-                Cylinder(0.011, 0.016, align=(Align.CENTER, Align.CENTER, Align.MIN))     # the neck
-            fillet(p.edges().group_by(Axis.Z)[0], 0.003)
-        else:
-            Cylinder(r, h, align=(Align.CENTER, Align.CENTER, Align.MIN))
-            fillet(p.edges().group_by(Axis.Z)[-1], 0.004 if kind == "spray" else 0.0015)
-            fillet(p.edges().group_by(Axis.Z)[0], 0.002)
-            if kind == "spray":                                    # the valve cup on the dome
-                with Locations(Location((0, 0, h))):
-                    Cylinder(0.0125, 0.004, align=(Align.CENTER, Align.CENTER, Align.MIN))
+        Cylinder(r, h - 0.004, align=(Align.CENTER, Align.CENTER, Align.MIN))
+        fillet(p.edges().group_by(Axis.Z)[0], 0.002)
+        with Locations(Location((0, 0, h - 0.004))):
+            Cylinder(r - 0.0012, 0.004, align=(Align.CENTER, Align.CENTER, Align.MIN))     # the neck under the lid
     return p.part
 
 
 def can_label(kind: str):
     c = CANS[kind]
     r, h = c["r"], c["h"]
-    z0, z1 = (0.012, 0.048) if kind == "spray" else (0.010, 0.042) if kind == "bottle" else (0.008, 0.044)
     with BuildPart() as p:
-        with Locations(Location((0, 0, z0))):
-            Cylinder(r + 0.0003, z1 - z0, align=(Align.CENTER, Align.CENTER, Align.MIN))
-            Cylinder(r - 0.001, z1 - z0, align=(Align.CENTER, Align.CENTER, Align.MIN), mode=Mode.SUBTRACT)
+        with Locations(Location((0, 0, 0.004))):
+            Cylinder(r + 0.0003, h - 0.010, align=(Align.CENTER, Align.CENTER, Align.MIN))
+            Cylinder(r - 0.001, h - 0.010, align=(Align.CENTER, Align.CENTER, Align.MIN), mode=Mode.SUBTRACT)
     return p.part
 
 
 def can_cap(kind: str):
-    """The cap / lid, its bottom at z = 0 (in the scene, on top of the body): knurled ribs on the screw lids."""
+    """The screw lid (its bottom at z = 0, on top of the body): a rounded top edge and grip ribs round its side."""
     c = CANS[kind]
     r, h = c["cap_r"], c["cap_h"]
     with BuildPart() as p:
         Cylinder(r, h, align=(Align.CENTER, Align.CENTER, Align.MIN))
-        fillet(p.edges().group_by(Axis.Z)[-1], 0.003 if kind != "tin" else 0.0015)
-        if kind == "spray":                                        # the actuator's nozzle window
-            with Locations(Location((r - 0.002, 0, h - 0.009))):
-                Box(0.006, 0.007, 0.005, mode=Mode.SUBTRACT)
-        else:                                                      # grip ribs round the side
-            for k in range(36):
-                a = 2 * math.pi * k / 36
-                with Locations(Location((r * math.cos(a), r * math.sin(a), 0.002), (0, 0, math.degrees(a)))):
-                    Box(0.0012, 0.0012, h - 0.004, align=(Align.CENTER, Align.CENTER, Align.MIN))
-        if kind == "bottle":                                       # the flip-top's hinge and lip
-            with Locations(Location((-r, 0, h - 0.006))):
-                Box(0.004, 0.008, 0.004)
+        fillet(p.edges().group_by(Axis.Z)[-1], 0.0025)
+        for k in range(40):
+            a = 2 * math.pi * k / 40
+            with Locations(Location((r * math.cos(a), r * math.sin(a), 0.0015), (0, 0, math.degrees(a)))):
+                Box(0.0010, 0.0010, h - 0.004, align=(Align.CENTER, Align.CENTER, Align.MIN))
     return p.part
 
 
 def caddy():
-    """A steel tool caddy (in its frame: centred in y, its front at x = 0, its bottom at z = 0): an open tray, a tall middle divider along its length with a hand slot, the front row cut into three bays."""
+    """A steel tool caddy (in its frame: centred in y, its front at x = 0, its bottom at z = 0): an open tray, low
+    dividers cutting its front half into bays, a tube handle across its length on two end posts (the frame's a
+    separate mesh: its own finish)."""
     c = CADDY
-    d, L, wh, dh, t = c["depth"], c["length"], c["wall_h"], c["divider_h"], c["t"]
+    d, L, wh, bh, t = c["depth"], c["length"], c["wall_h"], c["bay_h"], c["t"]
     with BuildPart() as p:
         Box(d, L, wh, align=(Align.MIN, Align.CENTER, Align.MIN))
         with Locations(Location((t, 0, t))):
             Box(d - 2 * t, L - 2 * t, wh, align=(Align.MIN, Align.CENTER, Align.MIN), mode=Mode.SUBTRACT)
-        with Locations(Location((d / 2, 0, 0))):                   # the middle divider, the handle
-            Box(t * 2, L, dh, align=(Align.CENTER, Align.CENTER, Align.MIN))
-        with Locations(Location((d / 2, 0, dh - 0.03))):
-            Box(0.01, 0.11, 0.022, mode=Mode.SUBTRACT)             # the hand slot
-        for k in range(1, c["bays"]):                              # the front row's bays
+        fillet(p.edges().filter_by(Axis.Z), 0.004)
+        for k in range(1, c["bays"]):                              # the front half's bays
             y = -L / 2 + k * L / c["bays"]
             with Locations(Location((d / 4, y, 0))):
-                Box(d / 2, t, wh * 0.9, align=(Align.CENTER, Align.CENTER, Align.MIN))
-        fillet(p.edges().filter_by(Axis.Z).group_by(Axis.X)[0], 0.004)
+                Box(d / 2, t, bh, align=(Align.CENTER, Align.CENTER, Align.MIN))
+        with Locations(Location((d / 2, 0, 0))):                   # and a low rib across between front and back
+            Box(t, L, bh, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    return p.part
+
+
+def caddy_handle():
+    c = CADDY
+    d, L, hh = c["depth"], c["length"], c["handle_h"]
+    with BuildPart() as p:
+        for s_ in (-1, 1):
+            with Locations(Location((c["handle_x"], s_ * (L / 2 - 0.012), 0))):
+                Box(0.03, 0.004, hh, align=(Align.CENTER, Align.CENTER, Align.MIN))
+        with Locations(Location((c["handle_x"], 0, hh - 0.012))):
+            Cylinder(0.011, L - 0.02, rotation=(90, 0, 0))
     return p.part
 
 
@@ -392,6 +388,7 @@ if __name__ == "__main__":
         save(can_label(kind), f"{kind}_label")
         save(can_cap(kind), f"{kind}_cap")
     save(caddy(), "caddy")
+    save(caddy_handle(), "caddy_handle")
     save(foam_insert(), "foam_insert")
     save(tool_tray(), "tool_tray")
     save(wrench(), "wrench")

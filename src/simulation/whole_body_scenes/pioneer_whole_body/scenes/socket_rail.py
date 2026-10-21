@@ -214,12 +214,12 @@ def _spot_body(m, d, y) -> str:
     return min((_name(k) for k in range(len(SIZES))), key=lambda b: abs(d.xpos[m.body(b).id][1] - y))
 
 
-def _take(wb, side: str, body: str, width: float, over: float = 0.09, above: float = 0.004) -> None:
+def _take(wb, side: str, body: str, width: float, over: float = 0.09, above: float = 0.004, yaw: float = None) -> None:
     """Straight up by its mouth: the "lid" grasp from above (again, from where it is now, if it didn't come up)."""
     from pioneer_whole_body import skills as S
     from pioneer_whole_body.controller import palm_down
     for _ in range(3):
-        r = palm_down(YAW[side])
+        r = palm_down(YAW[side] if yaw is None else (-yaw if side == "l" else yaw))
         back = GRIP_BACK[0] + max(0.0, SIZES[-1][1] - width) * GRIP_BACK[1]
         p = S.site(wb, f"{body}_top") - r[:, 0] * back + [0, 0, above]
         wb.fingers(side, TUCKED, dur=0.4)                # (fingers curled, thumb flat: nothing hangs down on the way)
