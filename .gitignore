@@ -40,3 +40,6 @@ src/simulation/garment_fold_task/
 src/simulation/humanoid_rl/logs/
 src/simulation/humanoid_rl/outputs/
 src/interfacing/joint_command/config/arm_calibration.yaml.bak
+# leader unit calibration (per machine)
+src/teleop/pioneer_leader_arm_teleop/leader_arm.json
+src/teleop/pioneer_leader_arm_teleop/leader_calibration.json
