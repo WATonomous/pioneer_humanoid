@@ -7,9 +7,10 @@ screwdriver (two-tone handle, chrome shaft), its foam insert, a wooden tool tray
 The chest's shape is set by the constants below; the scene (``tool_chest.py``) reads the same numbers from
 ``CHEST`` so the collision boxes and the joints line up with the meshes.
 """
+import math
 import os
 
-from build123d import (Align, Axis, Box, Cylinder, Location, Locations, Plane, Pos, Rot, Sphere, Sketch, BuildSketch, BuildPart,
+from build123d import (add, RegularPolygon, Align, Axis, Box, Cylinder, Location, Locations, Plane, Pos, Rot, Sphere, Sketch, BuildSketch, BuildPart,
                        Circle, RectangleRounded, Rectangle, extrude, fillet, chamfer, revolve, Polyline, make_face,
                        BuildLine, Mode, export_stl, Compound)
 
@@ -24,8 +25,8 @@ CHEST = dict(
     gap=0.004,                       # between drawers
     lid_h=0.022,                     # the top
     pull_len=0.22, pull_r=0.0085,    # the drawer pull: a bar along the drawer's face (y), its length and radius,
-    pull_out=0.058, pull_down=0.032, # standing this far out of the face (bar axis: room for a gloved hand), below the top
-    drawer_depth=0.25,
+    pull_out=0.058, pull_down=0.022, # standing this far out of the face (bar axis: room for a gloved hand), below the top
+    drawer_depth=0.26,
     box_h=(0.05, None),              # the box behind each face (None: full height): the bottom one a shallow tray,
                                      # a hand reaches in over its sides
 )
@@ -129,81 +130,48 @@ def drawer_pull():
     return p.part
 
 
-# the screwdriver: along +y, its tip at y = 0, lying (the handle's axis at z = HANDLE_R)
-SD = dict(handle_len=0.105, handle_r=0.0165, shaft_len=0.09, shaft_r=0.0032, tip_len=0.012)
-CUT_X = 0.10                     # the screwdriver's cut-out in the foam: its axis this far back from the foam's front
-                                 # edge (it lies across the drawer, its handle to the right)
-FOAM_L, FOAM_H, CUT_Z = 0.245, 0.048, 0.029     # the foam (it fills the drawer: the screwdriver sits high), its cut-out's floor
+# the sockets in the bottom drawer: 3/4"-drive impact-style sockets standing in a foam rail, (size, outside diameter)
+SOCKETS = (("22", 0.034), ("24", 0.037), ("27", 0.040), ("30", 0.043))
+SOCKET_H = 0.045
+SOCKET_Y = (0.12, 0.065, -0.06, -0.125)  # where each stands across the drawer (from its middle)
+SOCKET_X = 0.148                 # ... and back from the foam's front edge
+TAKE = 2                         # the one the robot takes (27 mm)
+FOAM_L, FOAM_H, HOLE_Z = 0.245, 0.048, 0.024     # the foam (it fills the drawer), the holes' floor
 
 
-def screwdriver_handle():
-    s = SD
-    L, R = s["handle_len"], s["handle_r"]
-    # a revolved profile: a slim collar, the swell of the grip, a domed butt
-    pts = [(0, 0.0), (0.008, 0), (0.008, 0.012), (0.85 * R, 0.016), (R, 0.04), (R, 0.075), (0.92 * R, 0.095),
-           (0.6 * R, L), (0, L)]
+def socket(af: str, od: float):
+    """A socket: a chrome cylinder, the hex for the nut at the top (``af`` mm across flats), the 3/4" square drive in
+    the bottom, a chamfered mouth, a groove round its drive end, the size stamped as a ring of flats (just a band)."""
+    h, r = SOCKET_H, od / 2
+    a = float(af) / 1000
     with BuildPart() as p:
-        with BuildSketch(Plane.XZ) as sk:
-            with BuildLine():
-                Polyline(*pts, close=True)
-            make_face()
-        revolve(axis=Axis.Z)
-        # flutes along the grip
-        for i in range(6):
-            a = i * 60
-            with Locations(Location((0, 0, 0.055)) * Rot(0, 0, a) * Location((R + 0.0012, 0, 0))):
-                Cylinder(0.0035, 0.06, mode=Mode.SUBTRACT)
-    # lay it along +y with its collar at y = shaft_len
-    return p.part.rotate(Axis.X, -90).translate((0, s["shaft_len"], s["handle_r"]))
-
-
-def screwdriver_grip_band():
-    """The handle's coloured rubber band (a second material on the grip)."""
-    s = SD
-    R = s["handle_r"]
-    with BuildPart() as p:
-        with Locations(Location((0, 0, 0.035))):
-            Cylinder(R + 0.0006, 0.045, align=(Align.CENTER, Align.CENTER, Align.MIN))
-        with Locations(Location((0, 0, 0.03))):
-            Cylinder(R - 0.002, 0.05, align=(Align.CENTER, Align.CENTER, Align.MIN), mode=Mode.SUBTRACT )
-        for i in range(6):
-            a = i * 60
-            with Locations(Location((0, 0, 0.055)) * Rot(0, 0, a) * Location((R + 0.0012, 0, 0))):
-                Cylinder(0.0035, 0.06, mode=Mode.SUBTRACT)
-    return p.part.rotate(Axis.X, -90).translate((0, s["shaft_len"], s["handle_r"]))
-
-
-def screwdriver_shaft():
-    s = SD
-    with BuildPart() as p:
-        with Locations(Location((0, 0, s["tip_len"]))):
-            Cylinder(s["shaft_r"], s["shaft_len"] - s["tip_len"], align=(Align.CENTER, Align.CENTER, Align.MIN) )
-        # a flat-blade tip, tapering
-        Box(0.0055, 0.0012, s["tip_len"], align=(Align.CENTER, Align.CENTER, Align.MIN))
-        with Locations(Location((0, 0, s["tip_len"] * 0.4))):
-            Box(0.0045, 0.0028, s["tip_len"] * 0.6, align=(Align.CENTER, Align.CENTER, Align.MIN))
-    return p.part.rotate(Axis.X, -90).translate((0, 0, s["handle_r"]))
+        Cylinder(r, h, align=(Align.CENTER, Align.CENTER, Align.MIN))
+        chamfer(p.edges().group_by(Axis.Z)[-1], 0.0012)
+        chamfer(p.edges().group_by(Axis.Z)[0], 0.0008)
+        with BuildSketch(Plane.XY.offset(h)) as hx:      # the hex, down from the mouth
+            RegularPolygon(a / 2 / math.cos(math.pi / 6), 6)
+        extrude(amount=-0.022, mode=Mode.SUBTRACT)
+        with BuildSketch(Plane.XY) as sq:                # the square drive, up from the bottom
+            Rectangle(0.0191, 0.0191)
+        extrude(amount=0.014, mode=Mode.SUBTRACT)
+        with Locations(Location((0, 0, 0.009))):         # the groove round the drive end
+            Cylinder(r + 0.001, 0.002, mode=Mode.SUBTRACT)
+            Cylinder(r - 0.0007, 0.002)
+    return p.part
 
 
 def foam_insert():
-    """Grey foam on the bottom drawer's floor, a cut-out the shape of the screwdriver (seen from above): it lies across
-    the drawer (the part that comes out when it's opened), its handle to the right (-y), sunk past its axis (it rides
-    out with the drawer)."""
+    """Grey foam on the bottom drawer's floor, a row of round holes the sockets stand in (sunk about half their
+    height: they ride in and out with the drawer)."""
     c = CHEST
-    s = SD
     w = c["width"] - 2 * c["wall"] - 0.012
-    hl, sl = s["handle_len"], s["shaft_len"]
-    L = hl + sl
     with BuildPart() as p:
         Box(FOAM_L, w, FOAM_H, align=(Align.MIN, Align.CENTER, Align.MIN))
-        with Locations(Location((CUT_X, L / 2 - sl + 0.004, CUT_Z))):
-            Box(0.042, hl + 0.01, FOAM_H, align=(Align.CENTER, Align.MAX, Align.MIN), mode=Mode.SUBTRACT)
-        with Locations(Location((CUT_X, L / 2 + 0.003, CUT_Z))):
-            Box(0.014, sl + 0.006, FOAM_H, align=(Align.CENTER, Align.MAX, Align.MIN), mode=Mode.SUBTRACT)
-        # a finger notch either side of the grip
-        for sx in (-1, 1):
-            with Locations(Location((CUT_X + sx * 0.024, L / 2 - sl - hl / 2, CUT_Z))):
-                Cylinder(0.014, FOAM_H, align=(Align.CENTER, Align.CENTER, Align.MIN), mode=Mode.SUBTRACT)
+        for (_, od), y in zip(SOCKETS, SOCKET_Y):
+            with Locations(Location((SOCKET_X, y, HOLE_Z))):
+                Cylinder(od / 2 + 0.0012, FOAM_H, align=(Align.CENTER, Align.CENTER, Align.MIN), mode=Mode.SUBTRACT)
+        with Locations(Location((SOCKET_X, 0, FOAM_H - 0.002))):       # a printed strip of sizes along the row
+            Box(0.012, w - 0.03, 0.002, align=(Align.CENTER, Align.CENTER, Align.MIN), mode=Mode.SUBTRACT)
     return p.part
 
 
@@ -271,9 +239,8 @@ if __name__ == "__main__":
     for i, h in enumerate(CHEST["drawers"]):
         save(drawer_front(i), f"drawer{i}")
     save(drawer_pull(), "drawer_pull")
-    save(screwdriver_handle(), "sd_handle")
-    save(screwdriver_grip_band(), "sd_grip")
-    save(screwdriver_shaft(), "sd_shaft")
+    for af, od in SOCKETS:
+        save(socket(af, od), f"socket_{af}")
     save(foam_insert(), "foam_insert")
     save(tool_tray(), "tool_tray")
     save(wrench(), "wrench")

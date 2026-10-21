@@ -1,13 +1,14 @@
 """Tool chest (a workshop scene modelled to look like the real thing): a red benchtop tool chest with two drawers on
-slides and black bar pulls stands on a butcher-block workbench; in its bottom drawer, a screwdriver
-lies in a foam cut-out near the front. The left hand pulls the drawer open by its pull (the part that comes out is
-open from above), the right hand takes the screwdriver out and lays it in the wooden tool tray on the bench, the left
-pushes the drawer shut.
+full-extension slides and black bar pulls stands on a butcher-block workbench; in its shallow bottom drawer, four 3/4"
+drive sockets stand in a foam rail. The left hand hooks the drawer's pull and draws it all the way out (the hips lean
+back with it), then holds out of the way; the right hand reaches down into the drawer (pitched, so the forearm rides
+over the drawer's front: the arm has no wrist), takes the 27 mm socket out and sets it in the wooden tool tray on the
+bench; the left pushes the drawer shut.
 
 The props are CAD models (``assets/workshop/make_meshes.py``, build123d) in the workshop room (``workshop.py``).
 The robot starts at the bench: no walking.
 
-Steps (``progress``): 1. open the drawer, 2. take the screwdriver out, 3. lay it in the tray, 4. shut the drawer.
+Steps (``progress``): 1. open the drawer, 2. take the socket out, 3. set it in the tray, 4. shut the drawer.
 """
 from __future__ import annotations
 
@@ -18,7 +19,7 @@ import mujoco
 import numpy as np
 
 from pioneer_whole_body import scene
-from pioneer_whole_body.controller import SHAPES
+from pioneer_whole_body.controller import READY, SHAPES
 from pioneer_whole_body.studio import BENCH_TOP_Z
 from pioneer_whole_body.workshop import ASSETS, MESH, add_workshop, mesh, paint, texture
 
@@ -29,24 +30,27 @@ CAPSULE = mujoco.mjtGeom.mjGEOM_CAPSULE
 _spec = importlib.util.spec_from_file_location("make_meshes", ASSETS / "make_meshes.py")
 _mm = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_mm)
-CHEST, SD = _mm.CHEST, _mm.SD
+CHEST = _mm.CHEST
 CHEST_H = _mm.height()
 
 CHEST_X, CHEST_Y = 0.60, 0.04          # the chest's front (x) and middle (y) on the bench
 TRAY = (0.58, -0.42)
-DRAWER = 0                             # the drawer the screwdriver is in (the bottom one: its pull at a good height)
-OPEN = 0.21                            # how far it opens (its slides let it out 0.24)
+DRAWER = 0                             # the drawer the sockets are in (the bottom one: its pull at a good height)
+OPEN = 0.27                            # how far it opens: all the way, to the slides' stop
 PULL_AT = 0.07                         # ... and that far out along the bar, toward the hand's side
 PULL_BACK, PULL_ABOVE = 0.055, 0.018   # the palm from the bar's axis: back along the fingers, up
 PARK = np.array([0.36, 0.42, 0.97])    # the left hand while the right works: out past the chest's side
 TUCKED = {**SHAPES["fist"], "th_c": 0.0, "th_f": 0.0, "th_mcp": 0.0, "th_ip": 0.0}   # fingers curled, thumb flat
-SD_YAW, SD_TILT = 0.6, 0.6             # the right hand on the screwdriver's handle (it lies across the drawer):
-                                       # fingers forward, turned in a little, pitched well down (round the handle's
-                                       # axis: the same wrap), so the wrist and forearm ride high over the drawer's front
-LEAN = 0.18                            # the hips back this far while it pulls
+RAISED = {**READY, "shoulder_pitch": -0.45, "shoulder_roll": 0.8}    # the right hand up and out to the side
+GRIP_YAW, GRIP_TILT = 0.45, 0.5       # the right hand on the socket: fingers turned in (the arm's easy pose), pitched
+                                       # down, so the wrist and forearm ride high over the drawer's front
+GRIP_AT = np.array([0.02, 0.0, 0.015])    # the socket's top in the palm's frame (along the fingers, across, out of the
+                                       # palm): the "lid" grasp, pitched
+LEAN = 0.22                            # the hips back this far while it pulls
 PULL_YAW = -0.25                       # the left hand's fingers on the pull: turned in (the arm's easy pose)
-FOAM_BIT = 4                           # the collision bit only the foam and the screwdriver share
-STEPS = ("open the drawer", "take the screwdriver out", "lay it in the tray", "shut the drawer")
+FOAM_BIT = 4                           # the collision bit only the foam and the socket share
+STEPS = ("open the drawer", "take the socket out", "set it in the tray", "shut the drawer")
+SOCKET = f"socket_{_mm.SOCKETS[_mm.TAKE][0]}"
 _U_STEP = 0
 
 
@@ -60,17 +64,16 @@ def _slide(model, data) -> float:
 
 
 def _in_tray(model, data) -> bool:
-    p = data.xpos[model.body("screwdriver").id]                  # (its tip: the handle's toward -y)
-    mid = p[1] - (SD["shaft_len"] + SD["handle_len"]) / 2
-    return abs(p[0] - TRAY[0]) < 0.05 and abs(mid - TRAY[1]) < 0.06 and p[2] < T + 0.03
+    p = data.xpos[model.body(SOCKET).id]
+    return abs(p[0] - TRAY[0]) < 0.06 and abs(p[1] - TRAY[1]) < 0.14 and p[2] < T + 0.04
 
 
 def step(model, data) -> None:
     k = int(data.userdata[_U_STEP])
-    sd = data.xpos[model.body("screwdriver").id]
+    so = data.xpos[model.body(SOCKET).id]
     if k == 0 and _slide(model, data) > OPEN - 0.02:
         data.userdata[_U_STEP] = 1
-    elif k == 1 and sd[2] > T + _drawer_z(DRAWER) + 0.08:
+    elif k == 1 and so[2] > T + _drawer_z(DRAWER) + 0.12:
         data.userdata[_U_STEP] = 2
     elif k == 2 and _in_tray(model, data):
         data.userdata[_U_STEP] = 3
@@ -84,7 +87,7 @@ def progress(model, data):
 
 
 @scene("tool_chest", robot_pos=(0.0, 0.0, 0.0), step=step, progress=progress,
-       title="Pioneer v2  |  tool chest: the drawer pulled open, the screwdriver taken out, the drawer shut",
+       title="Pioneer v2  |  tool chest: the drawer pulled open, a socket taken out, the drawer shut",
        camera=((0.5, 0.05, 1.0), 2.1, 65, -20))
 def build(spec: mujoco.MjSpec) -> None:
     add_workshop(spec)
@@ -114,7 +117,7 @@ def build(spec: mujoco.MjSpec) -> None:
     # the drawers, on slides (pulled out toward the robot, -x)
     for i, h in enumerate(c["drawers"]):
         dr = world.add_body(name=f"drawer{i}", pos=[CHEST_X, CHEST_Y, T + _drawer_z(i)])
-        dr.add_joint(name=f"drawer{i}", type=mujoco.mjtJoint.mjJNT_SLIDE, axis=[-1, 0, 0], range=[0, 0.24],
+        dr.add_joint(name=f"drawer{i}", type=mujoco.mjtJoint.mjJNT_SLIDE, axis=[-1, 0, 0], range=[0, 0.27],
                      limited=mujoco.mjtLimited.mjLIMITED_TRUE, damping=12.0, frictionloss=5.0, armature=0.05)
         mesh(spec, f"drawer{i}")
         dr.add_geom(type=MESH, meshname=f"drawer{i}", material=red, mass=0.6, **vis)
@@ -137,36 +140,35 @@ def build(spec: mujoco.MjSpec) -> None:
             dr.add_geom(type=BOX, pos=list(g[:3]), size=list(g[3:]), rgba=[0, 0, 0, 0], group=3, mass=0.05)
         dr.add_site(name=f"pull{i}", pos=[-po, 0, kz + pr])            # the top of the bar, mid-way
         spec.add_exclude(bodyname1="chest", bodyname2=f"drawer{i}")
-        if i == DRAWER:                                      # the foam insert with the screwdriver's cut-out
+        if i == DRAWER:                                      # the foam insert and its sockets
             mesh(spec, "foam_insert")
             dr.add_geom(type=MESH, meshname="foam_insert", pos=[0.012, 0, 0.0035], material=foam, **vis)
-            floor = 0.0035 + _mm.CUT_Z
-            fl, fh, cx = _mm.FOAM_L, _mm.FOAM_H, 0.012 + _mm.CUT_X
+            fl, hz = _mm.FOAM_L, _mm.HOLE_Z
             soft = dict(rgba=[0, 0, 0, 0], group=3, contype=FOAM_BIT, conaffinity=FOAM_BIT)   # (the foam: only the
-            dr.add_geom(type=BOX, pos=[0.012 + fl / 2, 0, 0.0035 + _mm.CUT_Z / 2],       # screwdriver rests on it,
-                        size=[fl / 2, bw / 2 - 0.004, _mm.CUT_Z / 2], **soft)             # fingers press into it)
-            for sx in (-1, 1):                               # the cut-out's sides (they carry it in and out)
-                dr.add_geom(type=BOX, pos=[cx + sx * 0.031, 0, 0.0035 + fh / 2],
-                            size=[0.01, bw / 2 - 0.004, fh / 2], **soft)
+            dr.add_geom(type=BOX, pos=[0.012 + fl / 2, 0, 0.0035 + hz / 2],               # socket rests in it,
+                        size=[fl / 2, bw / 2 - 0.004, hz / 2], **soft)                     # fingers press into it)
+            for k, ((af, od), y) in enumerate(zip(_mm.SOCKETS, _mm.SOCKET_Y)):
+                mesh(spec, f"socket_{af}")
+                at = [0.012 + _mm.SOCKET_X, y, 0.0035 + hz]
+                if k != _mm.TAKE:                            # (the others stay put: part of the drawer)
+                    dr.add_geom(type=MESH, meshname=f"socket_{af}", pos=at, material=chrome, **vis)
+                    continue
+                for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):   # its hole's sides (they carry it in and out)
+                    w = od / 2 + 0.0012 + 0.005
+                    dr.add_geom(type=BOX, pos=[at[0] + dx * w, at[1] + dy * w, 0.0035 + hz + 0.01],
+                                size=[0.005 if dx else w, 0.005 if dy else w, 0.01], **soft)
     spec.add_exclude(bodyname1="drawer0", bodyname2="drawer1")
-    # the screwdriver, in its cut-out (its frame: along +y from the tip; turned round, the handle toward -y)
-    L = SD["shaft_len"] + SD["handle_len"]
-    sd = world.add_body(name="screwdriver", pos=[CHEST_X + 0.012 + _mm.CUT_X, CHEST_Y + L / 2,
-                                                 T + _drawer_z(DRAWER) + floor + 0.0005], quat=[0, 0, 0, 1])
-    sd.add_freejoint(name="screwdriver")
-    for m, mat in (("sd_handle", paint(spec, "sd_black", [0.06, 0.06, 0.07, 1], specular=0.3, shininess=0.5)),
-                   ("sd_grip", paint(spec, "sd_yellow", [0.95, 0.70, 0.05, 1], specular=0.25, shininess=0.3)),
-                   ("sd_shaft", chrome)):
-        mesh(spec, m)
-        sd.add_geom(type=MESH, meshname=m, material=mat, **vis)
-    r = SD["handle_r"]
-    sd.add_geom(name="sd_handle_c", type=CAPSULE, size=[r - 0.001, SD["handle_len"] / 2 - r], pos=[0, SD["shaft_len"] + SD["handle_len"] / 2, r],
-                quat=[0.7071, 0.7071, 0, 0], rgba=[0, 0, 0, 0], group=3, mass=0.09, friction=[1.2, 0.02, 0.002],
-                condim=4, contype=1 | FOAM_BIT, conaffinity=1 | FOAM_BIT)
-    sd.add_geom(type=CAPSULE, size=[SD["shaft_r"], SD["shaft_len"] / 2], pos=[0, SD["shaft_len"] / 2, r],
-                quat=[0.7071, 0.7071, 0, 0], rgba=[0, 0, 0, 0], group=3, mass=0.03, contype=1 | FOAM_BIT,
+    # the socket the robot takes, standing in its hole (free)
+    af, od = _mm.SOCKETS[_mm.TAKE]
+    h = _mm.SOCKET_H
+    so = world.add_body(name=SOCKET, pos=[CHEST_X + 0.012 + _mm.SOCKET_X, CHEST_Y + _mm.SOCKET_Y[_mm.TAKE],
+                                          T + _drawer_z(DRAWER) + 0.0035 + _mm.HOLE_Z + 0.0005])
+    so.add_freejoint(name=SOCKET)
+    so.add_geom(type=MESH, meshname=SOCKET, material=chrome, **vis)
+    so.add_geom(type=mujoco.mjtGeom.mjGEOM_CYLINDER, size=[od / 2, h / 2], pos=[0, 0, h / 2], rgba=[0, 0, 0, 0],
+                group=3, mass=0.25, friction=[1.2, 0.02, 0.002], condim=4, contype=1 | FOAM_BIT,
                 conaffinity=1 | FOAM_BIT)
-    sd.add_site(name="sd_grip", pos=[0, SD["shaft_len"] + SD["handle_len"] * 0.55, 2 * r])
+    so.add_site(name="socket_top", pos=[0, 0, h])
     # the tool tray
     tray = world.add_body(name="tray", pos=[TRAY[0], TRAY[1], T])
     mesh(spec, "tool_tray")
@@ -190,12 +192,12 @@ def plan(wb, notes: dict) -> None:
     wb.wait(0.8)
     # 1. the left hand takes the bottom drawer's pull and pulls it open
     _take_pull(wb, "l")
-    _move(wb, "l", -(OPEN + 0.03), hips=-LEAN)
+    _move(wb, "l", -(OPEN + 0.02), hips=-LEAN)            # (a little past the stop: it ends against it)
     _let_go_pull(wb, "l", park=PARK, hips=LEAN)
     notes["opened"] = round(_slide(m, d), 3)
     if _slide(m, d) < OPEN - 0.02:
         raise S.TaskFailed(f"the drawer's open {_slide(m, d):.3f} m")
-    # 2. the right hand takes the screwdriver by its handle and lifts it out; 3. lays it in the tray
+    # 2. the right hand takes the socket out; 3. sets it in the tray
     _pick(wb)
     _place(wb)
     notes["in_tray"] = _in_tray(m, d)
@@ -208,28 +210,28 @@ def plan(wb, notes: dict) -> None:
     wb.wait(1.0)
     notes["shut"] = round(_slide(m, d), 4)
     if not _in_tray(m, d):
-        raise S.TaskFailed("the screwdriver isn't in the tray")
+        raise S.TaskFailed("the socket isn't in the tray")
     if _slide(m, d) > 0.004:
         raise S.TaskFailed(f"the drawer's still {_slide(m, d):.3f} m open")
 
 
 def _pick(wb) -> None:
-    """The right hand takes the screwdriver by its handle and lifts it out of the open drawer: in over the drawer's
-    front and side with the fingers curled and the thumb flat (nothing hanging down or sticking out), down, the
-    fingers opened (pointing left across the handle) and closed round it; lifted a little, back out from under the
-    top drawer, up."""
+    """The right hand takes the socket out of the open drawer: up and out to the side, in over the drawer's front and
+    side with the fingers curled and the thumb flat (nothing hanging down or sticking out), pitched down over the
+    socket (the forearm with it: the arm has no wrist), down onto it with the fingers open, closed round its top
+    ("lid"); lifted, back out from under the top drawer, up."""
     from pioneer_whole_body import skills as S
     from pioneer_whole_body.controller import palm_down
-    r = palm_down(SD_YAW, SD_TILT)
-    axis = S.site(wb, "sd_grip") - [0, 0, SD["handle_r"]]
-    p = axis - r @ [S.GRASP_BACK, 0, 0.004 + SD["handle_r"]]          # (the "lid" grasp, as ``knob_pose``)
+    r = palm_down(GRIP_YAW, GRIP_TILT)
+    p = S.site(wb, "socket_top") - r @ GRIP_AT
+    pre = p - r[:, 2] * 0.04                             # (back off along the palm's normal)
+    hi = T + _drawer_z(DRAWER) + CHEST["drawers"][DRAWER] + 0.065   # (over the open drawer's front, under the top drawer)
+    r0 = palm_down(GRIP_YAW)
     wb.fingers("r", TUCKED, dur=0.5)
-    q, _ = wb.palm_pose("r")
-    r0 = palm_down(SD_YAW)                               # (level till it's over the drawer, then pitched down,
-    pre = p + [0.012, 0, 0.045]                          # the forearm with it (there's no wrist): then down in
-    x0 = pre[0] - 0.06                                                                 # round the handle)
-    for target, rot, dur in (([q[0], q[1], T + 0.155], r0, 0.7), ([x0, CHEST_Y - CHEST["width"] / 2, T + 0.155], r0, 1.0),
-                             ([x0, pre[1], T + 0.155], r0, 0.8), ([x0, pre[1], T + 0.155], r, 0.6), (pre, r, 0.7)):
+    wb.arm_joints_to("r", RAISED, 0.9)                   # (up out of READY first: there the shoulder's at its limit)
+    wb.settle()
+    for target, rot, dur in (([pre[0], CHEST_Y - CHEST["width"] / 2, hi], r0, 1.0), ([pre[0], pre[1], hi], r0, 0.8),
+                             ([pre[0], pre[1], hi], r, 0.6), (pre, r, 0.6)):
         wb.reach("r", target, rot, dur)
         wb.settle()
     wb.fingers("r", "lid_pre", dur=0.5)
@@ -239,29 +241,32 @@ def _pick(wb) -> None:
     wb.fingers("r", "lid", amount=S.SQUEEZE, dur=0.5)
     wb.settle()
     wb.wait(0.2)
-    z0 = S.body_pos(wb, "screwdriver")[2]
-    for target, dur in ((p + [0, 0, 0.02], 0.4), (p + [-0.06, 0, 0.03], 0.6), (p + [-0.06, 0, 0.12], 0.7)):
+    z0 = S.body_pos(wb, SOCKET)[2]
+    for target, dur in ((p + [0, 0, 0.03], 0.5), (p + [-0.06, 0, 0.04], 0.6), (p + [-0.06, 0, 0.12], 0.7)):
         wb.reach("r", target, r, dur)                    # (up a little, back from under the top drawer, up)
         wb.settle()
-    if S.body_pos(wb, "screwdriver")[2] - z0 < 0.06:
-        raise S.TaskFailed("the screwdriver didn't come up")
+    if S.body_pos(wb, SOCKET)[2] - z0 < 0.08:
+        raise S.TaskFailed("the socket didn't come up")
 
 
 def _place(wb) -> None:
-    """The right hand carries the screwdriver over the tray, lowers it in, lets go, goes back to READY."""
+    """The right hand carries the socket over the tray (out to the right in front of the chest, then forward past its
+    side), sets it down in it, lets go, goes back to READY."""
     from pioneer_whole_body import skills as S
     from pioneer_whole_body.controller import READY
-    held = S.body_pos(wb, "screwdriver") - wb.palm_pose("r", False)[0]          # (felt: where it hangs in the hand)
-    goal = np.array([TRAY[0], TRAY[1] + (SD["shaft_len"] + SD["handle_len"]) / 2, T + 0.0085]) - held
+    held = S.body_pos(wb, SOCKET) - wb.palm_pose("r", False)[0]       # (felt: where it hangs in the hand)
+    goal = np.array([TRAY[0], TRAY[1], T + 0.0085]) - held
     q, rr = wb.hand_goal["r"]
-    for target, dur in ((np.array([*goal[:2], q[2]]), 1.6), (goal + [0, 0, 0.03], 0.8), (goal, 0.6)):
+    for target, dur in (([q[0], goal[1], q[2]], 1.2), ([goal[0], goal[1], q[2]], 0.8), (goal + [0, 0, 0.03], 0.8),
+                        (goal, 0.6)):
         wb.reach("r", target, rr, dur)
         wb.settle()
-    wb.fingers("r", "lid_pre", dur=0.9)
+    wb.fingers("r", "lid_pre", dur=0.6)
     wb.settle()
     q, rr = wb.hand_goal["r"]
-    wb.reach("r", q + [0, 0, 0.10], rr, 0.8)
-    wb.settle()
+    for target, dur in ((q + [0, 0, 0.10], 0.8), (q + [-0.12, 0, 0.10], 0.7)):
+        wb.reach("r", target, rr, dur)
+        wb.settle()
     wb.fingers("r", "relaxed", dur=0.4)
     wb.arm_joints_to("r", READY, 1.0)
     wb.settle()
@@ -278,9 +283,9 @@ def _take_pull(wb, side: str):
     axis = S.site(wb, f"pull{DRAWER}") + [0, PULL_AT if side == "l" else -PULL_AT, -CHEST["pull_r"]]
     p = axis + [0, 0, PULL_ABOVE] - r[:, 0] * PULL_BACK
     wb.fingers(side, "knob_pre", dur=0.5)
-    wb.reach(side, p + [-0.08, 0, 0.025], r, 1.2)        # (in from the front, the tips under the top drawer's face
+    wb.reach(side, p + [-0.08, 0, 0.06], r, 1.2)         # (in from the front, the tips under the top drawer's face
     wb.settle()                                          # and over the bar, then down behind it)
-    wb.reach(side, p + [0, 0, 0.025], r, 0.6)
+    wb.reach(side, p + [0, 0, 0.06], r, 0.6)
     wb.settle()
     wb.reach(side, p, r, 0.5)
     wb.settle()
@@ -298,7 +303,8 @@ def _move(wb, side: str, dx: float, hips: float = 0.0, step: float = 0.01, dt: f
         wb.pelvis(x=wb.cmd["base_x"] + hips, dur=n * dt)
     for k in range(1, n + 1):
         wb.reach(side, p + [dx * k / n, 0, 0], r, dt)
-        wb.settle()
+        wb.wait(dt)                                      # (not settle: that would wait for the hips' whole move)
+    wb.settle()
 
 
 def _let_go_pull(wb, side: str, park=None, hips: float = 0.0) -> None:
