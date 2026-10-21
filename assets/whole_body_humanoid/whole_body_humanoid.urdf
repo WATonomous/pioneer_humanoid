@@ -7,7 +7,7 @@
   <!-- Isaac Lab: Z-up root. CAD base_link is Y-long; fixed joint stands the robot.
        Extra -90 deg yaw on top of the up-axis fix: the X-only rotation above left
        CAD's true forward (Z) mapped onto Isaac's Y axis, and CAD's lateral (X, the
-       Hip_F_L/Hip_F_R separation axis) mapped onto Isaac's X -- i.e. "forward" was on
+       Hip_F_L/Hip_F_R separation axis) mapped onto Isaac's X, i.e. "forward" was on
        Y and "sideways" was on X, opposite of Isaac Lab's local-+X-forward convention.
        This produced a persistent crab-like gait: lin_vel_x commands were being
        satisfied by strafing along the robot's true lateral axis. This yaw term
