@@ -3,14 +3,14 @@
 Dry run by default: subscribes to /interfacing/motorFeedback and never creates a publisher, so it
 cannot move the arm. --live publishes the leader as ArmPose on /arm/joint_targets (50 Hz) through
 joint_command, but only after the gate passes (every active joint: leader within 3 deg of home and
-within 5 deg of the real arm; gripper within 0.1) and you type `live`. Before the gate, --live
+within 10 deg of the real arm; gripper within 0.1) and you type `live`. Before the gate, --live
 offers to ramp the real elbow.pitch from its measured angle to home at --home-rate deg/s (default
 5) and hold it there; it refuses if home is outside the joint's calibrated limits or it is inactive.
 
 Run in the `simulation_mj` container (ROS, common_msgs, the leader's servo SDK) while
 `interfacing` is up and the arm is powered:
 
-    python3 pioneer_leader_arm_teleop.py --target real --port /dev/ttyACM1 [--live]
+    python3 pioneer_leader_arm_teleop.py --target real [--live]   # left board from leader_arm.json
 
 Every angle is in the URDF frame, which is also the command frame ArmPose / joint_command use:
 
@@ -19,8 +19,9 @@ Every angle is in the URDF frame, which is also the command frame ArmPose / join
 
 The gripper is compared as its position, 0 open .. 1 closed, as joint_command maps it.
 
-Pose both arms the same (motors off) and check every joint agrees within 5 deg across its range;
-fix --signs (leader) or the real arm's direction / calibration (calibrate_arm.py) until it does.
+Pose both arms the same (motors off) and check every joint agrees within 10 deg across its range;
+fix the leader's signs (calibrate_leader.py --signs) or the real arm's direction / calibration
+(calibrate_arm.py) until it does.
 
 Check the math without ROS or the leader:  python3 pioneer_leader_arm_teleop.py --target real --self-test
 """
@@ -43,7 +44,7 @@ from joint_config import (find_actuators, find_calibration, gripper_position, jo
 
 from arm_limits import gripper_fraction, limited_target  # noqa: E402
 from leader_mapping import add_leader_args, check_leader_args  # noqa: E402
-from servo_leader import ARM_SERVOS, GRIPPER_SERVO, SERVO_IDS, parse_signs  # noqa: E402
+from servo_leader import ARM_SERVOS, GRIPPER_SERVO, SERVO_IDS  # noqa: E402
 
 # The --live gate: leader within HOME_TOL_DEG of home and within AGREE_TOL_DEG of the real arm on
 # every active joint, gripper within GRIP_TOL.
@@ -200,7 +201,7 @@ def self_test() -> None:
     assert gate_failures(compare([joint], (0.0,), [1.0], {1: 1.0}, [0.0]), 0.0, 0.05, active, True) == []
     assert gate_failures(compare([joint], (0.0,), [1.0], {}, [0.0]), 0.0, 0.0, active, True) == [
         "shoulder.pitch: no feedback"]
-    assert len(gate_failures(compare([joint], (math.radians(10.0),), [1.0], {1: 0.0}, [0.0]),
+    assert len(gate_failures(compare([joint], (math.radians(15.0),), [1.0], {1: 0.0}, [0.0]),
                              0.0, None, active, True)) == 3  # off real, off home, gripper silent
     assert gate_failures(compare([joint], (math.radians(10.0),), [1.0], {}, [0.0]), 0.5, None, set(), False) == []
 
@@ -246,7 +247,7 @@ def run() -> None:
     parser = argparse.ArgumentParser(
         description="Leader arm vs the real left arm: a dry run (publishes nothing) unless --live.")
     add_leader_args(parser, scene_help="ignored for --target real")
-    # --calibration is the leader's own file (add_leader_args).
+    # --leader-arm is the leader's own file (add_leader_args); this drives the left arm from its left board.
     parser.add_argument("--arm-calibration", "--mapping", dest="mapping", default=None,
                         help="the real arm's arm_calibration.yaml (default: auto, as joint_command)")
     parser.add_argument("--live", action="store_true",
@@ -257,7 +258,7 @@ def run() -> None:
     args = parser.parse_args()
     if args.self_test:
         return self_test()
-    check_leader_args(parser, args)
+    board = check_leader_args(parser, args, ["left"])["left"]
 
     from pioneer_humanoid.arm_params import DEFAULT_JOINT_POS, LEFT_ARM_JOINTS
     from pioneer_humanoid.urdf_joint_limits import JOINT_POS_LIMITS
@@ -266,7 +267,7 @@ def run() -> None:
     joints = build_joints(mapping, LEFT_ARM_JOINTS, JOINT_POS_LIMITS)
     by_id = {j["motor_id"]: j for j in joints}
     grip_info = load_joint_map(mapping, "left").get(GRIPPER_CAN_ID)
-    signs = parse_signs(args.signs)
+    signs = board.signs
     grip_axis = tuple(SERVO_IDS).index(GRIPPER_SERVO)
     home = [DEFAULT_JOINT_POS[j] for j in LEFT_ARM_JOINTS]
     # arm_actuators.yaml `active`: joint_command leaves inactive joints alone, so the gate skips them.
@@ -394,7 +395,7 @@ def run() -> None:
         hold_q = list(q)
         return publisher, node.create_timer(READ_PERIOD_S, lambda: publish(publisher, hold_q))
 
-    leader = LeaderInput(args)
+    leader = LeaderInput(board, args.baud)
     redraw = sys.stdout.isatty()
     next_print = 0.0
     pub = None

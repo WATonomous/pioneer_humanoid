@@ -33,6 +33,7 @@ from humanoid_robot_learning.sim.sim_teleop_record import (  # noqa: E402
 from leader_mapping import (  # noqa: E402
     CONTROL_DT,
     WRIST_DAMPING,
+    LeaderBoard,
     LeaderInput,
     LeaderMapping,
     WallClock,
@@ -49,7 +50,7 @@ class Arm:
 
     side: str
     leader: Any  # LeaderInput, opened inside run()'s try so a failed open still closes the others
-    leader_args: argparse.Namespace
+    board: LeaderBoard
     mapping: LeaderMapping
     arm_acts: list[int]
     grip_acts: list[int]
@@ -59,33 +60,15 @@ class Arm:
     grip_closed: Any  # np.ndarray, finger positions at closure 1
 
 
-def leader_args_for(parser: argparse.ArgumentParser, args: argparse.Namespace, side: str) -> argparse.Namespace:
-    """--port/--calibration/--signs drive the left arm's leader, --right-port/... the right's."""
-    if side == "left":
-        leader_args = args
-    else:
-        if not all((args.right_port, args.right_calibration, args.right_signs)):
-            parser.error("--arms right or bimanual requires --right-port, --right-calibration and --right-signs")
-        leader_args = argparse.Namespace(**vars(args))
-        leader_args.port, leader_args.calibration, leader_args.signs = (
-            args.right_port, args.right_calibration, args.right_signs)
-    check_leader_args(parser, leader_args)
-    return leader_args
-
-
 def run() -> None:
     parser = argparse.ArgumentParser(description="Pioneer MuJoCo leader teleoperation, one leader per arm.")
     add_leader_args(parser, scene_help="scene registered in humanoid_mujoco_scenes (an unknown name lists them)")
-    parser.add_argument("--arms", choices=tuple(ARM_SETS), default="left", help="arms to drive and record")
-    parser.add_argument("--right-port", help="serial port of the right-arm leader")
-    parser.add_argument("--right-calibration", type=Path, help="leader zero file of the right-arm leader")
-    parser.add_argument("--right-signs", help="direction per servo A..G of the right-arm leader (no default: mirrored)")
+    parser.add_argument("--arms", choices=tuple(ARM_SETS), default="left",
+                        help="arms to drive and record, one leader board each (leader_arm.json)")
     add_record_args(parser, task_description="sim leader teleop demonstration")
     args = parser.parse_args()
     sides = list(ARM_SETS[args.arms])  # in ARM_ORDER: a recorded frame is the left arm's values, then the right's
-    leader_args = {side: leader_args_for(parser, args, side) for side in sides}
-    if len(sides) == 2 and args.port == args.right_port:
-        parser.error("the left and right leaders must use different serial ports")
+    boards = check_leader_args(parser, args, sides)
     record = load_record_schema(parser, args, arms=sides)
 
     import mujoco
@@ -123,11 +106,11 @@ def run() -> None:
         joints, fingers, grip_open, grip_closed = side_joints[side]
         arm_acts = [model.actuator(j).id for j in joints]
         mapping = LeaderMapping(
-            leader_args[side], home_rad=[data.ctrl[a] for a in arm_acts],
+            boards[side].signs, args.filter_alpha, home_rad=[data.ctrl[a] for a in arm_acts],
             limits_rad=[tuple(model.joint(j).range) for j in joints],
         )
         arms.append(Arm(
-            side=side, leader=None, leader_args=leader_args[side], mapping=mapping, arm_acts=arm_acts,
+            side=side, leader=None, board=boards[side], mapping=mapping, arm_acts=arm_acts,
             grip_acts=[model.actuator(j).id for j in fingers],
             arm_qpos=[model.joint(j).qposadr[0] for j in joints],
             grip_qpos=[model.joint(j).qposadr[0] for j in fingers],
@@ -177,7 +160,7 @@ def run() -> None:
     print("[INFO] Leader calibrated (hanging = 0). Move it to home: elbow bent 90 deg, forearm forward, gripper open. R = reset.", flush=True)
     try:
         for arm in arms:
-            arm.leader = LeaderInput(arm.leader_args, label=arm.side.upper() if len(arms) > 1 else "")
+            arm.leader = LeaderInput(arm.board, args.baud, label=arm.side.upper() if len(arms) > 1 else "")
         with mujoco.viewer.launch_passive(model, data, key_callback=on_key) as viewer:
             for key, value in (scene_camera(args.scene) or {}).items():
                 setattr(viewer.cam, key, value)

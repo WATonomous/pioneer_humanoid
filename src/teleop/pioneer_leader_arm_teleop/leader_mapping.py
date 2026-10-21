@@ -11,16 +11,24 @@ Plain Python: no simulator imports. The leader is an input device with torque al
 from __future__ import annotations
 
 import argparse
+import json
 import math
+import os
 import time
+from dataclasses import dataclass
 from pathlib import Path
 
 from arm_limits import gripper_fraction, limited_target
-from servo_leader import ARM_SERVOS, GRIPPER_SERVO, SERVO_IDS, ServoLeader, load_calibration, parse_signs
+from servo_leader import ARM_SERVOS, GRIPPER_SERVO, SERVO_IDS, ServoLeader, calibration_zeros, parse_signs
 
-# Per-servo direction, A..F then G. Flip one with --signs if a joint moves the wrong way.
+# Per-servo direction of the left board, A..F then G (calibrate_leader.py --signs to change).
 DEFAULT_SIGNS = "1,-1,-1,1,1,-1,1"
-DEFAULT_CALIBRATION = Path(__file__).resolve().parent / "leader_calibration.json"
+# The leader unit's two boards (one per arm): port, USB serial, signs and zeros, written by
+# calibrate_leader.py and committed: the numbers belong to the unit, which is found by USB serial.
+DEFAULT_LEADER_ARM = Path(__file__).resolve().parent / "leader_arm.json"
+# Before leader_arm.json: the left board's zeros alone (calibrate_leader.py --from converts it).
+OLD_CALIBRATION = Path(__file__).resolve().parent / "leader_calibration.json"
+SIDES = ("left", "right")
 # Follow the leader only once every arm joint is this close to home ...
 ENGAGE_TOL_DEG = 3.0
 # ... and the gripper this close to open (closure fraction, 0 = open).
@@ -40,15 +48,13 @@ def add_leader_args(parser: argparse.ArgumentParser, *, scene_help: str) -> None
         help="what the leader drives (real: dry run, read-only)",
     )
     parser.add_argument("--scene", type=str, default="bare", help=scene_help)
-    parser.add_argument("--port", default="/dev/ttyACM0", help="leader serial port")
     parser.add_argument("--baud", type=int, default=1_000_000, help="leader serial baud rate")
     parser.add_argument(
-        "--calibration",
+        "--leader-arm",
         type=Path,
-        default=DEFAULT_CALIBRATION,
-        help="leader zero file from calibrate_leader.py (default: leader_calibration.json here)",
+        default=DEFAULT_LEADER_ARM,
+        help="leader boards file from calibrate_leader.py (default: leader_arm.json here)",
     )
-    parser.add_argument("--signs", default=DEFAULT_SIGNS, help=f"direction per servo A..G (default: {DEFAULT_SIGNS})")
     parser.add_argument(
         "--filter-alpha",
         type=float,
@@ -57,25 +63,98 @@ def add_leader_args(parser: argparse.ArgumentParser, *, scene_help: str) -> None
     )
 
 
-def check_leader_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
+def check_leader_args(parser: argparse.ArgumentParser, args: argparse.Namespace, sides: list[str]) -> dict[str, LeaderBoard]:
+    """Validate the leader flags and load the boards that drive `sides`."""
     if not 0.0 < args.filter_alpha <= 1.0:
         parser.error("--filter-alpha must be in (0, 1]")
     try:
-        parse_signs(args.signs)
+        return load_leader_boards(args.leader_arm, sides)
     except ValueError as exc:
-        parser.error(f"--signs: {exc}")
-    if not args.calibration.is_file():
-        parser.error(f"no leader calibration at {args.calibration}; run calibrate_leader.py first")
+        parser.error(str(exc))
+
+
+@dataclass(frozen=True)
+class LeaderBoard:
+    """One board of the leader unit, as calibrated: where it is and how its servos map."""
+
+    side: str
+    port: str  # found from usb_serial when it has one
+    usb_serial: str | None
+    signs: tuple[float, ...]
+    zeros: dict[int, int]  # raw zero count per servo ID
+
+
+def usb_serial(port: str) -> str | None:
+    """USB serial number of the board on `port` (None: its chip reports none)."""
+    from serial.tools import list_ports
+
+    for info in list_ports.comports():
+        if os.path.realpath(info.device) == os.path.realpath(port):
+            return info.serial_number
+    raise ValueError(f"no serial device at {port}; is the leader plugged in? ports: "
+                     f"{[info.device for info in list_ports.comports()]}")
+
+
+def port_of(serial_number: str) -> str:
+    """The one port whose board reports `serial_number`."""
+    from serial.tools import list_ports
+
+    ports = [info.device for info in list_ports.comports() if info.serial_number == serial_number]
+    if len(ports) != 1:
+        raise ValueError(f"expected one board with USB serial {serial_number}, found {ports or 'none'}: "
+                         "is the leader plugged in?")
+    return ports[0]
+
+
+def calibrate_hint(side: str) -> str:
+    return f"python calibrate_leader.py --side {side} --port <port>"
+
+
+def load_leader_boards(path: Path, sides: list[str]) -> dict[str, LeaderBoard]:
+    """The boards driving `sides` from leader_arm.json, each found on its port by its USB serial.
+
+    Two boards must have different USB serials, so a swapped plug order can't swap the arms.
+    """
+    if not path.is_file():
+        if path == DEFAULT_LEADER_ARM and OLD_CALIBRATION.is_file():
+            raise ValueError(f"no {path.name}: convert {OLD_CALIBRATION.name} (no re-hanging needed) with\n"
+                             f"  {calibrate_hint('left')} --from {OLD_CALIBRATION.name}")
+        raise ValueError(f"no {path}: calibrate the leader first with\n  {calibrate_hint(sides[0])}")
+    data = json.loads(path.read_text())
+    boards = {}
+    for side in sides:
+        entry = data.get(side) or {}
+        if not entry.get("enabled"):
+            raise ValueError(f"the {side} leader board is not enabled in {path}; calibrate it with\n"
+                             f"  {calibrate_hint(side)}")
+        serial_number = entry["usb_serial"]
+        if serial_number is None and len(sides) > 1:
+            raise ValueError(f"the {side} board in {path} has no USB serial, so the two boards can't be told "
+                             "apart; keep to one leader board")
+        boards[side] = LeaderBoard(
+            side=side,
+            port=entry["port"] if serial_number is None else port_of(serial_number),
+            usb_serial=serial_number,
+            signs=parse_signs(entry["signs"]),
+            zeros=calibration_zeros(entry["servos"], f"{path} {side}"),
+        )
+    if len(boards) > 1:
+        serials = [board.usb_serial for board in boards.values()]
+        ports = [os.path.realpath(board.port) for board in boards.values()]
+        if len(set(serials)) < len(serials) or len(set(ports)) < len(ports):
+            raise ValueError(f"the leader boards in {path} resolve to the same board: {dict(zip(boards, ports))}")
+    return boards
 
 
 class LeaderMapping:
     """Filtered, URDF-clamped arm targets (rad) and gripper closure (0 open .. 1 closed)."""
 
-    def __init__(self, args: argparse.Namespace, home_rad: list[float], limits_rad: list[tuple[float, float]]):
+    def __init__(self, signs: tuple[float, ...], filter_alpha: float, home_rad: list[float],
+                 limits_rad: list[tuple[float, float]]):
         if len(home_rad) != len(ARM_SERVOS):
             raise ValueError(f"leader drives {len(ARM_SERVOS)} joints but the arm has {len(home_rad)}")
-        self.signs = parse_signs(args.signs)
-        self.alpha = args.filter_alpha
+        self.signs = tuple(signs)
+        self.alpha = filter_alpha
         self.home = list(home_rad)
         self.limits_deg = [(math.degrees(lo), math.degrees(hi)) for lo, hi in limits_rad]
         self.gripper_axis = tuple(SERVO_IDS).index(GRIPPER_SERVO)
@@ -124,8 +203,8 @@ class LeaderMapping:
 class LeaderInput:
     """Calibrated ServoLeader that holds the last reading on a dropped serial frame instead of stopping the sim."""
 
-    def __init__(self, args: argparse.Namespace, label: str = ""):
-        self.leader = ServoLeader(args.port, args.baud, zeros=load_calibration(args.calibration))
+    def __init__(self, board: LeaderBoard, baud: int, label: str = ""):
+        self.leader = ServoLeader(board.port, baud, zeros=board.zeros)
         self.label = f" {label}" if label else ""  # which leader, when there are two
         self.angles = (0.0,) * len(SERVO_IDS)
         self._last_warning = 0.0
