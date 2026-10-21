@@ -3,7 +3,7 @@
 The pose is hanging straight down under gravity, gripper fully open. That is joint zero for the
 leader, the real arm (calibrated the same way) and the sim (URDF zero), so leader angles map
 one-to-one. Run once per board, or after a servo is re-mounted; it updates that side's entry in
-leader_arm.json (here, kept out of git) and enables it:
+leader_arm.json (here; commit it: it describes the team's leader unit) and enables it:
 
     python calibrate_leader.py --side left --port /dev/ttyACM0
     python calibrate_leader.py --side right --port /dev/ttyACM1 --signs=<A..G>   # = because signs may start with -

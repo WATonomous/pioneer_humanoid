@@ -28,11 +28,12 @@ python calibrate_leader.py --side right --port /dev/ttyACM1 --signs=<A..G>   # o
 python calibrate_leader.py --side left --port /dev/ttyACM0 --from leader_calibration.json   # convert the old file, no re-hanging
 ```
 
-Writes that board into `leader_arm.json` here (kept out of git) and enables it: zero encoder counts per servo,
-the signs (left default `1,-1,-1,1,1,-1,1`) and the board's USB serial number. The teleop finds each board by
-that serial, so plugging the boards in the other order can't swap the arms; two boards with the same serial (or
-none) are refused. The right board stays disabled until it is calibrated. Teleop refuses to start without the
-file. Redo it after re-mounting a servo.
+Writes that board into `leader_arm.json` here and enables it: zero encoder counts per servo, the signs (left
+default `1,-1,-1,1,1,-1,1`) and the board's USB serial number. The teleop finds each board by that serial, so
+plugging the boards in the other order can't swap the arms; two boards with the same serial (or none) are refused.
+The right board stays disabled until it is calibrated. Teleop refuses to start without the file.
+**Commit `leader_arm.json`:** it describes the team's one leader unit, so nobody else has to calibrate; a different
+unit is refused by its USB serial. Recalibrate and commit again after re-mounting a servo.
 
 ## Run (Isaac)
 
