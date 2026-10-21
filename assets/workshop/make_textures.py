@@ -102,8 +102,24 @@ def foam(n=512):
     save("foam", np.stack([v, v, v * 1.02], -1))
 
 
+# the parts cabinet's drawer labels: (column, row) -> text; printed card, mirrored (MuJoCo maps a box's -x face that way)
+LABELS = {(0, 1): "M12 NUT", (1, 1): '1" COUPLING', (2, 1): "M12 WASHER",
+          (0, 0): "M12 x 40", (1, 0): "M16 NUT", (2, 0): '3/4" COUPLING'}
+
+
+def labels():
+    from PIL import ImageDraw, ImageFont, ImageOps
+    font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 46)
+    for (k, j), text in LABELS.items():
+        im = Image.new("RGB", (400, 112), (243, 241, 233))
+        d = ImageDraw.Draw(im)
+        d.rectangle((6, 6, 393, 105), outline=(40, 40, 40), width=3)
+        d.text((200, 58), text, font=font, fill=(18, 18, 20), anchor="mm")
+        ImageOps.mirror(im).save(os.path.join(OUT, f"label_{k}{j}.png"))
+
+
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
-    for f in (concrete, butcher_block, pegboard, wall, rubber, brushed, foam):
+    for f in (concrete, butcher_block, pegboard, wall, rubber, brushed, foam, labels):
         f()
         print(f.__name__)

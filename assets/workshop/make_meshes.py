@@ -404,6 +404,133 @@ def riser():
     return p.part
 
 
+# the parts cabinet scene: a steel cabinet of clear plastic drawers (3 rows of 4), labelled; brass pipe couplings, nuts,
+# washers and bolts in them; a stainless parts dish on the bench
+CABINET = dict(cols=3, rows=2, dw=0.17, dh=0.054, gap=0.004, depth=0.24, wall=0.004, plinth=0.006, top=0.008,
+               bin_depth=0.22, bin_h=0.036, front_t=0.004, handle_w=0.14, handle_out=0.036, handle_r=0.0055,
+               handle_z=0.024)
+COUPLING = dict(od=0.041, length=0.046, bore=0.031)
+DISH = dict(od=0.15, h=0.026, t=0.0012)
+
+
+def cabinet_size():
+    c = CABINET
+    w = 2 * c["wall"] + c["cols"] * c["dw"] + (c["cols"] - 1) * c["gap"]
+    h = c["plinth"] + c["rows"] * c["dh"] + (c["rows"] - 1) * c["gap"] + c["top"]
+    return w, h
+
+
+def cabinet_cell(k, j):
+    """Column ``k`` (0 on the left, +y) and row ``j`` (0 at the bottom): the cell's centre in y and its floor in z."""
+    c = CABINET
+    w, _ = cabinet_size()
+    y = w / 2 - c["wall"] - c["dw"] / 2 - k * (c["dw"] + c["gap"])
+    return y, c["plinth"] + j * (c["dh"] + c["gap"])
+
+
+def cabinet_frame():
+    """The steel frame (its front at x = 0, centred in y, its foot at z = 0): a box with an opening per drawer."""
+    c = CABINET
+    w, h = cabinet_size()
+    with BuildPart() as p:
+        Box(c["depth"], w, h, align=(Align.MIN, Align.CENTER, Align.MIN))
+        fillet(p.edges().filter_by(Axis.X).group_by(Axis.Z)[-1], 0.004)
+        for k in range(c["cols"]):
+            for j in range(c["rows"]):
+                y, z = cabinet_cell(k, j)
+                with Locations(Location((-0.001, y, z))):
+                    Box(c["depth"] - 0.008, c["dw"], c["dh"], align=(Align.MIN, Align.CENTER, Align.MIN),
+                        mode=Mode.SUBTRACT)
+    return p.part
+
+
+def cabinet_drawer():
+    """A clear drawer (its front face at x = 0, centred in y, its bottom at z = 0): the front, a bin behind it."""
+    c = CABINET
+    fw, fh, ft = c["dw"] - 0.003, c["dh"] - 0.003, c["front_t"]
+    bw, bd, bh, t = c["dw"] - 0.006, c["bin_depth"], c["bin_h"], 0.0018
+    with BuildPart() as p:
+        with Locations(Location((0, 0, 0.0015))):
+            Box(ft, fw, fh, align=(Align.MIN, Align.CENTER, Align.MIN))
+        with Locations(Location((ft, 0, 0.0015))):
+            Box(bd - ft, bw, bh, align=(Align.MIN, Align.CENTER, Align.MIN))
+        with Locations(Location((ft, 0, 0.0015 + t))):
+            Box(bd - ft - t, bw - 2 * t, bh, align=(Align.MIN, Align.CENTER, Align.MIN), mode=Mode.SUBTRACT)
+        with Locations(Location((-0.0015, 0, 0.0015 + fh - 0.016))):       # the label holder's lip
+            Box(0.003, fw - 0.02, 0.0025, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    return p.part
+
+
+def cabinet_handle():
+    """The drawer's moulded pull (the same frame): a bar standing off the front on two posts."""
+    c = CABINET
+    hw, ho, hr, hz = c["handle_w"], c["handle_out"], c["handle_r"], c["handle_z"]
+    with BuildPart() as p:
+        with Locations(Location((-ho, 0, hz))):
+            Cylinder(hr, hw, rotation=(90, 0, 0))
+        for s_ in (-1, 1):
+            with Locations(Location((-ho / 2, s_ * (hw / 2 - 0.004), hz))):
+                Box(ho, 0.008, 0.011)
+    return p.part
+
+
+def brass_coupling():
+    """A 1" brass pipe coupling standing on end (its bottom at z = 0): a tube, chamfered, two rolled bands."""
+    c = COUPLING
+    r, L, br = c["od"] / 2, c["length"], c["bore"] / 2
+    with BuildPart() as p:
+        Cylinder(r, L, align=(Align.CENTER, Align.CENTER, Align.MIN))
+        chamfer(p.edges().group_by(Axis.Z)[0] + p.edges().group_by(Axis.Z)[-1], 0.0015)
+        Cylinder(br, L, align=(Align.CENTER, Align.CENTER, Align.MIN), mode=Mode.SUBTRACT)
+        for z in (0.006, L - 0.006):
+            with Locations(Location((0, 0, z))):
+                Cylinder(r + 0.0006, 0.002)
+    return p.part
+
+
+def hex_nut(af=0.019, h=0.010, bore=0.0102):
+    with BuildPart() as p:
+        with BuildSketch():
+            RegularPolygon(af / math.sqrt(3), 6)
+        extrude(amount=h)
+        chamfer(p.edges().group_by(Axis.Z)[-1], 0.0008)
+        Cylinder(bore / 2, h, align=(Align.CENTER, Align.CENTER, Align.MIN), mode=Mode.SUBTRACT)
+    return p.part
+
+
+def washer(od=0.024, idia=0.013, t=0.0025):
+    with BuildPart() as p:
+        Cylinder(od / 2, t, align=(Align.CENTER, Align.CENTER, Align.MIN))
+        Cylinder(idia / 2, t, align=(Align.CENTER, Align.CENTER, Align.MIN), mode=Mode.SUBTRACT)
+    return p.part
+
+
+def hex_bolt(d=0.012, length=0.04, af=0.019, head=0.0075):
+    """Lying along x (head at x = 0), its axis at z = af / 2 (resting on the head's flats)."""
+    with BuildPart() as p:
+        with BuildSketch(Plane.YZ):
+            RegularPolygon(af / math.sqrt(3), 6, rotation=30)
+        extrude(amount=head)
+        with Locations(Location((head, 0, 0), (0, 90, 0))):
+            Cylinder(d / 2, length, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    return p.part.moved(Location((0, 0, af / 2)))
+
+
+def parts_dish():
+    """A round stainless parts dish (its bottom at z = 0): a shallow pan, the rim rolled."""
+    c = DISH
+    r, h, t = c["od"] / 2, c["h"], c["t"]
+    with BuildPart() as p:
+        Cylinder(r, h, align=(Align.CENTER, Align.CENTER, Align.MIN))
+        fillet(p.edges().group_by(Axis.Z)[0], 0.008)
+        with Locations(Location((0, 0, t))):
+            Cylinder(r - t, h, align=(Align.CENTER, Align.CENTER, Align.MIN), mode=Mode.SUBTRACT)
+        with Locations(Location((0, 0, h - 0.0015))):
+            Cylinder(r + 0.0015, 0.003)
+            Cylinder(r - t, 0.003, mode=Mode.SUBTRACT)
+    return p.part
+
+
 def foam_insert():
     """Grey foam on the bottom drawer's floor, a row of round holes the sockets stand in (sunk about half their
     height: they ride in and out with the drawer)."""
@@ -505,6 +632,10 @@ if __name__ == "__main__":
     save(toolbox_handle(), "toolbox_handle")
     save(riser(), "riser")
     save(foam_insert(), "foam_insert")
+    for name, fn in (("cabinet_frame", cabinet_frame), ("cabinet_drawer", cabinet_drawer),
+                     ("cabinet_handle", cabinet_handle), ("brass_coupling", brass_coupling), ("hex_nut", hex_nut),
+                     ("washer", washer), ("hex_bolt", hex_bolt), ("parts_dish", parts_dish)):
+        save(fn(), name)
     save(tool_tray(), "tool_tray")
     save(wrench(), "wrench")
     save(wrench(0.17), "wrench_small")
