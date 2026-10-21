@@ -3,7 +3,7 @@
 Dry run by default: subscribes to /interfacing/motorFeedback and never creates a publisher, so it
 cannot move the arm. --live publishes the leader as ArmPose on /arm/joint_targets (50 Hz) through
 joint_command, but only after the gate passes (every active joint: leader within 3 deg of home and
-within 5 deg of the real arm; gripper within 0.1) and you type `live`. Before the gate, --live
+within 10 deg of the real arm; gripper within 0.1) and you type `live`. Before the gate, --live
 offers to ramp the real elbow.pitch from its measured angle to home at --home-rate deg/s (default
 5) and hold it there; it refuses if home is outside the joint's calibrated limits or it is inactive.
 
@@ -19,7 +19,7 @@ Every angle is in the URDF frame, which is also the command frame ArmPose / join
 
 The gripper is compared as its position, 0 open .. 1 closed, as joint_command maps it.
 
-Pose both arms the same (motors off) and check every joint agrees within 5 deg across its range;
+Pose both arms the same (motors off) and check every joint agrees within 10 deg across its range;
 fix the leader's signs (calibrate_leader.py --signs) or the real arm's direction / calibration
 (calibrate_arm.py) until it does.
 
@@ -201,7 +201,7 @@ def self_test() -> None:
     assert gate_failures(compare([joint], (0.0,), [1.0], {1: 1.0}, [0.0]), 0.0, 0.05, active, True) == []
     assert gate_failures(compare([joint], (0.0,), [1.0], {}, [0.0]), 0.0, 0.0, active, True) == [
         "shoulder.pitch: no feedback"]
-    assert len(gate_failures(compare([joint], (math.radians(10.0),), [1.0], {1: 0.0}, [0.0]),
+    assert len(gate_failures(compare([joint], (math.radians(15.0),), [1.0], {1: 0.0}, [0.0]),
                              0.0, None, active, True)) == 3  # off real, off home, gripper silent
     assert gate_failures(compare([joint], (math.radians(10.0),), [1.0], {}, [0.0]), 0.5, None, set(), False) == []
 
