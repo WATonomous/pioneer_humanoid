@@ -19,7 +19,7 @@ import numpy as np
 from scipy import ndimage
 
 from pioneer_whole_body import scene
-from pioneer_whole_body.controller import READY
+from pioneer_whole_body.controller import READY, SHAPES
 from pioneer_whole_body.studio import BENCH_TOP_Z
 from pioneer_whole_body.workshop import ASSETS, MESH, add_workshop, mesh, paint, texture
 
@@ -38,13 +38,14 @@ MAT = dict(x=(0.37, 0.53), y=0.30, h=0.004)
 MAT_Z = T + MAT["h"]
 SPOTS = (0.24, 0.13, -0.13, -0.24)       # where the sockets stand on the mat (y), at x = LOOSE_X
 LOOSE_X = 0.455
-MIDDLE = (0.455, 0.0)                    # where one is set down to change hands
+MIDDLE = (0.425, 0.0)                    # where one is set down to change hands
 RAIL_X = 0.585
 STUD_Y = tuple((1.5 - k) * RAIL["pitch"] for k in range(len(SIZES)))   # left (+y) to right
 SEAT_Z = T + RAIL["height"] + 0.002      # a socket's bottom on its stud's collar
 YAW = {"l": -0.6, "r": 0.6}              # the fingers on a socket: turned in (each arm's easy pose)
 GRIP_BACK = (0.015, 0.8)                 # the palm behind the socket's middle along the fingers: 15 mm for the biggest
                                          # (its far side is in reach), 0.8 mm more per mm narrower (as measured)
+TUCKED = {**SHAPES["fist"], "th_c": 0.0, "th_f": 0.0, "th_mcp": 0.0, "th_ip": 0.0}   # fingers curled, thumb flat
 RAISED = {**READY, "shoulder_pitch": -0.45, "shoulder_roll": 0.8}    # a hand up and out to its side
 CARRY = 0.08                             # a carried socket's bottom this far over the bench
 REACH = {"l": lambda y: y > -0.02, "r": lambda y: y < 0.02}     # (each hand on its own side, and the middle)
@@ -180,7 +181,7 @@ def plan(wb, notes: dict) -> None:
 
 
 def _ready():
-    from pioneer_whole_body.controller import READY
+    from pioneer_whole_body.controller import READY, SHAPES
     return READY
 
 
@@ -213,20 +214,22 @@ def _spot_body(m, d, y) -> str:
     return min((_name(k) for k in range(len(SIZES))), key=lambda b: abs(d.xpos[m.body(b).id][1] - y))
 
 
-def _take(wb, side: str, body: str, width: float) -> None:
+def _take(wb, side: str, body: str, width: float, over: float = 0.09, above: float = 0.004) -> None:
     """Straight up by its mouth: the "lid" grasp from above (again, from where it is now, if it didn't come up)."""
     from pioneer_whole_body import skills as S
     from pioneer_whole_body.controller import palm_down
     for _ in range(3):
         r = palm_down(YAW[side])
         back = GRIP_BACK[0] + max(0.0, SIZES[-1][1] - width) * GRIP_BACK[1]
-        p = S.site(wb, f"{body}_top") - r[:, 0] * back + [0, 0, 0.004]
-        wb.fingers(side, "lid_pre", dur=0.5)
+        p = S.site(wb, f"{body}_top") - r[:, 0] * back + [0, 0, above]
+        wb.fingers(side, TUCKED, dur=0.4)                # (fingers curled, thumb flat: nothing hangs down on the way)
         q, _ = wb.palm_pose(side)
         for target, dur in (([q[0], q[1], T + 0.15], 0.5), ([p[0], q[1], T + 0.15], 0.5),   # (up, out, across: over
-                            (p + [0, 0, 0.09], 0.8)):                                        # the others)
+                            ([p[0], p[1], T + 0.15], 0.7), (p + [0, 0, over], 0.4)):         # the others; down)
             wb.reach(side, target, r, dur)
             wb.settle()
+        wb.fingers(side, "lid_pre", dur=0.4)
+        wb.settle()
         wb.reach(side, p, r, 0.6)
         wb.settle()
         wb.fingers(side, "lid", amount=S.SQUEEZE, dur=0.45)
@@ -241,14 +244,14 @@ def _take(wb, side: str, body: str, width: float) -> None:
     raise S.TaskFailed(f"{body} not taken")
 
 
-def _put(wb, side: str, body: str, xy, bottom_z: float) -> None:
+def _put(wb, side: str, body: str, xy, bottom_z: float, carry: float = None) -> None:
     """Over ``xy`` (clear of the studs), down till its bottom is at ``bottom_z`` (where it hangs from the palm is
     felt), let go slowly, straight up, back to READY."""
     from pioneer_whole_body import skills as S
     p, r = wb.hand_goal[side]
     off = S.body_pos(wb, body) - wb.palm_pose(side, False)[0]
     goal = np.array([xy[0], xy[1], bottom_z]) - off
-    top = max(p[2], goal[2] + (T + CARRY - bottom_z))      # (carried with its bottom over the others' tops)
+    top = max(p[2], goal[2] + (T + (CARRY if carry is None else carry) - bottom_z))      # (carried with its bottom over the others' tops)
     for target, dur in (([*goal[:2], top], 1.0), (goal + [0, 0, 0.025], 0.5)):
         wb.reach(side, target, r, dur)
         wb.settle()
