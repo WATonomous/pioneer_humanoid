@@ -29,7 +29,7 @@ Output: `<repo>/datasets/pioneer_v1_left_arm/sim/`. Later sessions append to the
 
 ## 2. Data contract
 
-`config/dataset_schema_pioneer_v1.yaml`, shared by sim and real. **7 values**, 25 fps:
+`config/pioneer_humanoid_dataset_schema.yaml`, shared by sim and real. **7 values**, 25 fps:
 
 | # | Name | Unit |
 |---|------|------|
@@ -63,7 +63,7 @@ train-policy \
 
 Flag pitfalls (`--steps`, not epochs; always `--policy.push_to_hub=false` for local runs) are listed in the [SO101 README](../simulation/so101_vial_task/README.md), which uses the same command.
 
-Our own policy, `humanoid_dit` ([`humanoid_robot_learning/policies/dit`](humanoid_robot_learning/policies/dit)), is a flow-matching diffusion transformer conditioned on CLIP image and text features. Install with `pip install -e .[dit]` and train with `python -m humanoid_robot_learning.train --policy.type=humanoid_dit` plus the arguments above. On 180 synthetic peg-insertion demos (50k steps, batch 6) it succeeds in 60-64% of 400 sim episodes across two training seeds; on 540 demos, 58-75%.
+Our own policy, `humanoid_dit` ([`humanoid_robot_learning/policies/dit`](humanoid_robot_learning/policies/dit)), is a flow-matching diffusion transformer conditioned on CLIP image and text features. Install with `pip install -e .[dit]` and train with `python -m humanoid_robot_learning.train --policy.type=humanoid_dit` plus the arguments above and `--steps=70000 --batch_size=6`. On 540 synthetic peg-insertion demos it succeeds in 80% of 400 sim episodes. At 50k steps: 58-75% across two training seeds (180 demos: 60-64%). The learning rate decays over `--steps`, so set it up front: a finished run can't be extended.
 
 Success rate of any checkpoint on a MuJoCo scene that defines `success` (or multi-step `progress`), left arm, as recorded by the leader-arm teleop. It prints a 95% interval: 40 episodes tell 35% from 65% (about ±15 points); comparing 60% with 70% needs about 400. Use layout seeds the training demos did not (`--seed`; the synthetic demos start at 0).
 
@@ -72,7 +72,7 @@ python -m humanoid_robot_learning.sim.evaluate --scene peg_insert --policy <run>
   --episodes 40 --seed 1000 --video_dir eval_videos
 ```
 
-Sim rollout for a flow-matching policy (pi0 / pi0.5 / SmolVLA) on the push-block scene, driven with Real-Time Chunking (`humanoid_robot_learning/deploy/rtc_driver.py`): [`scripts/pioneer_push_eval_rtc.py`](scripts/pioneer_push_eval_rtc.py). It expects a checkpoint trained on the `wato_arm_v2_push_box` schema; `--dry_run` runs it without one. **The VLA is not hooked up yet**: no real checkpoint has been run through it, and its schema, camera keys and action space (absolute vs delta) still need matching. See the `TODO(VLA)` block in the script.
+Sim rollout for a flow-matching policy (pi0 / pi0.5 / SmolVLA) on the push-block scene, driven with Real-Time Chunking (`humanoid_robot_learning/deploy/rtc_driver.py`): [`scripts/pioneer_push_eval_rtc.py`](scripts/pioneer_push_eval_rtc.py). It expects a checkpoint trained on `config/pioneer_humanoid_dataset_schema.yaml` (the format the Quest teleop records); `--dry_run` runs it without one. **The VLA is not hooked up yet**: no real checkpoint has been run through it, and its schema, camera keys and action space (absolute vs delta) still need matching. See the `TODO(VLA)` block in the script.
 
 ```bash
 /workspace/isaaclab/isaaclab.sh -p /workspace/humanoid/src/robot_learning/scripts/pioneer_push_eval_rtc.py \

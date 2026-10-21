@@ -11,8 +11,8 @@ from humanoid_robot_learning.recording.record_utils import resolve_config_path, 
 from humanoid_robot_learning.recording.schema import enabled_images, load_yaml, select_cameras
 
 PKG_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_SCHEMA = PKG_ROOT / "config" / "dataset_schema_pioneer_v1.yaml"
-BIMANUAL_SCHEMA = PKG_ROOT / "config" / "dataset_schema_pioneer_bimanual.yaml"
+DEFAULT_SCHEMA = PKG_ROOT / "config" / "pioneer_humanoid_dataset_schema.yaml"
+BIMANUAL_SCHEMA = PKG_ROOT / "config" / "pioneer_humanoid_bimanual_dataset_schema.yaml"
 
 # Recorded joint order (real-robot names, joint_command_core.cpp); must match the schema.
 JOINTS = [

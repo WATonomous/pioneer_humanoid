@@ -20,7 +20,7 @@ from humanoid_robot_learning.recording.snapshot import ObservationSnapshot
 logger = logging.getLogger(__name__)
 
 _PKG_ROOT = Path(__file__).resolve().parents[2]
-_DEFAULT_SCHEMA = _PKG_ROOT / "config" / "dataset_schema_pioneer_v1.yaml"
+_DEFAULT_SCHEMA = _PKG_ROOT / "config" / "pioneer_humanoid_dataset_schema.yaml"
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -31,7 +31,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--schema",
         type=str,
         default=str(_DEFAULT_SCHEMA),
-        help="dataset_schema YAML (default: config/dataset_schema_pioneer_v1.yaml)",
+        help="dataset_schema YAML (default: config/pioneer_humanoid_dataset_schema.yaml)",
     )
     parser.add_argument(
         "--cameras",
