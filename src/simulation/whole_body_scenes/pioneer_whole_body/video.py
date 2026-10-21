@@ -4,6 +4,7 @@ shadows, the physics ~0.06 s per simulated second) and joins them into one MP4 w
 """
 from __future__ import annotations
 
+import multiprocessing
 import os
 import shutil
 import subprocess
@@ -145,7 +146,8 @@ def render_tape(scene: str, tape_path: str, out: str, shots_mod: tuple[str, str]
     tmp = tempfile.mkdtemp(prefix="wb_render_")
     jobs = [(scene, tape_path, shots_mod, list(map(int, c)), os.path.join(tmp, f"part{k:02d}.mp4"), size, title, inset)
             for k, c in enumerate(chunks)]
-    with ProcessPoolExecutor(len(jobs)) as ex:
+    # fresh worker processes, not forks: a fork made after the plan's head camera opened its GL context hangs
+    with ProcessPoolExecutor(len(jobs), mp_context=multiprocessing.get_context("spawn")) as ex:
         parts = list(ex.map(_render_chunk, jobs))
     lst = os.path.join(tmp, "list.txt")
     with open(lst, "w") as f:
