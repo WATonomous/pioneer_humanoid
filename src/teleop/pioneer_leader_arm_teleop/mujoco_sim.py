@@ -23,6 +23,7 @@ sys.path.insert(0, str(_SRC / "pioneer_humanoid"))
 sys.path.insert(0, str(_SRC / "simulation" / "mujoco_scenes"))
 sys.path.insert(0, str(_SRC / "robot_learning"))
 
+from humanoid_robot_learning.recording.schema import ARM_ORDER  # noqa: E402
 from humanoid_robot_learning.sim.sim_teleop_record import (  # noqa: E402
     add_record_args,
     load_record_schema,
@@ -42,7 +43,7 @@ from leader_mapping import (  # noqa: E402
 _KEY_R = 82  # GLFW key code
 
 
-SIDES = ("left", "right")  # schema order: a recorded frame is the left arm's values, then the right's
+SIDES = ARM_ORDER  # a recorded frame is the left arm's values, then the right's (select_arms names them so)
 
 
 @dataclass
@@ -140,7 +141,7 @@ def run() -> None:
             grip_closed=np.array([grip_closed[j] for j in fingers]),
         ))
         model.actuator_biasprm[model.actuator(joints[-1]).id, 2] = -WRIST_DAMPING
-        print(f"[{side.upper()}] {mapping.describe(joints)}", flush=True)
+        print(f"[{side.upper()}] " * (len(sides) > 1) + mapping.describe(joints), flush=True)
 
     reset_requested = [False]
 
@@ -237,8 +238,11 @@ def run() -> None:
                 viewer.sync()
 
                 for arm in arms:
-                    # Two leaders: one line each, not one shared \r status line they would overwrite.
-                    arm.leader.report(arm.mapping, end="\n" if len(arms) > 1 else "")
+                    if len(arms) == 1:
+                        arm.leader.report(arm.mapping)
+                    elif not arm.mapping.engaged:
+                        # Two leaders: a line each while homing (a shared \r status line would be overwritten).
+                        arm.leader.report(arm.mapping, end="\n")
                 clock.wait()
     finally:
         for arm in arms:

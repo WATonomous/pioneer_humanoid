@@ -45,18 +45,22 @@ def select_cameras(cfg: dict[str, Any], cameras: str | None) -> dict[str, Any]:
     return out
 
 
-# Dataset name suffix per recorded arm set (schema order).
+# Arm order in a recorded frame (the left arm's values, then the right's); the schema's `arms` must list them so.
+ARM_ORDER = ("left", "right")
+# Dataset name suffix per recorded arm set.
 ARM_SET_SUFFIX = {("left",): "_left_arm", ("right",): "_right_arm", ("left", "right"): "_bimanual"}
 
 
 def select_arms(cfg: dict[str, Any], arms: list[str]) -> dict[str, Any]:
-    """Copy of cfg recording `arms`: joint_names from their joint lists (schema order, left first),
-    and robot_id, repo_id and record.root with the arm set's suffix, so each arm set is its own dataset."""
+    """Copy of cfg recording `arms`: joint_names from their joint lists in ARM_ORDER, and robot_id,
+    repo_id and record.root with the arm set's suffix, so each arm set is its own dataset."""
     schema_arms = cfg["arms"]
+    if tuple(schema_arms) != ARM_ORDER:
+        raise ValueError(f"schema arms must be {list(ARM_ORDER)} in that order, got {list(schema_arms)}")
     unknown = [a for a in arms if a not in schema_arms]
     if unknown or not arms:
         raise ValueError(f"arms must be a non-empty subset of {list(schema_arms)}, got {arms}")
-    arm_set = tuple(a for a in schema_arms if a in arms)
+    arm_set = tuple(a for a in ARM_ORDER if a in arms)
     suffix = ARM_SET_SUFFIX[arm_set]
     out = dict(cfg)
     out["joint_names"] = [joint for arm in arm_set for joint in schema_arms[arm]]
