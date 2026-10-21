@@ -11,7 +11,7 @@ The chest's shape is set by the constants below; the scene (``tool_chest.py``) r
 import math
 import os
 
-from build123d import (add, RegularPolygon, Align, Axis, Box, Cylinder, Location, Locations, Plane, Pos, Rot, Sphere, Sketch, BuildSketch, BuildPart,
+from build123d import (add, Cone, RegularPolygon, Align, Axis, Box, Cylinder, Location, Locations, Plane, Pos, Rot, Sphere, Sketch, BuildSketch, BuildPart,
                        Circle, RectangleRounded, Rectangle, extrude, fillet, chamfer, revolve, Polyline, make_face,
                        BuildLine, Mode, export_stl, Compound)
 
@@ -640,6 +640,144 @@ def vise_block():
     return p.part
 
 
+# the drill battery scene: a cordless drill lying on its side, its slide-on battery pack, a two-bay charging dock (the
+# packs slide in sideways, on the same rails as the drill's foot). Frames: the drill's / a bay's at the middle of the
+# rail face the battery mates with, x along the rails (a battery slides off toward -x), y away from the battery, z up
+BATTERY = dict(l=0.12, w=0.09, h=0.07, rail=0.07, handle_l=0.075, handle_h=0.03, handle_r=0.0065)
+DRILL = dict(foot=0.022, grip_l=0.115, grip_w=0.034, grip_h=0.046, body_r=0.031, body_l=0.19, chuck_l=0.055)
+DOCK = dict(l=0.14, d=0.055, h=0.07, gap=0.20)
+
+
+def battery_pack():
+    """The pack (its frame: its middle; the rail face toward +y, the front toward -x): a moulded case, the rails'
+    tongue on the rail face, a grip rib round the front, a carry handle across its top (a big pack's)."""
+    c = BATTERY
+    L, W, H = c["l"], c["w"], c["h"]
+    hl, hh, hr = c["handle_l"], c["handle_h"], c["handle_r"]
+    with BuildPart() as p:
+        Box(L, W, H)
+        fillet(p.edges().filter_by(Axis.Y), 0.008)
+        with Locations(Location((0.004, W / 2 + 0.003, 0))):            # the tongue that slides in the rails
+            Box(L - 0.02, 0.006, H * 0.55)
+        with Locations(Location((-L / 2 + 0.012, 0, 0))):                # the grip rib
+            Box(0.006, W + 0.002, H + 0.002)
+            Box(0.006, W - 0.01, H - 0.01, mode=Mode.SUBTRACT)
+        with Locations(Location((0, 0, H / 2 + hh), (90, 0, 0))):        # the carry handle: a bar across, on two posts
+            Cylinder(hr, hl)
+        for s_ in (-1, 1):
+            with Locations(Location((0, s_ * (hl / 2 - 0.004), H / 2 + hh / 2))):
+                Box(0.018, 0.008, hh + hr)
+    return p.part
+
+
+def battery_gauge():
+    """The fuel gauge: three small LEDs on the pack's front (a separate mesh: its own colour)."""
+    c = BATTERY
+    with BuildPart() as p:
+        for k in (-1, 0, 1):
+            with Locations(Location((-c["l"] / 2 - 0.0006, k * 0.009, c["h"] * 0.25))):
+                Box(0.0016, 0.006, 0.004)
+    return p.part
+
+
+def _drill_upright():
+    """The drill standing up (x: the nose, z: up from its foot's rail face, y: its left side): its parts, each a
+    (name, solid) for its finish."""
+    c = DRILL
+    gl, gw, gh = c["grip_l"], c["grip_w"], c["grip_h"]
+    zb = c["foot"] + gl + 0.026                                         # the motor's axis
+    yellow, black, steel = [], [], []
+    with BuildPart() as foot:                                           # the foot the pack slides onto
+        Box(0.105, 0.062, c["foot"], align=(Align.CENTER, Align.CENTER, Align.MIN))
+        fillet(foot.edges().group_by(Axis.Z)[-1], 0.008)
+    yellow.append(foot.part.moved(Location((0.008, 0, 0))))
+    with BuildPart() as grip:                                           # the pistol grip, raked back a little
+        with Locations(Location((0, 0, c["foot"] - 0.004))):
+            Box(gw + 0.006, gh, gl + 0.012, align=(Align.CENTER, Align.CENTER, Align.MIN))
+        fillet(grip.edges().filter_by(Axis.Z), 0.014)
+    yellow.append(grip.part.moved(Location((-0.002, 0, 0), (0, -10, 0))))
+    with BuildPart() as mould:                                          # its rubber over-mould (back and sides)
+        with Locations(Location((-0.006, 0, c["foot"] + 0.012))):
+            Box(gw - 0.002, gh + 0.003, gl * 0.72, align=(Align.CENTER, Align.CENTER, Align.MIN))
+        fillet(mould.edges().filter_by(Axis.Z), 0.012)
+    black.append(mould.part.moved(Location((-0.004, 0, 0), (0, -10, 0))))
+    with BuildPart() as body:                                           # the motor housing and the gearbox
+        with Locations(Location((-0.075, 0, zb), (0, 90, 0))):
+            Cylinder(0.031, 0.105, align=(Align.CENTER, Align.CENTER, Align.MIN))
+        with Locations(Location((0.03, 0, zb), (0, 90, 0))):
+            Cone(0.031, 0.026, 0.045, align=(Align.CENTER, Align.CENTER, Align.MIN))
+        fillet(body.edges().group_by(Axis.X)[0], 0.012)
+        for k in range(5):                                              # the vents round the motor
+            for sg in (-1, 1):
+                with Locations(Location((-0.058 + k * 0.008, sg * 0.03, zb + 0.008), (0, 0, 0))):
+                    Box(0.0035, 0.008, 0.016, mode=Mode.SUBTRACT)
+    yellow.append(body.part)
+    with BuildPart() as clutch:                                         # the clutch ring, ribbed
+        with Locations(Location((0.075, 0, zb), (0, 90, 0))):
+            Cylinder(0.0275, 0.013, align=(Align.CENTER, Align.CENTER, Align.MIN))
+        for k in range(24):
+            a = 2 * math.pi * k / 24
+            with Locations(Location((0.0815, 0.0275 * math.cos(a), zb + 0.0275 * math.sin(a)), (math.degrees(a), 0, 0))):
+                Box(0.012, 0.0025, 0.0025, mode=Mode.SUBTRACT)
+    black.append(clutch.part)
+    with BuildPart() as chuck:                                          # the keyless chuck: a ribbed sleeve
+        with Locations(Location((0.088, 0, zb), (0, 90, 0))):
+            Cylinder(0.021, 0.04, align=(Align.CENTER, Align.CENTER, Align.MIN))
+        for k in range(16):
+            a = 2 * math.pi * k / 16
+            with Locations(Location((0.104, 0.021 * math.cos(a), zb + 0.021 * math.sin(a)), (math.degrees(a), 0, 0))):
+                Box(0.024, 0.003, 0.003, mode=Mode.SUBTRACT)
+    black.append(chuck.part)
+    with BuildPart() as nose:                                           # the chuck's steel nose and its jaws
+        with Locations(Location((0.128, 0, zb), (0, 90, 0))):
+            Cone(0.016, 0.009, 0.014, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    steel.append(nose.part)
+    with BuildPart() as trig:                                           # the trigger, the forward / reverse button
+        with Locations(Location((0.026, 0, zb - 0.045))):
+            Box(0.014, 0.016, 0.03)
+        fillet(trig.edges().filter_by(Axis.Y), 0.004)
+        with Locations(Location((0.01, 0, zb - 0.024), (90, 0, 0))):
+            Cylinder(0.004, gh + 0.01)
+    black.append(trig.part)
+    with BuildPart() as plate:                                          # the foot's black base plate
+        Box(0.1, 0.058, 0.004, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    black.append(plate.part.moved(Location((0.008, 0, 0))))
+    return yellow, black, steel
+
+
+def _lying(parts):
+    """Laid on its right side, as the scene has it: its up (z) along +y, its left (y) down."""
+    return Compound(children=[p.rotate(Axis.X, -90) for p in parts])
+
+
+def drill_body():
+    """The drill lying on its side (its frame at its foot's rail face): the yellow housing, grip and foot."""
+    return _lying(_drill_upright()[0])
+
+
+def drill_trim():
+    """Its black parts: the grip's over-mould, the clutch ring, the chuck, the trigger, the foot's base plate."""
+    return _lying(_drill_upright()[1])
+
+
+def drill_steel():
+    """The chuck's steel nose."""
+    return _lying(_drill_upright()[2])
+
+
+def dock_body():
+    """A charging dock (one bay; its frame at the rail face the pack slides onto, the pack on its -y side): a block
+    with the rail plate on its face (the status LED is the scene's: its colour changes)."""
+    c, b = DOCK, BATTERY
+    with BuildPart() as p:
+        with Locations(Location((0.01, c["d"] / 2, -b["h"] / 2 + c["h"] / 2))):
+            Box(c["l"], c["d"], c["h"])
+        fillet(p.edges().group_by(Axis.Z)[-1], 0.006)
+        with Locations(Location((0.01, 0.0015, -b["h"] / 2 + c["h"] * 0.45))):
+            Box(b["l"] * 0.85, 0.003, b["h"] * 0.6)
+    return p.part
+
+
 def foam_insert():
     """Grey foam on the bottom drawer's floor, a row of round holes the sockets stand in (sunk about half their
     height: they ride in and out with the drawer)."""
@@ -745,7 +883,9 @@ if __name__ == "__main__":
                      ("cabinet_handle", cabinet_handle), ("brass_coupling", brass_coupling), ("hex_nut", hex_nut),
                      ("washer", washer), ("hex_bolt", hex_bolt), ("parts_dish", parts_dish), ("vise_body", vise_body),
                      ("vise_jaw", vise_jaw), ("vise_plates", vise_plates), ("vise_crank", vise_crank),
-                     ("vise_knob", vise_knob), ("round_bar", round_bar), ("vise_block", vise_block)):
+                     ("vise_knob", vise_knob), ("round_bar", round_bar), ("vise_block", vise_block),
+                     ("battery_pack", battery_pack), ("battery_gauge", battery_gauge), ("drill_body", drill_body),
+                     ("drill_trim", drill_trim), ("drill_steel", drill_steel), ("dock_body", dock_body)):
         save(fn(), name)
     save(tool_tray(), "tool_tray")
     save(wrench(), "wrench")
