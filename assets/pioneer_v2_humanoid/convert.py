@@ -15,7 +15,8 @@ import trimesh
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 FACE_BUDGET = 400_000          # whole robot
-MIN_FACES, MAX_FACES = 300, 30_000
+MIN_FACES, MAX_FACES = 300, 60_000
+KEEP_AREA = 0.98            # a decimated mesh must keep this share of the surface (less: it has holes)
 
 
 def main(src):
@@ -32,8 +33,10 @@ def main(src):
         v, fc = np.asarray(m.vertices, np.float32), np.asarray(m.faces)   # opens the seams (see-through legs)
         while len(fc) > target:
             dv, df = fast_simplification.simplify(v, fc, target_count=target)
-            if trimesh.Trimesh(dv, df, process=False).area > 0.95 * m.area or target >= MAX_FACES:
+            if trimesh.Trimesh(dv, df, process=False).area > KEEP_AREA * m.area:
                 v, fc = dv, df
+                break
+            if target >= MAX_FACES:           # it can't be thinned without opening holes: keep it whole
                 break
             target = min(2 * target, MAX_FACES)   # it ate surface (thin plates, small holes): keep more triangles
         out = f.replace(".obj", ".stl")
