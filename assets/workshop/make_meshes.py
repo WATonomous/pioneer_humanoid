@@ -1,6 +1,7 @@
 """CAD models (build123d) of the workshop props, exported as STL meshes (metres) for MuJoCo: a benchtop tool
-chest (red powder-coated steel, two drawers on slides, full-width aluminium bar pulls, a chrome carry handle), a
-screwdriver (two-tone handle, chrome shaft), its foam insert, a wooden tool tray and the wall's hanging tools.
+chest (red powder-coated steel, a shallow and a deep drawer on slides, black bar pulls standing off the faces, a carry
+handle on top), 3/4" drive sockets (hex mouth, square drive, groove) and the foam rail they stand in, a wooden tool
+tray and the wall's hanging tools.
 
     python make_meshes.py        # writes meshes/*.stl
 
@@ -176,7 +177,7 @@ def foam_insert():
 
 
 def tool_tray():
-    """A small open wooden tray (the screwdriver goes in it), 0.30 x 0.14, 4 cm deep, finger cut-outs at the ends."""
+    """A small open wooden tray (the socket goes in it), 0.30 x 0.14, 4 cm deep, finger cut-outs at the ends."""
     with BuildPart() as p:
         Box(0.14, 0.30, 0.04, align=(Align.CENTER, Align.CENTER, Align.MIN))
         fillet(p.edges().filter_by(Axis.Z), 0.008)
