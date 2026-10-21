@@ -531,6 +531,115 @@ def parts_dish():
     return p.part
 
 
+# the bench vise scene: a machinist's bench vise on a swivel base (fixed jaw, moving jaw on its ways, serrated steel jaw
+# plates), driven by a screw turned with a speed crank (a knob that spins on the crank arm's end); a length of
+# aluminium round bar to clamp; the hardwood block the vise is bolted to
+VISE = dict(jaw_w=0.10, jaw_h=0.028, bed=0.022, jaw_t=0.035, ways=0.13, rear=0.12, body_h=0.05, foot=0.075,
+            base_r=0.065, base_h=0.018, crank_r=0.06, knob_len=0.12, knob_r=0.0115, pitch=0.02, screw_out=0.045)
+BAR = dict(r=0.02, h=0.075)
+BLOCK = dict(l=0.30, w=0.20, h=0.075)
+
+
+def vise_body():
+    """The fixed part (in its frame: x from the fixed jaw's face back to the rear, the screw's axis on z = 0, the jaw
+    tops up): the swivel base, the body with its ways running forward under the moving jaw, the fixed jaw, the
+    anvil at the rear."""
+    c = VISE
+    w, bed, jh, jt, ways, rear = c["jaw_w"], c["bed"], c["jaw_h"], c["jaw_t"], c["ways"], c["rear"]
+    fz = -c["foot"]
+    with BuildPart() as p:
+        with Locations(Location((0.04, 0, fz))):                     # the swivel base
+            Cylinder(c["base_r"], c["base_h"], align=(Align.CENTER, Align.CENTER, Align.MIN))
+        with Locations(Location((-ways, 0, fz + c["base_h"]))):       # the ways (the bed the work sits on)
+            Box(ways, w * 0.62, bed - fz - c["base_h"], align=(Align.MIN, Align.CENTER, Align.MIN))
+        with Locations(Location((0, 0, fz + c["base_h"]))):          # the body under the fixed jaw, to the rear
+            Box(rear, w * 0.8, c["body_h"] + bed - fz - c["base_h"] - c["body_h"] + 0.0, align=(Align.MIN, Align.CENTER, Align.MIN))
+        with Locations(Location((0, 0, bed))):                         # the fixed jaw
+            Box(jt, w, jh, align=(Align.MIN, Align.CENTER, Align.MIN))
+        with Locations(Location((jt, 0, bed))):                        # the anvil behind it
+            Box(rear - jt, w * 0.55, jh * 0.45, align=(Align.MIN, Align.CENTER, Align.MIN))
+        fillet(p.edges().filter_by(Axis.Y).group_by(Axis.Z)[-1], 0.003)
+    return p.part
+
+
+def vise_jaw():
+    """The moving jaw (its frame: x = 0 at its face, the screw's axis on z = 0): the jaw, its body forward over
+    the ways to the screw's front bearing."""
+    c = VISE
+    w, bed, jh, jt = c["jaw_w"], c["bed"], c["jaw_h"], c["jaw_t"]
+    with BuildPart() as p:
+        with Locations(Location((-jt, 0, bed))):
+            Box(jt, w, jh, align=(Align.MIN, Align.CENTER, Align.MIN))
+        with Locations(Location((-jt - 0.055, 0, -0.022))):            # its body, round the screw's nut
+            Box(0.055 + jt, w * 0.72, bed + 0.022 + jh * 0.6, align=(Align.MIN, Align.CENTER, Align.MIN))
+        fillet(p.edges().filter_by(Axis.Y).group_by(Axis.Z)[-1], 0.003)
+        with Locations(Location((-jt - 0.055, 0, 0), (0, -90, 0))):    # the screw's front bearing boss
+            Cylinder(0.02, 0.012, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    return p.part
+
+
+def vise_plates():
+    """The serrated steel jaw plates (the fixed jaw's face at x = 0, the moving jaw's at x = -gap: one each, in
+    their own jaw's frame: here the fixed one, its face at x = 0, toward -x)."""
+    c = VISE
+    w, bed, jh = c["jaw_w"], c["bed"], c["jaw_h"]
+    with BuildPart() as p:
+        with Locations(Location((0, 0, bed + 0.003))):
+            Box(0.004, w - 0.004, jh - 0.004, align=(Align.MIN, Align.CENTER, Align.MIN))
+        for k in range(9):
+            with Locations(Location((0, 0, bed + 0.006 + k * 0.0022))):
+                Box(0.0012, w - 0.004, 0.0008, align=(Align.CENTER, Align.CENTER, Align.CENTER), mode=Mode.SUBTRACT)
+    return p.part
+
+
+def vise_crank():
+    """The speed crank (its frame: the screw's axis along x, the hub at x = 0): the screw's end, the hub, the arm
+    out along +y to ``crank_r``."""
+    c = VISE
+    R = c["crank_r"]
+    with BuildPart() as p:
+        with Locations(Location((0, 0, 0), (0, 90, 0))):
+            Cylinder(0.009, c["screw_out"], align=(Align.CENTER, Align.CENTER, Align.MIN))   # the screw's end
+        with Locations(Location((-0.012, 0, 0), (0, 90, 0))):
+            Cylinder(0.016, 0.016, align=(Align.CENTER, Align.CENTER, Align.MIN))     # the hub
+        with Locations(Location((-0.006, R / 2, 0))):
+            Box(0.012, R, 0.016)                                                       # the arm
+        with Locations(Location((-0.006, R, 0), (0, 90, 0))):
+            Cylinder(0.011, 0.012)
+    return p.part
+
+
+def vise_knob():
+    """The crank's knob (its frame: its axis along -x from the arm, x = 0 at the arm): a turned grip on a stub."""
+    c = VISE
+    L, r = c["knob_len"], c["knob_r"]
+    with BuildPart() as p:
+        with Locations(Location((-0.012, 0, 0), (0, -90, 0))):
+            Cylinder(0.005, 0.01, align=(Align.CENTER, Align.CENTER, Align.MIN))
+        with Locations(Location((-0.012, 0, 0), (0, -90, 0))):
+            Cylinder(r, L, align=(Align.CENTER, Align.CENTER, Align.MIN))
+        fillet(p.edges().group_by(Axis.X)[0], 0.004)
+    return p.part
+
+
+def round_bar():
+    """A short length of aluminium round bar, standing on end (its bottom at z = 0), the ends chamfered."""
+    c = BAR
+    with BuildPart() as p:
+        Cylinder(c["r"], c["h"], align=(Align.CENTER, Align.CENTER, Align.MIN))
+        chamfer(p.edges(), 0.001)
+    return p.part
+
+
+def vise_block():
+    """The hardwood block the vise is bolted to (its top's centre at the origin)."""
+    c = BLOCK
+    with BuildPart() as p:
+        Box(c["l"], c["w"], c["h"], align=(Align.CENTER, Align.CENTER, Align.MAX))
+        fillet(p.edges().group_by(Axis.Z)[-1], 0.004)
+    return p.part
+
+
 def foam_insert():
     """Grey foam on the bottom drawer's floor, a row of round holes the sockets stand in (sunk about half their
     height: they ride in and out with the drawer)."""
@@ -634,7 +743,9 @@ if __name__ == "__main__":
     save(foam_insert(), "foam_insert")
     for name, fn in (("cabinet_frame", cabinet_frame), ("cabinet_drawer", cabinet_drawer),
                      ("cabinet_handle", cabinet_handle), ("brass_coupling", brass_coupling), ("hex_nut", hex_nut),
-                     ("washer", washer), ("hex_bolt", hex_bolt), ("parts_dish", parts_dish)):
+                     ("washer", washer), ("hex_bolt", hex_bolt), ("parts_dish", parts_dish), ("vise_body", vise_body),
+                     ("vise_jaw", vise_jaw), ("vise_plates", vise_plates), ("vise_crank", vise_crank),
+                     ("vise_knob", vise_knob), ("round_bar", round_bar), ("vise_block", vise_block)):
         save(fn(), name)
     save(tool_tray(), "tool_tray")
     save(wrench(), "wrench")
