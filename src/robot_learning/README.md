@@ -29,7 +29,7 @@ Output: `<repo>/datasets/pioneer_v1_left_arm/sim/`. Later sessions append to the
 
 ## 2. Data contract
 
-`config/dataset_schema_pioneer_v1.yaml`, shared by sim and real. **7 values**, 25 fps:
+`config/pioneer_humanoid_dataset_schema.yaml`, shared by sim and real. **7 values**, 25 fps:
 
 | # | Name | Unit |
 |---|------|------|
@@ -46,6 +46,8 @@ Output: `<repo>/datasets/pioneer_v1_left_arm/sim/`. Later sessions append to the
 | `task` | `--task_description` |
 
 Camera poses and lenses: `pioneer_humanoid/arm_params.py`.
+
+The Quest teleop (`teleop/quest_teleop/sim/run_quest_bimanual_teleop.py --record`) records this same format, at its render rate (10 fps) instead of 25, into `datasets/pioneer_v1_left_arm/quest_sim/`.
 
 ## 3. Train
 
@@ -72,7 +74,7 @@ python -m humanoid_robot_learning.sim.evaluate --scene peg_insert --policy <run>
   --episodes 40 --seed 1000 --video_dir eval_videos
 ```
 
-Sim rollout for a flow-matching policy (pi0 / pi0.5 / SmolVLA) on the push-block scene, driven with Real-Time Chunking (`humanoid_robot_learning/deploy/rtc_driver.py`): [`scripts/pioneer_push_eval_rtc.py`](scripts/pioneer_push_eval_rtc.py). It expects a checkpoint trained on the `wato_arm_v2_push_box` schema; `--dry_run` runs it without one. **The VLA is not hooked up yet**: no real checkpoint has been run through it, and its schema, camera keys and action space (absolute vs delta) still need matching. See the `TODO(VLA)` block in the script.
+Sim rollout for a flow-matching policy (pi0 / pi0.5 / SmolVLA) on the push-block scene, driven with Real-Time Chunking (`humanoid_robot_learning/deploy/rtc_driver.py`): [`scripts/pioneer_push_eval_rtc.py`](scripts/pioneer_push_eval_rtc.py). It expects a checkpoint trained on `config/pioneer_humanoid_dataset_schema.yaml` (the format the Quest teleop records); `--dry_run` runs it without one. **The VLA is not hooked up yet**: no real checkpoint has been run through it, and its schema, camera keys and action space (absolute vs delta) still need matching. See the `TODO(VLA)` block in the script.
 
 ```bash
 /workspace/isaaclab/isaaclab.sh -p /workspace/humanoid/src/robot_learning/scripts/pioneer_push_eval_rtc.py \

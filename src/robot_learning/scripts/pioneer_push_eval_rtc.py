@@ -1,8 +1,8 @@
 """Closed-loop RTC rollout of a flow-matching policy on the pioneer left arm, push-block scene.
 
 Scene = the "push" entry of humanoid_isaac_scenes (same layout/assets as the RL push-block task),
-plus the ego + wrist cameras from quest_cameras.py -- the exact cameras the push_box dataset was
-recorded with (run_quest_bimanual_teleop.py). The scene is driven raw (set_joint_position_target),
+plus the ego + wrist cameras from quest_cameras.py -- the exact cameras the Quest teleop records
+with (run_quest_bimanual_teleop.py). The scene is driven raw (set_joint_position_target),
 not through the gym env, whose action/obs managers are RL-specific (scaled relative actions, no
 cameras).
 
@@ -39,7 +39,7 @@ parser = argparse.ArgumentParser(description="RTC rollout on the pioneer left ar
 parser.add_argument("--policy_path", type=str, default=None, help="checkpoint folder or Hub repo id")
 parser.add_argument(
     "--schema", type=str,
-    default=str(_SRC / "robot_learning" / "config" / "dataset_schema_wato_arm_v2_push_box.yaml"),
+    default=str(_SRC / "robot_learning" / "config" / "pioneer_humanoid_dataset_schema.yaml"),
     help="dataset schema the checkpoint was trained on",
 )
 parser.add_argument("--task_description", type=str, default="push the block into the box")
@@ -70,6 +70,7 @@ from humanoid_isaac_scenes import make_scene_cfg, scene_camera  # noqa: E402
 from humanoid_rl_tasks.push_block.push_env_cfg import RewardsCfg, TerminationsCfg  # noqa: E402
 from humanoid_robot_learning.deploy.pioneer_interface import (  # noqa: E402
     SIM_ACTION_JOINT_ORDER,
+    SIM_STATE_JOINTS,
     PioneerLeftArmInterface,
 )
 from humanoid_robot_learning.deploy.rtc_driver import RTCDrivenPolicy  # noqa: E402
@@ -85,29 +86,34 @@ from quest_cameras import make_ego_cam_cfg, make_wrist_cam_cfg  # noqa: E402
 
 PHYSICS_DT = 0.02
 DECIMATION = 5
-POLICY_HZ = 1.0 / (PHYSICS_DT * DECIMATION)  # 10 Hz, the push_box recording fps
+POLICY_HZ = 1.0 / (PHYSICS_DT * DECIMATION)  # 10 Hz, the Quest recording fps
 
-# dataset image key -> scene sensor name (run_quest_bimanual_teleop.py _capture_record_images)
-CAMERA_SENSORS = {"ego": "ego_cam", "wrist": "wrist_cam"}
-CAMERA_FACTORIES = {"ego_cam": make_ego_cam_cfg, "wrist_cam": make_wrist_cam_cfg}
+# dataset image key -> scene sensor name (run_quest_bimanual_teleop.py RECORD_CAMERA_SENSORS)
+CAMERA_SENSORS = {"ego": "ego_cam", "wrist_left": "wrist_cam", "wrist_right": "wrist_cam_right"}
+CAMERA_FACTORIES = {
+    "ego_cam": make_ego_cam_cfg,
+    "wrist_cam": make_wrist_cam_cfg,
+    "wrist_cam_right": lambda: make_wrist_cam_cfg(body="link6", name="wrist_cam_right", mirror=True),
+}
 
 
 def read_policy_state(robot, state_joint_ids: list[int]) -> torch.Tensor:
-    """observation.state for this tick: (7,) absolute joint positions (rad) of env 0.
+    """Sim state for this tick: (7,) absolute joint positions of env 0, in SIM_STATE_JOINTS order.
 
-    Must match what the push_box dataset recorded (run_quest_bimanual_teleop.py ~L1634-1638):
-    absolute (not joint_pos_rel), in the schema's joint_names order (joint1L..joint6l, joint7l;
-    state_joint_ids is already in that order), no joint8l, read before stepping physics.
-    A wrong order or joint set doesn't crash -- the policy just sees a scrambled arm.
+    Must match what the Quest teleop records (run_quest_bimanual_teleop.py, _record_state):
+    absolute (not joint_pos_rel), joint1L..joint6l then joint7l (state_joint_ids is already in
+    that order), no joint8l, read before stepping physics. The interface turns joint7l into the
+    schema's 0-1 gripper closure. A wrong order or joint set doesn't crash -- the policy just
+    sees a scrambled arm.
     """
     return robot.data.joint_pos[0, state_joint_ids].clone()
 
 
 # ======================================================================================
 # TODO(VLA) -- hook up the VLA: confirm against the real checkpoint before trusting a real run:
-#   - schema: joint list + gripper representation (push_box: joint7l position in metres;
-#     pioneer_v1: one 0-1 closure value) -- pass the right --schema
-#   - camera keys the checkpoint expects (push_box: ego/wrist; pioneer_v1: ego/wrist_left)
+#   - schema: joint list + gripper representation (pioneer_humanoid_dataset_schema.yaml: six
+#     arm joints in rad + one 0-1 gripper closure) -- pass the right --schema
+#   - camera keys the checkpoint expects (default: ego/wrist_left)
 #   - absolute vs delta actions: the pi0.5 pipeline trains on deltas
 #     (pi05/action_space.py) -- predicted chunks would need to_absolute()
 #     against the state each chunk was planned from, which RTCDrivenPolicy doesn't do yet
@@ -247,12 +253,12 @@ def main():
         task_description=args_cli.task_description,
     )
 
-    state_joint_ids = _joint_ids(robot, interface.joint_names)
+    state_joint_ids = _joint_ids(robot, SIM_STATE_JOINTS)
     sim_action_ids = _joint_ids(robot, SIM_ACTION_JOINT_ORDER)
     right_ids = _joint_ids(robot, RIGHT_ARM_JOINTS + RIGHT_GRIPPER_JOINTS)
     right_home = robot.data.default_joint_pos[:, right_ids].clone()
     home_sim_action = robot.data.default_joint_pos[0, sim_action_ids].clone()
-    initial_action = robot.data.default_joint_pos[0, state_joint_ids].clone()  # home, in policy space
+    initial_action = interface.sim_state_to_policy(robot.data.default_joint_pos[0, state_joint_ids])  # home, in policy space
 
     print(f"[INFO]: state joints  {[robot.data.joint_names[i] for i in state_joint_ids]}")
     print(f"[INFO]: action joints {[robot.data.joint_names[i] for i in sim_action_ids]}")

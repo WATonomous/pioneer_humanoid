@@ -11,7 +11,7 @@ from humanoid_robot_learning.recording.record_utils import resolve_config_path, 
 from humanoid_robot_learning.recording.schema import enabled_images, load_yaml, select_cameras
 
 PKG_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_SCHEMA = PKG_ROOT / "config" / "dataset_schema_pioneer_v1.yaml"
+DEFAULT_SCHEMA = PKG_ROOT / "config" / "pioneer_humanoid_dataset_schema.yaml"
 
 # Recorded joint order (real-robot names, joint_command_core.cpp); must match the schema.
 LEFT_ARM_RECORD_JOINTS = [
@@ -44,7 +44,7 @@ def add_record_args(parser: argparse.ArgumentParser, *, task_description: str) -
         "--schema",
         type=str,
         default=str(DEFAULT_SCHEMA),
-        help="dataset_schema YAML (default: src/robot_learning/config/dataset_schema_pioneer_v1.yaml)",
+        help="dataset_schema YAML (default: src/robot_learning/config/pioneer_humanoid_dataset_schema.yaml)",
     )
     parser.add_argument(
         "--dataset_root",

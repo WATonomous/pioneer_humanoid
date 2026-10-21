@@ -14,7 +14,7 @@ home (see leader_mapping.py). Leader torque is always off; it is an input device
 
   R   reset the arm and every object in the scene; bring the leader back to home to resume
 
-Recording (--record, src/robot_learning/config/dataset_schema_pioneer_v1.yaml), 25 fps = every
+Recording (--record, src/robot_learning/config/pioneer_humanoid_dataset_schema.yaml), 25 fps = every
 4th physics step. Keys S start, N save (then auto-reset), D discard:
   observation.state  6 joints (rad) + gripper closure (0 open .. 1 closed, mean of both fingers)
   action             6 joint targets (rad) + leader gripper closure (0..1, continuous)

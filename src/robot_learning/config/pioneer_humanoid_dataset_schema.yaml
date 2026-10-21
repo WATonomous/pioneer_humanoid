@@ -1,4 +1,4 @@
-# Pioneer v1 left arm: one data contract for sim (keyboard_teleop) and real (humanoid-record).
+# Pioneer v1 left arm: one data contract for sim (keyboard, leader and Quest teleop) and real (humanoid-record).
 robot_id: pioneer_v1_left_arm
 repo_id: humanoid/pioneer_v1_left_arm
 fps: 25
