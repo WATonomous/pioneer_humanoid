@@ -29,7 +29,7 @@ Output: `<repo>/datasets/pioneer_v1_left_arm/sim/`. Later sessions append to the
 
 ## 2. Data contract
 
-`config/pioneer_humanoid_dataset_schema.yaml`, shared by sim and real. **7 values**, 25 fps:
+`config/pioneer_humanoid_dataset_schema.yaml`, shared by sim and real. **7 values** per arm, 25 fps. The left arm by default (dataset `pioneer_v1_left_arm`); the MuJoCo leader teleop records `--arms bimanual` as `pioneer_v1_bimanual` (left 7, then the same 7 for the right arm) or `--arms right` as `pioneer_v1_right_arm`:
 
 | # | Name | Unit |
 |---|------|------|

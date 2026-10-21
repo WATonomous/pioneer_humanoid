@@ -78,6 +78,10 @@ Scenes: `bare`, `peg_insert`, `zip_tie`, `drawer_stow`, `matcha`, `duplo`, or an
   `all steps done -- N to save` at the end. Recorded frames carry the current step's instruction as their `task` and a
   `subtask_index`, so a take is labelled step by step with no hand annotation.
   In the MuJoCo viewer these keys (and R) also toggle display flags (shadows, reflections, …); harmless.
+- **Both arms (MuJoCo):** `--arms bimanual` (or `right` for the right arm alone) with a second leader: `--right-port`, `--right-calibration`, `--right-signs`.
+  Recording waits for every leader at home; frames are the left arm's 7 values then the right's, into
+  `<repo>/datasets/pioneer_v1_bimanual/sim/` (`pioneer_v1_right_arm` for the right arm alone).
+  The right wrist camera is off in the schema: add it with `--cameras ego,wrist_left,wrist_right`.
 - Other flags: `--port`, `--baud`, `--calibration` (default `leader_calibration.json`), `--filter-alpha` (target smoothing, default 0.35).
 
 Targets are clamped to the arm's URDF limits. Wrist damping is lowered to 2.5 in this teleop only, so the sim wrist keeps up with the leader.

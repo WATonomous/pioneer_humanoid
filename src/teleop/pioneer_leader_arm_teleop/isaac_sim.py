@@ -56,7 +56,7 @@ add_record_args(parser, task_description="sim leader teleop demonstration")
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
 check_leader_args(parser, args_cli)
-_record = load_record_schema(parser, args_cli)
+_record = load_record_schema(parser, args_cli, arms=["left"])
 
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app

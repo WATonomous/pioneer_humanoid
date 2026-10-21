@@ -1067,13 +1067,13 @@ def _init_recorder(device: str):
     _ensure_robot_learning_on_path()
     try:
         from humanoid_robot_learning.recording.record_utils import resolve_config_path, resolve_dataset_root
-        from humanoid_robot_learning.recording.schema import enabled_images, load_yaml
+        from humanoid_robot_learning.recording.schema import enabled_images, load_yaml, select_arms
         from humanoid_robot_learning.sim.sim_recorder import SimLeRobotRecorder
     except ImportError as exc:
         raise ImportError("Recording requires humanoid-robot-learning. Install with:\n  pip install -e src/robot_learning[sim]") from exc
 
     schema_path = resolve_config_path(args_cli.schema, anchor=_ROBOT_LEARNING_PKG)
-    cfg = load_yaml(schema_path)
+    cfg = select_arms(load_yaml(schema_path), ["left"])  # records the link6l arm only, see --record
     # Own subdir: this dataset is recorded at _RECORD_FPS, not the schema's fps, so it must not
     # append to the <root>/sim dataset the keyboard and leader teleops write.
     dataset_root = resolve_dataset_root(cfg, args_cli.dataset_root, subdir="quest_sim")

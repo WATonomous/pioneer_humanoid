@@ -124,8 +124,9 @@ class LeaderMapping:
 class LeaderInput:
     """Calibrated ServoLeader that holds the last reading on a dropped serial frame instead of stopping the sim."""
 
-    def __init__(self, args: argparse.Namespace):
+    def __init__(self, args: argparse.Namespace, label: str = ""):
         self.leader = ServoLeader(args.port, args.baud, zeros=load_calibration(args.calibration))
+        self.label = f" {label}" if label else ""  # which leader, when there are two
         self.angles = (0.0,) * len(SERVO_IDS)
         self._last_warning = 0.0
         self._last_report = time.monotonic()
@@ -136,11 +137,12 @@ class LeaderInput:
         except RuntimeError as exc:
             now = time.monotonic()
             if now - self._last_warning >= 1.0:
-                print(f"[WARN] {exc}; holding last leader target", flush=True)
+                print(f"[WARN]{self.label} {exc}; holding last leader target", flush=True)
                 self._last_warning = now
         return self.angles
 
-    def report(self, mapping: LeaderMapping) -> None:
+    def report(self, mapping: LeaderMapping, end: str = "") -> None:
+        """Status every 0.5 s: rewrites one terminal line, or (end="\n") prints a line per report."""
         now = time.monotonic()
         if now - self._last_report < 0.5:
             return
@@ -155,7 +157,10 @@ class LeaderInput:
                 f"{label} {err:+6.1f}deg" if label != GRIPPER_SERVO else f"{label} {err:4.2f}"
                 for label, err in mapping.home_errors
             )
-        print(f"\r[LEADER] {line:<100}", end="", flush=True)
+        if end:
+            print(f"[LEADER{self.label}] {line}", end=end, flush=True)
+        else:
+            print(f"\r[LEADER{self.label}] {line:<100}", end="", flush=True)
 
     def close(self) -> None:
         self.leader.close()

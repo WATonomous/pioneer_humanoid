@@ -41,8 +41,7 @@ import os
 
 import torch
 
-from humanoid_robot_learning.recording.schema import build_features, load_yaml
-from humanoid_robot_learning.sim.sim_teleop_record import LEFT_ARM_RECORD_JOINTS
+from humanoid_robot_learning.recording.schema import build_features, load_yaml, select_arms
 from pioneer_humanoid.bimanual_arm import (
     JOINT_POS_LIMITS,
     LEFT_ARM_JOINTS,
@@ -98,10 +97,10 @@ class PioneerLeftArmInterface:
         self.cameras = cameras
         self.task_description = task_description
 
-        cfg = load_yaml(Path(schema_path))
+        cfg = select_arms(load_yaml(Path(schema_path)), ["left"])
         self.joint_names: list[str] = list(cfg["joint_names"])  # 7: arm joints + left_gripper
-        if self.joint_names != LEFT_ARM_RECORD_JOINTS:
-            raise ValueError(f"{schema_path}: joint_names {self.joint_names} != {LEFT_ARM_RECORD_JOINTS}")
+        if len(self.joint_names) != len(SIM_STATE_JOINTS):
+            raise ValueError(f"{schema_path}: left arm has {self.joint_names}, expected {len(SIM_STATE_JOINTS)} joints")
         self.robot_type: str = str(cfg["robot_id"])  # the recorders label the dataset with robot_id
         self.dataset_features: dict[str, Any] = build_features(cfg)
 

@@ -1,18 +1,30 @@
-# Pioneer v1 left arm: one data contract for sim (keyboard, leader and Quest teleop) and real (humanoid-record).
-robot_id: pioneer_v1_left_arm
-repo_id: humanoid/pioneer_v1_left_arm
+# Pioneer v1 arms: one data contract for sim (keyboard, leader and Quest teleop) and real (humanoid-record).
+# Each recording picks the arms it records (leader teleop: --arms; the others record the left arm).
+# select_arms() builds joint_names from them, left first, and adds _left_arm, _right_arm or
+# _bimanual to robot_id, repo_id and record.root, so each arm set is its own dataset.
+robot_id: pioneer_v1
+repo_id: humanoid/pioneer_v1
 fps: 25
-state_unit: rad  # arm joints; left_gripper is a 0-1 closure fraction
+state_unit: rad  # arm joints; the grippers are 0-1 closure fractions
 
 # Real-robot names (joint_command_core.cpp); sim joint in comment.
-joint_names:
-  - left_shoulder_pitch  # joint1L
-  - left_shoulder_roll   # joint2l
-  - left_shoulder_yaw    # joint3l
-  - left_elbow_pitch     # joint4l
-  - left_elbow_roll      # joint5l
-  - left_wrist_pitch     # joint6l
-  - left_gripper         # joint7l/joint8l: 0 = open, 1 = closed
+arms:
+  left:
+    - left_shoulder_pitch   # joint1L
+    - left_shoulder_roll    # joint2l
+    - left_shoulder_yaw     # joint3l
+    - left_elbow_pitch      # joint4l
+    - left_elbow_roll       # joint5l
+    - left_wrist_pitch      # joint6l
+    - left_gripper          # joint7l/joint8l: 0 = open, 1 = closed
+  right:
+    - right_shoulder_pitch  # joint1
+    - right_shoulder_roll   # joint2
+    - right_shoulder_yaw    # joint3
+    - right_elbow_pitch     # joint4
+    - right_elbow_roll      # joint5
+    - right_wrist_pitch     # joint6
+    - right_gripper         # joint7/joint8: 0 = open, 1 = closed
 
 # All 640x480 (4:3). Sim poses/lenses: pioneer_humanoid/arm_params.py. Real: `topic`.
 # `enabled` is the default; override with --cameras.
@@ -39,7 +51,7 @@ ros:  # real only
   arm_pose_unit: deg
 
 record:
-  root: datasets/pioneer_v1_left_arm  # relative to the repo root; sim -> <root>/sim, real -> <root>/real
+  root: datasets/pioneer_v1  # + the arm suffix; relative to the repo root; sim -> <root>/sim, real -> <root>/real
   use_videos: true
   image_writer_threads: 4
   image_writer_processes: 0
