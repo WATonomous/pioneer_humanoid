@@ -3,7 +3,7 @@
 The 7-servo leader arm (STS3215, torque always off) drives the Pioneer left arm joint to joint,
 with no IK, in any registered scene: Isaac Sim (default) or plain MuJoCo (`--target mujoco`, CPU).
 `--target real` compares the leader with the real arm (dry run, publishes nothing); `--live` then drives it (#327).
-Optional recording in the shared `dataset_schema_pioneer_v1.yaml` format, from either simulator.
+Optional recording in the shared `pioneer_humanoid_dataset_schema.yaml` format, from either simulator.
 
 Angles map **one-to-one** from a shared zero: arm hanging straight down under gravity, gripper open.
 That is the URDF zero, the real arm's calibrated zero, and the leader's (`calibrate_leader.py`).
