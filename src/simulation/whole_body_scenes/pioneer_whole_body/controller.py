@@ -65,7 +65,7 @@ def frame(x, z) -> np.ndarray:
 def palm_down(yaw: float = 0.0, tilt: float = 0.0) -> np.ndarray:
     """Palm facing down, fingers pointing along ``yaw`` (0: +X, away from the robot), fingers pitched ``tilt`` down."""
     f = np.array([math.cos(yaw) * math.cos(tilt), math.sin(yaw) * math.cos(tilt), -math.sin(tilt)])
-    n = np.array([math.cos(yaw) * math.sin(tilt), math.sin(yaw) * math.sin(tilt), -math.cos(tilt)])
+    n = np.array([-math.cos(yaw) * math.sin(tilt), -math.sin(yaw) * math.sin(tilt), -math.cos(tilt)])   # (normal to f)
     return frame(f, n)
 
 
@@ -154,6 +154,9 @@ class _Track:
 
 
 GAZE_SPEED = 0.8          # rad/s: the head's average turning speed (a look at something far round takes longer)
+# a look at something already this near the middle of the head camera's view (yaw, pitch; the camera sees about
+# +-43 and +-35 deg) doesn't move the head (``WholeBody.steady_head``)
+STEADY = (math.radians(26), math.radians(20))
 
 
 def _locomotion(fn):
@@ -203,6 +206,7 @@ class WholeBody:
         self.waist_track: Optional[_Track] = None
         self.gaze_target: Optional[Callable[[], np.ndarray]] = None
         self.walking = 0                  # > 0 while a step, walk or turn runs
+        self.steady_head = True           # turn the head only for what's out of the middle of its view
         self.gaze_track: Optional[_Track] = None
         self.foot_goal: dict[str, tuple] = {}
         self.foot_track: dict[str, Optional[tuple]] = {s: None for s in SIDES}
@@ -312,6 +316,16 @@ class WholeBody:
         self.hand_goal[side] = None
         self.hand_site[side] = self.palm[side]
 
+    def start_ready(self, sides=SIDES):
+        """Start with the arms already in the ready pose (set, not moved: call before anything else, for a robot that
+        starts at the bench, where raising the arms from hanging would catch the bench's edge)."""
+        for s in sides:
+            for n in arm_joints(s):
+                if n[2:] in READY:
+                    self.cmd[n] = READY[n[2:]]
+                    self.d.qpos[self.jq[n]] = READY[n[2:]]
+        mujoco.mj_forward(self.m, self.d)
+
     def ready(self, sides=SIDES, dur: float = 2.0):
         """Both arms from hanging up into the ready pose, forearms raised first."""
         for s in sides:
@@ -332,6 +346,8 @@ class WholeBody:
         fn = target if callable(target) else (lambda p=np.asarray(target, float): p)
         y0, p0 = self.cmd["neck_yaw"], self.cmd["neck_pitch"]
         y1, p1 = self._gaze_angles(fn())
+        if self.steady_head and self.gaze_target is not None and abs(y1 - y0) < STEADY[0] and abs(p1 - p0) < STEADY[1]:
+            return                     # it's in the middle of the head camera's view already: the head stays still
         dur = max(dur, math.hypot(y1 - y0, p1 - p0) / GAZE_SPEED)     # (no snapping round: a steady head)
         self.gaze_target = fn
         self.gaze_track = _Track((y0, p0), None, self.t, dur)

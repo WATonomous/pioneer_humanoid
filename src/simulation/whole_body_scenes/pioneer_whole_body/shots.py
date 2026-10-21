@@ -64,16 +64,35 @@ def follow(t: float, tape, i: int) -> Shot:
     return Shot(tuple(target), dist, az, el)
 
 
+def tripod(t: float, tape, i: int) -> Shot:
+    """A fixed camera for the whole video: the scene's own (``@scene(camera=...)``), else one set once from where
+    the robot works (in front of it, to its right, a little above)."""
+    cam = getattr(tape, "camera", None)
+    if cam is not None:
+        look, dist, az, el = cam
+        return Shot(tuple(look), dist, az, el)
+    key = ("tripod", id(tape))
+    if key not in _CACHE:
+        p = _plan(tape)
+        look = np.median(p["look"], axis=0)
+        target = (look[0] - 0.1, look[1], 0.4 * look[2] + 0.6 * 1.2)
+        _CACHE.clear()
+        _CACHE[key] = Shot(target, 2.2, 212 + float(np.degrees(p["yaw"][0])), -16)
+    return _CACHE[key]
+
+
 def render(scene: str, tape_path: str, out: str, size=(1280, 720), workers: int = 4, title: str | None = None,
-           inset: str | None = "head_cam", walking: bool = False) -> str:
+           inset: str | None = "head_cam", walking: bool = False, captions: bool = False,
+           camera: str = "tripod") -> str:
     """``walking``: keep the stretches where the robot steps (by default they are cut: locomotion is its own
-    policy's job; the video jumps from where it starts stepping to where it stands again)."""
+    policy's job; the video jumps from where it starts stepping to where it stands again). ``captions``: the title
+    and step bar along the top. ``camera``: "tripod" (fixed, the default) or "follow" (moves with the work)."""
     from . import entry
     from .video import Tape
-    title = title or entry(scene).title or scene
+    title = (title or entry(scene).title or scene) if captions else ""
     frames = None
     if not walking:
         tape = Tape.load(tape_path)
         frames = [i for i, w in enumerate(tape.walking) if not w]
-    return render_tape(scene, tape_path, out, ("pioneer_whole_body.shots", "follow"), title, size=size,
+    return render_tape(scene, tape_path, out, ("pioneer_whole_body.shots", camera), title, size=size,
                        workers=workers, inset=inset, frames=frames)

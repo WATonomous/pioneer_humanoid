@@ -27,15 +27,16 @@ class _Entry:
     success: Optional[Callable] = None
     plan: Optional[Callable] = None        # the scripted demo: plan(robot_controller, notes)
     title: Optional[str] = None            # the video's title
+    camera: Optional[tuple] = None         # the video's fixed camera: (lookat xyz, distance, azimuth, elevation)
 
 
 _REGISTRY: dict[str, _Entry] = {}
 
 
 def scene(name, *, robot_pos=(0.0, 0.0, 0.0), step=None, reset=None, progress=None, success=None, plan=None,
-          title=None):
+          title=None, camera=None):
     def deco(build):
-        _REGISTRY[name] = _Entry(build, tuple(robot_pos), step, reset, progress, success, plan, title)
+        _REGISTRY[name] = _Entry(build, tuple(robot_pos), step, reset, progress, success, plan, title, camera)
         return build
     return deco
 

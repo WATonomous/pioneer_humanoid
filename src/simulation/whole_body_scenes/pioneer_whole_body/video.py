@@ -94,6 +94,7 @@ def _render_chunk(args):
     if entry(scene).reset is not None:               # what the scene's reset changes in the model (a tag's colour, a
         entry(scene).reset(model, data, np.random.default_rng(tape.seed))      # gauge's mark), as in the run
     tape.base_adr = int(model.jnt_qposadr[model.joint("base_x").id])     # the robot's base in qpos (for the camera)
+    tape.camera = entry(scene).camera
     shot_fn = getattr(importlib.import_module(shots_mod[0]), shots_mod[1])
     w, h = size
     r = mujoco.Renderer(model, h, w)
@@ -121,11 +122,12 @@ def _render_chunk(args):
             img[y0:y0 + hh, x0:x0 + ww] = sub
         im = Image.fromarray(img)
         dr = ImageDraw.Draw(im, "RGBA")
-        cap_title, step = tape.caption[i]
-        dr.rectangle([0, 0, w, int(h * 0.105)], fill=(18, 20, 24, 175))
-        dr.text((22, 12), title, font=font_t, fill=(245, 245, 245, 255))
-        dr.text((22, 14 + h // 26), step or cap_title, font=font_s, fill=(250, 176, 80, 255))
-        dr.text((w - 130, 14 + h // 26), f"{tape.t[i]:6.1f} s", font=font_s, fill=(210, 210, 210, 255))
+        if title:                                    # (the caption bar: only when asked for)
+            cap_title, step = tape.caption[i]
+            dr.rectangle([0, 0, w, int(h * 0.105)], fill=(18, 20, 24, 175))
+            dr.text((22, 12), title, font=font_t, fill=(245, 245, 245, 255))
+            dr.text((22, 14 + h // 26), step or cap_title, font=font_s, fill=(250, 176, 80, 255))
+            dr.text((w - 130, 14 + h // 26), f"{tape.t[i]:6.1f} s", font=font_s, fill=(210, 210, 210, 255))
         if inset:
             dr.text((w - w // 4 - 18, h - h // 4 - 44), "head camera", font=font_s, fill=(235, 235, 235, 255))
         proc.stdin.write(np.asarray(im).tobytes())
