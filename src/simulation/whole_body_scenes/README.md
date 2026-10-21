@@ -50,11 +50,12 @@ as fast as real time).
 | `pour` | 3 steps, ~42 s. Pouring, both hands: walks up; takes the left cup (twelve red balls in it) by the knob on its lid, carries it over the bowl and rolls the hand about its fingers (wrist and forearm) until the cup lies on its side: the balls run out of its open side, by gravity and contact alone; a shake, rolls it back, sets it back on its coaster; the same with the right cup (blue balls), rolled the other way. |
 | `winch` | 2 steps, ~36 s. Cranking: walks up; takes the knob of a crank wheel lying flat (the knob spins freely on its post, so the hand keeps its grip as it goes round) and turns it round and round, a quarter turn at a time in short straight moves along the circle, winding a load 16 cm up a mast (the crank and the load are coupled by a joint equality, 4 cm a turn; the load's weight pulls back, the crank's friction holds it); stops at the latch, lets go and pushes the lock lever down with its left thumb: the lamp comes up. Where round the wheel the handle starts is random per seed. |
 | `push_cart` | 3 steps, ~26 s. Walking while pushing: takes a trolley by the two knobs on its handle (a tote of parts on its deck), walks it 0.75 m forward across the room into a marked bay on the floor (the hands carried along with the pelvis; the cart rolls on ball casters and moves only because the hands push it), looks where it ended up and pushes the rest; the bay's latch holds it once it's at rest; lets go (hands open, up, back) and steps back. |
+| `weigh_sort` | 1 step, ~90 s. Sorting by weight, read off a dial: four parts that look the same, two light and two heavy (random per seed); reads the empty scale with its head camera (the angle of the red needle about its hub in the image); then for each part: takes it from the tray, sets it on the scale's platform (a spring; the needle is coupled to it by a joint equality: the physics weighs it), reads the dial again, and the hand on the bin's side takes it off and puts it in the light bin (left) or the heavy bin (right). |
 | `grasp_test` | A bolt in a rack and a plate with one threaded hole (tuning bench for the grasps). |
 | `bare` | The studio and an empty workbench. |
 
 Robustness (`--seeds 8`: every loose part up to 2 mm and 3 deg off; Oct 20): `bearing_block` 8/8, `gear_train` 8/8,
-`service_panel` 8/8, `tote_to_shelf` 6/8, `wheel_hub` 6/8, `handover` 5/6, `wrench` 6/6, `sort_bins` 8/8 (colours and parts shuffled), `wipe_table` 6/8 (a squeegee tips over in the grip), `simon_panel` 8/8 (sequences random), `pour` 6/8 (an empty cup pushed off its coaster when the hand lets go), `winch` 7/8, `push_cart` 7/8, `battery_module` 2/8 (its cells catch on the socket rims or
+`service_panel` 8/8, `tote_to_shelf` 6/8, `wheel_hub` 6/8, `handover` 5/6, `wrench` 6/6, `sort_bins` 8/8 (colours and parts shuffled), `wipe_table` 6/8 (a squeegee tips over in the grip), `simon_panel` 8/8 (sequences random), `pour` 6/8 (an empty cup pushed off its coaster when the hand lets go), `winch` 7/8, `push_cart` 7/8, `weigh_sort` 6/8 (a part not taken from the tray), `battery_module` 2/8 (its cells catch on the socket rims or
 get flung when the hand lets go: the next thing to fix). Seed 0, the scene as built, is the one in the videos.
 
 Each scene registers `step` (mechanics: threads, clamp, button), `progress` (the current step and its instruction,
@@ -91,8 +92,8 @@ latched in order as in `humanoid_mujoco_scenes`) and `plan` (the demo).
   - the testers' indicator flags;
   - the robot's balance (the pelvis is moved and the legs are solved so the feet don't slide).
   Object poses come from the simulator (as a perfect perception stack would give them), except in `sort_bins`,
-  `wipe_table` and `simon_panel`: there the parts' places and colours, the crumbs and the colour sequence come from
-  the head camera's images.
+  `wipe_table`, `simon_panel` and `weigh_sort`: there the parts' places and colours, the crumbs, the colour sequence
+  and the scale's reading come from the head camera's images.
 - The plans are scripted, not learned; they check their results and retry where a person would (a part not
   seated, a lid whose screws didn't catch). Long scenes are sensitive to small changes: re-run the demo after
   editing a scene or a skill.
