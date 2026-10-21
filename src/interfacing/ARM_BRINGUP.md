@@ -4,7 +4,8 @@ Follow top to bottom. Package details: [can/README.md](can/README.md) (CAN bridg
 benchmarks), [joint_command/README.md](joint_command/README.md) (command node, configs).
 
 ## 0. Connect
-1. **Hardware**: battery + E-stop closed (motor power ≠ CAN power). CANable USB → host; CAN_H/CAN_L → arm (120 Ω term).
+1. **Hardware**: battery + E-stop closed (motor power ≠ CAN power). CANable USB → host; CAN_H/CAN_L → arm (120 Ω term).  
+> ⚠️ If connecting voltage source XT60 connectors to the motors, ensure you DONT connect the 51.2V battery to the GL40 batteries -- it will immediately fry the motor driver and render it unusable.
 2. **Host setup (once)**: `./src/interfacing/can/scripts/can_udev.sh install` → `/dev/canable`.
    `watod-config.local.sh`: `ACTIVE_MODULES="interfacing"`, `MODE_OF_OPERATION="develop"`.
 3. **Bring up**: `can.launch.py` starts `can_node` + SLCAN (`/dev/canable` → `can0` @ 1 Mbps).
@@ -30,8 +31,8 @@ their single-turn absolute encoders don't reliably survive a power cycle; should
 Per joint: confirm motor id → home zero → one end Enter → other end Enter → writes `zero_offset`/limits/`can_id`.
 ```bash
 source /opt/watonomous/setup.bash
-python3 /root/ament_ws/src/interfacing/can/scripts/calibrate_arm.py \
-  --arm-side left --write-mapping --calibration /calibration/arm_calibration.yaml
+ros2 run can calibrate_arm.py \
+  --arm-side left --write-mapping
 ```
 Prompt: **Enter**=yes · id=correct id · **s**=skip · **q**=quit.
 
@@ -55,21 +56,45 @@ python3 /workspace/humanoid/src/interfacing/can/scripts/live_arm_mjviser.py --ar
 
 → script docstring in `live_arm_mjviser.py` for the angle math and full flag reference.
 
-## 3. Move (real motor control)
-Only after 1–2 look right. Everything goes through `joint_command` (`ArmPose` on
+## 3. Setup joint_command (real motor control)
+Only after 1–2 look right. Clear workspace, hardware E-stop on the 48 V supply in reach.
+Everything goes through `joint_command` (`ArmPose` on
 `/arm/joint_targets`): it clamps, rate-limits, seeds from live feedback (no startup jump) and
-runs the MIT watchdog. Start it with `ros2 launch joint_command joint_command.launch.py`.
+runs the MIT watchdog. 
 
-First powered moves, in this order:
-1. Clear workspace, hardware E-stop on the 48 V supply in reach, a hand under the arm.
-2. One joint at a time: every other joint `active: false` in `arm_actuators.yaml` (restart the node).
-   Small, slow moves from the current pose.
-3. Then the whole arm, slowly; then the gripper.
+``` bash
+./watod -t joint_command
+ros2 launch joint_command joint_command.launch.py
+
+```
 
 A fault stops the whole arm: AK joints sink damped, the GL40s go limp. Support the arm and
 restart the node.
 
-- Leader-arm teleop: `pioneer_leader_arm_teleop.py --target real` (dry run), then `--live`
-  → [teleop/pioneer_leader_arm_teleop/README.md](../teleop/pioneer_leader_arm_teleop/README.md#real-arm-dry-run-then---live)
+## 4. Move the arm
+
+### Teleop with leader arm
+1. Inside `simulation_mj` shell:
+```bash
+cd /workspace/humanoid/src/teleop/pioneer_leader_arm_teleop
+python3 calibrate_leader.py --port /dev/ttyACM1 # Set the leader arm to joints hanging straight down and rotated to face forward, gripper fully open
+```
+2. Configure which real-arm joints you want to move. In `arm_actuators.yaml`, configure the `active` attribute for each joint.
+
+3. vRun the teleop script through a dry run, verifying that leader arm direction is aligned with real-arm:
+```bash
+python3 pioneer_leader_arm_teleop.py --target real --port /dev/ttyACM1
+```
+
+4. Run live script. Ensure the `joint_command` node is running
+```bash
+python3 pioneer_leader_arm_teleop.py --target real --port /dev/ttyACM1 --live
+```
+
+>⚠️ Currently to shutdown the teleop, you must Ctrl-C the teleop script before Ctrl-C the `joint_command` node. Otherwise the teleop script will continue publishing `ArmPose` messages, conflicting with the `joint_command` node's shutdown process.
+
+ ### Other
+
+
 - Scripted moves and benchmarks: `tools/arm_roundtrip.sh` → [can/README.md](can/README.md#angle-benchmarks-arm_roundtrippy)
 - Node, configs and tuning → [joint_command/README.md](joint_command/README.md)
