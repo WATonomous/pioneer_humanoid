@@ -1,0 +1,808 @@
+<?xml version="1.0"?>
+<!-- converted by convert.py from Prometheus' make_urdf.py output: rerun convert.py, don't edit -->
+<robot name="pioneer_whole_body_humanoid">
+  <mujoco><compiler meshdir="." balanceinertia="true" discardvisual="false"/></mujoco>
+  <link name="base_link">
+    <inertial><origin xyz="0.000000 -0.000003 0.824736"/><mass value="0.2439"/><inertia ixx="0.000677341" ixy="0" ixz="0" iyy="0.00101672" iyz="0" izz="0.00105184"/></inertial>
+    <visual><origin xyz="-0.000000 -0.000000 -0.000000"/><geometry><mesh filename="meshes/base_link_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <collision><origin xyz="0.000000 -0.000003 0.824736"/><geometry><box size="0.185000 0.132389 0.125695"/></geometry></collision>
+  </link>
+  <link name="torso">
+    <inertial><origin xyz="0.000000 0.025199 0.244000"/><mass value="1.2415"/><inertia ixx="0.0335766" ixy="0" ixz="0" iyy="0.0356768" iyz="0" izz="0.0199777"/></inertial>
+    <visual><origin xyz="-0.000000 -0.000000 -0.897000"/><geometry><mesh filename="meshes/torso_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c1"><color rgba="0.063 0.071 0.078 1"/></material></visual>
+    <visual><origin xyz="-0.000000 -0.000000 -0.897000"/><geometry><mesh filename="meshes/torso_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
+    <visual><origin xyz="-0.000000 -0.000000 -0.897000"/><geometry><mesh filename="meshes/torso_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c3"><color rgba="0.725 0.741 0.761 1"/></material></visual>
+    <visual><origin xyz="-0.000000 -0.000000 -0.897000"/><geometry><mesh filename="meshes/torso_3.stl" scale="0.001 0.001 0.001"/></geometry><material name="c4"><color rgba="0.725 0.745 0.773 1"/></material></visual>
+    <visual><origin xyz="-0.000000 -0.000000 -0.897000"/><geometry><mesh filename="meshes/torso_4.stl" scale="0.001 0.001 0.001"/></geometry><material name="c5"><color rgba="0.784 0.784 0.804 1"/></material></visual>
+    <visual><origin xyz="-0.000000 -0.000000 -0.897000"/><geometry><mesh filename="meshes/torso_5.stl" scale="0.001 0.001 0.001"/></geometry><material name="c6"><color rgba="0.910 0.455 0.173 1"/></material></visual>
+    <visual><origin xyz="-0.000000 -0.000000 -0.897000"/><geometry><mesh filename="meshes/torso_6.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <visual><origin xyz="-0.000000 -0.000000 -0.897000"/><geometry><mesh filename="meshes/torso_7.stl" scale="0.001 0.001 0.001"/></geometry><material name="c7"><color rgba="0.933 0.941 0.949 1"/></material></visual>
+    <collision><origin xyz="0.000000 0.025199 0.244000"/><geometry><box size="0.326650 0.293938 0.488000"/></geometry></collision>
+  </link>
+  <link name="neck_link">
+    <inertial><origin xyz="0.000001 -0.001660 0.098473"/><mass value="0.1074"/><inertia ixx="0.000603639" ixy="0" ixz="0" iyy="0.000656404" iyz="0" izz="0.000565857"/></inertial>
+    <visual><origin xyz="-0.000000 -0.000000 -1.261000"/><geometry><mesh filename="meshes/neck_link_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
+    <visual><origin xyz="-0.000000 -0.000000 -1.261000"/><geometry><mesh filename="meshes/neck_link_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c8"><color rgba="0.431 0.443 0.463 1"/></material></visual>
+    <collision><origin xyz="0.000001 -0.001660 0.098473"/><geometry><box size="0.185918 0.169320 0.196946"/></geometry></collision>
+  </link>
+  <link name="head">
+    <inertial><origin xyz="0.000003 0.000371 0.036406"/><mass value="0.2599"/><inertia ixx="0.00215566" ixy="0" ixz="0" iyy="0.00196965" iyz="0" izz="0.00157344"/></inertial>
+    <visual><origin xyz="-0.000000 -0.000000 -1.457946"/><geometry><mesh filename="meshes/head_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c9"><color rgba="0.020 0.020 0.024 1"/></material></visual>
+    <visual><origin xyz="-0.000000 -0.000000 -1.457946"/><geometry><mesh filename="meshes/head_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c10"><color rgba="0.043 0.047 0.055 1"/></material></visual>
+    <visual><origin xyz="-0.000000 -0.000000 -1.457946"/><geometry><mesh filename="meshes/head_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c11"><color rgba="0.071 0.075 0.086 1"/></material></visual>
+    <visual><origin xyz="-0.000000 -0.000000 -1.457946"/><geometry><mesh filename="meshes/head_3.stl" scale="0.001 0.001 0.001"/></geometry><material name="c12"><color rgba="0.102 0.106 0.118 1"/></material></visual>
+    <visual><origin xyz="-0.000000 -0.000000 -1.457946"/><geometry><mesh filename="meshes/head_4.stl" scale="0.001 0.001 0.001"/></geometry><material name="c13"><color rgba="0.243 0.255 0.275 1"/></material></visual>
+    <visual><origin xyz="-0.000000 -0.000000 -1.457946"/><geometry><mesh filename="meshes/head_5.stl" scale="0.001 0.001 0.001"/></geometry><material name="c8"><color rgba="0.431 0.443 0.463 1"/></material></visual>
+    <visual><origin xyz="-0.000000 -0.000000 -1.457946"/><geometry><mesh filename="meshes/head_6.stl" scale="0.001 0.001 0.001"/></geometry><material name="c14"><color rgba="0.812 0.953 1.000 1"/></material></visual>
+    <visual><origin xyz="-0.000000 -0.000000 -1.457946"/><geometry><mesh filename="meshes/head_7.stl" scale="0.001 0.001 0.001"/></geometry><material name="c15"><color rgba="0.902 0.906 0.914 1"/></material></visual>
+    <visual><origin xyz="-0.000000 -0.000000 -1.457946"/><geometry><mesh filename="meshes/head_8.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <visual><origin xyz="-0.000000 -0.000000 -1.457946"/><geometry><mesh filename="meshes/head_9.stl" scale="0.001 0.001 0.001"/></geometry><material name="c16"><color rgba="0.945 0.949 0.957 1"/></material></visual>
+    <visual><origin xyz="-0.000000 -0.000000 -1.457946"/><geometry><mesh filename="meshes/head_10.stl" scale="0.001 0.001 0.001"/></geometry><material name="c17"><color rgba="0.957 0.961 0.965 1"/></material></visual>
+    <collision><origin xyz="0.000003 0.000371 0.036406"/><geometry><box size="0.178958 0.201527 0.242703"/></geometry></collision>
+  </link>
+  <link name="r_arm_link1">
+    <inertial><origin xyz="-0.086325 0.000000 0.000000"/><mass value="0.3313"/><inertia ixx="0.00102373" ixy="0" ixz="0" iyy="0.0013287" iyz="0" izz="0.0013287"/></inertial>
+    <visual><origin xyz="0.162000 -0.000000 -1.275000"/><geometry><mesh filename="meshes/r_arm_link1_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
+    <visual><origin xyz="0.162000 -0.000000 -1.275000"/><geometry><mesh filename="meshes/r_arm_link1_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <collision><origin xyz="-0.086325 0.000000 0.000000"/><geometry><box size="0.172000 0.136157 0.136157"/></geometry></collision>
+  </link>
+  <link name="r_arm_link2">
+    <inertial><origin xyz="-0.000325 0.000021 -0.030683"/><mass value="0.1798"/><inertia ixx="0.000654943" ixy="0" ixz="0" iyy="0.000642185" iyz="0" izz="0.000418666"/></inertial>
+    <visual><origin xyz="0.279000 -0.007000 -1.275000"/><geometry><mesh filename="meshes/r_arm_link2_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
+    <visual><origin xyz="0.279000 -0.007000 -1.275000"/><geometry><mesh filename="meshes/r_arm_link2_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <collision><origin xyz="-0.000325 0.000021 -0.030683"/><geometry><box size="0.116397 0.119999 0.171233"/></geometry></collision>
+  </link>
+  <link name="r_arm_link3">
+    <inertial><origin xyz="-0.000319 0.000021 -0.136600"/><mass value="0.2121"/><inertia ixx="0.00114958" ixy="0" ixz="0" iyy="0.00114936" iyz="0" izz="0.000353301"/></inertial>
+    <visual><origin xyz="0.279000 -0.007000 -1.178000"/><geometry><mesh filename="meshes/r_arm_link3_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
+    <visual><origin xyz="0.279000 -0.007000 -1.178000"/><geometry><mesh filename="meshes/r_arm_link3_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <collision><origin xyz="-0.000319 0.000021 -0.136600"/><geometry><box size="0.099938 0.100001 0.234600"/></geometry></collision>
+  </link>
+  <link name="r_arm_link4">
+    <inertial><origin xyz="0.001925 0.000021 -0.042400"/><mass value="0.0788"/><inertia ixx="0.000173936" ixy="0" ixz="0" iyy="0.000173936" iyz="0" izz="0.000126055"/></inertial>
+    <visual><origin xyz="0.283500 -0.007000 -0.974000"/><geometry><mesh filename="meshes/r_arm_link4_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
+    <visual><origin xyz="0.283500 -0.007000 -0.974000"/><geometry><mesh filename="meshes/r_arm_link4_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <collision><origin xyz="0.001925 0.000021 -0.042400"/><geometry><box size="0.098000 0.098000 0.130000"/></geometry></collision>
+  </link>
+  <link name="r_forearm">
+    <inertial><origin xyz="0.000007 -0.000059 -0.119995"/><mass value="0.0818"/><inertia ixx="0.000469858" ixy="0" ixz="0" iyy="0.000469656" iyz="0" izz="0.000154055"/></inertial>
+    <visual><origin xyz="0.282000 -0.007000 -0.867000"/><geometry><mesh filename="meshes/r_forearm_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c18"><color rgba="0.227 0.239 0.267 1"/></material></visual>
+    <visual><origin xyz="0.282000 -0.007000 -0.867000"/><geometry><mesh filename="meshes/r_forearm_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c19"><color rgba="0.914 0.914 0.894 1"/></material></visual>
+    <visual><origin xyz="0.282000 -0.007000 -0.867000"/><geometry><mesh filename="meshes/r_forearm_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="0.000007 -0.000059 -0.119995"/><geometry><box size="0.106215 0.106354 0.239991"/></geometry></collision>
+  </link>
+  <link name="r_hand_W">
+    <inertial><origin xyz="-0.012278 -0.000036 -0.010409"/><mass value="0.0161"/><inertia ixx="1.58043e-05" ixy="0" ixz="0" iyy="9.32732e-06" iyz="0" izz="1.53808e-05"/></inertial>
+    <visual><origin xyz="0.280100 -0.007040 -0.643800"/><geometry><mesh filename="meshes/r_hand_W_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c21"><color rgba="0.769 0.780 0.800 1"/></material></visual>
+    <visual><origin xyz="0.280100 -0.007040 -0.643800"/><geometry><mesh filename="meshes/r_hand_W_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="-0.012278 -0.000036 -0.010409"/><geometry><box size="0.057561 0.090187 0.060237"/></geometry></collision>
+  </link>
+  <link name="r_hand_H">
+    <inertial><origin xyz="-0.003168 -0.012828 -0.060957"/><mass value="0.0454"/><inertia ixx="0.000151451" ixy="0" ixz="0" iyy="9.45679e-05" iyz="0" izz="7.82877e-05"/></inertial>
+    <visual><origin xyz="0.280100 -0.007040 -0.619800"/><geometry><mesh filename="meshes/r_hand_H_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c18"><color rgba="0.227 0.239 0.267 1"/></material></visual>
+    <visual><origin xyz="0.280100 -0.007040 -0.619800"/><geometry><mesh filename="meshes/r_hand_H_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c21"><color rgba="0.769 0.780 0.800 1"/></material></visual>
+    <visual><origin xyz="0.280100 -0.007040 -0.619800"/><geometry><mesh filename="meshes/r_hand_H_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c22"><color rgba="0.851 0.765 0.682 1"/></material></visual>
+    <visual><origin xyz="0.280100 -0.007040 -0.619800"/><geometry><mesh filename="meshes/r_hand_H_3.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="-0.003168 -0.012828 -0.060957"/><geometry><box size="0.053174 0.133627 0.148854"/></geometry></collision>
+  </link>
+  <link name="r_hand_U">
+    <inertial><origin xyz="-0.003594 0.000118 -0.003800"/><mass value="0.0100"/><inertia ixx="8.92882e-07" ixy="0" ixz="0" iyy="6.80919e-07" iyz="0" izz="8.43455e-07"/></inertial>
+    <visual><origin xyz="0.287800 0.003160 -0.486700"/><geometry><mesh filename="meshes/r_hand_U_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c21"><color rgba="0.769 0.780 0.800 1"/></material></visual>
+    <visual><origin xyz="0.287800 0.003160 -0.486700"/><geometry><mesh filename="meshes/r_hand_U_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="-0.003594 0.000118 -0.003800"/><geometry><box size="0.019465 0.025164 0.020933"/></geometry></collision>
+  </link>
+  <link name="r_hand_P">
+    <inertial><origin xyz="-0.003328 -0.000361 -0.017332"/><mass value="0.0100"/><inertia ixx="2.6418e-06" ixy="0" ixz="0" iyy="2.48255e-06" iyz="0" izz="8.03795e-07"/></inertial>
+    <visual><origin xyz="0.287770 0.001800 -0.479000"/><geometry><mesh filename="meshes/r_hand_P_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c21"><color rgba="0.769 0.780 0.800 1"/></material></visual>
+    <visual><origin xyz="0.287770 0.001800 -0.479000"/><geometry><mesh filename="meshes/r_hand_P_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c22"><color rgba="0.851 0.765 0.682 1"/></material></visual>
+    <visual><origin xyz="0.287770 0.001800 -0.479000"/><geometry><mesh filename="meshes/r_hand_P_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="-0.003328 -0.000361 -0.017332"/><geometry><box size="0.019665 0.024038 0.050915"/></geometry></collision>
+  </link>
+  <link name="r_hand_I">
+    <inertial><origin xyz="-0.002737 0.000574 -0.016561"/><mass value="0.0100"/><inertia ixx="1.98483e-06" ixy="0" ixz="0" iyy="1.81531e-06" iyz="0" izz="6.78165e-07"/></inertial>
+    <visual><origin xyz="0.288540 0.001370 -0.442740"/><geometry><mesh filename="meshes/r_hand_I_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c22"><color rgba="0.851 0.765 0.682 1"/></material></visual>
+    <visual><origin xyz="0.288540 0.001370 -0.442740"/><geometry><mesh filename="meshes/r_hand_I_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="-0.002737 0.000574 -0.016561"/><geometry><box size="0.017470 0.022552 0.043280"/></geometry></collision>
+  </link>
+  <link name="r_hand_D">
+    <inertial><origin xyz="-0.001741 0.000249 -0.010803"/><mass value="0.0100"/><inertia ixx="1.33015e-06" ixy="0" ixz="0" iyy="1.17715e-06" iyz="0" izz="5.53216e-07"/></inertial>
+    <visual><origin xyz="0.289240 0.000050 -0.409610"/><geometry><mesh filename="meshes/r_hand_D_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c21"><color rgba="0.769 0.780 0.800 1"/></material></visual>
+    <visual><origin xyz="0.289240 0.000050 -0.409610"/><geometry><mesh filename="meshes/r_hand_D_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c22"><color rgba="0.851 0.765 0.682 1"/></material></visual>
+    <visual><origin xyz="0.289240 0.000050 -0.409610"/><geometry><mesh filename="meshes/r_hand_D_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="-0.001741 0.000249 -0.010803"/><geometry><box size="0.015496 0.020585 0.034241"/></geometry></collision>
+  </link>
+  <link name="r_hand_U_I">
+    <inertial><origin xyz="-0.003595 0.000022 -0.003593"/><mass value="0.0100"/><inertia ixx="8.70685e-07" ixy="0" ixz="0" iyy="6.65399e-07" iyz="0" izz="8.36381e-07"/></inertial>
+    <visual><origin xyz="0.287539 0.031872 -0.499024"/><geometry><mesh filename="meshes/r_hand_U_I_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c21"><color rgba="0.769 0.780 0.800 1"/></material></visual>
+    <visual><origin xyz="0.287539 0.031872 -0.499024"/><geometry><mesh filename="meshes/r_hand_U_I_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="-0.003595 0.000022 -0.003593"/><geometry><box size="0.019459 0.025000 0.020490"/></geometry></collision>
+  </link>
+  <link name="r_hand_P_I">
+    <inertial><origin xyz="-0.003327 -0.001029 -0.017253"/><mass value="0.0100"/><inertia ixx="2.54833e-06" ixy="0" ixz="0" iyy="2.42062e-06" iyz="0" izz="7.72486e-07"/></inertial>
+    <visual><origin xyz="0.287510 0.030821 -0.491276"/><geometry><mesh filename="meshes/r_hand_P_I_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c21"><color rgba="0.769 0.780 0.800 1"/></material></visual>
+    <visual><origin xyz="0.287510 0.030821 -0.491276"/><geometry><mesh filename="meshes/r_hand_P_I_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c22"><color rgba="0.851 0.765 0.682 1"/></material></visual>
+    <visual><origin xyz="0.287510 0.030821 -0.491276"/><geometry><mesh filename="meshes/r_hand_P_I_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="-0.003327 -0.001029 -0.017253"/><geometry><box size="0.019669 0.023240 0.050178"/></geometry></collision>
+  </link>
+  <link name="r_hand_I_I">
+    <inertial><origin xyz="-0.002739 -0.000007 -0.016574"/><mass value="0.0100"/><inertia ixx="1.95529e-06" ixy="0" ixz="0" iyy="1.80615e-06" iyz="0" izz="6.57525e-07"/></inertial>
+    <visual><origin xyz="0.288279 0.031843 -0.455028"/><geometry><mesh filename="meshes/r_hand_I_I_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c22"><color rgba="0.851 0.765 0.682 1"/></material></visual>
+    <visual><origin xyz="0.288279 0.031843 -0.455028"/><geometry><mesh filename="meshes/r_hand_I_I_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="-0.002739 -0.000007 -0.016574"/><geometry><box size="0.017465 0.022000 0.043155"/></geometry></collision>
+  </link>
+  <link name="r_hand_D_I">
+    <inertial><origin xyz="-0.001743 0.000000 -0.010930"/><mass value="0.0100"/><inertia ixx="1.30931e-06" ixy="0" ixz="0" iyy="1.15555e-06" iyz="0" izz="5.53583e-07"/></inertial>
+    <visual><origin xyz="0.288980 0.031850 -0.421872"/><geometry><mesh filename="meshes/r_hand_D_I_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c21"><color rgba="0.769 0.780 0.800 1"/></material></visual>
+    <visual><origin xyz="0.288980 0.031850 -0.421872"/><geometry><mesh filename="meshes/r_hand_D_I_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c22"><color rgba="0.851 0.765 0.682 1"/></material></visual>
+    <visual><origin xyz="0.288980 0.031850 -0.421872"/><geometry><mesh filename="meshes/r_hand_D_I_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="-0.001743 0.000000 -0.010930"/><geometry><box size="0.015488 0.020601 0.033864"/></geometry></collision>
+  </link>
+  <link name="r_hand_U_R">
+    <inertial><origin xyz="-0.003587 0.000455 -0.004124"/><mass value="0.0100"/><inertia ixx="9.39036e-07" ixy="0" ixz="0" iyy="7.04633e-07" iyz="0" izz="8.66912e-07"/></inertial>
+    <visual><origin xyz="0.287499 -0.022520 -0.500846"/><geometry><mesh filename="meshes/r_hand_U_R_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c21"><color rgba="0.769 0.780 0.800 1"/></material></visual>
+    <visual><origin xyz="0.287499 -0.022520 -0.500846"/><geometry><mesh filename="meshes/r_hand_U_R_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="-0.003587 0.000455 -0.004124"/><geometry><box size="0.019481 0.025706 0.021588"/></geometry></collision>
+  </link>
+  <link name="r_hand_P_R">
+    <inertial><origin xyz="-0.003328 0.001199 -0.017373"/><mass value="0.0100"/><inertia ixx="2.83276e-06" ixy="0" ixz="0" iyy="2.5759e-06" iyz="0" izz="9.01375e-07"/></inertial>
+    <visual><origin xyz="0.287467 -0.024381 -0.493252"/><geometry><mesh filename="meshes/r_hand_P_R_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c21"><color rgba="0.769 0.780 0.800 1"/></material></visual>
+    <visual><origin xyz="0.287467 -0.024381 -0.493252"/><geometry><mesh filename="meshes/r_hand_P_R_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c22"><color rgba="0.851 0.765 0.682 1"/></material></visual>
+    <visual><origin xyz="0.287467 -0.024381 -0.493252"/><geometry><mesh filename="meshes/r_hand_P_R_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="-0.003328 0.001199 -0.017373"/><geometry><box size="0.019665 0.026362 0.052004"/></geometry></collision>
+  </link>
+  <link name="r_hand_I_R">
+    <inertial><origin xyz="-0.002732 0.001524 -0.016483"/><mass value="0.0100"/><inertia ixx="2.02051e-06" ixy="0" ixz="0" iyy="1.81955e-06" iyz="0" izz="7.10044e-07"/></inertial>
+    <visual><origin xyz="0.288235 -0.027186 -0.457098"/><geometry><mesh filename="meshes/r_hand_I_R_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c22"><color rgba="0.851 0.765 0.682 1"/></material></visual>
+    <visual><origin xyz="0.288235 -0.027186 -0.457098"/><geometry><mesh filename="meshes/r_hand_I_R_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="-0.002732 0.001524 -0.016483"/><geometry><box size="0.017477 0.023380 0.043336"/></geometry></collision>
+  </link>
+  <link name="r_hand_D_R">
+    <inertial><origin xyz="-0.001736 0.000656 -0.010593"/><mass value="0.0100"/><inertia ixx="1.35945e-06" ixy="0" ixz="0" iyy="1.21013e-06" iyz="0" izz="5.50164e-07"/></inertial>
+    <visual><origin xyz="0.288932 -0.030675 -0.424126"/><geometry><mesh filename="meshes/r_hand_D_R_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c21"><color rgba="0.769 0.780 0.800 1"/></material></visual>
+    <visual><origin xyz="0.288932 -0.030675 -0.424126"/><geometry><mesh filename="meshes/r_hand_D_R_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c22"><color rgba="0.851 0.765 0.682 1"/></material></visual>
+    <visual><origin xyz="0.288932 -0.030675 -0.424126"/><geometry><mesh filename="meshes/r_hand_D_R_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="-0.001736 0.000656 -0.010593"/><geometry><box size="0.015508 0.020486 0.034809"/></geometry></collision>
+  </link>
+  <link name="r_hand_U_L">
+    <inertial><origin xyz="-0.003571 0.001344 -0.004488"/><mass value="0.0100"/><inertia ixx="1.06226e-06" ixy="0" ixz="0" iyy="7.70711e-07" iyz="0" izz="9.26333e-07"/></inertial>
+    <visual><origin xyz="0.287032 -0.041706 -0.522878"/><geometry><mesh filename="meshes/r_hand_U_L_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c21"><color rgba="0.769 0.780 0.800 1"/></material></visual>
+    <visual><origin xyz="0.287032 -0.041706 -0.522878"/><geometry><mesh filename="meshes/r_hand_U_L_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="-0.003571 0.001344 -0.004488"/><geometry><box size="0.019516 0.027032 0.023323"/></geometry></collision>
+  </link>
+  <link name="r_hand_P_L">
+    <inertial><origin xyz="-0.003327 0.003857 -0.017180"/><mass value="0.0100"/><inertia ixx="3.29818e-06" ixy="0" ixz="0" iyy="2.72164e-06" iyz="0" izz="1.22262e-06"/></inertial>
+    <visual><origin xyz="0.286992 -0.044668 -0.515642"/><geometry><mesh filename="meshes/r_hand_P_L_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c21"><color rgba="0.769 0.780 0.800 1"/></material></visual>
+    <visual><origin xyz="0.286992 -0.044668 -0.515642"/><geometry><mesh filename="meshes/r_hand_P_L_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c22"><color rgba="0.851 0.765 0.682 1"/></material></visual>
+    <visual><origin xyz="0.286992 -0.044668 -0.515642"/><geometry><mesh filename="meshes/r_hand_P_L_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="-0.003327 0.003857 -0.017180"/><geometry><box size="0.019689 0.032856 0.053650"/></geometry></collision>
+  </link>
+  <link name="r_hand_I_L">
+    <inertial><origin xyz="-0.002715 0.003640 -0.016045"/><mass value="0.0100"/><inertia ixx="2.04048e-06" ixy="0" ixz="0" iyy="1.77992e-06" iyz="0" izz="7.70652e-07"/></inertial>
+    <visual><origin xyz="0.287742 -0.052781 -0.480298"/><geometry><mesh filename="meshes/r_hand_I_L_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c22"><color rgba="0.851 0.765 0.682 1"/></material></visual>
+    <visual><origin xyz="0.287742 -0.052781 -0.480298"/><geometry><mesh filename="meshes/r_hand_I_L_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="-0.002715 0.003640 -0.016045"/><geometry><box size="0.017495 0.024874 0.042777"/></geometry></collision>
+  </link>
+  <link name="r_hand_D_L">
+    <inertial><origin xyz="-0.001723 0.002119 -0.009950"/><mass value="0.0100"/><inertia ixx="1.48337e-06" ixy="0" ixz="0" iyy="1.25347e-06" iyz="0" izz="6.31993e-07"/></inertial>
+    <visual><origin xyz="0.288420 -0.061100 -0.448202"/><geometry><mesh filename="meshes/r_hand_D_L_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c21"><color rgba="0.769 0.780 0.800 1"/></material></visual>
+    <visual><origin xyz="0.288420 -0.061100 -0.448202"/><geometry><mesh filename="meshes/r_hand_D_L_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c22"><color rgba="0.851 0.765 0.682 1"/></material></visual>
+    <visual><origin xyz="0.288420 -0.061100 -0.448202"/><geometry><mesh filename="meshes/r_hand_D_L_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="-0.001723 0.002119 -0.009950"/><geometry><box size="0.015532 0.022741 0.035537"/></geometry></collision>
+  </link>
+  <link name="r_hand_TC">
+    <inertial><origin xyz="0.010885 -0.006681 -0.022601"/><mass value="0.0100"/><inertia ixx="3.93235e-06" ixy="0" ixz="0" iyy="4.50923e-06" iyz="0" izz="3.92255e-06"/></inertial>
+    <visual><origin xyz="0.283200 0.021260 -0.578800"/><geometry><mesh filename="meshes/r_hand_TC_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="0.010885 -0.006681 -0.022601"/><geometry><box size="0.051958 0.044804 0.052071"/></geometry></collision>
+  </link>
+  <link name="r_hand_TF">
+    <inertial><origin xyz="-0.010928 -0.008609 -0.003352"/><mass value="0.0100"/><inertia ixx="3.45976e-06" ixy="0" ixz="0" iyy="3.13121e-06" iyz="0" izz="2.73464e-06"/></inertial>
+    <visual><origin xyz="0.260900 0.038260 -0.554400"/><geometry><mesh filename="meshes/r_hand_TF_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="-0.010928 -0.008609 -0.003352"/><geometry><box size="0.037996 0.042871 0.048102"/></geometry></collision>
+  </link>
+  <link name="r_hand_TP">
+    <inertial><origin xyz="0.010959 -0.006525 -0.013178"/><mass value="0.0100"/><inertia ixx="3.15539e-06" ixy="0" ixz="0" iyy="3.60085e-06" iyz="0" izz="2.6119e-06"/></inertial>
+    <visual><origin xyz="0.260039 0.060601 -0.534490"/><geometry><mesh filename="meshes/r_hand_TP_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c22"><color rgba="0.851 0.765 0.682 1"/></material></visual>
+    <visual><origin xyz="0.260039 0.060601 -0.534490"/><geometry><mesh filename="meshes/r_hand_TP_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="0.010959 -0.006525 -0.013178"/><geometry><box size="0.042830 0.036054 0.049866"/></geometry></collision>
+  </link>
+  <link name="r_hand_TD">
+    <inertial><origin xyz="0.005569 -0.002879 -0.006077"/><mass value="0.0100"/><inertia ixx="1.71672e-06" ixy="0" ixz="0" iyy="1.84157e-06" iyz="0" izz="1.43486e-06"/></inertial>
+    <visual><origin xyz="0.235884 0.076050 -0.505184"/><geometry><mesh filename="meshes/r_hand_TD_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c22"><color rgba="0.851 0.765 0.682 1"/></material></visual>
+    <visual><origin xyz="0.235884 0.076050 -0.505184"/><geometry><mesh filename="meshes/r_hand_TD_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="0.005569 -0.002879 -0.006077"/><geometry><box size="0.030591 0.028036 0.035694"/></geometry></collision>
+  </link>
+  <link name="l_arm_link1">
+    <inertial><origin xyz="0.086325 0.000000 0.000000"/><mass value="0.3313"/><inertia ixx="0.0010237" ixy="0" ixz="0" iyy="0.00132866" iyz="0" izz="0.00132866"/></inertial>
+    <visual><origin xyz="-0.162000 -0.000000 -1.275000"/><geometry><mesh filename="meshes/l_arm_link1_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
+    <visual><origin xyz="-0.162000 -0.000000 -1.275000"/><geometry><mesh filename="meshes/l_arm_link1_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <collision><origin xyz="0.086325 0.000000 0.000000"/><geometry><box size="0.172000 0.136157 0.136157"/></geometry></collision>
+  </link>
+  <link name="l_arm_link2">
+    <inertial><origin xyz="0.000325 0.000021 -0.030683"/><mass value="0.1719"/><inertia ixx="0.000626264" ixy="0" ixz="0" iyy="0.000614064" iyz="0" izz="0.000400333"/></inertial>
+    <visual><origin xyz="-0.279000 -0.007000 -1.275000"/><geometry><mesh filename="meshes/l_arm_link2_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
+    <visual><origin xyz="-0.279000 -0.007000 -1.275000"/><geometry><mesh filename="meshes/l_arm_link2_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <collision><origin xyz="0.000325 0.000021 -0.030683"/><geometry><box size="0.116397 0.119999 0.171233"/></geometry></collision>
+  </link>
+  <link name="l_arm_link3">
+    <inertial><origin xyz="0.000319 0.000021 -0.136600"/><mass value="0.2121"/><inertia ixx="0.00114958" ixy="0" ixz="0" iyy="0.00114936" iyz="0" izz="0.0003533"/></inertial>
+    <visual><origin xyz="-0.279000 -0.007000 -1.178000"/><geometry><mesh filename="meshes/l_arm_link3_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
+    <visual><origin xyz="-0.279000 -0.007000 -1.178000"/><geometry><mesh filename="meshes/l_arm_link3_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <collision><origin xyz="0.000319 0.000021 -0.136600"/><geometry><box size="0.099938 0.100001 0.234600"/></geometry></collision>
+  </link>
+  <link name="l_arm_link4">
+    <inertial><origin xyz="-0.001925 0.000021 -0.042400"/><mass value="0.0788"/><inertia ixx="0.000173935" ixy="0" ixz="0" iyy="0.000173935" iyz="0" izz="0.000126054"/></inertial>
+    <visual><origin xyz="-0.283500 -0.007000 -0.974000"/><geometry><mesh filename="meshes/l_arm_link4_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
+    <visual><origin xyz="-0.283500 -0.007000 -0.974000"/><geometry><mesh filename="meshes/l_arm_link4_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <collision><origin xyz="-0.001925 0.000021 -0.042400"/><geometry><box size="0.098000 0.098000 0.130000"/></geometry></collision>
+  </link>
+  <link name="l_forearm">
+    <inertial><origin xyz="-0.000007 -0.000059 -0.119995"/><mass value="0.0818"/><inertia ixx="0.000469858" ixy="0" ixz="0" iyy="0.000469656" iyz="0" izz="0.000154055"/></inertial>
+    <visual><origin xyz="-0.282000 -0.007000 -0.867000"/><geometry><mesh filename="meshes/l_forearm_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c18"><color rgba="0.227 0.239 0.267 1"/></material></visual>
+    <visual><origin xyz="-0.282000 -0.007000 -0.867000"/><geometry><mesh filename="meshes/l_forearm_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c19"><color rgba="0.914 0.914 0.894 1"/></material></visual>
+    <visual><origin xyz="-0.282000 -0.007000 -0.867000"/><geometry><mesh filename="meshes/l_forearm_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="-0.000007 -0.000059 -0.119995"/><geometry><box size="0.106215 0.106354 0.239991"/></geometry></collision>
+  </link>
+  <link name="l_hand_W">
+    <inertial><origin xyz="0.012278 -0.000036 -0.010409"/><mass value="0.0161"/><inertia ixx="1.58043e-05" ixy="0" ixz="0" iyy="9.32732e-06" iyz="0" izz="1.53808e-05"/></inertial>
+    <visual><origin xyz="-0.280100 -0.007040 -0.643800"/><geometry><mesh filename="meshes/l_hand_W_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c21"><color rgba="0.769 0.780 0.800 1"/></material></visual>
+    <visual><origin xyz="-0.280100 -0.007040 -0.643800"/><geometry><mesh filename="meshes/l_hand_W_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="0.012278 -0.000036 -0.010409"/><geometry><box size="0.057561 0.090187 0.060237"/></geometry></collision>
+  </link>
+  <link name="l_hand_H">
+    <inertial><origin xyz="0.003168 -0.012828 -0.060957"/><mass value="0.0454"/><inertia ixx="0.000151451" ixy="0" ixz="0" iyy="9.45679e-05" iyz="0" izz="7.82877e-05"/></inertial>
+    <visual><origin xyz="-0.280100 -0.007040 -0.619800"/><geometry><mesh filename="meshes/l_hand_H_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c18"><color rgba="0.227 0.239 0.267 1"/></material></visual>
+    <visual><origin xyz="-0.280100 -0.007040 -0.619800"/><geometry><mesh filename="meshes/l_hand_H_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c21"><color rgba="0.769 0.780 0.800 1"/></material></visual>
+    <visual><origin xyz="-0.280100 -0.007040 -0.619800"/><geometry><mesh filename="meshes/l_hand_H_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c22"><color rgba="0.851 0.765 0.682 1"/></material></visual>
+    <visual><origin xyz="-0.280100 -0.007040 -0.619800"/><geometry><mesh filename="meshes/l_hand_H_3.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="0.003168 -0.012828 -0.060957"/><geometry><box size="0.053174 0.133627 0.148854"/></geometry></collision>
+  </link>
+  <link name="l_hand_U">
+    <inertial><origin xyz="0.003594 0.000118 -0.003800"/><mass value="0.0100"/><inertia ixx="8.92882e-07" ixy="0" ixz="0" iyy="6.80919e-07" iyz="0" izz="8.43455e-07"/></inertial>
+    <visual><origin xyz="-0.287800 0.003160 -0.486700"/><geometry><mesh filename="meshes/l_hand_U_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c21"><color rgba="0.769 0.780 0.800 1"/></material></visual>
+    <visual><origin xyz="-0.287800 0.003160 -0.486700"/><geometry><mesh filename="meshes/l_hand_U_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="0.003594 0.000118 -0.003800"/><geometry><box size="0.019465 0.025164 0.020933"/></geometry></collision>
+  </link>
+  <link name="l_hand_P">
+    <inertial><origin xyz="0.003328 -0.000361 -0.017332"/><mass value="0.0100"/><inertia ixx="2.6418e-06" ixy="0" ixz="0" iyy="2.48255e-06" iyz="0" izz="8.03795e-07"/></inertial>
+    <visual><origin xyz="-0.287770 0.001800 -0.479000"/><geometry><mesh filename="meshes/l_hand_P_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c21"><color rgba="0.769 0.780 0.800 1"/></material></visual>
+    <visual><origin xyz="-0.287770 0.001800 -0.479000"/><geometry><mesh filename="meshes/l_hand_P_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c22"><color rgba="0.851 0.765 0.682 1"/></material></visual>
+    <visual><origin xyz="-0.287770 0.001800 -0.479000"/><geometry><mesh filename="meshes/l_hand_P_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="0.003328 -0.000361 -0.017332"/><geometry><box size="0.019665 0.024038 0.050915"/></geometry></collision>
+  </link>
+  <link name="l_hand_I">
+    <inertial><origin xyz="0.002737 0.000574 -0.016561"/><mass value="0.0100"/><inertia ixx="1.98483e-06" ixy="0" ixz="0" iyy="1.81532e-06" iyz="0" izz="6.7817e-07"/></inertial>
+    <visual><origin xyz="-0.288540 0.001370 -0.442740"/><geometry><mesh filename="meshes/l_hand_I_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c22"><color rgba="0.851 0.765 0.682 1"/></material></visual>
+    <visual><origin xyz="-0.288540 0.001370 -0.442740"/><geometry><mesh filename="meshes/l_hand_I_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="0.002737 0.000574 -0.016561"/><geometry><box size="0.017470 0.022552 0.043280"/></geometry></collision>
+  </link>
+  <link name="l_hand_D">
+    <inertial><origin xyz="0.001741 0.000249 -0.010803"/><mass value="0.0100"/><inertia ixx="1.33015e-06" ixy="0" ixz="0" iyy="1.17715e-06" iyz="0" izz="5.53216e-07"/></inertial>
+    <visual><origin xyz="-0.289240 0.000050 -0.409610"/><geometry><mesh filename="meshes/l_hand_D_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c21"><color rgba="0.769 0.780 0.800 1"/></material></visual>
+    <visual><origin xyz="-0.289240 0.000050 -0.409610"/><geometry><mesh filename="meshes/l_hand_D_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c22"><color rgba="0.851 0.765 0.682 1"/></material></visual>
+    <visual><origin xyz="-0.289240 0.000050 -0.409610"/><geometry><mesh filename="meshes/l_hand_D_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="0.001741 0.000249 -0.010803"/><geometry><box size="0.015496 0.020585 0.034241"/></geometry></collision>
+  </link>
+  <link name="l_hand_U_I">
+    <inertial><origin xyz="0.003595 0.000022 -0.003593"/><mass value="0.0100"/><inertia ixx="8.70685e-07" ixy="0" ixz="0" iyy="6.65399e-07" iyz="0" izz="8.36381e-07"/></inertial>
+    <visual><origin xyz="-0.287539 0.031872 -0.499024"/><geometry><mesh filename="meshes/l_hand_U_I_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c21"><color rgba="0.769 0.780 0.800 1"/></material></visual>
+    <visual><origin xyz="-0.287539 0.031872 -0.499024"/><geometry><mesh filename="meshes/l_hand_U_I_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="0.003595 0.000022 -0.003593"/><geometry><box size="0.019459 0.025000 0.020490"/></geometry></collision>
+  </link>
+  <link name="l_hand_P_I">
+    <inertial><origin xyz="0.003327 -0.001029 -0.017253"/><mass value="0.0100"/><inertia ixx="2.54833e-06" ixy="0" ixz="0" iyy="2.42062e-06" iyz="0" izz="7.72486e-07"/></inertial>
+    <visual><origin xyz="-0.287510 0.030821 -0.491276"/><geometry><mesh filename="meshes/l_hand_P_I_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c21"><color rgba="0.769 0.780 0.800 1"/></material></visual>
+    <visual><origin xyz="-0.287510 0.030821 -0.491276"/><geometry><mesh filename="meshes/l_hand_P_I_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c22"><color rgba="0.851 0.765 0.682 1"/></material></visual>
+    <visual><origin xyz="-0.287510 0.030821 -0.491276"/><geometry><mesh filename="meshes/l_hand_P_I_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="0.003327 -0.001029 -0.017253"/><geometry><box size="0.019669 0.023240 0.050178"/></geometry></collision>
+  </link>
+  <link name="l_hand_I_I">
+    <inertial><origin xyz="0.002739 -0.000007 -0.016574"/><mass value="0.0100"/><inertia ixx="1.95529e-06" ixy="0" ixz="0" iyy="1.80615e-06" iyz="0" izz="6.57527e-07"/></inertial>
+    <visual><origin xyz="-0.288279 0.031843 -0.455028"/><geometry><mesh filename="meshes/l_hand_I_I_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c22"><color rgba="0.851 0.765 0.682 1"/></material></visual>
+    <visual><origin xyz="-0.288279 0.031843 -0.455028"/><geometry><mesh filename="meshes/l_hand_I_I_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="0.002739 -0.000007 -0.016574"/><geometry><box size="0.017465 0.022000 0.043155"/></geometry></collision>
+  </link>
+  <link name="l_hand_D_I">
+    <inertial><origin xyz="0.001743 0.000000 -0.010930"/><mass value="0.0100"/><inertia ixx="1.30931e-06" ixy="0" ixz="0" iyy="1.15555e-06" iyz="0" izz="5.53583e-07"/></inertial>
+    <visual><origin xyz="-0.288980 0.031850 -0.421872"/><geometry><mesh filename="meshes/l_hand_D_I_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c21"><color rgba="0.769 0.780 0.800 1"/></material></visual>
+    <visual><origin xyz="-0.288980 0.031850 -0.421872"/><geometry><mesh filename="meshes/l_hand_D_I_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c22"><color rgba="0.851 0.765 0.682 1"/></material></visual>
+    <visual><origin xyz="-0.288980 0.031850 -0.421872"/><geometry><mesh filename="meshes/l_hand_D_I_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="0.001743 0.000000 -0.010930"/><geometry><box size="0.015488 0.020601 0.033864"/></geometry></collision>
+  </link>
+  <link name="l_hand_U_R">
+    <inertial><origin xyz="0.003587 0.000455 -0.004124"/><mass value="0.0100"/><inertia ixx="9.39036e-07" ixy="0" ixz="0" iyy="7.04633e-07" iyz="0" izz="8.66912e-07"/></inertial>
+    <visual><origin xyz="-0.287499 -0.022520 -0.500846"/><geometry><mesh filename="meshes/l_hand_U_R_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c21"><color rgba="0.769 0.780 0.800 1"/></material></visual>
+    <visual><origin xyz="-0.287499 -0.022520 -0.500846"/><geometry><mesh filename="meshes/l_hand_U_R_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="0.003587 0.000455 -0.004124"/><geometry><box size="0.019481 0.025706 0.021588"/></geometry></collision>
+  </link>
+  <link name="l_hand_P_R">
+    <inertial><origin xyz="0.003328 0.001199 -0.017373"/><mass value="0.0100"/><inertia ixx="2.83276e-06" ixy="0" ixz="0" iyy="2.5759e-06" iyz="0" izz="9.01375e-07"/></inertial>
+    <visual><origin xyz="-0.287467 -0.024381 -0.493252"/><geometry><mesh filename="meshes/l_hand_P_R_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c21"><color rgba="0.769 0.780 0.800 1"/></material></visual>
+    <visual><origin xyz="-0.287467 -0.024381 -0.493252"/><geometry><mesh filename="meshes/l_hand_P_R_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c22"><color rgba="0.851 0.765 0.682 1"/></material></visual>
+    <visual><origin xyz="-0.287467 -0.024381 -0.493252"/><geometry><mesh filename="meshes/l_hand_P_R_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="0.003328 0.001199 -0.017373"/><geometry><box size="0.019665 0.026362 0.052004"/></geometry></collision>
+  </link>
+  <link name="l_hand_I_R">
+    <inertial><origin xyz="0.002732 0.001524 -0.016483"/><mass value="0.0100"/><inertia ixx="2.02051e-06" ixy="0" ixz="0" iyy="1.81956e-06" iyz="0" izz="7.10054e-07"/></inertial>
+    <visual><origin xyz="-0.288235 -0.027186 -0.457098"/><geometry><mesh filename="meshes/l_hand_I_R_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c22"><color rgba="0.851 0.765 0.682 1"/></material></visual>
+    <visual><origin xyz="-0.288235 -0.027186 -0.457098"/><geometry><mesh filename="meshes/l_hand_I_R_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="0.002732 0.001524 -0.016483"/><geometry><box size="0.017477 0.023380 0.043336"/></geometry></collision>
+  </link>
+  <link name="l_hand_D_R">
+    <inertial><origin xyz="0.001736 0.000656 -0.010593"/><mass value="0.0100"/><inertia ixx="1.35945e-06" ixy="0" ixz="0" iyy="1.21013e-06" iyz="0" izz="5.50164e-07"/></inertial>
+    <visual><origin xyz="-0.288932 -0.030675 -0.424126"/><geometry><mesh filename="meshes/l_hand_D_R_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c21"><color rgba="0.769 0.780 0.800 1"/></material></visual>
+    <visual><origin xyz="-0.288932 -0.030675 -0.424126"/><geometry><mesh filename="meshes/l_hand_D_R_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c22"><color rgba="0.851 0.765 0.682 1"/></material></visual>
+    <visual><origin xyz="-0.288932 -0.030675 -0.424126"/><geometry><mesh filename="meshes/l_hand_D_R_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="0.001736 0.000656 -0.010593"/><geometry><box size="0.015508 0.020486 0.034809"/></geometry></collision>
+  </link>
+  <link name="l_hand_U_L">
+    <inertial><origin xyz="0.003571 0.001344 -0.004488"/><mass value="0.0100"/><inertia ixx="1.06226e-06" ixy="0" ixz="0" iyy="7.70711e-07" iyz="0" izz="9.26333e-07"/></inertial>
+    <visual><origin xyz="-0.287032 -0.041706 -0.522878"/><geometry><mesh filename="meshes/l_hand_U_L_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c21"><color rgba="0.769 0.780 0.800 1"/></material></visual>
+    <visual><origin xyz="-0.287032 -0.041706 -0.522878"/><geometry><mesh filename="meshes/l_hand_U_L_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="0.003571 0.001344 -0.004488"/><geometry><box size="0.019516 0.027032 0.023323"/></geometry></collision>
+  </link>
+  <link name="l_hand_P_L">
+    <inertial><origin xyz="0.003316 0.003857 -0.017180"/><mass value="0.0100"/><inertia ixx="3.29818e-06" ixy="0" ixz="0" iyy="2.72088e-06" iyz="0" izz="1.22186e-06"/></inertial>
+    <visual><origin xyz="-0.286992 -0.044668 -0.515642"/><geometry><mesh filename="meshes/l_hand_P_L_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c21"><color rgba="0.769 0.780 0.800 1"/></material></visual>
+    <visual><origin xyz="-0.286992 -0.044668 -0.515642"/><geometry><mesh filename="meshes/l_hand_P_L_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c22"><color rgba="0.851 0.765 0.682 1"/></material></visual>
+    <visual><origin xyz="-0.286992 -0.044668 -0.515642"/><geometry><mesh filename="meshes/l_hand_P_L_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="0.003316 0.003857 -0.017180"/><geometry><box size="0.019666 0.032856 0.053650"/></geometry></collision>
+  </link>
+  <link name="l_hand_I_L">
+    <inertial><origin xyz="0.002715 0.003640 -0.016045"/><mass value="0.0100"/><inertia ixx="2.04048e-06" ixy="0" ixz="0" iyy="1.77993e-06" iyz="0" izz="7.70664e-07"/></inertial>
+    <visual><origin xyz="-0.287742 -0.052781 -0.480298"/><geometry><mesh filename="meshes/l_hand_I_L_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c22"><color rgba="0.851 0.765 0.682 1"/></material></visual>
+    <visual><origin xyz="-0.287742 -0.052781 -0.480298"/><geometry><mesh filename="meshes/l_hand_I_L_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="0.002715 0.003640 -0.016045"/><geometry><box size="0.017495 0.024874 0.042777"/></geometry></collision>
+  </link>
+  <link name="l_hand_D_L">
+    <inertial><origin xyz="0.001723 0.002119 -0.009950"/><mass value="0.0100"/><inertia ixx="1.48337e-06" ixy="0" ixz="0" iyy="1.25347e-06" iyz="0" izz="6.31993e-07"/></inertial>
+    <visual><origin xyz="-0.288420 -0.061100 -0.448202"/><geometry><mesh filename="meshes/l_hand_D_L_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c21"><color rgba="0.769 0.780 0.800 1"/></material></visual>
+    <visual><origin xyz="-0.288420 -0.061100 -0.448202"/><geometry><mesh filename="meshes/l_hand_D_L_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c22"><color rgba="0.851 0.765 0.682 1"/></material></visual>
+    <visual><origin xyz="-0.288420 -0.061100 -0.448202"/><geometry><mesh filename="meshes/l_hand_D_L_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="0.001723 0.002119 -0.009950"/><geometry><box size="0.015532 0.022741 0.035537"/></geometry></collision>
+  </link>
+  <link name="l_hand_TC">
+    <inertial><origin xyz="-0.010885 -0.006681 -0.022601"/><mass value="0.0100"/><inertia ixx="3.93235e-06" ixy="0" ixz="0" iyy="4.50923e-06" iyz="0" izz="3.92255e-06"/></inertial>
+    <visual><origin xyz="-0.283200 0.021260 -0.578800"/><geometry><mesh filename="meshes/l_hand_TC_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="-0.010885 -0.006681 -0.022601"/><geometry><box size="0.051958 0.044804 0.052071"/></geometry></collision>
+  </link>
+  <link name="l_hand_TF">
+    <inertial><origin xyz="0.010928 -0.008609 -0.003352"/><mass value="0.0100"/><inertia ixx="3.45976e-06" ixy="0" ixz="0" iyy="3.13121e-06" iyz="0" izz="2.73464e-06"/></inertial>
+    <visual><origin xyz="-0.260900 0.038260 -0.554400"/><geometry><mesh filename="meshes/l_hand_TF_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="0.010928 -0.008609 -0.003352"/><geometry><box size="0.037996 0.042871 0.048102"/></geometry></collision>
+  </link>
+  <link name="l_hand_TP">
+    <inertial><origin xyz="-0.010959 -0.006525 -0.013178"/><mass value="0.0100"/><inertia ixx="3.15539e-06" ixy="0" ixz="0" iyy="3.60085e-06" iyz="0" izz="2.6119e-06"/></inertial>
+    <visual><origin xyz="-0.260039 0.060601 -0.534490"/><geometry><mesh filename="meshes/l_hand_TP_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c22"><color rgba="0.851 0.765 0.682 1"/></material></visual>
+    <visual><origin xyz="-0.260039 0.060601 -0.534490"/><geometry><mesh filename="meshes/l_hand_TP_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="-0.010959 -0.006525 -0.013178"/><geometry><box size="0.042830 0.036054 0.049866"/></geometry></collision>
+  </link>
+  <link name="l_hand_TD">
+    <inertial><origin xyz="-0.005569 -0.002879 -0.006077"/><mass value="0.0100"/><inertia ixx="1.71672e-06" ixy="0" ixz="0" iyy="1.84157e-06" iyz="0" izz="1.43486e-06"/></inertial>
+    <visual><origin xyz="-0.235884 0.076050 -0.505184"/><geometry><mesh filename="meshes/l_hand_TD_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c22"><color rgba="0.851 0.765 0.682 1"/></material></visual>
+    <visual><origin xyz="-0.235884 0.076050 -0.505184"/><geometry><mesh filename="meshes/l_hand_TD_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c20"><color rgba="0.949 0.949 0.933 1"/></material></visual>
+    <collision><origin xyz="-0.005569 -0.002879 -0.006077"/><geometry><box size="0.030591 0.028036 0.035694"/></geometry></collision>
+  </link>
+  <link name="l_hip_pitch_link">
+    <inertial><origin xyz="0.059487 0.038047 0.000083"/><mass value="0.1980"/><inertia ixx="0.000482156" ixy="0" ixz="0" iyy="0.000380218" iyz="0" izz="0.000545783"/></inertial>
+    <visual><origin xyz="-0.084000 -0.000000 -0.828000"/><geometry><mesh filename="meshes/l_hip_pitch_link_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
+    <visual><origin xyz="-0.084000 -0.000000 -0.828000"/><geometry><mesh filename="meshes/l_hip_pitch_link_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <collision><origin xyz="0.059487 0.038047 0.000083"/><geometry><box size="0.115974 0.140100 0.097948"/></geometry></collision>
+  </link>
+  <link name="l_hip_roll_link">
+    <inertial><origin xyz="0.000463 0.027948 -0.048045"/><mass value="0.2332"/><inertia ixx="0.00106304" ixy="0" ixz="0" iyy="0.000842545" iyz="0" izz="0.000699892"/></inertial>
+    <visual><origin xyz="-0.153000 -0.000000 -0.828000"/><geometry><mesh filename="meshes/l_hip_roll_link_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
+    <visual><origin xyz="-0.153000 -0.000000 -0.828000"/><geometry><mesh filename="meshes/l_hip_roll_link_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <collision><origin xyz="0.000463 0.027948 -0.048045"/><geometry><box size="0.111070 0.153898 0.176143"/></geometry></collision>
+  </link>
+  <link name="l_thigh">
+    <inertial><origin xyz="-0.009400 -0.000011 -0.152017"/><mass value="0.3566"/><inertia ixx="0.00311933" ixy="0" ixz="0" iyy="0.00324641" iyz="0" izz="0.000697754"/></inertial>
+    <visual><origin xyz="-0.152000 -0.000000 -0.697500"/><geometry><mesh filename="meshes/l_thigh_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
+    <visual><origin xyz="-0.152000 -0.000000 -0.697500"/><geometry><mesh filename="meshes/l_thigh_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c23"><color rgba="0.604 0.620 0.643 1"/></material></visual>
+    <visual><origin xyz="-0.152000 -0.000000 -0.697500"/><geometry><mesh filename="meshes/l_thigh_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <collision><origin xyz="-0.009400 -0.000011 -0.152017"/><geometry><box size="0.117800 0.097985 0.308800"/></geometry></collision>
+  </link>
+  <link name="l_shank_foot">
+    <inertial><origin xyz="-0.012150 0.015253 -0.190467"/><mass value="0.4993"/><inertia ixx="0.00983921" ixy="0" ixz="0" iyy="0.00971779" iyz="0" izz="0.00108675"/></inertial>
+    <visual><origin xyz="-0.152000 -0.000000 -0.436000"/><geometry><mesh filename="meshes/l_shank_foot_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
+    <visual><origin xyz="-0.152000 -0.000000 -0.436000"/><geometry><mesh filename="meshes/l_shank_foot_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c23"><color rgba="0.604 0.620 0.643 1"/></material></visual>
+    <visual><origin xyz="-0.152000 -0.000000 -0.436000"/><geometry><mesh filename="meshes/l_shank_foot_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <collision><origin xyz="-0.012150 0.015253 -0.190467"/><geometry><box size="0.107700 0.120487 0.471100"/></geometry></collision>
+  </link>
+  <link name="l_ankle_cross">
+    <inertial><origin xyz="0.000000 0.000000 0.000000"/><mass value="0.0100"/><inertia ixx="1.66667e-07" ixy="0" ixz="0" iyy="1.66667e-07" iyz="0" izz="1.66667e-07"/></inertial>
+    <collision><origin xyz="0.000000 0.000000 0.000000"/><geometry><box size="0.010000 0.010000 0.010000"/></geometry></collision>
+  </link>
+  <link name="l_foot">
+    <inertial><origin xyz="-0.008800 -0.034625 -0.002217"/><mass value="0.1397"/><inertia ixx="0.000771188" ixy="0" ixz="0" iyy="0.000222215" iyz="0" izz="0.000827527"/></inertial>
+    <visual><origin xyz="-0.153000 0.007000 -0.024500"/><geometry><mesh filename="meshes/l_foot_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <collision><origin xyz="-0.008800 -0.034625 -0.002217"/><geometry><box size="0.109372 0.243131 0.084400"/></geometry></collision>
+  </link>
+  <link name="r_hip_pitch_link">
+    <inertial><origin xyz="-0.059487 0.038047 0.000083"/><mass value="0.1980"/><inertia ixx="0.000482156" ixy="0" ixz="0" iyy="0.000380218" iyz="0" izz="0.000545783"/></inertial>
+    <visual><origin xyz="0.084000 -0.000000 -0.828000"/><geometry><mesh filename="meshes/r_hip_pitch_link_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
+    <visual><origin xyz="0.084000 -0.000000 -0.828000"/><geometry><mesh filename="meshes/r_hip_pitch_link_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <collision><origin xyz="-0.059487 0.038047 0.000083"/><geometry><box size="0.115974 0.140100 0.097948"/></geometry></collision>
+  </link>
+  <link name="r_hip_roll_link">
+    <inertial><origin xyz="-0.000463 0.027948 -0.048045"/><mass value="0.2332"/><inertia ixx="0.00106304" ixy="0" ixz="0" iyy="0.000842545" iyz="0" izz="0.000699892"/></inertial>
+    <visual><origin xyz="0.153000 -0.000000 -0.828000"/><geometry><mesh filename="meshes/r_hip_roll_link_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
+    <visual><origin xyz="0.153000 -0.000000 -0.828000"/><geometry><mesh filename="meshes/r_hip_roll_link_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <collision><origin xyz="-0.000463 0.027948 -0.048045"/><geometry><box size="0.111070 0.153898 0.176143"/></geometry></collision>
+  </link>
+  <link name="r_thigh">
+    <inertial><origin xyz="0.009400 -0.000011 -0.152017"/><mass value="0.3566"/><inertia ixx="0.00311933" ixy="0" ixz="0" iyy="0.00324641" iyz="0" izz="0.000697754"/></inertial>
+    <visual><origin xyz="0.152000 -0.000000 -0.697500"/><geometry><mesh filename="meshes/r_thigh_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
+    <visual><origin xyz="0.152000 -0.000000 -0.697500"/><geometry><mesh filename="meshes/r_thigh_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c23"><color rgba="0.604 0.620 0.643 1"/></material></visual>
+    <visual><origin xyz="0.152000 -0.000000 -0.697500"/><geometry><mesh filename="meshes/r_thigh_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <collision><origin xyz="0.009400 -0.000011 -0.152017"/><geometry><box size="0.117800 0.097985 0.308800"/></geometry></collision>
+  </link>
+  <link name="r_shank_foot">
+    <inertial><origin xyz="0.012150 0.015253 -0.190467"/><mass value="0.4993"/><inertia ixx="0.00983921" ixy="0" ixz="0" iyy="0.00971779" iyz="0" izz="0.00108675"/></inertial>
+    <visual><origin xyz="0.152000 -0.000000 -0.436000"/><geometry><mesh filename="meshes/r_shank_foot_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
+    <visual><origin xyz="0.152000 -0.000000 -0.436000"/><geometry><mesh filename="meshes/r_shank_foot_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c23"><color rgba="0.604 0.620 0.643 1"/></material></visual>
+    <visual><origin xyz="0.152000 -0.000000 -0.436000"/><geometry><mesh filename="meshes/r_shank_foot_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <collision><origin xyz="0.012150 0.015253 -0.190467"/><geometry><box size="0.107700 0.120487 0.471100"/></geometry></collision>
+  </link>
+  <link name="r_ankle_cross">
+    <inertial><origin xyz="0.000000 0.000000 0.000000"/><mass value="0.0100"/><inertia ixx="1.66667e-07" ixy="0" ixz="0" iyy="1.66667e-07" iyz="0" izz="1.66667e-07"/></inertial>
+    <collision><origin xyz="0.000000 0.000000 0.000000"/><geometry><box size="0.010000 0.010000 0.010000"/></geometry></collision>
+  </link>
+  <link name="r_foot">
+    <inertial><origin xyz="0.008800 -0.034625 -0.002217"/><mass value="0.1397"/><inertia ixx="0.000771188" ixy="0" ixz="0" iyy="0.000222215" iyz="0" izz="0.000827528"/></inertial>
+    <visual><origin xyz="0.153000 0.007000 -0.024500"/><geometry><mesh filename="meshes/r_foot_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <collision><origin xyz="0.008800 -0.034625 -0.002217"/><geometry><box size="0.109372 0.243131 0.084400"/></geometry></collision>
+  </link>
+  <joint name="waist_yaw" type="revolute">
+    <parent link="base_link"/><child link="torso"/>
+    <origin xyz="0.000000 0.000000 0.897000"/><axis xyz="0.000000 0.000000 1.000000"/>
+    <limit lower="-1.5708" upper="1.5708" effort="10" velocity="6"/>
+  </joint>
+  <joint name="neck_yaw" type="revolute">
+    <parent link="torso"/><child link="neck_link"/>
+    <origin xyz="0.000000 0.000000 0.364000"/><axis xyz="0.000000 0.000000 1.000000"/>
+    <limit lower="-1.2217" upper="1.2217" effort="10" velocity="6"/>
+  </joint>
+  <joint name="neck_pitch" type="revolute">
+    <parent link="neck_link"/><child link="head"/>
+    <origin xyz="0.000000 0.000000 0.196946"/><axis xyz="1.000000 0.000000 0.000000"/>
+    <limit lower="-0.3491" upper="0.5236" effort="10" velocity="6"/>
+  </joint>
+  <joint name="r_shoulder_pitch" type="revolute">
+    <parent link="torso"/><child link="r_arm_link1"/>
+    <origin xyz="-0.162000 0.000000 0.378000"/><axis xyz="1.000000 0.000000 0.000000"/>
+    <limit lower="-3.1416" upper="3.1416" effort="10" velocity="6"/>
+  </joint>
+  <joint name="r_shoulder_roll" type="revolute">
+    <parent link="r_arm_link1"/><child link="r_arm_link2"/>
+    <origin xyz="-0.117000 0.007000 0.000000"/><axis xyz="0.000000 1.000000 0.000000"/>
+    <limit lower="-1.5708" upper="1.5708" effort="10" velocity="6"/>
+  </joint>
+  <joint name="r_upper_arm_yaw" type="revolute">
+    <parent link="r_arm_link2"/><child link="r_arm_link3"/>
+    <origin xyz="0.000000 0.000000 -0.097000"/><axis xyz="0.000000 0.000000 1.000000"/>
+    <limit lower="-1.5708" upper="1.5708" effort="10" velocity="6"/>
+  </joint>
+  <joint name="r_elbow" type="revolute">
+    <parent link="r_arm_link3"/><child link="r_arm_link4"/>
+    <origin xyz="-0.004500 0.000000 -0.204000"/><axis xyz="1.000000 0.000000 0.000000"/>
+    <limit lower="-1.5708" upper="1.5708" effort="10" velocity="6"/>
+  </joint>
+  <joint name="r_forearm_roll" type="revolute">
+    <parent link="r_arm_link4"/><child link="r_forearm"/>
+    <origin xyz="0.001500 0.000000 -0.107000"/><axis xyz="0.000000 0.000000 1.000000"/>
+    <limit lower="-1.5708" upper="1.5708" effort="10" velocity="6"/>
+  </joint>
+  <joint name="r_wrist_dev" type="revolute">
+    <parent link="r_forearm"/><child link="r_hand_W"/>
+    <origin xyz="0.001900 0.000040 -0.223200"/><axis xyz="-1.000000 0.000000 0.000000"/>
+    <limit lower="-0.3491" upper="0.5236" effort="10" velocity="6"/>
+  </joint>
+  <joint name="r_wrist_flex" type="revolute">
+    <parent link="r_hand_W"/><child link="r_hand_H"/>
+    <origin xyz="0.000000 0.000000 -0.024000"/><axis xyz="-0.000000 -1.000000 0.000000"/>
+    <limit lower="-1.0472" upper="1.0472" effort="10" velocity="6"/>
+  </joint>
+  <joint name="r_abd" type="revolute">
+    <parent link="r_hand_H"/><child link="r_hand_U"/>
+    <origin xyz="-0.007700 -0.010200 -0.133100"/><axis xyz="0.999800 -0.000000 -0.019996"/>
+    <limit lower="-0.2618" upper="0.2618" effort="10" velocity="6"/>
+  </joint>
+  <joint name="r_mcp" type="revolute">
+    <parent link="r_hand_U"/><child link="r_hand_P"/>
+    <origin xyz="0.000030 0.001360 -0.007700"/><axis xyz="-0.000000 -0.999201 -0.039968"/>
+    <limit lower="0.0000" upper="1.5708" effort="10" velocity="6"/>
+  </joint>
+  <joint name="r_pip" type="revolute">
+    <parent link="r_hand_P"/><child link="r_hand_I"/>
+    <origin xyz="-0.000770 0.000430 -0.036260"/><axis xyz="-0.000000 -0.999201 -0.039968"/>
+    <limit lower="0.0000" upper="1.5708" effort="10" velocity="6"/>
+  </joint>
+  <joint name="r_dip" type="revolute">
+    <parent link="r_hand_I"/><child link="r_hand_D"/>
+    <origin xyz="-0.000700 0.001320 -0.033130"/><axis xyz="-0.000000 -0.999201 -0.039968"/>
+    <limit lower="0.0000" upper="1.5708" effort="10" velocity="6"/>
+    <mimic joint="r_pip" multiplier="1.0000"/>
+  </joint>
+  <joint name="r_i_abd" type="revolute">
+    <parent link="r_hand_H"/><child link="r_hand_U_I"/>
+    <origin xyz="-0.007439 -0.038912 -0.120776"/><axis xyz="0.999800 -0.000000 -0.019996"/>
+    <limit lower="-0.2618" upper="0.2618" effort="10" velocity="6"/>
+  </joint>
+  <joint name="r_i_mcp" type="revolute">
+    <parent link="r_hand_U_I"/><child link="r_hand_P_I"/>
+    <origin xyz="0.000029 0.001051 -0.007748"/><axis xyz="0.000899 -1.000000 0.000000"/>
+    <limit lower="0.0000" upper="1.5708" effort="10" velocity="6"/>
+  </joint>
+  <joint name="r_i_pip" type="revolute">
+    <parent link="r_hand_P_I"/><child link="r_hand_I_I"/>
+    <origin xyz="-0.000770 -0.001022 -0.036248"/><axis xyz="0.000899 -1.000000 0.000000"/>
+    <limit lower="0.0000" upper="1.5708" effort="10" velocity="6"/>
+  </joint>
+  <joint name="r_i_dip" type="revolute">
+    <parent link="r_hand_I_I"/><child link="r_hand_D_I"/>
+    <origin xyz="-0.000701 -0.000007 -0.033156"/><axis xyz="0.000899 -1.000000 0.000000"/>
+    <limit lower="0.0000" upper="1.5708" effort="10" velocity="6"/>
+    <mimic joint="r_i_pip" multiplier="1.0000"/>
+  </joint>
+  <joint name="r_r_abd" type="revolute">
+    <parent link="r_hand_H"/><child link="r_hand_U_R"/>
+    <origin xyz="-0.007399 0.015480 -0.118954"/><axis xyz="0.999800 -0.000100 -0.019996"/>
+    <limit lower="-0.2618" upper="0.2618" effort="10" velocity="6"/>
+  </joint>
+  <joint name="r_r_mcp" type="revolute">
+    <parent link="r_hand_U_R"/><child link="r_hand_P_R"/>
+    <origin xyz="0.000032 0.001861 -0.007594"/><axis xyz="-0.001399 -0.994437 -0.105319"/>
+    <limit lower="0.0000" upper="1.5708" effort="10" velocity="6"/>
+  </joint>
+  <joint name="r_r_pip" type="revolute">
+    <parent link="r_hand_P_R"/><child link="r_hand_I_R"/>
+    <origin xyz="-0.000768 0.002805 -0.036154"/><axis xyz="-0.001399 -0.994437 -0.105319"/>
+    <limit lower="0.0000" upper="1.5708" effort="10" velocity="6"/>
+  </joint>
+  <joint name="r_r_dip" type="revolute">
+    <parent link="r_hand_I_R"/><child link="r_hand_D_R"/>
+    <origin xyz="-0.000697 0.003488 -0.032972"/><axis xyz="-0.001399 -0.994437 -0.105319"/>
+    <limit lower="0.0000" upper="1.5708" effort="10" velocity="6"/>
+    <mimic joint="r_r_pip" multiplier="1.0000"/>
+  </joint>
+  <joint name="r_l_abd" type="revolute">
+    <parent link="r_hand_H"/><child link="r_hand_U_L"/>
+    <origin xyz="-0.006932 0.034666 -0.096922"/><axis xyz="0.999800 -0.000300 -0.019996"/>
+    <limit lower="-0.2618" upper="0.2618" effort="10" velocity="6"/>
+  </joint>
+  <joint name="r_l_mcp" type="revolute">
+    <parent link="r_hand_U_L"/><child link="r_hand_P_L"/>
+    <origin xyz="0.000040 0.002962 -0.007236"/><axis xyz="-0.004496 -0.967980 -0.250987"/>
+    <limit lower="0.0000" upper="1.5708" effort="10" velocity="6"/>
+  </joint>
+  <joint name="r_l_pip" type="revolute">
+    <parent link="r_hand_P_L"/><child link="r_hand_I_L"/>
+    <origin xyz="-0.000751 0.008113 -0.035344"/><axis xyz="-0.004496 -0.967980 -0.250987"/>
+    <limit lower="0.0000" upper="1.5708" effort="10" velocity="6"/>
+  </joint>
+  <joint name="r_l_dip" type="revolute">
+    <parent link="r_hand_I_L"/><child link="r_hand_D_L"/>
+    <origin xyz="-0.000678 0.008319 -0.032096"/><axis xyz="-0.004496 -0.967980 -0.250987"/>
+    <limit lower="0.0000" upper="1.5708" effort="10" velocity="6"/>
+    <mimic joint="r_l_pip" multiplier="1.0000"/>
+  </joint>
+  <joint name="r_th_c" type="revolute">
+    <parent link="r_hand_H"/><child link="r_hand_TC"/>
+    <origin xyz="-0.003100 -0.028300 -0.041000"/><axis xyz="0.020699 -0.229191 0.973161"/>
+    <limit lower="0.0000" upper="0.8727" effort="10" velocity="6"/>
+  </joint>
+  <joint name="r_th_f" type="revolute">
+    <parent link="r_hand_TC"/><child link="r_hand_TF"/>
+    <origin xyz="0.022300 -0.017000 -0.024400"/><axis xyz="-0.710388 -0.688288 -0.146997"/>
+    <limit lower="0.0000" upper="1.0472" effort="10" velocity="6"/>
+  </joint>
+  <joint name="r_th_mcp" type="revolute">
+    <parent link="r_hand_TF"/><child link="r_hand_TP"/>
+    <origin xyz="0.000861 -0.022341 -0.019910"/><axis xyz="0.435917 -0.594223 0.675926"/>
+    <limit lower="0.0000" upper="1.3963" effort="10" velocity="6"/>
+  </joint>
+  <joint name="r_th_ip" type="revolute">
+    <parent link="r_hand_TP"/><child link="r_hand_TD"/>
+    <origin xyz="0.024155 -0.015449 -0.029306"/><axis xyz="0.435917 -0.594223 0.675926"/>
+    <limit lower="0.0000" upper="1.3963" effort="10" velocity="6"/>
+  </joint>
+  <joint name="l_shoulder_pitch" type="revolute">
+    <parent link="torso"/><child link="l_arm_link1"/>
+    <origin xyz="0.162000 0.000000 0.378000"/><axis xyz="1.000000 -0.000000 -0.000000"/>
+    <limit lower="-3.1416" upper="3.1416" effort="10" velocity="6"/>
+  </joint>
+  <joint name="l_shoulder_roll" type="revolute">
+    <parent link="l_arm_link1"/><child link="l_arm_link2"/>
+    <origin xyz="0.117000 0.007000 0.000000"/><axis xyz="-0.000000 -1.000000 -0.000000"/>
+    <limit lower="-1.5708" upper="1.5708" effort="10" velocity="6"/>
+  </joint>
+  <joint name="l_upper_arm_yaw" type="revolute">
+    <parent link="l_arm_link2"/><child link="l_arm_link3"/>
+    <origin xyz="0.000000 0.000000 -0.097000"/><axis xyz="-0.000000 -0.000000 -1.000000"/>
+    <limit lower="-1.5708" upper="1.5708" effort="10" velocity="6"/>
+  </joint>
+  <joint name="l_elbow" type="revolute">
+    <parent link="l_arm_link3"/><child link="l_arm_link4"/>
+    <origin xyz="0.004500 0.000000 -0.204000"/><axis xyz="1.000000 -0.000000 -0.000000"/>
+    <limit lower="-1.5708" upper="1.5708" effort="10" velocity="6"/>
+  </joint>
+  <joint name="l_forearm_roll" type="revolute">
+    <parent link="l_arm_link4"/><child link="l_forearm"/>
+    <origin xyz="-0.001500 0.000000 -0.107000"/><axis xyz="-0.000000 -0.000000 -1.000000"/>
+    <limit lower="-1.5708" upper="1.5708" effort="10" velocity="6"/>
+  </joint>
+  <joint name="l_wrist_dev" type="revolute">
+    <parent link="l_forearm"/><child link="l_hand_W"/>
+    <origin xyz="-0.001900 0.000040 -0.223200"/><axis xyz="-1.000000 -0.000000 -0.000000"/>
+    <limit lower="-0.3491" upper="0.5236" effort="10" velocity="6"/>
+  </joint>
+  <joint name="l_wrist_flex" type="revolute">
+    <parent link="l_hand_W"/><child link="l_hand_H"/>
+    <origin xyz="0.000000 0.000000 -0.024000"/><axis xyz="-0.000000 1.000000 -0.000000"/>
+    <limit lower="-1.0472" upper="1.0472" effort="10" velocity="6"/>
+  </joint>
+  <joint name="l_abd" type="revolute">
+    <parent link="l_hand_H"/><child link="l_hand_U"/>
+    <origin xyz="0.007700 -0.010200 -0.133100"/><axis xyz="0.999800 0.000000 0.019996"/>
+    <limit lower="-0.2618" upper="0.2618" effort="10" velocity="6"/>
+  </joint>
+  <joint name="l_mcp" type="revolute">
+    <parent link="l_hand_U"/><child link="l_hand_P"/>
+    <origin xyz="-0.000030 0.001360 -0.007700"/><axis xyz="-0.000000 0.999201 0.039968"/>
+    <limit lower="0.0000" upper="1.5708" effort="10" velocity="6"/>
+  </joint>
+  <joint name="l_pip" type="revolute">
+    <parent link="l_hand_P"/><child link="l_hand_I"/>
+    <origin xyz="0.000770 0.000430 -0.036260"/><axis xyz="-0.000000 0.999201 0.039968"/>
+    <limit lower="0.0000" upper="1.5708" effort="10" velocity="6"/>
+  </joint>
+  <joint name="l_dip" type="revolute">
+    <parent link="l_hand_I"/><child link="l_hand_D"/>
+    <origin xyz="0.000700 0.001320 -0.033130"/><axis xyz="-0.000000 0.999201 0.039968"/>
+    <limit lower="0.0000" upper="1.5708" effort="10" velocity="6"/>
+    <mimic joint="l_pip" multiplier="1.0000"/>
+  </joint>
+  <joint name="l_i_abd" type="revolute">
+    <parent link="l_hand_H"/><child link="l_hand_U_I"/>
+    <origin xyz="0.007439 -0.038912 -0.120776"/><axis xyz="0.999800 0.000000 0.019996"/>
+    <limit lower="-0.2618" upper="0.2618" effort="10" velocity="6"/>
+  </joint>
+  <joint name="l_i_mcp" type="revolute">
+    <parent link="l_hand_U_I"/><child link="l_hand_P_I"/>
+    <origin xyz="-0.000029 0.001051 -0.007748"/><axis xyz="0.000899 1.000000 -0.000000"/>
+    <limit lower="0.0000" upper="1.5708" effort="10" velocity="6"/>
+  </joint>
+  <joint name="l_i_pip" type="revolute">
+    <parent link="l_hand_P_I"/><child link="l_hand_I_I"/>
+    <origin xyz="0.000770 -0.001022 -0.036248"/><axis xyz="0.000899 1.000000 -0.000000"/>
+    <limit lower="0.0000" upper="1.5708" effort="10" velocity="6"/>
+  </joint>
+  <joint name="l_i_dip" type="revolute">
+    <parent link="l_hand_I_I"/><child link="l_hand_D_I"/>
+    <origin xyz="0.000701 -0.000007 -0.033156"/><axis xyz="0.000899 1.000000 -0.000000"/>
+    <limit lower="0.0000" upper="1.5708" effort="10" velocity="6"/>
+    <mimic joint="l_i_pip" multiplier="1.0000"/>
+  </joint>
+  <joint name="l_r_abd" type="revolute">
+    <parent link="l_hand_H"/><child link="l_hand_U_R"/>
+    <origin xyz="0.007399 0.015480 -0.118954"/><axis xyz="0.999800 0.000100 0.019996"/>
+    <limit lower="-0.2618" upper="0.2618" effort="10" velocity="6"/>
+  </joint>
+  <joint name="l_r_mcp" type="revolute">
+    <parent link="l_hand_U_R"/><child link="l_hand_P_R"/>
+    <origin xyz="-0.000032 0.001861 -0.007594"/><axis xyz="-0.001399 0.994437 0.105319"/>
+    <limit lower="0.0000" upper="1.5708" effort="10" velocity="6"/>
+  </joint>
+  <joint name="l_r_pip" type="revolute">
+    <parent link="l_hand_P_R"/><child link="l_hand_I_R"/>
+    <origin xyz="0.000768 0.002805 -0.036154"/><axis xyz="-0.001399 0.994437 0.105319"/>
+    <limit lower="0.0000" upper="1.5708" effort="10" velocity="6"/>
+  </joint>
+  <joint name="l_r_dip" type="revolute">
+    <parent link="l_hand_I_R"/><child link="l_hand_D_R"/>
+    <origin xyz="0.000697 0.003488 -0.032972"/><axis xyz="-0.001399 0.994437 0.105319"/>
+    <limit lower="0.0000" upper="1.5708" effort="10" velocity="6"/>
+    <mimic joint="l_r_pip" multiplier="1.0000"/>
+  </joint>
+  <joint name="l_l_abd" type="revolute">
+    <parent link="l_hand_H"/><child link="l_hand_U_L"/>
+    <origin xyz="0.006932 0.034666 -0.096922"/><axis xyz="0.999800 0.000300 0.019996"/>
+    <limit lower="-0.2618" upper="0.2618" effort="10" velocity="6"/>
+  </joint>
+  <joint name="l_l_mcp" type="revolute">
+    <parent link="l_hand_U_L"/><child link="l_hand_P_L"/>
+    <origin xyz="-0.000040 0.002962 -0.007236"/><axis xyz="-0.004496 0.967980 0.250987"/>
+    <limit lower="0.0000" upper="1.5708" effort="10" velocity="6"/>
+  </joint>
+  <joint name="l_l_pip" type="revolute">
+    <parent link="l_hand_P_L"/><child link="l_hand_I_L"/>
+    <origin xyz="0.000751 0.008113 -0.035344"/><axis xyz="-0.004496 0.967980 0.250987"/>
+    <limit lower="0.0000" upper="1.5708" effort="10" velocity="6"/>
+  </joint>
+  <joint name="l_l_dip" type="revolute">
+    <parent link="l_hand_I_L"/><child link="l_hand_D_L"/>
+    <origin xyz="0.000678 0.008319 -0.032096"/><axis xyz="-0.004496 0.967980 0.250987"/>
+    <limit lower="0.0000" upper="1.5708" effort="10" velocity="6"/>
+    <mimic joint="l_l_pip" multiplier="1.0000"/>
+  </joint>
+  <joint name="l_th_c" type="revolute">
+    <parent link="l_hand_H"/><child link="l_hand_TC"/>
+    <origin xyz="0.003100 -0.028300 -0.041000"/><axis xyz="0.020699 0.229191 -0.973161"/>
+    <limit lower="0.0000" upper="0.8727" effort="10" velocity="6"/>
+  </joint>
+  <joint name="l_th_f" type="revolute">
+    <parent link="l_hand_TC"/><child link="l_hand_TF"/>
+    <origin xyz="-0.022300 -0.017000 -0.024400"/><axis xyz="-0.710388 0.688288 0.146997"/>
+    <limit lower="0.0000" upper="1.0472" effort="10" velocity="6"/>
+  </joint>
+  <joint name="l_th_mcp" type="revolute">
+    <parent link="l_hand_TF"/><child link="l_hand_TP"/>
+    <origin xyz="-0.000861 -0.022341 -0.019910"/><axis xyz="0.435917 0.594223 -0.675926"/>
+    <limit lower="0.0000" upper="1.3963" effort="10" velocity="6"/>
+  </joint>
+  <joint name="l_th_ip" type="revolute">
+    <parent link="l_hand_TP"/><child link="l_hand_TD"/>
+    <origin xyz="-0.024155 -0.015449 -0.029306"/><axis xyz="0.435917 0.594223 -0.675926"/>
+    <limit lower="0.0000" upper="1.3963" effort="10" velocity="6"/>
+  </joint>
+  <joint name="Hip_F_L" type="revolute">
+    <parent link="base_link"/><child link="l_hip_pitch_link"/>
+    <origin xyz="0.084000 0.000000 0.828000"/><axis xyz="-1.000000 0.000000 0.000000"/>
+    <limit lower="-0.3491" upper="1.5708" effort="10" velocity="6"/>
+  </joint>
+  <joint name="Hip_A_L" type="revolute">
+    <parent link="l_hip_pitch_link"/><child link="l_hip_roll_link"/>
+    <origin xyz="0.069000 0.000000 0.000000"/><axis xyz="0.000000 -1.000000 0.000000"/>
+    <limit lower="-0.1745" upper="1.0472" effort="10" velocity="6"/>
+  </joint>
+  <joint name="Hip_R_L" type="revolute">
+    <parent link="l_hip_roll_link"/><child link="l_thigh"/>
+    <origin xyz="-0.001000 0.000000 -0.130500"/><axis xyz="0.000000 0.000000 1.000000"/>
+    <limit lower="-0.5236" upper="1.5708" effort="10" velocity="6"/>
+  </joint>
+  <joint name="Knee_L" type="revolute">
+    <parent link="l_thigh"/><child link="l_shank_foot"/>
+    <origin xyz="0.000000 0.000000 -0.261500"/><axis xyz="-1.000000 0.000000 0.000000"/>
+    <limit lower="-1.1345" upper="0.0000" effort="10" velocity="6"/>
+  </joint>
+  <joint name="Ankle_P_L" type="revolute">
+    <parent link="l_shank_foot"/><child link="l_ankle_cross"/>
+    <origin xyz="0.001000 -0.007000 -0.393600"/><axis xyz="1.000000 0.000000 0.000000"/>
+    <limit lower="-0.5236" upper="0.8727" effort="10" velocity="6"/>
+  </joint>
+  <joint name="Ankle_R_L" type="revolute">
+    <parent link="l_ankle_cross"/><child link="l_foot"/>
+    <origin xyz="0.000000 0.000000 -0.017900"/><axis xyz="0.000000 1.000000 0.000000"/>
+    <limit lower="-0.2618" upper="0.2618" effort="10" velocity="6"/>
+  </joint>
+  <joint name="Hip_F_R" type="revolute">
+    <parent link="base_link"/><child link="r_hip_pitch_link"/>
+    <origin xyz="-0.084000 0.000000 0.828000"/><axis xyz="-1.000000 0.000000 0.000000"/>
+    <limit lower="-0.3491" upper="1.5708" effort="10" velocity="6"/>
+  </joint>
+  <joint name="Hip_A_R" type="revolute">
+    <parent link="r_hip_pitch_link"/><child link="r_hip_roll_link"/>
+    <origin xyz="-0.069000 0.000000 0.000000"/><axis xyz="0.000000 1.000000 0.000000"/>
+    <limit lower="-0.1745" upper="1.0472" effort="10" velocity="6"/>
+  </joint>
+  <joint name="Hip_R_R" type="revolute">
+    <parent link="r_hip_roll_link"/><child link="r_thigh"/>
+    <origin xyz="0.001000 0.000000 -0.130500"/><axis xyz="0.000000 0.000000 -1.000000"/>
+    <limit lower="-0.5236" upper="1.5708" effort="10" velocity="6"/>
+  </joint>
+  <joint name="Knee_R" type="revolute">
+    <parent link="r_thigh"/><child link="r_shank_foot"/>
+    <origin xyz="0.000000 0.000000 -0.261500"/><axis xyz="-1.000000 0.000000 0.000000"/>
+    <limit lower="-1.1345" upper="0.0000" effort="10" velocity="6"/>
+  </joint>
+  <joint name="Ankle_P_R" type="revolute">
+    <parent link="r_shank_foot"/><child link="r_ankle_cross"/>
+    <origin xyz="-0.001000 -0.007000 -0.393600"/><axis xyz="1.000000 0.000000 0.000000"/>
+    <limit lower="-0.5236" upper="0.8727" effort="10" velocity="6"/>
+  </joint>
+  <joint name="Ankle_R_R" type="revolute">
+    <parent link="r_ankle_cross"/><child link="r_foot"/>
+    <origin xyz="0.000000 0.000000 -0.017900"/><axis xyz="0.000000 -1.000000 0.000000"/>
+    <limit lower="-0.2618" upper="0.2618" effort="10" velocity="6"/>
+  </joint>
+</robot>

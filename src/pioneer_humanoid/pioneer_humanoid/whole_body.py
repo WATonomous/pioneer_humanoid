@@ -5,9 +5,9 @@ from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets.articulation import ArticulationCfg
 
 _ASSET_DIR = os.path.join(
-    os.path.dirname(__file__), "..", "..", "..", "assets", "whole_body_humanoid"
+    os.path.dirname(__file__), "..", "..", "..", "assets", "old_leg_only_humanoid"
 )
-_URDF_PATH = os.path.join(_ASSET_DIR, "whole_body_humanoid.urdf")
+_URDF_PATH = os.path.join(_ASSET_DIR, "old_leg_only_humanoid.urdf")
 _USD_DIR = os.path.join(_ASSET_DIR, "usd")
 
 # Mild crouch; keep feet near ground after bend.
@@ -18,7 +18,7 @@ WHOLE_BODY_HUMANOID_CFG = ArticulationCfg(
     spawn=sim_utils.UrdfFileCfg(
         asset_path=_URDF_PATH,
         usd_dir=_USD_DIR,
-        usd_file_name="whole_body_humanoid.usd",
+        usd_file_name="old_leg_only_humanoid.usd",
         force_usd_conversion=False,
         make_instanceable=True,
         fix_base=False,
