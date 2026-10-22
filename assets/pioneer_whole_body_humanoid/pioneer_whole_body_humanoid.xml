@@ -214,8 +214,8 @@
     <geom pos="0 0 0.019917" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="base_link_0"/>
     <geom size="0.0925 0.0661945 0.0628475" pos="0 -3e-06 0.844653" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
     <body name="torso" pos="0 0 0.916917" gravcomp="1">
-      <inertial pos="0 0.025199 0.244" quat="0.707107 0 0 0.707107" mass="1.2415" diaginertia="0.0356768 0.0335766 0.0199777"/>
-      <joint name="waist_yaw" range="-1.5708 1.5708" actuatorfrcrange="-10 10" armature="0.01" damping="1"/>
+      <inertial pos="-0.003962 0.003402 0.305928" quat="0.708279 -0.0260162 -0.0414256 0.704236" mass="5.1662" diaginertia="0.118631 0.0778503 0.0627211"/>
+      <joint name="waist_yaw" range="-1.5708 1.5708" actuatorfrcrange="-60 60" armature="0.01" damping="0.1"/>
       <geom pos="0 0 -0.897" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.063 0.071 0.078 1" density="0" material="cad1" mesh="torso_0"/>
       <geom pos="0 0 -0.897" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="torso_1"/>
       <geom pos="0 0 -0.897" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.725 0.741 0.761 1" density="0" material="cad3" mesh="torso_2"/>
@@ -226,14 +226,14 @@
       <geom pos="0 0 -0.897" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.933 0.941 0.949 1" density="0" material="cad7" mesh="torso_7"/>
       <geom size="0.163325 0.146969 0.244" pos="0 0.025199 0.244" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
       <body name="neck_link" pos="0 0 0.364" gravcomp="1">
-        <inertial pos="1e-06 -0.00166 0.098473" quat="0.707107 0 0 0.707107" mass="0.1074" diaginertia="0.000656404 0.000603639 0.000565857"/>
-        <joint name="neck_yaw" range="-1.2217 1.2217" actuatorfrcrange="-10 10" armature="0.01" damping="1"/>
+        <inertial pos="5.4e-05 0.003233 0.089908" quat="0.705928 -0.0398215 0.0406052 0.705996" mass="0.1994" diaginertia="0.000635741 0.000592885 0.000398853"/>
+        <joint name="neck_yaw" range="-1.2217 1.2217" actuatorfrcrange="-5 5" armature="0.01" damping="0.1"/>
         <geom pos="0 0 -1.261" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="neck_link_0"/>
         <geom pos="0 0 -1.261" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.431 0.443 0.463 1" density="0" material="cad8" mesh="neck_link_1"/>
         <geom size="0.092959 0.08466 0.098473" pos="1e-06 -0.00166 0.098473" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
         <body name="head" pos="0 0 0.196946" gravcomp="1">
-          <inertial pos="3e-06 0.000371 0.036406" mass="0.2599" diaginertia="0.00215566 0.00196965 0.00157344"/>
-          <joint name="neck_pitch" range="-0.3491 0.5236" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="1 0 0"/>
+          <inertial pos="0.000111 -0.013322 0.017692" quat="0.993291 -0.115574 -0.000764083 0.00388393" mass="0.5348" diaginertia="0.00204798 0.00183916 0.00166271"/>
+          <joint name="neck_pitch" range="-0.3491 0.5236" actuatorfrcrange="-5 5" armature="0.01" damping="0.1" axis="1 0 0"/>
           <geom pos="0 0 -1.45795" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.02 0.02 0.024 1" density="0" material="cad9" mesh="head_0"/>
           <geom pos="0 0 -1.45795" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.043 0.047 0.055 1" density="0" material="cad10" mesh="head_1"/>
           <geom pos="0 0 -1.45795" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.071 0.075 0.086 1" density="0" material="cad11" mesh="head_2"/>
@@ -249,72 +249,72 @@
         </body>
       </body>
       <body name="r_arm_link1" pos="-0.162 0 0.378" gravcomp="1">
-        <inertial pos="-0.086325 0 0" quat="0.5 0.5 0.5 0.5" mass="0.3313" diaginertia="0.0013287 0.0013287 0.00102373"/>
-        <joint name="r_shoulder_pitch" range="-3.1416 3.1416" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="1 0 0"/>
+        <inertial pos="-0.09742 0.002127 1e-06" quat="0.537124 0.537065 0.459912 0.459934" mass="1.3298" diaginertia="0.00371123 0.00331212 0.0016377"/>
+        <joint name="r_shoulder_pitch" range="-3.1416 3.1416" actuatorfrcrange="-53 53" armature="0.01" damping="0.1" axis="1 0 0"/>
         <geom pos="0.162 0 -1.275" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="r_arm_link1_0"/>
         <geom pos="0.162 0 -1.275" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="r_arm_link1_1"/>
         <geom size="0.086 0.0680785 0.0680785" pos="-0.086325 0 0" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
         <body name="r_arm_link2" pos="-0.117 0.007 0" gravcomp="1">
-          <inertial pos="-0.000325 2.1e-05 -0.030683" mass="0.1798" diaginertia="0.000654943 0.000642185 0.000418666"/>
-          <joint name="r_shoulder_roll" range="-1.5708 1.5708" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="0 1 0"/>
+          <inertial pos="-0.000297 0.005764 -0.075056" quat="0.693956 -0.14269 0.140721 0.691565" mass="0.789" diaginertia="0.00200397 0.00195111 0.00109176"/>
+          <joint name="r_shoulder_roll" range="-1.5708 1.5708" actuatorfrcrange="-53 53" armature="0.01" damping="0.1" axis="0 1 0"/>
           <geom pos="0.279 -0.007 -1.275" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="r_arm_link2_0"/>
           <geom pos="0.279 -0.007 -1.275" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="r_arm_link2_1"/>
           <geom size="0.0581985 0.0599995 0.0856165" pos="-0.000325 2.1e-05 -0.030683" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
           <body name="r_arm_link3" pos="0 0 -0.097" gravcomp="1">
-            <inertial pos="-0.000319 2.1e-05 -0.1366" mass="0.2121" diaginertia="0.00114958 0.00114936 0.000353301"/>
-            <joint name="r_upper_arm_yaw" range="-1.5708 1.5708" actuatorfrcrange="-10 10" armature="0.01" damping="1"/>
+            <inertial pos="-0.002153 0.002799 -0.1635" quat="0.999723 -0.0180362 0.0093703 -0.0118424" mass="0.8487" diaginertia="0.00427688 0.00403524 0.000855728"/>
+            <joint name="r_upper_arm_yaw" range="-1.5708 1.5708" actuatorfrcrange="-22 22" armature="0.01" damping="0.1"/>
             <geom pos="0.279 -0.007 -1.178" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="r_arm_link3_0"/>
             <geom pos="0.279 -0.007 -1.178" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="r_arm_link3_1"/>
             <geom size="0.049969 0.0500005 0.1173" pos="-0.000319 2.1e-05 -0.1366" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
             <body name="r_arm_link4" pos="-0.0045 0 -0.204" gravcomp="1">
-              <inertial pos="0.001925 2.1e-05 -0.0424" mass="0.0788" diaginertia="0.000173936 0.000173936 0.000126055"/>
-              <joint name="r_elbow" range="-1.5708 1.5708" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="1 0 0"/>
+              <inertial pos="0.0021 -0.000183 -0.079576" quat="0.535675 0.465113 0.454559 0.538607" mass="0.6014" diaginertia="0.000778942 0.000708339 0.000690382"/>
+              <joint name="r_elbow" range="-1.5708 1.5708" actuatorfrcrange="-22 22" armature="0.01" damping="0.1" axis="1 0 0"/>
               <geom pos="0.2835 -0.007 -0.974" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="r_arm_link4_0"/>
               <geom pos="0.2835 -0.007 -0.974" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="r_arm_link4_1"/>
               <geom size="0.049 0.049 0.065" pos="0.001925 2.1e-05 -0.0424" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
               <body name="r_forearm" pos="0.0015 0 -0.107" gravcomp="1">
-                <inertial pos="7e-06 -5.9e-05 -0.119995" mass="0.0818" diaginertia="0.000469858 0.000469656 0.000154055"/>
-                <joint name="r_forearm_roll" range="-1.5708 1.5708" actuatorfrcrange="-10 10" armature="0.01" damping="1"/>
+                <inertial pos="-2.2e-05 4e-06 -0.094247" quat="0.999999 0.000149726 0.000610886 -0.00138793" mass="1.4841" diaginertia="0.00546187 0.00545656 0.0017055"/>
+                <joint name="r_forearm_roll" range="-1.5708 1.5708" actuatorfrcrange="-22 22" armature="0.01" damping="0.1"/>
                 <geom pos="0.282 -0.007 -0.867" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.227 0.239 0.267 1" density="0" material="cad18" mesh="r_forearm_0"/>
                 <geom pos="0.282 -0.007 -0.867" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.914 0.914 0.894 1" density="0" material="cad19" mesh="r_forearm_1"/>
                 <geom pos="0.282 -0.007 -0.867" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="r_forearm_2"/>
                 <geom size="0.0531075 0.053177 0.119996" pos="7e-06 -5.9e-05 -0.119995" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                 <body name="r_hand_W" pos="0.0019 4e-05 -0.2232" gravcomp="1">
-                  <inertial pos="-0.012278 -3.6e-05 -0.010409" quat="0.707107 0.707107 0 0" mass="0.0161" diaginertia="1.58043e-05 1.53808e-05 9.32732e-06"/>
-                  <joint name="r_wrist_dev" range="-0.3491 0.5236" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="-1 0 0"/>
+                  <inertial pos="-0.008685 -0.00019 -0.015554" quat="0.657803 0.659881 -0.256306 0.257215" mass="0.0486" diaginertia="6.11636e-05 4.70624e-05 1.92205e-05"/>
+                  <joint name="r_wrist_dev" range="-0.3491 0.5236" actuatorfrcrange="-2 2" armature="0.01" damping="0.1" axis="-1 0 0"/>
                   <geom pos="0.2801 -0.00704 -0.6438" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.769 0.78 0.8 1" density="0" material="cad21" mesh="r_hand_W_0"/>
                   <geom pos="0.2801 -0.00704 -0.6438" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="r_hand_W_1"/>
                   <geom size="0.0287805 0.0450935 0.0301185" pos="-0.012278 -3.6e-05 -0.010409" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                   <body name="r_hand_H" pos="0 0 -0.024" gravcomp="1">
-                    <inertial pos="-0.003168 -0.012828 -0.060957" mass="0.0454" diaginertia="0.000151451 9.45679e-05 7.82877e-05"/>
-                    <joint name="r_wrist_flex" range="-1.0472 1.0472" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="0 -1 0"/>
+                    <inertial pos="-0.004219 -0.003782 -0.062162" quat="0.997428 -0.0597083 0.0333148 -0.0215101" mass="0.088" diaginertia="0.000172679 0.00013155 7.07633e-05"/>
+                    <joint name="r_wrist_flex" range="-1.0472 1.0472" actuatorfrcrange="-2 2" armature="0.01" damping="0.1" axis="0 -1 0"/>
                     <geom pos="0.2801 -0.00704 -0.6198" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.227 0.239 0.267 1" density="0" material="cad18" mesh="r_hand_H_0"/>
                     <geom pos="0.2801 -0.00704 -0.6198" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.769 0.78 0.8 1" density="0" material="cad21" mesh="r_hand_H_1"/>
                     <geom pos="0.2801 -0.00704 -0.6198" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.851 0.765 0.682 1" density="0" material="cad22" mesh="r_hand_H_2"/>
                     <geom pos="0.2801 -0.00704 -0.6198" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="r_hand_H_3"/>
                     <geom size="0.026587 0.0668135 0.074427" pos="-0.003168 -0.012828 -0.060957" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                     <body name="r_hand_U" pos="-0.0077 -0.0102 -0.1331" gravcomp="1">
-                      <inertial pos="-0.003594 0.000118 -0.0038" quat="0.707107 0.707107 0 0" mass="0.01" diaginertia="8.92882e-07 8.43455e-07 6.80919e-07"/>
-                      <joint name="r_abd" range="-0.2618 0.2618" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="0.9998 0 -0.019996"/>
+                      <inertial pos="-0.002838 0.000868 -0.005218" quat="-0.267097 0.874289 0.101638 0.39236" mass="0.005" diaginertia="3.37725e-07 2.00538e-07 1.73521e-07"/>
+                      <joint name="r_abd" range="-0.2618 0.2618" actuatorfrcrange="-0.5 0.5" armature="0.01" damping="0.1" axis="0.9998 0 -0.019996"/>
                       <geom pos="0.2878 0.00316 -0.4867" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.769 0.78 0.8 1" density="0" material="cad21" mesh="r_hand_U_0"/>
                       <geom pos="0.2878 0.00316 -0.4867" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="r_hand_U_1"/>
                       <geom size="0.0097325 0.012582 0.0104665" pos="-0.003594 0.000118 -0.0038" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                       <body name="r_hand_P" pos="3e-05 0.00136 -0.0077" gravcomp="1">
-                        <inertial pos="-0.003328 -0.000361 -0.017332" mass="0.01" diaginertia="2.6418e-06 2.48255e-06 8.03795e-07"/>
-                        <joint name="r_mcp" range="0 1.5708" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="0 -0.999201 -0.039968"/>
+                        <inertial pos="-0.002195 -0.00014 -0.021433" quat="0.999646 0.0190896 -0.0185344 -0.000527953" mass="0.0084" diaginertia="2.02882e-06 1.85131e-06 5.03634e-07"/>
+                        <joint name="r_mcp" range="0 1.5708" actuatorfrcrange="-0.5 0.5" armature="0.01" damping="0.1" axis="0 -0.999201 -0.039968"/>
                         <geom pos="0.28777 0.0018 -0.479" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.769 0.78 0.8 1" density="0" material="cad21" mesh="r_hand_P_0"/>
                         <geom pos="0.28777 0.0018 -0.479" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.851 0.765 0.682 1" density="0" material="cad22" mesh="r_hand_P_1"/>
                         <geom pos="0.28777 0.0018 -0.479" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="r_hand_P_2"/>
                         <geom size="0.0098325 0.012019 0.0254575" pos="-0.003328 -0.000361 -0.017332" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                         <body name="r_hand_I" pos="-0.00077 0.00043 -0.03626" gravcomp="1">
-                          <inertial pos="-0.002737 0.000574 -0.016561" mass="0.01" diaginertia="1.98483e-06 1.81531e-06 6.78165e-07"/>
-                          <joint name="r_pip" range="0 1.5708" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="0 -0.999201 -0.039968"/>
+                          <inertial pos="-0.003369 0.000612 -0.015405" quat="0.999559 0.01998 -0.0219417 -0.0008891" mass="0.0027" diaginertia="2.62284e-07 2.49826e-07 1.37019e-07"/>
+                          <joint name="r_pip" range="0 1.5708" actuatorfrcrange="-0.5 0.5" armature="0.01" damping="0.1" axis="0 -0.999201 -0.039968"/>
                           <geom pos="0.28854 0.00137 -0.44274" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.851 0.765 0.682 1" density="0" material="cad22" mesh="r_hand_I_0"/>
                           <geom pos="0.28854 0.00137 -0.44274" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="r_hand_I_1"/>
                           <geom size="0.008735 0.011276 0.02164" pos="-0.002737 0.000574 -0.016561" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                           <body name="r_hand_D" pos="-0.0007 0.00132 -0.03313" gravcomp="1">
-                            <inertial pos="-0.001741 0.000249 -0.010803" mass="0.01" diaginertia="1.33015e-06 1.17715e-06 5.53216e-07"/>
-                            <joint name="r_dip" range="0 1.5708" actuatorfrcrange="-10 10" axis="0 -0.999201 -0.039968"/>
+                            <inertial pos="-0.001007 0.000207 -0.005149" quat="0.997952 0.0199619 0.0607713 0.000780313" mass="0.006" diaginertia="5.52866e-07 4.42531e-07 2.00898e-07"/>
+                            <joint name="r_dip" range="0 1.5708" actuatorfrcrange="-0.5 0.5" axis="0 -0.999201 -0.039968"/>
                             <geom pos="0.28924 5e-05 -0.40961" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.769 0.78 0.8 1" density="0" material="cad21" mesh="r_hand_D_0"/>
                             <geom pos="0.28924 5e-05 -0.40961" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.851 0.765 0.682 1" density="0" material="cad22" mesh="r_hand_D_1"/>
                             <geom pos="0.28924 5e-05 -0.40961" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="r_hand_D_2"/>
@@ -324,27 +324,27 @@
                       </body>
                     </body>
                     <body name="r_hand_U_I" pos="-0.007439 -0.038912 -0.120776" gravcomp="1">
-                      <inertial pos="-0.003595 2.2e-05 -0.003593" quat="0.707107 0.707107 0 0" mass="0.01" diaginertia="8.70685e-07 8.36381e-07 6.65399e-07"/>
-                      <joint name="r_i_abd" range="-0.2618 0.2618" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="0.9998 0 -0.019996"/>
+                      <inertial pos="-0.002838 0.000657 -0.005248" quat="-0.249717 0.879416 0.109839 0.390133" mass="0.005" diaginertia="3.37725e-07 2.00539e-07 1.73522e-07"/>
+                      <joint name="r_i_abd" range="-0.2618 0.2618" actuatorfrcrange="-0.5 0.5" armature="0.01" damping="0.1" axis="0.9998 0 -0.019996"/>
                       <geom pos="0.287539 0.031872 -0.499024" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.769 0.78 0.8 1" density="0" material="cad21" mesh="r_hand_U_I_0"/>
                       <geom pos="0.287539 0.031872 -0.499024" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="r_hand_U_I_1"/>
                       <geom size="0.0097295 0.0125 0.010245" pos="-0.003595 2.2e-05 -0.003593" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                       <body name="r_hand_P_I" pos="2.9e-05 0.001051 -0.007748" gravcomp="1">
-                        <inertial pos="-0.003327 -0.001029 -0.017253" mass="0.01" diaginertia="2.54833e-06 2.42062e-06 7.72486e-07"/>
-                        <joint name="r_i_mcp" range="0 1.5708" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="0.000899 -1 0"/>
+                        <inertial pos="-0.002194 -0.000999 -0.02141" quat="0.999828 -0.000908563 -0.018533 0.000267878" mass="0.0084" diaginertia="2.02882e-06 1.85131e-06 5.03634e-07"/>
+                        <joint name="r_i_mcp" range="0 1.5708" actuatorfrcrange="-0.5 0.5" armature="0.01" damping="0.1" axis="0.000899 -1 0"/>
                         <geom pos="0.28751 0.030821 -0.491276" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.769 0.78 0.8 1" density="0" material="cad21" mesh="r_hand_P_I_0"/>
                         <geom pos="0.28751 0.030821 -0.491276" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.851 0.765 0.682 1" density="0" material="cad22" mesh="r_hand_P_I_1"/>
                         <geom pos="0.28751 0.030821 -0.491276" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="r_hand_P_I_2"/>
                         <geom size="0.0098345 0.01162 0.025089" pos="-0.003327 -0.001029 -0.017253" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                         <body name="r_hand_I_I" pos="-0.00077 -0.001022 -0.036248" gravcomp="1">
-                          <inertial pos="-0.002739 -7e-06 -0.016574" mass="0.01" diaginertia="1.95529e-06 1.80615e-06 6.57525e-07"/>
-                          <joint name="r_i_pip" range="0 1.5708" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="0.000899 -1 0"/>
+                          <inertial pos="-0.003369 -7e-06 -0.015417" quat="0.999759 -1.5036e-05 -0.0219468 -2.49985e-05" mass="0.0027" diaginertia="2.62284e-07 2.49825e-07 1.3702e-07"/>
+                          <joint name="r_i_pip" range="0 1.5708" actuatorfrcrange="-0.5 0.5" armature="0.01" damping="0.1" axis="0.000899 -1 0"/>
                           <geom pos="0.288279 0.031843 -0.455028" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.851 0.765 0.682 1" density="0" material="cad22" mesh="r_hand_I_I_0"/>
                           <geom pos="0.288279 0.031843 -0.455028" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="r_hand_I_I_1"/>
                           <geom size="0.0087325 0.011 0.0215775" pos="-0.002739 -7e-06 -0.016574" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                           <body name="r_hand_D_I" pos="-0.000701 -7e-06 -0.033156" gravcomp="1">
-                            <inertial pos="-0.001743 0 -0.01093" mass="0.01" diaginertia="1.30931e-06 1.15555e-06 5.53583e-07"/>
-                            <joint name="r_i_dip" range="0 1.5708" actuatorfrcrange="-10 10" axis="0.000899 -1 0"/>
+                            <inertial pos="-0.001006 0 -0.005153" quat="0.998151 -3.6206e-05 0.0607833 -1.17002e-05" mass="0.006" diaginertia="5.52866e-07 4.42531e-07 2.00899e-07"/>
+                            <joint name="r_i_dip" range="0 1.5708" actuatorfrcrange="-0.5 0.5" axis="0.000899 -1 0"/>
                             <geom pos="0.28898 0.03185 -0.421872" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.769 0.78 0.8 1" density="0" material="cad21" mesh="r_hand_D_I_0"/>
                             <geom pos="0.28898 0.03185 -0.421872" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.851 0.765 0.682 1" density="0" material="cad22" mesh="r_hand_D_I_1"/>
                             <geom pos="0.28898 0.03185 -0.421872" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="r_hand_D_I_2"/>
@@ -354,27 +354,27 @@
                       </body>
                     </body>
                     <body name="r_hand_U_R" pos="-0.007399 0.01548 -0.118954" gravcomp="1">
-                      <inertial pos="-0.003587 0.000455 -0.004124" quat="0.707107 0.707107 0 0" mass="0.01" diaginertia="9.39036e-07 8.66912e-07 7.04633e-07"/>
-                      <joint name="r_r_abd" range="-0.2618 0.2618" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="0.9998 -0.0001 -0.019996"/>
+                      <inertial pos="-0.002837 0.001212 -0.00515" quat="-0.295333 0.865137 0.0881187 0.395665" mass="0.005" diaginertia="3.37725e-07 2.00538e-07 1.73521e-07"/>
+                      <joint name="r_r_abd" range="-0.2618 0.2618" actuatorfrcrange="-0.5 0.5" armature="0.01" damping="0.1" axis="0.9998 -0.0001 -0.019996"/>
                       <geom pos="0.287499 -0.02252 -0.500846" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.769 0.78 0.8 1" density="0" material="cad21" mesh="r_hand_U_R_0"/>
                       <geom pos="0.287499 -0.02252 -0.500846" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="r_hand_U_R_1"/>
                       <geom size="0.0097405 0.012853 0.010794" pos="-0.003587 0.000455 -0.004124" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                       <body name="r_hand_P_R" pos="3.2e-05 0.001861 -0.007594" gravcomp="1">
-                        <inertial pos="-0.003328 0.001199 -0.017373" mass="0.01" diaginertia="2.83276e-06 2.5759e-06 9.01375e-07"/>
-                        <joint name="r_r_mcp" range="0 1.5708" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="-0.001399 -0.994437 -0.105319"/>
+                        <inertial pos="-0.002194 0.001268 -0.021396" quat="0.998483 0.0518233 -0.0185204 -0.00183079" mass="0.0084" diaginertia="2.02882e-06 1.85131e-06 5.03635e-07"/>
+                        <joint name="r_r_mcp" range="0 1.5708" actuatorfrcrange="-0.5 0.5" armature="0.01" damping="0.1" axis="-0.001399 -0.994437 -0.105319"/>
                         <geom pos="0.287467 -0.024381 -0.493252" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.769 0.78 0.8 1" density="0" material="cad21" mesh="r_hand_P_R_0"/>
                         <geom pos="0.287467 -0.024381 -0.493252" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.851 0.765 0.682 1" density="0" material="cad22" mesh="r_hand_P_R_1"/>
                         <geom pos="0.287467 -0.024381 -0.493252" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="r_hand_P_R_2"/>
                         <geom size="0.0098325 0.013181 0.026002" pos="-0.003328 0.001199 -0.017373" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                         <body name="r_hand_I_R" pos="-0.000768 0.002805 -0.036154" gravcomp="1">
-                          <inertial pos="-0.002732 0.001524 -0.016483" mass="0.01" diaginertia="2.02051e-06 1.81955e-06 7.10044e-07"/>
-                          <joint name="r_r_pip" range="0 1.5708" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="-0.001399 -0.994437 -0.105319"/>
+                          <inertial pos="-0.003368 0.001625 -0.015333" quat="0.998367 0.0527077 -0.0219147 -0.00230343" mass="0.0027" diaginertia="2.62285e-07 2.49825e-07 1.37019e-07"/>
+                          <joint name="r_r_pip" range="0 1.5708" actuatorfrcrange="-0.5 0.5" armature="0.01" damping="0.1" axis="-0.001399 -0.994437 -0.105319"/>
                           <geom pos="0.288235 -0.027186 -0.457098" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.851 0.765 0.682 1" density="0" material="cad22" mesh="r_hand_I_R_0"/>
                           <geom pos="0.288235 -0.027186 -0.457098" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="r_hand_I_R_1"/>
                           <geom size="0.0087385 0.01169 0.021668" pos="-0.002732 0.001524 -0.016483" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                           <body name="r_hand_D_R" pos="-0.000697 0.003488 -0.032972" gravcomp="1">
-                            <inertial pos="-0.001736 0.000656 -0.010593" mass="0.01" diaginertia="1.35945e-06 1.21013e-06 5.50164e-07"/>
-                            <joint name="r_r_dip" range="0 1.5708" actuatorfrcrange="-10 10" axis="-0.001399 -0.994437 -0.105319"/>
+                            <inertial pos="-0.001006 0.000546 -0.005125" quat="0.996762 0.0526949 0.0606992 0.00207662" mass="0.006" diaginertia="5.52866e-07 4.4253e-07 2.00899e-07"/>
+                            <joint name="r_r_dip" range="0 1.5708" actuatorfrcrange="-0.5 0.5" axis="-0.001399 -0.994437 -0.105319"/>
                             <geom pos="0.288932 -0.030675 -0.424126" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.769 0.78 0.8 1" density="0" material="cad21" mesh="r_hand_D_R_0"/>
                             <geom pos="0.288932 -0.030675 -0.424126" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.851 0.765 0.682 1" density="0" material="cad22" mesh="r_hand_D_R_1"/>
                             <geom pos="0.288932 -0.030675 -0.424126" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="r_hand_D_R_2"/>
@@ -384,27 +384,27 @@
                       </body>
                     </body>
                     <body name="r_hand_U_L" pos="-0.006932 0.034666 -0.096922" gravcomp="1">
-                      <inertial pos="-0.003571 0.001344 -0.004488" quat="0.707107 0.707107 0 0" mass="0.01" diaginertia="1.06226e-06 9.26333e-07 7.70711e-07"/>
-                      <joint name="r_l_abd" range="-0.2618 0.2618" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="0.9998 -0.0003 -0.019996"/>
+                      <inertial pos="-0.002831 0.001968 -0.004913" quat="-0.357928 0.841046 0.057236 0.401564" mass="0.005" diaginertia="3.37725e-07 2.00538e-07 1.73521e-07"/>
+                      <joint name="r_l_abd" range="-0.2618 0.2618" actuatorfrcrange="-0.5 0.5" armature="0.01" damping="0.1" axis="0.9998 -0.0003 -0.019996"/>
                       <geom pos="0.287032 -0.041706 -0.522878" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.769 0.78 0.8 1" density="0" material="cad21" mesh="r_hand_U_L_0"/>
                       <geom pos="0.287032 -0.041706 -0.522878" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="r_hand_U_L_1"/>
                       <geom size="0.009758 0.013516 0.0116615" pos="-0.003571 0.001344 -0.004488" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                       <body name="r_hand_P_L" pos="4e-05 0.002962 -0.007236" gravcomp="1">
-                        <inertial pos="-0.003327 0.003857 -0.01718" mass="0.01" diaginertia="3.29818e-06 2.72164e-06 1.22262e-06"/>
-                        <joint name="r_l_mcp" range="0 1.5708" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="-0.004496 -0.96798 -0.250987"/>
+                        <inertial pos="-0.002185 0.004418 -0.020973" quat="0.991905 0.125545 -0.0184155 -0.00476603" mass="0.0084" diaginertia="2.02883e-06 1.85131e-06 5.03634e-07"/>
+                        <joint name="r_l_mcp" range="0 1.5708" actuatorfrcrange="-0.5 0.5" armature="0.01" damping="0.1" axis="-0.004496 -0.96798 -0.250987"/>
                         <geom pos="0.286992 -0.044668 -0.515642" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.769 0.78 0.8 1" density="0" material="cad21" mesh="r_hand_P_L_0"/>
                         <geom pos="0.286992 -0.044668 -0.515642" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.851 0.765 0.682 1" density="0" material="cad22" mesh="r_hand_P_L_1"/>
                         <geom pos="0.286992 -0.044668 -0.515642" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="r_hand_P_L_2"/>
                         <geom size="0.0098445 0.016428 0.026825" pos="-0.003327 0.003857 -0.01718" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                         <body name="r_hand_I_L" pos="-0.000751 0.008113 -0.035344" gravcomp="1">
-                          <inertial pos="-0.002715 0.00364 -0.016045" mass="0.01" diaginertia="2.04048e-06 1.77992e-06 7.70652e-07"/>
-                          <joint name="r_l_pip" range="0 1.5708" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="-0.004496 -0.96798 -0.250987"/>
+                          <inertial pos="-0.003359 0.00388 -0.014923" quat="0.991724 0.126414 -0.021767 -0.00548832" mass="0.0027" diaginertia="2.62284e-07 2.49825e-07 1.37019e-07"/>
+                          <joint name="r_l_pip" range="0 1.5708" actuatorfrcrange="-0.5 0.5" armature="0.01" damping="0.1" axis="-0.004496 -0.96798 -0.250987"/>
                           <geom pos="0.287742 -0.052781 -0.480298" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.851 0.765 0.682 1" density="0" material="cad22" mesh="r_hand_I_L_0"/>
                           <geom pos="0.287742 -0.052781 -0.480298" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="r_hand_I_L_1"/>
                           <geom size="0.0087475 0.012437 0.0213885" pos="-0.002715 0.00364 -0.016045" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                           <body name="r_hand_D_L" pos="-0.000678 0.008319 -0.032096" gravcomp="1">
-                            <inertial pos="-0.001723 0.002119 -0.00995" mass="0.01" diaginertia="1.48337e-06 1.25347e-06 6.31993e-07"/>
-                            <joint name="r_l_dip" range="0 1.5708" actuatorfrcrange="-10 10" axis="-0.004496 -0.96798 -0.250987"/>
+                            <inertial pos="-0.001003 0.001299 -0.004987" quat="0.990131 0.126412 0.0602961 0.00499619" mass="0.006" diaginertia="5.52866e-07 4.4253e-07 2.00898e-07"/>
+                            <joint name="r_l_dip" range="0 1.5708" actuatorfrcrange="-0.5 0.5" axis="-0.004496 -0.96798 -0.250987"/>
                             <geom pos="0.28842 -0.0611 -0.448202" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.769 0.78 0.8 1" density="0" material="cad21" mesh="r_hand_D_L_0"/>
                             <geom pos="0.28842 -0.0611 -0.448202" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.851 0.765 0.682 1" density="0" material="cad22" mesh="r_hand_D_L_1"/>
                             <geom pos="0.28842 -0.0611 -0.448202" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="r_hand_D_L_2"/>
@@ -414,24 +414,24 @@
                       </body>
                     </body>
                     <body name="r_hand_TC" pos="-0.0031 -0.0283 -0.041" gravcomp="1">
-                      <inertial pos="0.010885 -0.006681 -0.022601" quat="0.707107 0 0 0.707107" mass="0.01" diaginertia="4.50923e-06 3.93235e-06 3.92255e-06"/>
-                      <joint name="r_th_c" range="0 0.8727" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="0.020699 -0.229191 0.973161"/>
+                      <inertial pos="0.005572 -0.001065 -0.016558" quat="0.315998 0.852208 0.348644 0.228767" mass="0.0066" diaginertia="2.51045e-06 1.71868e-06 1.10904e-06"/>
+                      <joint name="r_th_c" range="0 0.8727" actuatorfrcrange="-0.5 0.5" armature="0.01" damping="0.1" axis="0.020699 -0.229191 0.973161"/>
                       <geom pos="0.2832 0.02126 -0.5788" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="r_hand_TC_0"/>
                       <geom size="0.025979 0.022402 0.0260355" pos="0.010885 -0.006681 -0.022601" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                       <body name="r_hand_TF" pos="0.0223 -0.017 -0.0244" gravcomp="1">
-                        <inertial pos="-0.010928 -0.008609 -0.003352" mass="0.01" diaginertia="3.45976e-06 3.13121e-06 2.73464e-06"/>
-                        <joint name="r_th_f" range="0 1.0472" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="-0.710388 -0.688288 -0.146997"/>
+                        <inertial pos="-0.010305 -0.012537 -0.004428" quat="0.871315 -0.320418 -0.191751 0.318391" mass="0.0036" diaginertia="1.1645e-06 6.46588e-07 5.92384e-07"/>
+                        <joint name="r_th_f" range="0 1.0472" actuatorfrcrange="-0.5 0.5" armature="0.01" damping="0.1" axis="-0.710388 -0.688288 -0.146997"/>
                         <geom pos="0.2609 0.03826 -0.5544" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="r_hand_TF_0"/>
                         <geom size="0.018998 0.0214355 0.024051" pos="-0.010928 -0.008609 -0.003352" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                         <body name="r_hand_TP" pos="0.000861 -0.022341 -0.01991" gravcomp="1">
-                          <inertial pos="0.010959 -0.006525 -0.013178" quat="0.707107 0 0 0.707107" mass="0.01" diaginertia="3.60085e-06 3.15539e-06 2.6119e-06"/>
-                          <joint name="r_th_mcp" range="0 1.3963" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="0.435917 -0.594223 0.675926"/>
+                          <inertial pos="0.011949 -0.007709 -0.014631" quat="0.868086 -0.310603 -0.209306 0.325797" mass="0.0055" diaginertia="1.21454e-06 1.10922e-06 4.26772e-07"/>
+                          <joint name="r_th_mcp" range="0 1.3963" actuatorfrcrange="-0.5 0.5" armature="0.01" damping="0.1" axis="0.435917 -0.594223 0.675926"/>
                           <geom pos="0.260039 0.060601 -0.53449" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.851 0.765 0.682 1" density="0" material="cad22" mesh="r_hand_TP_0"/>
                           <geom pos="0.260039 0.060601 -0.53449" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="r_hand_TP_1"/>
                           <geom size="0.021415 0.018027 0.024933" pos="0.010959 -0.006525 -0.013178" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                           <body name="r_hand_TD" pos="0.024155 -0.015449 -0.029306" gravcomp="1">
-                            <inertial pos="0.005569 -0.002879 -0.006077" quat="0.707107 0 0 0.707107" mass="0.01" diaginertia="1.84157e-06 1.71672e-06 1.43486e-06"/>
-                            <joint name="r_th_ip" range="0 1.3963" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="0.435917 -0.594223 0.675926"/>
+                            <inertial pos="0.008065 -0.005295 -0.009856" quat="0.286897 0.850529 0.347436 0.271255" mass="0.0032" diaginertia="3.60926e-07 2.94771e-07 2.50574e-07"/>
+                            <joint name="r_th_ip" range="0 1.3963" actuatorfrcrange="-0.5 0.5" armature="0.01" damping="0.1" axis="0.435917 -0.594223 0.675926"/>
                             <geom pos="0.235884 0.07605 -0.505184" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.851 0.765 0.682 1" density="0" material="cad22" mesh="r_hand_TD_0"/>
                             <geom pos="0.235884 0.07605 -0.505184" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="r_hand_TD_1"/>
                             <geom size="0.0152955 0.014018 0.017847" pos="0.005569 -0.002879 -0.006077" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
@@ -447,72 +447,72 @@
         </body>
       </body>
       <body name="l_arm_link1" pos="0.162 0 0.378" gravcomp="1">
-        <inertial pos="0.086325 0 0" quat="0.5 0.5 0.5 0.5" mass="0.3313" diaginertia="0.00132866 0.00132866 0.0010237"/>
-        <joint name="l_shoulder_pitch" range="-3.1416 3.1416" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="1 0 0"/>
+        <inertial pos="0.097421 0.002127 1e-06" quat="0.459907 0.459938 0.537121 0.537069" mass="1.3298" diaginertia="0.00371117 0.00331206 0.00163767"/>
+        <joint name="l_shoulder_pitch" range="-3.1416 3.1416" actuatorfrcrange="-53 53" armature="0.01" damping="0.1" axis="1 0 0"/>
         <geom pos="-0.162 0 -1.275" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="l_arm_link1_0"/>
         <geom pos="-0.162 0 -1.275" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="l_arm_link1_1"/>
         <geom size="0.086 0.0680785 0.0680785" pos="0.086325 0 0" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
         <body name="l_arm_link2" pos="0.117 0.007 0" gravcomp="1">
-          <inertial pos="0.000325 2.1e-05 -0.030683" mass="0.1719" diaginertia="0.000626264 0.000614064 0.000400333"/>
-          <joint name="l_shoulder_roll" range="-1.5708 1.5708" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="0 -1 0"/>
+          <inertial pos="0.000237 0.005758 -0.072008" quat="0.694214 -0.139775 0.141216 0.6918" mass="0.789" diaginertia="0.00179619 0.00174947 0.000915966"/>
+          <joint name="l_shoulder_roll" range="-1.5708 1.5708" actuatorfrcrange="-53 53" armature="0.01" damping="0.1" axis="0 -1 0"/>
           <geom pos="-0.279 -0.007 -1.275" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="l_arm_link2_0"/>
           <geom pos="-0.279 -0.007 -1.275" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="l_arm_link2_1"/>
           <geom size="0.0581985 0.0599995 0.0856165" pos="0.000325 2.1e-05 -0.030683" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
           <body name="l_arm_link3" pos="0 0 -0.097" gravcomp="1">
-            <inertial pos="0.000319 2.1e-05 -0.1366" mass="0.2121" diaginertia="0.00114958 0.00114936 0.0003533"/>
-            <joint name="l_upper_arm_yaw" range="-1.5708 1.5708" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="0 0 -1"/>
+            <inertial pos="0.002153 0.002792 -0.163483" quat="0.999719 -0.0181202 -0.00933294 0.0120693" mass="0.8487" diaginertia="0.00427569 0.00403436 0.000855448"/>
+            <joint name="l_upper_arm_yaw" range="-1.5708 1.5708" actuatorfrcrange="-22 22" armature="0.01" damping="0.1" axis="0 0 -1"/>
             <geom pos="-0.279 -0.007 -1.178" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="l_arm_link3_0"/>
             <geom pos="-0.279 -0.007 -1.178" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="l_arm_link3_1"/>
             <geom size="0.049969 0.0500005 0.1173" pos="0.000319 2.1e-05 -0.1366" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
             <body name="l_arm_link4" pos="0.0045 0 -0.204" gravcomp="1">
-              <inertial pos="-0.001925 2.1e-05 -0.0424" mass="0.0788" diaginertia="0.000173935 0.000173935 0.000126054"/>
-              <joint name="l_elbow" range="-1.5708 1.5708" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="1 0 0"/>
+              <inertial pos="-0.002124 -0.000193 -0.079575" quat="0.45462 0.540098 0.535125 0.463956" mass="0.6014" diaginertia="0.000779214 0.000708342 0.000690074"/>
+              <joint name="l_elbow" range="-1.5708 1.5708" actuatorfrcrange="-22 22" armature="0.01" damping="0.1" axis="1 0 0"/>
               <geom pos="-0.2835 -0.007 -0.974" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="l_arm_link4_0"/>
               <geom pos="-0.2835 -0.007 -0.974" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="l_arm_link4_1"/>
               <geom size="0.049 0.049 0.065" pos="-0.001925 2.1e-05 -0.0424" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
               <body name="l_forearm" pos="-0.0015 0 -0.107" gravcomp="1">
-                <inertial pos="-7e-06 -5.9e-05 -0.119995" mass="0.0818" diaginertia="0.000469858 0.000469656 0.000154055"/>
-                <joint name="l_forearm_roll" range="-1.5708 1.5708" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="0 0 -1"/>
+                <inertial pos="2.2e-05 4e-06 -0.094247" quat="0.999999 0.000149726 -0.000610886 0.00138793" mass="1.4841" diaginertia="0.00546187 0.00545656 0.0017055"/>
+                <joint name="l_forearm_roll" range="-1.5708 1.5708" actuatorfrcrange="-22 22" armature="0.01" damping="0.1" axis="0 0 -1"/>
                 <geom pos="-0.282 -0.007 -0.867" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.227 0.239 0.267 1" density="0" material="cad18" mesh="l_forearm_0"/>
                 <geom pos="-0.282 -0.007 -0.867" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.914 0.914 0.894 1" density="0" material="cad19" mesh="l_forearm_1"/>
                 <geom pos="-0.282 -0.007 -0.867" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="l_forearm_2"/>
                 <geom size="0.0531075 0.053177 0.119996" pos="-7e-06 -5.9e-05 -0.119995" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                 <body name="l_hand_W" pos="-0.0019 4e-05 -0.2232" gravcomp="1">
-                  <inertial pos="0.012278 -3.6e-05 -0.010409" quat="0.707107 0.707107 0 0" mass="0.0161" diaginertia="1.58043e-05 1.53808e-05 9.32732e-06"/>
-                  <joint name="l_wrist_dev" range="-0.3491 0.5236" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="-1 0 0"/>
+                  <inertial pos="0.008685 -0.00019 -0.015554" quat="0.657803 0.659881 0.256306 -0.257215" mass="0.0486" diaginertia="6.11636e-05 4.70624e-05 1.92205e-05"/>
+                  <joint name="l_wrist_dev" range="-0.3491 0.5236" actuatorfrcrange="-2 2" armature="0.01" damping="0.1" axis="-1 0 0"/>
                   <geom pos="-0.2801 -0.00704 -0.6438" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.769 0.78 0.8 1" density="0" material="cad21" mesh="l_hand_W_0"/>
                   <geom pos="-0.2801 -0.00704 -0.6438" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="l_hand_W_1"/>
                   <geom size="0.0287805 0.0450935 0.0301185" pos="0.012278 -3.6e-05 -0.010409" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                   <body name="l_hand_H" pos="0 0 -0.024" gravcomp="1">
-                    <inertial pos="0.003168 -0.012828 -0.060957" mass="0.0454" diaginertia="0.000151451 9.45679e-05 7.82877e-05"/>
-                    <joint name="l_wrist_flex" range="-1.0472 1.0472" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="0 1 0"/>
+                    <inertial pos="0.004219 -0.003782 -0.062162" quat="0.997428 -0.0597083 -0.0333148 0.0215101" mass="0.088" diaginertia="0.000172679 0.00013155 7.07633e-05"/>
+                    <joint name="l_wrist_flex" range="-1.0472 1.0472" actuatorfrcrange="-2 2" armature="0.01" damping="0.1" axis="0 1 0"/>
                     <geom pos="-0.2801 -0.00704 -0.6198" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.227 0.239 0.267 1" density="0" material="cad18" mesh="l_hand_H_0"/>
                     <geom pos="-0.2801 -0.00704 -0.6198" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.769 0.78 0.8 1" density="0" material="cad21" mesh="l_hand_H_1"/>
                     <geom pos="-0.2801 -0.00704 -0.6198" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.851 0.765 0.682 1" density="0" material="cad22" mesh="l_hand_H_2"/>
                     <geom pos="-0.2801 -0.00704 -0.6198" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="l_hand_H_3"/>
                     <geom size="0.026587 0.0668135 0.074427" pos="0.003168 -0.012828 -0.060957" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                     <body name="l_hand_U" pos="0.0077 -0.0102 -0.1331" gravcomp="1">
-                      <inertial pos="0.003594 0.000118 -0.0038" quat="0.707107 0.707107 0 0" mass="0.01" diaginertia="8.92882e-07 8.43455e-07 6.80919e-07"/>
-                      <joint name="l_abd" range="-0.2618 0.2618" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="0.9998 0 0.019996"/>
+                      <inertial pos="0.002838 0.000868 -0.005218" quat="0.101638 0.39236 -0.267097 0.874289" mass="0.005" diaginertia="3.37725e-07 2.00538e-07 1.73521e-07"/>
+                      <joint name="l_abd" range="-0.2618 0.2618" actuatorfrcrange="-0.5 0.5" armature="0.01" damping="0.1" axis="0.9998 0 0.019996"/>
                       <geom pos="-0.2878 0.00316 -0.4867" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.769 0.78 0.8 1" density="0" material="cad21" mesh="l_hand_U_0"/>
                       <geom pos="-0.2878 0.00316 -0.4867" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="l_hand_U_1"/>
                       <geom size="0.0097325 0.012582 0.0104665" pos="0.003594 0.000118 -0.0038" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                       <body name="l_hand_P" pos="-3e-05 0.00136 -0.0077" gravcomp="1">
-                        <inertial pos="0.003328 -0.000361 -0.017332" mass="0.01" diaginertia="2.6418e-06 2.48255e-06 8.03795e-07"/>
-                        <joint name="l_mcp" range="0 1.5708" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="0 0.999201 0.039968"/>
+                        <inertial pos="0.002195 -0.00014 -0.021433" quat="0.999646 0.0190896 0.0185344 0.000527953" mass="0.0084" diaginertia="2.02882e-06 1.85131e-06 5.03634e-07"/>
+                        <joint name="l_mcp" range="0 1.5708" actuatorfrcrange="-0.5 0.5" armature="0.01" damping="0.1" axis="0 0.999201 0.039968"/>
                         <geom pos="-0.28777 0.0018 -0.479" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.769 0.78 0.8 1" density="0" material="cad21" mesh="l_hand_P_0"/>
                         <geom pos="-0.28777 0.0018 -0.479" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.851 0.765 0.682 1" density="0" material="cad22" mesh="l_hand_P_1"/>
                         <geom pos="-0.28777 0.0018 -0.479" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="l_hand_P_2"/>
                         <geom size="0.0098325 0.012019 0.0254575" pos="0.003328 -0.000361 -0.017332" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                         <body name="l_hand_I" pos="0.00077 0.00043 -0.03626" gravcomp="1">
-                          <inertial pos="0.002737 0.000574 -0.016561" mass="0.01" diaginertia="1.98483e-06 1.81532e-06 6.7817e-07"/>
-                          <joint name="l_pip" range="0 1.5708" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="0 0.999201 0.039968"/>
+                          <inertial pos="0.003369 0.000612 -0.015405" quat="0.999559 0.01998 0.0219417 0.0008891" mass="0.0027" diaginertia="2.62284e-07 2.49826e-07 1.37019e-07"/>
+                          <joint name="l_pip" range="0 1.5708" actuatorfrcrange="-0.5 0.5" armature="0.01" damping="0.1" axis="0 0.999201 0.039968"/>
                           <geom pos="-0.28854 0.00137 -0.44274" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.851 0.765 0.682 1" density="0" material="cad22" mesh="l_hand_I_0"/>
                           <geom pos="-0.28854 0.00137 -0.44274" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="l_hand_I_1"/>
                           <geom size="0.008735 0.011276 0.02164" pos="0.002737 0.000574 -0.016561" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                           <body name="l_hand_D" pos="0.0007 0.00132 -0.03313" gravcomp="1">
-                            <inertial pos="0.001741 0.000249 -0.010803" mass="0.01" diaginertia="1.33015e-06 1.17715e-06 5.53216e-07"/>
-                            <joint name="l_dip" range="0 1.5708" actuatorfrcrange="-10 10" axis="0 0.999201 0.039968"/>
+                            <inertial pos="0.001007 0.000207 -0.005149" quat="0.997952 0.0199619 -0.0607713 -0.000780313" mass="0.006" diaginertia="5.52866e-07 4.42531e-07 2.00898e-07"/>
+                            <joint name="l_dip" range="0 1.5708" actuatorfrcrange="-0.5 0.5" axis="0 0.999201 0.039968"/>
                             <geom pos="-0.28924 5e-05 -0.40961" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.769 0.78 0.8 1" density="0" material="cad21" mesh="l_hand_D_0"/>
                             <geom pos="-0.28924 5e-05 -0.40961" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.851 0.765 0.682 1" density="0" material="cad22" mesh="l_hand_D_1"/>
                             <geom pos="-0.28924 5e-05 -0.40961" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="l_hand_D_2"/>
@@ -522,27 +522,27 @@
                       </body>
                     </body>
                     <body name="l_hand_U_I" pos="0.007439 -0.038912 -0.120776" gravcomp="1">
-                      <inertial pos="0.003595 2.2e-05 -0.003593" quat="0.707107 0.707107 0 0" mass="0.01" diaginertia="8.70685e-07 8.36381e-07 6.65399e-07"/>
-                      <joint name="l_i_abd" range="-0.2618 0.2618" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="0.9998 0 0.019996"/>
+                      <inertial pos="0.002838 0.000657 -0.005248" quat="0.109839 0.390133 -0.249717 0.879416" mass="0.005" diaginertia="3.37725e-07 2.00539e-07 1.73522e-07"/>
+                      <joint name="l_i_abd" range="-0.2618 0.2618" actuatorfrcrange="-0.5 0.5" armature="0.01" damping="0.1" axis="0.9998 0 0.019996"/>
                       <geom pos="-0.287539 0.031872 -0.499024" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.769 0.78 0.8 1" density="0" material="cad21" mesh="l_hand_U_I_0"/>
                       <geom pos="-0.287539 0.031872 -0.499024" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="l_hand_U_I_1"/>
                       <geom size="0.0097295 0.0125 0.010245" pos="0.003595 2.2e-05 -0.003593" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                       <body name="l_hand_P_I" pos="-2.9e-05 0.001051 -0.007748" gravcomp="1">
-                        <inertial pos="0.003327 -0.001029 -0.017253" mass="0.01" diaginertia="2.54833e-06 2.42062e-06 7.72486e-07"/>
-                        <joint name="l_i_mcp" range="0 1.5708" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="0.000899 1 0"/>
+                        <inertial pos="0.002194 -0.000999 -0.02141" quat="0.999828 -0.000908563 0.018533 -0.000267878" mass="0.0084" diaginertia="2.02882e-06 1.85131e-06 5.03634e-07"/>
+                        <joint name="l_i_mcp" range="0 1.5708" actuatorfrcrange="-0.5 0.5" armature="0.01" damping="0.1" axis="0.000899 1 0"/>
                         <geom pos="-0.28751 0.030821 -0.491276" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.769 0.78 0.8 1" density="0" material="cad21" mesh="l_hand_P_I_0"/>
                         <geom pos="-0.28751 0.030821 -0.491276" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.851 0.765 0.682 1" density="0" material="cad22" mesh="l_hand_P_I_1"/>
                         <geom pos="-0.28751 0.030821 -0.491276" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="l_hand_P_I_2"/>
                         <geom size="0.0098345 0.01162 0.025089" pos="0.003327 -0.001029 -0.017253" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                         <body name="l_hand_I_I" pos="0.00077 -0.001022 -0.036248" gravcomp="1">
-                          <inertial pos="0.002739 -7e-06 -0.016574" mass="0.01" diaginertia="1.95529e-06 1.80615e-06 6.57527e-07"/>
-                          <joint name="l_i_pip" range="0 1.5708" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="0.000899 1 0"/>
+                          <inertial pos="0.003369 -7e-06 -0.015417" quat="0.999759 -1.5036e-05 0.0219468 2.49985e-05" mass="0.0027" diaginertia="2.62284e-07 2.49825e-07 1.3702e-07"/>
+                          <joint name="l_i_pip" range="0 1.5708" actuatorfrcrange="-0.5 0.5" armature="0.01" damping="0.1" axis="0.000899 1 0"/>
                           <geom pos="-0.288279 0.031843 -0.455028" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.851 0.765 0.682 1" density="0" material="cad22" mesh="l_hand_I_I_0"/>
                           <geom pos="-0.288279 0.031843 -0.455028" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="l_hand_I_I_1"/>
                           <geom size="0.0087325 0.011 0.0215775" pos="0.002739 -7e-06 -0.016574" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                           <body name="l_hand_D_I" pos="0.000701 -7e-06 -0.033156" gravcomp="1">
-                            <inertial pos="0.001743 0 -0.01093" mass="0.01" diaginertia="1.30931e-06 1.15555e-06 5.53583e-07"/>
-                            <joint name="l_i_dip" range="0 1.5708" actuatorfrcrange="-10 10" axis="0.000899 1 0"/>
+                            <inertial pos="0.001006 0 -0.005153" quat="0.998151 -3.6206e-05 -0.0607833 1.17002e-05" mass="0.006" diaginertia="5.52866e-07 4.42531e-07 2.00899e-07"/>
+                            <joint name="l_i_dip" range="0 1.5708" actuatorfrcrange="-0.5 0.5" axis="0.000899 1 0"/>
                             <geom pos="-0.28898 0.03185 -0.421872" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.769 0.78 0.8 1" density="0" material="cad21" mesh="l_hand_D_I_0"/>
                             <geom pos="-0.28898 0.03185 -0.421872" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.851 0.765 0.682 1" density="0" material="cad22" mesh="l_hand_D_I_1"/>
                             <geom pos="-0.28898 0.03185 -0.421872" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="l_hand_D_I_2"/>
@@ -552,27 +552,27 @@
                       </body>
                     </body>
                     <body name="l_hand_U_R" pos="0.007399 0.01548 -0.118954" gravcomp="1">
-                      <inertial pos="0.003587 0.000455 -0.004124" quat="0.707107 0.707107 0 0" mass="0.01" diaginertia="9.39036e-07 8.66912e-07 7.04633e-07"/>
-                      <joint name="l_r_abd" range="-0.2618 0.2618" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="0.9998 0.0001 0.019996"/>
+                      <inertial pos="0.002837 0.001212 -0.00515" quat="0.0881187 0.395665 -0.295333 0.865137" mass="0.005" diaginertia="3.37725e-07 2.00538e-07 1.73521e-07"/>
+                      <joint name="l_r_abd" range="-0.2618 0.2618" actuatorfrcrange="-0.5 0.5" armature="0.01" damping="0.1" axis="0.9998 0.0001 0.019996"/>
                       <geom pos="-0.287499 -0.02252 -0.500846" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.769 0.78 0.8 1" density="0" material="cad21" mesh="l_hand_U_R_0"/>
                       <geom pos="-0.287499 -0.02252 -0.500846" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="l_hand_U_R_1"/>
                       <geom size="0.0097405 0.012853 0.010794" pos="0.003587 0.000455 -0.004124" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                       <body name="l_hand_P_R" pos="-3.2e-05 0.001861 -0.007594" gravcomp="1">
-                        <inertial pos="0.003328 0.001199 -0.017373" mass="0.01" diaginertia="2.83276e-06 2.5759e-06 9.01375e-07"/>
-                        <joint name="l_r_mcp" range="0 1.5708" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="-0.001399 0.994437 0.105319"/>
+                        <inertial pos="0.002194 0.001268 -0.021396" quat="0.998483 0.0518233 0.0185204 0.00183079" mass="0.0084" diaginertia="2.02882e-06 1.85131e-06 5.03635e-07"/>
+                        <joint name="l_r_mcp" range="0 1.5708" actuatorfrcrange="-0.5 0.5" armature="0.01" damping="0.1" axis="-0.001399 0.994437 0.105319"/>
                         <geom pos="-0.287467 -0.024381 -0.493252" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.769 0.78 0.8 1" density="0" material="cad21" mesh="l_hand_P_R_0"/>
                         <geom pos="-0.287467 -0.024381 -0.493252" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.851 0.765 0.682 1" density="0" material="cad22" mesh="l_hand_P_R_1"/>
                         <geom pos="-0.287467 -0.024381 -0.493252" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="l_hand_P_R_2"/>
                         <geom size="0.0098325 0.013181 0.026002" pos="0.003328 0.001199 -0.017373" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                         <body name="l_hand_I_R" pos="0.000768 0.002805 -0.036154" gravcomp="1">
-                          <inertial pos="0.002732 0.001524 -0.016483" mass="0.01" diaginertia="2.02051e-06 1.81956e-06 7.10054e-07"/>
-                          <joint name="l_r_pip" range="0 1.5708" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="-0.001399 0.994437 0.105319"/>
+                          <inertial pos="0.003368 0.001625 -0.015333" quat="0.998367 0.0527077 0.0219147 0.00230343" mass="0.0027" diaginertia="2.62285e-07 2.49825e-07 1.37019e-07"/>
+                          <joint name="l_r_pip" range="0 1.5708" actuatorfrcrange="-0.5 0.5" armature="0.01" damping="0.1" axis="-0.001399 0.994437 0.105319"/>
                           <geom pos="-0.288235 -0.027186 -0.457098" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.851 0.765 0.682 1" density="0" material="cad22" mesh="l_hand_I_R_0"/>
                           <geom pos="-0.288235 -0.027186 -0.457098" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="l_hand_I_R_1"/>
                           <geom size="0.0087385 0.01169 0.021668" pos="0.002732 0.001524 -0.016483" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                           <body name="l_hand_D_R" pos="0.000697 0.003488 -0.032972" gravcomp="1">
-                            <inertial pos="0.001736 0.000656 -0.010593" mass="0.01" diaginertia="1.35945e-06 1.21013e-06 5.50164e-07"/>
-                            <joint name="l_r_dip" range="0 1.5708" actuatorfrcrange="-10 10" axis="-0.001399 0.994437 0.105319"/>
+                            <inertial pos="0.001006 0.000546 -0.005125" quat="0.996762 0.0526949 -0.0606992 -0.00207662" mass="0.006" diaginertia="5.52866e-07 4.4253e-07 2.00899e-07"/>
+                            <joint name="l_r_dip" range="0 1.5708" actuatorfrcrange="-0.5 0.5" axis="-0.001399 0.994437 0.105319"/>
                             <geom pos="-0.288932 -0.030675 -0.424126" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.769 0.78 0.8 1" density="0" material="cad21" mesh="l_hand_D_R_0"/>
                             <geom pos="-0.288932 -0.030675 -0.424126" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.851 0.765 0.682 1" density="0" material="cad22" mesh="l_hand_D_R_1"/>
                             <geom pos="-0.288932 -0.030675 -0.424126" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="l_hand_D_R_2"/>
@@ -582,27 +582,27 @@
                       </body>
                     </body>
                     <body name="l_hand_U_L" pos="0.006932 0.034666 -0.096922" gravcomp="1">
-                      <inertial pos="0.003571 0.001344 -0.004488" quat="0.707107 0.707107 0 0" mass="0.01" diaginertia="1.06226e-06 9.26333e-07 7.70711e-07"/>
-                      <joint name="l_l_abd" range="-0.2618 0.2618" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="0.9998 0.0003 0.019996"/>
+                      <inertial pos="0.002831 0.001968 -0.004913" quat="0.057236 0.401564 -0.357928 0.841046" mass="0.005" diaginertia="3.37725e-07 2.00538e-07 1.73521e-07"/>
+                      <joint name="l_l_abd" range="-0.2618 0.2618" actuatorfrcrange="-0.5 0.5" armature="0.01" damping="0.1" axis="0.9998 0.0003 0.019996"/>
                       <geom pos="-0.287032 -0.041706 -0.522878" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.769 0.78 0.8 1" density="0" material="cad21" mesh="l_hand_U_L_0"/>
                       <geom pos="-0.287032 -0.041706 -0.522878" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="l_hand_U_L_1"/>
                       <geom size="0.009758 0.013516 0.0116615" pos="0.003571 0.001344 -0.004488" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                       <body name="l_hand_P_L" pos="-4e-05 0.002962 -0.007236" gravcomp="1">
-                        <inertial pos="0.003316 0.003857 -0.01718" mass="0.01" diaginertia="3.29818e-06 2.72088e-06 1.22186e-06"/>
-                        <joint name="l_l_mcp" range="0 1.5708" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="-0.004496 0.96798 0.250987"/>
+                        <inertial pos="0.002185 0.004418 -0.020973" quat="0.991905 0.125545 0.0184155 0.00476603" mass="0.0084" diaginertia="2.02883e-06 1.85131e-06 5.03634e-07"/>
+                        <joint name="l_l_mcp" range="0 1.5708" actuatorfrcrange="-0.5 0.5" armature="0.01" damping="0.1" axis="-0.004496 0.96798 0.250987"/>
                         <geom pos="-0.286992 -0.044668 -0.515642" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.769 0.78 0.8 1" density="0" material="cad21" mesh="l_hand_P_L_0"/>
                         <geom pos="-0.286992 -0.044668 -0.515642" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.851 0.765 0.682 1" density="0" material="cad22" mesh="l_hand_P_L_1"/>
                         <geom pos="-0.286992 -0.044668 -0.515642" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="l_hand_P_L_2"/>
                         <geom size="0.009833 0.016428 0.026825" pos="0.003316 0.003857 -0.01718" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                         <body name="l_hand_I_L" pos="0.000751 0.008113 -0.035344" gravcomp="1">
-                          <inertial pos="0.002715 0.00364 -0.016045" mass="0.01" diaginertia="2.04048e-06 1.77993e-06 7.70664e-07"/>
-                          <joint name="l_l_pip" range="0 1.5708" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="-0.004496 0.96798 0.250987"/>
+                          <inertial pos="0.003359 0.00388 -0.014923" quat="0.991724 0.126414 0.021767 0.00548832" mass="0.0027" diaginertia="2.62284e-07 2.49825e-07 1.37019e-07"/>
+                          <joint name="l_l_pip" range="0 1.5708" actuatorfrcrange="-0.5 0.5" armature="0.01" damping="0.1" axis="-0.004496 0.96798 0.250987"/>
                           <geom pos="-0.287742 -0.052781 -0.480298" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.851 0.765 0.682 1" density="0" material="cad22" mesh="l_hand_I_L_0"/>
                           <geom pos="-0.287742 -0.052781 -0.480298" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="l_hand_I_L_1"/>
                           <geom size="0.0087475 0.012437 0.0213885" pos="0.002715 0.00364 -0.016045" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                           <body name="l_hand_D_L" pos="0.000678 0.008319 -0.032096" gravcomp="1">
-                            <inertial pos="0.001723 0.002119 -0.00995" mass="0.01" diaginertia="1.48337e-06 1.25347e-06 6.31993e-07"/>
-                            <joint name="l_l_dip" range="0 1.5708" actuatorfrcrange="-10 10" axis="-0.004496 0.96798 0.250987"/>
+                            <inertial pos="0.001003 0.001299 -0.004987" quat="0.990131 0.126412 -0.0602961 -0.00499619" mass="0.006" diaginertia="5.52866e-07 4.4253e-07 2.00898e-07"/>
+                            <joint name="l_l_dip" range="0 1.5708" actuatorfrcrange="-0.5 0.5" axis="-0.004496 0.96798 0.250987"/>
                             <geom pos="-0.28842 -0.0611 -0.448202" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.769 0.78 0.8 1" density="0" material="cad21" mesh="l_hand_D_L_0"/>
                             <geom pos="-0.28842 -0.0611 -0.448202" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.851 0.765 0.682 1" density="0" material="cad22" mesh="l_hand_D_L_1"/>
                             <geom pos="-0.28842 -0.0611 -0.448202" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="l_hand_D_L_2"/>
@@ -612,24 +612,24 @@
                       </body>
                     </body>
                     <body name="l_hand_TC" pos="0.0031 -0.0283 -0.041" gravcomp="1">
-                      <inertial pos="-0.010885 -0.006681 -0.022601" quat="0.707107 0 0 0.707107" mass="0.01" diaginertia="4.50923e-06 3.93235e-06 3.92255e-06"/>
-                      <joint name="l_th_c" range="0 0.8727" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="0.020699 0.229191 -0.973161"/>
+                      <inertial pos="-0.005572 -0.001065 -0.016558" quat="0.348644 0.228767 0.315998 0.852208" mass="0.0066" diaginertia="2.51045e-06 1.71868e-06 1.10904e-06"/>
+                      <joint name="l_th_c" range="0 0.8727" actuatorfrcrange="-0.5 0.5" armature="0.01" damping="0.1" axis="0.020699 0.229191 -0.973161"/>
                       <geom pos="-0.2832 0.02126 -0.5788" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="l_hand_TC_0"/>
                       <geom size="0.025979 0.022402 0.0260355" pos="-0.010885 -0.006681 -0.022601" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                       <body name="l_hand_TF" pos="-0.0223 -0.017 -0.0244" gravcomp="1">
-                        <inertial pos="0.010928 -0.008609 -0.003352" mass="0.01" diaginertia="3.45976e-06 3.13121e-06 2.73464e-06"/>
-                        <joint name="l_th_f" range="0 1.0472" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="-0.710388 0.688288 0.146997"/>
+                        <inertial pos="0.010305 -0.012537 -0.004428" quat="0.871315 -0.320418 0.191751 -0.318391" mass="0.0036" diaginertia="1.1645e-06 6.46588e-07 5.92384e-07"/>
+                        <joint name="l_th_f" range="0 1.0472" actuatorfrcrange="-0.5 0.5" armature="0.01" damping="0.1" axis="-0.710388 0.688288 0.146997"/>
                         <geom pos="-0.2609 0.03826 -0.5544" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="l_hand_TF_0"/>
                         <geom size="0.018998 0.0214355 0.024051" pos="0.010928 -0.008609 -0.003352" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                         <body name="l_hand_TP" pos="-0.000861 -0.022341 -0.01991" gravcomp="1">
-                          <inertial pos="-0.010959 -0.006525 -0.013178" quat="0.707107 0 0 0.707107" mass="0.01" diaginertia="3.60085e-06 3.15539e-06 2.6119e-06"/>
-                          <joint name="l_th_mcp" range="0 1.3963" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="0.435917 0.594223 -0.675926"/>
+                          <inertial pos="-0.011949 -0.007709 -0.014631" quat="0.325797 0.209306 0.310603 0.868086" mass="0.0055" diaginertia="1.21454e-06 1.10922e-06 4.26772e-07"/>
+                          <joint name="l_th_mcp" range="0 1.3963" actuatorfrcrange="-0.5 0.5" armature="0.01" damping="0.1" axis="0.435917 0.594223 -0.675926"/>
                           <geom pos="-0.260039 0.060601 -0.53449" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.851 0.765 0.682 1" density="0" material="cad22" mesh="l_hand_TP_0"/>
                           <geom pos="-0.260039 0.060601 -0.53449" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="l_hand_TP_1"/>
                           <geom size="0.021415 0.018027 0.024933" pos="-0.010959 -0.006525 -0.013178" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                           <body name="l_hand_TD" pos="-0.024155 -0.015449 -0.029306" gravcomp="1">
-                            <inertial pos="-0.005569 -0.002879 -0.006077" quat="0.707107 0 0 0.707107" mass="0.01" diaginertia="1.84157e-06 1.71672e-06 1.43486e-06"/>
-                            <joint name="l_th_ip" range="0 1.3963" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="0.435917 0.594223 -0.675926"/>
+                            <inertial pos="-0.008065 -0.005295 -0.009856" quat="0.347436 0.271255 0.286897 0.850529" mass="0.0032" diaginertia="3.60926e-07 2.94771e-07 2.50574e-07"/>
+                            <joint name="l_th_ip" range="0 1.3963" actuatorfrcrange="-0.5 0.5" armature="0.01" damping="0.1" axis="0.435917 0.594223 -0.675926"/>
                             <geom pos="-0.235884 0.07605 -0.505184" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.851 0.765 0.682 1" density="0" material="cad22" mesh="l_hand_TD_0"/>
                             <geom pos="-0.235884 0.07605 -0.505184" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.949 0.949 0.933 1" density="0" material="cad20" mesh="l_hand_TD_1"/>
                             <geom size="0.0152955 0.014018 0.017847" pos="-0.005569 -0.002879 -0.006077" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
@@ -646,38 +646,38 @@
       </body>
     </body>
     <body name="l_hip_pitch_link" pos="0.084 0 0.847917" gravcomp="1">
-      <inertial pos="0.059487 0.038047 8.3e-05" quat="0.5 0.5 -0.5 0.5" mass="0.198" diaginertia="0.000545783 0.000482156 0.000380218"/>
-      <joint name="Hip_F_L" range="-0.3491 1.5708" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="-1 0 0"/>
+      <inertial pos="0.057476 0.057049 -5.8e-05" quat="0.659709 0.667188 -0.227489 -0.260561" mass="1.3125" diaginertia="0.00249762 0.00241384 0.00114287"/>
+      <joint name="Hip_F_L" range="-0.3491 1.5708" actuatorfrcrange="-222 222" armature="0.01" damping="0.1" axis="-1 0 0"/>
       <geom pos="-0.084 0 -0.828" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="l_hip_pitch_link_0"/>
       <geom pos="-0.084 0 -0.828" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="l_hip_pitch_link_1"/>
       <geom size="0.057987 0.07005 0.048974" pos="0.059487 0.038047 8.3e-05" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
       <body name="l_hip_roll_link" pos="0.069 0 0" gravcomp="1">
-        <inertial pos="0.000463 0.027948 -0.048045" mass="0.2332" diaginertia="0.00106304 0.000842545 0.000699892"/>
-        <joint name="Hip_A_L" range="-0.1745 1.0472" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="0 -1 0"/>
+        <inertial pos="0.003259 0.018948 -0.076596" quat="0.821227 -0.260283 0.262342 0.434759" mass="1.5837" diaginertia="0.00509512 0.00473197 0.0018628"/>
+        <joint name="Hip_A_L" range="-0.1745 1.0472" actuatorfrcrange="-120 120" armature="0.01" damping="0.1" axis="0 -1 0"/>
         <geom pos="-0.153 0 -0.828" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="l_hip_roll_link_0"/>
         <geom pos="-0.153 0 -0.828" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="l_hip_roll_link_1"/>
         <geom size="0.055535 0.076949 0.0880715" pos="0.000463 0.027948 -0.048045" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
         <body name="l_thigh" pos="-0.001 0 -0.1305" gravcomp="1">
-          <inertial pos="-0.0094 -1.1e-05 -0.152017" quat="0.707107 0 0 0.707107" mass="0.3566" diaginertia="0.00324641 0.00311933 0.000697754"/>
-          <joint name="Hip_R_L" range="-0.5236 1.5708" actuatorfrcrange="-10 10" armature="0.01" damping="1"/>
+          <inertial pos="-0.008506 -0.000412 -0.180456" quat="0.711221 0.042991 0.0410094 0.700453" mass="2.8299" diaginertia="0.0321413 0.0316922 0.0037644"/>
+          <joint name="Hip_R_L" range="-0.5236 1.5708" actuatorfrcrange="-60 60" armature="0.01" damping="0.1"/>
           <geom pos="-0.152 0 -0.6975" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="l_thigh_0"/>
           <geom pos="-0.152 0 -0.6975" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.604 0.62 0.643 1" density="0" material="cad23" mesh="l_thigh_1"/>
           <geom pos="-0.152 0 -0.6975" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="l_thigh_2"/>
           <geom size="0.0589 0.0489925 0.1544" pos="-0.0094 -1.1e-05 -0.152017" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
           <body name="l_shank_foot" pos="0 0 -0.2615" gravcomp="1">
-            <inertial pos="-0.01215 0.015253 -0.190467" mass="0.4993" diaginertia="0.00983921 0.00971779 0.00108675"/>
-            <joint name="Knee_L" range="-1.1345 0" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="-1 0 0"/>
+            <inertial pos="-0.005932 0.015397 -0.208131" quat="0.999639 0.00747367 0.0214229 0.0143958" mass="4.8588" diaginertia="0.0374774 0.0349656 0.00683497"/>
+            <joint name="Knee_L" range="-1.1345 0" actuatorfrcrange="-222 222" armature="0.01" damping="0.1" axis="-1 0 0"/>
             <geom pos="-0.152 0 -0.436" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="l_shank_foot_0"/>
             <geom pos="-0.152 0 -0.436" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.604 0.62 0.643 1" density="0" material="cad23" mesh="l_shank_foot_1"/>
             <geom pos="-0.152 0 -0.436" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="l_shank_foot_2"/>
             <geom size="0.05385 0.0602435 0.23555" pos="-0.01215 0.015253 -0.190467" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
             <body name="l_ankle_cross" pos="0.001 -0.007 -0.3936" gravcomp="1">
-              <inertial pos="0 0 0" mass="0.01" diaginertia="1.66667e-07 1.66667e-07 1.66667e-07"/>
-              <joint name="Ankle_P_L" range="-0.5236 0.8727" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="1 0 0"/>
+              <inertial pos="0 0 0" quat="0.5 0.5 -0.5 0.5" mass="0.1" diaginertia="4.16667e-05 2.83333e-05 2.83333e-05"/>
+              <joint name="Ankle_P_L" range="-0.5236 0.8727" actuatorfrcrange="-60 60" armature="0.01" damping="0.1" axis="1 0 0"/>
               <geom size="0.005 0.005 0.005" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
               <body name="l_foot" pos="0 0 -0.0179" gravcomp="1">
-                <inertial pos="-0.0088 -0.034625 -0.002217" quat="0.5 0.5 -0.5 0.5" mass="0.1397" diaginertia="0.000827527 0.000771188 0.000222215"/>
-                <joint name="Ankle_R_L" range="-0.2618 0.2618" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="0 1 0"/>
+                <inertial pos="-0.0088 -0.014819 -0.022493" quat="0.461451 0.535778 -0.535781 0.461459" mass="1.0778" diaginertia="0.00401312 0.00393346 0.00102818"/>
+                <joint name="Ankle_R_L" range="-0.2618 0.2618" actuatorfrcrange="-60 60" armature="0.01" damping="0.1" axis="0 1 0"/>
                 <geom pos="-0.153 0.007 -0.0245" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="l_foot_0"/>
                 <geom size="0.054686 0.121566 0.0422" pos="-0.0088 -0.034625 -0.002217" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
               </body>
@@ -687,38 +687,38 @@
       </body>
     </body>
     <body name="r_hip_pitch_link" pos="-0.084 0 0.847917" gravcomp="1">
-      <inertial pos="-0.059487 0.038047 8.3e-05" quat="0.5 0.5 -0.5 0.5" mass="0.198" diaginertia="0.000545783 0.000482156 0.000380218"/>
-      <joint name="Hip_F_R" range="-0.3491 1.5708" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="-1 0 0"/>
+      <inertial pos="-0.057476 0.057049 -5.8e-05" quat="0.659709 0.667188 0.227489 0.260561" mass="1.3125" diaginertia="0.00249762 0.00241384 0.00114287"/>
+      <joint name="Hip_F_R" range="-0.3491 1.5708" actuatorfrcrange="-222 222" armature="0.01" damping="0.1" axis="-1 0 0"/>
       <geom pos="0.084 0 -0.828" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="r_hip_pitch_link_0"/>
       <geom pos="0.084 0 -0.828" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="r_hip_pitch_link_1"/>
       <geom size="0.057987 0.07005 0.048974" pos="-0.059487 0.038047 8.3e-05" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
       <body name="r_hip_roll_link" pos="-0.069 0 0" gravcomp="1">
-        <inertial pos="-0.000463 0.027948 -0.048045" mass="0.2332" diaginertia="0.00106304 0.000842545 0.000699892"/>
-        <joint name="Hip_A_R" range="-0.1745 1.0472" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="0 1 0"/>
+        <inertial pos="-0.003376 0.018831 -0.076596" quat="0.435242 -0.262324 0.260394 0.820942" mass="1.5837" diaginertia="0.00510074 0.00473251 0.00186777"/>
+        <joint name="Hip_A_R" range="-0.1745 1.0472" actuatorfrcrange="-120 120" armature="0.01" damping="0.1" axis="0 1 0"/>
         <geom pos="0.153 0 -0.828" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="r_hip_roll_link_0"/>
         <geom pos="0.153 0 -0.828" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="r_hip_roll_link_1"/>
         <geom size="0.055535 0.076949 0.0880715" pos="-0.000463 0.027948 -0.048045" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
         <body name="r_thigh" pos="0.001 0 -0.1305" gravcomp="1">
-          <inertial pos="0.0094 -1.1e-05 -0.152017" quat="0.707107 0 0 0.707107" mass="0.3566" diaginertia="0.00324641 0.00311933 0.000697754"/>
-          <joint name="Hip_R_R" range="-0.5236 1.5708" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="0 0 -1"/>
+          <inertial pos="0.008506 -0.000412 -0.180456" quat="0.700453 -0.0410094 -0.042991 0.711221" mass="2.8299" diaginertia="0.0321413 0.0316922 0.0037644"/>
+          <joint name="Hip_R_R" range="-0.5236 1.5708" actuatorfrcrange="-60 60" armature="0.01" damping="0.1" axis="0 0 -1"/>
           <geom pos="0.152 0 -0.6975" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="r_thigh_0"/>
           <geom pos="0.152 0 -0.6975" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.604 0.62 0.643 1" density="0" material="cad23" mesh="r_thigh_1"/>
           <geom pos="0.152 0 -0.6975" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="r_thigh_2"/>
           <geom size="0.0589 0.0489925 0.1544" pos="0.0094 -1.1e-05 -0.152017" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
           <body name="r_shank_foot" pos="0 0 -0.2615" gravcomp="1">
-            <inertial pos="0.01215 0.015253 -0.190467" mass="0.4993" diaginertia="0.00983921 0.00971779 0.00108675"/>
-            <joint name="Knee_R" range="-1.1345 0" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="-1 0 0"/>
+            <inertial pos="0.005932 0.015397 -0.208131" quat="0.999639 0.00747367 -0.0214229 -0.0143958" mass="4.8588" diaginertia="0.0374774 0.0349656 0.00683497"/>
+            <joint name="Knee_R" range="-1.1345 0" actuatorfrcrange="-222 222" armature="0.01" damping="0.1" axis="-1 0 0"/>
             <geom pos="0.152 0 -0.436" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="r_shank_foot_0"/>
             <geom pos="0.152 0 -0.436" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.604 0.62 0.643 1" density="0" material="cad23" mesh="r_shank_foot_1"/>
             <geom pos="0.152 0 -0.436" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="r_shank_foot_2"/>
             <geom size="0.05385 0.0602435 0.23555" pos="0.01215 0.015253 -0.190467" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
             <body name="r_ankle_cross" pos="-0.001 -0.007 -0.3936" gravcomp="1">
-              <inertial pos="0 0 0" mass="0.01" diaginertia="1.66667e-07 1.66667e-07 1.66667e-07"/>
-              <joint name="Ankle_P_R" range="-0.5236 0.8727" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="1 0 0"/>
+              <inertial pos="0 0 0" quat="0.5 0.5 -0.5 0.5" mass="0.1" diaginertia="4.16667e-05 2.83333e-05 2.83333e-05"/>
+              <joint name="Ankle_P_R" range="-0.5236 0.8727" actuatorfrcrange="-60 60" armature="0.01" damping="0.1" axis="1 0 0"/>
               <geom size="0.005 0.005 0.005" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
               <body name="r_foot" pos="0 0 -0.0179" gravcomp="1">
-                <inertial pos="0.0088 -0.034625 -0.002217" quat="0.5 0.5 -0.5 0.5" mass="0.1397" diaginertia="0.000827528 0.000771188 0.000222215"/>
-                <joint name="Ankle_R_R" range="-0.2618 0.2618" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="0 -1 0"/>
+                <inertial pos="0.0088 -0.014819 -0.022493" quat="0.461458 0.535781 -0.535778 0.461451" mass="1.0778" diaginertia="0.00401313 0.00393346 0.00102818"/>
+                <joint name="Ankle_R_R" range="-0.2618 0.2618" actuatorfrcrange="-60 60" armature="0.01" damping="0.1" axis="0 -1 0"/>
                 <geom pos="0.153 0.007 -0.0245" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="r_foot_0"/>
                 <geom size="0.054686 0.121566 0.0422" pos="0.0088 -0.034625 -0.002217" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
               </body>
@@ -742,66 +742,66 @@
   </equality>
 
   <actuator>
-    <general name="waist_yaw" joint="waist_yaw" ctrlrange="-1.5708 1.5708" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="neck_yaw" joint="neck_yaw" ctrlrange="-1.2217 1.2217" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="neck_pitch" joint="neck_pitch" ctrlrange="-0.3491 0.5236" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="r_shoulder_pitch" joint="r_shoulder_pitch" ctrlrange="-3.1416 3.1416" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="r_shoulder_roll" joint="r_shoulder_roll" ctrlrange="-1.5708 1.5708" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="r_upper_arm_yaw" joint="r_upper_arm_yaw" ctrlrange="-1.5708 1.5708" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="r_elbow" joint="r_elbow" ctrlrange="-1.5708 1.5708" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="r_forearm_roll" joint="r_forearm_roll" ctrlrange="-1.5708 1.5708" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="r_wrist_dev" joint="r_wrist_dev" ctrlrange="-0.3491 0.5236" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="r_wrist_flex" joint="r_wrist_flex" ctrlrange="-1.0472 1.0472" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="r_abd" joint="r_abd" ctrlrange="-0.2618 0.2618" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="r_mcp" joint="r_mcp" ctrlrange="0 1.5708" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="r_pip" joint="r_pip" ctrlrange="0 1.5708" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="r_i_abd" joint="r_i_abd" ctrlrange="-0.2618 0.2618" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="r_i_mcp" joint="r_i_mcp" ctrlrange="0 1.5708" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="r_i_pip" joint="r_i_pip" ctrlrange="0 1.5708" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="r_r_abd" joint="r_r_abd" ctrlrange="-0.2618 0.2618" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="r_r_mcp" joint="r_r_mcp" ctrlrange="0 1.5708" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="r_r_pip" joint="r_r_pip" ctrlrange="0 1.5708" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="r_l_abd" joint="r_l_abd" ctrlrange="-0.2618 0.2618" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="r_l_mcp" joint="r_l_mcp" ctrlrange="0 1.5708" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="r_l_pip" joint="r_l_pip" ctrlrange="0 1.5708" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="r_th_c" joint="r_th_c" ctrlrange="0 0.8727" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="r_th_f" joint="r_th_f" ctrlrange="0 1.0472" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="r_th_mcp" joint="r_th_mcp" ctrlrange="0 1.3963" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="r_th_ip" joint="r_th_ip" ctrlrange="0 1.3963" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="l_shoulder_pitch" joint="l_shoulder_pitch" ctrlrange="-3.1416 3.1416" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="l_shoulder_roll" joint="l_shoulder_roll" ctrlrange="-1.5708 1.5708" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="l_upper_arm_yaw" joint="l_upper_arm_yaw" ctrlrange="-1.5708 1.5708" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="l_elbow" joint="l_elbow" ctrlrange="-1.5708 1.5708" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="l_forearm_roll" joint="l_forearm_roll" ctrlrange="-1.5708 1.5708" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="l_wrist_dev" joint="l_wrist_dev" ctrlrange="-0.3491 0.5236" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="l_wrist_flex" joint="l_wrist_flex" ctrlrange="-1.0472 1.0472" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="l_abd" joint="l_abd" ctrlrange="-0.2618 0.2618" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="l_mcp" joint="l_mcp" ctrlrange="0 1.5708" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="l_pip" joint="l_pip" ctrlrange="0 1.5708" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="l_i_abd" joint="l_i_abd" ctrlrange="-0.2618 0.2618" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="l_i_mcp" joint="l_i_mcp" ctrlrange="0 1.5708" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="l_i_pip" joint="l_i_pip" ctrlrange="0 1.5708" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="l_r_abd" joint="l_r_abd" ctrlrange="-0.2618 0.2618" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="l_r_mcp" joint="l_r_mcp" ctrlrange="0 1.5708" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="l_r_pip" joint="l_r_pip" ctrlrange="0 1.5708" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="l_l_abd" joint="l_l_abd" ctrlrange="-0.2618 0.2618" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="l_l_mcp" joint="l_l_mcp" ctrlrange="0 1.5708" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="l_l_pip" joint="l_l_pip" ctrlrange="0 1.5708" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="l_th_c" joint="l_th_c" ctrlrange="0 0.8727" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="l_th_f" joint="l_th_f" ctrlrange="0 1.0472" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="l_th_mcp" joint="l_th_mcp" ctrlrange="0 1.3963" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="l_th_ip" joint="l_th_ip" ctrlrange="0 1.3963" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="Hip_F_L" joint="Hip_F_L" ctrlrange="-0.3491 1.5708" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="Hip_A_L" joint="Hip_A_L" ctrlrange="-0.1745 1.0472" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="Hip_R_L" joint="Hip_R_L" ctrlrange="-0.5236 1.5708" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="Knee_L" joint="Knee_L" ctrlrange="-1.1345 0" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="Ankle_P_L" joint="Ankle_P_L" ctrlrange="-0.5236 0.8727" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="Ankle_R_L" joint="Ankle_R_L" ctrlrange="-0.2618 0.2618" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="Hip_F_R" joint="Hip_F_R" ctrlrange="-0.3491 1.5708" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="Hip_A_R" joint="Hip_A_R" ctrlrange="-0.1745 1.0472" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="Hip_R_R" joint="Hip_R_R" ctrlrange="-0.5236 1.5708" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="Knee_R" joint="Knee_R" ctrlrange="-1.1345 0" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="Ankle_P_R" joint="Ankle_P_R" ctrlrange="-0.5236 0.8727" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
-    <general name="Ankle_R_R" joint="Ankle_R_R" ctrlrange="-0.2618 0.2618" ctrllimited="true" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -4"/>
+    <general name="waist_yaw" joint="waist_yaw" ctrlrange="-1.5708 1.5708" ctrllimited="true" forcelimited="true" forcerange="-60 60" input="pos" biastype="affine" gainprm="1200" biasprm="0 -1200 -24"/>
+    <general name="neck_yaw" joint="neck_yaw" ctrlrange="-1.2217 1.2217" ctrllimited="true" forcelimited="true" forcerange="-5 5" input="pos" biastype="affine" gainprm="100" biasprm="0 -100 -2"/>
+    <general name="neck_pitch" joint="neck_pitch" ctrlrange="-0.3491 0.5236" ctrllimited="true" forcelimited="true" forcerange="-5 5" input="pos" biastype="affine" gainprm="100" biasprm="0 -100 -2"/>
+    <general name="r_shoulder_pitch" joint="r_shoulder_pitch" ctrlrange="-3.1416 3.1416" ctrllimited="true" forcelimited="true" forcerange="-53 53" input="pos" biastype="affine" gainprm="1060" biasprm="0 -1060 -21.2"/>
+    <general name="r_shoulder_roll" joint="r_shoulder_roll" ctrlrange="-1.5708 1.5708" ctrllimited="true" forcelimited="true" forcerange="-53 53" input="pos" biastype="affine" gainprm="1060" biasprm="0 -1060 -21.2"/>
+    <general name="r_upper_arm_yaw" joint="r_upper_arm_yaw" ctrlrange="-1.5708 1.5708" ctrllimited="true" forcelimited="true" forcerange="-22 22" input="pos" biastype="affine" gainprm="440" biasprm="0 -440 -8.8"/>
+    <general name="r_elbow" joint="r_elbow" ctrlrange="-1.5708 1.5708" ctrllimited="true" forcelimited="true" forcerange="-22 22" input="pos" biastype="affine" gainprm="440" biasprm="0 -440 -8.8"/>
+    <general name="r_forearm_roll" joint="r_forearm_roll" ctrlrange="-1.5708 1.5708" ctrllimited="true" forcelimited="true" forcerange="-22 22" input="pos" biastype="affine" gainprm="440" biasprm="0 -440 -8.8"/>
+    <general name="r_wrist_dev" joint="r_wrist_dev" ctrlrange="-0.3491 0.5236" ctrllimited="true" forcelimited="true" forcerange="-2 2" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -0.8"/>
+    <general name="r_wrist_flex" joint="r_wrist_flex" ctrlrange="-1.0472 1.0472" ctrllimited="true" forcelimited="true" forcerange="-2 2" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -0.8"/>
+    <general name="r_abd" joint="r_abd" ctrlrange="-0.2618 0.2618" ctrllimited="true" forcelimited="true" forcerange="-0.5 0.5" input="pos" biastype="affine" gainprm="10" biasprm="0 -10 -0.2"/>
+    <general name="r_mcp" joint="r_mcp" ctrlrange="0 1.5708" ctrllimited="true" forcelimited="true" forcerange="-0.5 0.5" input="pos" biastype="affine" gainprm="10" biasprm="0 -10 -0.2"/>
+    <general name="r_pip" joint="r_pip" ctrlrange="0 1.5708" ctrllimited="true" forcelimited="true" forcerange="-0.5 0.5" input="pos" biastype="affine" gainprm="10" biasprm="0 -10 -0.2"/>
+    <general name="r_i_abd" joint="r_i_abd" ctrlrange="-0.2618 0.2618" ctrllimited="true" forcelimited="true" forcerange="-0.5 0.5" input="pos" biastype="affine" gainprm="10" biasprm="0 -10 -0.2"/>
+    <general name="r_i_mcp" joint="r_i_mcp" ctrlrange="0 1.5708" ctrllimited="true" forcelimited="true" forcerange="-0.5 0.5" input="pos" biastype="affine" gainprm="10" biasprm="0 -10 -0.2"/>
+    <general name="r_i_pip" joint="r_i_pip" ctrlrange="0 1.5708" ctrllimited="true" forcelimited="true" forcerange="-0.5 0.5" input="pos" biastype="affine" gainprm="10" biasprm="0 -10 -0.2"/>
+    <general name="r_r_abd" joint="r_r_abd" ctrlrange="-0.2618 0.2618" ctrllimited="true" forcelimited="true" forcerange="-0.5 0.5" input="pos" biastype="affine" gainprm="10" biasprm="0 -10 -0.2"/>
+    <general name="r_r_mcp" joint="r_r_mcp" ctrlrange="0 1.5708" ctrllimited="true" forcelimited="true" forcerange="-0.5 0.5" input="pos" biastype="affine" gainprm="10" biasprm="0 -10 -0.2"/>
+    <general name="r_r_pip" joint="r_r_pip" ctrlrange="0 1.5708" ctrllimited="true" forcelimited="true" forcerange="-0.5 0.5" input="pos" biastype="affine" gainprm="10" biasprm="0 -10 -0.2"/>
+    <general name="r_l_abd" joint="r_l_abd" ctrlrange="-0.2618 0.2618" ctrllimited="true" forcelimited="true" forcerange="-0.5 0.5" input="pos" biastype="affine" gainprm="10" biasprm="0 -10 -0.2"/>
+    <general name="r_l_mcp" joint="r_l_mcp" ctrlrange="0 1.5708" ctrllimited="true" forcelimited="true" forcerange="-0.5 0.5" input="pos" biastype="affine" gainprm="10" biasprm="0 -10 -0.2"/>
+    <general name="r_l_pip" joint="r_l_pip" ctrlrange="0 1.5708" ctrllimited="true" forcelimited="true" forcerange="-0.5 0.5" input="pos" biastype="affine" gainprm="10" biasprm="0 -10 -0.2"/>
+    <general name="r_th_c" joint="r_th_c" ctrlrange="0 0.8727" ctrllimited="true" forcelimited="true" forcerange="-0.5 0.5" input="pos" biastype="affine" gainprm="10" biasprm="0 -10 -0.2"/>
+    <general name="r_th_f" joint="r_th_f" ctrlrange="0 1.0472" ctrllimited="true" forcelimited="true" forcerange="-0.5 0.5" input="pos" biastype="affine" gainprm="10" biasprm="0 -10 -0.2"/>
+    <general name="r_th_mcp" joint="r_th_mcp" ctrlrange="0 1.3963" ctrllimited="true" forcelimited="true" forcerange="-0.5 0.5" input="pos" biastype="affine" gainprm="10" biasprm="0 -10 -0.2"/>
+    <general name="r_th_ip" joint="r_th_ip" ctrlrange="0 1.3963" ctrllimited="true" forcelimited="true" forcerange="-0.5 0.5" input="pos" biastype="affine" gainprm="10" biasprm="0 -10 -0.2"/>
+    <general name="l_shoulder_pitch" joint="l_shoulder_pitch" ctrlrange="-3.1416 3.1416" ctrllimited="true" forcelimited="true" forcerange="-53 53" input="pos" biastype="affine" gainprm="1060" biasprm="0 -1060 -21.2"/>
+    <general name="l_shoulder_roll" joint="l_shoulder_roll" ctrlrange="-1.5708 1.5708" ctrllimited="true" forcelimited="true" forcerange="-53 53" input="pos" biastype="affine" gainprm="1060" biasprm="0 -1060 -21.2"/>
+    <general name="l_upper_arm_yaw" joint="l_upper_arm_yaw" ctrlrange="-1.5708 1.5708" ctrllimited="true" forcelimited="true" forcerange="-22 22" input="pos" biastype="affine" gainprm="440" biasprm="0 -440 -8.8"/>
+    <general name="l_elbow" joint="l_elbow" ctrlrange="-1.5708 1.5708" ctrllimited="true" forcelimited="true" forcerange="-22 22" input="pos" biastype="affine" gainprm="440" biasprm="0 -440 -8.8"/>
+    <general name="l_forearm_roll" joint="l_forearm_roll" ctrlrange="-1.5708 1.5708" ctrllimited="true" forcelimited="true" forcerange="-22 22" input="pos" biastype="affine" gainprm="440" biasprm="0 -440 -8.8"/>
+    <general name="l_wrist_dev" joint="l_wrist_dev" ctrlrange="-0.3491 0.5236" ctrllimited="true" forcelimited="true" forcerange="-2 2" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -0.8"/>
+    <general name="l_wrist_flex" joint="l_wrist_flex" ctrlrange="-1.0472 1.0472" ctrllimited="true" forcelimited="true" forcerange="-2 2" input="pos" biastype="affine" gainprm="40" biasprm="0 -40 -0.8"/>
+    <general name="l_abd" joint="l_abd" ctrlrange="-0.2618 0.2618" ctrllimited="true" forcelimited="true" forcerange="-0.5 0.5" input="pos" biastype="affine" gainprm="10" biasprm="0 -10 -0.2"/>
+    <general name="l_mcp" joint="l_mcp" ctrlrange="0 1.5708" ctrllimited="true" forcelimited="true" forcerange="-0.5 0.5" input="pos" biastype="affine" gainprm="10" biasprm="0 -10 -0.2"/>
+    <general name="l_pip" joint="l_pip" ctrlrange="0 1.5708" ctrllimited="true" forcelimited="true" forcerange="-0.5 0.5" input="pos" biastype="affine" gainprm="10" biasprm="0 -10 -0.2"/>
+    <general name="l_i_abd" joint="l_i_abd" ctrlrange="-0.2618 0.2618" ctrllimited="true" forcelimited="true" forcerange="-0.5 0.5" input="pos" biastype="affine" gainprm="10" biasprm="0 -10 -0.2"/>
+    <general name="l_i_mcp" joint="l_i_mcp" ctrlrange="0 1.5708" ctrllimited="true" forcelimited="true" forcerange="-0.5 0.5" input="pos" biastype="affine" gainprm="10" biasprm="0 -10 -0.2"/>
+    <general name="l_i_pip" joint="l_i_pip" ctrlrange="0 1.5708" ctrllimited="true" forcelimited="true" forcerange="-0.5 0.5" input="pos" biastype="affine" gainprm="10" biasprm="0 -10 -0.2"/>
+    <general name="l_r_abd" joint="l_r_abd" ctrlrange="-0.2618 0.2618" ctrllimited="true" forcelimited="true" forcerange="-0.5 0.5" input="pos" biastype="affine" gainprm="10" biasprm="0 -10 -0.2"/>
+    <general name="l_r_mcp" joint="l_r_mcp" ctrlrange="0 1.5708" ctrllimited="true" forcelimited="true" forcerange="-0.5 0.5" input="pos" biastype="affine" gainprm="10" biasprm="0 -10 -0.2"/>
+    <general name="l_r_pip" joint="l_r_pip" ctrlrange="0 1.5708" ctrllimited="true" forcelimited="true" forcerange="-0.5 0.5" input="pos" biastype="affine" gainprm="10" biasprm="0 -10 -0.2"/>
+    <general name="l_l_abd" joint="l_l_abd" ctrlrange="-0.2618 0.2618" ctrllimited="true" forcelimited="true" forcerange="-0.5 0.5" input="pos" biastype="affine" gainprm="10" biasprm="0 -10 -0.2"/>
+    <general name="l_l_mcp" joint="l_l_mcp" ctrlrange="0 1.5708" ctrllimited="true" forcelimited="true" forcerange="-0.5 0.5" input="pos" biastype="affine" gainprm="10" biasprm="0 -10 -0.2"/>
+    <general name="l_l_pip" joint="l_l_pip" ctrlrange="0 1.5708" ctrllimited="true" forcelimited="true" forcerange="-0.5 0.5" input="pos" biastype="affine" gainprm="10" biasprm="0 -10 -0.2"/>
+    <general name="l_th_c" joint="l_th_c" ctrlrange="0 0.8727" ctrllimited="true" forcelimited="true" forcerange="-0.5 0.5" input="pos" biastype="affine" gainprm="10" biasprm="0 -10 -0.2"/>
+    <general name="l_th_f" joint="l_th_f" ctrlrange="0 1.0472" ctrllimited="true" forcelimited="true" forcerange="-0.5 0.5" input="pos" biastype="affine" gainprm="10" biasprm="0 -10 -0.2"/>
+    <general name="l_th_mcp" joint="l_th_mcp" ctrlrange="0 1.3963" ctrllimited="true" forcelimited="true" forcerange="-0.5 0.5" input="pos" biastype="affine" gainprm="10" biasprm="0 -10 -0.2"/>
+    <general name="l_th_ip" joint="l_th_ip" ctrlrange="0 1.3963" ctrllimited="true" forcelimited="true" forcerange="-0.5 0.5" input="pos" biastype="affine" gainprm="10" biasprm="0 -10 -0.2"/>
+    <general name="Hip_F_L" joint="Hip_F_L" ctrlrange="-0.3491 1.5708" ctrllimited="true" forcelimited="true" forcerange="-222 222" input="pos" biastype="affine" gainprm="4440" biasprm="0 -4440 -88.8"/>
+    <general name="Hip_A_L" joint="Hip_A_L" ctrlrange="-0.1745 1.0472" ctrllimited="true" forcelimited="true" forcerange="-120 120" input="pos" biastype="affine" gainprm="2400" biasprm="0 -2400 -48"/>
+    <general name="Hip_R_L" joint="Hip_R_L" ctrlrange="-0.5236 1.5708" ctrllimited="true" forcelimited="true" forcerange="-60 60" input="pos" biastype="affine" gainprm="1200" biasprm="0 -1200 -24"/>
+    <general name="Knee_L" joint="Knee_L" ctrlrange="-1.1345 0" ctrllimited="true" forcelimited="true" forcerange="-222 222" input="pos" biastype="affine" gainprm="4440" biasprm="0 -4440 -88.8"/>
+    <general name="Ankle_P_L" joint="Ankle_P_L" ctrlrange="-0.5236 0.8727" ctrllimited="true" forcelimited="true" forcerange="-60 60" input="pos" biastype="affine" gainprm="1200" biasprm="0 -1200 -24"/>
+    <general name="Ankle_R_L" joint="Ankle_R_L" ctrlrange="-0.2618 0.2618" ctrllimited="true" forcelimited="true" forcerange="-60 60" input="pos" biastype="affine" gainprm="1200" biasprm="0 -1200 -24"/>
+    <general name="Hip_F_R" joint="Hip_F_R" ctrlrange="-0.3491 1.5708" ctrllimited="true" forcelimited="true" forcerange="-222 222" input="pos" biastype="affine" gainprm="4440" biasprm="0 -4440 -88.8"/>
+    <general name="Hip_A_R" joint="Hip_A_R" ctrlrange="-0.1745 1.0472" ctrllimited="true" forcelimited="true" forcerange="-120 120" input="pos" biastype="affine" gainprm="2400" biasprm="0 -2400 -48"/>
+    <general name="Hip_R_R" joint="Hip_R_R" ctrlrange="-0.5236 1.5708" ctrllimited="true" forcelimited="true" forcerange="-60 60" input="pos" biastype="affine" gainprm="1200" biasprm="0 -1200 -24"/>
+    <general name="Knee_R" joint="Knee_R" ctrlrange="-1.1345 0" ctrllimited="true" forcelimited="true" forcerange="-222 222" input="pos" biastype="affine" gainprm="4440" biasprm="0 -4440 -88.8"/>
+    <general name="Ankle_P_R" joint="Ankle_P_R" ctrlrange="-0.5236 0.8727" ctrllimited="true" forcelimited="true" forcerange="-60 60" input="pos" biastype="affine" gainprm="1200" biasprm="0 -1200 -24"/>
+    <general name="Ankle_R_R" joint="Ankle_R_R" ctrlrange="-0.2618 0.2618" ctrllimited="true" forcelimited="true" forcerange="-60 60" input="pos" biastype="affine" gainprm="1200" biasprm="0 -1200 -24"/>
   </actuator>
 </mujoco>

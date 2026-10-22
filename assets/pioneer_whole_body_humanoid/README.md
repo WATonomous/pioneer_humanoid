@@ -8,6 +8,21 @@ training (`pioneer_humanoid.whole_body`). This one is the whole robot as designe
 torso, arms, hands with every finger joint, a waist yaw and the legs. Its leg joints carry the same names, ranges and
 directions as the team's model (`python assets/old_leg_only_humanoid/check_leg_directions.py` checks both).
 
+## Masses and joint limits
+
+- **Joint limits** (each joint's `effort` / `velocity`) are its motor's. **Exact** for the legs (Hip_F / Knee 222 Nm,
+  Hip_A 120 Nm, Hip_R 60 Nm, ankles 60 Nm) and the arms (from `pioneer_humanoid/bimanual_arm.py`: shoulder 53 Nm,
+  elbow / forearm 22 Nm, wrist 0.73 Nm, gripper jaws 30 N). **Estimates** (no motor chosen yet): waist 60 Nm, neck
+  5 Nm, the hands' wrist 2 Nm and finger joints 0.5 Nm.
+- **Masses** are **estimates**: no part has been weighed. Each link's mass, centre of mass and inertia are summed from
+  its CAD parts: motors at their datasheet weights (AKH70-48 1396 g, AK80-64 850 g, AK60-39 750 g, AK10-9 940 g,
+  AK80-9 490 g, GL40 107 g, the hands' Faulhaber 3216 65.3 g x 20 a forearm), the legs' structure machined aluminium
+  (2.7 g/cm3), 3D prints 0.65 g/cm3, steel hardware 7.85 g/cm3. Not in the CAD, so not in the mass: the battery,
+  computer and wiring. The hand model is **44.7 kg**, the gripper model **42.2 kg**.
+- **Checks**: `check_hold.py` (the robot standing in a crouch, each motor capped at its limit: does any joint sag) and
+  `check_motion.py` (each joint swept through most of its range, then all at once: does it track, does anything blow
+  up). Both pass on both models. They run in MuJoCo, which forgives more than PhysX (Isaac Sim).
+
 | file | what it is |
 |------|------------|
 | `pioneer_whole_body_humanoid.xml` | **Open this one** in MuJoCo's viewer (`python -m mujoco.viewer --mjcf pioneer_whole_body_humanoid.xml`, or drag it in): the robot standing on a floor in its CAD colours, the collision boxes hidden (group 3), a fixed base and one position actuator a joint, to move the joints from the viewer's control panel. Written by `to_mjcf.py`. |
@@ -16,5 +31,6 @@ directions as the team's model (`python assets/old_leg_only_humanoid/check_leg_d
 | `meshes/` | The visual meshes, decimated to 41 MB by `convert.py` (each keeps at least 98 % of its surface: thinner, the shells open up). |
 | `convert.py` | Rebuilds the URDF + meshes from the Prometheus export (`python convert.py <...>_gripper_mujoco.urdf pioneer_whole_body_humanoid_gripper` for the gripper model: it adds only its wrist and jaw meshes). |
 | `to_mjcf.py` | A converted URDF to a MuJoCo model to open in the viewer (both `.xml` files). |
+| `check_hold.py`, `check_motion.py` | Can each motor hold the robot up; does every joint move cleanly (see above). |
 
 The scenes and their demos (in a follow-up PR; `pioneer_whole_body` above is their package): `src/simulation/whole_body_scenes` (`python -m pioneer_whole_body.view --scene bearing_block --play` runs one live in the viewer).
