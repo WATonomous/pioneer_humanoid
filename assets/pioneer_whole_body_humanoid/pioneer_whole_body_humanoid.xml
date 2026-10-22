@@ -211,7 +211,7 @@
   <worldbody>
     <light pos="1.5 -2 3" dir="-0.336861 0.421076 -0.842152" diffuse="0.6 0.6 0.6"/>
     <light pos="-1.5 -1 2.5" dir="0.431934 0.259161 -0.863868" diffuse="0.3 0.3 0.3"/>
-    <geom pos="0 0 0.0199169" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="base_link_0"/>
+    <geom pos="0 0 0.019917" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="base_link_0"/>
     <geom size="0.0925 0.0661945 0.0628475" pos="0 -3e-06 0.844653" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
     <body name="torso" pos="0 0 0.916917" gravcomp="1">
       <inertial pos="0 0.025199 0.244" quat="0.707107 0 0 0.707107" mass="1.2415" diaginertia="0.0356768 0.0335766 0.0199777"/>
