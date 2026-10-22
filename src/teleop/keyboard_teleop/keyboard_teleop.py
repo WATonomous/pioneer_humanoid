@@ -13,7 +13,7 @@ Teleop bindings: https://isaac-sim.github.io/IsaacLab/v2.0.1/source/overview/tel
   C/V     Rotate along z-axis
   R       Reset left arm to default pose
 
-Recording (--record, src/robot_learning/config/dataset_schema_pioneer_v1.yaml), 25 fps = every 4th physics step:
+Recording (--record, src/robot_learning/config/pioneer_humanoid_dataset_schema.yaml), 25 fps = every 4th physics step:
   observation.state  6 joints (rad) + gripper closure (0 open .. 1 closed, mean of both fingers)
   action             6 IK targets (rad) + gripper command (1 = K closed, 0 = open)
   observation.images.<name>  cameras enabled in the schema, or --cameras ego,wrist_left / none
@@ -47,7 +47,7 @@ parser.add_argument(
 add_record_args(parser, task_description="sim keyboard teleop demonstration")
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
-_record = load_record_schema(parser, args_cli)
+_record = load_record_schema(parser, args_cli, arms=["left"])
 
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app

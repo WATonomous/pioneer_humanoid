@@ -14,7 +14,7 @@ home (see leader_mapping.py). Leader torque is always off; it is an input device
 
   R   reset the arm and every object in the scene; bring the leader back to home to resume
 
-Recording (--record, src/robot_learning/config/dataset_schema_pioneer_v1.yaml), 25 fps = every
+Recording (--record, src/robot_learning/config/pioneer_humanoid_dataset_schema.yaml), 25 fps = every
 4th physics step. Keys S start, N save (then auto-reset), D discard:
   observation.state  6 joints (rad) + gripper closure (0 open .. 1 closed, mean of both fingers)
   action             6 joint targets (rad) + leader gripper closure (0..1, continuous)
@@ -55,8 +55,8 @@ add_leader_args(
 add_record_args(parser, task_description="sim leader teleop demonstration")
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
-check_leader_args(parser, args_cli)
-_record = load_record_schema(parser, args_cli)
+_leader_board = check_leader_args(parser, args_cli, ["left"])["left"]
+_record = load_record_schema(parser, args_cli, arms=["left"])
 
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
@@ -111,7 +111,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     default_vel = robot.data.default_joint_vel.clone()
     held_arm_default = default_pos[:, held_arm_ids].clone()
     mapping = LeaderMapping(
-        args_cli,
+        _leader_board.signs, args_cli.filter_alpha,
         home_rad=default_pos[0, arm_ids].tolist(),
         limits_rad=robot.data.joint_pos_limits[0, arm_ids].tolist(),
     )
@@ -134,7 +134,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             reset_requested["v"] = True
         return True
 
-    leader = LeaderInput(args_cli)
+    leader = LeaderInput(_leader_board, args_cli.baud)
     # Held in a variable: the subscription stops when it is garbage-collected.
     kb_sub = carb.input.acquire_input_interface().subscribe_to_keyboard_events(
         omni.appwindow.get_default_app_window().get_keyboard(), _on_kb

@@ -24,11 +24,12 @@ role, but simplified for this robot:
 - RTCDrivenPolicy owns pre/postprocessing (see humanoid_robot_learning.deploy.rtc_driver._replan) --
   this class only ever produces/consumes RAW, unprocessed frames and actions.
 
-Joint order note: the 7 recorded joints are [joint1L, joint2l, joint3l, joint4l,
-joint5l, joint6l, joint7l] (see dataset_schema_wato_arm_v2_push_box.yaml).
-joint8l is NOT recorded -- it's driven as joint7l's synchronized mechanical
-mirror (one gripper motor, two fingers; see bimanual_arm.py). prediction_to_sim
-reconstructs joint8l = -joint7l before returning the 8-value sim action.
+Joint order note: the 7 recorded values follow pioneer_humanoid_dataset_schema.yaml:
+left_shoulder_pitch .. left_wrist_pitch (sim joint1L .. joint6l, rad), then
+left_gripper as a 0-1 closure fraction (0 open, 1 closed). The sim side reads
+joint7l for it (SIM_STATE_JOINTS); joint8l is joint7l's synchronized mechanical
+mirror (one gripper motor, two fingers), so prediction_to_sim maps the closure
+back onto both fingers before returning the 8-value sim action.
 """
 
 from __future__ import annotations
@@ -40,16 +41,23 @@ import os
 
 import torch
 
-from humanoid_robot_learning.recording.schema import build_features, load_yaml
-from pioneer_humanoid.bimanual_arm import JOINT_POS_LIMITS
+from humanoid_robot_learning.recording.schema import build_features, load_yaml, select_arms
+from pioneer_humanoid.bimanual_arm import (
+    JOINT_POS_LIMITS,
+    LEFT_ARM_JOINTS,
+    LEFT_GRIPPER_CLOSED,
+    LEFT_GRIPPER_JOINTS,
+    LEFT_GRIPPER_OPEN,
+)
 
 from lerobot.configs.policies import PreTrainedConfig
 from lerobot.policies.factory import make_policy, make_pre_post_processors
 
-# Sim articulation action order. Note that joint8l is reconstructed from joint7l
-SIM_ACTION_JOINT_ORDER = [
-    "joint1L", "joint2l", "joint3l", "joint4l", "joint5l", "joint6l", "joint7l", "joint8l",
-]
+# Sim joints read for observation.state, in schema order: the six arm joints, then joint7l
+# (converted to the 0-1 gripper closure).
+SIM_STATE_JOINTS = [*LEFT_ARM_JOINTS, LEFT_GRIPPER_JOINTS[0]]
+# Sim articulation action order. Both fingers are set from the one gripper closure.
+SIM_ACTION_JOINT_ORDER = [*LEFT_ARM_JOINTS, *LEFT_GRIPPER_JOINTS]
 
 
 class DummyDatasetMeta:
@@ -70,12 +78,11 @@ class PioneerLeftArmInterface:
     Args:
         device: inference device (e.g. the sim's own torch device).
         cameras: {camera_key: {"height": int, "width": int}}, matching the schema's
-            `images` block keys (this dataset already uses "ego"/"wrist" as both
-            the sim's camera keys and the dataset's image keys, so no rename_map
-            is needed here, unlike SO101).
-        schema_path: path to the dataset_schema_wato_arm_v2_push_box.yaml (or
-            whichever schema this checkpoint was trained against). Read once, at
-            construction, to build the exact feature dict the recorder used.
+            `images` block keys ("ego", "wrist_left", ...), which are also the keys of
+            the visual_obs dict passed in, so no rename_map is needed here, unlike SO101.
+        schema_path: path to pioneer_humanoid_dataset_schema.yaml (the schema this
+            checkpoint was trained against). Read once, at construction, to build the
+            exact feature dict the recorder used.
         task_description: language instruction string passed to the policy.
     """
 
@@ -90,23 +97,28 @@ class PioneerLeftArmInterface:
         self.cameras = cameras
         self.task_description = task_description
 
-        cfg = load_yaml(Path(schema_path))
-        self.joint_names: list[str] = list(cfg["joint_names"])  # 7: arm joints + joint7l
-        self.robot_type: str = cfg["robot_type"]
+        cfg = select_arms(load_yaml(Path(schema_path)), ["left"])
+        self.joint_names: list[str] = list(cfg["joint_names"])  # 7: arm joints + left_gripper
+        if len(self.joint_names) != len(SIM_STATE_JOINTS):
+            raise ValueError(f"{schema_path}: left arm has {self.joint_names}, expected {len(SIM_STATE_JOINTS)} joints")
+        self.robot_type: str = str(cfg["robot_id"])  # the recorders label the dataset with robot_id
         self.dataset_features: dict[str, Any] = build_features(cfg)
 
-        # Clamp table for the 7 recorded joints, in self.joint_names order (URDF limits).
-        mins, maxs = [], []
-        for name in self.joint_names:
-            lo, hi = JOINT_POS_LIMITS[name]
-            mins.append(lo)
-            maxs.append(hi)
+        # Clamp table for the 7 policy values: URDF limits for the arm, 0-1 for the gripper closure.
+        mins = [JOINT_POS_LIMITS[j][0] for j in LEFT_ARM_JOINTS] + [0.0]
+        maxs = [JOINT_POS_LIMITS[j][1] for j in LEFT_ARM_JOINTS] + [1.0]
         self.joint_mins = torch.tensor(mins, dtype=torch.float32, device=self.device)
         self.joint_maxs = torch.tensor(maxs, dtype=torch.float32, device=self.device)
 
-        # joint8l isn't in joint_names (see module docstring) -- its own limit is
-        # looked up separately, at mirror time, since it moves opposite joint7l.
-        self._joint8l_lo, self._joint8l_hi = JOINT_POS_LIMITS["joint8l"]
+        # Finger positions at closure 0 and 1, in LEFT_GRIPPER_JOINTS order.
+        self._grip_open = torch.tensor([LEFT_GRIPPER_OPEN[j] for j in LEFT_GRIPPER_JOINTS], device=self.device)
+        self._grip_closed = torch.tensor([LEFT_GRIPPER_CLOSED[j] for j in LEFT_GRIPPER_JOINTS], device=self.device)
+
+    def sim_state_to_policy(self, sim_state: torch.Tensor) -> torch.Tensor:
+        """(7,) sim positions in SIM_STATE_JOINTS order -> (7,) policy values (joint7l -> 0-1 closure)."""
+        open_, closed = self._grip_open[0], self._grip_closed[0]
+        closure = ((sim_state[-1] - open_) / (closed - open_)).clamp(0.0, 1.0)
+        return torch.cat([sim_state[:-1], closure.reshape(1)])
 
     def make_policy(self, name_or_path: str) -> None:
         """Load a checkpoint + its matching pre/postprocessor pipeline.
@@ -151,11 +163,11 @@ class PioneerLeftArmInterface:
         """Sim joint positions (rad) + camera images -> a raw LeRobot obs_frame.
 
         Args:
-            sim_observation: (7,) tensor, sim joint positions in radians, in
-                self.joint_names order (state uses only the 7 recorded joints --
-                joint8l is not part of observation.state, same as at record time).
+            sim_observation: (7,) tensor, sim joint positions in SIM_STATE_JOINTS order
+                (six arm joints in radians, then joint7l; joint8l is not part of
+                observation.state, same as at record time).
             visual_obs: sim's per-camera image dict, keyed the same way self.cameras
-                is (e.g. visual_obs["rgb_ego"], visual_obs["rgb_wrist"] -- adjust the
+                is (e.g. visual_obs["rgb_ego"], visual_obs["rgb_wrist_left"] -- adjust the
                 "rgb_" prefix here if your sim env names these differently).
 
         Returns: a dict matching humanoid_robot_learning.recording.frame.build_lerobot_frame's shape,
@@ -164,7 +176,7 @@ class PioneerLeftArmInterface:
             prepare_observation_for_inference runs torch.from_numpy on every key (a string
             crashes it) and adds "task" itself from RTCDrivenPolicy.task_description.
         """
-        state_np = sim_observation[:7].detach().cpu().numpy()
+        state_np = self.sim_state_to_policy(sim_observation[:7]).detach().cpu().numpy()
 
         obs_frame: dict[str, Any] = {
             "observation.state": state_np,
@@ -178,11 +190,12 @@ class PioneerLeftArmInterface:
     def prediction_to_sim_processor(
         self, action_values: torch.Tensor, observation_frame: dict[str, Any], log: bool = False
     ) -> torch.Tensor:
-        """Policy action (7,) -> sim action (8,), clamped and gripper-mirrored.
+        """Policy action (7,) -> sim action (8,), clamped, gripper closure mapped onto both fingers.
 
         Args:
             action_values: (7,) tensor from RTCDrivenPolicy.get_action -- already
-                postprocessed (real units/radians), in self.joint_names order.
+                postprocessed (six arm joints in radians, then the 0-1 gripper
+                closure), in self.joint_names order.
             observation_frame: unused here (kept for signature symmetry with
                 LeRobotSO101Interface.prediction_to_sim_processor / for future
                 rerun-style logging); pass log=True + wire up logging if needed.
@@ -193,11 +206,9 @@ class PioneerLeftArmInterface:
 
         clampedActions = torch.clamp(action_values, self.joint_mins, self.joint_maxs)
 
-        joint7l = clampedActions[-1]
-        # Mechanical mirror: one gripper motor drives both fingers with opposite
-        # sign (see LEFT_GRIPPER_OPEN/CLOSED in bimanual_arm.py: joint7l closed is
-        # -0.05, joint8l closed is +0.05 -- same magnitude, opposite sign).
-        joint8l = torch.clamp(-joint7l, self._joint8l_lo, self._joint8l_hi)
+        # One gripper motor drives both fingers with opposite sign (LEFT_GRIPPER_OPEN/CLOSED:
+        # joint7l closed is -0.05, joint8l closed is +0.05), so one closure sets both.
+        fingers = self._grip_open + clampedActions[-1] * (self._grip_closed - self._grip_open)
 
-        sim_action = torch.cat([clampedActions, joint8l.unsqueeze(0)])  # (8,)
+        sim_action = torch.cat([clampedActions[:-1], fingers])  # (8,)
         return sim_action

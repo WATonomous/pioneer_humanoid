@@ -69,7 +69,7 @@ class TeleopSim:
         self.home = [data.ctrl[a] for a in self.arm_acts]
         self.signs = parse_signs(DEFAULT_SIGNS)
         self.mapping = LeaderMapping(
-            argparse.Namespace(signs=DEFAULT_SIGNS, filter_alpha=filter_alpha),
+            self.signs, filter_alpha,
             home_rad=self.home,
             limits_rad=[tuple(model.jnt_range[model.joint(j).id]) for j in LEFT_ARM_JOINTS],
         )
@@ -237,7 +237,7 @@ def main() -> None:
     args = parser.parse_args()
     if args.self_test:
         return self_test()
-    record = load_record_schema(parser, args)
+    record = load_record_schema(parser, args, arms=["left"])
     os.environ.setdefault("MUJOCO_GL", "egl")
 
     from synthetic_tasks import TASKS

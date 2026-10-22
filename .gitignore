@@ -40,3 +40,5 @@ src/simulation/garment_fold_task/
 src/simulation/humanoid_rl/logs/
 src/simulation/humanoid_rl/outputs/
 src/interfacing/joint_command/config/arm_calibration.yaml.bak
+# old single-board leader calibration (convert it with calibrate_leader.py --from; leader_arm.json is committed)
+src/teleop/pioneer_leader_arm_teleop/leader_calibration.json

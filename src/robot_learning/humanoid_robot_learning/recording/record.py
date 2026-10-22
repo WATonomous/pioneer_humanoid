@@ -13,14 +13,14 @@ from humanoid_robot_learning.recording.record_loop import run_record_loop
 from humanoid_robot_learning.recording.recorder import RecordSettings
 from humanoid_robot_learning.recording.record_utils import resolve_config_path, resolve_dataset_root
 from humanoid_robot_learning.recording.arm_pose_io import ARM_POSE_JOINT_NAMES
-from humanoid_robot_learning.recording.schema import enabled_images, load_yaml, select_cameras
+from humanoid_robot_learning.recording.schema import enabled_images, load_yaml, select_arms, select_cameras
 from humanoid_robot_learning.recording.sinks import parse_sink_names
 from humanoid_robot_learning.recording.snapshot import ObservationSnapshot
 
 logger = logging.getLogger(__name__)
 
 _PKG_ROOT = Path(__file__).resolve().parents[2]
-_DEFAULT_SCHEMA = _PKG_ROOT / "config" / "dataset_schema_pioneer_v1.yaml"
+_DEFAULT_SCHEMA = _PKG_ROOT / "config" / "pioneer_humanoid_dataset_schema.yaml"
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -31,7 +31,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--schema",
         type=str,
         default=str(_DEFAULT_SCHEMA),
-        help="dataset_schema YAML (default: config/dataset_schema_pioneer_v1.yaml)",
+        help="dataset_schema YAML (default: config/pioneer_humanoid_dataset_schema.yaml)",
     )
     parser.add_argument(
         "--cameras",
@@ -151,6 +151,7 @@ def main(argv: list[str] | None = None) -> int:
         cfg = select_cameras(load_yaml(schema_path), args.cameras)
     except ValueError as exc:
         raise SystemExit(f"--cameras: {exc}") from exc
+    cfg = select_arms(cfg, ["left"])  # ArmPose carries the left arm only
     if not args.dry_run:
         _check_real_support(cfg)
     image_shapes = {k: (int(v["height"]), int(v["width"])) for k, v in enabled_images(cfg).items()}

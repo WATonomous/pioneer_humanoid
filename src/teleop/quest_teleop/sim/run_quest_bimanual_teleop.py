@@ -81,12 +81,12 @@ parser.add_argument("--record", action="store_true",
                     help="Record demonstrations (requires: pip install -e src/robot_learning[record]). Records the "
                          "L-suffixed (link6l) arm only -- that's the arm ego_cam/wrist_cam are mounted for.")
 parser.add_argument("--schema", type=str,
-                    default=str(_ROBOT_LEARNING_PKG / "config" / "dataset_schema_wato_arm_v2_push_box.yaml"),
+                    default=str(_ROBOT_LEARNING_PKG / "config" / "pioneer_humanoid_dataset_schema.yaml"),
                     help="Path to dataset_schema.yaml (only used with --record)")
 parser.add_argument("--sink", type=str, default="lerobot",
                     help="Output sinks when --record: lerobot, hdf5, or lerobot,hdf5")
 parser.add_argument("--dataset_root", type=str, default=None,
-                    help="Output directory (default: <repo>/<schema record.root>)")
+                    help="Output directory (default: <repo>/<schema record.root>/quest_sim)")
 parser.add_argument("--num_episodes", type=int, default=10)
 parser.add_argument("--task_description", type=str, default="pick up box and place it in container")
 parser.add_argument("--publish-real-left-arm", action="store_true",
@@ -638,8 +638,8 @@ class ArmV2SceneCfg(InteractiveSceneCfg):
     # Data-collection / HUD cameras, not the headset display (the RSD455 pair, attached at
     # runtime). wrist_cam is on link6l (LEFT arm), wrist_cam_right its mirror on link6. Pose and
     # lens live in quest_cameras.py -- adjust there, not here. wrist_cam keeps its
-    # unsuffixed name because _capture_record_images, the dataset schema, and the keyboard
-    # teleop scenes all bind that key.
+    # unsuffixed name because the keyboard teleop scenes bind that key; the dataset schema calls
+    # it wrist_left (RECORD_CAMERA_SENSORS).
     ego_cam = make_ego_cam_cfg()
     wrist_cam = make_wrist_cam_cfg()
     wrist_cam_right = make_wrist_cam_cfg(body="link6", name="wrist_cam_right", mirror=True)
@@ -1049,31 +1049,43 @@ class _ArmDlsController:
         return tip_pos_b, tip_quat_b
 
 
-# ── recording (see dataset_schema_wato_arm_v2_push_box.yaml) ─────────────────
+# ── recording (see pioneer_humanoid_dataset_schema.yaml) ─────────────────────
+
+# schema image key -> scene camera
+RECORD_CAMERA_SENSORS = {"ego": "ego_cam", "wrist_left": "wrist_cam"}
+
+
+def _gripper_closure(finger_pos: torch.Tensor, open_pos: float, closed_pos: float) -> torch.Tensor:
+    """joint7l position -> the schema's 0-1 gripper closure (0 open, 1 closed)."""
+    return ((finger_pos - open_pos) / (closed_pos - open_pos)).clamp(0.0, 1.0)
+
 
 def _init_recorder(device: str):
-    """Returns (recorder, schema_cfg), or (None, None) if --record wasn't passed."""
+    """Returns (recorder, {schema image key: scene camera}), or (None, None) if --record wasn't passed."""
     if not args_cli.record:
         return None, None
     _ensure_robot_learning_on_path()
     try:
         from humanoid_robot_learning.recording.record_utils import resolve_config_path, resolve_dataset_root
-        from humanoid_robot_learning.recording.schema import enabled_images, load_yaml
+        from humanoid_robot_learning.recording.schema import enabled_images, load_yaml, select_arms
         from humanoid_robot_learning.sim.sim_recorder import SimLeRobotRecorder
     except ImportError as exc:
         raise ImportError("Recording requires humanoid-robot-learning. Install with:\n  pip install -e src/robot_learning[sim]") from exc
 
     schema_path = resolve_config_path(args_cli.schema, anchor=_ROBOT_LEARNING_PKG)
-    cfg = load_yaml(schema_path)
-    dataset_root = resolve_dataset_root(cfg, args_cli.dataset_root, default="datasets/record_wato_arm_v2_push_box")
+    cfg = select_arms(load_yaml(schema_path), ["left"])  # records the link6l arm only, see --record
+    # Own subdir: this dataset is recorded at _RECORD_FPS, not the schema's fps, so it must not
+    # append to the <root>/sim dataset the keyboard and leader teleops write.
+    dataset_root = resolve_dataset_root(cfg, args_cli.dataset_root, subdir="quest_sim")
     cameras = {name: {"height": spec["height"], "width": spec["width"]} for name, spec in enabled_images(cfg).items()}
+    sensors = {name: RECORD_CAMERA_SENSORS[name] for name in cameras}  # KeyError: no scene camera for that image
     # device="cpu" always: the recorder's multi-GB circular frame buffer on "cuda" competes with
     # Isaac Sim's own GPU memory and silently kills the process. buffer_capacity_s=30 (not the
     # 120 default): at 2x 640x480x30fps, 120s is ~20GB RSS and hung the host twice; episodes run
     # 15-20s. Overrunning it drops frames with a warning, no crash.
     recorder = SimLeRobotRecorder(
         task_name=args_cli.task_description,
-        repo_id=str(cfg.get("repo_id", "humanoid/wato_arm_v2_push_box")),
+        repo_id=str(cfg["repo_id"]),
         dataset_root=dataset_root,
         fps=_RECORD_FPS,     # render cadence, not the schema -- see _RECORD_FPS
         rate_limit=False,    # the render gate is the sole decimator
@@ -1083,20 +1095,20 @@ def _init_recorder(device: str):
         num_episodes=args_cli.num_episodes,
         buffer_capacity_s=30.0,
         # else the dataset records itself as an SO-101 (recorder default)
-        robot_type=str(cfg.get("robot_type", "wato_arm_v2")),
+        robot_type=str(cfg["robot_id"]),
     )
     recorder.init_dataset()
     print(f"[RECORD] Writing to {dataset_root} at {_RECORD_FPS} fps "
           f"(1 frame / {_POV_CAPTURE_EVERY_N_STEPS} physics steps)", flush=True)
     # Key bindings differ from humanoid_robot_learning's defaults -- see run_simulator's _on_keyboard_event.
-    return recorder, cfg
+    return recorder, sensors
 
 
-def _capture_record_images(scene: InteractiveScene) -> dict:
-    """{schema_key: HxWx3 uint8 rgb} for the two data-collection cameras --
+def _capture_record_images(scene: InteractiveScene, sensors: dict[str, str]) -> dict:
+    """{schema_key: HxWx3 uint8 rgb} for the schema's enabled data-collection cameras --
     NOT the RSD455 headset pair, see module docstring."""
     images = {}
-    for schema_key, scene_key in (("ego", "ego_cam"), ("wrist", "wrist_cam")):
+    for schema_key, scene_key in sensors.items():
         rgb = scene[scene_key].data.output["rgb"]
         frame = rgb[0].detach().cpu().numpy()
         if frame.shape[-1] > 3:
@@ -1278,7 +1290,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     left_closed = False
     right_closed = False
 
-    recorder, record_cfg = _init_recorder(device)
+    recorder, record_sensors = _init_recorder(device)
     if recorder is not None:
         # NOT recorder.start_keyboard() -- that attaches humanoid_robot_learning's shared pynput listener,
         # whose bindings other teleop scripts rely on. S/D are handled through the same
@@ -1634,7 +1646,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         if recorder is not None and _render_this_step:
             _record_state = torch.cat([
                 robot.data.joint_pos[:, left_arm.arm_ids],
-                robot.data.joint_pos[:, left_gripper_ids[:1]],
+                _gripper_closure(robot.data.joint_pos[:, left_gripper_ids[:1]],
+                                 LEFT_GRIPPER_OPEN["joint7l"], LEFT_GRIPPER_CLOSED["joint7l"]),
             ], dim=1)[0].clone()
 
         # ── Differential IK (DLS) solve, both arms, every frame ─────────────────
@@ -1740,10 +1753,13 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
                 # snaps 0 -> -0.05 in one frame while _smooth_damp eases the joint over ~50ms,
                 # and it is the eased value that was actually commanded. Logging the snap
                 # trained the policy to slam a gripper the demos never slammed.
-                action = torch.cat([left_arm.last_joint_pos_des, left_gripper_smoothed[:, :1]], dim=1)[0]
+                action = torch.cat([
+                    left_arm.last_joint_pos_des,
+                    _gripper_closure(left_gripper_smoothed[:, :1], LEFT_GRIPPER_OPEN["joint7l"], LEFT_GRIPPER_CLOSED["joint7l"]),
+                ], dim=1)[0]
                 # images as a callable, not a dict: two 640x480 GPU->CPU copies that must only
                 # run on pushed frames. Every step tanked RTF -- looked like the arm barely moving.
-                recorder.tick(action, _record_state, lambda: _capture_record_images(scene))
+                recorder.tick(action, _record_state, lambda: _capture_record_images(scene, record_sensors))
 
         # Mounts are static while _HEAD_TRACKING_LIVE is False -- positioned once before the
         # loop by _sync_camera_mounts (see there for why this is not a cheap no-op).
