@@ -10,8 +10,10 @@ _ASSET_DIR = os.path.join(
 _URDF_PATH = os.path.join(_ASSET_DIR, "whole_body_humanoid.urdf")
 _USD_DIR = os.path.join(_ASSET_DIR, "usd")
 
-# Mild crouch; keep feet near ground after bend.
-_SPAWN_HEIGHT = 0.75
+# Mild crouch; negative knee position is hardware-convention flexion.
+# With the corrected knee axes, 0.84 m places the foot soles at the terrain
+# surface without the calf/foot penetration produced by the old 0.75 m pose.
+_SPAWN_HEIGHT = 0.84
 
 
 WHOLE_BODY_HUMANOID_CFG = ArticulationCfg(
@@ -52,7 +54,9 @@ WHOLE_BODY_HUMANOID_CFG = ArticulationCfg(
             "Hip_A_L": 0.04,
             "Hip_R_L": 0.0,
             "Knee_L": -0.22,
-            "Ankle_P_L": 0.10,
+            # Ankle pitch axes are mirrored (left -X, right +X), so matching
+            # physical foot pitch requires opposite joint-coordinate signs.
+            "Ankle_P_L": -0.10,
             "Ankle_R_L": 0.0,
             "Hip_F_R": 0.12,
             "Hip_A_R": 0.04,
