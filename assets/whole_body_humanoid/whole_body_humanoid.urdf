@@ -290,7 +290,7 @@
     <child
       link="Calf_L" />
     <axis
-      xyz="-1 0 0" />
+      xyz="1 0 0" />
     <limit
       lower="-1.0472"
       upper="0.0873"
@@ -638,7 +638,7 @@
     <child
       link="Calf_R" />
     <axis
-      xyz="-1 0 0" />
+      xyz="1 0 0" />
     <limit
       lower="-1.0472"
       upper="0.0873"

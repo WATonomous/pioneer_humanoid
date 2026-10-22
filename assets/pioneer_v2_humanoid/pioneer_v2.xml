@@ -699,7 +699,7 @@
                 <geom size="0.0589 0.0489925 0.1544" pos="-0.0094 -1.1e-05 -0.152017" type="box" contype="0" conaffinity="0" group="3" solref="0.004" solimp="0.95 0.99" rgba="0.9 0.3 0.3 0.3" density="0"/>
                 <body name="l_shank_foot" pos="0 0 -0.2615" gravcomp="1"><inertial pos="-0.01215 0.015253 -0.190467" mass="0.4993" diaginertia="0.0 0.0 0.0"/>
                   <inertial pos="-0.01215 0.015253 -0.190467" mass="0.4993" diaginertia="0.00983921 0.00971779 0.00108675"/>
-                  <joint name="Knee_L" range="-1.1345 0" actuatorfrcrange="-10 10" armature="0.02" axis="1 0 0"/>
+                  <joint name="Knee_L" range="-1.1345 0" actuatorfrcrange="-10 10" armature="0.02" axis="-1 0 0"/>
                   <geom pos="-0.152 0 -0.436" type="mesh" contype="0" conaffinity="0" group="2" solref="0.004" solimp="0.95 0.99" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="l_shank_foot_0"/>
                   <geom pos="-0.152 0 -0.436" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="2" solref="0.004" solimp="0.95 0.99" rgba="0.604 0.62 0.643 1" density="0" material="cad23" mesh="l_shank_foot_1"/>
                   <geom pos="-0.152 0 -0.436" type="mesh" contype="0" conaffinity="0" group="2" solref="0.004" solimp="0.95 0.99" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="l_shank_foot_2"/>
@@ -740,7 +740,7 @@
                 <geom size="0.0589 0.0489925 0.1544" pos="0.0094 -1.1e-05 -0.152017" type="box" contype="0" conaffinity="0" group="3" solref="0.004" solimp="0.95 0.99" rgba="0.9 0.3 0.3 0.3" density="0"/>
                 <body name="r_shank_foot" pos="0 0 -0.2615" gravcomp="1"><inertial pos="0.01215 0.015253 -0.190467" mass="0.4993" diaginertia="0.0 0.0 0.0"/>
                   <inertial pos="0.01215 0.015253 -0.190467" mass="0.4993" diaginertia="0.00983921 0.00971779 0.00108675"/>
-                  <joint name="Knee_R" range="-1.1345 0" actuatorfrcrange="-10 10" armature="0.02" axis="1 0 0"/>
+                  <joint name="Knee_R" range="-1.1345 0" actuatorfrcrange="-10 10" armature="0.02" axis="-1 0 0"/>
                   <geom pos="0.152 0 -0.436" type="mesh" contype="0" conaffinity="0" group="2" solref="0.004" solimp="0.95 0.99" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="r_shank_foot_0"/>
                   <geom pos="0.152 0 -0.436" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="2" solref="0.004" solimp="0.95 0.99" rgba="0.604 0.62 0.643 1" density="0" material="cad23" mesh="r_shank_foot_1"/>
                   <geom pos="0.152 0 -0.436" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="2" solref="0.004" solimp="0.95 0.99" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="r_shank_foot_2"/>
