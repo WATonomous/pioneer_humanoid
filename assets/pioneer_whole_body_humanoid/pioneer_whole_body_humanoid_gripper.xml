@@ -107,12 +107,11 @@
   </asset>
 
   <worldbody>
-    <geom name="floor" size="3 3 0.05" type="plane" material="floor"/>
     <light pos="1.5 -2 3" dir="-0.336861 0.421076 -0.842152" diffuse="0.6 0.6 0.6"/>
     <light pos="-1.5 -1 2.5" dir="0.431934 0.259161 -0.863868" diffuse="0.3 0.3 0.3"/>
-    <geom pos="0 0 0" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="base_link_0"/>
-    <geom size="0.0925 0.0661945 0.0628475" pos="0 -3e-06 0.824736" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
-    <body name="torso" pos="0 0 0.897" gravcomp="1">
+    <geom pos="0 0 0.0199169" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="base_link_0"/>
+    <geom size="0.0925 0.0661945 0.0628475" pos="0 -3e-06 0.844653" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
+    <body name="torso" pos="0 0 0.916917" gravcomp="1">
       <inertial pos="0 0.025199 0.244" quat="0.707107 0 0 0.707107" mass="1.2415" diaginertia="0.0356768 0.0335766 0.0199777"/>
       <joint name="waist_yaw" range="-1.5708 1.5708" actuatorfrcrange="-10 10" armature="0.01" damping="1"/>
       <geom pos="0 0 -0.897" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.063 0.071 0.078 1" density="0" material="cad1" mesh="torso_0"/>
@@ -256,7 +255,7 @@
         </body>
       </body>
     </body>
-    <body name="l_hip_pitch_link" pos="0.084 0 0.828" gravcomp="1">
+    <body name="l_hip_pitch_link" pos="0.084 0 0.847917" gravcomp="1">
       <inertial pos="0.059487 0.038047 8.3e-05" quat="0.5 0.5 -0.5 0.5" mass="0.198" diaginertia="0.000545783 0.000482156 0.000380218"/>
       <joint name="Hip_F_L" range="-0.3491 1.5708" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="-1 0 0"/>
       <geom pos="-0.084 0 -0.828" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="l_hip_pitch_link_0"/>
@@ -297,7 +296,7 @@
         </body>
       </body>
     </body>
-    <body name="r_hip_pitch_link" pos="-0.084 0 0.828" gravcomp="1">
+    <body name="r_hip_pitch_link" pos="-0.084 0 0.847917" gravcomp="1">
       <inertial pos="-0.059487 0.038047 8.3e-05" quat="0.5 0.5 -0.5 0.5" mass="0.198" diaginertia="0.000545783 0.000482156 0.000380218"/>
       <joint name="Hip_F_R" range="-0.3491 1.5708" actuatorfrcrange="-10 10" armature="0.01" damping="1" axis="-1 0 0"/>
       <geom pos="0.084 0 -0.828" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="r_hip_pitch_link_0"/>
@@ -338,6 +337,7 @@
         </body>
       </body>
     </body>
+    <geom name="floor" size="3 3 0.05" type="plane" material="floor"/>
   </worldbody>
 
   <actuator>

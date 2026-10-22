@@ -7,7 +7,7 @@
 
 Don't open ``assets/pioneer_whole_body_humanoid/pioneer_whole_body_humanoid.urdf`` in MuJoCo's viewer directly: MuJoCo's URDF reader
 puts the collision boxes in group 0 next to the CAD meshes (they hide them: a robot of grey boxes) and drops the
-colours. ``assets/pioneer_whole_body_humanoid/pioneer_whole_body_humanoid.xml`` (``--export`` of ``bare``) is the robot as these scenes use it.
+colours. ``assets/pioneer_whole_body_humanoid/pioneer_whole_body_humanoid.xml`` is the robot alone, standing on a floor (its ``to_mjcf.py``).
 """
 from __future__ import annotations
 
