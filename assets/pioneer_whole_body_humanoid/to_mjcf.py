@@ -1,11 +1,10 @@
-"""A converted URDF here -> a MuJoCo model to open in the viewer: the robot standing on a floor with its CAD colours
-(MuJoCo's URDF reader drops them), the collision boxes hidden (group 3) and one position actuator a joint, so each
-joint can be moved from the viewer's control panel. The base is fixed: nothing here walks or balances.
+"""A converted URDF here -> a MuJoCo model to open in the viewer: the robot standing with its soles on a floor, in its
+CAD colours (MuJoCo's URDF reader drops them), the collision boxes hidden (group 3) and one position actuator a joint
+(a joint that follows another, as a finger's DIP its PIP, has none), so each joint can be moved from the viewer's
+control panel. The base is fixed: nothing here walks or balances.
 
+    python to_mjcf.py pioneer_whole_body_humanoid.urdf             # -> pioneer_whole_body_humanoid.xml (hands)
     python to_mjcf.py pioneer_whole_body_humanoid_gripper.urdf     # -> pioneer_whole_body_humanoid_gripper.xml
-
-(pioneer_whole_body_humanoid.xml, the hand model, is written by the scenes' own exporter instead:
-src/simulation/whole_body_scenes, `python -m pioneer_whole_body.view --scene bare --export ...`.)
 """
 import os
 import re
@@ -48,6 +47,11 @@ def main(urdf):
         else:                                      # the collision boxes: hidden
             g.group, g.rgba = 3, [0.9, 0.3, 0.3, 0.3]
     world = spec.worldbody
+    lift = -_lowest(spec)                          # the soles on the floor (z = 0), not 2 cm through it
+    for b in world.bodies:
+        b.pos = [b.pos[0], b.pos[1], b.pos[2] + lift]
+    for g in world.geoms:                          # (the base link's own geoms sit on the world body: a fixed base)
+        g.pos = [g.pos[0], g.pos[1], g.pos[2] + lift]
     spec.add_texture(name="sky", type=mujoco.mjtTexture.mjTEXTURE_SKYBOX, builtin=mujoco.mjtBuiltin.mjBUILTIN_GRADIENT,
                      rgb1=[0.62, 0.63, 0.66], rgb2=[0.3, 0.31, 0.33], width=256, height=1536)
     spec.add_texture(name="floor", type=mujoco.mjtTexture.mjTEXTURE_2D, builtin=mujoco.mjtBuiltin.mjBUILTIN_CHECKER,
@@ -59,7 +63,10 @@ def main(urdf):
     world.add_light(pos=[-1.5, -1.0, 2.5], dir=[0.5, 0.3, -1.0], diffuse=[0.3, 0.3, 0.3])
     for b in spec.bodies:                          # gravity compensated: the joints hold where they're put
         b.gravcomp = 1.0
-    for j in spec.joints:                          # one position actuator a joint, over its range
+    mimics = {j.get("name") for j in ET.fromstring(open(path).read()).iter("joint") if j.find("mimic") is not None}
+    for j in spec.joints:                          # one position actuator a joint, over its range (not a joint that
+        if j.name in mimics:                       # follows another, as a finger's DIP its PIP: it has none)
+            continue
         slide = j.type == mujoco.mjtJoint.mjJNT_SLIDE
         kp = 200.0 if slide else 40.0
         a = spec.add_actuator(name=j.name, target=j.name, trntype=mujoco.mjtTrn.mjTRN_JOINT)
@@ -72,6 +79,20 @@ def main(urdf):
     out = os.path.splitext(path)[0] + ".xml"
     open(out, "w").write(spec.to_xml())
     print("wrote", out)
+
+
+def _lowest(spec):
+    """the lowest point of the robot's meshes in its zero pose (m)"""
+    m = spec.compile()
+    d = mujoco.MjData(m)
+    mujoco.mj_kinematics(m, d)
+    low = 0.0
+    for g in range(m.ngeom):
+        if m.geom_type[g] == mujoco.mjtGeom.mjGEOM_MESH:
+            k = m.geom_dataid[g]
+            v = m.mesh_vert[m.mesh_vertadr[k]:m.mesh_vertadr[k] + m.mesh_vertnum[k]]
+            low = min(low, float((v @ d.geom_xmat[g].reshape(3, 3).T + d.geom_xpos[g])[:, 2].min()))
+    return low
 
 
 if __name__ == "__main__":
