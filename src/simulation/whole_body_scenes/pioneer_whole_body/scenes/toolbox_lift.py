@@ -81,7 +81,7 @@ def reset(model, data, rng) -> None:
 
 
 @scene("toolbox_lift", robot_pos=(0.0, 0.0, 0.0), step=step, progress=progress, reset=reset,
-       title="Pioneer v2  |  toolbox lift: a steel toolbox hooked by its handle and set on the riser",
+       title="Pioneer  |  toolbox lift: a steel toolbox hooked by its handle and set on the riser",
        camera=((0.50, -0.12, 0.97), 1.7, 60, -22))
 def build(spec: mujoco.MjSpec) -> None:
     add_workshop(spec)

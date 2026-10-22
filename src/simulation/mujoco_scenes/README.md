@@ -75,7 +75,7 @@ def build(spec: mujoco.MjSpec) -> None:
 
 ## Scenes
 
-(The whole-body Pioneer v2 humanoid has its own scenes, walking and two-handed: `src/simulation/whole_body_scenes`.)
+(The Pioneer Humanoid Whole Body has its own scenes, walking and two-handed: `src/simulation/whole_body_scenes`.)
 
 | name | notes |
 |------|-------|

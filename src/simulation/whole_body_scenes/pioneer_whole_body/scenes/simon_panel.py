@@ -164,7 +164,7 @@ def _flag(spec, parent, name, pos, rgba):
 
 
 @scene("simon_panel", robot_pos=(-0.3, 0.0, 0.0), step=step, progress=progress, reset=reset,
-       title="Pioneer v2  |  watch and repeat: a colour sequence seen with its head camera, pressed back")
+       title="Pioneer  |  watch and repeat: a colour sequence seen with its head camera, pressed back")
 def build(spec: mujoco.MjSpec) -> None:
     add_studio(spec)
     add_bench(spec)

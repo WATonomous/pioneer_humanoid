@@ -1,4 +1,4 @@
-<mujoco model="bare">
+<mujoco model="pioneer_humanoid_whole_body">
   <compiler angle="radian" meshdir="."/>
 
   <option impratio="10" integrator="implicitfast" cone="elliptic"/>

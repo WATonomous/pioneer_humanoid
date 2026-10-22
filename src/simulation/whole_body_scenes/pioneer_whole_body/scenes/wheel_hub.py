@@ -119,7 +119,7 @@ def _ring(body, name, r_in, r_out, h, n, rgba, z0=0.0, mass=None):
 
 
 @scene("wheel_hub", robot_pos=(-0.3, 0.0, 0.0), step=step, progress=progress,
-       title="Pioneer v2  |  wheel hub: fetch the wheel with both hands, mount it, hub nut on, spin test")
+       title="Pioneer  |  wheel hub: fetch the wheel with both hands, mount it, hub nut on, spin test")
 def build(spec: mujoco.MjSpec) -> None:
     add_studio(spec)
     add_bench(spec, half_y=0.8)

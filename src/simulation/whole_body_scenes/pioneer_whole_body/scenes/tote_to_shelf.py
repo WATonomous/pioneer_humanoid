@@ -113,7 +113,7 @@ def _ring(body, r, h, wall, n, rgba, z0=0.0):
 
 
 @scene("tote_to_shelf", robot_pos=(-0.3, 0.0, 0.0), step=step, progress=progress,
-       title="Pioneer v2  |  kit and stow: load the tote, carry it with both hands, crouch, stow on the low shelf")
+       title="Pioneer  |  kit and stow: load the tote, carry it with both hands, crouch, stow on the low shelf")
 def build(spec: mujoco.MjSpec) -> None:
     add_studio(spec)
     add_bench(spec, half_y=0.6)

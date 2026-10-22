@@ -157,7 +157,7 @@ def reset(model, data, rng) -> None:
 
 
 @scene("drill_battery", robot_pos=(0.0, 0.0, 0.0), step=step, progress=progress, reset=reset,
-       title="Pioneer v2  |  drill battery: the flat pack onto the charger, the charged one onto the drill",
+       title="Pioneer  |  drill battery: the flat pack onto the charger, the charged one onto the drill",
        camera=((0.50, 0.03, 1.08), 1.4, 130, -28))
 def build(spec: mujoco.MjSpec) -> None:
     add_workshop(spec)

@@ -102,7 +102,7 @@ def reset(model, data, rng) -> None:
 
 
 @scene("conveyor", robot_pos=(-0.3, 0.0, 0.0), step=step, progress=progress, reset=reset,
-       title="Pioneer v2  |  picking off a moving conveyor: seen coming, taken on the move, sorted")
+       title="Pioneer  |  picking off a moving conveyor: seen coming, taken on the move, sorted")
 def build(spec: mujoco.MjSpec) -> None:
     add_studio(spec)
     add_bench(spec)

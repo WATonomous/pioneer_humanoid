@@ -96,7 +96,7 @@ def _knob(body, pos, name):
 
 
 @scene("push_cart", robot_pos=(-0.3, 0.0, 0.0), step=step, progress=progress,
-       title="Pioneer v2  |  pushing a cart into its bay: walking while holding")
+       title="Pioneer  |  pushing a cart into its bay: walking while holding")
 def build(spec: mujoco.MjSpec) -> None:
     add_studio(spec)
     spec.nuserdata = 3

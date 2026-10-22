@@ -131,7 +131,7 @@ def _cup(spec, world, side):
 
 
 @scene("pour", robot_pos=(-0.3, 0.0, 0.0), step=step, progress=progress,
-       title="Pioneer v2  |  pouring: two cups of balls emptied into a bowl")
+       title="Pioneer  |  pouring: two cups of balls emptied into a bowl")
 def build(spec: mujoco.MjSpec) -> None:
     add_studio(spec)
     add_bench(spec)

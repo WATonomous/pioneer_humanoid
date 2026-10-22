@@ -93,7 +93,7 @@ def reset(model, data, rng) -> None:
 
 
 @scene("lid_box", robot_pos=(-0.3, 0.0, 0.0), step=step, progress=progress, reset=reset,
-       title="Pioneer v2  |  a hinged lid: the tag read by sight, the lid lifted open, its button pressed")
+       title="Pioneer  |  a hinged lid: the tag read by sight, the lid lifted open, its button pressed")
 def build(spec: mujoco.MjSpec) -> None:
     add_studio(spec)
     add_bench(spec)

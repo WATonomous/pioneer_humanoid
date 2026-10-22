@@ -182,7 +182,7 @@ def _knob(body, pos, name):
 
 
 @scene("service_panel", robot_pos=(-0.3, 0.0, 0.0), step=step, progress=progress,
-       title="Pioneer v2  |  service panel: drawer, cartridge, sliding hatch, bolt, power on")
+       title="Pioneer  |  service panel: drawer, cartridge, sliding hatch, bolt, power on")
 def build(spec: mujoco.MjSpec) -> None:
     add_studio(spec)
     add_bench(spec, half_y=0.7)

@@ -1,6 +1,6 @@
-# pioneer_whole_body — whole-body Pioneer v2 scenes (MuJoCo, CPU)
+# pioneer_whole_body — Pioneer Humanoid Whole Body scenes (MuJoCo, CPU)
 
-Long-horizon manipulation demos for the **whole-body Pioneer v2 humanoid** (graphite helmet, taller torso, hands D,
+Long-horizon manipulation demos for the **Pioneer Humanoid Whole Body** (graphite helmet, taller torso, hands D,
 1010 legs; 69 joints) in plain MuJoCo: the robot walks up to a workbench, looks at what it works on, and assembles
 things with its two 22-joint hands. Every demo is a scripted plan (like the arm's synthetic teleop), run in physics
 and recorded to a video.
@@ -16,7 +16,7 @@ MUJOCO_GL=osmesa python -m pioneer_whole_body.run_demo --scene bearing_block --o
 # watch in MuJoCo's interactive viewer: the scene, its demo live, or a recorded run
 python -m pioneer_whole_body.view --scene bearing_block --play
 python -m pioneer_whole_body.view --scene bearing_block --tape out/bearing_block.npz
-# any scene as an MJCF file (static: threads and latches are Python); the robot alone: assets/pioneer_v2_humanoid/pioneer_v2.xml
+# any scene as an MJCF file (static: threads and latches are Python); the robot alone: assets/pioneer_humanoid_whole_body/pioneer_humanoid_whole_body.xml
 python -m pioneer_whole_body.view --scene bearing_block --export bearing_block.xml
 ```
 
@@ -84,7 +84,7 @@ latched in order as in `humanoid_mujoco_scenes`) and `plan` (the demo).
 
 | file | what it is |
 |------|------------|
-| `robot.py` | The robot: `assets/pioneer_v2_humanoid` (the Pioneer v2 URDF from the Prometheus CAD, meshes decimated to 41 MB by `convert.py` there) with its CAD colours, a movable pelvis (x, y, z, yaw, pitch at the hips), a position actuator per joint (the DIP joints follow the PIPs: URDF mimic), gravity compensation, palm / fingertip sites and a head camera. Arms and hands collide with the world, not with each other; the legs are visual. |
+| `robot.py` | The robot: `assets/pioneer_humanoid_whole_body` (the Pioneer Humanoid Whole Body URDF from the Prometheus CAD, meshes decimated to 41 MB by `convert.py` there) with its CAD colours, a movable pelvis (x, y, z, yaw, pitch at the hips), a position actuator per joint (the DIP joints follow the PIPs: URDF mimic), gravity compensation, palm / fingertip sites and a head camera. Arms and hands collide with the world, not with each other; the legs are visual. |
 | `controller.py` | `WholeBody`: every motion is a timed blend of targets turned into joint commands at 100 Hz by IK on a scratch `MjData` — palms along straight lines (7-joint arm IK, damped least squares, a posture in the null space), fingertips (position only), the gaze (neck yaw / pitch at a point), the pelvis, and the legs solved each tick so the feet stay planted (`step`, `walk`: quasi-static steps; balance isn't simulated). Turning on the spot (`turn`: the feet step round the pelvis, the hands turn with it when they carry something). Finger synergies (`SHAPES`), solved for the knobs and cells by fitting fingertip positions. The head is steady: a look at something already near the middle of the head camera's view doesn't move it, and it turns at most 0.8 rad/s (no snapping round). |
 | `skills.py` | What plans are written in: `pick_knob`, `carry`, `align_held` (hover, level and turn the held part, correct by looking), `lower_until`, `release`, `insert_bolt`, `tighten` (release / turn back / regrasp strokes), `press`, and two-handed `pick_two`, `align_two`, `move_two`, `tighten_two`, `let_go`. A failed skill raises `TaskFailed`. |
 | `parts.py` | Knob bolts and threaded holes. A thread is a nut body in the part with a turn hinge and a feed slide coupled rigidly (pitch 12 mm, quick-acting); a bolt whose tip is in the hole's mouth, upright and centred gets welded onto it, from then on it only turns and feeds. Seated bolts stay tight. |

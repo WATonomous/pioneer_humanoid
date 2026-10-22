@@ -94,7 +94,7 @@ def _pocket(body, x, y, z, rgba) -> None:
 
 
 @scene("copy_pattern", robot_pos=(-0.3, 0.0, 0.0), step=step, progress=progress, reset=reset,
-       title="Pioneer v2  |  copy a pattern: the reference row read by sight, built the same")
+       title="Pioneer  |  copy a pattern: the reference row read by sight, built the same")
 def build(spec: mujoco.MjSpec) -> None:
     add_studio(spec)
     add_bench(spec)

@@ -351,4 +351,4 @@ def _touching(m, d, a: str, b: str) -> bool:
 from pioneer_whole_body._register import _REGISTRY  # noqa: E402
 
 _REGISTRY["bearing_block"].plan = plan
-_REGISTRY["bearing_block"].title = "Pioneer v2  |  bearing block assembly: place, bolt down (2 knob bolts), ship"
+_REGISTRY["bearing_block"].title = "Pioneer  |  bearing block assembly: place, bolt down (2 knob bolts), ship"

@@ -177,7 +177,7 @@ def _gear(world, name, pos, yaw, rgba):
 
 
 @scene("gear_train", robot_pos=(-0.3, 0.0, 0.0), step=step, progress=progress,
-       title="Pioneer v2  |  gear train: fetch the gears from behind, mesh them on their shafts, run it, test")
+       title="Pioneer  |  gear train: fetch the gears from behind, mesh them on their shafts, run it, test")
 def build(spec: mujoco.MjSpec) -> None:
     add_studio(spec)
     add_bench(spec, half_y=0.6)

@@ -152,7 +152,7 @@ def _hex_bolt(world, name, pos):
 
 
 @scene("wrench", robot_pos=(-0.3, 0.0, 0.0), step=step, progress=progress,
-       title="Pioneer v2  |  socket wrench: drive two hex bolts home with a tool, put it back, test")
+       title="Pioneer  |  socket wrench: drive two hex bolts home with a tool, put it back, test")
 def build(spec: mujoco.MjSpec) -> None:
     add_studio(spec)
     add_bench(spec, half_y=0.7)

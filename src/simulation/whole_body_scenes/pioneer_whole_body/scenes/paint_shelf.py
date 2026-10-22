@@ -88,7 +88,7 @@ def reset(model, data, rng) -> None:
 
 
 @scene("paint_shelf", robot_pos=(0.0, 0.0, 0.0), step=step, progress=progress, reset=reset,
-       title="Pioneer v2  |  paint shelf: three paint tins read by their lids and shelved red, green, blue",
+       title="Pioneer  |  paint shelf: three paint tins read by their lids and shelved red, green, blue",
        camera=((0.50, 0.0, 0.97), 1.7, 60, -22))
 def build(spec: mujoco.MjSpec) -> None:
     add_workshop(spec)

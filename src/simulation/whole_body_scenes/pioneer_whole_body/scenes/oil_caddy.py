@@ -77,7 +77,7 @@ def reset(model, data, rng) -> None:
 
 
 @scene("oil_caddy", robot_pos=(0.0, 0.0, 0.0), step=step, progress=progress, reset=reset,
-       title="Pioneer v2  |  oil caddy: three tins put away in the caddy's bays",
+       title="Pioneer  |  oil caddy: three tins put away in the caddy's bays",
        camera=((0.50, 0.0, 0.97), 1.7, 60, -22))
 def build(spec: mujoco.MjSpec) -> None:
     add_workshop(spec)

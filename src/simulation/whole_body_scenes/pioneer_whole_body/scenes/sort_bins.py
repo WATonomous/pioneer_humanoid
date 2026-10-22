@@ -125,7 +125,7 @@ def _part(world, name, pos, colour):
 
 
 @scene("sort_bins", robot_pos=(-0.3, 0.0, 0.0), step=step, progress=progress, reset=reset,
-       title="Pioneer v2  |  sorting by colour: found with its head camera, into the bins")
+       title="Pioneer  |  sorting by colour: found with its head camera, into the bins")
 def build(spec: mujoco.MjSpec) -> None:
     add_studio(spec)
     add_bench(spec)

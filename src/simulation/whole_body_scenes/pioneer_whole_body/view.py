@@ -3,11 +3,11 @@
     python -m pioneer_whole_body.view --scene bearing_block            # the scene, the robot standing (drag, zoom)
     python -m pioneer_whole_body.view --scene bearing_block --play     # the scripted demo, live (about real time)
     python -m pioneer_whole_body.view --scene bearing_block --tape out/bearing_block.npz   # a recorded run, looped
-    python -m pioneer_whole_body.view --scene bare --export pioneer_v2.xml   # an MJCF any MuJoCo viewer opens
+    python -m pioneer_whole_body.view --scene bare --export pioneer_humanoid_whole_body.xml   # an MJCF any MuJoCo viewer opens
 
-Don't open ``assets/pioneer_v2_humanoid/pioneer_humanoid_v2.urdf`` in MuJoCo's viewer directly: MuJoCo's URDF reader
+Don't open ``assets/pioneer_humanoid_whole_body/pioneer_humanoid_whole_body.urdf`` in MuJoCo's viewer directly: MuJoCo's URDF reader
 puts the collision boxes in group 0 next to the CAD meshes (they hide them: a robot of grey boxes) and drops the
-colours. ``assets/pioneer_v2_humanoid/pioneer_v2.xml`` (``--export`` of ``bare``) is the robot as these scenes use it.
+colours. ``assets/pioneer_humanoid_whole_body/pioneer_humanoid_whole_body.xml`` (``--export`` of ``bare``) is the robot as these scenes use it.
 """
 from __future__ import annotations
 

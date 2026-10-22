@@ -103,7 +103,7 @@ def reset(model, data, rng) -> None:
 
 
 @scene("ball_beam", robot_pos=(-0.3, 0.0, 0.0), step=step, progress=progress, reset=reset,
-       title="Pioneer v2  |  ball and beam: tilted with both hands to roll the ball to its mark, by sight")
+       title="Pioneer  |  ball and beam: tilted with both hands to roll the ball to its mark, by sight")
 def build(spec: mujoco.MjSpec) -> None:
     add_studio(spec)
     add_bench(spec)

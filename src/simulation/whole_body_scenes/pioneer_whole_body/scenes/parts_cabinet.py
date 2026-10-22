@@ -121,7 +121,7 @@ def _contents(spec, body, kind: str, x0: float, y0: float, z0: float, steel: str
 
 
 @scene("parts_cabinet", robot_pos=(0.0, 0.0, 0.0), step=step, progress=progress, reset=reset,
-       title="Pioneer v2  |  parts cabinet: a drawer pulled open, a brass coupling taken out, the drawer shut",
+       title="Pioneer  |  parts cabinet: a drawer pulled open, a brass coupling taken out, the drawer shut",
        camera=((0.55, 0.0, 0.97), 1.8, 112, -22))
 def build(spec: mujoco.MjSpec) -> None:
     add_workshop(spec)

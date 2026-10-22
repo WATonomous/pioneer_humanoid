@@ -103,7 +103,7 @@ def reset(model, data, rng) -> None:
 
 
 @scene("drawer", robot_pos=(-0.3, 0.0, 0.0), step=step, progress=progress, reset=reset,
-       title="Pioneer v2  |  a drawer: pulled open, the parts taken out by sight, pushed shut")
+       title="Pioneer  |  a drawer: pulled open, the parts taken out by sight, pushed shut")
 def build(spec: mujoco.MjSpec) -> None:
     add_studio(spec)
     add_bench(spec)

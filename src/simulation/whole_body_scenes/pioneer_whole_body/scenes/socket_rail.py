@@ -95,7 +95,7 @@ def reset(model, data, rng) -> None:
 
 
 @scene("socket_rail", robot_pos=(0.0, 0.0, 0.0), step=step, progress=progress, reset=reset,
-       title="Pioneer v2  |  socket rail: four sockets measured by sight and put on the rail in size order",
+       title="Pioneer  |  socket rail: four sockets measured by sight and put on the rail in size order",
        camera=((0.48, 0.0, 0.95), 1.7, 60, -24))
 def build(spec: mujoco.MjSpec) -> None:
     add_workshop(spec)

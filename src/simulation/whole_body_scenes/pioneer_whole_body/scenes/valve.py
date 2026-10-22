@@ -109,7 +109,7 @@ def _set_mark(model, side, a: float) -> None:
 
 
 @scene("valve", robot_pos=(-0.3, 0.0, 0.0), step=step, progress=progress, reset=reset,
-       title="Pioneer v2  |  setting two valves by their gauges: turned until the needles meet their marks")
+       title="Pioneer  |  setting two valves by their gauges: turned until the needles meet their marks")
 def build(spec: mujoco.MjSpec) -> None:
     add_studio(spec)
     add_bench(spec)

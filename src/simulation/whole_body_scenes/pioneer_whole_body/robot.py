@@ -1,4 +1,4 @@
-"""The whole-body Pioneer v2 humanoid for plain MuJoCo (assets/pioneer_v2_humanoid).
+"""The Pioneer Humanoid Whole Body for plain MuJoCo (assets/pioneer_humanoid_whole_body).
 
 ``robot_spec()`` is the URDF with:
 
@@ -23,8 +23,8 @@ from pathlib import Path
 import mujoco
 import numpy as np
 
-ASSET_DIR = Path(__file__).resolve().parents[4] / "assets" / "pioneer_v2_humanoid"
-URDF_PATH = ASSET_DIR / "pioneer_humanoid_v2.urdf"
+ASSET_DIR = Path(__file__).resolve().parents[4] / "assets" / "pioneer_humanoid_whole_body"
+URDF_PATH = ASSET_DIR / "pioneer_humanoid_whole_body.urdf"
 
 ROBOT_CONTYPE = 2       # hands / arms collide with world geoms (contype 1), not with each other
 ROBOT_CONAFFINITY = 1

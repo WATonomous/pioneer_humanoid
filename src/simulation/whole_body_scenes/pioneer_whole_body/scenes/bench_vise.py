@@ -100,7 +100,7 @@ def reset(model, data, rng) -> None:
 
 
 @scene("bench_vise", robot_pos=(0.0, 0.0, 0.0), step=step, progress=progress, reset=reset,
-       title="Pioneer v2  |  bench vise: the jaws wound open, a bar set in them, wound shut on it",
+       title="Pioneer  |  bench vise: the jaws wound open, a bar set in them, wound shut on it",
        camera=((0.48, -0.14, 1.08), 1.55, 128, -22))
 def build(spec: mujoco.MjSpec) -> None:
     add_workshop(spec)

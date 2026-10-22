@@ -86,7 +86,7 @@ def progress(model, data):
 
 
 @scene("tool_chest", robot_pos=(0.0, 0.0, 0.0), step=step, progress=progress,
-       title="Pioneer v2  |  tool chest: the drawer pulled open, a socket taken out, the drawer shut",
+       title="Pioneer  |  tool chest: the drawer pulled open, a socket taken out, the drawer shut",
        camera=((0.5, 0.05, 1.0), 2.1, 65, -20))
 def build(spec: mujoco.MjSpec) -> None:
     add_workshop(spec)

@@ -90,7 +90,7 @@ def _masses(model, heavy) -> None:
 
 
 @scene("weigh_sort", robot_pos=(-0.3, 0.0, 0.0), step=step, progress=progress, reset=reset,
-       title="Pioneer v2  |  sorting by weight: each part weighed, the dial read with its head camera")
+       title="Pioneer  |  sorting by weight: each part weighed, the dial read with its head camera")
 def build(spec: mujoco.MjSpec) -> None:
     add_studio(spec)
     add_bench(spec)

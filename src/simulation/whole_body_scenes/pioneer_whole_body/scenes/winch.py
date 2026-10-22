@@ -78,7 +78,7 @@ def reset(model, data, rng) -> None:
 
 
 @scene("winch", robot_pos=(-0.3, 0.0, 0.0), step=step, progress=progress, reset=reset,
-       title="Pioneer v2  |  cranking a winch: the load wound up the mast, locked")
+       title="Pioneer  |  cranking a winch: the load wound up the mast, locked")
 def build(spec: mujoco.MjSpec) -> None:
     add_studio(spec)
     add_bench(spec)

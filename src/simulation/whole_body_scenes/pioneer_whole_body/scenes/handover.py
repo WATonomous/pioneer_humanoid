@@ -143,7 +143,7 @@ def _knob(body, pos, name):
 
 
 @scene("handover", robot_pos=(-0.3, 0.0, 0.0), step=step, progress=progress,
-       title="Pioneer v2  |  hand-over: right hand to left, into the fixture, bolted down")
+       title="Pioneer  |  hand-over: right hand to left, into the fixture, bolted down")
 def build(spec: mujoco.MjSpec) -> None:
     add_studio(spec)
     add_bench(spec, half_y=0.8)

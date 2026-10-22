@@ -131,7 +131,7 @@ def _ring(body, name, r, h, wall, n, rgba, z0=0.0):
 
 
 @scene("battery_module", robot_pos=(-0.3, 0.0, 0.0), step=step, progress=progress,
-       title="Pioneer v2  |  battery module: load 4 cells, lid on, screw down with both hands, test")
+       title="Pioneer  |  battery module: load 4 cells, lid on, screw down with both hands, test")
 def build(spec: mujoco.MjSpec) -> None:
     add_studio(spec)
     add_bench(spec, half_y=0.98)

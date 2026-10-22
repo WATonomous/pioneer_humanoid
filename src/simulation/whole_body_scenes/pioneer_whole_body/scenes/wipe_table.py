@@ -126,7 +126,7 @@ def _squeegee(world, side):
 
 
 @scene("wipe_table", robot_pos=(-0.3, 0.0, 0.0), step=step, progress=progress, reset=reset,
-       title="Pioneer v2  |  wiping the bench: crumbs found by its head camera, swept into the gutter")
+       title="Pioneer  |  wiping the bench: crumbs found by its head camera, swept into the gutter")
 def build(spec: mujoco.MjSpec) -> None:
     add_studio(spec)
     add_bench(spec)
