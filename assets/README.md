@@ -11,7 +11,7 @@ assets/
 ├── pioneer_bimanual_arm/   # the bimanual arm — urdf, usd, meshes  (BIMANUAL_ARM_CFG)
 ├── pioneer_hand/           # 20-DOF hand — urdf, usd, meshes        (HAND_CFG)
 ├── old_leg_only_humanoid/  # the old legs-only humanoid (placeholder upper body) — urdf, usd, meshes (WHOLE_BODY_HUMANOID_CFG)
-├── pioneer_whole_body_humanoid/  # the full robot from CAD (head, arms, hands, legs; 69 joints) — urdf, MuJoCo xml, meshes
+├── pioneer_whole_body_humanoid/  # the full robot from CAD (head, arms, hands, legs; 69 joints), and a gripper version (the bimanual arm's joints; 31) — urdf, MuJoCo xml, meshes
 ├── props/                 # block.usd, box.usd, table.usd, lightbox.usd — scene props owned by no robot
 └── lerobot/               # SO101 arm + vial-task USDs + HDRIs — synced from an external repo
 ```

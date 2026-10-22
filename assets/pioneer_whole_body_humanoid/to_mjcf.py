@@ -25,8 +25,9 @@ def main(urdf):
         mesh, col = vis.find("geometry/mesh"), vis.find("material/color")
         if mesh is not None and col is not None:
             colours[os.path.splitext(os.path.basename(mesh.get("filename")))[0]] = [float(x) for x in col.get("rgba").split()]
-    text = re.sub(r"(<robot[^>]*>)", r'\1<mujoco><compiler meshdir="." balanceinertia="true" discardvisual="false"/></mujoco>',
-                  text, count=1)
+    if "<mujoco>" not in text:                     # (convert.py's output already carries it)
+        text = re.sub(r"(<robot[^>]*>)", r'\1<mujoco><compiler meshdir="." balanceinertia="true" discardvisual="false"/></mujoco>',
+                      text, count=1)
     spec = mujoco.MjSpec.from_string(text)
     spec.modelname = os.path.splitext(urdf)[0]
     spec.meshdir = HERE
@@ -64,8 +65,10 @@ def main(urdf):
         a = spec.add_actuator(name=j.name, target=j.name, trntype=mujoco.mjtTrn.mjTRN_JOINT)
         a.set_to_position(kp=kp, kv=0.1 * kp)
         a.ctrllimited, a.ctrlrange = True, list(j.range)
-        j.damping, j.armature = (2.0, 0.01) if slide else (1.0, 0.01)
+        j.damping = [2.0 if slide else 1.0, 0.0, 0.0]
+        j.armature = 0.01
     spec.compile()
+    spec.meshdir = "."                             # (the file sits beside meshes/: no absolute path in it)
     out = os.path.splitext(path)[0] + ".xml"
     open(out, "w").write(spec.to_xml())
     print("wrote", out)
