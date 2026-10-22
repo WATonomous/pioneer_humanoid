@@ -21,8 +21,8 @@ import mujoco
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DEFAULT = [os.path.join(HERE, "whole_body_humanoid.urdf"),
-           os.path.join(HERE, "..", "pioneer_v2_humanoid", "pioneer_v2.xml")]
+DEFAULT = [p for p in (os.path.join(HERE, "whole_body_humanoid.urdf"),
+                       os.path.join(HERE, "..", "pioneer_v2_humanoid", "pioneer_v2.xml")) if os.path.exists(p)]
 DIRECTIONS = {"Hip_F": ("knee", "forward"), "Hip_A": ("knee", "outward"), "Knee": ("ankle", "back"),
               "Ankle_P": ("toes", "down")}
 
