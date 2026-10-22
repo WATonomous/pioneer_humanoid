@@ -1,7 +1,7 @@
 """A converted URDF here -> a MuJoCo model to open in the viewer: the robot standing with its soles on a floor, in its
-CAD colours (MuJoCo's URDF reader drops them), the collision boxes hidden (group 3) and one position actuator a joint
-(a joint that follows another, as a finger's DIP its PIP, has none), so each joint can be moved from the viewer's
-control panel. The base is fixed: nothing here walks or balances.
+CAD colours (MuJoCo's URDF reader drops them), the collision boxes hidden (group 3) and one position actuator a joint,
+capped at its motor's effort limit (a joint that follows another, as a finger's DIP its PIP, has none), so each joint
+can be moved from the viewer's control panel. The base is fixed: nothing here walks or balances.
 
     python to_mjcf.py pioneer_whole_body_humanoid.urdf             # -> pioneer_whole_body_humanoid.xml (hands)
     python to_mjcf.py pioneer_whole_body_humanoid_gripper.urdf     # -> pioneer_whole_body_humanoid_gripper.xml
@@ -63,16 +63,20 @@ def main(urdf):
     world.add_light(pos=[-1.5, -1.0, 2.5], dir=[0.5, 0.3, -1.0], diffuse=[0.3, 0.3, 0.3])
     for b in spec.bodies:                          # gravity compensated: the joints hold where they're put
         b.gravcomp = 1.0
-    mimics = {j.get("name") for j in ET.fromstring(open(path).read()).iter("joint") if j.find("mimic") is not None}
+    root_ = ET.fromstring(open(path).read())
+    mimics = {j.get("name") for j in root_.iter("joint") if j.find("mimic") is not None}
+    effort = {j.get("name"): float(j.find("limit").get("effort")) for j in root_.iter("joint") if j.find("limit") is not None}
     for j in spec.joints:                          # one position actuator a joint, over its range (not a joint that
-        if j.name in mimics:                       # follows another, as a finger's DIP its PIP: it has none)
-            continue
+        if j.name in mimics:                       # follows another, as a finger's DIP its PIP: it has none), its
+            continue                               # force capped at the motor's effort limit
         slide = j.type == mujoco.mjtJoint.mjJNT_SLIDE
-        kp = 200.0 if slide else 40.0
+        e = effort.get(j.name, 10.0)
+        kp = e / (0.002 if slide else 0.05)        # the full effort at ~3 deg (2 mm) off its target
         a = spec.add_actuator(name=j.name, target=j.name, trntype=mujoco.mjtTrn.mjTRN_JOINT)
-        a.set_to_position(kp=kp, kv=0.1 * kp)
+        a.set_to_position(kp=kp, kv=0.02 * kp)
         a.ctrllimited, a.ctrlrange = True, list(j.range)
-        j.damping = [2.0 if slide else 1.0, 0.0, 0.0]
+        a.forcelimited, a.forcerange = True, [-e, e]
+        j.damping = [0.1, 0.0, 0.0]
         j.armature = 0.01
     spec.compile()
     spec.meshdir = "."                             # (the file sits beside meshes/: no absolute path in it)

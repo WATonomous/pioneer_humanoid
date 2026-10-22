@@ -3,12 +3,12 @@
 <robot name="pioneer_whole_body_humanoid_gripper">
   <mujoco><compiler meshdir="." balanceinertia="true" discardvisual="false"/></mujoco>
   <link name="base_link">
-    <inertial><origin xyz="0.000000 -0.000003 0.824736"/><mass value="0.2439"/><inertia ixx="0.000677341" ixy="0" ixz="0" iyy="0.00101672" iyz="0" izz="0.00105184"/></inertial>
-    <visual><origin xyz="-0.000000 -0.000000 -0.000000"/><geometry><mesh filename="meshes/base_link_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
-    <collision><origin xyz="0.000000 -0.000003 0.824736"/><geometry><box size="0.185000 0.132389 0.125695"/></geometry></collision>
+    <inertial><origin xyz="0.000000 -0.000001 0.848982"/><mass value="4.6735"/><inertia ixx="0.00804196" ixy="1.47784e-13" ixz="-1.11199e-10" iyy="0.0502475" iyz="9.74084e-09" izz="0.050078"/></inertial>
+    <visual><origin xyz="-0.000000 -0.000000 0.019917"/><geometry><mesh filename="meshes/base_link_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <collision><origin xyz="0.000000 -0.000003 0.844653"/><geometry><box size="0.185000 0.132389 0.125695"/></geometry></collision>
   </link>
   <link name="torso">
-    <inertial><origin xyz="0.000000 0.025199 0.244000"/><mass value="1.2415"/><inertia ixx="0.0335766" ixy="0" ixz="0" iyy="0.0356768" iyz="0" izz="0.0199777"/></inertial>
+    <inertial><origin xyz="-0.003962 0.003402 0.305928"/><mass value="5.1662"/><inertia ixx="0.0777137" ixy="0.000159442" ixz="0.00143948" iyy="0.118603" iyz="0.00122214" izz="0.0628854"/></inertial>
     <visual><origin xyz="-0.000000 -0.000000 -0.897000"/><geometry><mesh filename="meshes/torso_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c1"><color rgba="0.063 0.071 0.078 1"/></material></visual>
     <visual><origin xyz="-0.000000 -0.000000 -0.897000"/><geometry><mesh filename="meshes/torso_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
     <visual><origin xyz="-0.000000 -0.000000 -0.897000"/><geometry><mesh filename="meshes/torso_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c3"><color rgba="0.725 0.741 0.761 1"/></material></visual>
@@ -20,13 +20,13 @@
     <collision><origin xyz="0.000000 0.025199 0.244000"/><geometry><box size="0.326650 0.293938 0.488000"/></geometry></collision>
   </link>
   <link name="neck_link">
-    <inertial><origin xyz="0.000001 -0.001660 0.098473"/><mass value="0.1074"/><inertia ixx="0.000603639" ixy="0" ixz="0" iyy="0.000656404" iyz="0" izz="0.000565857"/></inertial>
+    <inertial><origin xyz="0.000054 0.003233 0.089908"/><mass value="0.1994"/><inertia ixx="0.000592885" ixy="-3.1037e-08" ixz="-2.11504e-07" iyy="0.000632686" iyz="-2.67261e-05" izz="0.000401908"/></inertial>
     <visual><origin xyz="-0.000000 -0.000000 -1.261000"/><geometry><mesh filename="meshes/neck_link_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
     <visual><origin xyz="-0.000000 -0.000000 -1.261000"/><geometry><mesh filename="meshes/neck_link_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c8"><color rgba="0.431 0.443 0.463 1"/></material></visual>
     <collision><origin xyz="0.000001 -0.001660 0.098473"/><geometry><box size="0.185918 0.169320 0.196946"/></geometry></collision>
   </link>
   <link name="head">
-    <inertial><origin xyz="0.000003 0.000371 0.036406"/><mass value="0.2599"/><inertia ixx="0.00215566" ixy="0" ixz="0" iyy="0.00196965" iyz="0" izz="0.00157344"/></inertial>
+    <inertial><origin xyz="0.000111 -0.013322 0.017692"/><mass value="0.5348"/><inertia ixx="0.00204797" ixy="1.74594e-06" ixz="5.44359e-07" iyy="0.00182987" iyz="-3.94282e-05" izz="0.00167201"/></inertial>
     <visual><origin xyz="-0.000000 -0.000000 -1.457946"/><geometry><mesh filename="meshes/head_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c9"><color rgba="0.020 0.020 0.024 1"/></material></visual>
     <visual><origin xyz="-0.000000 -0.000000 -1.457946"/><geometry><mesh filename="meshes/head_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c10"><color rgba="0.043 0.047 0.055 1"/></material></visual>
     <visual><origin xyz="-0.000000 -0.000000 -1.457946"/><geometry><mesh filename="meshes/head_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c11"><color rgba="0.071 0.075 0.086 1"/></material></visual>
@@ -41,320 +41,320 @@
     <collision><origin xyz="0.000003 0.000371 0.036406"/><geometry><box size="0.178958 0.201527 0.242703"/></geometry></collision>
   </link>
   <link name="r_arm_link1">
-    <inertial><origin xyz="-0.085025 -0.000100 0.000000"/><mass value="0.3313"/><inertia ixx="0.00102373" ixy="0" ixz="0" iyy="0.0013287" iyz="0" izz="0.0013287"/></inertial>
+    <inertial><origin xyz="-0.096120 0.002027 0.000001"/><mass value="1.3298"/><inertia ixx="0.0016868" ixy="0.000315279" ixz="-1.38856e-07" iyy="0.00366213" iyz="9.59003e-09" izz="0.00331212"/></inertial>
     <visual><origin xyz="0.163300 -0.000100 -1.275000"/><geometry><mesh filename="meshes/r_arm_link1_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
     <visual><origin xyz="0.163300 -0.000100 -1.275000"/><geometry><mesh filename="meshes/r_arm_link1_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
     <collision><origin xyz="-0.085025 -0.000100 0.000000"/><geometry><box size="0.172000 0.136157 0.136157"/></geometry></collision>
   </link>
   <link name="r_arm_link2">
-    <inertial><origin xyz="-0.000025 -0.035879 -0.030483"/><mass value="0.1798"/><inertia ixx="0.000654943" ixy="0" ixz="0" iyy="0.000642185" iyz="0" izz="0.000418666"/></inertial>
+    <inertial><origin xyz="0.000003 -0.030136 -0.074856"/><mass value="0.7890"/><inertia ixx="0.00195111" ixy="8.79883e-07" ixz="1.53965e-06" iyy="0.00186331" iyz="-0.00032943" izz="0.00123242"/></inertial>
     <visual><origin xyz="0.279300 -0.042900 -1.274800"/><geometry><mesh filename="meshes/r_arm_link2_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
     <visual><origin xyz="0.279300 -0.042900 -1.274800"/><geometry><mesh filename="meshes/r_arm_link2_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
     <collision><origin xyz="-0.000025 -0.035879 -0.030483"/><geometry><box size="0.116397 0.119999 0.171233"/></geometry></collision>
   </link>
   <link name="r_arm_link3">
-    <inertial><origin xyz="-0.000019 0.000121 -0.117100"/><mass value="0.2121"/><inertia ixx="0.00114958" ixy="0" ixz="0" iyy="0.00114936" iyz="0" izz="0.000353301"/></inertial>
+    <inertial><origin xyz="-0.001853 0.002899 -0.144000"/><mass value="0.8487"/><inertia ixx="0.00427549" ixy="-7.98416e-06" ixz="-6.52993e-05" iyy="0.0040313" iyz="-0.000113755" izz="0.000861061"/></inertial>
     <visual><origin xyz="0.279300 -0.006900 -1.158500"/><geometry><mesh filename="meshes/r_arm_link3_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
     <visual><origin xyz="0.279300 -0.006900 -1.158500"/><geometry><mesh filename="meshes/r_arm_link3_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
     <collision><origin xyz="-0.000019 0.000121 -0.117100"/><geometry><box size="0.099938 0.100001 0.234600"/></geometry></collision>
   </link>
   <link name="r_arm_link4">
-    <inertial><origin xyz="0.023025 0.000121 -0.042300"/><mass value="0.0788"/><inertia ixx="0.000173936" ixy="0" ixz="0" iyy="0.000173936" iyz="0" izz="0.000126055"/></inertial>
+    <inertial><origin xyz="0.023200 -0.000083 -0.079476"/><mass value="0.6014"/><inertia ixx="0.000690813" ixy="6.16185e-07" ixz="-2.7274e-06" iyy="0.000778924" iyz="1.01459e-06" izz="0.000707927"/></inertial>
     <visual><origin xyz="0.304600 -0.006900 -0.973900"/><geometry><mesh filename="meshes/r_arm_link4_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
     <visual><origin xyz="0.304600 -0.006900 -0.973900"/><geometry><mesh filename="meshes/r_arm_link4_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
     <collision><origin xyz="0.023025 0.000121 -0.042300"/><geometry><box size="0.098000 0.098000 0.130000"/></geometry></collision>
   </link>
   <link name="r_arm_link5">
-    <inertial><origin xyz="-0.001645 0.000121 -0.080050"/><mass value="0.0911"/><inertia ixx="0.00026399" ixy="0" ixz="0" iyy="0.000259257" iyz="0" izz="0.000132251"/></inertial>
+    <inertial><origin xyz="-0.004908 0.000214 -0.091808"/><mass value="0.2649"/><inertia ixx="0.000771667" ixy="1.47464e-08" ixz="-4.49582e-05" iyy="0.000773668" iyz="-9.81412e-08" izz="0.000207394"/></inertial>
     <visual><origin xyz="0.281600 -0.006900 -0.866400"/><geometry><mesh filename="meshes/r_arm_link5_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c18"><color rgba="0.227 0.235 0.251 1"/></material></visual>
     <visual><origin xyz="0.281600 -0.006900 -0.866400"/><geometry><mesh filename="meshes/r_arm_link5_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
     <collision><origin xyz="-0.001645 0.000121 -0.080050"/><geometry><box size="0.091659 0.095000 0.160500"/></geometry></collision>
   </link>
   <link name="r_arm_link6">
-    <inertial><origin xyz="-0.043975 -0.015801 -0.048981"/><mass value="0.0422"/><inertia ixx="0.000129713" ixy="0" ixz="0" iyy="0.000172562" iyz="0" izz="0.000155917"/></inertial>
+    <inertial><origin xyz="-0.048654 -0.001323 -0.062132"/><mass value="0.1619"/><inertia ixx="0.00024694" ixy="2.52971e-06" ixz="4.91304e-05" iyy="0.000272087" iyz="-2.20124e-06" izz="9.56798e-05"/></inertial>
     <visual><origin xyz="0.244600 -0.006900 -0.738400"/><geometry><mesh filename="meshes/r_arm_link6_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c18"><color rgba="0.227 0.235 0.251 1"/></material></visual>
     <visual><origin xyz="0.244600 -0.006900 -0.738400"/><geometry><mesh filename="meshes/r_arm_link6_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
     <collision><origin xyz="-0.043975 -0.015801 -0.048981"/><geometry><box size="0.168116 0.126797 0.144260"/></geometry></collision>
   </link>
   <link name="r_arm_link7">
-    <inertial><origin xyz="-0.134752 0.000121 -0.045186"/><mass value="0.0131"/><inertia ixx="1.26613e-05" ixy="0" ixz="0" iyy="9.81628e-06" iyz="0" izz="5.27335e-06"/></inertial>
+    <inertial><origin xyz="-0.134637 0.002179 -0.027766"/><mass value="0.0243"/><inertia ixx="1.66328e-05" ixy="8.50713e-08" ixz="2.01462e-06" iyy="1.31249e-05" iyz="-5.49333e-07" izz="6.41577e-06"/></inertial>
     <visual><origin xyz="0.218400 -0.006900 -0.627400"/><geometry><mesh filename="meshes/r_arm_link7_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
     <collision><origin xyz="-0.134752 0.000121 -0.045186"/><geometry><box size="0.033361 0.061000 0.088800"/></geometry></collision>
   </link>
   <link name="r_arm_link8">
-    <inertial><origin xyz="0.097702 0.000121 -0.039586"/><mass value="0.0131"/><inertia ixx="1.26613e-05" ixy="0" ixz="0" iyy="9.81628e-06" iyz="0" izz="5.27335e-06"/></inertial>
+    <inertial><origin xyz="0.097587 -0.001937 -0.022166"/><mass value="0.0243"/><inertia ixx="1.66328e-05" ixy="8.50713e-08" ixz="-2.01462e-06" iyy="1.31249e-05" iyz="5.49333e-07" izz="6.41577e-06"/></inertial>
     <visual><origin xyz="0.321700 -0.006900 -0.621800"/><geometry><mesh filename="meshes/r_arm_link8_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
     <collision><origin xyz="0.097702 0.000121 -0.039586"/><geometry><box size="0.033361 0.061000 0.088800"/></geometry></collision>
   </link>
   <link name="l_arm_link1">
-    <inertial><origin xyz="0.085025 -0.000100 0.000000"/><mass value="0.3313"/><inertia ixx="0.0010237" ixy="0" ixz="0" iyy="0.00132866" iyz="0" izz="0.00132866"/></inertial>
+    <inertial><origin xyz="0.096121 0.002027 0.000001"/><mass value="1.3298"/><inertia ixx="0.00168677" ixy="-0.000315279" ixz="1.40561e-07" iyy="0.00366207" iyz="1.61051e-08" izz="0.00331206"/></inertial>
     <visual><origin xyz="-0.163300 -0.000100 -1.275000"/><geometry><mesh filename="meshes/l_arm_link1_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
     <visual><origin xyz="-0.163300 -0.000100 -1.275000"/><geometry><mesh filename="meshes/l_arm_link1_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
     <collision><origin xyz="0.085025 -0.000100 0.000000"/><geometry><box size="0.172000 0.136157 0.136157"/></geometry></collision>
   </link>
   <link name="l_arm_link2">
-    <inertial><origin xyz="0.000025 -0.001879 -0.030483"/><mass value="0.1719"/><inertia ixx="0.000626264" ixy="0" ixz="0" iyy="0.000614064" iyz="0" izz="0.000400333"/></inertial>
+    <inertial><origin xyz="-0.000063 0.003858 -0.071808"/><mass value="0.7890"/><inertia ixx="0.00174946" ixy="-7.41974e-07" ixz="-2.1076e-06" iyy="0.00166268" iyz="-0.000315739" izz="0.00104948"/></inertial>
     <visual><origin xyz="-0.279300 -0.008900 -1.274800"/><geometry><mesh filename="meshes/l_arm_link2_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
     <visual><origin xyz="-0.279300 -0.008900 -1.274800"/><geometry><mesh filename="meshes/l_arm_link2_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
     <collision><origin xyz="0.000025 -0.001879 -0.030483"/><geometry><box size="0.116397 0.119999 0.171233"/></geometry></collision>
   </link>
   <link name="l_arm_link3">
-    <inertial><origin xyz="0.000019 0.000121 -0.116100"/><mass value="0.2121"/><inertia ixx="0.00114958" ixy="0" ixz="0" iyy="0.00114936" iyz="0" izz="0.0003533"/></inertial>
+    <inertial><origin xyz="0.001853 0.002892 -0.142983"/><mass value="0.8487"/><inertia ixx="0.00427431" ixy="8.0887e-06" ixz="6.50564e-05" iyy="0.00403038" iyz="-0.000114254" izz="0.000860809"/></inertial>
     <visual><origin xyz="-0.279300 -0.006900 -1.157500"/><geometry><mesh filename="meshes/l_arm_link3_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
     <visual><origin xyz="-0.279300 -0.006900 -1.157500"/><geometry><mesh filename="meshes/l_arm_link3_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
     <collision><origin xyz="0.000019 0.000121 -0.116100"/><geometry><box size="0.099938 0.100001 0.234600"/></geometry></collision>
   </link>
   <link name="l_arm_link4">
-    <inertial><origin xyz="-0.023025 0.000121 -0.042300"/><mass value="0.0788"/><inertia ixx="0.000173935" ixy="0" ixz="0" iyy="0.000173935" iyz="0" izz="0.000126054"/></inertial>
+    <inertial><origin xyz="-0.023224 -0.000093 -0.079475"/><mass value="0.6014"/><inertia ixx="0.000690521" ixy="-3.27486e-07" ixz="2.8138e-06" iyy="0.000779198" iyz="1.05061e-06" izz="0.000707912"/></inertial>
     <visual><origin xyz="-0.304600 -0.006900 -0.973900"/><geometry><mesh filename="meshes/l_arm_link4_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
     <visual><origin xyz="-0.304600 -0.006900 -0.973900"/><geometry><mesh filename="meshes/l_arm_link4_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
     <collision><origin xyz="-0.023025 0.000121 -0.042300"/><geometry><box size="0.098000 0.098000 0.130000"/></geometry></collision>
   </link>
   <link name="l_arm_link5">
-    <inertial><origin xyz="0.001645 0.000121 -0.018350"/><mass value="0.0911"/><inertia ixx="0.000263989" ixy="0" ixz="0" iyy="0.000259257" iyz="0" izz="0.000132251"/></inertial>
+    <inertial><origin xyz="0.004908 0.000214 -0.030107"/><mass value="0.2649"/><inertia ixx="0.000771668" ixy="-1.4721e-08" ixz="4.49579e-05" iyy="0.00077367" iyz="-9.8087e-08" izz="0.000207394"/></inertial>
     <visual><origin xyz="-0.281600 -0.006900 -0.804700"/><geometry><mesh filename="meshes/l_arm_link5_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c18"><color rgba="0.227 0.235 0.251 1"/></material></visual>
     <visual><origin xyz="-0.281600 -0.006900 -0.804700"/><geometry><mesh filename="meshes/l_arm_link5_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
     <collision><origin xyz="0.001645 0.000121 -0.018350"/><geometry><box size="0.091659 0.095000 0.160500"/></geometry></collision>
   </link>
   <link name="l_arm_link6">
-    <inertial><origin xyz="0.052975 -0.016804 -0.048981"/><mass value="0.0422"/><inertia ixx="0.000127817" ixy="0" ixz="0" iyy="0.000172398" iyz="0" izz="0.000153997"/></inertial>
+    <inertial><origin xyz="0.058223 -0.001156 -0.062114"/><mass value="0.1619"/><inertia ixx="0.00024489" ixy="-2.66723e-06" ixz="-4.5651e-05" iyy="0.000268549" iyz="-5.09269e-07" izz="9.34665e-05"/></inertial>
     <visual><origin xyz="-0.235600 -0.006900 -0.738400"/><geometry><mesh filename="meshes/l_arm_link6_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c18"><color rgba="0.227 0.235 0.251 1"/></material></visual>
     <visual><origin xyz="-0.235600 -0.006900 -0.738400"/><geometry><mesh filename="meshes/l_arm_link6_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
     <collision><origin xyz="0.052975 -0.016804 -0.048981"/><geometry><box size="0.168116 0.124792 0.144260"/></geometry></collision>
   </link>
   <link name="l_arm_link7">
-    <inertial><origin xyz="0.134752 0.000121 -0.045186"/><mass value="0.0131"/><inertia ixx="1.26606e-05" ixy="0" ixz="0" iyy="9.81569e-06" iyz="0" izz="5.27303e-06"/></inertial>
+    <inertial><origin xyz="0.134636 0.002172 -0.027766"/><mass value="0.0243"/><inertia ixx="1.66316e-05" ixy="-8.48569e-08" ixz="-2.01468e-06" iyy="1.31248e-05" iyz="-5.51978e-07" izz="6.41448e-06"/></inertial>
     <visual><origin xyz="-0.218400 -0.006900 -0.627400"/><geometry><mesh filename="meshes/l_arm_link7_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
     <collision><origin xyz="0.134752 0.000121 -0.045186"/><geometry><box size="0.033361 0.061000 0.088800"/></geometry></collision>
   </link>
   <link name="l_arm_link8">
-    <inertial><origin xyz="-0.097702 0.000121 -0.039586"/><mass value="0.0131"/><inertia ixx="1.26606e-05" ixy="0" ixz="0" iyy="9.81569e-06" iyz="0" izz="5.27303e-06"/></inertial>
+    <inertial><origin xyz="-0.097586 -0.001931 -0.022166"/><mass value="0.0243"/><inertia ixx="1.66316e-05" ixy="-8.48569e-08" ixz="2.01468e-06" iyy="1.31248e-05" iyz="5.51978e-07" izz="6.41448e-06"/></inertial>
     <visual><origin xyz="-0.321700 -0.006900 -0.621800"/><geometry><mesh filename="meshes/l_arm_link8_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
     <collision><origin xyz="-0.097702 0.000121 -0.039586"/><geometry><box size="0.033361 0.061000 0.088800"/></geometry></collision>
   </link>
   <link name="l_hip_pitch_link">
-    <inertial><origin xyz="0.059487 0.038047 0.000083"/><mass value="0.1980"/><inertia ixx="0.000482156" ixy="0" ixz="0" iyy="0.000380218" iyz="0" izz="0.000545783"/></inertial>
+    <inertial><origin xyz="0.057476 0.057049 -0.000058"/><mass value="1.3125"/><inertia ixx="0.0019289" ixy="-0.000668473" ixz="2.08971e-06" iyy="0.00171145" iyz="8.59721e-06" izz="0.00241398"/></inertial>
     <visual><origin xyz="-0.084000 -0.000000 -0.828000"/><geometry><mesh filename="meshes/l_hip_pitch_link_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
     <visual><origin xyz="-0.084000 -0.000000 -0.828000"/><geometry><mesh filename="meshes/l_hip_pitch_link_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
     <collision><origin xyz="0.059487 0.038047 0.000083"/><geometry><box size="0.115974 0.140100 0.097948"/></geometry></collision>
   </link>
   <link name="l_hip_roll_link">
-    <inertial><origin xyz="0.000463 0.027948 -0.048045"/><mass value="0.2332"/><inertia ixx="0.00106304" ixy="0" ixz="0" iyy="0.000842545" iyz="0" izz="0.000699892"/></inertial>
+    <inertial><origin xyz="0.003259 0.018948 -0.076596"/><mass value="1.5837"/><inertia ixx="0.00469709" ixy="-0.000283231" ixz="-0.000542205" iyy="0.00361983" iyz="-0.0015051" izz="0.00337297"/></inertial>
     <visual><origin xyz="-0.153000 -0.000000 -0.828000"/><geometry><mesh filename="meshes/l_hip_roll_link_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
     <visual><origin xyz="-0.153000 -0.000000 -0.828000"/><geometry><mesh filename="meshes/l_hip_roll_link_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
     <collision><origin xyz="0.000463 0.027948 -0.048045"/><geometry><box size="0.111070 0.153898 0.176143"/></geometry></collision>
   </link>
   <link name="l_thigh">
-    <inertial><origin xyz="-0.009400 -0.000011 -0.152017"/><mass value="0.3566"/><inertia ixx="0.00311933" ixy="0" ixz="0" iyy="0.00324641" iyz="0" izz="0.000697754"/></inertial>
+    <inertial><origin xyz="-0.008506 -0.000412 -0.180456"/><mass value="2.8299"/><inertia ixx="0.0312997" ixy="1.91582e-05" ixz="-0.00328772" iyy="0.0321408" iyz="0.000103505" izz="0.00415735"/></inertial>
     <visual><origin xyz="-0.152000 -0.000000 -0.697500"/><geometry><mesh filename="meshes/l_thigh_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
     <visual><origin xyz="-0.152000 -0.000000 -0.697500"/><geometry><mesh filename="meshes/l_thigh_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c19"><color rgba="0.604 0.620 0.643 1"/></material></visual>
     <visual><origin xyz="-0.152000 -0.000000 -0.697500"/><geometry><mesh filename="meshes/l_thigh_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
     <collision><origin xyz="-0.009400 -0.000011 -0.152017"/><geometry><box size="0.117800 0.097985 0.308800"/></geometry></collision>
   </link>
   <link name="l_shank_foot">
-    <inertial><origin xyz="-0.012150 0.015253 -0.190467"/><mass value="0.4993"/><inertia ixx="0.00983921" ixy="0" ixz="0" iyy="0.00971779" iyz="0" izz="0.00108675"/></inertial>
+    <inertial><origin xyz="-0.005932 0.015397 -0.208131"/><mass value="4.8588"/><inertia ixx="0.0374186" ixy="9.03447e-05" ixz="-0.00131655" iyy="0.034962" iyz="0.000399446" izz="0.00689743"/></inertial>
     <visual><origin xyz="-0.152000 -0.000000 -0.436000"/><geometry><mesh filename="meshes/l_shank_foot_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
     <visual><origin xyz="-0.152000 -0.000000 -0.436000"/><geometry><mesh filename="meshes/l_shank_foot_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c19"><color rgba="0.604 0.620 0.643 1"/></material></visual>
     <visual><origin xyz="-0.152000 -0.000000 -0.436000"/><geometry><mesh filename="meshes/l_shank_foot_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
     <collision><origin xyz="-0.012150 0.015253 -0.190467"/><geometry><box size="0.107700 0.120487 0.471100"/></geometry></collision>
   </link>
   <link name="l_ankle_cross">
-    <inertial><origin xyz="0.000000 0.000000 0.000000"/><mass value="0.0100"/><inertia ixx="1.66667e-07" ixy="0" ixz="0" iyy="1.66667e-07" iyz="0" izz="1.66667e-07"/></inertial>
+    <inertial><origin xyz="0.000000 0.000000 0.000000"/><mass value="0.1000"/><inertia ixx="2.83333e-05" ixy="0" ixz="0" iyy="2.83333e-05" iyz="0" izz="4.16667e-05"/></inertial>
     <collision><origin xyz="0.000000 0.000000 0.000000"/><geometry><box size="0.010000 0.010000 0.010000"/></geometry></collision>
   </link>
   <link name="l_foot">
-    <inertial><origin xyz="-0.008800 -0.034625 -0.002217"/><mass value="0.1397"/><inertia ixx="0.000771188" ixy="0" ixz="0" iyy="0.000222215" iyz="0" izz="0.000827527"/></inertial>
+    <inertial><origin xyz="-0.008800 -0.014819 -0.022493"/><mass value="1.0778"/><inertia ixx="0.00393346" ixy="1.78023e-08" ixz="1.89964e-09" iyy="0.00109377" iyz="-0.000437595" izz="0.00394753"/></inertial>
     <visual><origin xyz="-0.153000 0.007000 -0.024500"/><geometry><mesh filename="meshes/l_foot_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
     <collision><origin xyz="-0.008800 -0.034625 -0.002217"/><geometry><box size="0.109372 0.243131 0.084400"/></geometry></collision>
   </link>
   <link name="r_hip_pitch_link">
-    <inertial><origin xyz="-0.059487 0.038047 0.000083"/><mass value="0.1980"/><inertia ixx="0.000482156" ixy="0" ixz="0" iyy="0.000380218" iyz="0" izz="0.000545783"/></inertial>
+    <inertial><origin xyz="-0.057476 0.057049 -0.000058"/><mass value="1.3125"/><inertia ixx="0.0019289" ixy="0.000668473" ixz="-2.08971e-06" iyy="0.00171145" iyz="8.59721e-06" izz="0.00241398"/></inertial>
     <visual><origin xyz="0.084000 -0.000000 -0.828000"/><geometry><mesh filename="meshes/r_hip_pitch_link_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
     <visual><origin xyz="0.084000 -0.000000 -0.828000"/><geometry><mesh filename="meshes/r_hip_pitch_link_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
     <collision><origin xyz="-0.059487 0.038047 0.000083"/><geometry><box size="0.115974 0.140100 0.097948"/></geometry></collision>
   </link>
   <link name="r_hip_roll_link">
-    <inertial><origin xyz="-0.000463 0.027948 -0.048045"/><mass value="0.2332"/><inertia ixx="0.00106304" ixy="0" ixz="0" iyy="0.000842545" iyz="0" izz="0.000699892"/></inertial>
+    <inertial><origin xyz="-0.003376 0.018831 -0.076596"/><mass value="1.5837"/><inertia ixx="0.00469933" ixy="0.000280467" ixz="0.000541843" iyy="0.00362316" iyz="-0.00150546" izz="0.00337853"/></inertial>
     <visual><origin xyz="0.153000 -0.000000 -0.828000"/><geometry><mesh filename="meshes/r_hip_roll_link_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
     <visual><origin xyz="0.153000 -0.000000 -0.828000"/><geometry><mesh filename="meshes/r_hip_roll_link_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
     <collision><origin xyz="-0.000463 0.027948 -0.048045"/><geometry><box size="0.111070 0.153898 0.176143"/></geometry></collision>
   </link>
   <link name="r_thigh">
-    <inertial><origin xyz="0.009400 -0.000011 -0.152017"/><mass value="0.3566"/><inertia ixx="0.00311933" ixy="0" ixz="0" iyy="0.00324641" iyz="0" izz="0.000697754"/></inertial>
+    <inertial><origin xyz="0.008506 -0.000412 -0.180456"/><mass value="2.8299"/><inertia ixx="0.0312997" ixy="-1.91582e-05" ixz="0.00328772" iyy="0.0321408" iyz="0.000103505" izz="0.00415735"/></inertial>
     <visual><origin xyz="0.152000 -0.000000 -0.697500"/><geometry><mesh filename="meshes/r_thigh_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
     <visual><origin xyz="0.152000 -0.000000 -0.697500"/><geometry><mesh filename="meshes/r_thigh_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c19"><color rgba="0.604 0.620 0.643 1"/></material></visual>
     <visual><origin xyz="0.152000 -0.000000 -0.697500"/><geometry><mesh filename="meshes/r_thigh_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
     <collision><origin xyz="0.009400 -0.000011 -0.152017"/><geometry><box size="0.117800 0.097985 0.308800"/></geometry></collision>
   </link>
   <link name="r_shank_foot">
-    <inertial><origin xyz="0.012150 0.015253 -0.190467"/><mass value="0.4993"/><inertia ixx="0.00983921" ixy="0" ixz="0" iyy="0.00971779" iyz="0" izz="0.00108675"/></inertial>
+    <inertial><origin xyz="0.005932 0.015397 -0.208131"/><mass value="4.8588"/><inertia ixx="0.0374186" ixy="-9.03447e-05" ixz="0.00131655" iyy="0.034962" iyz="0.000399446" izz="0.00689743"/></inertial>
     <visual><origin xyz="0.152000 -0.000000 -0.436000"/><geometry><mesh filename="meshes/r_shank_foot_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
     <visual><origin xyz="0.152000 -0.000000 -0.436000"/><geometry><mesh filename="meshes/r_shank_foot_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c19"><color rgba="0.604 0.620 0.643 1"/></material></visual>
     <visual><origin xyz="0.152000 -0.000000 -0.436000"/><geometry><mesh filename="meshes/r_shank_foot_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
     <collision><origin xyz="0.012150 0.015253 -0.190467"/><geometry><box size="0.107700 0.120487 0.471100"/></geometry></collision>
   </link>
   <link name="r_ankle_cross">
-    <inertial><origin xyz="0.000000 0.000000 0.000000"/><mass value="0.0100"/><inertia ixx="1.66667e-07" ixy="0" ixz="0" iyy="1.66667e-07" iyz="0" izz="1.66667e-07"/></inertial>
+    <inertial><origin xyz="0.000000 0.000000 0.000000"/><mass value="0.1000"/><inertia ixx="2.83333e-05" ixy="0" ixz="0" iyy="2.83333e-05" iyz="0" izz="4.16667e-05"/></inertial>
     <collision><origin xyz="0.000000 0.000000 0.000000"/><geometry><box size="0.010000 0.010000 0.010000"/></geometry></collision>
   </link>
   <link name="r_foot">
-    <inertial><origin xyz="0.008800 -0.034625 -0.002217"/><mass value="0.1397"/><inertia ixx="0.000771188" ixy="0" ixz="0" iyy="0.000222215" iyz="0" izz="0.000827528"/></inertial>
+    <inertial><origin xyz="0.008800 -0.014819 -0.022493"/><mass value="1.0778"/><inertia ixx="0.00393346" ixy="-1.78225e-08" ixz="-1.90681e-09" iyy="0.00109377" iyz="-0.000437597" izz="0.00394754"/></inertial>
     <visual><origin xyz="0.153000 0.007000 -0.024500"/><geometry><mesh filename="meshes/r_foot_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
     <collision><origin xyz="0.008800 -0.034625 -0.002217"/><geometry><box size="0.109372 0.243131 0.084400"/></geometry></collision>
   </link>
   <joint name="waist_yaw" type="revolute">
     <parent link="base_link"/><child link="torso"/>
-    <origin xyz="0.000000 0.000000 0.897000"/><axis xyz="0.000000 0.000000 1.000000"/>
-    <limit lower="-1.5708" upper="1.5708" effort="10" velocity="6"/>
+    <origin xyz="0.000000 0.000000 0.916917"/><axis xyz="0.000000 0.000000 1.000000"/>
+    <limit lower="-1.5708" upper="1.5708" effort="60" velocity="6"/>
   </joint>
   <joint name="neck_yaw" type="revolute">
     <parent link="torso"/><child link="neck_link"/>
     <origin xyz="0.000000 0.000000 0.364000"/><axis xyz="0.000000 0.000000 1.000000"/>
-    <limit lower="-1.2217" upper="1.2217" effort="10" velocity="6"/>
+    <limit lower="-1.2217" upper="1.2217" effort="5" velocity="6"/>
   </joint>
   <joint name="neck_pitch" type="revolute">
     <parent link="neck_link"/><child link="head"/>
     <origin xyz="0.000000 0.000000 0.196946"/><axis xyz="1.000000 0.000000 0.000000"/>
-    <limit lower="-0.3491" upper="0.5236" effort="10" velocity="6"/>
+    <limit lower="-0.3491" upper="0.5236" effort="5" velocity="6"/>
   </joint>
   <joint name="joint1" type="revolute">
     <parent link="torso"/><child link="r_arm_link1"/>
     <origin xyz="-0.163300 0.000100 0.378000"/><axis xyz="1.000000 0.000000 0.000000"/>
-    <limit lower="-2.3038" upper="1.7802" effort="10" velocity="6"/>
+    <limit lower="-2.3038" upper="1.7802" effort="53" velocity="6"/>
   </joint>
   <joint name="joint2" type="revolute">
     <parent link="r_arm_link1"/><child link="r_arm_link2"/>
     <origin xyz="-0.116000 0.042800 -0.000200"/><axis xyz="0.000000 -1.000000 0.000000"/>
-    <limit lower="-1.5708" upper="0.3491" effort="10" velocity="6"/>
+    <limit lower="-1.5708" upper="0.3491" effort="53" velocity="6"/>
   </joint>
   <joint name="joint3" type="revolute">
     <parent link="r_arm_link2"/><child link="r_arm_link3"/>
     <origin xyz="0.000000 -0.036000 -0.116300"/><axis xyz="0.000000 0.000000 -1.000000"/>
-    <limit lower="-1.3963" upper="3.7263" effort="10" velocity="6"/>
+    <limit lower="-1.3963" upper="3.7263" effort="22" velocity="6"/>
   </joint>
   <joint name="joint4" type="revolute">
     <parent link="r_arm_link3"/><child link="r_arm_link4"/>
     <origin xyz="-0.025300 0.000000 -0.184600"/><axis xyz="-1.000000 0.000000 0.000000"/>
-    <limit lower="-1.7453" upper="2.3126" effort="10" velocity="6"/>
+    <limit lower="-1.7453" upper="2.3126" effort="22" velocity="6"/>
   </joint>
   <joint name="joint5" type="revolute">
     <parent link="r_arm_link4"/><child link="r_arm_link5"/>
     <origin xyz="0.023000 0.000000 -0.107500"/><axis xyz="0.000000 0.000000 1.000000"/>
-    <limit lower="-4.3284" upper="1.3160" effort="10" velocity="6"/>
+    <limit lower="-4.3284" upper="1.3160" effort="22" velocity="6"/>
   </joint>
   <joint name="joint6" type="revolute">
     <parent link="r_arm_link5"/><child link="r_arm_link6"/>
     <origin xyz="0.037000 0.000000 -0.128000"/><axis xyz="-1.000000 0.000000 0.000000"/>
-    <limit lower="-6.2832" upper="6.2832" effort="10" velocity="6"/>
+    <limit lower="-6.2832" upper="6.2832" effort="0.73" velocity="6"/>
   </joint>
   <joint name="joint7" type="prismatic">
     <parent link="r_arm_link6"/><child link="r_arm_link7"/>
     <origin xyz="0.026200 0.000000 -0.111000"/><axis xyz="-1.000000 0.000000 0.000000"/>
-    <limit lower="-0.0532" upper="0.0168" effort="10" velocity="6"/>
+    <limit lower="-0.0532" upper="0.0168" effort="30" velocity="0.2"/>
   </joint>
   <joint name="joint8" type="prismatic">
     <parent link="r_arm_link6"/><child link="r_arm_link8"/>
     <origin xyz="-0.077100 0.000000 -0.116600"/><axis xyz="-1.000000 0.000000 0.000000"/>
-    <limit lower="-0.0132" upper="0.0468" effort="10" velocity="6"/>
+    <limit lower="-0.0132" upper="0.0468" effort="30" velocity="0.2"/>
   </joint>
   <joint name="joint1L" type="revolute">
     <parent link="torso"/><child link="l_arm_link1"/>
     <origin xyz="0.163300 0.000100 0.378000"/><axis xyz="-1.000000 0.000000 0.000000"/>
-    <limit lower="-2.3038" upper="1.7802" effort="10" velocity="6"/>
+    <limit lower="-2.3038" upper="1.7802" effort="53" velocity="6"/>
   </joint>
   <joint name="joint2l" type="revolute">
     <parent link="l_arm_link1"/><child link="l_arm_link2"/>
     <origin xyz="0.116000 0.008800 -0.000200"/><axis xyz="0.000000 -1.000000 0.000000"/>
-    <limit lower="-0.3491" upper="1.5708" effort="10" velocity="6"/>
+    <limit lower="-0.3491" upper="1.5708" effort="53" velocity="6"/>
   </joint>
   <joint name="joint3l" type="revolute">
     <parent link="l_arm_link2"/><child link="l_arm_link3"/>
     <origin xyz="0.000000 -0.002000 -0.117300"/><axis xyz="0.000000 0.000000 -1.000000"/>
-    <limit lower="-3.7263" upper="1.3963" effort="10" velocity="6"/>
+    <limit lower="-3.7263" upper="1.3963" effort="22" velocity="6"/>
   </joint>
   <joint name="joint4l" type="revolute">
     <parent link="l_arm_link3"/><child link="l_arm_link4"/>
     <origin xyz="0.025300 0.000000 -0.183600"/><axis xyz="1.000000 0.000000 0.000000"/>
-    <limit lower="-2.3126" upper="1.7453" effort="10" velocity="6"/>
+    <limit lower="-2.3126" upper="1.7453" effort="22" velocity="6"/>
   </joint>
   <joint name="joint5l" type="revolute">
     <parent link="l_arm_link4"/><child link="l_arm_link5"/>
     <origin xyz="-0.023000 0.000000 -0.169200"/><axis xyz="0.000000 0.000000 1.000000"/>
-    <limit lower="-1.3160" upper="4.3284" effort="10" velocity="6"/>
+    <limit lower="-1.3160" upper="4.3284" effort="22" velocity="6"/>
   </joint>
   <joint name="joint6l" type="revolute">
     <parent link="l_arm_link5"/><child link="l_arm_link6"/>
     <origin xyz="-0.046000 0.000000 -0.066300"/><axis xyz="1.000000 0.000000 0.000000"/>
-    <limit lower="-6.2832" upper="6.2832" effort="10" velocity="6"/>
+    <limit lower="-6.2832" upper="6.2832" effort="0.73" velocity="6"/>
   </joint>
   <joint name="joint7l" type="prismatic">
     <parent link="l_arm_link6"/><child link="l_arm_link7"/>
     <origin xyz="-0.017200 0.000000 -0.111000"/><axis xyz="1.000000 0.000000 0.000000"/>
-    <limit lower="-0.0532" upper="0.0168" effort="10" velocity="6"/>
+    <limit lower="-0.0532" upper="0.0168" effort="30" velocity="0.2"/>
   </joint>
   <joint name="joint8l" type="prismatic">
     <parent link="l_arm_link6"/><child link="l_arm_link8"/>
     <origin xyz="0.086100 0.000000 -0.116600"/><axis xyz="1.000000 0.000000 0.000000"/>
-    <limit lower="-0.0132" upper="0.0468" effort="10" velocity="6"/>
+    <limit lower="-0.0132" upper="0.0468" effort="30" velocity="0.2"/>
   </joint>
   <joint name="Hip_F_L" type="revolute">
     <parent link="base_link"/><child link="l_hip_pitch_link"/>
-    <origin xyz="0.084000 0.000000 0.828000"/><axis xyz="-1.000000 0.000000 0.000000"/>
-    <limit lower="-0.3491" upper="1.5708" effort="10" velocity="6"/>
+    <origin xyz="0.084000 0.000000 0.847917"/><axis xyz="-1.000000 0.000000 0.000000"/>
+    <limit lower="-0.3491" upper="1.5708" effort="222" velocity="3.6652"/>
   </joint>
   <joint name="Hip_A_L" type="revolute">
     <parent link="l_hip_pitch_link"/><child link="l_hip_roll_link"/>
     <origin xyz="0.069000 0.000000 0.000000"/><axis xyz="0.000000 -1.000000 0.000000"/>
-    <limit lower="-0.1745" upper="1.0472" effort="10" velocity="6"/>
+    <limit lower="-0.1745" upper="1.0472" effort="120" velocity="20.944"/>
   </joint>
   <joint name="Hip_R_L" type="revolute">
     <parent link="l_hip_roll_link"/><child link="l_thigh"/>
     <origin xyz="-0.001000 0.000000 -0.130500"/><axis xyz="0.000000 0.000000 1.000000"/>
-    <limit lower="-0.5236" upper="1.5708" effort="10" velocity="6"/>
+    <limit lower="-0.5236" upper="1.5708" effort="60" velocity="20.42"/>
   </joint>
   <joint name="Knee_L" type="revolute">
     <parent link="l_thigh"/><child link="l_shank_foot"/>
     <origin xyz="0.000000 0.000000 -0.261500"/><axis xyz="-1.000000 0.000000 0.000000"/>
-    <limit lower="-1.1345" upper="0.0000" effort="10" velocity="6"/>
+    <limit lower="-1.1345" upper="0.0000" effort="222" velocity="3.6652"/>
   </joint>
   <joint name="Ankle_P_L" type="revolute">
     <parent link="l_shank_foot"/><child link="l_ankle_cross"/>
     <origin xyz="0.001000 -0.007000 -0.393600"/><axis xyz="1.000000 0.000000 0.000000"/>
-    <limit lower="-0.5236" upper="0.8727" effort="10" velocity="6"/>
+    <limit lower="-0.5236" upper="0.8727" effort="60" velocity="20.42"/>
   </joint>
   <joint name="Ankle_R_L" type="revolute">
     <parent link="l_ankle_cross"/><child link="l_foot"/>
     <origin xyz="0.000000 0.000000 -0.017900"/><axis xyz="0.000000 1.000000 0.000000"/>
-    <limit lower="-0.2618" upper="0.2618" effort="10" velocity="6"/>
+    <limit lower="-0.2618" upper="0.2618" effort="60" velocity="20.42"/>
   </joint>
   <joint name="Hip_F_R" type="revolute">
     <parent link="base_link"/><child link="r_hip_pitch_link"/>
-    <origin xyz="-0.084000 0.000000 0.828000"/><axis xyz="-1.000000 0.000000 0.000000"/>
-    <limit lower="-0.3491" upper="1.5708" effort="10" velocity="6"/>
+    <origin xyz="-0.084000 0.000000 0.847917"/><axis xyz="-1.000000 0.000000 0.000000"/>
+    <limit lower="-0.3491" upper="1.5708" effort="222" velocity="3.6652"/>
   </joint>
   <joint name="Hip_A_R" type="revolute">
     <parent link="r_hip_pitch_link"/><child link="r_hip_roll_link"/>
     <origin xyz="-0.069000 0.000000 0.000000"/><axis xyz="0.000000 1.000000 0.000000"/>
-    <limit lower="-0.1745" upper="1.0472" effort="10" velocity="6"/>
+    <limit lower="-0.1745" upper="1.0472" effort="120" velocity="20.944"/>
   </joint>
   <joint name="Hip_R_R" type="revolute">
     <parent link="r_hip_roll_link"/><child link="r_thigh"/>
     <origin xyz="0.001000 0.000000 -0.130500"/><axis xyz="0.000000 0.000000 -1.000000"/>
-    <limit lower="-0.5236" upper="1.5708" effort="10" velocity="6"/>
+    <limit lower="-0.5236" upper="1.5708" effort="60" velocity="20.42"/>
   </joint>
   <joint name="Knee_R" type="revolute">
     <parent link="r_thigh"/><child link="r_shank_foot"/>
     <origin xyz="0.000000 0.000000 -0.261500"/><axis xyz="-1.000000 0.000000 0.000000"/>
-    <limit lower="-1.1345" upper="0.0000" effort="10" velocity="6"/>
+    <limit lower="-1.1345" upper="0.0000" effort="222" velocity="3.6652"/>
   </joint>
   <joint name="Ankle_P_R" type="revolute">
     <parent link="r_shank_foot"/><child link="r_ankle_cross"/>
     <origin xyz="-0.001000 -0.007000 -0.393600"/><axis xyz="1.000000 0.000000 0.000000"/>
-    <limit lower="-0.5236" upper="0.8727" effort="10" velocity="6"/>
+    <limit lower="-0.5236" upper="0.8727" effort="60" velocity="20.42"/>
   </joint>
   <joint name="Ankle_R_R" type="revolute">
     <parent link="r_ankle_cross"/><child link="r_foot"/>
     <origin xyz="0.000000 0.000000 -0.017900"/><axis xyz="0.000000 -1.000000 0.000000"/>
-    <limit lower="-0.2618" upper="0.2618" effort="10" velocity="6"/>
+    <limit lower="-0.2618" upper="0.2618" effort="60" velocity="20.42"/>
   </joint>
 </robot>
