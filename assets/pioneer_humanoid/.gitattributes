@@ -1,0 +1,2 @@
+# the meshes are large (218 MB): stored with Git LFS (install git-lfs before cloning)
+meshes/*.obj filter=lfs diff=lfs merge=lfs -text
