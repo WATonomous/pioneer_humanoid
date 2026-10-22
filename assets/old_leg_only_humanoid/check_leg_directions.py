@@ -7,8 +7,8 @@ the leg must move as follows:
     Hip_F   the knee forward        Hip_A    the knee outward
     Knee    the ankle back          Ankle_P  the toes down
 
-Forward is taken from the model itself (from the ankle to the foot's centre of mass, the toes' side), outward from the
-body's middle to the hip. Needs only MuJoCo (the meshes are stripped, so the package:// paths don't matter).
+Forward is taken from the model itself (from the ankle toward the foot's centre of mass, the toes' side; the toes are a
+point 10 cm ahead of the ankle on the foot), outward from the body's middle to the hip. Needs only MuJoCo (the meshes are stripped, so the package:// paths don't matter).
 
     python assets/old_leg_only_humanoid/check_leg_directions.py [model.urdf|model.xml ...]
 """
@@ -53,14 +53,20 @@ def check(m):
         def points():
             mujoco.mj_kinematics(m, d)
             mujoco.mj_comPos(m, d)
+            foot = m.jnt_bodyid[jid["Ankle_R"]]
             return {"knee": d.xanchor[jid["Knee"]].copy(), "ankle": d.xanchor[jid["Ankle_P"]].copy(),
-                    "toes": d.xipos[m.jnt_bodyid[jid["Ankle_R"]]].copy()}
+                    "com": d.xipos[foot].copy(),
+                    "toes": d.xpos[foot] + d.xmat[foot].reshape(3, 3) @ toe_local}
         d.qpos[:] = m.qpos0
+        toe_local = np.zeros(3)
         p0 = points()
         up = np.array([0, 0, 1.0])
-        fwd = p0["toes"] - p0["ankle"]
+        fwd = p0["com"] - p0["ankle"]                    # (the foot's mass lies ahead of the ankle: the toes' side)
         fwd -= up * (fwd @ up)
         fwd /= np.linalg.norm(fwd)
+        foot = m.jnt_bodyid[jid["Ankle_R"]]              # the toes: 10 cm ahead of the ankle, on the foot
+        toe_local = d.xmat[foot].reshape(3, 3).T @ (p0["ankle"] + 0.10 * fwd - d.xpos[foot])
+        p0 = points()
         root = d.xpos[m.body_rootid[m.jnt_bodyid[jid["Hip_F"]]]]
         out = d.xanchor[jid["Hip_A"]] - root
         out -= up * (out @ up) + fwd * (out @ fwd)
