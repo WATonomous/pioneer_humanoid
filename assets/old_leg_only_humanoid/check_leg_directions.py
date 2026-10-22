@@ -10,7 +10,7 @@ the leg must move as follows:
 Forward is taken from the model itself (from the ankle to the foot's centre of mass, the toes' side), outward from the
 body's middle to the hip. Needs only MuJoCo (the meshes are stripped, so the package:// paths don't matter).
 
-    python assets/whole_body_humanoid/check_leg_directions.py [model.urdf|model.xml ...]
+    python assets/old_leg_only_humanoid/check_leg_directions.py [model.urdf|model.xml ...]
 """
 import os
 import re
@@ -21,8 +21,8 @@ import mujoco
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DEFAULT = [p for p in (os.path.join(HERE, "whole_body_humanoid.urdf"),
-                       os.path.join(HERE, "..", "pioneer_v2_humanoid", "pioneer_v2.xml")) if os.path.exists(p)]
+DEFAULT = [p for p in (os.path.join(HERE, "old_leg_only_humanoid.urdf"),
+                       os.path.join(HERE, "..", "pioneer_whole_body_humanoid", "pioneer_whole_body_humanoid.xml")) if os.path.exists(p)]
 DIRECTIONS = {"Hip_F": ("knee", "forward"), "Hip_A": ("knee", "outward"), "Knee": ("ankle", "back"),
               "Ankle_P": ("toes", "down")}
 
