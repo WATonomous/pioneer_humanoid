@@ -1,4 +1,4 @@
-"""Convert the Pioneer Humanoid Whole Body URDF (Prometheus repo, humanoid_urdf/pioneer_v2) for MuJoCo here: every visual mesh
+"""Convert the Pioneer Whole Body Humanoid URDF (Prometheus repo, humanoid_urdf/pioneer_v2) for MuJoCo here: every visual mesh
 decimated to a binary STL (the CAD export is ~270 MB of OBJ; this is ~32 MB), the URDF rewritten to point at them.
 
     python convert.py <Prometheus>/Backend/cad_bench/projects/humanoid_urdf/pioneer_v2/pioneer_humanoid_v2_mujoco.urdf
@@ -45,7 +45,7 @@ def main(src):
         print(f"{f}: {len(m.faces)} -> {len(fc)}")
     text = text.replace("<!-- written by make_urdf.py: edit that, not this file -->",
                         "<!-- converted by convert.py from Prometheus' make_urdf.py output: rerun convert.py, don't edit -->")
-    open(os.path.join(HERE, "pioneer_humanoid_whole_body.urdf"), "w").write(text)
+    open(os.path.join(HERE, "pioneer_whole_body_humanoid.urdf"), "w").write(text)
 
 
 if __name__ == "__main__":
