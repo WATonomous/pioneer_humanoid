@@ -5,6 +5,7 @@ can be moved from the viewer's control panel. The base is fixed: nothing here wa
 
     python to_mjcf.py pioneer_whole_body_humanoid.urdf             # -> pioneer_whole_body_humanoid.xml (hands)
     python to_mjcf.py pioneer_whole_body_humanoid_gripper.urdf     # -> pioneer_whole_body_humanoid_gripper.xml
+    python to_mjcf.py ../pioneer_leg_only_humanoid/pioneer_leg_only_humanoid.urdf     # -> beside it
 """
 import os
 import re
@@ -29,7 +30,7 @@ def main(urdf):
                       text, count=1)
     spec = mujoco.MjSpec.from_string(text)
     spec.modelname = os.path.splitext(urdf)[0]
-    spec.meshdir = HERE
+    spec.meshdir = os.path.dirname(path)
     spec.compiler.degree = False
     spec.option.integrator = mujoco.mjtIntegrator.mjINT_IMPLICITFAST
     spec.visual.global_.offwidth, spec.visual.global_.offheight = 1920, 1080

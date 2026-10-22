@@ -4,9 +4,14 @@ decimated to a binary STL (the CAD export is ~270 MB of OBJ; this is ~32 MB), th
     python convert.py <Prometheus>/Backend/cad_bench/projects/humanoid_urdf/pioneer_v2/pioneer_humanoid_v2_mujoco.urdf
     python convert.py <Prometheus>/.../pioneer_v2_gripper/pioneer_humanoid_v2_gripper_mujoco.urdf pioneer_whole_body_humanoid_gripper
 
+    python convert.py <Prometheus>/.../pioneer_v2_leg_only/pioneer_leg_only_humanoid_mujoco.urdf pioneer_leg_only_humanoid \
+        ../pioneer_leg_only_humanoid <Prometheus>/.../pioneer_v2/meshes
+
 The second form writes another model beside the first (here: the arm's own gripper in place of the hands). A mesh
 already in meshes/ is kept, not decimated again: the two models share the head, torso and legs, and those come out of
-make_urdf.py the same for both, so only the new links' meshes are added.
+make_urdf.py the same for both, so only the new links' meshes are added. The third writes a model into a folder of its
+own (here the leg-only robot), its meshes there only where they differ from this model's (their CAD export compared
+with this model's, the last argument): the rest it points at in this folder's meshes/.
 
 Collisions, joints, limits and inertias are copied unchanged.
 """
@@ -24,9 +29,11 @@ MIN_FACES, MAX_FACES = 300, 60_000
 KEEP_AREA = 0.98            # a decimated mesh must keep this share of the surface (less: it has holes)
 
 
-def main(src, name="pioneer_whole_body_humanoid"):
+def main(src, name="pioneer_whole_body_humanoid", out=None, ref=None):
     root = os.path.dirname(src)
     text = open(src).read()
+    if out:                                    # a model in a folder of its own: its meshes there where they differ
+        return _elsewhere(src, root, text, name, os.path.normpath(os.path.join(HERE, out)), ref)
     files = sorted(set(re.findall(r'filename="(meshes/[^"]+\.obj)"', text)))
     meshes = {f: trimesh.load(os.path.join(root, f), force="mesh", process=False) for f in files}
     total = sum(len(m.faces) for m in meshes.values())
@@ -57,5 +64,46 @@ def main(src, name="pioneer_whole_body_humanoid"):
     open(os.path.join(HERE, f"{name}.urdf"), "w").write(text)
 
 
+def _elsewhere(src, root, text, name, out, ref):
+    """write NAME.urdf into OUT: each mesh this folder already has from the same CAD export (the source OBJ equal to the
+    one in REF) pointed at here, the others decimated into OUT/meshes"""
+    files = sorted(set(re.findall(r'filename="(meshes/[^"]+\.obj)"', text)))
+    here_rel = os.path.relpath(HERE, out)
+    os.makedirs(os.path.join(out, "meshes"), exist_ok=True)
+    own = []
+    for f in files:
+        base = os.path.basename(f)
+        stl = f.replace(".obj", ".stl")
+        same = (os.path.exists(os.path.join(HERE, stl)) and os.path.exists(os.path.join(ref, base))
+                and open(os.path.join(root, f), "rb").read() == open(os.path.join(ref, base), "rb").read())
+        if same:
+            text = text.replace(f'"{f}"', f'"{here_rel}/{stl}"')
+        else:
+            own.append(f)
+    total = sum(len(trimesh.load(os.path.join(root, f), force="mesh", process=False).faces) for f in files)
+    for f in own:
+        m = trimesh.load(os.path.join(root, f), force="mesh", process=False)
+        target = int(np.clip(FACE_BUDGET * len(m.faces) / total, MIN_FACES, MAX_FACES))
+        m.merge_vertices()
+        v, fc = np.asarray(m.vertices, np.float32), np.asarray(m.faces)
+        while len(fc) > target:
+            dv, df = fast_simplification.simplify(v, fc, target_count=target)
+            if trimesh.Trimesh(dv, df, process=False).area > KEEP_AREA * m.area:
+                v, fc = dv, df
+                break
+            if target >= MAX_FACES:
+                break
+            target = min(2 * target, MAX_FACES)
+        stl = f.replace(".obj", ".stl")
+        trimesh.Trimesh(v, fc, process=False).export(os.path.join(out, stl))
+        text = text.replace(f'"{f}"', f'"{stl}"')
+        print(f"{f}: {len(m.faces)} -> {len(fc)} (its own)")
+    text = text.replace("<!-- written by make_urdf.py: edit that, not this file -->",
+                        "<!-- converted by convert.py from Prometheus' make_urdf.py output: rerun convert.py, don't edit -->")
+    text = re.sub(r'<robot name="[^"]*">', f'<robot name="{name}">', text, count=1)
+    open(os.path.join(out, f"{name}.urdf"), "w").write(text)
+    print(len(files) - len(own), "meshes shared with this folder,", len(own), "its own")
+
+
 if __name__ == "__main__":
-    main(*sys.argv[1:3])
+    main(*sys.argv[1:5])

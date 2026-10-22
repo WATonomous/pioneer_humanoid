@@ -1,0 +1,184 @@
+<?xml version="1.0"?>
+<!-- converted by convert.py from Prometheus' make_urdf.py output: rerun convert.py, don't edit -->
+<robot name="pioneer_leg_only_humanoid">
+  <mujoco><compiler meshdir="." balanceinertia="true" discardvisual="false"/></mujoco>
+  <link name="base_link">
+    <inertial><origin xyz="0.000000 -0.000001 0.848982"/><mass value="4.6735"/><inertia ixx="0.00804196" ixy="1.47784e-13" ixz="-1.11199e-10" iyy="0.0502475" iyz="9.74084e-09" izz="0.050078"/></inertial>
+    <visual><origin xyz="-0.000000 -0.000000 0.019917"/><geometry><mesh filename="../pioneer_whole_body_humanoid/meshes/base_link_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <collision><origin xyz="0.000000 -0.000003 0.844653"/><geometry><box size="0.185000 0.132389 0.125695"/></geometry></collision>
+  </link>
+  <link name="torso">
+    <inertial><origin xyz="-0.006229 0.005308 0.264697"/><mass value="3.2862"/><inertia ixx="0.0601886" ixy="0.000120419" ixz="0.00228395" iyy="0.0677088" iyz="0.000512301" izz="0.0273147"/></inertial>
+    <visual><origin xyz="-0.000000 -0.000000 -0.897000"/><geometry><mesh filename="../pioneer_whole_body_humanoid/meshes/torso_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c1"><color rgba="0.063 0.071 0.078 1"/></material></visual>
+    <visual><origin xyz="-0.000000 -0.000000 -0.897000"/><geometry><mesh filename="meshes/torso_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.725 0.741 0.761 1"/></material></visual>
+    <visual><origin xyz="-0.000000 -0.000000 -0.897000"/><geometry><mesh filename="meshes/torso_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c3"><color rgba="0.725 0.745 0.773 1"/></material></visual>
+    <visual><origin xyz="-0.000000 -0.000000 -0.897000"/><geometry><mesh filename="meshes/torso_3.stl" scale="0.001 0.001 0.001"/></geometry><material name="c4"><color rgba="0.784 0.784 0.804 1"/></material></visual>
+    <visual><origin xyz="-0.000000 -0.000000 -0.897000"/><geometry><mesh filename="meshes/torso_4.stl" scale="0.001 0.001 0.001"/></geometry><material name="c5"><color rgba="0.910 0.455 0.173 1"/></material></visual>
+    <visual><origin xyz="-0.000000 -0.000000 -0.897000"/><geometry><mesh filename="meshes/torso_5.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <visual><origin xyz="-0.000000 -0.000000 -0.897000"/><geometry><mesh filename="meshes/torso_6.stl" scale="0.001 0.001 0.001"/></geometry><material name="c6"><color rgba="0.933 0.941 0.949 1"/></material></visual>
+    <collision><origin xyz="0.000000 0.025199 0.244000"/><geometry><box size="0.324650 0.293938 0.488000"/></geometry></collision>
+  </link>
+  <link name="neck_link">
+    <inertial><origin xyz="0.000054 0.003233 0.089908"/><mass value="0.1994"/><inertia ixx="0.000592885" ixy="-3.1037e-08" ixz="-2.11504e-07" iyy="0.000632686" iyz="-2.67261e-05" izz="0.000401908"/></inertial>
+    <visual><origin xyz="-0.000000 -0.000000 -1.261000"/><geometry><mesh filename="../pioneer_whole_body_humanoid/meshes/neck_link_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c7"><color rgba="0.169 0.176 0.192 1"/></material></visual>
+    <visual><origin xyz="-0.000000 -0.000000 -1.261000"/><geometry><mesh filename="../pioneer_whole_body_humanoid/meshes/neck_link_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c8"><color rgba="0.431 0.443 0.463 1"/></material></visual>
+    <collision><origin xyz="0.000001 -0.001660 0.098473"/><geometry><box size="0.185918 0.169320 0.196946"/></geometry></collision>
+  </link>
+  <link name="head">
+    <inertial><origin xyz="0.000111 -0.013322 0.017692"/><mass value="0.5348"/><inertia ixx="0.00204797" ixy="1.74594e-06" ixz="5.44359e-07" iyy="0.00182987" iyz="-3.94282e-05" izz="0.00167201"/></inertial>
+    <visual><origin xyz="-0.000000 -0.000000 -1.457946"/><geometry><mesh filename="../pioneer_whole_body_humanoid/meshes/head_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c9"><color rgba="0.020 0.020 0.024 1"/></material></visual>
+    <visual><origin xyz="-0.000000 -0.000000 -1.457946"/><geometry><mesh filename="../pioneer_whole_body_humanoid/meshes/head_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c10"><color rgba="0.043 0.047 0.055 1"/></material></visual>
+    <visual><origin xyz="-0.000000 -0.000000 -1.457946"/><geometry><mesh filename="../pioneer_whole_body_humanoid/meshes/head_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c11"><color rgba="0.071 0.075 0.086 1"/></material></visual>
+    <visual><origin xyz="-0.000000 -0.000000 -1.457946"/><geometry><mesh filename="../pioneer_whole_body_humanoid/meshes/head_3.stl" scale="0.001 0.001 0.001"/></geometry><material name="c12"><color rgba="0.102 0.106 0.118 1"/></material></visual>
+    <visual><origin xyz="-0.000000 -0.000000 -1.457946"/><geometry><mesh filename="../pioneer_whole_body_humanoid/meshes/head_4.stl" scale="0.001 0.001 0.001"/></geometry><material name="c13"><color rgba="0.243 0.255 0.275 1"/></material></visual>
+    <visual><origin xyz="-0.000000 -0.000000 -1.457946"/><geometry><mesh filename="../pioneer_whole_body_humanoid/meshes/head_5.stl" scale="0.001 0.001 0.001"/></geometry><material name="c8"><color rgba="0.431 0.443 0.463 1"/></material></visual>
+    <visual><origin xyz="-0.000000 -0.000000 -1.457946"/><geometry><mesh filename="../pioneer_whole_body_humanoid/meshes/head_6.stl" scale="0.001 0.001 0.001"/></geometry><material name="c14"><color rgba="0.812 0.953 1.000 1"/></material></visual>
+    <visual><origin xyz="-0.000000 -0.000000 -1.457946"/><geometry><mesh filename="../pioneer_whole_body_humanoid/meshes/head_7.stl" scale="0.001 0.001 0.001"/></geometry><material name="c15"><color rgba="0.902 0.906 0.914 1"/></material></visual>
+    <visual><origin xyz="-0.000000 -0.000000 -1.457946"/><geometry><mesh filename="../pioneer_whole_body_humanoid/meshes/head_8.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <visual><origin xyz="-0.000000 -0.000000 -1.457946"/><geometry><mesh filename="../pioneer_whole_body_humanoid/meshes/head_9.stl" scale="0.001 0.001 0.001"/></geometry><material name="c16"><color rgba="0.945 0.949 0.957 1"/></material></visual>
+    <visual><origin xyz="-0.000000 -0.000000 -1.457946"/><geometry><mesh filename="../pioneer_whole_body_humanoid/meshes/head_10.stl" scale="0.001 0.001 0.001"/></geometry><material name="c17"><color rgba="0.957 0.961 0.965 1"/></material></visual>
+    <collision><origin xyz="0.000003 0.000371 0.036406"/><geometry><box size="0.178958 0.201527 0.242703"/></geometry></collision>
+  </link>
+  <link name="l_hip_pitch_link">
+    <inertial><origin xyz="0.057476 0.057049 -0.000058"/><mass value="1.3125"/><inertia ixx="0.0019289" ixy="-0.000668473" ixz="2.08971e-06" iyy="0.00171145" iyz="8.59721e-06" izz="0.00241398"/></inertial>
+    <visual><origin xyz="-0.084000 -0.000000 -0.828000"/><geometry><mesh filename="../pioneer_whole_body_humanoid/meshes/l_hip_pitch_link_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c7"><color rgba="0.169 0.176 0.192 1"/></material></visual>
+    <visual><origin xyz="-0.084000 -0.000000 -0.828000"/><geometry><mesh filename="../pioneer_whole_body_humanoid/meshes/l_hip_pitch_link_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <collision><origin xyz="0.059487 0.038047 0.000083"/><geometry><box size="0.115974 0.140100 0.097948"/></geometry></collision>
+  </link>
+  <link name="l_hip_roll_link">
+    <inertial><origin xyz="0.003259 0.018948 -0.076596"/><mass value="1.5837"/><inertia ixx="0.00469709" ixy="-0.000283231" ixz="-0.000542205" iyy="0.00361983" iyz="-0.0015051" izz="0.00337297"/></inertial>
+    <visual><origin xyz="-0.153000 -0.000000 -0.828000"/><geometry><mesh filename="../pioneer_whole_body_humanoid/meshes/l_hip_roll_link_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c7"><color rgba="0.169 0.176 0.192 1"/></material></visual>
+    <visual><origin xyz="-0.153000 -0.000000 -0.828000"/><geometry><mesh filename="../pioneer_whole_body_humanoid/meshes/l_hip_roll_link_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <collision><origin xyz="0.000463 0.027948 -0.048045"/><geometry><box size="0.111070 0.153898 0.176143"/></geometry></collision>
+  </link>
+  <link name="l_thigh">
+    <inertial><origin xyz="-0.008506 -0.000412 -0.180456"/><mass value="2.8299"/><inertia ixx="0.0312997" ixy="1.91582e-05" ixz="-0.00328772" iyy="0.0321408" iyz="0.000103505" izz="0.00415735"/></inertial>
+    <visual><origin xyz="-0.152000 -0.000000 -0.697500"/><geometry><mesh filename="../pioneer_whole_body_humanoid/meshes/l_thigh_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c7"><color rgba="0.169 0.176 0.192 1"/></material></visual>
+    <visual><origin xyz="-0.152000 -0.000000 -0.697500"/><geometry><mesh filename="../pioneer_whole_body_humanoid/meshes/l_thigh_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c18"><color rgba="0.604 0.620 0.643 1"/></material></visual>
+    <visual><origin xyz="-0.152000 -0.000000 -0.697500"/><geometry><mesh filename="../pioneer_whole_body_humanoid/meshes/l_thigh_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <collision><origin xyz="-0.009400 -0.000011 -0.152017"/><geometry><box size="0.117800 0.097985 0.308800"/></geometry></collision>
+  </link>
+  <link name="l_shank_foot">
+    <inertial><origin xyz="-0.005932 0.015397 -0.208131"/><mass value="4.8588"/><inertia ixx="0.0374186" ixy="9.03447e-05" ixz="-0.00131655" iyy="0.034962" iyz="0.000399446" izz="0.00689743"/></inertial>
+    <visual><origin xyz="-0.152000 -0.000000 -0.436000"/><geometry><mesh filename="../pioneer_whole_body_humanoid/meshes/l_shank_foot_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c7"><color rgba="0.169 0.176 0.192 1"/></material></visual>
+    <visual><origin xyz="-0.152000 -0.000000 -0.436000"/><geometry><mesh filename="../pioneer_whole_body_humanoid/meshes/l_shank_foot_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c18"><color rgba="0.604 0.620 0.643 1"/></material></visual>
+    <visual><origin xyz="-0.152000 -0.000000 -0.436000"/><geometry><mesh filename="../pioneer_whole_body_humanoid/meshes/l_shank_foot_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <collision><origin xyz="-0.012150 0.015253 -0.190467"/><geometry><box size="0.107700 0.120487 0.471100"/></geometry></collision>
+  </link>
+  <link name="l_ankle_cross">
+    <inertial><origin xyz="0.000000 0.000000 0.000000"/><mass value="0.1000"/><inertia ixx="2.83333e-05" ixy="0" ixz="0" iyy="2.83333e-05" iyz="0" izz="4.16667e-05"/></inertial>
+    <collision><origin xyz="0.000000 0.000000 0.000000"/><geometry><box size="0.010000 0.010000 0.010000"/></geometry></collision>
+  </link>
+  <link name="l_foot">
+    <inertial><origin xyz="-0.008800 -0.014819 -0.022493"/><mass value="1.0778"/><inertia ixx="0.00393346" ixy="1.78023e-08" ixz="1.89964e-09" iyy="0.00109377" iyz="-0.000437595" izz="0.00394753"/></inertial>
+    <visual><origin xyz="-0.153000 0.007000 -0.024500"/><geometry><mesh filename="../pioneer_whole_body_humanoid/meshes/l_foot_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <collision><origin xyz="-0.008800 -0.034625 -0.002217"/><geometry><box size="0.109372 0.243131 0.084400"/></geometry></collision>
+  </link>
+  <link name="r_hip_pitch_link">
+    <inertial><origin xyz="-0.057476 0.057049 -0.000058"/><mass value="1.3125"/><inertia ixx="0.0019289" ixy="0.000668473" ixz="-2.08971e-06" iyy="0.00171145" iyz="8.59721e-06" izz="0.00241398"/></inertial>
+    <visual><origin xyz="0.084000 -0.000000 -0.828000"/><geometry><mesh filename="../pioneer_whole_body_humanoid/meshes/r_hip_pitch_link_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c7"><color rgba="0.169 0.176 0.192 1"/></material></visual>
+    <visual><origin xyz="0.084000 -0.000000 -0.828000"/><geometry><mesh filename="../pioneer_whole_body_humanoid/meshes/r_hip_pitch_link_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <collision><origin xyz="-0.059487 0.038047 0.000083"/><geometry><box size="0.115974 0.140100 0.097948"/></geometry></collision>
+  </link>
+  <link name="r_hip_roll_link">
+    <inertial><origin xyz="-0.003376 0.018831 -0.076596"/><mass value="1.5837"/><inertia ixx="0.00469933" ixy="0.000280467" ixz="0.000541843" iyy="0.00362316" iyz="-0.00150546" izz="0.00337853"/></inertial>
+    <visual><origin xyz="0.153000 -0.000000 -0.828000"/><geometry><mesh filename="../pioneer_whole_body_humanoid/meshes/r_hip_roll_link_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c7"><color rgba="0.169 0.176 0.192 1"/></material></visual>
+    <visual><origin xyz="0.153000 -0.000000 -0.828000"/><geometry><mesh filename="../pioneer_whole_body_humanoid/meshes/r_hip_roll_link_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <collision><origin xyz="-0.000463 0.027948 -0.048045"/><geometry><box size="0.111070 0.153898 0.176143"/></geometry></collision>
+  </link>
+  <link name="r_thigh">
+    <inertial><origin xyz="0.008506 -0.000412 -0.180456"/><mass value="2.8299"/><inertia ixx="0.0312997" ixy="-1.91582e-05" ixz="0.00328772" iyy="0.0321408" iyz="0.000103505" izz="0.00415735"/></inertial>
+    <visual><origin xyz="0.152000 -0.000000 -0.697500"/><geometry><mesh filename="../pioneer_whole_body_humanoid/meshes/r_thigh_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c7"><color rgba="0.169 0.176 0.192 1"/></material></visual>
+    <visual><origin xyz="0.152000 -0.000000 -0.697500"/><geometry><mesh filename="../pioneer_whole_body_humanoid/meshes/r_thigh_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c18"><color rgba="0.604 0.620 0.643 1"/></material></visual>
+    <visual><origin xyz="0.152000 -0.000000 -0.697500"/><geometry><mesh filename="../pioneer_whole_body_humanoid/meshes/r_thigh_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <collision><origin xyz="0.009400 -0.000011 -0.152017"/><geometry><box size="0.117800 0.097985 0.308800"/></geometry></collision>
+  </link>
+  <link name="r_shank_foot">
+    <inertial><origin xyz="0.005932 0.015397 -0.208131"/><mass value="4.8588"/><inertia ixx="0.0374186" ixy="-9.03447e-05" ixz="0.00131655" iyy="0.034962" iyz="0.000399446" izz="0.00689743"/></inertial>
+    <visual><origin xyz="0.152000 -0.000000 -0.436000"/><geometry><mesh filename="../pioneer_whole_body_humanoid/meshes/r_shank_foot_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c7"><color rgba="0.169 0.176 0.192 1"/></material></visual>
+    <visual><origin xyz="0.152000 -0.000000 -0.436000"/><geometry><mesh filename="../pioneer_whole_body_humanoid/meshes/r_shank_foot_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c18"><color rgba="0.604 0.620 0.643 1"/></material></visual>
+    <visual><origin xyz="0.152000 -0.000000 -0.436000"/><geometry><mesh filename="../pioneer_whole_body_humanoid/meshes/r_shank_foot_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <collision><origin xyz="0.012150 0.015253 -0.190467"/><geometry><box size="0.107700 0.120487 0.471100"/></geometry></collision>
+  </link>
+  <link name="r_ankle_cross">
+    <inertial><origin xyz="0.000000 0.000000 0.000000"/><mass value="0.1000"/><inertia ixx="2.83333e-05" ixy="0" ixz="0" iyy="2.83333e-05" iyz="0" izz="4.16667e-05"/></inertial>
+    <collision><origin xyz="0.000000 0.000000 0.000000"/><geometry><box size="0.010000 0.010000 0.010000"/></geometry></collision>
+  </link>
+  <link name="r_foot">
+    <inertial><origin xyz="0.008800 -0.014819 -0.022493"/><mass value="1.0778"/><inertia ixx="0.00393346" ixy="-1.78225e-08" ixz="-1.90681e-09" iyy="0.00109377" iyz="-0.000437597" izz="0.00394754"/></inertial>
+    <visual><origin xyz="0.153000 0.007000 -0.024500"/><geometry><mesh filename="../pioneer_whole_body_humanoid/meshes/r_foot_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <collision><origin xyz="0.008800 -0.034625 -0.002217"/><geometry><box size="0.109372 0.243131 0.084400"/></geometry></collision>
+  </link>
+  <joint name="waist_yaw" type="fixed">
+    <parent link="base_link"/><child link="torso"/>
+    <origin xyz="0.000000 0.000000 0.916917"/>
+  </joint>
+  <joint name="neck_yaw" type="fixed">
+    <parent link="torso"/><child link="neck_link"/>
+    <origin xyz="0.000000 0.000000 0.364000"/>
+  </joint>
+  <joint name="neck_pitch" type="fixed">
+    <parent link="neck_link"/><child link="head"/>
+    <origin xyz="0.000000 0.000000 0.196946"/>
+  </joint>
+  <joint name="Hip_F_L" type="revolute">
+    <parent link="base_link"/><child link="l_hip_pitch_link"/>
+    <origin xyz="0.084000 0.000000 0.847917"/><axis xyz="-1.000000 0.000000 0.000000"/>
+    <limit lower="-0.3491" upper="1.5708" effort="222" velocity="3.6652"/>
+  </joint>
+  <joint name="Hip_A_L" type="revolute">
+    <parent link="l_hip_pitch_link"/><child link="l_hip_roll_link"/>
+    <origin xyz="0.069000 0.000000 0.000000"/><axis xyz="0.000000 -1.000000 0.000000"/>
+    <limit lower="-0.1745" upper="1.0472" effort="120" velocity="20.944"/>
+  </joint>
+  <joint name="Hip_R_L" type="revolute">
+    <parent link="l_hip_roll_link"/><child link="l_thigh"/>
+    <origin xyz="-0.001000 0.000000 -0.130500"/><axis xyz="0.000000 0.000000 1.000000"/>
+    <limit lower="-0.5236" upper="1.5708" effort="60" velocity="20.42"/>
+  </joint>
+  <joint name="Knee_L" type="revolute">
+    <parent link="l_thigh"/><child link="l_shank_foot"/>
+    <origin xyz="0.000000 0.000000 -0.261500"/><axis xyz="-1.000000 0.000000 0.000000"/>
+    <limit lower="-1.1345" upper="0.0000" effort="222" velocity="3.6652"/>
+  </joint>
+  <joint name="Ankle_P_L" type="revolute">
+    <parent link="l_shank_foot"/><child link="l_ankle_cross"/>
+    <origin xyz="0.001000 -0.007000 -0.393600"/><axis xyz="1.000000 0.000000 0.000000"/>
+    <limit lower="-0.5236" upper="0.8727" effort="60" velocity="20.42"/>
+  </joint>
+  <joint name="Ankle_R_L" type="revolute">
+    <parent link="l_ankle_cross"/><child link="l_foot"/>
+    <origin xyz="0.000000 0.000000 -0.017900"/><axis xyz="0.000000 1.000000 0.000000"/>
+    <limit lower="-0.2618" upper="0.2618" effort="60" velocity="20.42"/>
+  </joint>
+  <joint name="Hip_F_R" type="revolute">
+    <parent link="base_link"/><child link="r_hip_pitch_link"/>
+    <origin xyz="-0.084000 0.000000 0.847917"/><axis xyz="-1.000000 0.000000 0.000000"/>
+    <limit lower="-0.3491" upper="1.5708" effort="222" velocity="3.6652"/>
+  </joint>
+  <joint name="Hip_A_R" type="revolute">
+    <parent link="r_hip_pitch_link"/><child link="r_hip_roll_link"/>
+    <origin xyz="-0.069000 0.000000 0.000000"/><axis xyz="0.000000 1.000000 0.000000"/>
+    <limit lower="-0.1745" upper="1.0472" effort="120" velocity="20.944"/>
+  </joint>
+  <joint name="Hip_R_R" type="revolute">
+    <parent link="r_hip_roll_link"/><child link="r_thigh"/>
+    <origin xyz="0.001000 0.000000 -0.130500"/><axis xyz="0.000000 0.000000 -1.000000"/>
+    <limit lower="-0.5236" upper="1.5708" effort="60" velocity="20.42"/>
+  </joint>
+  <joint name="Knee_R" type="revolute">
+    <parent link="r_thigh"/><child link="r_shank_foot"/>
+    <origin xyz="0.000000 0.000000 -0.261500"/><axis xyz="-1.000000 0.000000 0.000000"/>
+    <limit lower="-1.1345" upper="0.0000" effort="222" velocity="3.6652"/>
+  </joint>
+  <joint name="Ankle_P_R" type="revolute">
+    <parent link="r_shank_foot"/><child link="r_ankle_cross"/>
+    <origin xyz="-0.001000 -0.007000 -0.393600"/><axis xyz="1.000000 0.000000 0.000000"/>
+    <limit lower="-0.5236" upper="0.8727" effort="60" velocity="20.42"/>
+  </joint>
+  <joint name="Ankle_R_R" type="revolute">
+    <parent link="r_ankle_cross"/><child link="r_foot"/>
+    <origin xyz="0.000000 0.000000 -0.017900"/><axis xyz="0.000000 -1.000000 0.000000"/>
+    <limit lower="-0.2618" upper="0.2618" effort="60" velocity="20.42"/>
+  </joint>
+</robot>
