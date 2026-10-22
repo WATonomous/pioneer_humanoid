@@ -23,7 +23,8 @@ import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT = [p for p in (os.path.join(HERE, "old_leg_only_humanoid.urdf"),
                        os.path.join(HERE, "..", "pioneer_whole_body_humanoid", "pioneer_whole_body_humanoid.xml"),
-                       os.path.join(HERE, "..", "pioneer_whole_body_humanoid", "pioneer_whole_body_humanoid_gripper.xml")) if os.path.exists(p)]
+                       os.path.join(HERE, "..", "pioneer_whole_body_humanoid", "pioneer_whole_body_humanoid_gripper.xml"),
+                       os.path.join(HERE, "..", "pioneer_leg_only_humanoid", "pioneer_leg_only_humanoid.xml")) if os.path.exists(p)]
 DIRECTIONS = {"Hip_F": ("knee", "forward"), "Hip_A": ("knee", "outward"), "Knee": ("ankle", "back"),
               "Ankle_P": ("toes", "down")}
 
