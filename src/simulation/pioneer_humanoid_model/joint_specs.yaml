@@ -1,0 +1,83 @@
+# Pioneer humanoid: per-joint and per-link physical specs used by model.py.
+# Edit the numbers here (not the URDF) as real specs arrive; every value says where it comes from.
+# lower/upper: joint limits [deg]; torque: motor cap [Nm]; speed: max joint speed [rad/s];
+# armature: reflected rotor inertia [kg m^2]. mimic joints (finger DIP) follow their PIP and have no motor.
+
+joints:
+  waist_yaw: {lower: -90.0, upper: 90.0, torque: 10.0, speed: 6.0, armature: 0.01, source: "PLACEHOLDER (URDF): no real spec yet", limits_source: "URDF"}
+  neck_yaw: {lower: -70.0, upper: 70.0, torque: 10.0, speed: 6.0, armature: 0.01, source: "PLACEHOLDER (URDF): no real spec yet", limits_source: "URDF"}
+  neck_pitch: {lower: -20.0, upper: 30.0, torque: 10.0, speed: 6.0, armature: 0.01, source: "PLACEHOLDER (URDF): no real spec yet", limits_source: "URDF"}
+  r_shoulder_pitch: {lower: -180.0, upper: 180.0, torque: 53.0, speed: 6.0, armature: 0.0081, source: "ASSUMED: previous Wato arm motor (AK10-9), confirm for armV2", limits_source: "URDF"}
+  r_shoulder_roll: {lower: -90.0, upper: 90.0, torque: 53.0, speed: 6.0, armature: 0.0081, source: "ASSUMED: previous Wato arm motor (AK10-9), confirm for armV2", limits_source: "URDF"}
+  r_upper_arm_yaw: {lower: -90.0, upper: 90.0, torque: 18.0, speed: 6.0, armature: 0.0049, source: "ASSUMED: previous Wato arm motor (AK80-9), confirm for armV2", limits_source: "URDF"}
+  r_elbow: {lower: -90.0, upper: 0.0, torque: 18.0, speed: 6.0, armature: 0.0049, source: "ASSUMED: previous Wato arm motor (AK80-9), confirm for armV2", limits_source: "URDF (fixed Oct 22: was -90..90)"}
+  r_forearm_roll: {lower: -90.0, upper: 90.0, torque: 18.0, speed: 6.0, armature: 0.0049, source: "ASSUMED: previous Wato arm motor (AK80-9), confirm for armV2", limits_source: "URDF"}
+  r_wrist_dev: {lower: -20.0, upper: 30.0, torque: 0.73, speed: 6.0, armature: 0.0005, source: "ASSUMED: previous Wato arm motor (GL40), confirm for armV2", limits_source: "URDF"}
+  r_wrist_flex: {lower: -60.0, upper: 60.0, torque: 0.73, speed: 6.0, armature: 0.0005, source: "ASSUMED: previous Wato arm motor (GL40), confirm for armV2", limits_source: "URDF"}
+  r_abd: {lower: -15.0, upper: 15.0, torque: 10.0, speed: 6.0, armature: 0.01, source: "PLACEHOLDER (URDF): no real spec yet", limits_source: "URDF"}
+  r_mcp: {lower: 0.0, upper: 90.0, torque: 10.0, speed: 6.0, armature: 0.01, source: "PLACEHOLDER (URDF): no real spec yet", limits_source: "URDF"}
+  r_pip: {lower: 0.0, upper: 90.0, torque: 10.0, speed: 6.0, armature: 0.01, source: "PLACEHOLDER (URDF): no real spec yet", limits_source: "URDF"}
+  r_i_abd: {lower: -15.0, upper: 15.0, torque: 10.0, speed: 6.0, armature: 0.01, source: "PLACEHOLDER (URDF): no real spec yet", limits_source: "URDF"}
+  r_i_mcp: {lower: 0.0, upper: 90.0, torque: 10.0, speed: 6.0, armature: 0.01, source: "PLACEHOLDER (URDF): no real spec yet", limits_source: "URDF"}
+  r_i_pip: {lower: 0.0, upper: 90.0, torque: 10.0, speed: 6.0, armature: 0.01, source: "PLACEHOLDER (URDF): no real spec yet", limits_source: "URDF"}
+  r_r_abd: {lower: -15.0, upper: 15.0, torque: 10.0, speed: 6.0, armature: 0.01, source: "PLACEHOLDER (URDF): no real spec yet", limits_source: "URDF"}
+  r_r_mcp: {lower: 0.0, upper: 90.0, torque: 10.0, speed: 6.0, armature: 0.01, source: "PLACEHOLDER (URDF): no real spec yet", limits_source: "URDF"}
+  r_r_pip: {lower: 0.0, upper: 90.0, torque: 10.0, speed: 6.0, armature: 0.01, source: "PLACEHOLDER (URDF): no real spec yet", limits_source: "URDF"}
+  r_l_abd: {lower: -15.0, upper: 15.0, torque: 10.0, speed: 6.0, armature: 0.01, source: "PLACEHOLDER (URDF): no real spec yet", limits_source: "URDF"}
+  r_l_mcp: {lower: 0.0, upper: 90.0, torque: 10.0, speed: 6.0, armature: 0.01, source: "PLACEHOLDER (URDF): no real spec yet", limits_source: "URDF"}
+  r_l_pip: {lower: 0.0, upper: 90.0, torque: 10.0, speed: 6.0, armature: 0.01, source: "PLACEHOLDER (URDF): no real spec yet", limits_source: "URDF"}
+  r_th_c: {lower: 0.0, upper: 50.0, torque: 10.0, speed: 6.0, armature: 0.01, source: "PLACEHOLDER (URDF): no real spec yet", limits_source: "URDF"}
+  r_th_f: {lower: 0.0, upper: 60.0, torque: 10.0, speed: 6.0, armature: 0.01, source: "PLACEHOLDER (URDF): no real spec yet", limits_source: "URDF"}
+  r_th_mcp: {lower: 0.0, upper: 80.0, torque: 10.0, speed: 6.0, armature: 0.01, source: "PLACEHOLDER (URDF): no real spec yet", limits_source: "URDF"}
+  r_th_ip: {lower: 0.0, upper: 80.0, torque: 10.0, speed: 6.0, armature: 0.01, source: "PLACEHOLDER (URDF): no real spec yet", limits_source: "URDF"}
+  l_shoulder_pitch: {lower: -180.0, upper: 180.0, torque: 53.0, speed: 6.0, armature: 0.0081, source: "ASSUMED: previous Wato arm motor (AK10-9), confirm for armV2", limits_source: "URDF"}
+  l_shoulder_roll: {lower: -90.0, upper: 90.0, torque: 53.0, speed: 6.0, armature: 0.0081, source: "ASSUMED: previous Wato arm motor (AK10-9), confirm for armV2", limits_source: "URDF"}
+  l_upper_arm_yaw: {lower: -90.0, upper: 90.0, torque: 18.0, speed: 6.0, armature: 0.0049, source: "ASSUMED: previous Wato arm motor (AK80-9), confirm for armV2", limits_source: "URDF"}
+  l_elbow: {lower: -90.0, upper: 0.0, torque: 18.0, speed: 6.0, armature: 0.0049, source: "ASSUMED: previous Wato arm motor (AK80-9), confirm for armV2", limits_source: "URDF (fixed Oct 22: was -90..90)"}
+  l_forearm_roll: {lower: -90.0, upper: 90.0, torque: 18.0, speed: 6.0, armature: 0.0049, source: "ASSUMED: previous Wato arm motor (AK80-9), confirm for armV2", limits_source: "URDF"}
+  l_wrist_dev: {lower: -20.0, upper: 30.0, torque: 0.73, speed: 6.0, armature: 0.0005, source: "ASSUMED: previous Wato arm motor (GL40), confirm for armV2", limits_source: "URDF"}
+  l_wrist_flex: {lower: -60.0, upper: 60.0, torque: 0.73, speed: 6.0, armature: 0.0005, source: "ASSUMED: previous Wato arm motor (GL40), confirm for armV2", limits_source: "URDF"}
+  l_abd: {lower: -15.0, upper: 15.0, torque: 10.0, speed: 6.0, armature: 0.01, source: "PLACEHOLDER (URDF): no real spec yet", limits_source: "URDF"}
+  l_mcp: {lower: 0.0, upper: 90.0, torque: 10.0, speed: 6.0, armature: 0.01, source: "PLACEHOLDER (URDF): no real spec yet", limits_source: "URDF"}
+  l_pip: {lower: 0.0, upper: 90.0, torque: 10.0, speed: 6.0, armature: 0.01, source: "PLACEHOLDER (URDF): no real spec yet", limits_source: "URDF"}
+  l_i_abd: {lower: -15.0, upper: 15.0, torque: 10.0, speed: 6.0, armature: 0.01, source: "PLACEHOLDER (URDF): no real spec yet", limits_source: "URDF"}
+  l_i_mcp: {lower: 0.0, upper: 90.0, torque: 10.0, speed: 6.0, armature: 0.01, source: "PLACEHOLDER (URDF): no real spec yet", limits_source: "URDF"}
+  l_i_pip: {lower: 0.0, upper: 90.0, torque: 10.0, speed: 6.0, armature: 0.01, source: "PLACEHOLDER (URDF): no real spec yet", limits_source: "URDF"}
+  l_r_abd: {lower: -15.0, upper: 15.0, torque: 10.0, speed: 6.0, armature: 0.01, source: "PLACEHOLDER (URDF): no real spec yet", limits_source: "URDF"}
+  l_r_mcp: {lower: 0.0, upper: 90.0, torque: 10.0, speed: 6.0, armature: 0.01, source: "PLACEHOLDER (URDF): no real spec yet", limits_source: "URDF"}
+  l_r_pip: {lower: 0.0, upper: 90.0, torque: 10.0, speed: 6.0, armature: 0.01, source: "PLACEHOLDER (URDF): no real spec yet", limits_source: "URDF"}
+  l_l_abd: {lower: -15.0, upper: 15.0, torque: 10.0, speed: 6.0, armature: 0.01, source: "PLACEHOLDER (URDF): no real spec yet", limits_source: "URDF"}
+  l_l_mcp: {lower: 0.0, upper: 90.0, torque: 10.0, speed: 6.0, armature: 0.01, source: "PLACEHOLDER (URDF): no real spec yet", limits_source: "URDF"}
+  l_l_pip: {lower: 0.0, upper: 90.0, torque: 10.0, speed: 6.0, armature: 0.01, source: "PLACEHOLDER (URDF): no real spec yet", limits_source: "URDF"}
+  l_th_c: {lower: 0.0, upper: 50.0, torque: 10.0, speed: 6.0, armature: 0.01, source: "PLACEHOLDER (URDF): no real spec yet", limits_source: "URDF"}
+  l_th_f: {lower: 0.0, upper: 60.0, torque: 10.0, speed: 6.0, armature: 0.01, source: "PLACEHOLDER (URDF): no real spec yet", limits_source: "URDF"}
+  l_th_mcp: {lower: 0.0, upper: 80.0, torque: 10.0, speed: 6.0, armature: 0.01, source: "PLACEHOLDER (URDF): no real spec yet", limits_source: "URDF"}
+  l_th_ip: {lower: 0.0, upper: 80.0, torque: 10.0, speed: 6.0, armature: 0.01, source: "PLACEHOLDER (URDF): no real spec yet", limits_source: "URDF"}
+  Hip_F_L: {lower: -20.0, upper: 90.0, torque: 222.0, speed: 3.67, armature: 0.03, source: "team model (assets/whole_body_humanoid): real", limits_source: "URDF"}
+  Hip_A_L: {lower: -10.0, upper: 60.0, torque: 120.0, speed: 20.94, armature: 0.025, source: "team model (assets/whole_body_humanoid): real", limits_source: "URDF"}
+  Hip_R_L: {lower: -30.0, upper: 90.0, torque: 60.0, speed: 20.42, armature: 0.012, source: "team model (assets/whole_body_humanoid): real", limits_source: "URDF"}
+  Knee_L: {lower: 0.0, upper: 65.0, torque: 222.0, speed: 3.67, armature: 0.03, source: "team model (assets/whole_body_humanoid): real", limits_source: "URDF (fixed Oct 22: was -65..0)"}
+  Ankle_P_L: {lower: -30.0, upper: 50.0, torque: 120.0, speed: 20.42, armature: 0.024, source: "team model (assets/whole_body_humanoid): real", limits_source: "URDF"}
+  Ankle_R_L: {lower: -15.0, upper: 15.0, torque: 120.0, speed: 20.42, armature: 0.024, source: "team model (assets/whole_body_humanoid): real", limits_source: "URDF"}
+  Hip_F_R: {lower: -20.0, upper: 90.0, torque: 222.0, speed: 3.67, armature: 0.03, source: "team model (assets/whole_body_humanoid): real", limits_source: "URDF"}
+  Hip_A_R: {lower: -10.0, upper: 60.0, torque: 120.0, speed: 20.94, armature: 0.025, source: "team model (assets/whole_body_humanoid): real", limits_source: "URDF"}
+  Hip_R_R: {lower: -30.0, upper: 90.0, torque: 60.0, speed: 20.42, armature: 0.012, source: "team model (assets/whole_body_humanoid): real", limits_source: "URDF"}
+  Knee_R: {lower: 0.0, upper: 65.0, torque: 222.0, speed: 3.67, armature: 0.03, source: "team model (assets/whole_body_humanoid): real", limits_source: "URDF (fixed Oct 22: was -65..0)"}
+  Ankle_P_R: {lower: -30.0, upper: 50.0, torque: 120.0, speed: 20.42, armature: 0.024, source: "team model (assets/whole_body_humanoid): real", limits_source: "URDF"}
+  Ankle_R_R: {lower: -15.0, upper: 15.0, torque: 120.0, speed: 20.42, armature: 0.024, source: "team model (assets/whole_body_humanoid): real", limits_source: "URDF"}
+
+# link masses [kg]; links not listed keep the URDF's placeholder (CAD volume x 0.35 g/cm^3).
+# Inertia is scaled with the mass (the URDF's inertias are box placeholders).
+links:
+  l_hip_pitch_link: {mass: 1.86, source: "team model (assets/whole_body_humanoid): real"}
+  l_hip_roll_link: {mass: 2.18, source: "team model (assets/whole_body_humanoid): real"}
+  l_thigh: {mass: 6.39, source: "team model (assets/whole_body_humanoid): real"}
+  l_shank_foot: {mass: 4.57, source: "team model (assets/whole_body_humanoid): real"}
+  l_ankle_cross: {mass: 0.26, source: "team model (assets/whole_body_humanoid): real"}
+  l_foot: {mass: 1.89, source: "team model (assets/whole_body_humanoid): real"}
+  r_hip_pitch_link: {mass: 1.86, source: "team model (assets/whole_body_humanoid): real"}
+  r_hip_roll_link: {mass: 2.18, source: "team model (assets/whole_body_humanoid): real"}
+  r_thigh: {mass: 6.39, source: "team model (assets/whole_body_humanoid): real"}
+  r_shank_foot: {mass: 4.57, source: "team model (assets/whole_body_humanoid): real"}
+  r_ankle_cross: {mass: 0.26, source: "team model (assets/whole_body_humanoid): real"}
+  r_foot: {mass: 1.89, source: "team model (assets/whole_body_humanoid): real"}
