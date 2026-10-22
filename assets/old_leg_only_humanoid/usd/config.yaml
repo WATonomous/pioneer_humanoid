@@ -1,6 +1,6 @@
-asset_path: /workspace/humanoid/assets/whole_body_humanoid/whole_body_humanoid.urdf
-usd_dir: /workspace/humanoid/assets/whole_body_humanoid/usd
-usd_file_name: whole_body_humanoid.usd
+asset_path: /workspace/humanoid/assets/old_leg_only_humanoid/old_leg_only_humanoid.urdf
+usd_dir: /workspace/humanoid/assets/old_leg_only_humanoid/usd
+usd_file_name: old_leg_only_humanoid.usd
 force_usd_conversion: false
 make_instanceable: true
 fix_base: false

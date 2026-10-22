@@ -2,10 +2,11 @@
 
 The Pioneer Humanoid Whole Body (graphite helmet, taller torso, hands D, 1010 legs; 69 joints) for MuJoCo.
 
-Not to be confused with `assets/whole_body_humanoid` (`whole_body_humanoid.urdf`): that is the team's leg model for
-Isaac Lab locomotion training (`pioneer_humanoid.whole_body`). This one is the whole robot as designed in CAD: head,
+Not to be confused with `assets/old_leg_only_humanoid` (`old_leg_only_humanoid.urdf`, once `whole_body_humanoid`): the
+old legs-only humanoid, two legs under a solid placeholder upper body with no arms, used for Isaac Lab locomotion
+training (`pioneer_humanoid.whole_body`). This one is the whole robot as designed in CAD: head,
 torso, arms, hands with every finger joint, a waist yaw and the legs. Its leg joints carry the same names, ranges and
-directions as the team's model (`python assets/whole_body_humanoid/check_leg_directions.py` checks both).
+directions as the team's model (`python assets/old_leg_only_humanoid/check_leg_directions.py` checks both).
 
 | file | what it is |
 |------|------------|

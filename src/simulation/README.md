@@ -23,7 +23,7 @@ src/simulation/
 
 Robot URDF/USD/meshes and scene props live at the repo-root **`assets/`** (backend-neutral —
 not tied to an Isaac Lab package): `assets/{pioneer_bimanual_arm, pioneer_hand,
-whole_body_humanoid, props, lerobot}/`. Live RL checkpoints go to `outputs/rl/` (gitignored); frozen baselines are in the repo-root `models/`.
+old_leg_only_humanoid, props, lerobot}/`. Live RL checkpoints go to `outputs/rl/` (gitignored); frozen baselines are in the repo-root `models/`.
 
 ## RL task vs teleop scene — where does new work go?
 
