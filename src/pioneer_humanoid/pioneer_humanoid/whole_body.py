@@ -47,19 +47,21 @@ WHOLE_BODY_HUMANOID_CFG = ArticulationCfg(
     init_state=ArticulationCfg.InitialStateCfg(
         pos=(0.0, 0.0, _SPAWN_HEIGHT),
         rot=(1.0, 0.0, 0.0, 0.0),
+        # a slight crouch with the soles level: negative Knee bends the knee (its sign fixed Oct 22), positive
+        # Ankle_P points the toes down, so Ankle_P = Hip_F + Knee levels the sole and Ankle_R = Hip_A takes the roll out
         joint_pos={
             "Hip_F_L": 0.12,
             "Hip_A_L": 0.04,
             "Hip_R_L": 0.0,
             "Knee_L": -0.22,
-            "Ankle_P_L": 0.10,
-            "Ankle_R_L": 0.0,
+            "Ankle_P_L": -0.10,
+            "Ankle_R_L": 0.04,
             "Hip_F_R": 0.12,
             "Hip_A_R": 0.04,
             "Hip_R_R": 0.0,
             "Knee_R": -0.22,
-            "Ankle_P_R": 0.10,
-            "Ankle_R_R": 0.0,
+            "Ankle_P_R": -0.10,
+            "Ankle_R_R": 0.04,
         },
     ),
     actuators={
