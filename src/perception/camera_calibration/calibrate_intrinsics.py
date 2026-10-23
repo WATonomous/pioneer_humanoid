@@ -1,35 +1,10 @@
 #!/usr/bin/env python3
-"""Camera intrinsics calibration with a ChArUco board (focal length, principal point, distortion).
+"""Camera intrinsics calibration with a ChArUco board. See README.md for the walkthrough.
 
-Three steps, all in this script:
-
-  1. board    write a printable board PNG. Print it at 100% / "actual size", tape it flat to
-              something rigid (clipboard, foam board), then measure one square with calipers.
-  2. capture  live preview. Hold the board in front of the camera, or move the camera; a frame
-              is saved automatically when the board is held still in a pose not seen yet.
-              Enter solves, q quits.
-  3. solve    fit the model from the saved images (capture runs this at the end). Re-run it on
-              the same folder to try another model without capturing again.
-
-The board's marker/square ratio is fixed here, so only the measured square size is needed:
-whatever scale the printer used, the measurement is what counts.
-
-Lock focus and resolution before capturing: if either changes, the intrinsics are wrong.
-Calibrate at the camera's full sensor resolution (--width/--height). On macOS, asking a
-1080p webcam for 640x480 gives an off-centre crop, not a scaled image, so those intrinsics
-match nothing the robot will see. A full-resolution calibration can be scaled to any resize.
-macOS ignores most UVC controls from OpenCV, so if the camera autofocuses, lock it with a UVC
-tool (e.g. `uvc-util`, or the "Webcam Settings" app) first.
-
-Output is a ROS camera_info YAML (plumb_bob, or rational_polynomial with --rational).
-
-Examples::
-
-  python3 calibrate_intrinsics.py board --out charuco_board.png
-  python3 calibrate_intrinsics.py capture --camera 0 --square-mm 25.1 --out wrist_cam_calib
-  python3 calibrate_intrinsics.py solve --square-mm 25.1 --out wrist_cam_calib --rational
-
-Needs opencv-python >= 4.7 and numpy.
+  board    printable board PNG
+  capture  live capture (auto-saves still, new poses), then solve
+  solve    fit from saved images; writes a ROS camera_info YAML
+  pinhole  ideal pinhole target for wrist_cam.py (what the sim renders) + a sample image
 """
 
 from __future__ import annotations
@@ -44,8 +19,9 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-# Board layout. 9x6 squares of 25 mm = 225 x 150 mm, fits US letter and A4 with margins.
-# Changing any of these makes boards printed before the change unreadable to this script.
+from wrist_cam import read_camera_info  # sibling module; Python puts this folder on the path
+
+# 9x6 squares of 25 mm fits letter and A4. Changing these breaks boards already printed.
 SQUARES_X = 9
 SQUARES_Y = 6
 SQUARE_MM_NOMINAL = 25.0
@@ -55,17 +31,17 @@ ARUCO_DICT = cv2.aruco.DICT_5X5_100
 PRINT_DPI = 300
 PAGES_MM = {"letter": (279.4, 215.9), "a4": (297.0, 210.0)}  # landscape
 
-# Sim wrist camera (quest_cameras.py DATA_CAM_LENS), to compare the measured lens against.
-SIM_FOCAL_MM = 7.336
+# Sim wrist camera (arm_params.WRIST_FOCAL_MM, 640x480), to compare the measured lens against.
+SIM_FOCAL_MM = 700.0 * 20.955 / 640
 SIM_H_APERTURE_MM = 20.955
+PINHOLE_MARGIN = 1.03     # pinhole focal this much above the widest the real image fully covers
 
 MIN_CORNERS = 12          # of (SQUARES_X-1)*(SQUARES_Y-1) = 40; fewer is too weak a view
 STILL_PX = 3.0            # mean corner motion between frames (per 640 px of width) for "still"
 NOVELTY = 0.08            # how different a pose must be from every saved one to auto-capture
 MIN_CAPTURE_GAP_S = 0.4
 TARGET_VIEWS = 40
-# Face-on views alone can't separate focal length from distance, so ask for tilted ones.
-# pose_features' tilt terms are ~0.35 for a 30 deg tilt at 30 cm; 0.2 is roughly 15-20 deg.
+# Face-on views can't separate focal length from distance. Tilt 0.2 ~ 15-20 deg (30 deg ~ 0.35).
 TILT = 0.2
 VIEWS_PER_TILT = 4
 TILT_NAMES = ("left", "right", "top", "bottom")
@@ -142,10 +118,7 @@ def open_camera(index: int, width: int, height: int) -> cv2.VideoCapture:
 
 
 def pose_features(corners: np.ndarray, ids: np.ndarray, board, size) -> np.ndarray:
-    """Rough description of where the board is and how it is tilted, from a homography.
-
-    No intrinsics yet, so no real pose: project the board's outline into the image and use its
-    centre, size, and the ratio of opposite edges (perspective shortening = tilt)."""
+    """Board centre, size and tilt (log ratio of opposite edges), from a homography: no intrinsics yet."""
     obj = board.getChessboardCorners()[ids.ravel(), :2]
     H, _ = cv2.findHomography(obj, corners.reshape(-1, 2))
     w_m = SQUARES_X * board.getSquareLength()
@@ -431,6 +404,59 @@ def cmd_solve(args) -> int:
     return 0
 
 
+def widest_pinhole_focal(size, K, dist, out_size) -> float:
+    """Smallest focal (px, at out_size) whose centred, undistorted view the real image fully covers."""
+    w, h = size
+    n = 400
+    edge = np.linspace(0, 1, n)
+    border = np.concatenate([np.stack([edge * (w - 1), np.zeros(n)], 1),
+                             np.stack([edge * (w - 1), np.full(n, h - 1.0)], 1),
+                             np.stack([np.zeros(n), edge * (h - 1)], 1),
+                             np.stack([np.full(n, w - 1.0), edge * (h - 1)], 1)])
+    xy = cv2.undistortPoints(border.reshape(-1, 1, 2), K, dist).reshape(-1, 2)
+    aspect = out_size[1] / out_size[0]
+    # A border point cuts into the centred rectangle (half-width a) only if it is inside on both axes.
+    a = np.maximum(np.abs(xy[:, 0]), np.abs(xy[:, 1]) / aspect).min()
+    return (out_size[0] / 2) / a
+
+
+def cmd_pinhole(args) -> int:
+    """Write the ideal pinhole camera real frames are remapped to, which is what the sim renders."""
+    out = Path(args.out)
+    size, K, dist = read_camera_info(out / f"{args.name}.yaml")
+    ow, oh = args.size
+    widest = widest_pinhole_focal(size, K, dist, (ow, oh))
+    f = args.focal_px if args.focal_px else round(widest * PINHOLE_MARGIN)
+    if f < widest:
+        print(f"WARNING: focal {f} px is below {widest:.1f} px: the corners will be black (outside "
+              "the real image)")
+    K_new = np.array([[f, 0, ow / 2], [0, f, oh / 2], [0, 0, 1]], np.float64)
+    hfov = math.degrees(2 * math.atan(ow / (2 * f)))
+    vfov = math.degrees(2 * math.atan(oh / (2 * f)))
+
+    path = out / f"{args.name}_pinhole_{ow}x{oh}.yaml"
+    notes = [f"ideal pinhole that {args.name}.yaml frames are remapped to (zero distortion)",
+             "real frames: cv2.initUndistortRectifyMap(K, dist, None, K_new, (w, h), cv2.CV_16SC2) "
+             "then cv2.remap",
+             f"hfov {hfov:.2f} deg, vfov {vfov:.2f} deg; widest fully-covered focal {widest:.1f} px",
+             f"Isaac: focal_length={f * SIM_H_APERTURE_MM / ow:.4f} mm, "
+             f"horizontal_aperture={SIM_H_APERTURE_MM}, vertical_aperture={SIM_H_APERTURE_MM * oh / ow:.4f}"]
+    write_camera_info(path, args.name, (ow, oh), K_new, np.zeros(5), "plumb_bob", notes)
+    print(f"wrote {path}")
+    for n in notes[2:]:
+        print(f"  {n}")
+
+    # A remapped sample so the result can be eyeballed: straight lines straight, no black corners.
+    samples = sorted((out / "images").glob("view_*.png"))
+    if samples:
+        m1, m2 = cv2.initUndistortRectifyMap(K, dist, None, K_new, (ow, oh), cv2.CV_16SC2)
+        img = cv2.imread(str(samples[len(samples) // 2]))
+        sample = out / f"{args.name}_pinhole_sample.jpg"
+        cv2.imwrite(str(sample), cv2.remap(img, m1, m2, cv2.INTER_LINEAR))
+        print(f"  sample: {sample}")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -459,6 +485,14 @@ def main() -> int:
     s = sub.add_parser("solve", help="fit from images saved by capture")
     common(s)
     s.set_defaults(func=cmd_solve)
+
+    ph = sub.add_parser("pinhole", help="write the undistorted pinhole camera the sim matches")
+    ph.add_argument("--out", default="wrist_cam_calib", help="folder holding <name>.yaml")
+    ph.add_argument("--name", default="wrist_cam")
+    ph.add_argument("--size", type=int, nargs=2, default=(640, 480), metavar=("W", "H"))
+    ph.add_argument("--focal-px", type=float, default=None,
+                    help=f"pinhole focal at --size (default: widest covered x {PINHOLE_MARGIN})")
+    ph.set_defaults(func=cmd_pinhole)
 
     args = ap.parse_args()
     return args.func(args)
