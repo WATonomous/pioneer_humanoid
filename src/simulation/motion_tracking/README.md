@@ -1,5 +1,8 @@
 # Whole-body motion tracking on mjlab
 
+> **Roboboxing** (two Wato robots that learn to box: move library, punch and footwork skills, fight
+> policy with self-play, and a mode to box against the bot) is documented in **[ROBOBOXING.md](ROBOBOXING.md)**.
+
 mjlab (MuJoCo Warp) port of the Wato motion tracking pipeline in
 [WATonomous/Humanoid_motion_tracking](https://github.com/WATonomous/Humanoid_motion_tracking)
 (GMR retargeting + BeyondMimic training in Isaac Lab). The training side runs on
@@ -84,7 +87,8 @@ Each move has its own settings (`--duck.depth`, `--pivot.angle`,
 ## Boxing arena (two fighters)
 
 `humanoid_boxing/` sets up red vs blue in a ring for fighting RL: scene, rewards,
-round endings and opponent perception. Skill actions are not in yet.
+round endings and opponent perception. The fight policy that boxes in it is in
+[ROBOBOXING.md](ROBOBOXING.md).
 
 - **Fighters**: the tracking robot recoloured, in the orthodox stance from
   `generate_moves.py`, 1.3 m apart facing each other (`distance`): lead
