@@ -1,8 +1,6 @@
-import cv2 
+import cv2
 import torch
 import numpy as np
-import sys
-sys.path.insert(0, "slam_core")
 from slam_core.frontend.pose_estimation import estimate_pose
 
 # this is gonna be using the TUM dataset, D is the data and K is the camera intrisics matrix
@@ -16,9 +14,12 @@ xfeat = torch.hub.load("verlab/accelerated_features", "XFeat", pretrained=True, 
 
 # TUM ships text files in which every image is listed as timestamp filename
 # reads the line and skips commens returning ann araray of timestamps and a list of filenames
+
+
 def load_list(name):
     rows = [l.split() for l in open(D + name) if not l.startswith("#")]
     return np.array([float(r[0]) for r in rows]), [r[1] for r in rows]
+
 
 # loads timestame and then the file
 rgb_t, rgb_f = load_list("rgb.txt")
@@ -30,17 +31,22 @@ print(f"first good frame {k0}, gap {gaps[k0]*1000:.1f} ms")
 
 # loads RGB frame i and its match depth imageIt finds the closest depth timeframe and coverts it to meters.
 # also returns is the timegap between the two so we can see how well they line up
+
+
 def load(i):
     img = cv2.imread(D + rgb_f[i])
     j = np.argmin(np.abs(dep_t - rgb_t[i]))
     depth = cv2.imread(D + dep_f[j], cv2.IMREAD_UNCHANGED).astype(np.float32) / DEPTH_SCALE
     return img, depth, abs(dep_t[j] - rgb_t[i])
 
+
 def undistort(p):
     # undistorted pixel coords where the ideal pinhole would be
     return cv2.undistortPoints(p.reshape(-1, 1, 2).astype(np.float64), K, DIST, P=K).reshape(-1, 2)
 
+
 gt = np.loadtxt(D + "groundtruth.txt")
+
 
 def quat_to_R(qx, qy, qz, qw):
     return np.array([
@@ -48,6 +54,7 @@ def quat_to_R(qx, qy, qz, qw):
         [2*(qx*qy + qz*qw),     1 - 2*(qx*qx + qz*qz), 2*(qy*qz - qx*qw)],
         [2*(qx*qz - qy*qw),     2*(qy*qz + qx*qw),     1 - 2*(qx*qx + qy*qy)]
     ])
+
 
 def gt_pose(t):
     # nearest groundtruth sample
@@ -57,24 +64,29 @@ def gt_pose(t):
     T = np.eye(4)
     T[:3, :3] = quat_to_R(*row[4:8])
     T[:3, 3] = row[1:4]
-    return T # where the camera pose is in the world
+    return T  # where the camera pose is in the world
+
 
 def angle_of(Rm):
     return np.degrees(np.linalg.norm(cv2.Rodrigues(Rm)[0]))
 
 # runs XFeat on one image and adds the image size LighterGlue needs
+
+
 def feats(img):
-    d = xfeat.detectAndCompute(img, top_k = 1000)[0]
+    d = xfeat.detectAndCompute(img, top_k=1000)[0]
     d["image_size"] = (img.shape[1], img.shape[0])
     return d
 
 # pnp_two as a helper function
 # loads both frames, matches features -> undistorts matched points, looks up depth
-# bails out early if fewer than 6 points don't have depth since PnP neeeds those. 
+# bails out early if fewer than 6 points don't have depth since PnP neeeds those.
 # Back projects to 3d and runs PnP + RANSAC and compare to ground truth
+
+
 def run_pair(i, j):
     img0, depth0, gap = load(i)
-    img1, _ , _ , = load(j)
+    img1, _, _, = load(j)
     p0, p1 = xfeat.match_lighterglue(feats(img0), feats(img1))[:2]
     p0u, p1u = undistort(p0), undistort(p1)
 
@@ -99,6 +111,7 @@ def run_pair(i, j):
                 rot_err=angle_of(T_rel[:3, :3].T @ R),
                 trans_err=np.linalg.norm(T_rel[:3, 3] - t) * 100,
                 motion=np.linalg.norm(T_rel[:3, 3]) * 100)
+
 
 # The loop
 STEP = 5
