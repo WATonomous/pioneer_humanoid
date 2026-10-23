@@ -1,0 +1,468 @@
+#!/usr/bin/env python3
+"""Camera intrinsics calibration with a ChArUco board (focal length, principal point, distortion).
+
+Three steps, all in this script:
+
+  1. board    write a printable board PNG. Print it at 100% / "actual size", tape it flat to
+              something rigid (clipboard, foam board), then measure one square with calipers.
+  2. capture  live preview. Hold the board in front of the camera, or move the camera; a frame
+              is saved automatically when the board is held still in a pose not seen yet.
+              Enter solves, q quits.
+  3. solve    fit the model from the saved images (capture runs this at the end). Re-run it on
+              the same folder to try another model without capturing again.
+
+The board's marker/square ratio is fixed here, so only the measured square size is needed:
+whatever scale the printer used, the measurement is what counts.
+
+Lock focus and resolution before capturing: if either changes, the intrinsics are wrong.
+Calibrate at the camera's full sensor resolution (--width/--height). On macOS, asking a
+1080p webcam for 640x480 gives an off-centre crop, not a scaled image, so those intrinsics
+match nothing the robot will see. A full-resolution calibration can be scaled to any resize.
+macOS ignores most UVC controls from OpenCV, so if the camera autofocuses, lock it with a UVC
+tool (e.g. `uvc-util`, or the "Webcam Settings" app) first.
+
+Output is a ROS camera_info YAML (plumb_bob, or rational_polynomial with --rational).
+
+Examples::
+
+  python3 calibrate_intrinsics.py board --out charuco_board.png
+  python3 calibrate_intrinsics.py capture --camera 0 --square-mm 25.1 --out wrist_cam_calib
+  python3 calibrate_intrinsics.py solve --square-mm 25.1 --out wrist_cam_calib --rational
+
+Needs opencv-python >= 4.7 and numpy.
+"""
+
+from __future__ import annotations
+
+import argparse
+import datetime
+import math
+import sys
+import time
+from pathlib import Path
+
+import cv2
+import numpy as np
+
+# Board layout. 9x6 squares of 25 mm = 225 x 150 mm, fits US letter and A4 with margins.
+# Changing any of these makes boards printed before the change unreadable to this script.
+SQUARES_X = 9
+SQUARES_Y = 6
+SQUARE_MM_NOMINAL = 25.0
+MARKER_MM_NOMINAL = 18.0
+ARUCO_DICT = cv2.aruco.DICT_5X5_100
+
+PRINT_DPI = 300
+PAGES_MM = {"letter": (279.4, 215.9), "a4": (297.0, 210.0)}  # landscape
+
+# Sim wrist camera (quest_cameras.py DATA_CAM_LENS), to compare the measured lens against.
+SIM_FOCAL_MM = 7.336
+SIM_H_APERTURE_MM = 20.955
+
+MIN_CORNERS = 12          # of (SQUARES_X-1)*(SQUARES_Y-1) = 40; fewer is too weak a view
+STILL_PX = 3.0            # mean corner motion between frames (per 640 px of width) for "still"
+NOVELTY = 0.08            # how different a pose must be from every saved one to auto-capture
+MIN_CAPTURE_GAP_S = 0.4
+TARGET_VIEWS = 40
+# Face-on views alone can't separate focal length from distance, so ask for tilted ones.
+# pose_features' tilt terms are ~0.35 for a 30 deg tilt at 30 cm; 0.2 is roughly 15-20 deg.
+TILT = 0.2
+VIEWS_PER_TILT = 4
+TILT_NAMES = ("left", "right", "top", "bottom")
+PREVIEW_MAX_W = 960
+MIN_VIEWS = 15
+
+
+def make_board(square_mm: float = SQUARE_MM_NOMINAL) -> cv2.aruco.CharucoBoard:
+    marker_mm = square_mm * MARKER_MM_NOMINAL / SQUARE_MM_NOMINAL
+    return cv2.aruco.CharucoBoard(
+        (SQUARES_X, SQUARES_Y), square_mm / 1000.0, marker_mm / 1000.0,
+        cv2.aruco.getPredefinedDictionary(ARUCO_DICT))
+
+
+def detect(detector: cv2.aruco.CharucoDetector, gray: np.ndarray):
+    """ChArUco corners (N,1,2) and ids (N,1), or (None, None) if too few for a usable view."""
+    corners, ids, _, _ = detector.detectBoard(gray)
+    if ids is None or len(ids) < MIN_CORNERS:
+        return None, None
+    # OpenCV 5 returns (N,2)/(N,); 4.x returned (N,1,2)/(N,1), which drawing still expects.
+    return corners.reshape(-1, 1, 2), ids.reshape(-1, 1)
+
+
+# ----------------------------------------------------------------------------- board
+
+def cmd_board(args) -> int:
+    page_w_mm, page_h_mm = PAGES_MM[args.page]
+    px_per_mm = PRINT_DPI / 25.4
+    page = np.full((round(page_h_mm * px_per_mm), round(page_w_mm * px_per_mm)), 255, np.uint8)
+
+    board_w = round(SQUARES_X * SQUARE_MM_NOMINAL * px_per_mm)
+    board_h = round(SQUARES_Y * SQUARE_MM_NOMINAL * px_per_mm)
+    img = make_board().generateImage((board_w, board_h), marginSize=0, borderBits=1)
+    y0 = (page.shape[0] - board_h) // 2
+    x0 = (page.shape[1] - board_w) // 2
+    page[y0:y0 + board_h, x0:x0 + board_w] = img
+
+    label = (f"ChArUco {SQUARES_X}x{SQUARES_Y}  DICT_5X5_100  square {SQUARE_MM_NOMINAL:g} mm  "
+             f"marker {MARKER_MM_NOMINAL:g} mm  -- print at 100%, then MEASURE a square")
+    cv2.putText(page, label, (x0, y0 + board_h + 70), cv2.FONT_HERSHEY_SIMPLEX, 1.1, 0, 2,
+                cv2.LINE_AA)
+    cv2.imwrite(args.out, page)
+    print(f"wrote {args.out} ({args.page}, {PRINT_DPI} dpi, landscape)")
+    print("Print at 100% / actual size, tape it flat to something rigid, and measure a square.")
+    return 0
+
+
+# ----------------------------------------------------------------------------- capture
+
+def open_camera(index: int, width: int, height: int) -> cv2.VideoCapture:
+    backend = cv2.CAP_AVFOUNDATION if sys.platform == "darwin" else cv2.CAP_ANY
+    cap = cv2.VideoCapture(index, backend)
+    if not cap.isOpened():
+        sys.exit(f"could not open camera {index} (try --camera 1; on macOS, allow camera "
+                 "access for your terminal in System Settings > Privacy & Security)")
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+    focus_locked = cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
+    deadline = time.time() + 3.0  # some UVC cameras on macOS take a moment to send the first frame
+    ok, frame = cap.read()
+    while not ok and time.time() < deadline:
+        time.sleep(0.05)
+        ok, frame = cap.read()
+    if not ok:
+        sys.exit(f"camera {index} opened but returned no frame (unplug and replug it, and check "
+                 "no other app is using it)")
+    if frame.shape[1] != width or frame.shape[0] != height:
+        sys.exit(f"camera gives {frame.shape[1]}x{frame.shape[0]}, asked for {width}x{height}. "
+                 "Calibrate at the resolution you will run at; pass --width/--height to match.")
+    if not focus_locked:
+        print("WARNING: could not confirm autofocus is off. If the image refocuses while you "
+              "move the board, lock focus with a UVC tool and start again.")
+    return cap
+
+
+def pose_features(corners: np.ndarray, ids: np.ndarray, board, size) -> np.ndarray:
+    """Rough description of where the board is and how it is tilted, from a homography.
+
+    No intrinsics yet, so no real pose: project the board's outline into the image and use its
+    centre, size, and the ratio of opposite edges (perspective shortening = tilt)."""
+    obj = board.getChessboardCorners()[ids.ravel(), :2]
+    H, _ = cv2.findHomography(obj, corners.reshape(-1, 2))
+    w_m = SQUARES_X * board.getSquareLength()
+    h_m = SQUARES_Y * board.getSquareLength()
+    outline = np.array([[0, 0], [w_m, 0], [w_m, h_m], [0, h_m]], np.float64).reshape(-1, 1, 2)
+    q = cv2.perspectiveTransform(outline, H).reshape(4, 2) / np.array(size, np.float64)
+    top, right = np.linalg.norm(q[1] - q[0]), np.linalg.norm(q[2] - q[1])
+    bottom, left = np.linalg.norm(q[3] - q[2]), np.linalg.norm(q[0] - q[3])
+    d1, d2 = q[2] - q[0], q[3] - q[1]
+    area = 0.5 * abs(d1[0] * d2[1] - d1[1] * d2[0])
+    c = q.mean(axis=0)
+    return np.array([c[0], c[1], math.sqrt(area),
+                     math.log(max(left, 1e-6) / max(right, 1e-6)),
+                     math.log(max(top, 1e-6) / max(bottom, 1e-6))])
+
+
+def tilt_counts(feats) -> dict[str, int]:
+    """Views tilted each way: which edge of the board is nearer the camera."""
+    f = np.array(feats).reshape(-1, 5)
+    return {"left": int((f[:, 3] > TILT).sum()), "right": int((f[:, 3] < -TILT).sum()),
+            "top": int((f[:, 4] > TILT).sum()), "bottom": int((f[:, 4] < -TILT).sum())}
+
+
+def cmd_capture(args) -> int:
+    out = Path(args.out)
+    img_dir = out / "images"
+    img_dir.mkdir(parents=True, exist_ok=True)
+    existing = sorted(img_dir.glob("view_*.png"))
+    if existing and not args.append:
+        sys.exit(f"{img_dir} already has {len(existing)} images; pass --append to add to them "
+                 "or choose another --out")
+
+    board = make_board(args.square_mm)
+    detector = cv2.aruco.CharucoDetector(board)
+    cap = open_camera(args.camera, args.width, args.height)
+    size = (args.width, args.height)
+
+    # One entry per saved view: (path, pose features, board outline in the image).
+    saved: list[tuple[Path, np.ndarray, np.ndarray]] = []
+    for p in existing:  # so --append shows what is already covered
+        c, i = detect(detector, cv2.imread(str(p), cv2.IMREAD_GRAYSCALE))
+        if c is not None:
+            saved.append((p, pose_features(c, i, board, size), cv2.convexHull(c.astype(np.int32))))
+
+    prev: dict[int, np.ndarray] = {}
+    last_capture = 0.0
+    flash_until = 0.0
+    win = "intrinsics (space: capture, backspace: undo, enter: solve, q: quit)"
+    print("Move the board around: fill the corners and edges of the image, tilt it ~30-45 deg "
+          "left/right/up/down, near and far. Hold still briefly at each pose.")
+
+    while True:
+        ok, frame = cap.read()
+        if not ok:
+            print("camera stopped returning frames")
+            break
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        corners, ids = detect(detector, gray)
+
+        still, novel, motion = False, False, None
+        if corners is not None:
+            cur = {int(k): v for k, v in zip(ids.ravel(), corners.reshape(-1, 2))}
+            common = cur.keys() & prev.keys()
+            if len(common) >= MIN_CORNERS:
+                motion = float(np.mean([np.linalg.norm(cur[k] - prev[k]) for k in common]))
+                still = motion < STILL_PX * args.width / 640
+            prev = cur
+            feat = pose_features(corners, ids, board, size)
+            novel = all(np.linalg.norm(feat - f) > NOVELTY for _, f, _ in saved)
+        else:
+            prev = {}
+
+        key = cv2.waitKey(1) & 0xFF
+        now = time.time()
+        manual = key == ord(" ")
+        auto = still and novel and now - last_capture > MIN_CAPTURE_GAP_S
+        if corners is not None and (manual or auto):
+            path = img_dir / f"view_{int(now * 1000)}.png"
+            cv2.imwrite(str(path), frame)
+            saved.append((path, feat, cv2.convexHull(corners.astype(np.int32))))
+            last_capture, flash_until = now, now + 0.15
+        elif key == 8 or key == 127:  # backspace / delete: drop the last view
+            if saved:
+                saved.pop()[0].unlink(missing_ok=True)
+        elif key in (13, 10):
+            break
+        elif key in (ord("q"), 27):
+            cap.release()
+            cv2.destroyAllWindows()
+            print(f"quit; {len(saved)} views kept in {img_dir}")
+            return 0
+
+        vis = frame.copy()
+        tint = np.zeros_like(vis)
+        for _, _, hull in saved:
+            cv2.fillConvexPoly(tint, hull, (0, 160, 0))
+        vis = cv2.addWeighted(vis, 1.0, tint, 0.35, 0)
+        if corners is not None:
+            cv2.aruco.drawDetectedCornersCharuco(vis, corners, ids, (0, 0, 255))
+        if vis.shape[1] > PREVIEW_MAX_W:  # full-res frames don't fit on a laptop screen
+            vis = cv2.resize(vis, None, fx=PREVIEW_MAX_W / vis.shape[1],
+                             fy=PREVIEW_MAX_W / vis.shape[1], interpolation=cv2.INTER_AREA)
+        n = len(saved)
+        status = "still" if still else "moving" if corners is not None else "no board"
+        if motion is not None and not still:
+            status += f" ({motion:.1f} px, hold steadier)"
+        if corners is not None and still and not novel:
+            status = "seen this pose, move on"
+        if corners is not None:  # live tilt, so "turned away" vs "spun in the image" is visible
+            tilt_lr, tilt_tb = feat[3], feat[4]
+            ok_tilt = max(abs(tilt_lr), abs(tilt_tb)) > TILT
+            cv2.putText(vis, f"tilt L/R {tilt_lr:+.2f}  T/B {tilt_tb:+.2f}  (need +-{TILT})",
+                        (10, vis.shape[0] - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.6,
+                        (0, 200, 0) if ok_tilt else (0, 200, 255), 2, cv2.LINE_AA)
+        colour = (0, 200, 0) if n >= MIN_VIEWS else (0, 200, 255)
+        cv2.putText(vis, f"views {n}/{TARGET_VIEWS}  {status}", (10, 25),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, colour, 2, cv2.LINE_AA)
+        tilts = tilt_counts([f for _, f, _ in saved])
+        x = 10
+        cv2.putText(vis, "near edge:", (x, 55), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2,
+                    cv2.LINE_AA)
+        x += 110
+        for name in TILT_NAMES:
+            k = min(tilts[name], VIEWS_PER_TILT)
+            done = k >= VIEWS_PER_TILT
+            cv2.putText(vis, f"{name} {k}/{VIEWS_PER_TILT}", (x, 55), cv2.FONT_HERSHEY_SIMPLEX,
+                        0.6, (0, 200, 0) if done else (0, 200, 255), 2, cv2.LINE_AA)
+            x += 125
+        all_tilts = all(v >= VIEWS_PER_TILT for v in tilts.values())
+        if n >= TARGET_VIEWS and all_tilts:
+            cv2.putText(vis, "enough views - press Enter to solve", (10, 85),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 200, 0), 2, cv2.LINE_AA)
+        elif n >= TARGET_VIEWS:
+            cv2.putText(vis, "need more tilted views (orange above)", (10, 85),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 200, 255), 2, cv2.LINE_AA)
+        if now < flash_until:
+            vis = cv2.bitwise_not(vis)
+        cv2.imshow(win, vis)
+
+    cap.release()
+    cv2.destroyAllWindows()
+    if len(saved) < MIN_VIEWS:
+        print(f"only {len(saved)} views (need {MIN_VIEWS}); run capture again with --append")
+        return 1
+    return cmd_solve(args)
+
+
+# ----------------------------------------------------------------------------- solve
+
+def per_view_rms(obj, img, rvecs, tvecs, K, dist) -> np.ndarray:
+    errs = []
+    for o, i, r, t in zip(obj, img, rvecs, tvecs):
+        proj, _ = cv2.projectPoints(o, r, t, K, dist)
+        errs.append(math.sqrt(np.mean(np.sum((proj.reshape(-1, 2) - i.reshape(-1, 2)) ** 2, 1))))
+    return np.array(errs)
+
+
+def calibrate(obj, img, size, flags):
+    rms, K, dist, rvecs, tvecs, std_intr, _, _ = cv2.calibrateCameraExtended(
+        obj, img, size, None, None, flags=flags)
+    return rms, K, dist, rvecs, tvecs, std_intr.ravel()
+
+
+def write_camera_info(path: Path, name: str, size, K, dist, model: str, notes: list[str]):
+    w, h = size
+    P = np.zeros((3, 4))
+    P[:, :3] = K
+
+    def row(vals):
+        return "[" + ", ".join(f"{v:.8g}" for v in vals) + "]"
+
+    lines = [f"# {n}" for n in notes] + [
+        f"image_width: {w}",
+        f"image_height: {h}",
+        f"camera_name: {name}",
+        "camera_matrix:", "  rows: 3", "  cols: 3", f"  data: {row(K.ravel())}",
+        f"distortion_model: {model}",
+        "distortion_coefficients:", "  rows: 1", f"  cols: {dist.size}",
+        f"  data: {row(dist.ravel())}",
+        "rectification_matrix:", "  rows: 3", "  cols: 3", f"  data: {row(np.eye(3).ravel())}",
+        "projection_matrix:", "  rows: 3", "  cols: 4", f"  data: {row(P.ravel())}",
+    ]
+    path.write_text("\n".join(lines) + "\n")
+
+
+def cmd_solve(args) -> int:
+    out = Path(args.out)
+    paths = sorted((out / "images").glob("view_*.png"))
+    if not paths:
+        sys.exit(f"no images in {out / 'images'}; run capture first")
+
+    board = make_board(args.square_mm)
+    detector = cv2.aruco.CharucoDetector(board)
+    obj, img, used, feats, size = [], [], [], [], None
+    for p in paths:
+        gray = cv2.imread(str(p), cv2.IMREAD_GRAYSCALE)
+        if size is None:
+            size = (gray.shape[1], gray.shape[0])
+        elif (gray.shape[1], gray.shape[0]) != size:
+            sys.exit(f"{p.name} is {gray.shape[1]}x{gray.shape[0]}, others are {size[0]}x{size[1]}")
+        corners, ids = detect(detector, gray)
+        if corners is None:
+            print(f"  skip {p.name}: board not found")
+            continue
+        o, i = board.matchImagePoints(corners, ids)
+        feats.append(pose_features(corners, ids, board, size))
+        obj.append(o.astype(np.float32))
+        img.append(i.astype(np.float32))
+        used.append(p)
+    if len(used) < MIN_VIEWS:
+        print(f"only {len(used)} usable views (need {MIN_VIEWS})")
+        return 1
+
+    model = "rational_polynomial" if args.rational else "plumb_bob"
+    flags = cv2.CALIB_RATIONAL_MODEL if args.rational else 0
+    rms, K, dist, rvecs, tvecs, std = calibrate(obj, img, size, flags)
+
+    # One pass of outlier rejection: a blurred or misdetected view drags the whole fit.
+    errs = per_view_rms(obj, img, rvecs, tvecs, K, dist)
+    bad = errs > max(3.0 * np.median(errs), 1.0)
+    if bad.any() and len(used) - bad.sum() >= MIN_VIEWS:
+        for p, e in zip(used, errs):
+            if e > max(3.0 * np.median(errs), 1.0):
+                print(f"  dropping {p.name}: {e:.2f} px")
+        keep = ~bad
+        obj = [o for o, k in zip(obj, keep) if k]
+        img = [i for i, k in zip(img, keep) if k]
+        used = [p for p, k in zip(used, keep) if k]
+        rms, K, dist, rvecs, tvecs, std = calibrate(obj, img, size, flags)
+        errs = per_view_rms(obj, img, rvecs, tvecs, K, dist)
+
+    w, h = size
+    fx, fy, cx, cy = K[0, 0], K[1, 1], K[0, 2], K[1, 2]
+    hfov = math.degrees(2 * math.atan(w / (2 * fx)))
+    vfov = math.degrees(2 * math.atan(h / (2 * fy)))
+    sim_hfov = math.degrees(2 * math.atan(SIM_H_APERTURE_MM / (2 * SIM_FOCAL_MM)))
+
+    # How much of the image the corners reached: an uncovered edge leaves distortion unknown.
+    pts = np.concatenate([i.reshape(-1, 2) for i in img])
+    reach = (pts[:, 0].min() / w, 1 - pts[:, 0].max() / w, pts[:, 1].min() / h,
+             1 - pts[:, 1].max() / h)
+
+    print(f"\n{len(used)} views, {model}")
+    print(f"  RMS reprojection error  {rms:.3f} px   (worst view {errs.max():.2f} px)")
+    print(f"  fx {fx:.2f} +- {std[0]:.2f}   fy {fy:.2f} +- {std[1]:.2f}")
+    print(f"  cx {cx:.2f} +- {std[2]:.2f}   cy {cy:.2f} +- {std[3]:.2f}   (image centre "
+          f"{w / 2:.0f}, {h / 2:.0f})")
+    print(f"  dist {np.array2string(dist.ravel(), precision=5)}")
+    print(f"  FOV {hfov:.1f} x {vfov:.1f} deg   (sim wrist_cam: {sim_hfov:.1f} deg horizontal)")
+    print(f"  for Isaac PinholeCameraCfg with horizontal_aperture={SIM_H_APERTURE_MM}: "
+          f"focal_length={fx * SIM_H_APERTURE_MM / w:.3f}, "
+          f"vertical_aperture={SIM_H_APERTURE_MM * h / w * fx / fy:.4f}")
+
+    px_scale = w / 640  # pixel thresholds below are for a 640-wide image
+    if rms > 0.5 * px_scale:
+        hint = " Wide lens? try --rational." if not args.rational else ""
+        print(f"WARNING: RMS {rms:.2f} px is above {0.5 * px_scale:.2f} px. Check for blur, a board that is not "
+              f"flat, or autofocus hunting.{hint}")
+    if max(reach) > 0.15:
+        print("WARNING: corners never got within 15% of some image edge "
+              f"(left/right/top/bottom gaps {', '.join(f'{r:.0%}' for r in reach)}). "
+              "Capture more views near the edges, or the distortion there is a guess.")
+    tilts = tilt_counts(feats)
+    if min(tilts.values()) < VIEWS_PER_TILT // 2:
+        print("WARNING: too few tilted views (near edge: "
+              + ", ".join(f"{k} {v}" for k, v in tilts.items())
+              + "). Mostly face-on views can't pin down focal length or centre; recapture with "
+              "the board tilted 30-45 deg each way.")
+    if abs(cx - w / 2) > 0.1 * w or abs(cy - h / 2) > 0.1 * h:
+        print(f"WARNING: principal point ({cx:.0f}, {cy:.0f}) is far from the image centre. "
+              "The fit is almost certainly degenerate: do not use this result.")
+    if max(std[:4]) > 2.0 * px_scale:
+        print(f"WARNING: focal length / principal point uncertainty above {2.0 * px_scale:.1f} px: "
+              "add tilted views.")
+
+    yaml_path = out / f"{args.name}.yaml"
+    notes = [f"intrinsics from {Path(__file__).name} on {datetime.date.today().isoformat()}",
+             f"rms {rms:.4f} px over {len(used)} views; ChArUco {SQUARES_X}x{SQUARES_Y} "
+             f"square {args.square_mm} mm",
+             f"hfov {hfov:.2f} deg, vfov {vfov:.2f} deg"]
+    write_camera_info(yaml_path, args.name, size, K, dist, model, notes)
+    print(f"\nwrote {yaml_path}")
+    return 0
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    sub = ap.add_subparsers(dest="cmd", required=True)
+
+    b = sub.add_parser("board", help="write a printable ChArUco board PNG")
+    b.add_argument("--out", default="charuco_board.png")
+    b.add_argument("--page", choices=sorted(PAGES_MM), default="letter")
+    b.set_defaults(func=cmd_board)
+
+    def common(p):
+        p.add_argument("--square-mm", type=float, required=True,
+                       help="measured size of one printed square, in mm")
+        p.add_argument("--out", default="wrist_cam_calib", help="folder for images + result")
+        p.add_argument("--name", default="wrist_cam", help="camera_name in the output YAML")
+        p.add_argument("--rational", action="store_true",
+                       help="8-coefficient distortion model, for wide-angle lenses")
+
+    c = sub.add_parser("capture", help="live capture, then solve")
+    common(c)
+    c.add_argument("--camera", type=int, default=0, help="OpenCV camera index")
+    c.add_argument("--width", type=int, default=640)
+    c.add_argument("--height", type=int, default=480)
+    c.add_argument("--append", action="store_true", help="add to images already in --out")
+    c.set_defaults(func=cmd_capture)
+
+    s = sub.add_parser("solve", help="fit from images saved by capture")
+    common(s)
+    s.set_defaults(func=cmd_solve)
+
+    args = ap.parse_args()
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
