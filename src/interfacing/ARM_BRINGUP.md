@@ -4,8 +4,10 @@ Follow top to bottom. Package details: [can/README.md](can/README.md) (CAN bridg
 benchmarks), [joint_command/README.md](joint_command/README.md) (command node, configs).
 
 ## 0. Connect
-1. **Hardware**: battery + E-stop closed (motor power ≠ CAN power). CANable USB → host; CAN_H/CAN_L → arm (120 Ω term).  
-> ⚠️ If connecting voltage source XT60 connectors to the motors, ensure you DONT connect the 51.2V battery to the GL40 batteries -- it will immediately fry the motor driver and render it unusable.
+1. **Hardware**: battery + E-stop closed (motor power ≠ CAN power). CANable USB → host; CAN_H/CAN_L → arm (120 Ω term).
+> ⚠️ If connecting voltage source XT60 connectors to the motors, ensure you DONT connect the 51.2V battery to the GL40 batteries -- it will immediately fry the motor driver and render it unusable. \
+\
+> ❗ The CAN adapter is a little buggy. When you first plug it in, the LED will be red. You must unplug it and plug it in a second time so that the green light flashes. Then you can run the CAN udev scripts.
 2. **Host setup (once)**: `./src/interfacing/can/scripts/can_udev.sh install` → `/dev/canable`.
    `watod-config.local.sh`: `ACTIVE_MODULES="interfacing"`, `MODE_OF_OPERATION="develop"`.
 3. **Bring up**: `can.launch.py` starts `can_node` + SLCAN (`/dev/canable` → `can0` @ 1 Mbps).
@@ -14,7 +16,6 @@ benchmarks), [joint_command/README.md](joint_command/README.md) (command node, c
    ./watod -t interfacing
    source /opt/watonomous/setup.bash
    ```
-   A gs_usb / candleLight adapter instead: [can/README.md](can/README.md#gs_usb--candlelight-adapter).
 4. **Verify**:
    ```bash
    ros2 node list                  # /can_node
@@ -35,6 +36,8 @@ ros2 run can calibrate_arm.py \
   --arm-side left --write-mapping
 ```
 Prompt: **Enter**=yes · id=correct id · **s**=skip · **q**=quit.
+
+> You will hear buzzing as the motors are activated. Don't worry, that is normal.
 
 ## 2. Visualize
 Read-only mirror of live motor feedback in the browser. Confirms calibration looks right
@@ -79,6 +82,7 @@ restart the node.
 cd /workspace/humanoid/src/teleop/pioneer_leader_arm_teleop
 python3 calibrate_leader.py --port /dev/ttyACM1 # Set the leader arm to joints hanging straight down and rotated to face forward, gripper fully open
 ```
+> ❗If the command fails, you might need to do `ls /dev` and search for which `ttyACM*` ports are running 
 2. Configure which real-arm joints you want to move. In `arm_actuators.yaml`, configure the `active` attribute for each joint.
 
 3. vRun the teleop script through a dry run, verifying that leader arm direction is aligned with real-arm:

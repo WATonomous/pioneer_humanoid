@@ -176,6 +176,7 @@ python3 pioneer_leader_arm_teleop.py --target real --self-test           # angle
 - Warnings (end of each row): `>10` (disagreement), `NO FEEDBACK` (none for 0.5 s), `limit-clamp` (the leader was cut to those
   limits), `real outside hw [lo,hi]` (the real arm is outside `arm_calibration.yaml`'s limits: stale calibration).
 - Gripper: compared as position (0 open .. 1 closed), leader vs the real GL40 (id 21); `>0.1` and
+  `real outside hw` warn.
 
 `--live`:
 0. Optionally homes the real elbow.pitch first. Once every active joint has feedback, it asks `[y/N]`.
@@ -186,6 +187,7 @@ python3 pioneer_leader_arm_teleop.py --target real --self-test           # angle
 1. Shows the dry run until the gate passes: on every joint `active` in `arm_actuators.yaml`, the real arm is
    inside its `arm_calibration.yaml` limits and the leader is within 3° of home and within 10° of the real
    arm; the gripper (if active) is inside its limits and within 0.1. The screen lists what fails.
+2. Asks you to type `live` (anything else quits), re-checks the gate, then publishes `ArmPose` on
    `/arm/joint_targets` at 50 Hz, gripper included. `joint_command` clamps, rate-limits and runs the watchdog.
 3. Ctrl-C stops publishing. `joint_command` holds the last pose for `command_timeout_sec` (10 s), then
    sets kp = 0 and the arm sinks: support it.
