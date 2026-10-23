@@ -12,7 +12,24 @@
        This produced a persistent crab-like gait: lin_vel_x commands were being
        satisfied by strafing along the robot's true lateral axis. This yaw term
        rotates the horizontal plane only (up/down mapping is unchanged) so CAD-forward
-       lands on +X and CAD-lateral lands on Y (left = +Y). -->
+       lands on +X and CAD-lateral lands on Y (left = +Y).
+       Mirror-consistency fix: a sagittal mirror maps a joint axis (ax, ay, az) to
+       (-ax, ay, -az). Hip_F, Knee, Hip_R and Ankle_R already satisfied that; Hip_A_R
+       and Ankle_P_R did not, so the same numeric command moved the two legs the same
+       physical way instead of mirrored ways (spawn hip abduction slid the whole
+       stance 4.2 cm sideways) and their identical limits produced mirrored rather
+       than equal physical ranges (ankle pitch 30/50 deg swapped left vs right).
+       Both axes are negated to match the other four, which makes identical limit
+       numbers mean identical physical travel for every pair. Hip_A is the exception
+       that needed its numbers mirrored too: both sides are exported as
+       [-0.1745, +1.0472], and once the axes are mirror-consistent that is only 10 deg
+       of abduction (an adduction range no hip can use), while the pre-fix right hip
+       had 60 deg of abduction and the shipped gait used up to ~0.9 rad of it. Both
+       sides are now [-1.0472, +0.1745]: 10 deg adduction, 60 deg abduction.
+       base_to_base_link also carries -0.01781 m of lateral offset; the link
+       skeleton is mirror-symmetric about base-frame y = +0.01781 (measured), so the
+       root frame origin sat 1.78 cm off the midline and biased every root-relative
+       lateral observation/reward. -->
   <link name="base">
     <inertial>
       <origin xyz="0 0 0" rpy="0 0 0" />
@@ -21,7 +38,7 @@
     </inertial>
   </link>
   <joint name="base_to_base_link" type="fixed">
-    <origin xyz="0 0 0" rpy="-1.5707963267948966 0 -1.5707963267948966" />
+    <origin xyz="0 -0.01781 0" rpy="-1.5707963267948966 0 -1.5707963267948966" />
     <parent link="base" />
     <child link="base_link" />
   </joint>
@@ -176,8 +193,8 @@
     <axis
       xyz="0 1 0" />
     <limit
-      lower="-0.1745"
-      upper="1.0472"
+      lower="-1.0472"
+      upper="0.1745"
       effort="120"
       velocity="20.944" />
   </joint>
@@ -522,10 +539,10 @@
     <child
       link="Hip_A_R" />
     <axis
-      xyz="0 -1 0" />
+      xyz="0 1 0" />
     <limit
-      lower="-0.1745"
-      upper="1.0472"
+      lower="-1.0472"
+      upper="0.1745"
       effort="120"
       velocity="20.944" />
   </joint>

@@ -28,6 +28,15 @@ parser.add_argument("--task", type=str, default=None, help="Name of the task.")
 parser.add_argument("--seed", type=int, default=None, help="Seed used for the environment")
 parser.add_argument("--max_iterations", type=int, default=None,
                     help="RL Policy training iterations.")
+parser.add_argument("--warm_start_checkpoint", type=str, default=None,
+                    help="Policy checkpoint to warm-start from (e.g. a walker "
+                         "donor for a stairs curriculum). Loads policy weights "
+                         "only -- optimizer and iteration counter start fresh, "
+                         "unlike --resume which continues the same run.")
+parser.add_argument(
+    "--fail_on_nonfinite_grad", action="store_true", default=False,
+    help="Abort before an optimizer step if gradient clipping detects a non-finite norm.",
+)
 # append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
 # append AppLauncher cli args
@@ -66,6 +75,8 @@ from isaaclab.utils.dict import print_dict
 from isaaclab.utils.io import dump_yaml
 
 from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlVecEnvWrapper
+
+from humanoid_rl.numerics import strict_gradient_clipping
 
 import humanoid_rl_tasks  # noqa: F401  (registers every RL task)
 from isaaclab_tasks.utils import get_checkpoint_path
@@ -153,6 +164,16 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         print(f"[INFO]: Loading model checkpoint from: {resume_path}")
         # load previously trained model
         runner.load(resume_path)
+    # warm-start: policy weights only (actor/critic/normalizers), fresh
+    # optimizer and iteration counter. For cross-task transfer (e.g. walker
+    # donor -> stairs curriculum), NOT a continuation of the donor run.
+    if args_cli.warm_start_checkpoint:
+        if not os.path.isfile(args_cli.warm_start_checkpoint):
+            raise FileNotFoundError(
+                f"--warm_start_checkpoint not found: {args_cli.warm_start_checkpoint}")
+        print(f"[INFO]: Warm-starting policy from: {args_cli.warm_start_checkpoint}")
+        runner.load(args_cli.warm_start_checkpoint, load_optimizer=False)
+        runner.current_learning_iteration = 0
 
     # dump the configuration into log-directory
     dump_yaml(os.path.join(log_dir, "params", "env.yaml"), env_cfg)
@@ -161,16 +182,18 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     dump_pickle(os.path.join(log_dir, "params", "agent.pkl"), agent_cfg)
 
     # run training
-    runner.learn(num_learning_iterations=agent_cfg.max_iterations, init_at_random_ep_len=True)
-
-    # close the simulator
-    env.close()
+    try:
+        with strict_gradient_clipping(enabled=args_cli.fail_on_nonfinite_grad):
+            runner.learn(num_learning_iterations=agent_cfg.max_iterations, init_at_random_ep_len=True)
+    finally:
+        env.close()
 
 
 if __name__ == "__main__":
     # run the main function
-    main()
-    # close sim app
-    simulation_app.close()
+    try:
+        main()
+    finally:
+        simulation_app.close()
 
 # From Isaac Lab scripts/reinforcement_learning/rsl_rl/train.py
