@@ -387,7 +387,7 @@ class StairsRegistrationContracts(unittest.TestCase):
         expected = {
             f"{prefix}-{terrain}-PioneerHumanoid{suffix}-v0"
             for prefix in ("Isaac-Locomotion", "Isaac-Velocity")
-            for terrain in ("Flat", "Rough", "RoughNoStairsSelectiveKneeShape", "Stairs")
+            for terrain in ("Flat", "Rough", "RoughNoStairsSelectiveKneeShape", "Stairs", "OnshapeCourse", "OnshapeSpiral")
             for suffix in ("", "-Play")
         }
         self.assertEqual({item["id"] for item in registrations}, expected)

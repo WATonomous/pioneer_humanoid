@@ -28,6 +28,11 @@ parser.add_argument("--task", type=str, default=None, help="Name of the task.")
 parser.add_argument("--seed", type=int, default=None, help="Seed used for the environment")
 parser.add_argument("--max_iterations", type=int, default=None,
                     help="RL Policy training iterations.")
+parser.add_argument("--warm_start_checkpoint", type=str, default=None,
+                    help="Policy checkpoint to warm-start from (e.g. a walker "
+                         "donor for a stairs curriculum). Loads policy weights "
+                         "only -- optimizer and iteration counter start fresh, "
+                         "unlike --resume which continues the same run.")
 parser.add_argument(
     "--fail_on_nonfinite_grad", action="store_true", default=False,
     help="Abort before an optimizer step if gradient clipping detects a non-finite norm.",
@@ -159,6 +164,16 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         print(f"[INFO]: Loading model checkpoint from: {resume_path}")
         # load previously trained model
         runner.load(resume_path)
+    # warm-start: policy weights only (actor/critic/normalizers), fresh
+    # optimizer and iteration counter. For cross-task transfer (e.g. walker
+    # donor -> stairs curriculum), NOT a continuation of the donor run.
+    if args_cli.warm_start_checkpoint:
+        if not os.path.isfile(args_cli.warm_start_checkpoint):
+            raise FileNotFoundError(
+                f"--warm_start_checkpoint not found: {args_cli.warm_start_checkpoint}")
+        print(f"[INFO]: Warm-starting policy from: {args_cli.warm_start_checkpoint}")
+        runner.load(args_cli.warm_start_checkpoint, load_optimizer=False)
+        runner.current_learning_iteration = 0
 
     # dump the configuration into log-directory
     dump_yaml(os.path.join(log_dir, "params", "env.yaml"), env_cfg)

@@ -1,0 +1,8 @@
+# Regenerable build artifacts of tools/onshape_course/build_course.py.
+# course.step        the Onshape export (source of truth, committed)
+# course.usd         raw HOOPS conversion (intermediate, `--skip-convert` reuses it)
+# course_bounds.json per-part world bounds from that conversion
+# course_terrain.usd merged single-mesh terrain the task loads (committed)
+*.log
+hoops_config.json
+course.usd
