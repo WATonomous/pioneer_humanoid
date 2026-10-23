@@ -23,22 +23,11 @@ class TaskFailed(RuntimeError):
 @dataclass
 class Task:
     plan: Callable          # plan(op, model, data, notes): notes collects what happened (retries, ...)
-    success: Callable       # success(model, data) -> bool
     instruction: str        # dataset task text (multi-step scenes label each frame with its step instead)
 
 
 # Gripper pointing down: the tool point (finger-box centre) is this far above the jaws' lower ends.
 JAW_HALF = 0.044
-
-
-def _all_steps_done(scene: str) -> Callable:
-    from humanoid_mujoco_scenes import scene_progress
-    progress = scene_progress(scene)
-
-    def success(model, data) -> bool:
-        k, n, _ = progress(model, data)
-        return k >= n
-    return success
 
 
 def _finish(op, rest=None) -> None:
@@ -313,11 +302,6 @@ def peg_plan(op, model, data, notes, resume: bool = False) -> None:
     _finish(op, rest=start + rng.normal(0, 0.02, 3))
 
 
-def _peg_success(model, data) -> bool:
-    import humanoid_mujoco_scenes.peg_insert.scene as S
-    return S.is_inserted(model, data)
-
-
 # ----------------------------------------------------------------------------- zip_tie
 def zip_plan(op, model, data, notes) -> None:
     import humanoid_mujoco_scenes.zip_tie.scene as S
@@ -365,11 +349,6 @@ def zip_plan(op, model, data, notes) -> None:
     tcp = op.follower_tcp()
     op.move(tcp + (rng.uniform(-0.03, 0.0), 0, 0.07), tol=0.02, via=True)
     _finish(op, rest=start + rng.normal(0, 0.02, 3))
-
-
-def _zip_success(model, data) -> bool:
-    import humanoid_mujoco_scenes.zip_tie.scene as S
-    return S.is_tight(model, data)
 
 
 # ----------------------------------------------------------------------------- duplo
@@ -638,9 +617,9 @@ def matcha_plan(op, model, data, notes) -> None:
 
 
 TASKS: dict[str, Task] = {
-    "drawer_stow": Task(drawer_plan, _all_steps_done("drawer_stow"), "put the blocks in the drawer"),
-    "peg_insert": Task(peg_plan, _peg_success, "insert the peg into the hole"),
-    "zip_tie": Task(zip_plan, _zip_success, "pull the zip tie tight"),
-    "duplo": Task(duplo_plan, _all_steps_done("duplo"), "stack the duplo bricks"),
-    "matcha": Task(matcha_plan, _all_steps_done("matcha"), "make the matcha and serve it on the tray"),
+    "drawer_stow": Task(drawer_plan, "put the blocks in the drawer"),
+    "peg_insert": Task(peg_plan, "insert the peg into the hole"),
+    "zip_tie": Task(zip_plan, "pull the zip tie tight"),
+    "duplo": Task(duplo_plan, "stack the duplo bricks"),
+    "matcha": Task(matcha_plan, "make the matcha and serve it on the tray"),
 }

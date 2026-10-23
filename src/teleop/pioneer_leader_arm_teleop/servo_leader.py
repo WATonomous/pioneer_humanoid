@@ -256,22 +256,25 @@ class ServoLeader:
             pass
 
 
-def save_calibration(path: Path, positions: dict[int, int], servo_ids: dict[str, int] | None = None) -> None:
-    """Write raw zero counts, keyed by servo label (with its bus ID, checked on load)."""
+def calibration_entry(positions: dict[int, int], servo_ids: dict[str, int] | None = None) -> dict:
+    """Raw zero counts keyed by servo label, with its bus ID (checked on load by calibration_zeros)."""
     servo_ids = SERVO_IDS if servo_ids is None else servo_ids
-    data = {label: {"id": sid, "zero": int(positions[sid])} for label, sid in servo_ids.items()}
-    Path(path).write_text(json.dumps(data, indent=2) + "\n")
+    return {label: {"id": sid, "zero": int(positions[sid])} for label, sid in servo_ids.items()}
 
 
 def load_calibration(path: Path, servo_ids: dict[str, int] | None = None) -> dict[int, int]:
     """Raw zero counts keyed by servo ID; fails if the file's bus IDs disagree with ``servo_ids``."""
+    return calibration_zeros(json.loads(Path(path).read_text()), str(path), servo_ids)
+
+
+def calibration_zeros(data: dict, where: str, servo_ids: dict[str, int] | None = None) -> dict[int, int]:
+    """Zero counts by servo ID from ``{label: {"id", "zero"}}`` (calibration_entry's format)."""
     servo_ids = SERVO_IDS if servo_ids is None else servo_ids
-    data = json.loads(Path(path).read_text())
     zeros = {}
     for label, sid in servo_ids.items():
         entry = data.get(label)
         if entry is None or entry.get("id") != sid:
-            raise ValueError(f"{path}: servo {label} must have id {sid}, got {entry}")
+            raise ValueError(f"{where}: servo {label} must have id {sid}, got {entry}")
         zeros[sid] = int(entry["zero"])
     return zeros
 

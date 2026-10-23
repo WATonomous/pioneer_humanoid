@@ -30,7 +30,7 @@ sys.path.insert(0, str(_SRC / "robot_learning"))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # leader_mapping, arm_limits, servo_leader
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from humanoid_robot_learning.sim_teleop_record import add_record_args, load_record_schema, make_sim_recorder  # noqa: E402
+from humanoid_robot_learning.sim.sim_teleop_record import add_record_args, load_record_schema, make_sim_recorder  # noqa: E402
 
 from arm_limits import GRIPPER_OPEN_DEG  # noqa: E402
 from leader_mapping import CONTROL_DT, DEFAULT_SIGNS, WRIST_DAMPING, LeaderMapping  # noqa: E402
@@ -69,7 +69,7 @@ class TeleopSim:
         self.home = [data.ctrl[a] for a in self.arm_acts]
         self.signs = parse_signs(DEFAULT_SIGNS)
         self.mapping = LeaderMapping(
-            argparse.Namespace(signs=DEFAULT_SIGNS, filter_alpha=filter_alpha),
+            self.signs, filter_alpha,
             home_rad=self.home,
             limits_rad=[tuple(model.jnt_range[model.joint(j).id]) for j in LEFT_ARM_JOINTS],
         )
@@ -168,6 +168,7 @@ def run_episode(scene: str, seed: int, frame_sink=None, record_every: int = 0, o
 
     import numpy as np
     from human_operator import HumanOperator, Style
+    from humanoid_mujoco_scenes import scene_success
     from synthetic_tasks import TASKS, TaskFailed
 
     sim = TeleopSim(scene, seed)
@@ -181,7 +182,7 @@ def run_episode(scene: str, seed: int, frame_sink=None, record_every: int = 0, o
         task.plan(op, sim.model, sim.data, notes)
     except TaskFailed as exc:
         notes.append(f"gave up: {exc}")
-    ok = bool(task.success(sim.model, sim.data))
+    ok = bool(scene_success(scene)(sim.model, sim.data))
     if os.environ.get("SYNTH_TRACE"):
         print("\n".join(op.trace))
     sim.close()
@@ -236,7 +237,7 @@ def main() -> None:
     args = parser.parse_args()
     if args.self_test:
         return self_test()
-    record = load_record_schema(parser, args)
+    record = load_record_schema(parser, args, arms=["left"])
     os.environ.setdefault("MUJOCO_GL", "egl")
 
     from synthetic_tasks import TASKS
@@ -244,7 +245,7 @@ def main() -> None:
         raise SystemExit(f"no synthetic plan for --scene {args.scene!r}; have: {sorted(TASKS)}")
     args.task_description = args.task_description or TASKS[args.scene].instruction
     if args.record and args.dataset_root is None:   # never mixed into the human recordings under <root>/sim
-        from humanoid_robot_learning.record_utils import resolve_dataset_root
+        from humanoid_robot_learning.recording.record_utils import resolve_dataset_root
         args.dataset_root = str(resolve_dataset_root(record.cfg, subdir=f"sim_synthetic/{args.scene}"))
 
     # Takes already in the dataset (an interrupted run picks up where it stopped).
