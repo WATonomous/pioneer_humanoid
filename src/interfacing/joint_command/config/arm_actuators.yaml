@@ -115,7 +115,7 @@ safety:
     # of sag; gravity feed-forward barely helps (0.044 N.m headroom at these gains).
     wrist:
       pitch:   # GL40, id 22
-        active: true
+        active: false
         delta_max: 2.4
         control_type: 0        # MIT_CONTROL
         mit_family: gl2        # fault action defaults to limp: unloaded, safe to free
@@ -129,7 +129,7 @@ safety:
     gripper:
       open_close:   # GL40, id 21
         active: false
-        velocity_max: 30.0
+        velocity_max: 60.0
         delta_max: 2.4
         control_type: 0        # MIT_CONTROL
         mit_family: gl2        # fault action limp
