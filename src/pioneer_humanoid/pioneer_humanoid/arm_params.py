@@ -106,8 +106,11 @@ class CameraMount(NamedTuple):
 
 # ego          RealSense D455 colour at 640x480 (4:3), 50 deg down. ESTIMATE ~80 x 65 deg: native
 #              1280x800 lens with the sides cropped to 4:3. Replace with the real camera_info.
-# wrist_left   between the fingers, ~60 deg hFOV, real camera not chosen yet
+# wrist_left   between the fingers. Sonix UVC webcam, MEASURED (camera_calibration/wrist_cam_calib_1080):
+#              real frames are undistorted to a centred 640x480 pinhole, fx = fy = 700 px,
+#              49.1 x 37.8 deg. Keep focal, aperture and the 4:3 aspect in step with that remap.
 # wrist_right  mirror of wrist_left
+WRIST_FOCAL_MM = 700.0 * 20.955 / 640   # 700 px at 640 wide -> 22.92 mm
 CAMERAS = {
     "ego": CameraMount(
         "base_link", "cam_ego",
@@ -117,12 +120,12 @@ CAMERAS = {
     "wrist_left": CameraMount(
         "link6l", "cam_wrist_left",
         (0.06179, 0.05297, -0.07077), (0.696364, -0.122788, 0.122788, -0.696364),
-        18.147562, 20.955, (0.05, 5.0), None,
+        WRIST_FOCAL_MM, 20.955, (0.05, 5.0), 4 / 3,
     ),
     "wrist_right": CameraMount(
         "link6", "cam_wrist_right",
         (0.06179, -0.04397, -0.07077), (0.696364, -0.122788, 0.122788, -0.696364),
-        18.147562, 20.955, (0.05, 5.0), None,
+        WRIST_FOCAL_MM, 20.955, (0.05, 5.0), 4 / 3,
     ),
 }
 CAMERA_NAMES = tuple(CAMERAS)

@@ -1,0 +1,23 @@
+# intrinsics from calibrate_intrinsics.py on 2026-10-23
+# rms 1.2127 px over 47 views; ChArUco 9x6 square 23.84 mm
+# hfov 66.64 deg, vfov 40.65 deg
+image_width: 1920
+image_height: 1080
+camera_name: wrist_cam
+camera_matrix:
+  rows: 3
+  cols: 3
+  data: [1460.3223, 0, 919.02526, 0, 1457.9718, 490.68535, 0, 0, 1]
+distortion_model: plumb_bob
+distortion_coefficients:
+  rows: 1
+  cols: 5
+  data: [-0.38630137, 0.30882047, 0.00028619977, -0.00065677652, -0.18909485]
+rectification_matrix:
+  rows: 3
+  cols: 3
+  data: [1, 0, 0, 0, 1, 0, 0, 0, 1]
+projection_matrix:
+  rows: 3
+  cols: 4
+  data: [1460.3223, 0, 919.02526, 0, 0, 1457.9718, 490.68535, 0, 0, 0, 1, 0]
