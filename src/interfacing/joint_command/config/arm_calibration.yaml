@@ -2,53 +2,53 @@ left:
   shoulder:
     pitch:
       can_id: 14
-      lower_limit: -56.10000228881836
-      upper_limit: 57.79999923706055
+      lower_limit: -178.20000457763672
+      upper_limit: 132.9000015258789
       direction: 1
-      zero_offset: 34.29999923706055
+      zero_offset: 40.400001525878906
       limit_range: true
     roll:
       can_id: 13
-      direction: 1
-      zero_offset: -134.10000610351562
-      lower_limit: -55.00000762939453
-      upper_limit: 66.89999389648438
+      direction: -1
+      zero_offset: -170.10000610351562
+      lower_limit: -110.49999618530273
+      upper_limit: 46.70000076293945
       limit_range: true
     yaw:
       can_id: 12
-      lower_limit: -5.29998779296875
-      upper_limit: 25.400009155273438
       direction: -1
-      zero_offset: 160.60000610351562
+      lower_limit: -11
+      upper_limit: 169
+      zero_offset: 162.89999389648438
       limit_range: true
   elbow:
     pitch:
       can_id: 11
-      direction: -1
-      zero_offset: -70.19999694824219
-      lower_limit: -68.69999694824219
-      upper_limit: 43.400001525878906
+      direction: 1
+      zero_offset: -15.899999618530273
+      lower_limit: -129.7000026702881
+      upper_limit: 104.79999732971191
       limit_range: true
     roll:
       can_id: 104
-      lower_limit: -56.69999694824219
-      upper_limit: 67.29998779296875
+      lower_limit: -57.19999694824219
+      upper_limit: 65.29999542236328
       direction: 1
-      zero_offset: -274.5
+      zero_offset: -75.0999984741211
       limit_range: true
   wrist:
     pitch:
       can_id: 22
-      lower_limit: -93.62410736083984
-      upper_limit: 97.66764450073242
+      lower_limit: -59.19941711425781
+      upper_limit: 107.83112335205078
       direction: 1
-      zero_offset: -40.4899787902832
+      zero_offset: 123.65563201904297
       limit_range: true
   gripper:
     open_close:
       can_id: 21
-      lower_limit: 0
-      upper_limit: 100
-      direction: 1
-      zero_offset: 0
+      lower_limit: -11.769871354103088
+      upper_limit: 40.94888401031494
+      direction: -1
+      zero_offset: -12.228957176208496
       limit_range: true
