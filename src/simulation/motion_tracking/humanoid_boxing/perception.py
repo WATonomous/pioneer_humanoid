@@ -41,14 +41,14 @@ TARGETS = ("head", "glove_l", "glove_r", "torso")
 TARGET_RADIUS = {"head": HEAD_RADIUS, "glove_l": GLOVE_RADIUS, "glove_r": GLOVE_RADIUS, "torso": 0.15}
 # capsules (from body, to body) along the arms, for occlusion
 ARM_SEGMENTS = [
-  ("Mirrorlink2__1__1", "Mirrorlink3__1__1"),
-  ("Mirrorlink3__1__1", "Mirrorlink4__1__1"),
-  ("Mirrorlink4__1__1", "Mirrorlink5__1__1"),
-  ("Mirrorlink5__1__1", "Mirrorlink6__1__1"),
-  ("link2__1__1", "link3__1__1"),
-  ("link3__1__1", "link4__1__1"),
-  ("link4__1__1", "link5__1__1"),
-  ("link5__1__1", "link6__1__1"),
+  ("l_arm_link2", "l_arm_link3"),
+  ("l_arm_link3", "l_arm_link4"),
+  ("l_arm_link4", "l_forearm"),
+  ("l_forearm", "l_hand_W"),
+  ("r_arm_link2", "r_arm_link3"),
+  ("r_arm_link3", "r_arm_link4"),
+  ("r_arm_link4", "r_forearm"),
+  ("r_forearm", "r_hand_W"),
 ]
 ARM_RADIUS = 0.045
 

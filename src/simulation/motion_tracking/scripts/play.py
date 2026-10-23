@@ -1,15 +1,15 @@
 """mjlab play entry point: runs a trained policy (or replays the reference
 with --agent zero) in the viewer, or records a video headless.
 
-  uv run scripts/play.py Mjlab-Tracking-Flat-Wato \
+  uv run scripts/play.py Mjlab-Tracking-Flat-Pioneer \
       --motion-file data/motions/boxing.npz \
-      --checkpoint-file logs/rsl_rl/wato_tracking/<run>/model_<n>.pt \
+      --checkpoint-file logs/rsl_rl/pioneer_tracking/<run>/model_<n>.pt \
       --viewer viser                       # http://localhost:8080
 
   # headless: --video True --video-length 1770 (frames at 50 fps)
 
   # the two-fighter arena (no policy yet; the motors hold the stance)
-  uv run scripts/play.py Mjlab-Boxing-Arena-Wato --agent zero --viewer viser
+  uv run scripts/play.py Mjlab-Boxing-Arena-Pioneer --agent zero --viewer viser
 """
 
 import os

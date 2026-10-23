@@ -18,7 +18,7 @@ src/simulation/
 │   └── humanoid_mujoco_scenes/ #   bare/  peg_insert/
 ├── so101_vial_task/        # SO101 imitation-learning task
 ├── badminton/              # mjlab (MuJoCo Warp) badminton receive RL — see badminton/README.md
-├── motion_tracking/        # mjlab whole-body motion tracking (BeyondMimic) for Wato — see motion_tracking/README.md
+├── motion_tracking/        # mjlab motion tracking (BeyondMimic) + boxing arena for the Pioneer humanoid — see motion_tracking/README.md
 └── whole_body_motion_tracking/  # Links to whole body motion tracking pipeline
 ```
 

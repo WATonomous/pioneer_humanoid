@@ -1,7 +1,7 @@
-"""mjlab training entry point: registers the Wato tracking tasks, then hands
+"""mjlab training entry point: registers the Pioneer tracking tasks, then hands
 off to mjlab's train CLI (tyro; task id is the first positional argument).
 
-  uv run scripts/train.py Mjlab-Tracking-Flat-Wato \
+  uv run scripts/train.py Mjlab-Tracking-Flat-Pioneer \
       --env.commands.motion.motion-file data/motions/boxing.npz \
       --env.scene.num-envs 4096
 """

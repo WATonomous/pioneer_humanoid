@@ -1,54 +1,55 @@
 # Whole-body motion tracking on mjlab
 
-mjlab (MuJoCo Warp) port of the Wato motion tracking pipeline in
-[WATonomous/Humanoid_motion_tracking](https://github.com/WATonomous/Humanoid_motion_tracking)
-(GMR retargeting + BeyondMimic training in Isaac Lab). The training side runs on
-mjlab's own BeyondMimic port (`mjlab.tasks.tracking`) with the Wato robot and
-task settings copied from the Isaac config. Retargeting (BVH → CSV) still
-happens in that repo with GMR.
+Motion tracking (BeyondMimic) and a two-fighter boxing arena for the **Pioneer humanoid**
+(`assets/pioneer_whole_body_humanoid`), on mjlab (MuJoCo Warp, one GPU, no Isaac Sim). The training
+side is mjlab's own BeyondMimic port (`mjlab.tasks.tracking`) with the task settings of the Isaac Lab
+Wato tracking config in [WATonomous/Humanoid_motion_tracking](https://github.com/WATonomous/Humanoid_motion_tracking).
 
 ```
-human BVH ──GMR (other repo)──▶ CSV ──csv_to_npz.py──▶ NPZ ──train.py──▶ policy ──play.py──▶ video / viewer
+generate_moves.py ──▶ CSV ──csv_to_npz.py──▶ NPZ ──train.py──▶ policy ──play.py──▶ video / viewer
 ```
+
+## The robot (`humanoid_tracking/robot.py`)
+
+The whole-body URDF with a free-floating base, set up for this package when it loads:
+- **Re-rooted:** the base frame sits at the hip joints and faces +y, with +x the robot's right (the URDF's
+  root is on the floor and faces −y). Only frames change; the robot's shape and joints don't.
+- **Fists:** the hands are closed into fists and their 40 finger joints removed; gloves go over them in
+  the arena. That leaves **29 joints**: waist yaw, neck (2), arms (7 each, with the wrist), legs (6 each).
+- **Motors:** the URDF's torque and speed per joint (real for the legs and arms, estimates for the
+  waist, neck and wrists); 44.7 kg.
+- **Collisions:** only a box under each sole touches the floor; the meshes are visual.
 
 ## Setup
 
 ```bash
 uv sync --extra train            # Linux + NVIDIA GPU (CPU: --extra train-cpu, smoke tests only)
-./scripts/fetch_assets.sh        # Wato MJCF + meshes and the retargeted CSVs → data/
 ```
 
-`fetch_assets.sh` pulls a pinned commit of the motion tracking repo: the CSVs
-are joint angles for *its* robot model (GMR's `watonomous.xml`, 28 joints),
-which is not the same model as `assets/whole_body_humanoid/` here.
+The robot is in the repo (`assets/pioneer_whole_body_humanoid`); motions are generated (below).
 
 ## Use
 
 ```bash
-# 1. CSV → NPZ (50 fps), plus an MP4 of the reference motion
-uv run scripts/csv_to_npz.py --input-file data/motions/boxing.csv --input-fps 120 \
-    --output-file data/motions/boxing.npz --video True
+# 1. motions: boxing footwork for this robot, then CSV -> NPZ (50 fps) plus an MP4 of the reference
+uv run scripts/generate_moves.py --output-file data/motions/moves.csv
+uv run scripts/csv_to_npz.py --input-file data/motions/moves.csv --input-fps 50 \
+    --output-file data/motions/moves.npz --video True
 
 # 2. train (GPU)
-uv run scripts/train.py Mjlab-Tracking-Flat-Wato \
-    --env.commands.motion.motion-file data/motions/boxing.npz \
-    --env.scene.num-envs 4096 --agent.run-name boxing
+uv run scripts/train.py Mjlab-Tracking-Flat-Pioneer \
+    --env.commands.motion.motion-file data/motions/moves.npz \
+    --env.scene.num-envs 4096 --agent.run-name moves
 
 # 3. watch it (viser web viewer on a headless box, or record an MP4)
-uv run scripts/play.py Mjlab-Tracking-Flat-Wato --motion-file data/motions/boxing.npz \
-    --checkpoint-file logs/rsl_rl/wato_tracking/<run>/model_<n>.pt --viewer viser
-uv run scripts/play.py Mjlab-Tracking-Flat-Wato --motion-file data/motions/boxing.npz \
-    --checkpoint-file <model.pt> --video True --video-length 1770
+uv run scripts/play.py Mjlab-Tracking-Flat-Pioneer --motion-file data/motions/moves.npz \
+    --checkpoint-file logs/rsl_rl/pioneer_tracking/<run>/model_<n>.pt --viewer viser
+uv run scripts/play.py Mjlab-Tracking-Flat-Pioneer --motion-file data/motions/moves.npz --agent zero --viewer viser
 ```
 
 Runs log to Weights & Biases by default (`--agent.logger tensorboard` to stay
-local); checkpoints land in `logs/rsl_rl/wato_tracking/<timestamp>/`. Training
-also accepts `--registry-name <wandb motion registry entry>` instead of a local
-NPZ, like the Isaac version.
-
-Motions in `data/motions/`: `boxing.csv` (Xsens, 120 fps, 35 s), `curling.csv`,
-`squatting.csv`. To play a motion faster, give `csv_to_npz.py` a larger
-`--input-fps` than it was recorded at (240 for a 120 fps take = 2× speed).
+local); checkpoints land in `logs/rsl_rl/pioneer_tracking/<timestamp>/`. `--agent zero` replays the
+reference with no policy.
 
 ## Generated boxing movement
 
@@ -64,9 +65,12 @@ freely from a move list:
 | `PL` `PR` | pivot on the lead foot: rear foot swings round in short steps, body turns 45°, lead foot turns to match |
 | `H` | hold the stance |
 
-The stance and guard come from the boxing take; foot paths and the
-centre-of-mass / hip height / heading / lean curves come from the rules
-above, and the legs are solved by IK. Moves blend into each other without
+The stance copies the previous robot's (Wato's) orthodox stance: the same foot placement and
+pelvis blade, made by IK on this robot, with the hips 7 cm below standing (deeper puts the rear
+ankle at its limit) and the gloves and elbows placed from the shoulders, scaled to these longer arms.
+The elbows bend only 90°, so the guard is a little more open than Wato's. Foot paths and the
+centre-of-mass / hip height / heading / lean curves come from the rules above, and the legs are
+solved by IK. Moves blend into each other without
 stopping. Any move that drives a leg motor past 80% of its speed cap
 (`--max-cap-use`) is slowed down automatically, so what comes out is within
 what the motors can do with headroom for balance.
@@ -87,18 +91,18 @@ Each move has its own settings (`--duck.depth`, `--pivot.angle`,
 round endings and opponent perception. Skill actions are not in yet.
 
 - **Fighters**: the tracking robot recoloured, in the orthodox stance from
-  `generate_moves.py`, 1.3 m apart facing each other (`distance`): lead
-  gloves ~0.2 m apart, a jab lands only after ~0.3 m of stepping in.
-- **Gloves and hitboxes**: glove spheres on the wrists; head, torso, pelvis
+  `generate_moves.py`, 1.45 m apart facing each other (`distance`): lead
+  gloves 23 cm apart, the lead glove 65 cm from the opponent's head.
+- **Gloves and hitboxes**: a glove sphere (7 cm) round each fist; head, torso, pelvis
   and arm/leg capsules fitted to the CAD meshes (hidden, group 3). They hit
   the opponent, the ropes and the floor, never their own body. The CAD
   meshes stay visual only.
-- **Ring**: 4 m between the ropes (scaled to Wato), 3 ropes, 4 posts.
+- **Ring**: 4 m between the ropes, 3 ropes, 4 posts.
 - **Hit sensors**: `<attacker>_hits_<defender>_head` / `_body`, glove vs
   opponent head / torso, with contact count and net force per glove.
 
 ```bash
-uv run scripts/play.py Mjlab-Boxing-Arena-Wato --agent zero --viewer viser
+uv run scripts/play.py Mjlab-Boxing-Arena-Pioneer --agent zero --viewer viser
 ```
 
 **Rewards and round endings** (`humanoid_boxing/mdp.py`, weights in
@@ -146,7 +150,7 @@ chest ultrasonic (25 Hz, 20 ms late) ─┼─▶ EKF (constant velocity) ─▶
 - Settings in `PerceptionCfg` (`CameraCfg`, `UltrasonicCfg`, `EkfCfg`),
   passed as `boxing_arena_env_cfg(perception=...)`.
 
-Checked against MuJoCo:
+Checked against MuJoCo (on the previous robot, Wato; the code is unchanged and robot-independent):
 
 | check | result |
 |---|---|
@@ -155,14 +159,14 @@ Checked against MuJoCo:
 | mean error, opponent standing | RGB 3.6 cm, + ultrasonic 3.6 cm, + depth 1.1 cm |
 | RMS error, opponent moving 0.4 m/s | RGB 9.3 cm, + ultrasonic 6.3 cm, + depth 7.6 cm |
 
-Caveats: the camera points ~21° right and ~12° down in the bladed stance
-(the torso turns), so the opponent's left side leaves the image first; the
-camera bar is also the "head" hitbox, so a head hit lands on the camera.
+The camera sits on the front of the head's visor at eye height, looking forward; in the bladed stance
+it points to the right of the opponent (the pelvis turns), so the opponent's left side leaves the
+image first.
 
 With no policy the fighters stand on their own: the arena holds the stance
-with 4x the tracking stiffness (`gain_scale`, same torque limits, peak use
-32% at the rear ankle). The tracking gains (1x) are soft by design and need
-a trained policy to stay up.
+with 4x the tracking stiffness (`gain_scale`, same torque limits); over 5 s
+the pelvis sinks 4 mm and nobody falls. The tracking gains (1x) are soft by
+design and need a trained policy to stay up.
 
 Headless rendering without a GPU: `apt install libosmesa6` and set
 `MUJOCO_GL=osmesa`.
@@ -171,11 +175,11 @@ Headless rendering without a GPU: `apt install libosmesa6` and set
 
 | | Isaac Lab | here |
 |---|---|---|
-| robot | `whole_body_humanoid_raw_export.urdf` | GMR's `watonomous.xml` (same robot, converted from that URDF), with its ±10 Nm per-joint force cap removed |
+| robot | the Wato humanoid | the Pioneer humanoid (`assets/pioneer_whole_body_humanoid`), hands as fists |
 | collisions | convex hulls of every mesh, self-collision off | box under each foot only; meshes are visual |
-| motor speed caps | `velocity_limit_sim` | DC motor model with full torque up to the cap, braking above it; forearm roll, wrist and claws use implicit position actuators instead (the explicit DC-motor PD shakes on joints that light) and have no cap |
+| motor speed caps | `velocity_limit_sim` | DC motor model with full torque up to the cap, braking above it; forearm roll, wrists and neck use implicit position actuators instead (the explicit DC-motor PD shakes on joints that light) and have no cap |
 | `undesired_contacts` reward | yes | no (mjlab's base tracking task has none) |
-| PPO, rewards, observations, terminations, gains, armature, action scale | — | same values |
+| PPO, rewards, observations, terminations, gains, action scale | — | same values |
 
 ## Layout
 
@@ -183,6 +187,6 @@ Headless rendering without a GPU: `apt install libosmesa6` and set
 humanoid_tracking/   robot.py (entity + motors), env_cfg.py (task), rl_cfg.py (PPO); __init__ registers the tasks
 humanoid_boxing/     fighters.py (gloves, hitboxes, stance, sensor sites), ring.py, mdp.py (fight state, rewards, round endings),
                  perception.py (camera + ultrasonic + EKF), arena_env_cfg.py
-scripts/         fetch_assets.sh, csv_to_npz.py, generate_moves.py, train.py, play.py
-data/            fetched model + motions, generated NPZs (gitignored)
+scripts/         generate_moves.py, csv_to_npz.py, train.py, play.py
+data/            generated motions and NPZs (gitignored)
 ```

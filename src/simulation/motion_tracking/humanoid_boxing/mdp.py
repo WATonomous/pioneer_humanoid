@@ -48,16 +48,16 @@ TORQUE_SHARE = 0.95
 HEAD_WEIGHT, BODY_WEIGHT = 1.0, 0.5
 
 CORE_HITBOXES = (r"^head$", r"^torso$", r"^pelvis$", r"^leg_.*$")
-FEET = ("left_foot_1", "right_foot_1")
+FEET = ("l_foot", "r_foot")
 LEGS = {  # capsule segments: (from body, to body)
-  "left": [("left_thigh_1", "left_calf_1"), ("left_calf_1", "left_foot_joint_1")],
-  "right": [("right_thigh_1", "right_calf_1"), ("right_calf_1", "right_foot_joint_1")],
+  "left": [("l_thigh", "l_shank_foot"), ("l_shank_foot", "l_ankle_cross")],
+  "right": [("r_thigh", "r_shank_foot"), ("r_shank_foot", "r_ankle_cross")],
 }
 ARMS = [
-  ("Mirrorlink3__1__1", "Mirrorlink4__1__1"),
-  ("Mirrorlink5__1__1", "Mirrorlink6__1__1"),
-  ("link3__1__1", "link4__1__1"),
-  ("link5__1__1", "link6__1__1"),
+  ("l_arm_link3", "l_arm_link4"),  # upper arm
+  ("l_forearm", "l_hand_W"),  # forearm
+  ("r_arm_link3", "r_arm_link4"),
+  ("r_forearm", "r_hand_W"),
 ]
 LEG_CROSS_DIST = 2 * LEG_RADIUS - 0.02  # capsules overlapping by more than 2 cm
 TORSO_SHRINK = 0.02  # arm centreline this far inside the torso box
@@ -95,7 +95,7 @@ def fight_sensors() -> tuple[ContactSensorCfg, ...]:
       ),
       ContactSensorCfg(
         name=f"{team}_feet",
-        primary=ContactMatch(mode="geom", pattern=r"^(left|right)_foot_1_collision$", entity=team),
+        primary=ContactMatch(mode="geom", pattern=r"^[lr]_foot_collision$", entity=team),
         secondary=ContactMatch(mode="geom", pattern="terrain"),
         fields=("found",),
       ),

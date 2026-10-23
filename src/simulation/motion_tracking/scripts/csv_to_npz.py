@@ -1,11 +1,11 @@
-"""Retargeted CSV -> BeyondMimic NPZ for the Wato robot (mjlab port of
+"""Motion CSV -> BeyondMimic NPZ for the Pioneer robot (mjlab port of
 whole_body_tracking/scripts/csv_to_npz_wato.py).
 
-Plays the CSV kinematically on the Wato model, resamples it to 50 fps (the
+Plays the CSV kinematically on the Pioneer model, resamples it to 50 fps (the
 rate the policy runs at: sim dt 0.005 x decimation 4) and saves joint and body
 states to a local NPZ. --video also renders the reference motion to MP4.
 
-CSV row: root pos (3), root quat xyzw (4), 28 joint angles in
+CSV row: root pos (3), root quat xyzw (4), 29 joint angles in
 CSV_JOINT_NAMES order.
 
   uv run scripts/csv_to_npz.py --input-file data/motions/boxing.csv \
@@ -38,7 +38,7 @@ from mjlab.sim.sim import Simulation, SimulationCfg  # noqa: E402
 from mjlab.viewer.offscreen_renderer import OffscreenRenderer  # noqa: E402
 from mjlab.viewer.viewer_config import ViewerConfig  # noqa: E402
 
-from humanoid_tracking.env_cfg import wato_flat_tracking_env_cfg  # noqa: E402
+from humanoid_tracking.env_cfg import flat_tracking_env_cfg  # noqa: E402
 from humanoid_tracking.robot import CSV_JOINT_NAMES  # noqa: E402
 
 
@@ -68,7 +68,7 @@ def main(
 
   sim_cfg = SimulationCfg()
   sim_cfg.mujoco.timestep = 1.0 / output_fps
-  scene = Scene(wato_flat_tracking_env_cfg().scene, device=device)
+  scene = Scene(flat_tracking_env_cfg().scene, device=device)
   model = scene.compile()
   sim = Simulation(num_envs=1, cfg=sim_cfg, model=model, device=device)
   scene.initialize(sim.mj_model, sim.model, sim.data)

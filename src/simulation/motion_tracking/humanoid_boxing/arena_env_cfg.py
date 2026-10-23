@@ -1,10 +1,10 @@
-"""Two Wato fighters in a ring: the scene for fighting RL.
+"""Two Pioneer fighters in a ring: the scene for fighting RL.
 
 Red starts on the -x side facing +x, blue on the +x side facing -x, both in
 the orthodox stance, `distance` apart (centre between the feet to centre
-between the feet). At the default 1.3 m the lead gloves start about 0.2 m
-apart and a jab reaches the opponent's head only after stepping in about
-0.3 m (three 10 cm steps), so neither fighter starts in range.
+between the feet). At the default 1.45 m the lead gloves start 23 cm apart
+(surface to surface) and the lead glove is 65 cm from the opponent's head, so
+neither fighter starts in range.
 
 Rewards and round endings (humanoid_boxing/mdp.py, weights in REWARD_WEIGHTS) are
 scored from the `learner`'s side: knockdown +100 / knocked down -100 (the
@@ -46,7 +46,7 @@ from humanoid_boxing import perception as vision
 from humanoid_boxing.perception import PerceptionCfg
 from humanoid_boxing.fighters import get_fighter_cfg
 from humanoid_boxing.ring import get_ring_cfg
-from humanoid_tracking.robot import WATO_ACTION_SCALE
+from humanoid_tracking.robot import ACTION_SCALE
 
 TEAMS = ("red", "blue")
 
@@ -95,7 +95,7 @@ def fight_rewards(team: str = "red", weights: dict[str, float] | None = None) ->
 
 
 def boxing_arena_env_cfg(
-  distance: float = 1.3,
+  distance: float = 1.45,
   ring_size: float = 4.0,
   num_envs: int = 1,
   gain_scale: float = 4.0,
@@ -120,7 +120,7 @@ def boxing_arena_env_cfg(
     team: JointPositionActionCfg(
       entity_name=team,
       actuator_names=(".*",),
-      scale=WATO_ACTION_SCALE,
+      scale=ACTION_SCALE,
       use_default_offset=True,
     )
     for team in TEAMS

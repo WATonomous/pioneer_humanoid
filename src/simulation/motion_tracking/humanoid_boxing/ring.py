@@ -1,6 +1,6 @@
 """Boxing ring: canvas, corner posts and three ropes per side, as a fixed entity.
 
-Default size is scaled to Wato (about 1.5 m tall): 4 m between the ropes
+Default size is scaled to the robot (about 1.6 m tall): 4 m between the ropes
 (a pro ring is 4.9-7.3 m for 1.8 m people), ropes at 0.35 / 0.65 / 0.95 m.
 Posts and ropes collide with both fighters' hitboxes (bit 3), not with feet.
 """

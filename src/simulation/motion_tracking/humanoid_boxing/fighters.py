@@ -1,4 +1,4 @@
-"""Wato fighter entity: the tracking robot plus boxing gloves and hitboxes.
+"""Pioneer fighter entity: the tracking robot plus boxing gloves and hitboxes.
 
 Collision layout (MuJoCo contype/conaffinity bits):
   bit 0 (1)  floor        - feet (box under each sole, as in the tracking task)
@@ -33,73 +33,73 @@ ROPE_BIT = 8
 TEAM_RGBA = {"red": (0.80, 0.30, 0.28, 1.0), "blue": (0.30, 0.40, 0.80, 1.0)}
 GLOVE_RGBA = {"red": (0.65, 0.05, 0.05, 1.0), "blue": (0.05, 0.12, 0.60, 1.0)}
 
-GLOVE_RADIUS = 0.06
-HEAD_RADIUS = 0.10
+GLOVE_RADIUS = 0.07  # round the fist (12.6 x 13.4 x 16.9 cm)
+HEAD_RADIUS = 0.11
 ARM_RADIUS = 0.045
 LEG_RADIUS = 0.06
 
-WRISTS = {"l": "Mirrorlink6__1__1", "r": "link6__1__1"}
-CLAWS = {"l": ("Mirrorlink7__1__1", "Mirrorlink8__1__1"), "r": ("link7__1__1", "link8__1__1")}
-HEAD_BODY = "baseLink__1__1"  # shoulder frame; the robot has no head, the target sits on top
-TORSO_BODY = "Torso_1"
+WRISTS = {"l": "l_hand_H", "r": "r_hand_H"}  # the hands, closed into fists (humanoid_tracking/robot.py)
+HEAD_BODY = "head"
+TORSO_BODY = "torso"
 PELVIS_BODY = "base_link"
 # capsule from the body's origin to its child's origin (fixed offsets, exact)
 LIMB_CHAINS = {
   "arm": [
-    ("Mirrorlink2__1__1", "Mirrorlink3__1__1"),
-    ("Mirrorlink3__1__1", "Mirrorlink4__1__1"),
-    ("Mirrorlink4__1__1", "Mirrorlink5__1__1"),
-    ("Mirrorlink5__1__1", "Mirrorlink6__1__1"),
-    ("link2__1__1", "link3__1__1"),
-    ("link3__1__1", "link4__1__1"),
-    ("link4__1__1", "link5__1__1"),
-    ("link5__1__1", "link6__1__1"),
+    ("l_arm_link2", "l_arm_link3"),  # shoulder
+    ("l_arm_link3", "l_arm_link4"),  # upper arm, to the elbow
+    ("l_arm_link4", "l_forearm"),  # forearm
+    ("l_forearm", "l_hand_W"),  # to the wrist
+    ("r_arm_link2", "r_arm_link3"),
+    ("r_arm_link3", "r_arm_link4"),
+    ("r_arm_link4", "r_forearm"),
+    ("r_forearm", "r_hand_W"),
   ],
   "leg": [
-    ("left_hip_r_1", "left_thigh_1"),
-    ("left_thigh_1", "left_calf_1"),
-    ("left_calf_1", "left_foot_joint_1"),
-    ("right_hip_r_1", "right_thigh_1"),
-    ("right_thigh_1", "right_calf_1"),
-    ("right_calf_1", "right_foot_joint_1"),
+    ("l_hip_roll_link", "l_thigh"),
+    ("l_thigh", "l_shank_foot"),  # thigh, to the knee
+    ("l_shank_foot", "l_ankle_cross"),  # shank, to the ankle
+    ("r_hip_roll_link", "r_thigh"),
+    ("r_thigh", "r_shank_foot"),
+    ("r_shank_foot", "r_ankle_cross"),
   ],
 }
 
-# Orthodox boxing stance: frame 0 of scripts/generate_moves.py (boxing take at
-# 8.2 s, stance scaled to 0.75, hips 6 cm lower, both soles flat, weight 50/50).
-# Root pose is relative to the centre between the feet, facing +x (the
-# opponent). Regenerate from data/motions/moves.csv row 0 if the stance changes.
-STANCE_ROOT_POS = (-0.0524, -0.0069, 0.7325)
-STANCE_ROOT_QUAT = (0.5629, -0.0713, 0.082, -0.8194)  # wxyz
+# Orthodox boxing stance: frame 0 of scripts/generate_moves.py (Wato's stance made on this robot:
+# 60% of its length, hips 5 cm lower, both soles flat, weight 50/50; see that script). Root pose is
+# relative to the centre between the feet, facing +x (the opponent). Regenerate from
+# data/motions/moves.csv row 0 if the stance changes.
+STANCE_ROOT_POS = (-0.0864, 0.0160, 0.7979)
+STANCE_ROOT_QUAT = (0.5629, -0.0713, 0.0820, -0.8194)  # wxyz
 STANCE_JOINTS = {
-  "left_hip_a_akh70": 0.8392,
-  "left_hip_r_rs04": -0.2128,
-  "left_thigh_rs03": 0.0229,
-  "left_knee_akh70": 1.1640,
-  "left_foot_joint_simMotor1": -0.5223,
-  "left_foot_joint_simMotor2": 0.0262,
-  "right_hip_a_akh70": 0.4150,
-  "right_hip_r_rs04": -0.1368,
-  "right_thigh_rs03": -0.4047,
-  "right_knee_akh70": -0.8805,
-  "right_foot_joint_simMotor1": -0.6171,
-  "right_foot_joint_simMotor2": -0.0062,
-  "left_shoulder_ak10_1_pitch": 0.4223,
-  "left_shoulder_ak10_2_roll": 0.4125,
-  "left_elbow_ak80_1_yaw": 0.4813,
-  "left_elbow_ak80_2_bend": -0.3951,
-  "left_elbow_ak80_3_forearm": -1.9173,
-  "left_wrist_gl40": 0.3040,
-  "left_claw_1": 0.0000,
-  "left_claw_2": 0.0000,
-  "right_shoulder_ak10_1_pitch": 1.6594,
-  "right_shoulder_ak10_2_roll": -0.2783,
-  "right_elbow_ak80_1_yaw": -1.1606,
-  "right_elbow_ak80_2_bend": -0.5358,
-  "right_elbow_ak80_3_forearm": 0.3020,
-  "right_wrist_gl40": 0.4943,
-  "right_claw_1": 0.0000,
-  "right_claw_2": 0.0000,
+  "waist_yaw": 0.0000,
+  "neck_yaw": 0.0000,
+  "neck_pitch": 0.0000,
+  "r_shoulder_pitch": -1.2274,
+  "r_shoulder_roll": 0.1689,
+  "r_upper_arm_yaw": 0.5897,
+  "r_elbow": -1.5708,
+  "r_forearm_roll": -0.9657,
+  "r_wrist_dev": 0.5236,
+  "r_wrist_flex": 0.6603,
+  "l_shoulder_pitch": -1.1789,
+  "l_shoulder_roll": 0.3712,
+  "l_upper_arm_yaw": 0.3175,
+  "l_elbow": -1.5708,
+  "l_forearm_roll": -0.1493,
+  "l_wrist_dev": 0.4846,
+  "l_wrist_flex": 0.4879,
+  "Hip_F_L": 0.7378,
+  "Hip_A_L": 0.0315,
+  "Hip_R_L": 0.0779,
+  "Knee_L": -0.6262,
+  "Ankle_P_L": -0.1061,
+  "Ankle_R_L": -0.0359,
+  "Hip_F_R": 0.5386,
+  "Hip_A_R": 0.0645,
+  "Hip_R_R": 0.4491,
+  "Knee_R": -0.6981,
+  "Ankle_P_R": -0.3693,
+  "Ankle_R_R": -0.0604,
 }
 
 
@@ -160,9 +160,9 @@ def add_hitboxes(spec: mujoco.MjSpec, team: Team) -> None:
       **kw,
     )
 
-  # gloves: between the claws, on the wrist body
+  # gloves: around the fist, on the hand body
   for side, wrist in WRISTS.items():
-    a, b = (data.xpos[model.body(n).id] for n in CLAWS[side])
+    pts = _mesh_points_world(model, data, wrist)
     add(
       wrist,
       f"glove_{side}",
@@ -170,14 +170,12 @@ def add_hitboxes(spec: mujoco.MjSpec, team: Team) -> None:
       rgba=GLOVE_RGBA[team],
       type=mujoco.mjtGeom.mjGEOM_SPHERE,
       size=(GLOVE_RADIUS, 0, 0),
-      pos=_to_body(data, model, wrist, (a + b) / 2),
+      pos=_to_body(data, model, wrist, (pts.min(0) + pts.max(0)) / 2),
     )
 
-  # head: sphere at the top of the shoulder frame
+  # head: sphere at the centre of the head
   pts = _mesh_points_world(model, data, HEAD_BODY)
-  top = pts[:, 2].max()
-  cap = pts[pts[:, 2] > top - 0.15]
-  centre = np.array([*cap[:, :2].mean(0), top - HEAD_RADIUS])
+  centre = (pts.min(0) + pts.max(0)) / 2
   add(HEAD_BODY, "head", type=mujoco.mjtGeom.mjGEOM_SPHERE, size=(HEAD_RADIUS, 0, 0), pos=_to_body(data, model, HEAD_BODY, centre))
 
   # torso / pelvis: world-axis boxes around the meshes
@@ -241,9 +239,8 @@ def scaled_actuators(gain_scale: float) -> tuple:
   )
 
 
-# Sensors. The bar on top of the shoulder frame matches a RealSense D455
-# (132 x 30 mm vs 124 x 29 mm); the camera sits at its front face looking
-# forward. The ultrasonic sensor sits at the front of the chest. Each has a
+# Sensors. The camera (a RealSense D455) sits on the front of the head's visor at
+# eye height (the centre of the head), looking forward. The ultrasonic sensor sits at the front of the chest. Each has a
 # site (used by humanoid_boxing/perception.py; frame: -z forward, +y up, +x right,
 # like a MuJoCo camera) and the camera also a MuJoCo <camera> for rendering.
 CAMERA_SITE = "d455"
@@ -267,10 +264,11 @@ def add_sensors(spec: mujoco.MjSpec) -> None:
   data = mujoco.MjData(model)
   mujoco.mj_kinematics(model, data)
 
-  # camera: front face of the bar on top of the shoulder frame
+  # camera: front of the head at eye height (the head's centre)
   pts = _mesh_points_world(model, data, HEAD_BODY)
-  bar = pts[pts[:, 2] > pts[:, 2].max() - 0.03]
-  cam = np.array([bar[:, 0].mean(), bar[:, 1].max(), bar[:, 2].mean()])
+  zc = (pts[:, 2].min() + pts[:, 2].max()) / 2
+  band = pts[np.abs(pts[:, 2] - zc) < 0.02]
+  cam = np.array([(band[:, 0].min() + band[:, 0].max()) / 2, band[:, 1].max(), zc])
   quat = _forward_frame_quat(data, model, HEAD_BODY)
   pos = _to_body(data, model, HEAD_BODY, cam)
   spec.body(HEAD_BODY).add_site(name=CAMERA_SITE, pos=pos, quat=quat, size=(0.01, 0.01, 0.01), group=4)
