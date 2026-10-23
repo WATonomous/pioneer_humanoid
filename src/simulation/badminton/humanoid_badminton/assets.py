@@ -3,10 +3,11 @@
 The gate-validated scene file stays the single source of geometry and
 calibration. Three views of it are produced here:
 
-  robot_spec()    arm + stand + racket, XML actuators kept
+  robot_spec()    both arms + stand + two rackets, XML actuators kept
   shuttle_spec()  free-floating shuttle (3 geoms + visual mesh)
-  court_fn(spec)  scene hook: attaches court/net/floor and adds the four
-                  explicit contact pairs across the entity prefixes
+  court_fn(spec)  scene hook: attaches court/net/floor and re-adds every
+                  explicit contact pair of the scene file (shuttle vs faces,
+                  floor, net; inter-arm clashes) with entity prefixes
 
 Splitting is by deletion, not reconstruction, so params.yaml edits and
 build_scene.py reruns flow through unchanged.
@@ -26,7 +27,11 @@ SCENE_DIR = os.path.dirname(os.path.abspath(SCENE_XML))
 
 ROBOT_ROOT = "arm_base_link"
 SHUTTLE_ROOT = "shuttle"
-ARM_JOINTS = tuple(f"arm_joint{i}" for i in range(1, 7))
+_P = aero.load_params()["arm"]
+ARM_JOINTS_R = tuple("arm_" + j for j in _P["joints"])
+ARM_JOINTS_L = tuple("arm_" + j for j in _P["joints_left"])
+ARM_JOINTS = ARM_JOINTS_R + ARM_JOINTS_L     # actuator / action order
+FACE_SITES = ("face_center", "face_center_l")
 
 
 def _load() -> mujoco.MjSpec:
@@ -91,28 +96,38 @@ def court_fn(spec: mujoco.MjSpec) -> None:
     frame = spec.worldbody.add_frame()
     spec.attach(court, prefix="court/", frame=frame)
 
-    p = aero.load_params()
-    c = p["contact"]
-    cork, skirt = "shuttle/shuttle_cork", "shuttle/shuttle_col"
-    face, floor, net = "robot/racket_face", "court/floor", "court/net"
+    # the scene file's pairs are the contact contract; re-add each one with
+    # the prefix of the entity that now owns its geoms
+    src = _load()
+    shuttle_geoms = {g.name for g in src.body(SHUTTLE_ROOT).find_all("geom")}
+    court_geoms = {g.name for g in src.worldbody.geoms} | {
+        g.name for g in src.body("net_body").find_all("geom")}
 
-    def pair(g1, g2, solref, solimp=None):
-        pr = spec.add_pair(geomname1=g1, geomname2=g2, solref=solref)
-        if solimp is not None:
-            pr.solimp[: len(solimp)] = solimp
+    def owner(name: str) -> str:
+        if name in shuttle_geoms:
+            return "shuttle/" + name
+        if name in court_geoms:
+            return "court/" + name
+        return "robot/" + name
 
-    pair(floor, skirt, list(c["floor_solref"]))
-    pair(floor, cork, list(c["floor_solref"]))
-    pair(net, skirt, list(c["net_solref"]))
-    pair(cork, face, list(c["face_solref"]), list(c["face_solimp"]))
+    for pr in src.pairs:
+        new = spec.add_pair(geomname1=owner(pr.geomname1),
+                            geomname2=owner(pr.geomname2))
+        new.solref = pr.solref
+        new.solimp = pr.solimp
 
 
-# Ready pose = the scene keyframe's arm joints (see scripts/build_scene.py).
+# Ready pose (the policy's action offset). joint5 1.5708 sits outside its
+# 1.31 rad range, so the action clip holds it at 1.31; the trained policies
+# carry that offset, so it stays. The left arm holds the mirrored pose.
+_READY_R = (-1.5708, 0.0, 0.0, 0.0, 1.5708, -1.5708)
 READY_JOINT_POS = {
-    "arm_joint1": -1.5708,
-    "arm_joint2": 0.0,
-    "arm_joint3": 0.0,
-    "arm_joint4": 0.0,
-    "arm_joint5": 1.5708,
-    "arm_joint6": -1.5708,
+    **dict(zip(ARM_JOINTS_R, _READY_R)),
+    **{j: s * q for j, s, q in zip(ARM_JOINTS_L, _P["left_mirror"], _READY_R)},
 }
+
+
+def joint_ranges() -> dict[str, tuple[float, float]]:
+    """Arm joint ranges from the built scene (params clipped to the URDF)."""
+    m = mujoco.MjModel.from_xml_path(os.path.abspath(SCENE_XML))
+    return {j: tuple(float(v) for v in m.joint(j).range) for j in ARM_JOINTS}
