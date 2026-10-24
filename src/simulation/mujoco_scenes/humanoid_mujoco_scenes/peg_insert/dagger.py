@@ -54,7 +54,21 @@ def train_act(args, checkpoint, datasets, directory):
     return training / "checkpoints" / f"{end:06d}", training / "checkpoints" / f"{end:06d}" / "pretrained_model"
 
 
-TRAINERS = {"act": train_act}
+def train_flow(args, checkpoint, datasets, directory):
+    """Branch the flow checkpoint onto all data so far at a constant low LR (keeps its normalization)."""
+    import torch
+
+    end = torch.load(checkpoint, map_location="cpu", weights_only=False)["step"] + args.steps_per_round
+    final = directory / "training" / "checkpoints" / f"{end:06d}.pt"
+    if not final.exists():
+        phases = ["--phase-config", args.phase_config] if args.phase_config else []
+        run_module("humanoid_il.flow_transformer.train", "--root", directory / "training", *[x for d in datasets for x in ("--dataset", d)],
+                   "--resume-from", checkpoint, "--schedule", "constant", "--lr", args.flow_lr, "--vision-lr", args.flow_lr / 10,
+                   "--steps", end, "--save-freq", args.steps_per_round, "--batch-size", args.batch_size, "--device", args.device, *phases)
+    return final, final
+
+
+TRAINERS = {"act": train_act, "flow": train_flow}
 
 
 def run_round(args, index, checkpoint, policy_path, datasets):
@@ -85,7 +99,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--root", type=Path, required=True)
     p.add_argument("--policy-type", choices=sorted(TRAINERS), default="act")
-    p.add_argument("--checkpoint", type=Path, required=True, help="training checkpoint to continue (with training state)")
+    p.add_argument("--checkpoint", type=Path, required=True, help="ACT checkpoint directory (with training_state) or flow <step>.pt")
     p.add_argument("--base-dataset", type=Path, required=True)
     p.add_argument("--extra-dataset", type=Path, action="append", default=[], help="prior correction datasets to keep training on")
     p.add_argument("--rounds", type=int, default=5)
@@ -97,6 +111,7 @@ def main():
     p.add_argument("--steps-per-round", type=int, default=6000)
     p.add_argument("--batch-size", type=int, default=8)
     p.add_argument("--phase-config", type=Path)
+    p.add_argument("--flow-lr", type=float, default=1e-5, help="flow: constant transformer LR (vision LR is a tenth)")
     p.add_argument("--n-action-steps", type=int, default=25)
     p.add_argument("--eval-layouts", type=Path)
     p.add_argument("--eval-seed", type=int, default=1000)

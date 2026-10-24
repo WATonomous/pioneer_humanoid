@@ -26,4 +26,4 @@ humanoid-record = "humanoid_robot_learning.record:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["humanoid_robot_learning*"]
+include = ["humanoid_robot_learning*", "humanoid_il*"]

@@ -1,4 +1,4 @@
-"""Closed-loop, unassisted evaluation of a trained policy (ACT or flow) in the peg-insert scene.
+"""Closed-loop, unassisted evaluation of a trained policy (ACT or flow transformer) in the peg-insert scene.
 
 The policy sees exactly its training inputs (ego + wrist RGB, seven-value measured state) and its
 absolute actuator targets are applied at 25 Hz. Privileged poses are used only for reset and
@@ -226,13 +226,15 @@ def open_viewer(model, data, stack):
 
 
 def policy_options(args):
+    if args.refinement_steps is not None:
+        return {"refinement_steps": args.refinement_steps}
     return {"temporal_ensemble_coeff": args.temporal_ensemble_coeff, "no_temporal_ensemble": args.no_temporal_ensemble} \
         if args.temporal_ensemble_coeff is not None or args.no_temporal_ensemble else {}
 
 
 def parser():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--checkpoint", type=Path, required=True, help="ACT pretrained_model directory")
+    p.add_argument("--checkpoint", type=Path, required=True, help="ACT pretrained_model directory or flow <step>.pt")
     p.add_argument("--device", choices=("cpu", "mps", "cuda"), default="cpu")
     p.add_argument("--report", type=Path, required=True, help="new JSON report path")
     p.add_argument("--layouts", type=Path, help="explicit layouts JSON (workspace sample); replaces --episodes/--seed")
@@ -244,6 +246,7 @@ def parser():
     ensemble = p.add_mutually_exclusive_group()
     ensemble.add_argument("--temporal-ensemble-coeff", type=float, help="ACT temporal ensembling (queries every step)")
     ensemble.add_argument("--no-temporal-ensemble", action="store_true", help="disable ensembling saved in the ACT config")
+    p.add_argument("--refinement-steps", type=int, help="flow: Euler steps per chunk (default: the checkpoint's)")
     p.add_argument("--start-stage", choices=("full", "insertion"), default="full")
     p.add_argument("--insertion-case", choices=INSERTION_CASES, default="aligned")
     p.add_argument("--trace-dir", type=Path, help="per-step physical traces (restorable states)")

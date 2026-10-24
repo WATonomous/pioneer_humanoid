@@ -8,7 +8,8 @@ Sources:
   takeover  roll out ``--checkpoint``; hand off when ``--trigger`` fires
             (approach: within 3 cm of the hole | stall: stalled/tilted/misaligned at the rim | rim-jam)
   tasks     expert-prepared held starts: ``--tasks broad`` (80 offsets/heights/tilts around the hole),
-            ``large-tilt`` (24 starts tilted 6-12 deg) or a JSON file of insertion cases / task dicts
+            ``large-tilt`` (24 starts tilted 6-12 deg), ``paired`` (23 opposite hole offsets around shared
+            held anchors; needs ``--map``, optional ``--selection`` reserved cells) or a JSON task file
   traces    failed episodes of an ``eval --trace-dir`` run: first rim contact, hover or pre-drop state
 
   python -m humanoid_mujoco_scenes.peg_insert.collect_corrections --source takeover --trigger stall \\
@@ -30,7 +31,7 @@ import numpy as np
 from humanoid_mujoco_scenes import make_model
 from .eval import EpisodeTracker, rollout
 from .expert import FPS, ExpertFailure, PegExpert
-from .handoffs import DETECTORS, broad_coverage_tasks, large_tilt_tasks, prepare_insertion, prepare_task, restore, trace_starts
+from .handoffs import DETECTORS, broad_coverage_tasks, large_tilt_tasks, paired_hole_tasks, prepare_insertion, prepare_task, restore, trace_starts
 from .recording import CAMERAS, RawDataset, snapshot
 
 REWIND_STEPS = [0, 2, 5, 10, 25, 50]  # trace frames to step back when a state is already unrecoverable
@@ -90,13 +91,36 @@ def from_takeover(args, expert, raw, renderers):
             correct(expert, raw, renderers, next_id(raw, args), args.hold_seconds, info)
 
 
+def pilot(model):
+    """Physical dry run of a task (no recording): prepare it, then guarded insertion and release."""
+    def run(task):
+        expert = PegExpert(model, mujoco.MjData(model), guarded=True)
+        layout = task["layout"]
+        expert.reset(task["layout_seed"], 0, layout["peg_xy"], layout["hole_xy"])
+        try:
+            prepare_task(expert, task)
+            expert.takeover(0)
+            return expert.inserted() and expert.released()
+        except ExpertFailure:
+            return False
+    return run
+
+
+def load_tasks(args, model):
+    if args.tasks == "paired":
+        reserved = json.loads(args.selection.read_text()).get("heldout_cells", []) if args.selection else []
+        return paired_hole_tasks(json.loads(args.map.read_text())["cells"], reserved, verify=pilot(model))
+    generators = {"broad": broad_coverage_tasks, "large-tilt": large_tilt_tasks}
+    return generators[args.tasks]() if args.tasks in generators else json.loads(Path(args.tasks).read_text())["tasks"]
+
+
 def from_tasks(args, expert, raw, renderers):
-    tasks = {"broad": broad_coverage_tasks, "large-tilt": large_tilt_tasks}.get(args.tasks, lambda: json.loads(Path(args.tasks).read_text())["tasks"])()
-    for index, task in enumerate(tasks):
+    for index, task in enumerate(load_tasks(args, expert.model)):
         identity = f"task_{index}_{task['layout_seed']}"
         if raw.has("identity", identity):
             continue
-        expert.reset(task["layout_seed"], args.randomize)
+        layout = task.get("layout")
+        expert.reset(task["layout_seed"], args.randomize, *((layout["peg_xy"], layout["hole_xy"]) if layout else ()))
         try:
             setup = prepare_task(expert, task)
         except ExpertFailure as exc:
@@ -152,7 +176,9 @@ def main():
     policy.add_argument("--max-seconds", type=float, default=60)
     policy.add_argument("--start-stage", choices=("full", "insertion"), default="full")
     policy.add_argument("--insertion-case", default="aligned")
-    p.add_argument("--tasks", help="broad | large-tilt | JSON file with {'tasks': [...]}")
+    p.add_argument("--tasks", help="broad | large-tilt | paired | JSON file with {'tasks': [...]}")
+    p.add_argument("--map", type=Path, help="workspace_map.json (paired tasks)")
+    p.add_argument("--selection", type=Path, help="selection plan whose heldout_cells paired tasks must avoid")
     p.add_argument("--eval-report", type=Path)
     p.add_argument("--trace-dir", type=Path)
     args = p.parse_args()
