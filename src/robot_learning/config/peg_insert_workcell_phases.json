@@ -1,0 +1,12 @@
+{
+  "description": "Adapting 1 mm-scene policies to the 4 mm lightbox workcell: 2 frames per batch from the old scene's data (baseline), the rest from workcell demos and corrections, split by phase so grasp, transport/alignment, recovery and insertion all stay represented.",
+  "quotas": {"baseline": 2, "grasp": 2, "precision": 2, "recovery": 1, "completion": 1},
+  "rules": [
+    {"pool": "grasp", "phases": ["approach", "descend_to_grasp", "close", "lift"]},
+    {"pool": "recovery", "phases": ["align", "recover_realign"], "condition_prefix": "tilt"},
+    {"pool": "precision", "phases": ["align"]},
+    {"pool": "recovery", "phases": ["recover_realign", "takeover_retract"]},
+    {"pool": "completion", "phases": ["insert", "verify_seating", "release", "retreat"]}
+  ],
+  "metric_phases": ["align", "recover_realign", "insert"]
+}
