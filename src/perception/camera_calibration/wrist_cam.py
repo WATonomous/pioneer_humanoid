@@ -19,23 +19,14 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-DEFAULT_CALIB = Path(__file__).resolve().parent / "wrist_cam_calib_1080"
+from pioneer_humanoid.camera_info import CALIB_DIR, read_camera_info
+
+DEFAULT_CALIB = CALIB_DIR  # src/pioneer_humanoid/pioneer_humanoid/calib
 
 
-def read_camera_info(path: Path):
-    """(size, K, dist) from a camera_info YAML written by calibrate_intrinsics.py."""
-    text = Path(path).read_text()
-
-    def data(key):
-        block = text.split(key + ":", 1)[1]
-        inside = block.split("data: [", 1)[1].split("]", 1)[0]
-        return np.array([float(v) for v in inside.split(",")])
-
-    def scalar(key):
-        return int(text.split(key + ":", 1)[1].split()[0])
-
-    return ((scalar("image_width"), scalar("image_height")), data("camera_matrix").reshape(3, 3),
-            data("distortion_coefficients"))
+def _load(path: Path):
+    size, K, dist = read_camera_info(path)
+    return size, np.array(K), np.array(dist)
 
 
 class WristCam:
@@ -44,12 +35,12 @@ class WristCam:
     def __init__(self, calib_dir: Path | str = DEFAULT_CALIB, name: str = "wrist_cam",
                  out_size: tuple[int, int] = (640, 480)):
         calib_dir = Path(calib_dir)
-        self.raw_size, self.raw_K, self.raw_dist = read_camera_info(calib_dir / f"{name}.yaml")
+        self.raw_size, self.raw_K, self.raw_dist = _load(calib_dir / f"{name}.yaml")
         pinhole = calib_dir / f"{name}_pinhole_{out_size[0]}x{out_size[1]}.yaml"
         if not pinhole.exists():
             raise FileNotFoundError(f"{pinhole} missing; run: calibrate_intrinsics.py pinhole "
-                                    f"--out {calib_dir} --size {out_size[0]} {out_size[1]}")
-        self.size, self.K, _ = read_camera_info(pinhole)
+                                    f"--size {out_size[0]} {out_size[1]}")
+        self.size, self.K, _ = _load(pinhole)
         self._map1, self._map2 = cv2.initUndistortRectifyMap(
             self.raw_K, self.raw_dist, None, self.K, self.size, cv2.CV_16SC2)
 

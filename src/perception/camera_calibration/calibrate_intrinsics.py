@@ -3,8 +3,9 @@
 
   board    printable board PNG
   capture  live capture (auto-saves still, new poses), then solve
-  solve    fit from saved images; writes a ROS camera_info YAML
-  pinhole  ideal pinhole target for wrist_cam.py (what the sim renders) + a sample image
+  solve    fit from saved images; writes a ROS camera_info YAML to pioneer_humanoid/calib/
+  pinhole  ideal pinhole target for wrist_cam.py and the sim, into pioneer_humanoid/calib/,
+           plus a sample image in --out
 """
 
 from __future__ import annotations
@@ -19,7 +20,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from wrist_cam import read_camera_info  # sibling module; Python puts this folder on the path
+from pioneer_humanoid.camera_info import CALIB_DIR, read_camera_info
 
 # 9x6 squares of 25 mm fits letter and A4. Changing these breaks boards already printed.
 SQUARES_X = 9
@@ -389,7 +390,7 @@ def cmd_solve(args) -> int:
         print(f"WARNING: focal length / principal point uncertainty above {2.0 * px_scale:.1f} px: "
               "add tilted views.")
 
-    yaml_path = out / f"{args.name}.yaml"
+    yaml_path = Path(args.calib_dir) / f"{args.name}.yaml"
     notes = [f"intrinsics from {Path(__file__).name} on {datetime.date.today().isoformat()}",
              f"rms {rms:.4f} px over {len(used)} views; ChArUco {SQUARES_X}x{SQUARES_Y} "
              f"square {args.square_mm} mm",
@@ -417,8 +418,9 @@ def widest_pinhole_focal(size, K, dist, out_size) -> float:
 
 def cmd_pinhole(args) -> int:
     """Write the ideal pinhole camera real frames are remapped to, which is what the sim renders."""
-    out = Path(args.out)
-    size, K, dist = read_camera_info(out / f"{args.name}.yaml")
+    out, calib_dir = Path(args.out), Path(args.calib_dir)
+    size, K, dist = read_camera_info(calib_dir / f"{args.name}.yaml")
+    K, dist = np.array(K), np.array(dist)
     ow, oh = args.size
     widest = widest_pinhole_focal(size, K, dist, (ow, oh))
     f = args.focal_px if args.focal_px else round(widest * PINHOLE_MARGIN)
@@ -429,7 +431,7 @@ def cmd_pinhole(args) -> int:
     hfov = math.degrees(2 * math.atan(ow / (2 * f)))
     vfov = math.degrees(2 * math.atan(oh / (2 * f)))
 
-    path = out / f"{args.name}_pinhole_{ow}x{oh}.yaml"
+    path = calib_dir / f"{args.name}_pinhole_{ow}x{oh}.yaml"
     notes = [f"ideal pinhole that {args.name}.yaml frames are remapped to (zero distortion)",
              "real frames: cv2.initUndistortRectifyMap(K, dist, None, K_new, (w, h), cv2.CV_16SC2) "
              "then cv2.remap",
@@ -464,7 +466,8 @@ def main() -> int:
     def common(p):
         p.add_argument("--square-mm", type=float, required=True,
                        help="measured size of one printed square, in mm")
-        p.add_argument("--out", default="wrist_cam_calib", help="folder for images + result")
+        p.add_argument("--out", default="wrist_cam_calib", help="folder for the captured images")
+        p.add_argument("--calib-dir", default=str(CALIB_DIR), help="where the result YAML goes")
         p.add_argument("--name", default="wrist_cam", help="camera_name in the output YAML")
         p.add_argument("--rational", action="store_true",
                        help="8-coefficient distortion model, for wide-angle lenses")
@@ -483,7 +486,8 @@ def main() -> int:
     s.set_defaults(func=cmd_solve)
 
     ph = sub.add_parser("pinhole", help="write the undistorted pinhole camera the sim matches")
-    ph.add_argument("--out", default="wrist_cam_calib", help="folder holding <name>.yaml")
+    ph.add_argument("--out", default="wrist_cam_calib", help="image folder, for the sample image")
+    ph.add_argument("--calib-dir", default=str(CALIB_DIR), help="holds <name>.yaml; pinhole YAML goes here too")
     ph.add_argument("--name", default="wrist_cam")
     ph.add_argument("--size", type=int, nargs=2, default=(640, 480), metavar=("W", "H"))
     ph.add_argument("--focal-px", type=float, default=None,

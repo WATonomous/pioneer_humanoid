@@ -13,3 +13,7 @@ dependencies = []
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["pioneer_humanoid*"]
+
+[tool.setuptools.package-data]
+# Measured wrist camera + its sim pinhole: arm_params reads WRIST_FOCAL_MM from these at import.
+pioneer_humanoid = ["calib/*.yaml"]

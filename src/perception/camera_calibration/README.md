@@ -1,13 +1,22 @@
 # Camera calibration
 
 Calibration for the wrist camera, and the code that makes real wrist camera frames match the sim.
+The OpenCV code lives here. The calibration data lives in `pioneer_humanoid`, next to the sim
+config that reads it, so the sim side never needs OpenCV.
 
-| File | What it is |
-|---|---|
-| `calibrate_intrinsics.py` | ChArUco calibration tool: print a board, capture, solve, write the pinhole target |
-| `wrist_cam.py` | Use the wrist camera in code: `rectify(frame)` turns a real frame into the sim's image |
-| `wrist_cam_calib_1080/wrist_cam.yaml` | Measured lens of the real wrist camera (ROS camera_info, 1920x1080) |
-| `wrist_cam_calib_1080/wrist_cam_pinhole_640x480.yaml` | The ideal camera that real frames are remapped to, and that the sim renders |
+```
+src/perception/camera_calibration/
+    calibrate_intrinsics.py      ChArUco tool: board, capture, solve, pinhole; writes the YAMLs below
+    wrist_cam.py                 WristCam, rectify(), open_camera(), live preview
+    wrist_cam_calib_1080/        captured images (gitignored) + the rectified sample jpg
+
+src/pioneer_humanoid/pioneer_humanoid/
+    camera_info.py               read_camera_info(): YAML parser, plain Python, no cv2
+    arm_params.py                WRIST_FOCAL_MM, read from the pinhole YAML
+    calib/
+        wrist_cam.yaml                    measured real camera (ROS camera_info, 1920x1080)
+        wrist_cam_pinhole_640x480.yaml    ideal camera that real frames are remapped to = what the sim renders
+```
 
 ## Why this matters
 
@@ -25,9 +34,9 @@ real:  1920x1080 frame -> wrist_cam.rectify() -> 640x480 pinhole ─┘
 ```
 
 `rectify()` undistorts the frame, crops it to 4:3, scales it down and moves the optical centre to the
-middle of the image, all in one remap. In the sim, the lens is `WRIST_FOCAL_MM` in
-`src/pioneer_humanoid/pioneer_humanoid/arm_params.py`, used by the Pioneer wrist cameras and by
-`quest_cameras.py`.
+middle of the image, all in one remap. In the sim, the lens is `WRIST_FOCAL_MM` in `arm_params.py`,
+read from `calib/wrist_cam_pinhole_640x480.yaml` and used by the Pioneer wrist cameras and by
+`quest_cameras.py`. Changing the pinhole YAML changes the sim, with no code edit.
 
 ## Using the wrist camera in code
 
@@ -37,7 +46,7 @@ rectify them first:
 ```python
 from wrist_cam import WristCam, open_camera
 
-cam = WristCam()                # loads wrist_cam_calib_1080/
+cam = WristCam()                # loads pioneer_humanoid/calib/
 cap = open_camera(0, cam)       # opens at 1920x1080, the calibrated resolution
 ok, raw = cap.read()
 img = cam.rectify(raw)          # 640x480, matches the sim wrist camera
@@ -57,7 +66,7 @@ Calibrate again if you change the camera or the lens, or if the focus ring moves
 
 ```bash
 python3 -m venv ~/venvs/calib
-~/venvs/calib/bin/pip install opencv-python numpy
+~/venvs/calib/bin/pip install opencv-python numpy -e ../../pioneer_humanoid   # from this folder
 ```
 
 Use a separate venv. LeRobot installs `opencv-python-headless`, which can't open windows, and the
@@ -106,7 +115,8 @@ the lens first: a smudge blurs the whole image.
 
 ### 4. Check the result
 
-`capture` solves when you press Enter (re-run with `solve --square-mm 23.84 --out <folder>`). Check:
+`capture` solves when you press Enter and writes `pioneer_humanoid/calib/wrist_cam.yaml` (re-run with
+`solve --square-mm 23.84 --out <images folder>`; `--calib-dir` sends the YAML elsewhere). Check:
 
 | Output | Good |
 |---|---|
@@ -126,12 +136,12 @@ default model.
 ~/venvs/calib/bin/python calibrate_intrinsics.py pinhole --out wrist_cam_calib_1080
 ```
 
-This writes `wrist_cam_pinhole_640x480.yaml` and `wrist_cam_pinhole_sample.jpg`, a remapped
-calibration image. Check that the board's edges are straight and the corners aren't black. It picks
-the focal length as the widest the real image fully covers (702 px for the current camera) plus 3%,
+This writes `pioneer_humanoid/calib/wrist_cam_pinhole_640x480.yaml`, and
+`wrist_cam_calib_1080/wrist_cam_pinhole_sample.jpg`, a remapped calibration image. Check that the
+board's edges are straight and the corners aren't black. It picks the focal length as the widest the real image fully covers (702 px for the current camera) plus 3%,
 so no corner of the rectified image falls outside the real one. Pass `--focal-px` to keep a
-previous value instead. Whenever the focal length changes, set `WRIST_FOCAL_MM` in
-`arm_params.py` to `focal_px * 20.955 / 640` so the sim matches.
+previous value instead. The sim picks up a new focal length from the YAML automatically, but it
+changes what the sim wrist cameras see, so datasets recorded before and after don't mix.
 
 ## Gotchas
 
@@ -140,7 +150,9 @@ previous value instead. Whenever the focal length changes, set `WRIST_FOCAL_MM` 
   optical centre near the top-right corner of the image. Always capture at full resolution.
 - **Low error doesn't mean a good calibration.** 40 face-on views gave 0.19 px RMS with a
   principal point 160 px off. Tilted views are what pin down the focal length and centre.
-- **Commit the YAMLs, not the images.** `*/images/` is gitignored (~120 MB per run).
+- **Commit the YAMLs, not the images.** `*/images/` is gitignored (~120 MB per run). The YAMLs
+  ship with the `pioneer_humanoid` package (`package-data` in its `pyproject.toml`), because
+  `arm_params` reads them at import, including on the real-arm side.
 
 ## Current wrist camera
 
