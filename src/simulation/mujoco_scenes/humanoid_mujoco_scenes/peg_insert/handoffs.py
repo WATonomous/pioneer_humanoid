@@ -8,6 +8,7 @@ the peg during a rollout.
 |----------------------------|--------------------------------------------------------------|--------------------------|
 | insertion case             | expert grasps, lifts, servos 10 cm above the hole (+offset/tilt) | eval ``--start-stage``, tasks |
 | broad start                | as above, at an arbitrary mm offset/clearance/tilt            | ``tasks`` corrections     |
+| paired anchor              | peg held 11 cm up at a fixed point; hole reset 5-20 mm either side | ``tasks`` corrections |
 | approach (detector)        | policy holds the lifted peg within 3 cm XY of the hole        | ``takeover`` corrections  |
 | targeted stall (detector)  | ... and stalls/tilts/descends misaligned at the rim           | ``takeover`` corrections  |
 | rim jam (detector)         | held peg touches the rim tilted >=3 deg or stalls 0.36 s      | ``takeover`` corrections  |
@@ -84,7 +85,14 @@ def prepare_insertion(expert, case):
 
 
 def prepare_task(expert, task):
-    """A task dict from ``broad_coverage_tasks``/``large_tilt_tasks`` or a fixed insertion case."""
+    """A task dict from the generators below, or a fixed insertion case (``{"condition": case}``)."""
+    if "anchor_xy" in task:
+        pick_up(expert)
+        expert.phase = Phase.SETUP
+        expert.peg_servo(np.r_[task["anchor_xy"], TABLE_TOP_Z + PEG_HEIGHT / 2 + 0.11], speed=0.03, timeout=20)
+        if not expert.contacts() or np.linalg.norm(expert.peg_pos[:2] - task["anchor_xy"]) > 0.0004:
+            raise ExpertFailure("paired anchor not reached while held")
+        return {"held_peg_position": expert.peg_pos.tolist(), "held_state": expert.state().tolist()}
     if "offset_mm" not in task:
         return prepare_insertion(expert, task["condition"])
     pick_up(expert)
@@ -128,6 +136,58 @@ def large_tilt_tasks():
                               "tilt_degrees": 9 if axis == "x" and angle == 12 else angle, "tilt_axis": axis,
                               "broad_start": True})
     return tasks
+
+
+def paired_hole_tasks(cells, reserved=(), pairs=11, seed=400225, verify=None):
+    """Opposite hole placements around one held-peg anchor: the robot state is the same, only the hole differs.
+
+    Pair ``k`` moves the hole 5/8/12/16/20 mm (cycling) along angle ``k * 360/11`` deg either side of
+    an anchor jittered 0.5 mm from a valid mapped hole cell; pairs 0-8 use the 3-7 cm band, 9-10 the
+    inner band. Anchors are spread apart; cells in ``reserved`` (held-out) are never touched. A
+    final aligned control holds the peg straight over the nominal hole. ``verify(task) -> bool``
+    (a physical pilot) rejects anchors whose pair the expert cannot finish; the next-best is tried.
+    """
+    from .curate import eligible
+    from .scene import BLOCK_POS, PEG_POS
+    from .workspace import band, validate_layout
+
+    rng, tasks, anchors = np.random.default_rng(seed), [], []
+    for pair in range(pairs):
+        angle, distance = pair * 2 * np.pi / pairs, [0.005, 0.008, 0.012, 0.016, 0.02][pair % 5]
+        delta = distance * np.array([np.cos(angle), np.sin(angle)])
+        options = []
+        for cell in (c for c in cells if c["valid"] and c["group"] == "hole" and c["band"] == ("3_7" if pair < 9 else "0_3")):
+            anchor = np.asarray(cell["hole_xy"]) + rng.uniform(-0.0005, 0.0005, 2)
+            layouts = []
+            for sign in (-1, 1):
+                point = anchor + sign * delta
+                offset = point - np.array(BLOCK_POS)
+                layout = {"peg_xy": list(PEG_POS), "hole_xy": point.tolist(), "group": "hole", "band": band(np.linalg.norm(offset)),
+                          "cell": np.rint(offset / 0.01).astype(int).tolist()}
+                try:
+                    validate_layout(layout["peg_xy"], layout["hole_xy"])
+                except ValueError:
+                    break
+                if np.linalg.norm(offset) > 0.07 or (pair < 9 and layout["band"] != "3_7"):
+                    break
+                if not eligible({"placement": {"group": "hole", "xy": layout["hole_xy"], "cell": layout["cell"]}}, reserved):
+                    break
+                layouts.append((sign, layout))
+            if len(layouts) == 2:
+                spread = min((np.linalg.norm(anchor - a) for a in anchors), default=np.linalg.norm(anchor - np.array(BLOCK_POS)))
+                options.append((spread, anchor, layouts))
+        for _, anchor, layouts in sorted(options, key=lambda o: -o[0]):
+            candidate = [{"layout_seed": seed + len(tasks) + i, "pair_id": pair, "sign": sign, "anchor_xy": anchor.tolist(),
+                          "layout": layout, "condition": "paired_alignment"} for i, (sign, layout) in enumerate(layouts)]
+            if verify is None or all(verify(task) for task in candidate):
+                anchors.append(anchor)
+                tasks += candidate
+                break
+        else:
+            raise ValueError(f"no feasible anchor for pair {pair}")
+    nominal = {"peg_xy": list(PEG_POS), "hole_xy": list(BLOCK_POS), "group": "hole", "band": "0_3", "cell": [0, 0]}
+    return tasks + [{"layout_seed": seed + len(tasks), "pair_id": pairs, "sign": 0, "anchor_xy": list(BLOCK_POS),
+                     "layout": nominal, "condition": "paired_alignment"}]
 
 
 class ApproachDetector:
