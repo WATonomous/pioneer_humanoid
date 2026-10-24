@@ -65,8 +65,8 @@ def build_model(args, dataset_normalization):
     ema = copy.deepcopy(model).eval().requires_grad_(False)
     vision = list(model.vision.parameters())
     ids = {id(p) for p in vision}
-    optimizer = torch.optim.AdamW([{"params": vision, "lr": args.vision_lr}, {"params": [p for p in model.parameters() if id(p) not in ids], "lr": args.lr}],
-                                  weight_decay=1e-4)
+    head = [p for p in model.parameters() if id(p) not in ids]
+    optimizer = torch.optim.AdamW([{"params": vision, "lr": args.vision_lr}, {"params": head, "lr": args.lr}], weight_decay=1e-4)
     return config, model, ema, optimizer
 
 
