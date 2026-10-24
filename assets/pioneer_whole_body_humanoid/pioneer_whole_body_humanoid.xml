@@ -666,7 +666,7 @@
           <geom size="0.0589 0.0489925 0.1544" pos="-0.0094 -1.1e-05 -0.152017" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
           <body name="l_shank_foot" pos="0 0 -0.2615" gravcomp="1">
             <inertial pos="-0.005932 0.015397 -0.208131" quat="0.999639 0.00747367 0.0214229 0.0143958" mass="4.8588" diaginertia="0.0374774 0.0349656 0.00683497"/>
-            <joint name="Knee_L" range="-1.1345 0" actuatorfrcrange="-222 222" armature="0.01" damping="0.1" axis="-1 0 0"/>
+            <joint name="Knee_L" range="-2.4435 0" actuatorfrcrange="-222 222" armature="0.01" damping="0.1" axis="-1 0 0"/>
             <geom pos="-0.152 0 -0.436" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="l_shank_foot_0"/>
             <geom pos="-0.152 0 -0.436" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.604 0.62 0.643 1" density="0" material="cad23" mesh="l_shank_foot_1"/>
             <geom pos="-0.152 0 -0.436" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="l_shank_foot_2"/>
@@ -707,7 +707,7 @@
           <geom size="0.0589 0.0489925 0.1544" pos="0.0094 -1.1e-05 -0.152017" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
           <body name="r_shank_foot" pos="0 0 -0.2615" gravcomp="1">
             <inertial pos="0.005932 0.015397 -0.208131" quat="0.999639 0.00747367 -0.0214229 -0.0143958" mass="4.8588" diaginertia="0.0374774 0.0349656 0.00683497"/>
-            <joint name="Knee_R" range="-1.1345 0" actuatorfrcrange="-222 222" armature="0.01" damping="0.1" axis="-1 0 0"/>
+            <joint name="Knee_R" range="-2.4435 0" actuatorfrcrange="-222 222" armature="0.01" damping="0.1" axis="-1 0 0"/>
             <geom pos="0.152 0 -0.436" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="r_shank_foot_0"/>
             <geom pos="0.152 0 -0.436" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.604 0.62 0.643 1" density="0" material="cad23" mesh="r_shank_foot_1"/>
             <geom pos="0.152 0 -0.436" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="r_shank_foot_2"/>
@@ -794,13 +794,13 @@
     <general name="Hip_F_L" joint="Hip_F_L" ctrlrange="-0.3491 1.5708" ctrllimited="true" forcelimited="true" forcerange="-222 222" input="pos" biastype="affine" gainprm="4440" biasprm="0 -4440 -88.8"/>
     <general name="Hip_A_L" joint="Hip_A_L" ctrlrange="-0.1745 1.0472" ctrllimited="true" forcelimited="true" forcerange="-120 120" input="pos" biastype="affine" gainprm="2400" biasprm="0 -2400 -48"/>
     <general name="Hip_R_L" joint="Hip_R_L" ctrlrange="-0.5236 1.5708" ctrllimited="true" forcelimited="true" forcerange="-60 60" input="pos" biastype="affine" gainprm="1200" biasprm="0 -1200 -24"/>
-    <general name="Knee_L" joint="Knee_L" ctrlrange="-1.1345 0" ctrllimited="true" forcelimited="true" forcerange="-222 222" input="pos" biastype="affine" gainprm="4440" biasprm="0 -4440 -88.8"/>
+    <general name="Knee_L" joint="Knee_L" ctrlrange="-2.4435 0" ctrllimited="true" forcelimited="true" forcerange="-222 222" input="pos" biastype="affine" gainprm="4440" biasprm="0 -4440 -88.8"/>
     <general name="Ankle_P_L" joint="Ankle_P_L" ctrlrange="-0.5236 0.8727" ctrllimited="true" forcelimited="true" forcerange="-60 60" input="pos" biastype="affine" gainprm="1200" biasprm="0 -1200 -24"/>
     <general name="Ankle_R_L" joint="Ankle_R_L" ctrlrange="-0.2618 0.2618" ctrllimited="true" forcelimited="true" forcerange="-60 60" input="pos" biastype="affine" gainprm="1200" biasprm="0 -1200 -24"/>
     <general name="Hip_F_R" joint="Hip_F_R" ctrlrange="-0.3491 1.5708" ctrllimited="true" forcelimited="true" forcerange="-222 222" input="pos" biastype="affine" gainprm="4440" biasprm="0 -4440 -88.8"/>
     <general name="Hip_A_R" joint="Hip_A_R" ctrlrange="-0.1745 1.0472" ctrllimited="true" forcelimited="true" forcerange="-120 120" input="pos" biastype="affine" gainprm="2400" biasprm="0 -2400 -48"/>
     <general name="Hip_R_R" joint="Hip_R_R" ctrlrange="-0.5236 1.5708" ctrllimited="true" forcelimited="true" forcerange="-60 60" input="pos" biastype="affine" gainprm="1200" biasprm="0 -1200 -24"/>
-    <general name="Knee_R" joint="Knee_R" ctrlrange="-1.1345 0" ctrllimited="true" forcelimited="true" forcerange="-222 222" input="pos" biastype="affine" gainprm="4440" biasprm="0 -4440 -88.8"/>
+    <general name="Knee_R" joint="Knee_R" ctrlrange="-2.4435 0" ctrllimited="true" forcelimited="true" forcerange="-222 222" input="pos" biastype="affine" gainprm="4440" biasprm="0 -4440 -88.8"/>
     <general name="Ankle_P_R" joint="Ankle_P_R" ctrlrange="-0.5236 0.8727" ctrllimited="true" forcelimited="true" forcerange="-60 60" input="pos" biastype="affine" gainprm="1200" biasprm="0 -1200 -24"/>
     <general name="Ankle_R_R" joint="Ankle_R_R" ctrlrange="-0.2618 0.2618" ctrllimited="true" forcelimited="true" forcerange="-60 60" input="pos" biastype="affine" gainprm="1200" biasprm="0 -1200 -24"/>
   </actuator>
