@@ -64,12 +64,14 @@ def phase_at(episode, absolute):
 
 
 class ChunkDataset(Dataset):
-    def __init__(self, roots, chunk_size=50, fps=25, selection=None, phase_config=None, normalization=None):
+    def __init__(self, roots, chunk_size=50, fps=25, selection=None, phase_config=None, normalization=None, baseline=None):
         self.roots = [str(r) for r in roots]
         self.datasets, records = catalogue(roots, chunk_size, fps)
         plan = json.loads(Path(selection).read_text()) if selection else None
         self.episodes = select(records, plan)
-        baseline = set(plan.get("baseline_datasets", [])) if plan else set(range(max(1, len(roots) - 1)))
+        if baseline is None:
+            baseline = plan.get("baseline_datasets", []) if plan else range(max(1, len(roots) - 1))
+        baseline = set(baseline)
         self.config = phase_config
         self.index, self.metric, self.pools = [], [], {name: [] for name in (phase_config or {"quotas": {}})["quotas"]}
         metric_phases = set(phase_config.get("metric_phases", [])) if phase_config else set()

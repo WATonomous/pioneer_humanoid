@@ -131,7 +131,7 @@ def train(args):
         args.root.mkdir(parents=True, exist_ok=True)
         (args.root / "normalization.json").write_text(json.dumps(normalization, indent=2))
     dataset = ChunkDataset(args.dataset, config.chunk_size, args.fps, args.selection, phase_config,
-                           args.root / "normalization.json" if normalization is not None else None)
+                           args.root / "normalization.json" if normalization is not None else None, args.baseline_datasets)
     print("FLOW_DATA", json.dumps(dataset.describe()), flush=True)
     write_run_config(args, config, dataset)
     sampler = ResumeBatches(dataset.sampler(args.seed, args.batch_size), step - sampler_start)
@@ -202,6 +202,7 @@ def main():
     p.add_argument("--dataset", type=Path, action="append", required=True, help="LeRobot root; repeat; index 0 is the base demos")
     p.add_argument("--selection", type=Path, help="episode selection plan (identities, baseline_datasets)")
     p.add_argument("--phase-config", type=Path, help="phase-quota batches; batch size = quota total")
+    p.add_argument("--baseline-datasets", type=int, nargs="*", help="dataset indices wholly in the baseline pool (default: the plan's)")
     p.add_argument("--steps", type=int, default=100000, help="final global step of this schedule")
     p.add_argument("--stop-at", type=int, help="save and exit at this step (resume later)")
     p.add_argument("--schedule", choices=["cosine", "constant"], default="cosine")
