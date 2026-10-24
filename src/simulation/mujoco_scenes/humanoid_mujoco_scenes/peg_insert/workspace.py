@@ -212,7 +212,8 @@ def sample_layouts(args):
         rgb = {n: stack.enter_context(mujoco.Renderer(model, h, w)) for n, (h, w) in CAMERAS.items()} if raw else {}
         for group in ["peg", "hole"]:
             for band_name, target in zip(["0_3", "3_7"], args.counts):
-                pool = [c for c in cells if (c["group"], c["band"]) == (group, band_name)]
+                # A map made for another table may include cells off this one.
+                pool = [c for c in cells if (c["group"], c["band"]) == (group, band_name) and on_table(c)]
                 rng = np.random.default_rng([args.seed, group == "hole", band_name == "3_7"])
                 have = [a for a in accepted if (a["group"], a["band"]) == (group, band_name)]
                 for attempt in range(target * 8):
@@ -221,7 +222,10 @@ def sample_layouts(args):
                     seed = args.seed * 1000 + 100000 * (group == "hole") + 10000 * (band_name == "3_7") + attempt
                     if any(a["seed"] == seed for a in have):
                         continue
-                    layout = jitter_layout(pool[int(rng.integers(len(pool)))], rng, seed, args.jitter_mm / 1000)
+                    try:
+                        layout = jitter_layout(pool[int(rng.integers(len(pool)))], rng, seed, args.jitter_mm / 1000)
+                    except ValueError:  # cell too close to the table edge for any in-band jitter
+                        continue
                     if validate_and_record(expert, layout, seg, rgb, raw):
                         layout["split"] = args.split
                         have.append(layout)
@@ -229,6 +233,14 @@ def sample_layouts(args):
                         write_json(args.output, {"layouts": accepted})
                 if len(have) < target:
                     raise RuntimeError(f"only {len(have)}/{target} feasible {group}/{band_name} layouts")
+
+
+def on_table(cell):
+    try:
+        validate_layout(cell["peg_xy"], cell["hole_xy"])
+        return True
+    except ValueError:
+        return False
 
 
 def validate_and_record(expert, layout, seg, rgb, raw):
