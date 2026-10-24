@@ -8,6 +8,11 @@ level (56 vs 52, p = 0.67). Neither policy fails at grasping. Both fail at align
 that has moved 3–7 cm (fresh: flow 8/30, ACT 9/30). The cheapest next step is to train flow on
 corrections from *its own* failures, which it has never had. Plan at the end.
 
+> **Scene version.** Every result below was collected in the original `peg_insert` scene: **1 mm
+> total clearance** (0.5 mm per side), plain table at z = 0.705 m. `main` has since changed that
+> scene to 4 mm clearance in the lightbox workcell (table top 0.780 m). See "Zero-shot on the 4 mm
+> scene" for how these policies transfer.
+
 Task: pick up a 40 mm square peg and insert it into a block with 1 mm total clearance, left arm,
 25 Hz absolute joint targets, ego + wrist 640×480 RGB and 7-D proprioception. All numbers are
 unassisted closed-loop success (seated **and** released for 0.5 s within 60 s) from the
