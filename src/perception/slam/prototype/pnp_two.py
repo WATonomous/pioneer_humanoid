@@ -49,7 +49,8 @@ img1, _, _ = load(k0 + 5)  # current frame
 print(f"rgb-depth gap {gap*1000:.1f} ms, depth {depth0[depth0 > 0].min():.2f}-{depth0.max():.2f} m")
 
 # same as match_two where we match the features
-xfeat = torch.hub.load("verlab/accelerated_features", "XFeat", pretrained=True, top_k=1000).cuda()
+device = "cuda" if torch.cuda.is_available() else "cpu"
+xfeat = torch.hub.load("verlab/accelerated_features", "XFeat", pretrained=True, top_k=1000).to(device)
 d0 = xfeat.detectAndCompute(img0, top_k=1000)[0]
 d1 = xfeat.detectAndCompute(img1, top_k=1000)[0]
 d0["image_size"] = d1["image_size"] = (img0.shape[1], img0.shape[0])

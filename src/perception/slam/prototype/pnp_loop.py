@@ -10,7 +10,8 @@ K = np.array([[517.3, 0, 318.6], [0, 516.5, 255.3], [0, 0, 1]])
 DIST = np.array([0.2624, -0.9531, -0.0054,  0.0026, 1.1633])
 DEPTH_SCALE = 5000.0
 # Load XFeat once
-xfeat = torch.hub.load("verlab/accelerated_features", "XFeat", pretrained=True, top_k=1000).cuda()
+device = "cuda" if torch.cuda.is_available() else "cpu"
+xfeat = torch.hub.load("verlab/accelerated_features", "XFeat", pretrained=True, top_k=1000).to(device)
 
 # TUM ships text files in which every image is listed as timestamp filename
 # reads the line and skips commens returning ann araray of timestamps and a list of filenames
