@@ -30,6 +30,8 @@ mkdir -p "$WORK/tmp" "$RUN/logs" "$REPO"
 # Arrow materializes combined image datasets; keep the HF cache on NAS, not limited /tmp.
 export TMPDIR="$WORK/tmp" UV_CACHE_DIR="$WORK/uv-cache" HF_HOME="$PERSIST/cache/huggingface"
 export MUJOCO_GL=egl PYOPENGL_PLATFORM=egl PYTHONUNBUFFERED=1 OMP_NUM_THREADS=4
+# The nodes' PyPI downloads time out intermittently; retry instead of failing the job at install.
+export PIP_DEFAULT_TIMEOUT=120 PIP_RETRIES=10 UV_HTTP_TIMEOUT=300 UV_CONCURRENT_DOWNLOADS=4
 exec > >(tee -a "$RUN/logs/pipeline.log") 2>&1
 trap 'status=$?; printf "exit %s\n" "$status" > "$RUN/logs/exit_status"; exit $status' EXIT
 trap 'exit 143' TERM
