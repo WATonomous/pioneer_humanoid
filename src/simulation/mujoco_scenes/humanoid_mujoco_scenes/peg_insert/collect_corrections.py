@@ -6,7 +6,8 @@ restored eval-trace state. A failed correction is logged in ``manifest.json`` an
 
 Sources:
   takeover  roll out ``--checkpoint``; hand off when ``--trigger`` fires
-            (approach: within 3 cm of the hole | stall: stalled/tilted/misaligned at the rim | rim-jam)
+            (approach: within 3 cm of the hole | stall: stalled/tilted/misaligned at the rim | rim-jam |
+            pre-grasp: hand near the upright peg, recorded with ``--skill grasp`` up to a verified lift)
   tasks     expert-prepared held starts: ``--tasks broad`` (80 offsets/heights/tilts around the hole),
             ``large-tilt`` (24 starts tilted 6-12 deg) or a JSON file of insertion cases / task dicts
   traces    failed episodes of an ``eval --trace-dir`` run: first rim contact, hover or pre-drop state
@@ -47,15 +48,25 @@ def verified(expert, hold_seconds):
         return False
 
 
-def correct(expert, raw, renderers, episode_id, hold_seconds, info):
-    """Record the expert finishing from the current held state; returns success."""
+def finish(expert, skill, hold_seconds):
+    """Expert behaviour after the handoff, with its verification."""
+    if skill == "grasp":
+        expert.takeover_grasp()
+        if not expert.lifted():
+            raise ExpertFailure("grasp correction did not end with a lifted, held peg")
+        return
+    expert.takeover(hold_seconds)
+    if not expert.inserted() or not expert.released():
+        raise ExpertFailure("correction failed post-release check")
+
+
+def correct(expert, raw, renderers, episode_id, hold_seconds, info, skill="insert"):
+    """Record the expert finishing from the current state; returns success."""
     handoff = snapshot(expert)
     try:
         with raw.episode(episode_id, renderers) as writer:
             expert.on_frame = writer
-            expert.takeover(hold_seconds)
-            if not expert.inserted() or not expert.released():
-                raise ExpertFailure("correction failed post-release check")
+            finish(expert, skill, hold_seconds)
             summary = writer.commit(handoff)
         raw.add({**info, "seed": episode_id, "success": True, "takeover_strategy": expert.takeover_strategy, **summary})
         return True
@@ -87,7 +98,7 @@ def from_takeover(args, expert, raw, renderers):
             print(json.dumps({**info, "skipped": "policy succeeded" if tracker.result["success"] else "no handoff"}), flush=True)
             continue
         if args.trigger != "rim-jam" or verified(expert, 0):
-            correct(expert, raw, renderers, next_id(raw, args), args.hold_seconds, info)
+            correct(expert, raw, renderers, next_id(raw, args), args.hold_seconds, info, args.skill)
 
 
 def from_tasks(args, expert, raw, renderers):
@@ -138,6 +149,8 @@ def main():
     p.add_argument("--source", choices=["takeover", "tasks", "traces"], required=True)
     p.add_argument("--output", type=Path, required=True, help="raw collection (resumed if it exists)")
     p.add_argument("--first-id", type=int, default=100000, help="first episode id in a new collection")
+    p.add_argument("--skill", choices=["insert", "grasp"], default="insert",
+                   help="what the expert finishes: insert + release, or (with --trigger pre-grasp) grasp + lift only")
     p.add_argument("--hold-seconds", type=float, default=0.5, help="secure the inherited grasp before moving")
     p.add_argument("--guarded", action="store_true", help="guarded expert insertion (see expert.py); always on for traces")
     p.add_argument("--randomize", type=float, default=0.01)

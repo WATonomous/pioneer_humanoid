@@ -12,6 +12,7 @@ Case table — ``Phase`` | trigger | behaviour:
 | DESCEND            | approach reached                          | descend at 2.5 cm/s to grasp the upper 3 cm of the peg      |
 | CLOSE              | descent reached                           | close 1.5 s; no two-finger contact -> reopen, retry (3 max) |
 | LIFT               | both fingers touch                        | lift 12 cm; peg not 8 cm up -> reopen, retry                |
+| (grasp takeover)   | policy near an upright, ungrasped peg     | rise clear of the peg top, then APPROACH (lower) -> LIFT    |
 | TAKEOVER_HOLD      | correction handoff from a policy          | keep the inherited grasp still for ``hold_seconds``         |
 | TAKEOVER_RETRACT   | touching the block, or too low to rotate  | lift in 5 mm steps at the current orientation until clear   |
 | ALIGN              | first attempt                             | servo the peg upright to just above the hole (3 cm/s)       |
@@ -54,6 +55,8 @@ JOINT_NAMES = ["left_shoulder_pitch", "left_shoulder_roll", "left_shoulder_yaw",
 TASK = "pick up the square peg and insert it into the square hole"
 GRIPPER_SPAN = np.array([-0.05, 0.05])  # finger joint targets (m) at closure 1
 GRASP_HEIGHT = 0.060                    # m above peg centre: upper 3 cm, fingers clear the block
+APPROACH_HEIGHT = 0.18                  # m above peg centre before descending to grasp
+GRASP_CLEARANCE = 0.03                  # m, fingers above the peg top before moving sideways in a grasp takeover
 LIFT_HEIGHT = 0.12                      # m
 LIFTED = TABLE_TOP_Z + PEG_HEIGHT / 2 + 0.08  # peg centre z that counts as lifted
 SEATED_Z = TABLE_TOP_Z + PEG_HEIGHT / 2
@@ -317,9 +320,9 @@ class PegExpert:
         self.grasp_and_lift()
         self.insert_and_release()
 
-    def grasp_and_lift(self):
+    def grasp_and_lift(self, approach_height=APPROACH_HEIGHT):
         for _ in range(3):
-            self.move(Phase.APPROACH, self.peg_pos + [0, 0, 0.18], 0)
+            self.move(Phase.APPROACH, self.peg_pos + [0, 0, approach_height], 0)
             grasp = self.peg_pos + [0, 0, GRASP_HEIGHT]
             self.move(Phase.DESCEND, grasp, 0, speed=0.025)
             self.phase = Phase.CLOSE
@@ -332,6 +335,20 @@ class PegExpert:
                 return
             self.hold(0.6, self.center.copy(), 0)
         raise ExpertFailure("grasp failed after three attempts")
+
+    def takeover_grasp(self):
+        """Grasp and lift an upright, ungrasped peg from wherever a policy left the hand.
+
+        Rises vertically first if the fingers are below the peg top (a sideways move there would
+        push the peg), then approaches only as high as needed instead of the full 18 cm.
+        """
+        if self.contacts() or self.lifted():
+            raise ExpertFailure("grasp takeover needs an ungrasped peg")
+        self.closure = float(np.clip(np.mean(self.data.ctrl[self.grip_a] / GRIPPER_SPAN), 0, 1))
+        clear = self.peg_pos[2] + PEG_HEIGHT / 2 + GRASP_CLEARANCE
+        if self.center[2] < clear:
+            self.move(Phase.APPROACH, np.r_[self.center[:2], clear], 0)
+        self.grasp_and_lift(approach_height=max(self.center[2] - self.peg_pos[2], GRASP_HEIGHT + GRASP_CLEARANCE))
 
     def takeover(self, hold_seconds=0.5):
         """Continue from a held peg (policy handoff) without resetting, reopening, or moving objects."""

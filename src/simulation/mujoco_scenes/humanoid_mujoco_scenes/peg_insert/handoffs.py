@@ -11,6 +11,7 @@ the peg during a rollout.
 | approach (detector)        | policy holds the lifted peg within 3 cm XY of the hole        | ``takeover`` corrections  |
 | targeted stall (detector)  | ... and stalls/tilts/descends misaligned at the rim           | ``takeover`` corrections  |
 | rim jam (detector)         | held peg touches the rim tilted >=3 deg or stalls 0.36 s      | ``takeover`` corrections  |
+| pre-grasp (detector)       | hand within 4 cm (XY), 5 cm above an upright peg, or 15 s pass | ``takeover --skill grasp`` |
 | failed-trace state         | first rim contact / hover / pre-drop frame of an eval trace   | ``traces`` corrections    |
 """
 from __future__ import annotations
@@ -191,7 +192,26 @@ class RimJamDetector:
         return None
 
 
-DETECTORS = {"approach": ApproachDetector, "stall": StallDetector, "rim-jam": RimJamDetector}
+class PreGraspDetector:
+    """Hand off the *grasp* before the policy disturbs the peg: hand near an upright, ungrasped peg,
+    or no grasp after ``timeout`` seconds. Used with ``collect_corrections --skill grasp``."""
+
+    RADIUS = 0.04          # m, finger centre to peg axis (XY)
+    ABOVE_TOP = 0.05       # m, finger centre at most this far above the peg top (home pose is ~8 cm above)
+    UPRIGHT = 3.0          # deg; a tipped peg is a different (unhandled) recovery
+
+    def __init__(self, timeout=15.0):
+        self.timeout = timeout
+
+    def __call__(self, expert, lifted, seconds):
+        if lifted or expert.contacts() or peg_geometry(expert)[1] > self.UPRIGHT:
+            return None
+        near = np.linalg.norm(expert.center[:2] - expert.peg_pos[:2]) < self.RADIUS \
+            and expert.center[2] < expert.peg_pos[2] + PEG_HEIGHT / 2 + self.ABOVE_TOP
+        return "near_peg" if near else "no_grasp_timeout" if seconds >= self.timeout else None
+
+
+DETECTORS = {"approach": ApproachDetector, "stall": StallDetector, "rim-jam": RimJamDetector, "pre-grasp": PreGraspDetector}
 
 
 def restore(expert, state, index=None):
