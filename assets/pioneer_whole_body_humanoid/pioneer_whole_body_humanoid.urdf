@@ -763,7 +763,7 @@
   <joint name="Knee_L" type="revolute">
     <parent link="l_thigh"/><child link="l_shank_foot"/>
     <origin xyz="0.000000 0.000000 -0.261500"/><axis xyz="-1.000000 0.000000 0.000000"/>
-    <limit lower="-1.1345" upper="0.0000" effort="222" velocity="3.6652"/>
+    <limit lower="-2.4435" upper="0.0000" effort="222" velocity="3.6652"/>
   </joint>
   <joint name="Ankle_P_L" type="revolute">
     <parent link="l_shank_foot"/><child link="l_ankle_cross"/>
@@ -793,7 +793,7 @@
   <joint name="Knee_R" type="revolute">
     <parent link="r_thigh"/><child link="r_shank_foot"/>
     <origin xyz="0.000000 0.000000 -0.261500"/><axis xyz="-1.000000 0.000000 0.000000"/>
-    <limit lower="-1.1345" upper="0.0000" effort="222" velocity="3.6652"/>
+    <limit lower="-2.4435" upper="0.0000" effort="222" velocity="3.6652"/>
   </joint>
   <joint name="Ankle_P_R" type="revolute">
     <parent link="r_shank_foot"/><child link="r_ankle_cross"/>
