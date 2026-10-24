@@ -28,7 +28,8 @@ RUN="$PERSIST/runs/${RUN_NAME}_${SLURM_JOB_ID}"
 REPO="$WORK/repo"
 mkdir -p "$WORK/tmp" "$RUN/logs" "$REPO"
 # Arrow materializes combined image datasets; keep the HF cache on NAS, not limited /tmp.
-export TMPDIR="$WORK/tmp" UV_CACHE_DIR="$WORK/uv-cache" HF_HOME="$PERSIST/cache/huggingface"
+# Wheels (~3 GB of torch/CUDA) are cached on NAS so a flaky download is paid for once, not per job.
+export TMPDIR="$WORK/tmp" UV_CACHE_DIR="$PERSIST/cache/uv" HF_HOME="$PERSIST/cache/huggingface"
 export MUJOCO_GL=egl PYOPENGL_PLATFORM=egl PYTHONUNBUFFERED=1 OMP_NUM_THREADS=4
 # The nodes' PyPI downloads time out intermittently; retry instead of failing the job at install.
 export PIP_DEFAULT_TIMEOUT=120 PIP_RETRIES=10 UV_HTTP_TIMEOUT=300 UV_CONCURRENT_DOWNLOADS=4
@@ -40,12 +41,16 @@ cp "$CODE_TGZ" "$RUN/code.tgz"
 cp "$COMMANDS" "$RUN/commands.sh"
 tar -xzf "$RUN/code.tgz" -C "$REPO"
 printf 'Job %s on %s: %s\n' "$SLURM_JOB_ID" "$(hostname)" "$(nvidia-smi --query-gpu=name --format=csv,noheader)"
-python3 -m pip install --no-cache-dir --target "$WORK/bootstrap" uv
+retry() {  # the nodes' downloads fail intermittently; the NAS cache keeps what already arrived
+  for attempt in 1 2 3 4 5; do "$@" && return 0; printf 'retry %s failed: %s\n' "$attempt" "$*"; sleep $((attempt * 30)); done
+  return 1
+}
+retry python3 -m pip install --no-cache-dir --target "$WORK/bootstrap" uv
 UV="$WORK/bootstrap/bin/uv"
 "$UV" venv --python /usr/bin/python3 "$WORK/venv"
 PY="$WORK/venv/bin/python"
-"$UV" pip install --python "$PY" 'torch==2.7.1' 'torchvision==0.22.1' --index-url https://download.pytorch.org/whl/cu126
-"$UV" pip install --python "$PY" 'torchcodec==0.5' 'lerobot @ git+https://github.com/huggingface/lerobot.git@e670ac5daf9b76' \
+retry "$UV" pip install --python "$PY" 'torch==2.7.1' 'torchvision==0.22.1' --index-url https://download.pytorch.org/whl/cu126
+retry "$UV" pip install --python "$PY" 'torchcodec==0.5' 'lerobot @ git+https://github.com/huggingface/lerobot.git@e670ac5daf9b76' \
   'mujoco==3.15.0' pillow imageio imageio-ffmpeg \
   -e "$REPO/src/pioneer_humanoid" -e "$REPO/src/simulation/mujoco_scenes" -e "$REPO/src/robot_learning"
 export PY RUN PERSIST REPO
