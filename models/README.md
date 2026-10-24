@@ -10,8 +10,11 @@ travel with the repo.
 | `pioneer_hand_cube/` | `Isaac-Repose-Cube-PioneerHand-v0` | in-hand reorientation (`model_6600.pt`) |
 | `pioneer_humanoid_flat/` | `Isaac-Locomotion-Flat-PioneerHumanoid-v0` | flat-ground walking (`model_3900.pt`) |
 | `pioneer_humanoid_rough/` | `Isaac-Locomotion-Rough-PioneerHumanoid-v0` | rough-terrain walking (`model_2999.pt`) |
+| [`pioneer_humanoid_rough_no_stairs_selective_knee_shape/`](pioneer_humanoid_rough_no_stairs_selective_knee_shape/README.md) | `Isaac-Locomotion-RoughNoStairsSelectiveKneeShape-PioneerHumanoid-v0` | normalized non-stair rough baseline (`model_4000.pt`), 19 active rewards; known stepping asymmetry |
 | `badminton_shared_student_ppo/` | `Mjlab-Badminton-Shared-Student-PPO-Priv` | bimanual badminton receive on EKF perception (`model_11996.pt`): one single-arm policy drives whichever arm `badminton_shared_chooser/` picks; arms start at rest, grippers closed on a centred racket. 98.4% bank hits (chooser margin 1.0), hits split 49/51 right/left, 89% net clearance; the deployable one |
 | `badminton_shared_chooser/` | `Mjlab-Badminton-Shared-Student-PPO` | its critic picks the arm from the robot's own observations (`model_11997.pt`); pass it as `--critic-task`/`--critic-checkpoint` |
+| `badminton_teacher/` | `Mjlab-Badminton-Receive-Teacher` | privileged-state receive teacher (`model_5996.pt`), 98.5% bank hits |
+| `badminton_student_ppo/` | `Mjlab-Badminton-Receive-Student-PPO` | EKF-perception receive policy (`model_4997.pt`), 98.8% bank hits, 78% net clearance; the deployable one |
 
 **Live training runs go to `outputs/rl/<experiment>/` (gitignored; the badminton
 tasks log to `src/simulation/badminton/logs/rsl_rl/<experiment>/`)** — `play.py`

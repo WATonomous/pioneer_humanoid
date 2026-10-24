@@ -9,21 +9,18 @@ class PioneerHumanoidRoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     max_iterations = 3000
     save_interval = 50
     experiment_name = "pioneer_humanoid_rough"
-    # Was False (matching G1's rough default) until rough_terrain_tilt_term_fresh_001
-    # crashed once episode length reached 600-750/1000 steps: Mean action noise std
-    # froze around 2.17 instead of adapting, then diverged into
-    # "RuntimeError: normal expects all elements of std >= 0.0". This is the same root
-    # cause already diagnosed and fixed on flat earlier this session -- without
-    # observation/return normalization, the value function's regression targets grow
-    # unboundedly once episodes get long, and can destabilize training. Flat's fix
-    # (empirical_normalization=True) was applied via resume on an already-far-along
-    # checkpoint there too and resolved it cleanly (990/1000, no further divergence).
-    empirical_normalization = True
+    # Observation normalization is controlled by the per-network policy fields in
+    # the current Isaac Lab/RSL-RL bridge. Keep it explicitly disabled for all
+    # existing tasks so their observation path and checkpoint layout remain
+    # unchanged; the isolated scratch runner below enables it from iteration zero.
+    empirical_normalization = False
     policy = RslRlPpoActorCriticCfg(
         init_noise_std=1.0,
         actor_hidden_dims=[512, 256, 128],
         critic_hidden_dims=[512, 256, 128],
         activation="elu",
+        actor_obs_normalization=False,
+        critic_obs_normalization=False,
         # Root cause of the recurring "RuntimeError: normal expects all elements of
         # std >= 0.0" crash (confirmed via torch.autograd.set_detect_anomaly + cross-
         # referenced against rsl_rl's own upstream GitHub issue #33): with the default
@@ -31,10 +28,11 @@ class PioneerHumanoidRoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         # lower bound -- the optimizer can push it negative or to NaN directly, or an
         # out-of-distribution observation (e.g. mid-fall on rough terrain) can drive
         # the PPO ratio's exp() to overflow, both of which crash torch.normal().
-        # rsl_rl's own maintainers added "log" mode as the structural fix: std is
-        # stored as log(std) and exponentiated, so it's mathematically guaranteed
-        # positive no matter what the optimizer does to the underlying parameter.
-        # We were already on rsl-rl-lib 3.1.2 (which has this), just never set it.
+        # rsl_rl's "log" mode stores log(std) and exponentiates it. This prevents a
+        # finite parameter from directly becoming a negative std, but does not make
+        # NaN/Inf parameters safe; the training launcher's non-finite gradient guard
+        # remains useful. We were already on rsl-rl-lib 3.1.2 (which has this), just
+        # never set it.
         noise_std_type="log",
     )
     # entropy_coef 0.008 matches G1's own default. Tried lowering to 0.004 once noise
@@ -73,6 +71,71 @@ class PioneerHumanoidRoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
 
 
 @configclass
+class PioneerHumanoidRoughNoStairsPPORunnerCfg(PioneerHumanoidRoughPPORunnerCfg):
+    def __post_init__(self):
+        super().__post_init__()
+
+        self.experiment_name = "pioneer_humanoid_rough_no_stairs"
+
+
+@configclass
+class PioneerHumanoidRoughNoStairsFootTuneFineNormalizedScratchPPORunnerCfg(
+    PioneerHumanoidRoughNoStairsPPORunnerCfg
+):
+    """Fresh FootTuneFine lineage with actor and critic observation normalization."""
+
+    def __post_init__(self):
+        super().__post_init__()
+
+        self.max_iterations = 6000
+        self.experiment_name = "pioneer_humanoid_rough_no_stairs_foot_tune_fine_normalized_scratch"
+        # The runner-level option is deprecated. Set the two active policy options
+        # explicitly so there is no ambiguity about which normalizers are created.
+        self.empirical_normalization = None
+        self.policy.actor_obs_normalization = True
+        self.policy.critic_obs_normalization = True
+
+
+@configclass
+class PioneerHumanoidRoughNoStairsFootTuneFineKneeAxisFixedNormalizedScratchPPORunnerCfg(
+    PioneerHumanoidRoughNoStairsFootTuneFineNormalizedScratchPPORunnerCfg
+):
+    """Fresh normalized lineage for the corrected knee geometry."""
+
+    def __post_init__(self):
+        super().__post_init__()
+
+        self.experiment_name = (
+            "pioneer_humanoid_rough_no_stairs_foot_tune_fine_knee_axis_fixed_normalized_scratch"
+        )
+
+
+@configclass
+class PioneerHumanoidRoughNoStairsSelectiveSelfCollisionNormalizedScratchPPORunnerCfg(
+    PioneerHumanoidRoughNoStairsFootTuneFineKneeAxisFixedNormalizedScratchPPORunnerCfg
+):
+    """Fresh normalized collision lineage with the existing PPO settings."""
+
+    def __post_init__(self):
+        super().__post_init__()
+
+        self.resume = False
+        self.experiment_name = "pioneer_humanoid_rough_no_stairs_selective_self_collision_normalized_scratch"
+
+
+@configclass
+class PioneerHumanoidRoughNoStairsSelectiveKneeShapePPORunnerCfg(
+    PioneerHumanoidRoughNoStairsSelectiveSelfCollisionNormalizedScratchPPORunnerCfg
+):
+    """Keep normalized PPO defaults, with separate logs and denser pilot saves."""
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.save_interval = 25
+        self.experiment_name = "pioneer_humanoid_rough_no_stairs_selective_knee_shape"
+
+
+@configclass
 class PioneerHumanoidFlatPPORunnerCfg(PioneerHumanoidRoughPPORunnerCfg):
     def __post_init__(self):
         super().__post_init__()
@@ -95,12 +158,7 @@ class PioneerHumanoidFlatPPORunnerCfg(PioneerHumanoidRoughPPORunnerCfg):
         # length ~52 for 250+ iterations (noise std already annealed down to 0.22 by
         # iteration 750, likely too little exploration left to ever discover the
         # "don't fall" behavior the original entropy_coef=0.01 run stumbled onto).
-        # The actual divergence cause was unnormalized value targets over long
-        # episodes, not entropy per se -- empirical_normalization=True below should
-        # fix that directly, so raising entropy back partway is safe to retest.
+        # Keep the historical entropy choice; this legacy task intentionally retains
+        # its original identity-normalized observation path for checkpoint loading.
         self.algorithm.entropy_coef = 0.008
-        # Episode length jumped from ~60 to ~1000 steps once ankle stiffness fixed the
-        # fall-within-1s failure mode. Without observation/return normalization, value
-        # function regression targets over a ~40x longer horizon likely blew up --
-        # this was previously False, which is unusual and risky for long-horizon tasks.
-        self.empirical_normalization = True
+        self.empirical_normalization = False
