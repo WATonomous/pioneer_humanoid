@@ -63,7 +63,25 @@ train-policy \
 
 Flag pitfalls (`--steps`, not epochs; always `--policy.push_to_hub=false` for local runs) are listed in the [SO101 README](../simulation/so101_vial_task/README.md), which uses the same command.
 
-There is no sim rollout script for a trained Pioneer policy yet. Will be added soon. There are other scripts like `rtc_driver.py` as the Real-Time Chunking driver for flow-matching policies (pi0 / pi0.5 / SmolVLA) that can be used and will be polished more soon.
+For Pioneer rollouts in the MuJoCo peg insertion scene, use
+[`humanoid_mujoco_scenes.peg_insert.eval`](../simulation/mujoco_scenes/humanoid_mujoco_scenes/peg_insert/README.md#train-and-evaluate).
+`rtc_driver.py` provides Real-Time Chunking for flow-matching policies (pi0 / pi0.5 / SmolVLA).
+
+Task-agnostic tools for simulator demos and corrections:
+
+| Module | Use |
+|---|---|
+| `raw_to_lerobot` | raw sim episodes (`manifest.json` + `trajectory.npz` + PNGs) → image LeRobot dataset + `phase_index.json` |
+| `lerobot_finetune` | `lerobot_train` that concatenates `--extra-dataset`s in place, keeps saved normalization on resume, and applies `--phase-config` batch quotas |
+| `phase_sampling` | phase → pool rules (`config/peg_insert_phases.json`), fixed-quota batch sampler, per-phase error reporter |
+| `policy_adapters` | `load_policy(path)` → `reset / select_action / predict_chunk` on numpy observations, for any rollout loop |
+
+```bash
+python -m humanoid_robot_learning.raw_to_lerobot --raw datasets/peg_insert_raw --root datasets/pioneer_peg_insert
+python -m humanoid_robot_learning.lerobot_finetune --config_path=<ckpt>/pretrained_model/train_config.json --resume=true \
+  --dataset.root=datasets/pioneer_peg_insert --extra-dataset=datasets/corr_r1 \
+  --phase-config=src/robot_learning/config/peg_insert_phases.json --steps=174000 --batch_size=8 --output_dir=outputs/train/act_r1
+```
 
 ## 4. Real arm (planned)
 

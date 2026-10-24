@@ -1,0 +1,88 @@
+# Peg insertion in MuJoCo: ACT with expert corrections
+
+Task: pick up a 40 mm square peg and insert it into a block with 1 mm total clearance, left arm,
+25 Hz absolute joint targets, ego + wrist 640×480 RGB and 7-D proprioception. All numbers are
+unassisted closed-loop success (seated **and** released for 0.5 s within 60 s) from the
+evaluation reports copied to `outputs/eval/` (NAS paths in each report). Tooling:
+[`peg_insert/README.md`](../../src/simulation/mujoco_scenes/humanoid_mujoco_scenes/peg_insert/README.md).
+
+## Evaluation sets
+
+| Set | Layouts | Notes |
+|---|---|---|
+| nominal | 20 seeds from 16000, both objects jittered ±1 cm | the original demo distribution |
+| fresh | 100 new expert-feasible jitters inside mapped 0–7 cm workspace cells (50 peg-moved, 50 hole-moved) | no trajectory from these layouts was ever trained on |
+| exposed | the 100 workspace held-out layouts | failures here supplied the moved-hole corrections, so they are *not* held out after that round |
+| insertion cases | prepared held peg: aligned, ±3 mm offset, ±5° tilt, 10 seeds each | diagnoses insertion separately from grasping |
+
+## ACT history
+
+ACT (LeRobot, ResNet18, chunk 50) was trained on expert demos and continued through rounds of
+expert corrections. Every round resumed the previous optimizer and kept its normalization.
+
+| Round (job) | Added data | Steps | Result |
+|---|---|---|---|
+| 10k → 100k (703611, 703885) | 50 demos, ±1 cm | 100k, batch 4 | seeds 1000–1009, 5-step execution: 0/10, never grasped |
+| approach takeovers (704251) + accuracy loop | 25 + 10/round expert takeovers within 3 cm of the hole | 150k | 150k diagnostics (706499): full 2–3/10; insertion cases 0–4/10, tilts 0–2/10 |
+| phase-balanced diagnostic corrections (706909) | 56 corrections of failed diagnostic seeds; quotas 4/2/1/1 | 174k | held-out full 1/20; insertion 0–1/10. No gain |
+| broad starts (707328) | 80 held starts up to 8 cm away, ±2–5° tilt | 198k | 50-step chunks: full 8/20, insertion 5–7/10 (25-step: 5/20, 10-step: 2/20) |
+| rim-jam relift (707503) | 32 real early-jam states + 24 large-tilt starts; quotas 3/1/3/1 | 222k | **fresh ±1 cm: 17/20 full, 40/50 insertion cases** (50-step chunks) |
+| independent workspace (708647, 709633) | 200 demos with peg *or* hole moved 0–7 cm, 2 shuffled passes | 323k | workspace held-out 7 → 18/100; nominal fell to 3/20 |
+| moved-hole trace corrections (709670) | expert takeovers restored from 323k failure traces; quotas 3/2/2/1 | 347k | **fresh 21 → 52/100, exposed 18 → 42/100, nominal 3 → 12/20** |
+
+What mattered, in order:
+
+1. **Chunk execution length.** Executing 50 actions per chunk beat 25- and 10-step execution
+   wherever it was compared (198k: 8/20 vs 5/20 vs 2/20; 222k: 18/20 vs 12/20). At 150k,
+   temporal ensembling was no better than 10-step chunks (3/10 each). The
+   expert's insertion is slow and smooth; frequent replanning introduced dithering at the rim.
+2. **Corrections from the policy's *own* failure states** (rim jams, moved-hole traces) gave the
+   two large jumps. Corrections from expert-prepared starts (diagnostic seeds) did not help.
+3. **Phase-balanced batches** keep a few hundred correction frames visible next to ~50k demo
+   frames, without duplicating episodes.
+4. Wider placement data alone (workspace round) hurt the nominal layouts badly (17/20 → 3/20)
+   until failure-driven corrections were added back on top.
+
+Every learned-policy failure in the final 347k evaluation is after a successful grasp and lift
+(100% grasp, 100% lift on fresh/exposed/nominal). The remaining problem is purely
+hole alignment and insertion, worst when the *hole* is moved 3–7 cm (fresh: 9/30).
+
+The 150k hole-shift audit (706907) showed why: with the robot state frozen and only the rendered
+hole moved 3 mm, an ACT chunk moved the peg 0.3–0.5× as far as the expert (closed-loop
+ensembling ~0.6–0.9× in x, 0.6× in y). The policy under-uses visual hole position.
+
+## Expert ablation (this cleanup)
+
+The moved-hole round used a separate `SeatingExpert` with early-jam aborts and a seating check
+before release. As an option of the main expert (`guarded=True`), on full expert runs:
+
+| N = 40 | nominal ±1 cm (20) | hole/peg moved 3–7 cm (20) | mean episode |
+|---|---|---|---|
+| plain | 20/20 | 15/20 | 42.2 s |
+| guarded | 20/20 | 15/20 | 47.4 s |
+
+The guard therefore stays off for demos and on for corrections that start from policy states.
+The rewritten expert reproduces the old plain expert exactly: same outcome and simulated time
+on 40/40 layouts.
+
+## Reproducing a round with the current tools
+
+The per-round scripts (`phase_correction_round`, `broad_correction_round`,
+`retry_correction_round`, `workspace_round`, `moved_hole_round`, `iterate_corrections`,
+`diagnose_policy`) were replaced by the general verbs. Their source is in each run's
+`code.tgz` on NAS.
+
+| Old round | Now |
+|---|---|
+| approach / targeted takeovers | `collect_corrections --source takeover --trigger approach\|stall`, or `dagger` |
+| broad starts | `collect_corrections --source tasks --tasks broad` |
+| rim-jam relift + large tilt | `--source takeover --trigger rim-jam --hold-seconds 0` and `--source tasks --tasks large-tilt --hold-seconds 0` |
+| workspace map + 200 demos + held-out layouts | `workspace map`, `workspace sample --split train --record ...`, `workspace sample --split test` |
+| moved-hole trace corrections | `eval --trace-dir`, then `collect_corrections --source traces` |
+| fine-tune with phase quotas | `humanoid_robot_learning.lerobot_finetune --extra-dataset ... --phase-config ...` |
+| diagnostics (5 cases × 3 modes) | `eval --start-stage insertion --insertion-case <case>` with `--n-action-steps` / `--temporal-ensemble-coeff` |
+| action audit | `audit hole-shift` |
+
+Not carried over, because they were experiment bookkeeping rather than method: hard-coded
+episode/frame-count assertions, the 10-correction early-stop loop's fixed seed arithmetic, and
+the per-round failure subsets used to pick traces (filter the eval report instead).
