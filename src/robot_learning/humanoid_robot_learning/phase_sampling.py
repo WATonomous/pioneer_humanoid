@@ -31,9 +31,17 @@ def load_config(path):
 
 
 def phase_episodes(root):
-    """Episode records (``phase_ranges`` relative to the dataset, ``condition``) or [] if unlabelled."""
-    path = Path(root) / "phase_index.json"
-    return json.loads(path.read_text())["episodes"] if path.exists() else []
+    """Per-episode records (``raw``, ``seed``, ``phase_ranges`` relative to the dataset, ``condition``).
+
+    Datasets converted before phase indexing only have ``correction_sources.json`` (raw identity, no
+    phases); their episodes are returned with empty ``phase_ranges``. Returns [] for plain demo datasets.
+    """
+    root = Path(root)
+    if (root / "phase_index.json").exists():
+        return json.loads((root / "phase_index.json").read_text())["episodes"]
+    if (root / "correction_sources.json").exists():
+        return [{"phase_ranges": [], **source} for source in json.loads((root / "correction_sources.json").read_text())]
+    return []
 
 
 def pool_for(phase, condition, rules):
