@@ -15,8 +15,8 @@ Policies are trained on sim camera images and then run on real camera images. If
 cameras see differently (field of view, lens distortion, where the camera points), the
 policy sees a different world than it trained on, and grasps miss.
 
-So the sim and the real camera meet in the middle, at an ideal **640x480 pinhole camera, f = 700 px
-(49.1° x 37.8°)**:
+So the sim and the real camera meet in the middle, at an ideal **640x480 pinhole camera, f = 723 px
+(47.75° x 36.73°)**:
 
 ```
 sim:   Isaac / MuJoCo renders the pinhole directly ───────────────┐
@@ -123,13 +123,14 @@ default model.
 ### 5. Write the pinhole target
 
 ```bash
-~/venvs/calib/bin/python calibrate_intrinsics.py pinhole --out wrist_cam_calib_1080 --focal-px 700
+~/venvs/calib/bin/python calibrate_intrinsics.py pinhole --out wrist_cam_calib_1080
 ```
 
 This writes `wrist_cam_pinhole_640x480.yaml` and `wrist_cam_pinhole_sample.jpg`, a remapped
-calibration image. Check that the board's edges are straight and the corners aren't black. It also
-prints the widest focal length the real image fully covers (682 px for the current camera). If a
-new camera can't cover 700 px, pick a new focal length, then update `WRIST_FOCAL_MM` in
+calibration image. Check that the board's edges are straight and the corners aren't black. It picks
+the focal length as the widest the real image fully covers (702 px for the current camera) plus 3%,
+so no corner of the rectified image falls outside the real one. Pass `--focal-px` to keep a
+previous value instead. Whenever the focal length changes, set `WRIST_FOCAL_MM` in
 `arm_params.py` to `focal_px * 20.955 / 640` so the sim matches.
 
 ## Gotchas
@@ -143,20 +144,19 @@ new camera can't cover 700 px, pick a new focal length, then update `WRIST_FOCAL
 
 ## Current wrist camera
 
-Sonix UVC webcam (USB VID 3141, PID 25446), manual-focus lens, calibrated 2026-10-23.
+Sonix UVC webcam (USB VID 3141, PID 25446), manual-focus lens, calibrated 2026-10-23, with top
+and bottom edge views added 2026-10-24.
 
 | | Value |
 |---|---|
-| Raw | 1920x1080, fx 1460, fy 1458, cx 919, cy 491, k1 -0.39 (strong barrel) |
-| RMS | 1.21 px over 47 views |
-| Raw field of view | 66.6° x 40.6° |
-| Pinhole target | 640x480, f 700 px, 49.1° x 37.8° |
+| Raw | 1920x1080, fx 1508, fy 1506, cx 944, cy 494, k1 -0.38 (strong barrel) |
+| RMS | 1.33 px over 172 views |
+| Raw field of view | 64.9° x 39.4° |
+| Pinhole target | 640x480, f 723 px, 47.75° x 36.73° |
 
 ## Still to do
 
 - **Hand-eye calibration** (where the camera sits on `link6l`). The sim camera poses are still CAD
   estimates. This step moves the real arm, so follow the real-hardware safety process.
-- **More edge views.** The bottom 22% of the image had no corners in this run, so a quick
-  `--append` along the bottom edge would firm up the distortion estimate there.
 - **Time sync** between camera frames and joint states, for anything that uses the camera while the
   arm moves.

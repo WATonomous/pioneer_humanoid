@@ -31,9 +31,7 @@ ARUCO_DICT = cv2.aruco.DICT_5X5_100
 PRINT_DPI = 300
 PAGES_MM = {"letter": (279.4, 215.9), "a4": (297.0, 210.0)}  # landscape
 
-# Sim wrist camera (arm_params.WRIST_FOCAL_MM, 640x480), to compare the measured lens against.
-SIM_FOCAL_MM = 700.0 * 20.955 / 640
-SIM_H_APERTURE_MM = 20.955
+SIM_H_APERTURE_MM = 20.955  # horizontal aperture of the sim wrist cams (arm_params.CAMERAS)
 PINHOLE_MARGIN = 1.03     # pinhole focal this much above the widest the real image fully covers
 
 MIN_CORNERS = 12          # of (SQUARES_X-1)*(SQUARES_Y-1) = 40; fewer is too weak a view
@@ -162,6 +160,7 @@ def cmd_capture(args) -> int:
         c, i = detect(detector, cv2.imread(str(p), cv2.IMREAD_GRAYSCALE))
         if c is not None:
             saved.append((p, pose_features(c, i, board, size), cv2.convexHull(c.astype(np.int32))))
+    n_prior = len(saved)  # Backspace never deletes images from earlier runs (--append)
 
     prev: dict[int, np.ndarray] = {}
     last_capture = 0.0
@@ -201,7 +200,7 @@ def cmd_capture(args) -> int:
             saved.append((path, feat, cv2.convexHull(corners.astype(np.int32))))
             last_capture, flash_until = now, now + 0.15
         elif key == 8 or key == 127:  # backspace / delete: drop the last view
-            if saved:
+            if len(saved) > n_prior:
                 saved.pop()[0].unlink(missing_ok=True)
         elif key in (13, 10):
             break
@@ -354,7 +353,6 @@ def cmd_solve(args) -> int:
     fx, fy, cx, cy = K[0, 0], K[1, 1], K[0, 2], K[1, 2]
     hfov = math.degrees(2 * math.atan(w / (2 * fx)))
     vfov = math.degrees(2 * math.atan(h / (2 * fy)))
-    sim_hfov = math.degrees(2 * math.atan(SIM_H_APERTURE_MM / (2 * SIM_FOCAL_MM)))
 
     # How much of the image the corners reached: an uncovered edge leaves distortion unknown.
     pts = np.concatenate([i.reshape(-1, 2) for i in img])
@@ -367,10 +365,7 @@ def cmd_solve(args) -> int:
     print(f"  cx {cx:.2f} +- {std[2]:.2f}   cy {cy:.2f} +- {std[3]:.2f}   (image centre "
           f"{w / 2:.0f}, {h / 2:.0f})")
     print(f"  dist {np.array2string(dist.ravel(), precision=5)}")
-    print(f"  FOV {hfov:.1f} x {vfov:.1f} deg   (sim wrist_cam: {sim_hfov:.1f} deg horizontal)")
-    print(f"  for Isaac PinholeCameraCfg with horizontal_aperture={SIM_H_APERTURE_MM}: "
-          f"focal_length={fx * SIM_H_APERTURE_MM / w:.3f}, "
-          f"vertical_aperture={SIM_H_APERTURE_MM * h / w * fx / fy:.4f}")
+    print(f"  FOV {hfov:.1f} x {vfov:.1f} deg   (sim values come from the pinhole step)")
 
     px_scale = w / 640  # pixel thresholds below are for a 640-wide image
     if rms > 0.5 * px_scale:
@@ -477,8 +472,9 @@ def main() -> int:
     c = sub.add_parser("capture", help="live capture, then solve")
     common(c)
     c.add_argument("--camera", type=int, default=0, help="OpenCV camera index")
-    c.add_argument("--width", type=int, default=640)
-    c.add_argument("--height", type=int, default=480)
+    # Full sensor by default: smaller sizes are an off-centre crop on macOS (README gotchas).
+    c.add_argument("--width", type=int, default=1920)
+    c.add_argument("--height", type=int, default=1080)
     c.add_argument("--append", action="store_true", help="add to images already in --out")
     c.set_defaults(func=cmd_capture)
 

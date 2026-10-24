@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import time
 from pathlib import Path
 
 import cv2
@@ -83,10 +84,18 @@ def main() -> int:
     cap = open_camera(args.camera, cam)
     print(f"raw {cam.raw_size[0]}x{cam.raw_size[1]} -> pinhole {cam.size[0]}x{cam.size[1]}, "
           f"f = {cam.K[0, 0]:g} px. q quits.")
+    last_frame = time.time()
     while True:
         ok, raw = cap.read()
         if not ok:
-            continue  # macOS cameras can take a moment to send the first frame
+            # macOS cameras can take a moment to start; a camera that stops entirely is an error.
+            if time.time() - last_frame > 3.0:
+                print("no frames from the camera for 3 s (unplugged, or in use by another app?)")
+                break
+            if cv2.waitKey(10) & 0xFF in (ord("q"), 27):
+                break
+            continue
+        last_frame = time.time()
         rect = cam.rectify(raw)
         h = rect.shape[0]
         left = cv2.resize(raw, (round(raw.shape[1] * h / raw.shape[0]), h))
