@@ -73,6 +73,9 @@ STANCE_BASE_QUAT = (0.5629, -0.0713, 0.082, -0.8194)  # pelvis (wxyz): faces the
 KNEE_MIN_BEND = 5.0  # deg
 CROUCH = 0.05  # hips below standing [m]
 STANCE_SCALE = 0.6  # of Wato's 45 cm stance: this robot's legs reach less (knee 65 deg, ankle 30 deg, hip extension 20 deg)
+# ...but sideways only 0.6 would put the feet under the hips (18 cm apart, hip joints 17 cm): widen
+# the stance sideways by this much on top (feet 24 cm apart; wider and the step back runs out of leg)
+STANCE_WIDTH = 1.33
 WATO_ARM = 0.539  # Wato's shoulder -> elbow -> wrist length [m]
 # from the shoulder (roll link), in the pelvis frame (x right, y forward, z up), for Wato's arm length
 GUARD = {
@@ -626,9 +629,9 @@ def make_stance(robot: Robot, scale: float, crouch: float) -> Stance:
     R = np.zeros(9)
     mujoco.mju_quat2Mat(R, feet_quat[f])
     sole_world = R.reshape(3, 3) @ robot.sole[f]
-    target = scale * np.array(STANCE_SOLES[f])
+    target = scale * np.array(STANCE_SOLES[f]) * [1.0, STANCE_WIDTH]
     feet_pos[f] = np.array([*(target - sole_world[:2]), -sole_world[2] + SOLE_THICKNESS / 2])
-  com = scale * (np.array(STANCE_SOLES[LEAD]) + np.array(STANCE_SOLES[REAR])) / 2
+  com = scale * (np.array(STANCE_SOLES[LEAD]) + np.array(STANCE_SOLES[REAR])) / 2 * [1.0, STANCE_WIDTH]
   base_quat = np.array(STANCE_BASE_QUAT)
 
   for k in range(1, 41):
@@ -703,7 +706,8 @@ def main(
   fps: float = 50.0,
   max_cap_use: float = 0.8,
   # sizes: the largest each move this robot's joint ranges allow (IK within 1 cm), as a share of Wato's
-  step: StepCfg = StepCfg(forward=0.06, side=0.048, lift=0.018),  # noqa: B008  (60%)
+  # (weight 0.5: with the wider stance, more weight on the lead foot leaves the step back short of leg)
+  step: StepCfg = StepCfg(forward=0.06, side=0.048, lift=0.018, weight_shift=0.5),  # noqa: B008  (60%)
   duck: DuckCfg = DuckCfg(depth=0.08, lean=8.0, down=0.25, bottom=0.1, up=0.3),  # noqa: B008  (80%)
   deep_duck: DuckCfg = DuckCfg(depth=0.06, lean=7.5, down=0.5, bottom=0.2, up=0.55),  # noqa: B008  (30%)
   slip: SlipCfg = SlipCfg(depth=0.048, lean=9.6),  # noqa: B008  (80%)
