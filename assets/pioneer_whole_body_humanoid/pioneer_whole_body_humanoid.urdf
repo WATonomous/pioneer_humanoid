@@ -485,7 +485,7 @@
   <joint name="r_elbow" type="revolute">
     <parent link="r_arm_link3"/><child link="r_arm_link4"/>
     <origin xyz="-0.004500 0.000000 -0.204000"/><axis xyz="1.000000 0.000000 0.000000"/>
-    <limit lower="-1.5708" upper="1.5708" effort="22" velocity="6"/>
+    <limit lower="-2.1817" upper="1.5708" effort="22" velocity="6"/>
   </joint>
   <joint name="r_forearm_roll" type="revolute">
     <parent link="r_arm_link4"/><child link="r_forearm"/>
@@ -624,7 +624,7 @@
   <joint name="l_elbow" type="revolute">
     <parent link="l_arm_link3"/><child link="l_arm_link4"/>
     <origin xyz="0.004500 0.000000 -0.204000"/><axis xyz="1.000000 -0.000000 -0.000000"/>
-    <limit lower="-1.5708" upper="1.5708" effort="22" velocity="6"/>
+    <limit lower="-2.1817" upper="1.5708" effort="22" velocity="6"/>
   </joint>
   <joint name="l_forearm_roll" type="revolute">
     <parent link="l_arm_link4"/><child link="l_forearm"/>
