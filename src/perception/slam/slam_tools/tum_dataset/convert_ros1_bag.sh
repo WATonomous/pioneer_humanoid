@@ -34,7 +34,7 @@ echo "Converting ROS 1 bag to ROS 2 MCAP..." >&2
   --src "$INPUT_BAG" \
   --dst "$RAW_DIR" \
   --dst-storage mcap \
-  --dst-typestore ros2_jazzy >&2
+  --dst-typestore ros2_humble >&2
 
 echo "Normalizing legacy frame IDs..." >&2
 "$PYTHON" "$(dirname "$0")/normalize_bag_frames.py" "$RAW_DIR" "$OUTPUT_DIR"

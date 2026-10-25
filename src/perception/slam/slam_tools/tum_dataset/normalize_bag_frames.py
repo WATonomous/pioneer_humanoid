@@ -37,7 +37,7 @@ def main() -> None:
     if destination.exists():
         raise SystemExit(f"Error: output directory already exists: {destination}")
 
-    typestore = get_typestore(Stores.ROS2_JAZZY)
+    typestore = get_typestore(Stores.ROS2_HUMBLE)
     changed = 0
     with Reader(source) as reader, Writer(
         destination, version=9, storage_plugin=StoragePlugin.MCAP

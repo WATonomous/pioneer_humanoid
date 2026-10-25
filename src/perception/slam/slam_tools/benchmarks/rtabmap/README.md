@@ -5,7 +5,7 @@
 Run it from the RTAB-Map directory inside the ROS 2 container:
 
 ```bash
-source /opt/ros/jazzy/setup.bash
+source /opt/ros/humble/setup.bash
 ./run_rtabmap.sh BAG OUTPUT RGB_TOPIC DEPTH_TOPIC CAMERA_INFO_TOPIC FRAME_ID
 ```
 
