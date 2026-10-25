@@ -268,7 +268,7 @@
             <geom size="0.049969 0.0500005 0.1173" pos="-0.000319 2.1e-05 -0.1366" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
             <body name="r_arm_link4" pos="-0.0045 0 -0.204" gravcomp="1">
               <inertial pos="0.0021 -0.000183 -0.079576" quat="0.535675 0.465113 0.454559 0.538607" mass="0.6014" diaginertia="0.000778942 0.000708339 0.000690382"/>
-              <joint name="r_elbow" range="-1.5708 1.5708" actuatorfrcrange="-22 22" armature="0.01" damping="0.1" axis="1 0 0"/>
+              <joint name="r_elbow" range="-2.1817 1.5708" actuatorfrcrange="-22 22" armature="0.01" damping="0.1" axis="1 0 0"/>
               <geom pos="0.2835 -0.007 -0.974" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="r_arm_link4_0"/>
               <geom pos="0.2835 -0.007 -0.974" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="r_arm_link4_1"/>
               <geom size="0.049 0.049 0.065" pos="0.001925 2.1e-05 -0.0424" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
@@ -466,7 +466,7 @@
             <geom size="0.049969 0.0500005 0.1173" pos="0.000319 2.1e-05 -0.1366" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
             <body name="l_arm_link4" pos="0.0045 0 -0.204" gravcomp="1">
               <inertial pos="-0.002124 -0.000193 -0.079575" quat="0.45462 0.540098 0.535125 0.463956" mass="0.6014" diaginertia="0.000779214 0.000708342 0.000690074"/>
-              <joint name="l_elbow" range="-1.5708 1.5708" actuatorfrcrange="-22 22" armature="0.01" damping="0.1" axis="1 0 0"/>
+              <joint name="l_elbow" range="-2.1817 1.5708" actuatorfrcrange="-22 22" armature="0.01" damping="0.1" axis="1 0 0"/>
               <geom pos="-0.2835 -0.007 -0.974" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="l_arm_link4_0"/>
               <geom pos="-0.2835 -0.007 -0.974" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="l_arm_link4_1"/>
               <geom size="0.049 0.049 0.065" pos="-0.001925 2.1e-05 -0.0424" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
