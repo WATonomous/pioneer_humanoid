@@ -12,6 +12,7 @@ from pathlib import Path
 import sys
 from types import ModuleType, SimpleNamespace
 import unittest
+from unittest import mock
 
 try:
     import torch
@@ -30,10 +31,20 @@ class SceneEntityCfg:
         self.body_ids = [0] if body_ids is None else body_ids
 
 
+class ManagerTermBase:
+    def __init__(self, cfg, env):
+        self.cfg = cfg
+        self._env = env
+
+    def reset(self, env_ids=None):
+        pass
+
+
 def load_rewards():
     """Load only this module with a lightweight managers stub, restoring imports."""
     managers = ModuleType("isaaclab.managers")
     managers.SceneEntityCfg = SceneEntityCfg
+    managers.ManagerTermBase = ManagerTermBase
     previous = {name: sys.modules.get(name) for name in ("isaaclab", "isaaclab.managers")}
     sys.modules["isaaclab"] = ModuleType("isaaclab")
     sys.modules["isaaclab.managers"] = managers
@@ -151,13 +162,21 @@ class KneeRewardTests(unittest.TestCase):
         self.assertTrue(torch.isfinite(actual).all().item())
         torch.testing.assert_close(actual, expected, atol=atol, rtol=1.0e-6)
 
+    def overshoot_term(self, env, **kwargs):
+        params = {"asset_cfg": KNEES, **kwargs}
+        return self.rewards.knee_target_overshoot_smooth_l1(SimpleNamespace(params=params), env), params
+
     def overshoot(self, env, **kwargs):
-        return self.rewards.knee_target_overshoot_smooth_l1(env, KNEES, **kwargs)
+        term, params = self.overshoot_term(env, **kwargs)
+        return term(env, **params)
+
+    def swing_term(self, env, **kwargs):
+        params = {"asset_cfg": KNEES, "left_sensor_cfg": LEFT, "right_sensor_cfg": RIGHT, **kwargs}
+        return self.rewards.knee_swing_flexion_deficit_l2(SimpleNamespace(params=params), env), params
 
     def swing(self, env, **kwargs):
-        return self.rewards.knee_swing_flexion_deficit_l2(
-            env, asset_cfg=KNEES, left_sensor_cfg=LEFT, right_sensor_cfg=RIGHT, **kwargs
-        )
+        term, params = self.swing_term(env, **kwargs)
+        return term(env, **params)
 
     def set_phase(self, env, left_air, right_air, left_contact, right_contact):
         for name, air, contact in (
@@ -285,6 +304,37 @@ class KneeRewardTests(unittest.TestCase):
             with self.subTest(mode=mode), self.assertRaises((ValueError, RuntimeError)):
                 self.overshoot(env)
 
+    def test_overshoot_resolves_mapping_only_at_setup_and_never_mutates_action_object(self):
+        env = make_env(targets=[[0.0, -1.2, 0.0, -0.03]])
+        action = env.action_manager.term
+        original_fields = set(vars(action))
+        term, params = self.overshoot_term(env)
+        with mock.patch.object(self.rewards, "_joint_names", side_effect=AssertionError("Repeated name lookup")), \
+                mock.patch.object(env.action_manager, "get_term", side_effect=AssertionError("Repeated term lookup")):
+            self.assertTensorEqual(term(env, **params), [0.152])
+            self.assertTensorEqual(term(env, **params), [0.152])
+        self.assertEqual(set(vars(action)), original_fields)
+
+    def test_overshoot_reads_replaced_raw_scale_and_offset_after_setup(self):
+        env = make_env(targets=[[0.0, -0.4, 0.0, -0.7]])
+        reward, params = self.overshoot_term(env)
+        self.assertTensorEqual(reward(env, **params), [0.0])
+        term = env.action_manager.term
+        term._scale = tensor([[0.8, 1.7, 0.2, 0.4]])
+        term._offset = tensor([[0.0, -0.3, 0.0, 0.2]])
+        term.raw_actions = (tensor([[0.0, -1.2, 0.0, -0.03]]) - term._offset) / term._scale
+        self.assertTensorEqual(reward(env, **params), [0.152])
+
+    def test_overshoot_setup_cache_is_independent_between_environments(self):
+        first = make_env(targets=[[0.0, -1.2, 0.0, -0.5]])
+        second = make_env(targets=[[0.0, -1.2, 0.0, -0.5]])
+        second.action_manager.term._clip[:, 1, 0] = -2.0
+        first_reward, first_params = self.overshoot_term(first)
+        second_reward, second_params = self.overshoot_term(second)
+        self.assertTensorEqual(first_reward(first, **first_params), [0.15])
+        self.assertTensorEqual(second_reward(second, **second_params), [0.0])
+        self.assertTensorEqual(first_reward(first, **first_params), [0.15])
+
     def test_swing_uses_each_legs_own_phase_and_is_symmetric(self):
         env = make_env(2)
         # Articulation joint order is [Hip_R, Knee_R, Knee_L, Ankle_L].
@@ -373,9 +423,7 @@ class KneeRewardTests(unittest.TestCase):
     def test_swing_rejects_reversed_resolved_knee_order(self):
         wrong_order = SceneEntityCfg("robot", joint_ids=[1, 2], joint_names=["Knee_R", "Knee_L"])
         with self.assertRaises((ValueError, RuntimeError)):
-            self.rewards.knee_swing_flexion_deficit_l2(
-                make_env(), asset_cfg=wrong_order, left_sensor_cfg=LEFT, right_sensor_cfg=RIGHT
-            )
+            self.swing_term(make_env(), asset_cfg=wrong_order)
 
     def test_swing_rejects_multi_body_terrain_sensor(self):
         env = make_env()
@@ -383,6 +431,21 @@ class KneeRewardTests(unittest.TestCase):
         env.scene.sensors["left_terrain"].data.current_contact_time = torch.zeros(1, 2)
         with self.assertRaises((ValueError, RuntimeError)):
             self.swing(env)
+
+    def test_swing_mapping_is_setup_only_but_live_phase_pose_and_commands_are_read(self):
+        env = make_env()
+        reward, params = self.swing_term(env)
+        with mock.patch.object(self.rewards, "_joint_names", side_effect=AssertionError("Repeated name lookup")):
+            self.assertTensorEqual(reward(env, **params), [0.0])
+            env.scene["robot"].data.joint_pos = tensor([[0.0, -1.0, -0.1, 0.0]])
+            self.set_phase(env, [0.2], [0.0], [0.0], [0.3])
+            self.assertTensorEqual(reward(env, **params), [0.0625])
+            env.command_manager.command = tensor([[0.0, 0.0, 0.0]])
+            self.assertTensorEqual(reward(env, **params), [0.0])
+            env.command_manager.command = tensor([[0.5, 0.0, 0.0]])
+            self.set_phase(env, [0.0], [0.0], [0.0], [0.0])
+            reward.reset(env_ids=[0])
+            self.assertTensorEqual(reward(env, **params), [0.0])
 
 
 if __name__ == "__main__":

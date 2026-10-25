@@ -8,19 +8,17 @@ class PioneerHumanoidRoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
     max_iterations = 3000
     save_interval = 50
-    experiment_name = "pioneer_humanoid_rough"
-    # Observation normalization is controlled by the per-network policy fields in
-    # the current Isaac Lab/RSL-RL bridge. Keep it explicitly disabled for all
-    # existing tasks so their observation path and checkpoint layout remain
-    # unchanged; the isolated scratch runner below enables it from iteration zero.
-    empirical_normalization = False
+    # The shared corrected-knee asset is incompatible with old-geometry policies.
+    # Keep normalization enabled, but do not auto-resume from their log namespace.
+    experiment_name = "pioneer_humanoid_rough_knee_axis_v2"
+    empirical_normalization = True
     policy = RslRlPpoActorCriticCfg(
         init_noise_std=1.0,
         actor_hidden_dims=[512, 256, 128],
         critic_hidden_dims=[512, 256, 128],
         activation="elu",
-        actor_obs_normalization=False,
-        critic_obs_normalization=False,
+        actor_obs_normalization=True,
+        critic_obs_normalization=True,
         # Root cause of the recurring "RuntimeError: normal expects all elements of
         # std >= 0.0" crash (confirmed via torch.autograd.set_detect_anomaly + cross-
         # referenced against rsl_rl's own upstream GitHub issue #33): with the default
@@ -71,68 +69,19 @@ class PioneerHumanoidRoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
 
 
 @configclass
-class PioneerHumanoidRoughNoStairsPPORunnerCfg(PioneerHumanoidRoughPPORunnerCfg):
-    def __post_init__(self):
-        super().__post_init__()
-
-        self.experiment_name = "pioneer_humanoid_rough_no_stairs"
-
-
-@configclass
-class PioneerHumanoidRoughNoStairsFootTuneFineNormalizedScratchPPORunnerCfg(
-    PioneerHumanoidRoughNoStairsPPORunnerCfg
-):
-    """Fresh FootTuneFine lineage with actor and critic observation normalization."""
+class PioneerHumanoidRoughNoStairsSelectiveKneeShapePPORunnerCfg(PioneerHumanoidRoughPPORunnerCfg):
+    """Normalized final walking recipe, isolated from legacy task logs."""
 
     def __post_init__(self):
         super().__post_init__()
-
         self.max_iterations = 6000
-        self.experiment_name = "pioneer_humanoid_rough_no_stairs_foot_tune_fine_normalized_scratch"
-        # The runner-level option is deprecated. Set the two active policy options
-        # explicitly so there is no ambiguity about which normalizers are created.
+        self.save_interval = 25
+        self.resume = False
+        self.experiment_name = "pioneer_humanoid_rough_no_stairs_selective_knee_shape"
+        # Active per-network fields preserve the saved final recipe's normalizers.
         self.empirical_normalization = None
         self.policy.actor_obs_normalization = True
         self.policy.critic_obs_normalization = True
-
-
-@configclass
-class PioneerHumanoidRoughNoStairsFootTuneFineKneeAxisFixedNormalizedScratchPPORunnerCfg(
-    PioneerHumanoidRoughNoStairsFootTuneFineNormalizedScratchPPORunnerCfg
-):
-    """Fresh normalized lineage for the corrected knee geometry."""
-
-    def __post_init__(self):
-        super().__post_init__()
-
-        self.experiment_name = (
-            "pioneer_humanoid_rough_no_stairs_foot_tune_fine_knee_axis_fixed_normalized_scratch"
-        )
-
-
-@configclass
-class PioneerHumanoidRoughNoStairsSelectiveSelfCollisionNormalizedScratchPPORunnerCfg(
-    PioneerHumanoidRoughNoStairsFootTuneFineKneeAxisFixedNormalizedScratchPPORunnerCfg
-):
-    """Fresh normalized collision lineage with the existing PPO settings."""
-
-    def __post_init__(self):
-        super().__post_init__()
-
-        self.resume = False
-        self.experiment_name = "pioneer_humanoid_rough_no_stairs_selective_self_collision_normalized_scratch"
-
-
-@configclass
-class PioneerHumanoidRoughNoStairsSelectiveKneeShapePPORunnerCfg(
-    PioneerHumanoidRoughNoStairsSelectiveSelfCollisionNormalizedScratchPPORunnerCfg
-):
-    """Keep normalized PPO defaults, with separate logs and denser pilot saves."""
-
-    def __post_init__(self):
-        super().__post_init__()
-        self.save_interval = 25
-        self.experiment_name = "pioneer_humanoid_rough_no_stairs_selective_knee_shape"
 
 
 @configclass
@@ -141,7 +90,7 @@ class PioneerHumanoidFlatPPORunnerCfg(PioneerHumanoidRoughPPORunnerCfg):
         super().__post_init__()
 
         self.max_iterations = 10000
-        self.experiment_name = "pioneer_humanoid_flat"
+        self.experiment_name = "pioneer_humanoid_flat_knee_axis_v2"
         # Raised from 0.5 to match G1's flat config: G1FlatPPORunnerCfg never overrides
         # init_noise_std, so it inherits G1RoughPPORunnerCfg's 1.0 -- Wato's flat config
         # had been sitting at half that (0.5) since before this session, unexamined.
@@ -158,7 +107,6 @@ class PioneerHumanoidFlatPPORunnerCfg(PioneerHumanoidRoughPPORunnerCfg):
         # length ~52 for 250+ iterations (noise std already annealed down to 0.22 by
         # iteration 750, likely too little exploration left to ever discover the
         # "don't fall" behavior the original entropy_coef=0.01 run stumbled onto).
-        # Keep the historical entropy choice; this legacy task intentionally retains
-        # its original identity-normalized observation path for checkpoint loading.
+        # Retain the historical entropy and normalized observation path.
         self.algorithm.entropy_coef = 0.008
-        self.empirical_normalization = False
+        self.empirical_normalization = True

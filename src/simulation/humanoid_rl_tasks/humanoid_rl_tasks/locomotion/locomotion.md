@@ -34,15 +34,23 @@ cd $HUMANOID_ROOT
 # Train — flat terrain
 rl-train --task=Isaac-Locomotion-Flat-PioneerHumanoid-v0 --headless
 
-# Play — loads latest under outputs/rl/pioneer_humanoid_flat/
+# Play — loads latest under outputs/rl/pioneer_humanoid_flat_knee_axis_v2/
 rl-play --task=Isaac-Locomotion-Flat-PioneerHumanoid-Play-v0 --num_envs=1
 
 # Play — specific checkpoint
 rl-play --task=Isaac-Locomotion-Flat-PioneerHumanoid-Play-v0 --num_envs=1 \
-  --checkpoint outputs/rl/pioneer_humanoid_flat/<run>/model_<iter>.pt
+  --checkpoint outputs/rl/pioneer_humanoid_flat_knee_axis_v2/<run>/model_<iter>.pt
 ```
 
-Rough-terrain variants: replace `Flat` with `Rough` and use `outputs/rl/pioneer_humanoid_rough/`.
+Rough-terrain variants: replace `Flat` with `Rough` and use
+`outputs/rl/pioneer_humanoid_rough_knee_axis_v2/`.
+
+These versioned log namespaces deliberately exclude old-geometry runs from
+automatic checkpoint selection. Task IDs remain the same, and actor/critic
+observation normalization remains enabled. Start fresh with the corrected robot;
+do not move old runs into the new folders or override the checkpoint path to
+bypass this separation. Normalizer compatibility does not make an old policy
+compatible with different robot geometry.
 
 ## Rough-no-stairs source-only recipe
 
@@ -53,6 +61,13 @@ target overshoot, and own-swing flexion costs. Weights and parameters are define
 in [rough_env_cfg.py](config/pioneer_humanoid_v1/rough_env_cfg.py) and
 [knee_shaping.py](mdp/knee_shaping.py). The local swing-timing and normalized
 swing-clearance experiments are not included.
+
+The final recipe is defined directly by one rewards config, one training config,
+its PLAY subclass, and one normalized PPO runner, without intermediate tuning
+stages. Knee terms resolve joint/action mappings at manager setup and own their
+caches; rollout calls read live actions, scale/offset, joint state and contact
+timers. Terrain-only sensors update filtered forces and stance timers once per
+sensor update. Unused foot/opposite-calf diagnostic sensors are not instantiated.
 
 Inside the team's `simulation_isaac` container, wait until the GPU is free and
 start with a **fresh** 200-update wiring/learning smoke:
@@ -94,11 +109,6 @@ ROUGH_CHECKPOINT="/absolute/path/to/your/run/model_<iteration>.pt"
 Use one environment for a closer inspection. `Isaac-Locomotion-*` aliases are
 equivalent. Plain `Rough` is a different recipe; do not select it merely to load
 an incompatible checkpoint.
-
-If WSL/Docker headless training works but you need a Windows GUI, follow the
-[CPU export and native Windows viewer guide](../../../humanoid_rl/NATIVE_VIEWER.md).
-It takes an explicit trusted checkpoint, exports TorchScript plus a manifest,
-and runs native Windows physics without committing models or local setup.
 
 Checkpoint compatibility requires the actor **and** critic observation
 normalizers from the saved policy, 235 policy observations, 12 ordered joint

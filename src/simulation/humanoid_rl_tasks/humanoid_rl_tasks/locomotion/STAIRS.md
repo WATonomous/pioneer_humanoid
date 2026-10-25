@@ -25,15 +25,17 @@ The equivalent `Isaac-Locomotion-Stairs-PioneerHumanoid-v0` and
   knee-shaping rewards, observation layout, action ordering, actuators, and physics
   come from this repository baseline. No new stairs-specific reward is added.
 - The stairs task does **not** import the local swing-timing experiment or require
-  any helper under `outputs/`. Existing rough-terrain task defaults are unchanged.
+  any helper under `outputs/`. The final rough walking recipe is preserved.
+  Legacy Flat/Rough tasks keep observation normalization enabled, but now use
+  versioned corrected-knee log namespaces; see the
+  [checkpoint compatibility notes](locomotion.md#train--play).
 
 When preparing a PR, include the baseline's robot/asset, selective-collision,
 contact-sensor, and knee-shaping dependencies as well as these stairs files. A
 copy of `stairs_env_cfg.py` alone is not a standalone environment. This
 contribution is source-only: keep trained checkpoints, policy exports, training
-outputs, local Docker configuration, machine-local native-viewer setup, and
-private experiment results out of the PR. The portable source viewer is included;
-see the [CPU export and native Windows guide](../../../humanoid_rl/NATIVE_VIEWER.md).
+outputs, local Docker configuration, native-viewer helpers, and private
+experiment results out of the PR.
 
 ## Starting terrain and commands
 
@@ -123,7 +125,7 @@ Zero-action smoke steps check wiring, not locomotion success.
 Enter the existing `simulation_isaac` development container from the host:
 
 ```bash
-./watod -t simulation_isaac_dev
+./watod -t simulation_isaac
 ```
 
 The image sets `HUMANOID_ROOT`, `ISAACLAB`, and `RL_RUNNERS`; the commands below run
@@ -251,3 +253,15 @@ The source-only scope cleanup on the same date passed all 64 CPU tests (34 stair
 26 knee-shaping, and four numerical-guard tests), including the additional
 contract limiting public tasks to Flat, Rough, the final selective-knee recipe,
 and Stairs. Reward weights, robot physics, and the final PPO recipe were unchanged.
+
+Review cleanup (2026-10-25): all 94 CPU tests passed using native Windows Python
+3.11 / Torch 2.7, with CUDA devices hidden and no Isaac application launched.
+The suite includes frozen pre-refactor training/PLAY/PPO configuration contracts,
+the retained 19 rewards, asset-cache marker/hash checks, setup-owned knee mappings,
+and terrain-only sensor force/history/timer/reset/subset parity tests. The viewer
+and its export tooling are no longer part of this contribution. The unrelated
+FFmpeg build fix is kept separately rather than bundled into locomotion changes.
+
+The earlier simulator results above predate this refactor. Re-run the real
+configuration check and runtime smoke in the pinned team image before merge;
+CPU doubles do not establish current PhysX behavior or stair-climbing success.

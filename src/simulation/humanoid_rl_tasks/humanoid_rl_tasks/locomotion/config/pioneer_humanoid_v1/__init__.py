@@ -2,8 +2,7 @@ import gymnasium as gym
 
 from . import agents
 
-# Intermediate configuration classes supply the final recipe's inheritance,
-# but only the final new rough recipe and stairs scaffold are public tasks.
+# Register the final walking recipe and stairs scaffold alongside legacy tasks.
 _ENVS = (
     ("Rough", "rough_env_cfg:PioneerHumanoidRoughEnvCfg", "PioneerHumanoidRoughPPORunnerCfg", ""),
     ("Rough", "rough_env_cfg:PioneerHumanoidRoughEnvCfg_PLAY", "PioneerHumanoidRoughPPORunnerCfg", "-Play"),
@@ -36,8 +35,7 @@ for _terrain, _env_cfg, _agent_cfg, _suffix in _ENVS:
             kwargs=_kwargs,
         )
 
-# Separate runner module keeps the stairs scaffold additive: existing rough/flat
-# registrations and their PPO defaults are unchanged.
+# A separate runner module keeps the stairs scaffold isolated from walking logs.
 for _suffix, _env_class in (
     ("", "PioneerHumanoidStairsEnvCfg"),
     ("-Play", "PioneerHumanoidStairsEnvCfg_PLAY"),

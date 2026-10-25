@@ -1,3 +1,8 @@
+# Copyright (c) 2022-2026, The Isaac Lab Project Developers.
+# All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Terrain-only foot sensing for tasks with physical robot self-contact."""
 
 from __future__ import annotations
@@ -8,6 +13,7 @@ import torch
 
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.sensors import ContactSensor
+from isaaclab.utils.math import convert_quat
 
 
 class TerrainContactSensor(ContactSensor):
@@ -27,30 +33,57 @@ class TerrainContactSensor(ContactSensor):
             raise RuntimeError("TerrainContactSensor's filter did not resolve to a terrain collider.")
 
     def _update_buffers_impl(self, env_ids: Sequence[int]):
+        """Update from filtered terrain forces, without all-contact timer work.
+
+        Buffer/history and timer operations follow Isaac Lab 2.3.2's contact
+        sensor (BSD-3-Clause). The parent still owns allocation, reset and lazy
+        update timestamps. Only the force source differs: self-contact must not
+        advance the terrain stance clock.
+        """
+        if len(env_ids) == 0:
+            return
         if len(env_ids) == self._num_envs:
             env_ids = slice(None)
-        if self.cfg.track_air_time:
-            air_time = self._data.current_air_time[env_ids].clone()
-            contact_time = self._data.current_contact_time[env_ids].clone()
-            last_air_time = self._data.last_air_time[env_ids].clone()
-            last_contact_time = self._data.last_contact_time[env_ids].clone()
 
-        # The inherited updater owns force-matrix/history/pose handling. Pass
-        # integer indices because the parent normalizes a full index list.
-        parent_env_ids = range(self._num_envs) if isinstance(env_ids, slice) else env_ids
-        super()._update_buffers_impl(parent_env_ids)
-        terrain_force = self._data.force_matrix_w[env_ids].sum(dim=-2)
+        num_filters = self.contact_physx_view.filter_count
+        force_matrix = self.contact_physx_view.get_contact_force_matrix(dt=self._sim_physics_dt)
+        force_matrix = force_matrix.view(-1, self._num_bodies, num_filters, 3)[env_ids]
+        self._data.force_matrix_w[env_ids] = force_matrix
+        terrain_force = force_matrix.sum(dim=-2)
         self._data.net_forces_w[env_ids] = terrain_force
-        self._data.net_forces_w_history[env_ids, 0] = terrain_force
+        if self.cfg.history_length > 0:
+            self._data.net_forces_w_history[env_ids] = self._data.net_forces_w_history[env_ids].roll(1, dims=1)
+            self._data.net_forces_w_history[env_ids, 0] = terrain_force
+            self._data.force_matrix_w_history[env_ids] = self._data.force_matrix_w_history[env_ids].roll(1, dims=1)
+            self._data.force_matrix_w_history[env_ids, 0] = force_matrix
+
+        # Preserve optional ContactSensor features, although the walking recipe
+        # only needs forces, history and timers.
+        if self.cfg.track_pose:
+            pose = self.body_physx_view.get_transforms().view(-1, self._num_bodies, 7)[env_ids]
+            pose[..., 3:] = convert_quat(pose[..., 3:], to="wxyz")
+            self._data.pos_w[env_ids], self._data.quat_w[env_ids] = pose.split([3, 4], dim=-1)
+        if self.cfg.track_contact_points:
+            _, points, _, _, counts, starts = self.contact_physx_view.get_contact_data(dt=self._sim_physics_dt)
+            self._data.contact_pos_w[env_ids] = self._unpack_contact_buffer_data(points, counts, starts)[env_ids]
+        if self.cfg.track_friction_forces:
+            forces, _, counts, starts = self.contact_physx_view.get_friction_data(dt=self._sim_physics_dt)
+            self._data.friction_forces_w[env_ids] = self._unpack_contact_buffer_data(
+                forces, counts, starts, avg=False, default=0.0
+            )[env_ids]
 
         if self.cfg.track_air_time:
             elapsed = (self._timestamp[env_ids] - self._timestamp_last_update[env_ids]).unsqueeze(-1)
+            air_time = self._data.current_air_time[env_ids]
+            contact_time = self._data.current_contact_time[env_ids]
             in_contact = terrain_force.norm(dim=-1) > self.cfg.force_threshold
             first_contact = (air_time > 0.0) & in_contact
             first_detached = (contact_time > 0.0) & ~in_contact
-            self._data.last_air_time[env_ids] = torch.where(first_contact, air_time + elapsed, last_air_time)
+            self._data.last_air_time[env_ids] = torch.where(
+                first_contact, air_time + elapsed, self._data.last_air_time[env_ids]
+            )
             self._data.last_contact_time[env_ids] = torch.where(
-                first_detached, contact_time + elapsed, last_contact_time
+                first_detached, contact_time + elapsed, self._data.last_contact_time[env_ids]
             )
             self._data.current_air_time[env_ids] = torch.where(in_contact, 0.0, air_time + elapsed)
             self._data.current_contact_time[env_ids] = torch.where(in_contact, contact_time + elapsed, 0.0)
