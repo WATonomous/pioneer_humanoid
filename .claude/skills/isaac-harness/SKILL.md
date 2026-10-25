@@ -265,6 +265,39 @@ approach depth) — not just that the two boxes don't intersect.
   orientation is in question, a shot from more than one angle before concluding
   anything is broken or unchanged.
 
+## verify_loop.py — check/adjust convergence for placement that can't be computed up front
+
+`tools/isaac_harness/verify_loop.py` is a client-side (host-side) library, NOT a
+daemon command — it composes existing atomic commands (`bbox`/`overlap`/`query`/
+`set_pose`) into a check-adjust-recheck loop. Only reach for it when the target
+can't just be computed and spawned at directly (a scaled prefab asset's real
+physics-contact height not matching its visual bbox, or genuinely trial-and-error
+placement) — for anything with a known target, spawn there directly, a loop is
+pure overhead.
+
+Use `is_stacked_on`/`settle_stack` (or the CLI's `stack` subcommand), not
+`is_resting_on`/`close_gap_along_axis` (`rest`), for anything that needs to stay
+put under continued physics — `is_resting_on` only checks the z-gap, and an
+object placed with only the z-gap corrected can converge cleanly and STILL
+drift/topple over further stepping, because nothing corrected x/y centering.
+Confirmed by testing, not assumed.
+
+**Known limitation, confirmed by testing, not yet fixed:** even with x/y
+centering, `verify_loop` only corrects the *placed* object's own translation —
+it never corrects the *supporting* object's rotation. A 3-box YCB stack
+(cracker/sugar/gelatin box) converged the z-gap and x/y-centering perfectly at
+every step, but still wasn't stable under continued physics stepping, because
+the supporting box itself settled with a few degrees of residual tilt — a
+tilted support surface gives gravity a persistent sideways component regardless
+of how precisely the object on top was centered. This is a real physical
+limitation of the current tool, not a bug to route around with more damping or
+tighter tolerances. Prefer flat, large, well-settled support surfaces (a table,
+not another small irregular object) for anything built with `verify_loop` until
+a leveling check/adjustment exists. `scenes/bin_on_table_precise.sh` is the
+verified-stable reference example (positions bit-identical across 300 extra
+physics steps after convergence); the 3-box stack was tried and abandoned for
+this reason.
+
 ## When to ask vs. proceed
 
 Ask before forcing a stuck shutdown (see hard rules). Otherwise, act — spawn, step,
