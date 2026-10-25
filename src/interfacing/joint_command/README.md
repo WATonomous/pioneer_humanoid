@@ -54,7 +54,9 @@ A MIT joint is a PD drive with no internal limit checking, so `joint_command` ad
 | Field | Role |
 |---|---|
 | `mit_kp` / `mit_kd` | stiffness / damping (physical units) |
-| `mit_max_torque` | fault above this torque |
+| `mit_max_torque` | rated torque: fault above it, unless `mit_max_temperature` allows it |
+| `mit_peak_torque` | optional hard cap (N.m); above `mit_max_torque` is allowed up to it while the drive reads below `mit_max_temperature`. Needs `mit_max_temperature`; not on the gripper |
+| `mit_max_temperature` | optional (°C, as the drive reports it): fault at or above it, at any torque. A reading of 0 counts as none, so the rated cap applies |
 | `mit_max_track_err` | fault if the joint lags its setpoint by more (deg) |
 | `mit_feedback_timeout` | fault after this long without feedback |
 | `mit_family` | `gl2` or `ak`; they disagree on the status byte (AK 1 = over-temperature) |
@@ -62,7 +64,8 @@ A MIT joint is a PD drive with no internal limit checking, so `joint_command` ad
 | `mit_fault_kd` | damping for `damp`, in (0, 5] |
 
 **Startup rule** (the node refuses to launch otherwise): quantised `mit_kp` × `mit_max_track_err`
-(rad) + `gravity_ff_max_torque` ≤ `mit_max_torque`.
+(rad) + `gravity_ff_max_torque` ≤ `mit_peak_torque` (`mit_max_torque` when no peak is set). With a
+peak set, a stalled joint can push at up to the peak until the temperature check trips.
 
 Lifecycle: `MIT_ENTER` at startup, zero-stiffness frames until seeded, then gains, then
 zero-stiffness frames again when the stream goes stale. A fault latches: `limp` joints get

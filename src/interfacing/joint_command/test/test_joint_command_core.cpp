@@ -86,6 +86,7 @@ protected:
       MotorFeedbackSample s;
       s.position_deg = core.lastMotorCmdDeg()[i];
       s.torque_nm = 0.05;
+      s.temperature_c = 30.0;
       s.status = core.safety(i).mit_family == MitDriveFamily::Ak ? 0 : 1; // AK ok / GL II Enable
       s.age_s = 0.01;
       fb[static_cast<int>(core.motorId(i))] = s;
@@ -368,7 +369,7 @@ TEST_F(ShippedConfig, ShippedMitGainsSatisfyTheStallTorqueRule) {
     EXPECT_GT(s.mit_kd, 0.0) << core.jointName(i) << ": kd = 0 makes a GL II oscillate";
     const double worst =
         JointCommandCore::quantiseKp(s.mit_kp) * s.mit_max_track_err * M_PI / 180.0;
-    EXPECT_LE(worst, s.mit_max_torque)
+    EXPECT_LE(worst, s.mit_peak_torque.value_or(s.mit_max_torque))
         << core.jointName(i) << ": a stalled joint would pull " << worst << " N.m";
   }
 }
@@ -907,6 +908,11 @@ TEST_F(ShippedConfig, UnsafeGripperConfigIsRefused) {
   cfg["joints"]["gripper"]["open_close"]["gravity_ff_max_torque"] = 0.01;
   expectRefused(cfg, "gravity model");
 
+  cfg = shipped();
+  cfg["joints"]["gripper"]["open_close"]["mit_peak_torque"] = 0.5;
+  cfg["joints"]["gripper"]["open_close"]["mit_max_temperature"] = 60.0;
+  expectRefused(cfg, "squeeze limit");
+
   // Calibrated with closing negative: upper_limit is the open end.
   YAML::Node mapping = YAML::LoadFile(configPath("arm_calibration.yaml"));
   mapping["left"]["gripper"]["open_close"]["lower_limit"] = -100.0;
@@ -1010,4 +1016,113 @@ TEST_F(ShippedConfig, InactiveArmJointIsUnknownToTheGravityModel) {
   ASSERT_TRUE(core.loadSafetyFromYaml(cfg, kRateHz)) << core.lastError();
   EXPECT_NEAR(settledTorque(), core.joint(kShoulderPitch).direction * 4.0696, 0.01)
       << "with an assumed angle the feed-forward still runs";
+}
+
+// ---------------------------------------------------------------------------
+// Peak torque and temperature
+// ---------------------------------------------------------------------------
+
+// shoulder.pitch (AK10-9) may go above its rated 18 N.m, up to 30 N.m, while below 60 C.
+YAML::Node configWithShoulderPitchPeak() {
+  YAML::Node cfg = YAML::LoadFile(configPath("arm_actuators.yaml"))["safety"];
+  YAML::Node j = cfg["joints"]["shoulder"]["pitch"];
+  j["mit_max_torque"] = 18.0;
+  j["mit_peak_torque"] = 30.0;
+  j["mit_max_temperature"] = 60.0;
+  return cfg;
+}
+
+TEST_F(ShippedConfig, AboveRatedTorqueIsAllowedOnlyWhileTheMotorIsCool) {
+  ASSERT_TRUE(core.loadSafetyFromYaml(configWithShoulderPitchPeak(), kRateHz)) << core.lastError();
+  seedAtCommandZero();
+  core.armPoseToMotorCmds(uniformPose(0.0), kPositionLoop);
+  const int id = static_cast<int>(core.motorId(kShoulderPitch));
+  const auto healthy = healthyMitFeedback();
+
+  auto withShoulder = [&](double torque, double temperature) {
+    auto fb = healthy;
+    fb[id].torque_nm = torque;
+    fb[id].temperature_c = temperature;
+    return fb;
+  };
+  auto expectFault = [&](double torque, double temperature, const std::string& needle) {
+    const auto fault = core.checkMitFaults(withShoulder(torque, temperature));
+    ASSERT_TRUE(fault.has_value()) << torque << " N.m at " << temperature << " C";
+    EXPECT_NE(fault->find("shoulder.pitch"), std::string::npos) << *fault;
+    EXPECT_NE(fault->find(needle), std::string::npos) << *fault;
+  };
+
+  // Above rated, below peak, cool: allowed, either sign.
+  EXPECT_FALSE(core.checkMitFaults(withShoulder(25.0, 40.0)).has_value())
+      << *core.checkMitFaults(withShoulder(25.0, 40.0));
+  EXPECT_FALSE(core.checkMitFaults(withShoulder(-25.0, 40.0)).has_value())
+      << *core.checkMitFaults(withShoulder(-25.0, 40.0));
+
+  expectFault(25.0, 60.0, "mit_max_temperature");    // hot
+  expectFault(1.0, 60.0, "mit_max_temperature");     // hot at a light load
+  expectFault(-31.0, 40.0, "mit_peak_torque");       // over the peak while cool
+  expectFault(25.0, 0.0, "no temperature reading");  // no reading: the rated cap applies
+}
+
+TEST_F(ShippedConfig, WithoutAPeakRatedTorqueStaysTheHardCap) {
+  // A temperature limit alone adds the temperature fault but keeps the rated cap.
+  YAML::Node cfg = configWithShoulderPitchPeak();
+  cfg["joints"]["shoulder"]["pitch"].remove("mit_peak_torque");
+  ASSERT_TRUE(core.loadSafetyFromYaml(cfg, kRateHz)) << core.lastError();
+  seedAtCommandZero();
+  core.armPoseToMotorCmds(uniformPose(0.0), kPositionLoop);
+  const int id = static_cast<int>(core.motorId(kShoulderPitch));
+
+  auto fb = healthyMitFeedback();
+  fb[id].torque_nm = 19.0;
+  fb[id].temperature_c = 40.0;
+  auto fault = core.checkMitFaults(fb);
+  ASSERT_TRUE(fault.has_value());
+  EXPECT_NE(fault->find("exceeds mit_max_torque"), std::string::npos) << *fault;
+
+  fb[id].torque_nm = 1.0;
+  fb[id].temperature_c = 60.0;
+  fault = core.checkMitFaults(fb);
+  ASSERT_TRUE(fault.has_value());
+  EXPECT_NE(fault->find("mit_max_temperature"), std::string::npos) << *fault;
+}
+
+TEST_F(ShippedConfig, UnsafePeakTorqueOrTemperatureConfigIsRefused) {
+  auto expectRefused = [&](const YAML::Node& cfg, const std::string& needle) {
+    EXPECT_FALSE(core.loadSafetyFromYaml(cfg, kRateHz)) << needle;
+    EXPECT_NE(core.lastError().find(needle), std::string::npos) << core.lastError();
+  };
+
+  YAML::Node cfg = configWithShoulderPitchPeak();
+  cfg["joints"]["shoulder"]["pitch"]["mit_peak_torque"] = 10.0; // below rated 18
+  expectRefused(cfg, "must be >= mit_max_torque");
+
+  cfg = configWithShoulderPitchPeak();
+  cfg["joints"]["shoulder"]["pitch"].remove("mit_max_temperature");
+  expectRefused(cfg, "needs mit_max_temperature");
+
+  cfg = configWithShoulderPitchPeak();
+  cfg["joints"]["shoulder"]["pitch"]["mit_max_temperature"] = 200.0; // beyond int8
+  expectRefused(cfg, "(0, 127]");
+}
+
+TEST_F(ShippedConfig, StartupRuleChecksAgainstThePeakWhenOneIsSet) {
+  // 20.02 N.m/rad (quantised) x 40 deg + 7 N.m = 20.98 N.m: over rated 18, under peak 30.
+  YAML::Node cfg = configWithShoulderPitchPeak();
+  YAML::Node j = cfg["joints"]["shoulder"]["pitch"];
+  j["mit_kp"] = 20.0;
+  j["mit_max_track_err"] = 40.0;
+  j["gravity_ff_scale"] = 1.0;
+  j["gravity_ff_max_torque"] = 7.0;
+  EXPECT_TRUE(core.loadSafetyFromYaml(cfg, kRateHz)) << core.lastError();
+
+  j["mit_peak_torque"] = 20.0;
+  EXPECT_FALSE(core.loadSafetyFromYaml(cfg, kRateHz));
+  EXPECT_NE(core.lastError().find("exceeds mit_peak_torque"), std::string::npos)
+      << core.lastError();
+
+  j.remove("mit_peak_torque");
+  EXPECT_FALSE(core.loadSafetyFromYaml(cfg, kRateHz));
+  EXPECT_NE(core.lastError().find("exceeds mit_max_torque"), std::string::npos)
+      << core.lastError();
 }

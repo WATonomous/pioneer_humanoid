@@ -121,6 +121,7 @@ void JointCommandNode::motorFeedbackCallback(const common_msgs::msg::MotorFeedba
   MotorFeedbackSample sample;
   sample.position_deg = static_cast<double>(msg->position);
   sample.torque_nm = static_cast<double>(msg->torque);
+  sample.temperature_c = static_cast<double>(msg->temperature);
   sample.status = static_cast<int>(msg->error_code);
   latest_feedback_full_[id] = sample;
   latest_feedback_time_[id] = this->get_clock()->now();
