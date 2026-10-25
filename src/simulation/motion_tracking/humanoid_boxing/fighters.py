@@ -65,11 +65,11 @@ LIMB_CHAINS = {
 }
 
 # Orthodox boxing stance: frame 0 of scripts/generate_moves.py (Wato's stance made on this robot:
-# 60% of its length and 80% of its width, hips 5 cm lower, both soles flat, weight 50/50; see that
-# script). Root pose is relative to the centre between the feet, facing +x (the opponent).
-# Regenerate from data/motions/moves.csv row 0 if the stance changes.
-STANCE_ROOT_POS = (-0.1080, 0.0161, 0.7979)
-STANCE_ROOT_QUAT = (0.5629, -0.0713, 0.0820, -0.8194)  # wxyz
+# 60% of its length and 80% of its width, half its forward lean, hips 8 cm lower, both soles flat,
+# weight 50/50; see that script). Root pose is relative to the centre between the feet, facing +x
+# (the opponent). Regenerate from data/motions/moves.csv row 0 if the stance changes.
+STANCE_ROOT_POS = (-0.0962, 0.0163, 0.7679)
+STANCE_ROOT_QUAT = (0.5659, -0.0357, 0.0411, -0.8226)  # wxyz
 STANCE_JOINTS = {
   "waist_yaw": 0.0000,
   "neck_yaw": 0.0000,
@@ -88,18 +88,18 @@ STANCE_JOINTS = {
   "l_forearm_roll": -0.1493,
   "l_wrist_dev": 0.4846,
   "l_wrist_flex": 0.4879,
-  "Hip_F_L": 0.7344,
-  "Hip_A_L": 0.0638,
-  "Hip_R_L": 0.0595,
-  "Knee_L": -0.6432,
-  "Ankle_P_L": -0.1242,
-  "Ankle_R_L": 0.0014,
-  "Hip_F_R": 0.5579,
-  "Hip_A_R": 0.1013,
-  "Hip_R_R": 0.4385,
-  "Knee_R": -0.7049,
-  "Ankle_P_R": -0.3429,
-  "Ankle_R_R": -0.0338,
+  "Hip_F_L": 0.7250,
+  "Hip_A_L": 0.0559,
+  "Hip_R_L": 0.0633,
+  "Knee_L": -0.8556,
+  "Ankle_P_L": -0.2376,
+  "Ankle_R_L": -0.0033,
+  "Hip_F_R": 0.5346,
+  "Hip_A_R": 0.1609,
+  "Hip_R_R": 0.4181,
+  "Knee_R": -0.9174,
+  "Ankle_P_R": -0.4593,
+  "Ankle_R_R": -0.0235,
 }
 
 

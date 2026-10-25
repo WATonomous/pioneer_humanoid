@@ -3,7 +3,8 @@ for the Pioneer robot as a CSV, chained freely.
 
 The stance and guard are an orthodox boxing stance (left foot forward, torso bladed)
 measured from the previous robot's (Wato's) stance, made by inverse kinematics on
-this robot: the same foot placement and pelvis blade, the hips CROUCH below
+this robot: the same foot placement (scaled to fit), pelvis blade and half its forward
+lean, the hips CROUCH below
 standing, both soles flat and the weight split 50/50 so it can stand under physics,
 and the gloves and elbows placed from the shoulders as Wato's were, scaled to this
 robot's longer arms. Moves:
@@ -71,7 +72,8 @@ STANCE_SOLES = {LEAD: (0.207, 0.1248), REAR: (-0.175, -0.1722)}  # sole centres 
 STANCE_FOOT_YAW = {LEAD: -106.1, REAR: -136.4}  # foot turn from the zero pose [deg]
 STANCE_BASE_QUAT = (0.5629, -0.0713, 0.082, -0.8194)  # pelvis (wxyz): faces the opponent, bladed, tilted
 KNEE_MIN_BEND = 5.0  # deg
-CROUCH = 0.05  # hips below standing [m]
+CROUCH = 0.08  # hips below standing [m]: knees ~50 deg of their 65 (the defence moves fit in the rest)
+STANCE_TILT = 0.5  # share of Wato's pelvis tilt kept: its full forward lean sat this robot's hips over the rear foot
 STANCE_SCALE = 0.6  # of Wato's 45 cm stance: this robot's legs reach less (knee 65 deg, ankle 30 deg, hip extension 20 deg)
 # ...but sideways only 0.6 would put the feet under the hips (18 cm apart, hip joints 17 cm): widen
 # the stance sideways by this much on top (feet 24 cm apart; wider and the step back runs out of leg)
@@ -632,7 +634,7 @@ def make_stance(robot: Robot, scale: float, crouch: float) -> Stance:
     target = scale * np.array(STANCE_SOLES[f]) * [1.0, STANCE_WIDTH]
     feet_pos[f] = np.array([*(target - sole_world[:2]), -sole_world[2] + SOLE_THICKNESS / 2])
   com = scale * (np.array(STANCE_SOLES[LEAD]) + np.array(STANCE_SOLES[REAR])) / 2 * [1.0, STANCE_WIDTH]
-  base_quat = np.array(STANCE_BASE_QUAT)
+  base_quat = slerp(quat_z(_yaw(np.array(STANCE_BASE_QUAT))), np.array(STANCE_BASE_QUAT), STANCE_TILT)
 
   for k in range(1, 41):
     s = k / 40
@@ -664,6 +666,12 @@ def make_stance(robot: Robot, scale: float, crouch: float) -> Stance:
       print(f"WARNING: the {side} glove misses its guard position by {err * 100:.1f} cm")
   sole_off = {f: robot.sole_xy(f) - feet_pos[f][:2] for f in (LEAD, REAR)}
   return Stance(feet_pos, feet_quat, sole_off, com, base_z0 - crouch, base_quat)
+
+
+def _yaw(quat: np.ndarray) -> float:
+  m = np.zeros(9)
+  mujoco.mju_quat2Mat(m, quat)
+  return float(np.arctan2(m[3], m[0]))
 
 
 def rot_mat2(quat: np.ndarray) -> np.ndarray:
@@ -705,13 +713,14 @@ def main(
   hold: float = 1.0,
   fps: float = 50.0,
   max_cap_use: float = 0.8,
-  # sizes: the largest each move this robot's joint ranges allow (IK within 1 cm), as a share of Wato's
+  # sizes: the largest each move this robot's joint ranges allow (IK within 1 cm), as a share of Wato's;
+  # the ducks, slip and weave go 3.5 cm less deep from the 3 cm lower stance (about the same hip height)
   # (weight 0.5: with the wider stance, more weight on the lead foot leaves the step back short of leg)
   step: StepCfg = StepCfg(forward=0.06, side=0.048, lift=0.018, weight_shift=0.5),  # noqa: B008  (60%)
-  duck: DuckCfg = DuckCfg(depth=0.08, lean=8.0, down=0.25, bottom=0.1, up=0.3),  # noqa: B008  (80%)
-  deep_duck: DuckCfg = DuckCfg(depth=0.06, lean=7.5, down=0.5, bottom=0.2, up=0.55),  # noqa: B008  (30%)
-  slip: SlipCfg = SlipCfg(depth=0.048, lean=9.6),  # noqa: B008  (80%)
-  weave: WeaveCfg = WeaveCfg(depth=0.084, side_depth=0.036, lean=4.8, forward_lean=6.0),  # noqa: B008  (60%)
+  duck: DuckCfg = DuckCfg(depth=0.045, lean=8.0, down=0.25, bottom=0.1, up=0.3),  # noqa: B008
+  deep_duck: DuckCfg = DuckCfg(depth=0.034, lean=7.5, down=0.5, bottom=0.2, up=0.55),  # noqa: B008
+  slip: SlipCfg = SlipCfg(depth=0.013, lean=9.6),  # noqa: B008
+  weave: WeaveCfg = WeaveCfg(depth=0.049, side_depth=0.0185, lean=4.8, forward_lean=6.0),  # noqa: B008
   pivot: PivotCfg = PivotCfg(angle=13.5, lift=0.009),  # noqa: B008  (30%)
 ):
   """Args:
