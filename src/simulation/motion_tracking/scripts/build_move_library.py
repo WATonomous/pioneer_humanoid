@@ -88,7 +88,7 @@ def run(cmd: list[str]) -> None:
 
 
 class GloveFK:
-  """Glove sphere and head hitbox centres from CSV rows (root pos, root quat xyzw, 28 joints)."""
+  """Glove sphere and head hitbox centres from CSV rows (root pos, root quat xyzw, 29 joints)."""
 
   def __init__(self):
     from humanoid_boxing.fighters import add_hitboxes
