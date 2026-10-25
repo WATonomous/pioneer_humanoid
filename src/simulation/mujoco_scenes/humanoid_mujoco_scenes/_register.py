@@ -36,13 +36,14 @@ class _Entry:
     step: Optional[Callable[[mujoco.MjModel, mujoco.MjData], None]] = None
     reset: Optional[Callable] = None      # reset(model, data, rng): randomise a new episode
     progress: Optional[Callable] = None   # progress(model, data) -> (step index, n steps, instruction)
+    success: Optional[Callable] = None    # success(model, data) -> bool
 
 
 _REGISTRY: dict[str, _Entry] = {}
 _DISCOVERED = False
 
 
-def scene(name: str, *, robot_pos=(0.0, 0.0, ROBOT_STAND_LIFT_Z), camera=None, step=None, reset=None, progress=None):
+def scene(name: str, *, robot_pos=(0.0, 0.0, ROBOT_STAND_LIFT_Z), camera=None, step=None, reset=None, progress=None, success=None):
     """Register ``build(spec)`` under ``name``. ``robot_pos``: arm base placement (default: on its stand).
 
     ``step(model, data)``: optional, called by the teleop once per control step before stepping the
@@ -52,10 +53,11 @@ def scene(name: str, *, robot_pos=(0.0, 0.0, ROBOT_STAND_LIFT_Z), camera=None, s
     ``reset(model, data, rng)``: optional, called after every reset (and at startup) to randomise the
     new episode, e.g. object placement. ``progress(model, data) -> (index, total, instruction)``:
     optional, for multi-step tasks: which step the operator is on (index == total when done) and its
-    instruction, shown by the teleop and recorded per frame.
+    instruction, shown by the teleop and recorded per frame. ``success(model, data) -> bool``: optional,
+    whether the task is done (default for a multi-step task: all its steps are).
     """
     def deco(build):
-        _REGISTRY[name] = _Entry(build, tuple(robot_pos), camera, step, reset, progress)
+        _REGISTRY[name] = _Entry(build, tuple(robot_pos), camera, step, reset, progress, success)
         return build
 
     return deco
@@ -104,8 +106,20 @@ def scene_progress(name: str) -> Optional[Callable]:
     return _REGISTRY[name].progress
 
 
-def add_floor(spec: mujoco.MjSpec) -> None:
-    """Checker floor at z=0, a light, and a skybox."""
+def scene_success(name: str) -> Optional[Callable]:
+    _discover()
+    entry = _REGISTRY[name]
+    if entry.success is not None or entry.progress is None:
+        return entry.success
+
+    def all_steps_done(model, data) -> bool:
+        index, total, _ = entry.progress(model, data)
+        return index >= total
+    return all_steps_done
+
+
+def add_floor(spec: mujoco.MjSpec, light: bool = True) -> None:
+    """Checker floor at z=0, a skybox and (``light``) an overhead light. Scenes use ``add_workcell``."""
     tex = spec.add_texture(
         name="grid", type=mujoco.mjtTexture.mjTEXTURE_2D, builtin=mujoco.mjtBuiltin.mjBUILTIN_CHECKER,
         rgb1=[0.2, 0.3, 0.4], rgb2=[0.1, 0.2, 0.3], width=512, height=512,
@@ -117,7 +131,8 @@ def add_floor(spec: mujoco.MjSpec) -> None:
     mat = spec.add_material(name="grid", texrepeat=[8, 8], reflectance=0.1)
     mat.textures[mujoco.mjtTextureRole.mjTEXROLE_RGB] = tex.name
     spec.worldbody.add_geom(name="floor", type=mujoco.mjtGeom.mjGEOM_PLANE, size=[4, 4, 0.05], material="grid")
-    spec.worldbody.add_light(pos=[0.5, 0, 3.0], dir=[0, 0, -1], diffuse=[0.8, 0.8, 0.8], castshadow=True)
+    if light:
+        spec.worldbody.add_light(pos=[0.5, 0, 3.0], dir=[0, 0, -1], diffuse=[0.8, 0.8, 0.8], castshadow=True)
 
 
 def make_model(name: str, cameras: dict[str, tuple[int, int]] | None = None) -> mujoco.MjModel:

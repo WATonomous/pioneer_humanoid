@@ -2,8 +2,8 @@
 
 Velocity-commanded bipedal locomotion for **Pioneer humanoid Simulation Model V1** in Isaac Lab. The agent receives base velocity commands $(v_x, v_y, \omega_z)$ and is rewarded for tracking them while staying upright.
 
-Asset: `assets/whole_body_humanoid/` (SolidWorks URDF export).
-Training uses `whole_body_humanoid.urdf`, which adds a Z-up `base` link and a fixed joint so the CAD Y-long frame stands in Isaac without a spawn rotation.
+Asset: `assets/old_leg_only_humanoid/` (SolidWorks URDF export).
+Training uses `old_leg_only_humanoid.urdf`, which adds a Z-up `base` link and a fixed joint so the CAD Y-long frame stands in Isaac without a spawn rotation.
 
 **Environments**
 

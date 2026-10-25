@@ -50,6 +50,15 @@ to the nearest 12-bit code. The gripper is driven from `ArmPose.gripper_position
    no CAN timeout).
 5. Hold 30 s, then ±5°: `tools/arm_roundtrip.sh --joints shoulder.pitch --offset "5,0,0,0,0,0"`.
 
+## Live joint angles (`arm_angles.py`)
+
+Read-only readout of every joint in the command frame (degrees, from `arm_calibration.yaml`), like
+the leader's `encoder_test.py`. It publishes nothing, so it is safe next to anything else:
+
+```bash
+python3 /opt/humanoid_scripts/arm_angles.py [--ids 14,11] [--raw]   # in the joint_command container
+```
+
 ## Angle benchmarks (`arm_roundtrip.py`)
 
 `tools/arm_roundtrip.sh` runs `scripts/arm_roundtrip.py` in the `joint_command` container. It
