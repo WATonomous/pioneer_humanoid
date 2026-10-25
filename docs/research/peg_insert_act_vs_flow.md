@@ -2,8 +2,8 @@
 
 > **Scene version.** Every result below was collected in the original `peg_insert` scene: **1 mm
 > total clearance** (0.5 mm per side), plain table at z = 0.705 m. `main` has since changed that
-> scene to 4 mm clearance in the lightbox workcell (table top 0.780 m). See "Zero-shot on the 4 mm
-> scene" for how these policies transfer.
+> scene to 4 mm clearance in the lightbox workcell (table top 0.780 m). See "Main's 4 mm workcell
+> scene" for how these policies transfer and adapt.
 
 Task: pick up a 40 mm square peg and insert it into a block with 1 mm total clearance, left arm,
 25 Hz absolute joint targets, ego + wrist 640×480 RGB and 7-D proprioception. All numbers are
@@ -69,6 +69,61 @@ before release. As an option of the main expert (`guarded=True`), on full expert
 The guard therefore stays off for demos and on for corrections that start from policy states.
 The rewritten expert reproduces the old plain expert exactly: same outcome and simulated time
 on 40/40 layouts.
+
+## Main's 4 mm workcell scene
+
+`main` changed `peg_insert` to 4 mm clearance inside the lightbox workcell. The table top is
+7.5 cm higher (0.780 m), and the background and lighting are completely different: a white
+lightbox instead of a wooden table on a checkered floor. All runs below are unassisted, with
+50-action chunks and the same success gate (seated and released for 0.5 s within 60 s). They use
+code snapshots of `main` plus these tools (`runs/` on NAS).
+
+**Zero-shot (no new data).** The two scene variants separate clearance from everything else:
+
+| Variant | ACT 347k nominal / fresh | Flow 225k nominal / fresh |
+|---|---|---|
+| Old scene, clearance only 1 → 4 mm | 16/20 · 53/100 | **20/20 · 90/100** |
+| Main's workcell (4 mm + table + visuals) | 0/20 · 0/5 | 0/20 · 0/89 |
+
+The 1 mm-trained policies transfer to 4 mm on their own scene; flow almost fully. In the
+workcell neither grasps. Flow still reaches the correct grasp height for the higher table (lowest
+finger centre 0.888 m, against 0.890 m needed), but it hovers 2.5–4 cm off the peg, never closes
+the gripper, and eventually knocks the peg over. Coarse reaching transfers; the image-driven final
+centring and the decision to close do not.
+
+**Grasp corrections.** 60 expert grasps were handed off from each policy's own approach
+(`collect_corrections --trigger pre-grasp --skill grasp`), followed by 10k updates with half of
+each batch from old data and half from the corrections
+(`config/peg_insert_grasp_phases.json`).
+
+| | grasped / lifted, nominal 20 | grasped / lifted, fresh 99 | inserted |
+|---|---|---|---|
+| Flow 235k | 20 / 20 | 85 / 84 | 0 |
+| ACT 357k | 20 / 10 | 88 / 49 | 0 |
+
+**Round 2: full demos plus insertion corrections.** The round used:
+
+- 75 full expert demos in the workcell: 25 nominal ±1.5 cm, and 50 with the peg or the hole
+  moved 0–7 cm, taken from the training cells of the workspace map.
+- Expert insertions restored from each policy's own failed rollouts (flow 287, ACT 178).
+- 15k updates with batch quotas old 2 / grasp 2 / alignment 2 / recovery 1 / insertion 1
+  (`config/peg_insert_workcell_phases.json`).
+
+Evaluation is on held-out layouts: 20 new nominal seeds (17000+) and 99 new jitters in the fresh
+set's cells.
+
+| Held-out | Flow 250k | ACT 372k |
+|---|---|---|
+| nominal | 9/20 | 9/20 |
+| fresh: hole moved 0–3 / 3–7 cm | 5/20 · 8/30 | 4/20 · 1/30 |
+| fresh: peg moved 0–3 / 3–7 cm | 6/20 · 10/29 | 3/20 · 9/29 |
+| **fresh total** | **29/99** | 17/99 (p = 0.06) |
+| grasped / lifted (fresh) | 99 / 99 | 99 / 99 |
+
+Grasp and transport now work for both policies. Almost every failure is a held peg near the hole
+that never seats (flow 69/70, ACT 79/82), which is the same residual-alignment problem as in the
+1 mm scene. Flow's lead comes mostly from holes moved 3–7 cm. A third flow round on its own
+failures is running (job 714268).
 
 ## Reproducing a round with the current tools
 
