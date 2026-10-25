@@ -76,8 +76,8 @@ CROUCH = 0.08  # hips below standing [m]: knees ~50 deg of their 65 (the defence
 STANCE_TILT = 0.5  # share of Wato's pelvis tilt kept: its full forward lean sat this robot's hips over the rear foot
 STANCE_SCALE = 0.6  # of Wato's 45 cm stance: this robot's legs reach less (knee 65 deg, ankle 30 deg, hip extension 20 deg)
 # ...but sideways only 0.6 would put the feet under the hips (18 cm apart, hip joints 17 cm): widen
-# the stance sideways by this much on top (feet 24 cm apart; wider and the step back runs out of leg)
-STANCE_WIDTH = 1.33
+# the stance sideways by this much on top, back to Wato's 30 cm (soles 38 cm apart in all)
+STANCE_WIDTH = 1.67
 WATO_ARM = 0.539  # Wato's shoulder -> elbow -> wrist length [m]
 # from the shoulder (roll link), in the pelvis frame (x right, y forward, z up), for Wato's arm length
 GUARD = {
@@ -721,7 +721,7 @@ def main(
   deep_duck: DuckCfg = DuckCfg(depth=0.034, lean=7.5, down=0.5, bottom=0.2, up=0.55),  # noqa: B008
   slip: SlipCfg = SlipCfg(depth=0.013, lean=9.6),  # noqa: B008
   weave: WeaveCfg = WeaveCfg(depth=0.049, side_depth=0.0185, lean=4.8, forward_lean=6.0),  # noqa: B008
-  pivot: PivotCfg = PivotCfg(angle=13.5, lift=0.009),  # noqa: B008  (30%)
+  pivot: PivotCfg = PivotCfg(angle=13.5, lift=0.009, weight=0.5),  # noqa: B008  (30%; weight 0.5: the wide stance)
 ):
   """Args:
     sequence: moves in order (see the module docstring).
