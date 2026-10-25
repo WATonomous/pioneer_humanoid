@@ -1,6 +1,6 @@
 # RTAB-Map bag runner
 
-`run_rtabmap.sh` replays a ROS 2 bag, launches RTAB-Map, and records the live map-corrected trajectory to `trajectory.txt`. It replays all bag topics so `/tf`, `/tf_static`, and optional IMU data remain available.
+`run_rtabmap.sh` replays a ROS 2 bag, launches RTAB-Map, and records the live map-corrected trajectory to `trajectory.txt`. It replays only the supplied RGB, depth, camera-info, and optional IMU topics, plus `/tf_static`; dynamic `/tf` is intentionally omitted to avoid conflicts with RTAB-Map's own transforms.
 
 Run it from the RTAB-Map directory inside the ROS 2 container:
 
@@ -29,12 +29,34 @@ RealSense ROS 2 bag:
 
 ```bash
 ./run_rtabmap.sh \
-  /work/pioneer_humanoid/datasets/d455/ros2 \
-  /work/pioneer_humanoid/datasets/d455/rtabmap_output \
+  /work/ros_bags/d455_bag/d455_bag_0.mcap \
+  /work/ros_bags/d455_bag/rtabmap_output \
   /camera/camera/color/image_raw \
   /camera/camera/aligned_depth_to_color/image_raw \
   /camera/camera/color/camera_info \
-  camera_color_optical_frame
+  camera_color_optical_frame \
+  /camera/camera/gyro/sample \
+  /camera/camera/accel/sample
+```
+
+The final two arguments are the separate gyro and accelerometer topics. The
+runner combines them and passes the filtered orientation from Madgwick to
+RTAB-Map. Do not pass the raw combined `/camera/camera/imu` topic unless it
+already contains a valid orientation.
+
+Playback runs at real-time speed by default. Override it with the
+`PLAYBACK_RATE` environment variable, for example:
+
+```bash
+PLAYBACK_RATE=0.25 ./run_rtabmap.sh \
+  /work/ros_bags/d455_bag/d455_bag_0.mcap \
+  /work/ros_bags/d455_bag/rtabmap_output \
+  /camera/camera/color/image_raw \
+  /camera/camera/aligned_depth_to_color/image_raw \
+  /camera/camera/color/camera_info \
+  camera_color_optical_frame \
+  /camera/camera/gyro/sample \
+  /camera/camera/accel/sample
 ```
 
 For a bag with different names, inspect them first:

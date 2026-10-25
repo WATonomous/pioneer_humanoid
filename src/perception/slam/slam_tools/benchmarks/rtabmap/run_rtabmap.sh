@@ -8,6 +8,17 @@ if [[ $# -lt 6 || $# -gt 8 ]]; then
   exit 1
 fi
 
+PLAYBACK_RATE="${PLAYBACK_RATE:-1.0}"
+if ! awk -v rate="$PLAYBACK_RATE" 'BEGIN { exit !(rate > 0) }'; then
+  echo "Error: PLAYBACK_RATE must be a positive number (got: $PLAYBACK_RATE)" >&2
+  exit 1
+fi
+PLAY_ALL_TOPICS="${PLAY_ALL_TOPICS:-false}"
+if [[ "$PLAY_ALL_TOPICS" != true && "$PLAY_ALL_TOPICS" != false ]]; then
+  echo "Error: PLAY_ALL_TOPICS must be true or false (got: $PLAY_ALL_TOPICS)" >&2
+  exit 1
+fi
+
 BAG="$(realpath "$1")"
 OUT="$2"
 RGB_TOPIC="$3"
@@ -30,13 +41,27 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-PLAYER_EXCLUDES=(/tf /tf_static)
-if [[ -n "$ACCEL_TOPIC" ]]; then
-  PLAYER_EXCLUDES=(/tf)
+PLAYER_TOPICS=("$RGB_TOPIC" "$DEPTH_TOPIC" "$CAMERA_INFO_TOPIC" /tf_static)
+if [[ -n "$IMU_TOPIC" ]]; then
+  PLAYER_TOPICS+=("$IMU_TOPIC")
 fi
-ros2 bag play "$BAG" --clock --rate 0.1 --read-ahead-queue-size 1000 \
-  --exclude-topics "${PLAYER_EXCLUDES[@]}" \
-  --start-paused --disable-keyboard-controls >"$PLAYER_LOG" 2>&1 &
+if [[ -n "$ACCEL_TOPIC" ]]; then
+  PLAYER_TOPICS+=("$ACCEL_TOPIC")
+fi
+PLAYER_ARGS=(
+  --clock
+  --rate "$PLAYBACK_RATE"
+  --read-ahead-queue-size 1000
+  --start-paused
+  --disable-keyboard-controls
+)
+if [[ "$BAG" == *.mcap ]]; then
+  PLAYER_ARGS+=(--storage mcap)
+fi
+if [[ "$PLAY_ALL_TOPICS" == false ]]; then
+  PLAYER_ARGS+=(--topics "${PLAYER_TOPICS[@]}")
+fi
+ros2 bag play "$BAG" "${PLAYER_ARGS[@]}" >"$PLAYER_LOG" 2>&1 &
 PLAYER_PID=$!
 CLOCK_READY=false
 for _ in {1..20}; do
