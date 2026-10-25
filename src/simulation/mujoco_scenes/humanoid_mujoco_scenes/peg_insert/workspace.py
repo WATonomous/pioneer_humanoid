@@ -24,7 +24,8 @@ import numpy as np
 from humanoid_mujoco_scenes import make_model
 from .expert import ExpertFailure, PegExpert
 from .recording import CAMERAS, RawDataset, write_json
-from .scene import BLOCK_POS, BLOCK_SIZE, PEG_POS, PEG_SIZE, TABLE_HALF_Y, TABLE_X
+from humanoid_mujoco_scenes import TABLE_HALF_Y, TABLE_X
+from .scene import BLOCK_POS, BLOCK_SIZE, PEG_POS, PEG_SIZE
 
 TABLE_MARGIN = 0.01        # m, object footprint to table edge
 SEPARATION_MARGIN = 0.005  # m, peg footprint to block footprint at reset

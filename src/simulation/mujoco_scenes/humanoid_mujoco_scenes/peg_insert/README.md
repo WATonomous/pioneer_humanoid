@@ -1,7 +1,8 @@
 # Peg insertion: scripted expert → learned policies → corrections
 
-A square peg (40 mm, 1 mm total clearance) must be picked up and inserted into a block in front of
-the left arm. A privileged, physics-only expert records demonstrations; policies (ACT, flow
+A square peg (40 mm) must be picked up and inserted into a block in front of the left arm. The scene
+is now 4 mm total clearance inside the lightbox workcell; the experiment history up to ACT 347k and
+flow 225k used the original 1 mm scene on a plain table. A privileged, physics-only expert records demonstrations; policies (ACT, flow
 transformer) are trained in `src/robot_learning`; expert takeovers from policy states supply
 correction data. Results and the experiment history are in
 [`docs/research/peg_insert_act_vs_flow.md`](../../../../../docs/research/peg_insert_act_vs_flow.md).

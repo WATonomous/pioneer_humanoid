@@ -20,9 +20,10 @@ ros = ["opencv-python-headless>=4.8"]
 hdf5 = ["h5py>=3.8"]
 record = ["lerobot>=0.3.0", "pynput>=1.7", "h5py>=3.8"]
 sim = ["torch>=2.0", "tqdm>=4.0", "lerobot>=0.3.0"]
+dit = ["lerobot>=0.4,<0.5", "transformers>=4.40"]
 
 [project.scripts]
-humanoid-record = "humanoid_robot_learning.record:main"
+humanoid-record = "humanoid_robot_learning.recording.record:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

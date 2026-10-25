@@ -46,7 +46,8 @@ import numpy as np
 from humanoid_mujoco_scenes import make_model
 from pioneer_humanoid.arm_params import LEFT_ARM_JOINTS, LEFT_GRIPPER_JOINTS
 from pioneer_humanoid.mujoco_bimanual_arm import set_home
-from .scene import BLOCK_HEIGHT, BLOCK_POS, CLEARANCE, PEG_HEIGHT, PEG_POS, PEG_SIZE, TABLE_TOP_Z
+from humanoid_mujoco_scenes import TABLE_TOP_Z
+from .scene import BLOCK_HEIGHT, BLOCK_POS, CLEARANCE, PEG_HEIGHT, PEG_POS, PEG_SIZE
 
 FPS = 25
 DT = 1 / FPS

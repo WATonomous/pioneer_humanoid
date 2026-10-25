@@ -22,7 +22,8 @@ import mujoco
 import numpy as np
 
 from .expert import DT, ExpertFailure, Phase
-from .scene import BLOCK_HEIGHT, PEG_HEIGHT, PEG_SIZE, TABLE_TOP_Z
+from humanoid_mujoco_scenes import TABLE_TOP_Z
+from .scene import BLOCK_HEIGHT, PEG_HEIGHT, PEG_SIZE
 
 INSERTION_CASES = ("aligned", "offset_positive", "offset_negative", "tilt_positive", "tilt_negative")
 CASE_OFFSET = 0.003       # m, offset_* cases move the held peg (+x,-y) or (-x,+y)

@@ -10,7 +10,9 @@ Code resolves these by repo-relative path; nothing here is shipped by `pip insta
 assets/
 ├── pioneer_bimanual_arm/   # the bimanual arm — urdf, usd, meshes  (BIMANUAL_ARM_CFG)
 ├── pioneer_hand/           # 20-DOF hand — urdf, usd, meshes        (HAND_CFG)
-├── whole_body_humanoid/    # legged humanoid — urdf, usd, meshes    (WHOLE_BODY_HUMANOID_CFG)
+├── old_leg_only_humanoid/  # the old legs-only humanoid (placeholder upper body) — urdf, usd, meshes (WHOLE_BODY_HUMANOID_CFG)
+├── pioneer_whole_body_humanoid/  # the full robot from CAD (head, arms, hands, legs; 69 joints), and a gripper version (the bimanual arm's joints; 31) — urdf, MuJoCo xml, meshes
+├── pioneer_leg_only_humanoid/    # the same robot without arms, for walking first (12 leg joints; shares the whole-body meshes)
 ├── props/                 # block.usd, box.usd, table.usd, lightbox.usd — scene props owned by no robot
 └── lerobot/               # SO101 arm + vial-task USDs + HDRIs — synced from an external repo
 ```

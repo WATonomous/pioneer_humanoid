@@ -7,6 +7,7 @@ __pycache__
 
 *.pkl
 *.html
+*.egg-info/
 
 watod-config.local.sh
 modules/docker-compose.*.local.yaml
@@ -23,9 +24,9 @@ outputs/
 
 src/simulation/humanoid_rl/datasets/
 # pi0.5 training outputs: checkpoints + train_log.csv, and pioneer_eval_offline.py's plots
-src/robot_learning/humanoid_il/pi0.5/checkpoint/
-src/robot_learning/humanoid_il/pi0.5/checkpoints/
-src/robot_learning/humanoid_il/pi0.5/eval/
+src/robot_learning/pi05/checkpoint/
+src/robot_learning/pi05/checkpoints/
+src/robot_learning/pi05/eval/
 
 modules/docker-compose.perception_override.yaml
 
@@ -39,3 +40,6 @@ src/teleop/quest_teleop/bridge/static/marker_uv.json
 src/simulation/garment_fold_task/
 src/simulation/humanoid_rl/logs/
 src/simulation/humanoid_rl/outputs/
+src/interfacing/joint_command/config/arm_calibration.yaml.bak
+# old single-board leader calibration (convert it with calibrate_leader.py --from; leader_arm.json is committed)
+src/teleop/pioneer_leader_arm_teleop/leader_calibration.json
