@@ -10,7 +10,9 @@ Sources:
             pre-grasp: hand near the upright peg, recorded with ``--skill grasp`` up to a verified lift)
   tasks     expert-prepared held starts: ``--tasks broad`` (80 offsets/heights/tilts around the hole),
             ``large-tilt`` (24 starts tilted 6-12 deg) or a JSON file of insertion cases / task dicts
-  traces    failed episodes of an ``eval --trace-dir`` run: first rim contact, hover or pre-drop state
+  traces    failed episodes of ``eval --trace-dir`` runs: first rim contact, hover or pre-drop state; with
+            ``--max-corrections`` the cap is spread round-robin over layout groups, and ``--group-quota``
+            reserves part of it for a group (e.g. ``hole_3_7=20``)
 
   python -m humanoid_mujoco_scenes.peg_insert.collect_corrections --source takeover --trigger stall \\
       --checkpoint <ckpt> --device cuda --seed 3000 --episodes 100 --corrections 10 --output datasets/corr_r1
@@ -22,6 +24,7 @@ from __future__ import annotations
 import argparse
 import copy
 import json
+from collections import Counter
 from contextlib import ExitStack
 from pathlib import Path
 
@@ -122,14 +125,47 @@ def from_tasks(args, expert, raw, renderers):
         correct(expert, raw, renderers, next_id(raw, args), args.hold_seconds, {"source": "tasks", "identity": identity, "setup": setup, **task})
 
 
+def layout_group(row):
+    """Eval layout group: ``<moved object>_<band>`` (e.g. ``hole_3_7``), or ``nominal`` for seeded layouts."""
+    layout = row.get("layout") or {}
+    return f"{layout['group']}_{layout['band']}" if "group" in layout else "nominal"
+
+
+def trace_candidates(reports, trace_dirs):
+    """Failed episodes of every report, interleaved round-robin across layout groups (not first-come)."""
+    by_group = {}
+    for report, trace_dir in zip(reports, trace_dirs):
+        for row in json.loads(Path(report).read_text())["results"]:
+            if not row["success"]:
+                by_group.setdefault(layout_group(row), []).append((row, Path(trace_dir)))
+    queues = list(by_group.values())
+    while any(queues):
+        for queue in queues:
+            if queue:
+                yield queue.pop(0)
+
+
+def has_room(args, raw, group):
+    """Quota groups fill up to their quota; all other groups share what is left of ``--max-corrections``."""
+    counts = Counter(layout_group(r) for r in raw.results if r["success"])
+    if group in args.group_quota:
+        return counts[group] < args.group_quota[group]
+    if args.max_corrections is None:
+        return True
+    shared = args.max_corrections - sum(args.group_quota.values())
+    return sum(n for g, n in counts.items() if g not in args.group_quota) < shared
+
+
 def from_traces(args, expert, raw, renderers):
-    report = json.loads(args.eval_report.read_text())
-    for row in (r for r in report["results"] if not r["success"]):
-        with np.load(args.trace_dir / f"seed_{row['seed']:06d}.npz") as loaded:
+    for row, trace_dir in trace_candidates(args.eval_report, args.trace_dir):
+        group = layout_group(row)
+        with np.load(trace_dir / f"seed_{row['seed']:06d}.npz") as loaded:
             trace = dict(loaded)
         for kind, index in trace_starts(trace):
             if enough(args, raw):
                 return
+            if not has_room(args, raw, group):
+                break
             identity = f"{row['seed']}_{kind}_{index}"
             if raw.has("identity", identity):
                 continue
@@ -175,12 +211,19 @@ def main():
     policy.add_argument("--start-stage", choices=("full", "insertion"), default="full")
     policy.add_argument("--insertion-case", default="aligned")
     p.add_argument("--tasks", help="broad | large-tilt | JSON file with {'tasks': [...]}")
-    p.add_argument("--eval-report", type=Path)
-    p.add_argument("--trace-dir", type=Path)
+    p.add_argument("--eval-report", type=Path, action="append", help="traces: eval report; repeat with a matching --trace-dir")
+    p.add_argument("--trace-dir", type=Path, action="append")
+    p.add_argument("--group-quota", nargs="*", default=[], metavar="GROUP=N",
+                   help="traces: reserve N corrections for a layout group (e.g. hole_3_7=20); other groups share the rest of --max-corrections")
     args = p.parse_args()
     required = {"takeover": ["checkpoint"], "tasks": ["tasks"], "traces": ["eval_report", "trace_dir"]}[args.source]
     if any(getattr(args, name) is None for name in required):
         p.error(f"--source {args.source} needs " + ", ".join("--" + n.replace("_", "-") for n in required))
+    if args.source == "traces" and len(args.eval_report) != len(args.trace_dir):
+        p.error("give one --trace-dir per --eval-report")
+    args.group_quota = {k: int(v) for k, v in (q.split("=") for q in args.group_quota)}
+    if args.max_corrections is not None and sum(args.group_quota.values()) > args.max_corrections:
+        p.error("group quotas exceed --max-corrections")
     raw = RawDataset(args.output, expert_only=True, source=args.source)
     model = make_model("peg_insert", cameras=CAMERAS)
     expert = PegExpert(model, mujoco.MjData(model), guarded=args.guarded or args.source == "traces")
