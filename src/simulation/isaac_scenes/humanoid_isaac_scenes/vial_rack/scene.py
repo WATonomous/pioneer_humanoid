@@ -32,26 +32,28 @@ VIAL_RACK_USD = str(_ASSETS / "Vial_rack_simple.usda")
 VIAL_USD = str(_ASSETS / "Vial_opaque.usda")
 
 # ── rack + vials (first pass; reach-tune against the LEFT arm) ────────────────
-# Offsets from the arm base in x; y is negative = the LEFT arm's side.
-RACK_POS = (ROBOT_BASE_X + 0.37, -0.32, TABLE_TOP_Z)
+# Offsets from the arm base in x; y is positive = the LEFT arm's side.
+RACK_POS = (ROBOT_BASE_X + 0.37, 0.32, TABLE_TOP_Z)
 VIAL_INIT_POS = [
-    (ROBOT_BASE_X + 0.30, -0.05, TABLE_TOP_Z + 0.03),
-    (ROBOT_BASE_X + 0.30, -0.13, TABLE_TOP_Z + 0.03),
-    (ROBOT_BASE_X + 0.30, -0.21, TABLE_TOP_Z + 0.03),
+    (ROBOT_BASE_X + 0.30, 0.20, TABLE_TOP_Z + 0.019),
+    (ROBOT_BASE_X + 0.30, 0.26, TABLE_TOP_Z + 0.019),
+    (ROBOT_BASE_X + 0.30, 0.32, TABLE_TOP_Z + 0.019),
 ]
 
 _VIAL_RIGID_PROPS = sim_utils.RigidBodyPropertiesCfg(
     solver_position_iteration_count=16,
     solver_velocity_iteration_count=1,
     max_depenetration_velocity=1.0,
+    angular_damping=100.0,
     disable_gravity=False,
 )
+_VIAL_MASS_PROPS = sim_utils.MassPropertiesCfg(mass=0.02)
 
 
 @scene(
     "vial_rack",
     robot_pos=ROBOT_BASE_POS,
-    camera=([1.3, -1.3, TABLE_TOP_Z + 0.65], [ROBOT_BASE_X + 0.35, -0.2, TABLE_TOP_Z]),
+    camera=([-1.2, 1.2, TABLE_TOP_Z + 0.65], [ROBOT_BASE_X + 0.35, 0.2, TABLE_TOP_Z]),
 )
 @configclass
 class VialRackSceneCfg(LightboxWorkcellCfg):
@@ -72,15 +74,27 @@ class VialRackSceneCfg(LightboxWorkcellCfg):
     vial_1 = RigidObjectCfg(
         prim_path="{ENV_REGEX_NS}/Vial1",
         init_state=RigidObjectCfg.InitialStateCfg(pos=VIAL_INIT_POS[0], rot=(1.0, 0.0, 0.0, 0.0)),
-        spawn=sim_utils.UsdFileCfg(usd_path=VIAL_USD, rigid_props=_VIAL_RIGID_PROPS),
+        spawn=sim_utils.UsdFileCfg(
+            usd_path=VIAL_USD,
+            rigid_props=_VIAL_RIGID_PROPS,
+            mass_props=_VIAL_MASS_PROPS,
+        ),
     )
     vial_2 = RigidObjectCfg(
         prim_path="{ENV_REGEX_NS}/Vial2",
         init_state=RigidObjectCfg.InitialStateCfg(pos=VIAL_INIT_POS[1], rot=(1.0, 0.0, 0.0, 0.0)),
-        spawn=sim_utils.UsdFileCfg(usd_path=VIAL_USD, rigid_props=_VIAL_RIGID_PROPS),
+        spawn=sim_utils.UsdFileCfg(
+            usd_path=VIAL_USD,
+            rigid_props=_VIAL_RIGID_PROPS,
+            mass_props=_VIAL_MASS_PROPS,
+        ),
     )
     vial_3 = RigidObjectCfg(
         prim_path="{ENV_REGEX_NS}/Vial3",
         init_state=RigidObjectCfg.InitialStateCfg(pos=VIAL_INIT_POS[2], rot=(1.0, 0.0, 0.0, 0.0)),
-        spawn=sim_utils.UsdFileCfg(usd_path=VIAL_USD, rigid_props=_VIAL_RIGID_PROPS),
+        spawn=sim_utils.UsdFileCfg(
+            usd_path=VIAL_USD,
+            rigid_props=_VIAL_RIGID_PROPS,
+            mass_props=_VIAL_MASS_PROPS,
+        ),
     )

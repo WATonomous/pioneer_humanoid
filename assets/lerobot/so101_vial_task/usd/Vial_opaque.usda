@@ -44,11 +44,13 @@
 
 def Xform "Vial" (
     delete apiSchemas = ["PhysicsArticulationRootAPI", "PhysxArticulationAPI"]
-    prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI"]
+    prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
     kind = "assembly"
 )
 {
+    point3f physics:centerOfMass = (0, 0, 0.015)
     bool physics:kinematicEnabled = 0
+    float physics:mass = 0.02
     bool physics:rigidBodyEnabled = 1
     float physxRigidBody:maxLinearVelocity = 2
 
