@@ -101,9 +101,15 @@ def from_takeover(args, expert, raw, renderers):
             correct(expert, raw, renderers, next_id(raw, args), args.hold_seconds, info, args.skill)
 
 
+def enough(args, raw):
+    return args.max_corrections is not None and raw.successes() >= args.max_corrections
+
+
 def from_tasks(args, expert, raw, renderers):
     tasks = {"broad": broad_coverage_tasks, "large-tilt": large_tilt_tasks}.get(args.tasks, lambda: json.loads(Path(args.tasks).read_text())["tasks"])()
     for index, task in enumerate(tasks):
+        if enough(args, raw):
+            return
         identity = f"task_{index}_{task['layout_seed']}"
         if raw.has("identity", identity):
             continue
@@ -122,6 +128,8 @@ def from_traces(args, expert, raw, renderers):
         with np.load(args.trace_dir / f"seed_{row['seed']:06d}.npz") as loaded:
             trace = dict(loaded)
         for kind, index in trace_starts(trace):
+            if enough(args, raw):
+                return
             identity = f"{row['seed']}_{kind}_{index}"
             if raw.has("identity", identity):
                 continue
@@ -149,6 +157,7 @@ def main():
     p.add_argument("--source", choices=["takeover", "tasks", "traces"], required=True)
     p.add_argument("--output", type=Path, required=True, help="raw collection (resumed if it exists)")
     p.add_argument("--first-id", type=int, default=100000, help="first episode id in a new collection")
+    p.add_argument("--max-corrections", type=int, help="tasks/traces: stop once the collection holds this many successful corrections")
     p.add_argument("--skill", choices=["insert", "grasp"], default="insert",
                    help="what the expert finishes: insert + release, or (with --trigger pre-grasp) grasp + lift only")
     p.add_argument("--hold-seconds", type=float, default=0.5, help="secure the inherited grasp before moving")
