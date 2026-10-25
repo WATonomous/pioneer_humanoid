@@ -122,8 +122,29 @@ set's cells.
 
 Grasp and transport now work for both policies. Almost every failure is a held peg near the hole
 that never seats (flow 69/70, ACT 79/82), which is the same residual-alignment problem as in the
-1 mm scene. Flow's lead comes mostly from holes moved 3–7 cm. A third flow round on its own
-failures is running (job 714268).
+1 mm scene. Flow's lead comes mostly from holes moved 3–7 cm.
+
+**Round 3: corrections from round-2 failures.** For each policy, 40 expert insertions were
+restored from its own failed round-2 rollouts. Training continued 15k updates with the same mix
+(flow 250k → 265k, ACT 372k → 387k). Each job took about 2 h. Both policies were evaluated on new
+held-out layouts, identical for the two: 20 nominal seeds from 18000, and 99 new jitters in the
+same cells. Round 2's held-out layouts had become correction sources.
+
+| Held-out (new layouts) | Flow 265k | ACT 387k | p |
+|---|---|---|---|
+| nominal | 10/20 | 6/20 | |
+| fresh: hole moved 0–3 / 3–7 cm | 10/20 · 7/30 | 4/20 · 3/30 | |
+| fresh: peg moved 0–3 / 3–7 cm | 10/20 · 17/29 | 8/20 · 22/29 | |
+| **fresh total** | **44/99** | **37/99** | 0.39 |
+| all held-out | 54/119 | 43/119 | 0.19 |
+| failures: held, not seated / seated, not released in time | 50 / 5 | 57 / 5 | |
+
+From round 2 to round 3, fresh success rose for both policies: flow 29 → 44/99 (p = 0.04) and
+ACT 17 → 37/99 (p = 0.002). The fresh sets in the two rounds are different jitters of the same
+cells. Flow still leads, but the gap is no longer significant. ACT now does better when the peg
+moves far (22/29); flow does better when the hole moves (17/50 vs 7/50). The hole moved 3–7 cm
+is still the weakest case for both (7/30 and 3/30). Most failures are still a peg held near the
+hole that never seats.
 
 ## Reproducing a round with the current tools
 
