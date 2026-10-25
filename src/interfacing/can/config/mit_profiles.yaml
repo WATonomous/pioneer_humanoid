@@ -17,11 +17,11 @@
 # Keyed by motor CAN id (decimal), matching arm_calibration.yaml's left-arm can_id values.
 
 motors:
-  # AK10-9 -- shoulder_pitch (0x0E), shoulder_roll (0x0D)
+  # AK10-9 -- shoulder_pitch (0x0E), shoulder_yaw (0x0C)
   "14": {model: AK10-9, family: ak, p_min: -12.56, p_max: 12.56, v_min: -28.0, v_max: 28.0, t_min: -54.0, t_max: 54.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 1.3137}
-  "13": {model: AK10-9, family: ak, p_min: -12.56, p_max: 12.56, v_min: -28.0, v_max: 28.0, t_min: -54.0, t_max: 54.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 1.3137}
-  # AK80-9 -- shoulder_yaw (0x0C), elbow_pitch (0x0B), elbow_roll (0x68)
-  "12": {model: AK80-9, family: ak, p_min: -12.56, p_max: 12.56, v_min: -65.0, v_max: 65.0, t_min: -18.0, t_max: 18.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 0.5701}
+  "12": {model: AK10-9, family: ak, p_min: -12.56, p_max: 12.56, v_min: -28.0, v_max: 28.0, t_min: -54.0, t_max: 54.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 1.3137}
+  # AK80-9 -- shoulder_roll (0x0D), elbow_pitch (0x0B), elbow_roll (0x68)
+  "13": {model: AK80-9, family: ak, p_min: -12.56, p_max: 12.56, v_min: -65.0, v_max: 65.0, t_min: -18.0, t_max: 18.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 0.5701}
   "11": {model: AK80-9, family: ak, p_min: -12.56, p_max: 12.56, v_min: -65.0, v_max: 65.0, t_min: -18.0, t_max: 18.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 0.5701}
   "104": {model: AK80-9, family: ak, p_min: -12.56, p_max: 12.56, v_min: -65.0, v_max: 65.0, t_min: -18.0, t_max: 18.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 0.5701}
   # GL40 KV70 (GL II) -- wrist_pitch (0x16), gripper open_close (0x15). Verify p_max: with the

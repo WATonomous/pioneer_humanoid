@@ -38,7 +38,8 @@ ros2 run can can_node --ros-args --params-file $(ros2 pkg prefix can)/share/can/
   `torque = current × kt`.
 
 Per-joint gains live in `joint_command/config/arm_actuators.yaml`; `joint_command` refuses to
-start if `quantised kp × mit_max_track_err (+ feed-forward) > mit_max_torque`. Gains are snapped
+start if `quantised kp × mit_max_track_err (+ feed-forward) > mit_peak_torque` (`mit_max_torque`
+when no peak is set). Gains are snapped
 to the nearest 12-bit code. The gripper is driven from `ArmPose.gripper_position`
 ([joint_command/README.md](../joint_command/README.md#gripper)).
 
