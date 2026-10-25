@@ -2,8 +2,11 @@
 
 Velocity-commanded bipedal locomotion for **Pioneer humanoid Simulation Model V1** in Isaac Lab. The agent receives base velocity commands $(v_x, v_y, \omega_z)$ and is rewarded for tracking them while staying upright.
 
-Asset: `assets/whole_body_humanoid/` (SolidWorks URDF export).
-Training uses `whole_body_humanoid.urdf`, which adds a Z-up `base` link and a fixed joint so the CAD Y-long frame stands in Isaac without a spawn rotation.
+Asset: `assets/old_leg_only_humanoid/` (SolidWorks URDF export).
+Legacy Flat/Rough tasks use the upstream `old_leg_only_humanoid.urdf` and
+`pioneer_humanoid/whole_body.py` unchanged. The rough-no-stairs and stairs tasks
+use a separate, frozen research baseline; see
+[robot baseline isolation](../../../../../assets/old_leg_only_humanoid/RL_BASELINE.md).
 
 **Environments**
 
@@ -34,23 +37,22 @@ cd $HUMANOID_ROOT
 # Train — flat terrain
 rl-train --task=Isaac-Locomotion-Flat-PioneerHumanoid-v0 --headless
 
-# Play — loads latest under outputs/rl/pioneer_humanoid_flat_knee_axis_v2/
+# Play — loads latest under outputs/rl/pioneer_humanoid_flat/
 rl-play --task=Isaac-Locomotion-Flat-PioneerHumanoid-Play-v0 --num_envs=1
 
 # Play — specific checkpoint
 rl-play --task=Isaac-Locomotion-Flat-PioneerHumanoid-Play-v0 --num_envs=1 \
-  --checkpoint outputs/rl/pioneer_humanoid_flat_knee_axis_v2/<run>/model_<iter>.pt
+  --checkpoint outputs/rl/pioneer_humanoid_flat/<run>/model_<iter>.pt
 ```
 
 Rough-terrain variants: replace `Flat` with `Rough` and use
-`outputs/rl/pioneer_humanoid_rough_knee_axis_v2/`.
+`outputs/rl/pioneer_humanoid_rough/`.
 
-These versioned log namespaces deliberately exclude old-geometry runs from
-automatic checkpoint selection. Task IDs remain the same, and actor/critic
-observation normalization remains enabled. Start fresh with the corrected robot;
-do not move old runs into the new folders or override the checkpoint path to
-bypass this separation. Normalizer compatibility does not make an old policy
-compatible with different robot geometry.
+Legacy Flat/Rough task IDs, log namespaces, observation normalization, and robot
+configuration follow upstream. Their geometry is deliberately not changed by
+the rough-no-stairs contribution. Policies still require the robot definition
+used for training; a matching log directory or normalizer is not a geometry
+compatibility guarantee.
 
 ## Rough-no-stairs source-only recipe
 
@@ -118,13 +120,17 @@ Negative knee position is flexion. Selective physical self-collision permits
 only each foot against the opposite calf; terrain-only foot sensors prevent
 those self-contacts from being mistaken for ground stance.
 
-The supplied asset corrects both knee axes/limits, uses a 0.84 m nominal root
-height, and mirrors the nominal ankle-pitch signs. These shared asset changes
-also affect legacy Flat/Rough tasks. The older checked-in flat model3900 and
-rough model2999 were trained with different geometry and are **not validated
-against this corrected asset**; their unchanged filenames are not a
-compatibility guarantee. Do not mix a policy trained with this recipe with an
-older URDF/USD or remove normalizers to make another task load it.
+The recipe uses `pioneer_humanoid/rough_baseline.py` and the isolated
+`assets/old_leg_only_humanoid/rl_baseline_v1.urdf`. This frozen baseline retains
+the recipe's knee axes/limits, 0.84 m nominal root height, mirrored nominal
+ankle-pitch signs, and actuator settings. It does **not** modify the latest
+upstream robot asset or legacy Flat/Rough tasks. The separate cached USD and
+selective-collision conversion cache also avoid replacing upstream assets.
+See the [baseline compatibility notes](../../../../../assets/old_leg_only_humanoid/RL_BASELINE.md)
+before changing its geometry. Older checked-in flat model3900 and rough
+model2999 are not policies for this recipe. Do not mix a policy trained with
+this recipe with another URDF/USD or remove normalizers to make another task
+load it. No trained policy is included here.
 
 Evaluate learned stepping symmetry, foot paths, falls, turning, and sustained
 walking rather than relying on total reward or a short demonstration. Source
@@ -157,4 +163,6 @@ $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/diagnose_joints.py \
 | Knee | `Knee_L`, `Knee_R` |
 | Ankle pitch / roll | `Ankle_P_*`, `Ankle_R_*` |
 
-Config: `pioneer_humanoid/whole_body.py`, tasks under `config/pioneer_humanoid_v1/`.
+Robot configs: `pioneer_humanoid/whole_body.py` for legacy Flat/Rough;
+`pioneer_humanoid/rough_baseline.py` for rough-no-stairs and stairs.
+Task configs are under `config/pioneer_humanoid_v1/`.

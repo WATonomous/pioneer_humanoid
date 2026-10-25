@@ -21,11 +21,7 @@ import math
 import mujoco
 import numpy as np
 
-from humanoid_mujoco_scenes import add_floor, scene
-
-TABLE_TOP_Z = 0.705             # same table as peg_insert
-TABLE_X = (0.15, 0.85)
-TABLE_HALF_Y = 0.6
+from humanoid_mujoco_scenes import TABLE_TOP_Z, add_workcell, scene
 
 BUNDLE_POS = (0.45, 0.29)       # xy of the bundle centre, inside the left arm's reach
 LOOP_Z = TABLE_TOP_Z + 0.06     # strap height on the bundle
@@ -139,17 +135,13 @@ def step(model: mujoco.MjModel, data: mujoco.MjData) -> None:
     data.eq_active[_weld_ids(model)] = _in_slot(fed)
 
 
-@scene("zip_tie", camera=dict(lookat=[0.40, 0.29, 0.77], distance=0.55, azimuth=215, elevation=-35), step=step)
+@scene("zip_tie", camera=dict(lookat=[0.40, 0.29, TABLE_TOP_Z + 0.065], distance=0.5, azimuth=215, elevation=-35), step=step,
+       success=lambda model, data: is_tight(model, data))
 def build(spec: mujoco.MjSpec) -> None:
-    add_floor(spec)
+    add_workcell(spec)
     spec.nuserdata = 1
     world = spec.worldbody
     box, cyl = mujoco.mjtGeom.mjGEOM_BOX, mujoco.mjtGeom.mjGEOM_CYLINDER
-    x0, x1 = TABLE_X
-    world.add_geom(
-        name="table", type=box, size=[(x1 - x0) / 2, TABLE_HALF_Y, TABLE_TOP_Z / 2],
-        pos=[(x0 + x1) / 2, 0.0, TABLE_TOP_Z / 2], rgba=[0.55, 0.42, 0.3, 1],
-    )
 
     # Loose rods: each slides in XY on a spring to its rest spot, standing on the table (so a loose loop
     # that slides down them can't slip underneath).

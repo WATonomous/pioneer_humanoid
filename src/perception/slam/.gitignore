@@ -1,0 +1,9 @@
+# Datasets and recorded bags; never committed
+data/
+
+# Prototype run outputs (trajectories, keyframe images, maps, mcaps)
+prototype/out/
+
+# Local Python environments and build metadata
+.venv/
+*.egg-info/

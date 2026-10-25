@@ -18,11 +18,12 @@ src/simulation/
 │   └── humanoid_mujoco_scenes/ #   bare/  peg_insert/
 ├── so101_vial_task/        # SO101 imitation-learning task
 └── badminton/              # mjlab (MuJoCo Warp) badminton receive RL — see badminton/README.md
+└── whole_body_motion_tracking/  # Links to whole body motion tracking pipeline
 ```
 
 Robot URDF/USD/meshes and scene props live at the repo-root **`assets/`** (backend-neutral —
 not tied to an Isaac Lab package): `assets/{pioneer_bimanual_arm, pioneer_hand,
-whole_body_humanoid, props, lerobot}/`. Live RL checkpoints go to `outputs/rl/` (gitignored); frozen baselines are in the repo-root `models/`.
+old_leg_only_humanoid, props, lerobot}/`. Live RL checkpoints go to `outputs/rl/` (gitignored); frozen baselines are in the repo-root `models/`.
 
 ## RL task vs teleop scene — where does new work go?
 
@@ -62,3 +63,5 @@ Per-task notes: `humanoid_rl_tasks/humanoid_rl_tasks/<task>/*.md`. Full walkthro
 
 Pioneer humanoid walking: [source-only rough-no-stairs training and playback recipe](humanoid_rl_tasks/humanoid_rl_tasks/locomotion/locomotion.md#rough-no-stairs-source-only-recipe).
 Stairs research starter: [twelve steps up, a raised walkway, and twelve steps down](humanoid_rl_tasks/humanoid_rl_tasks/locomotion/STAIRS.md).
+These two research tasks use an [isolated frozen robot baseline](../../assets/old_leg_only_humanoid/RL_BASELINE.md);
+the upstream robot definition and legacy Flat/Rough configuration are not changed.

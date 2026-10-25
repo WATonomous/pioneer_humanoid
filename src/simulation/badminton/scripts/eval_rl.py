@@ -4,7 +4,10 @@
 
 Rolls the policy over the launcher bank and reports contact rate overall
 and binned by p*'s distance in front of the chest plane (y - arm.base_y)
-and by height, to test whether body-line intercepts are the miss cluster.
+and by height, to test whether body-line intercepts are the miss cluster,
+plus which arm made each hit (the face closest to the cork at contact)
+and how the policy picked the arm (lock rate, agreement with the
+strike-plane rule at the lock, lock time).
 A hit that lands on the very tick the episode terminates is not counted
 (the reset clears the latch first); this undercounts by a negligible
 amount.
@@ -23,7 +26,7 @@ import torch
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import humanoid_badminton  # noqa: F401  (registers the tasks)
-from humanoid_badminton import mdp  # noqa: E402
+from humanoid_badminton import mdp, shared  # noqa: E402
 import aero  # noqa: E402
 from mjlab.envs import ManagerBasedRlEnv  # noqa: E402
 from mjlab.rl import MjlabOnPolicyRunner, RslRlVecEnvWrapper  # noqa: E402
@@ -32,7 +35,7 @@ from mjlab.tasks.registry import load_env_cfg, load_rl_cfg, load_runner_cls  # n
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--task", default="Mjlab-Badminton-Receive-Teacher")
+    ap.add_argument("--task", default="Mjlab-Badminton-Shared-Student-PPO-Priv")
     ap.add_argument("--checkpoint-file", required=True)
     ap.add_argument("--episodes", type=int, default=4096)
     ap.add_argument("--num-envs", type=int, default=1024)
@@ -42,9 +45,23 @@ def main() -> None:
                          "global reset (default: skipped - those hit 90-95%% "
                          "vs 98-99.6%% steady state, so they bias the bank "
                          "number down)")
+    ap.add_argument("--margin", type=float, default=1.0,
+                    help="critic value gap that locks an "
+                         "arm (ChooserPolicy)")
+    ap.add_argument("--t-max", type=float, default=None,
+                    help="lock by this time regardless "
+                         "(default params control.shared_go_max_s)")
+    ap.add_argument("--critic-task", default=None,
+                    help="task whose critic picks the arm "
+                         "(default: --task; required for a distilled student)")
+    ap.add_argument("--critic-checkpoint", default=None,
+                    help="checkpoint holding that critic (default: "
+                         "--checkpoint-file)")
     args = ap.parse_args()
 
-    env_cfg = load_env_cfg(args.task)
+    # the play cfg waits for the chooser's lock and adds the per-arm
+    # observation groups the critic reads
+    env_cfg = load_env_cfg(args.task, play=True)
     env_cfg.scene.num_envs = args.num_envs
     agent_cfg = load_rl_cfg(args.task)
     env = ManagerBasedRlEnv(cfg=env_cfg, device=args.device)
@@ -60,6 +77,15 @@ def main() -> None:
                 load_cfg={"student": True} if distilled else {"actor": True},
                 strict=True, map_location=args.device)
     policy = runner.get_inference_policy(device=args.device)
+    if distilled and args.critic_checkpoint is None:
+        sys.exit("a distilled student has no critic: pass "
+                 "--critic-task/--critic-checkpoint (its teacher's)")
+    policy = shared.make_chooser(
+        env, policy, args.critic_task or args.task,
+        args.critic_checkpoint or args.checkpoint_file, args.device,
+        args.margin, args.t_max)
+    print(f"chooser: critic of {args.critic_task or args.task}, margin "
+          f"{policy.margin}, lock by {policy.t_max} s")
 
     base_y = aero.load_params()["arm"]["base_y"]
     store = env.unwrapped._badminton
@@ -67,14 +93,16 @@ def main() -> None:
     feas = env.unwrapped.command_manager.get_term("feasibility")
     uenv = env.unwrapped
     from mjlab.managers.scene_entity_config import SceneEntityCfg
-    fcfg = SceneEntityCfg("robot", site_names=("face_center",))
+    from humanoid_badminton.assets import FACE_SITES
+    fcfg = SceneEntityCfg("robot", site_names=FACE_SITES, preserve_order=True)
     fcfg.resolve(uenv.scene)
     robot = uenv.scene["robot"]
 
     def face_pose():
-        pos = robot.data.site_pos_w[:, fcfg.site_ids].squeeze(1)
+        # (n, 2, 3) positions and (n, 2, 3, 3) frames, right face first
+        pos = robot.data.site_pos_w[:, fcfg.site_ids]
         mat = robot.data.data.site_xmat[:, robot.data.indexing.site_ids]
-        mat = mat[:, fcfg.site_ids].squeeze(1).reshape(-1, 3, 3)
+        mat = mat[:, fcfg.site_ids].reshape(uenv.num_envs, -1, 3, 3)
         return pos, mat
 
     n = uenv.num_envs
@@ -102,12 +130,15 @@ def main() -> None:
 
     near_uv = torch.full((n, 2), float("nan"), device=dev)
     near_d = torch.full((n,), float("inf"), device=dev)
+    near_side = torch.full((n,), -1, dtype=torch.long, device=dev)  # 0 right, 1 left
     # predicted landing of the return, at the hit tick: distance to the
     # launch origin (the run-12 target zone) and net-clearance flag
     land_err = torch.full((n,), float("nan"), device=dev)
     land_ok = torch.zeros(n, dtype=torch.bool, device=dev)
 
-    rows = []  # (front_dist, z, x, hit, u, v, d_min, land_err, land_ok)
+    # (front_dist, z, x, hit, u, v, d_min, land_err, land_ok, side,
+    #  committed, chosen arm, rule arm at the lock, lock time)
+    rows = []
     warm = torch.zeros(n, dtype=torch.bool, device=dev)  # env past its 1st episode
     qv_rows, tau_rows, duty_rows = [], [], []  # per-episode, per-joint
     with torch.no_grad():
@@ -119,18 +150,26 @@ def main() -> None:
             prev_duty = (feas._over / feas._ticks.clamp_min(1.0)).clone()
             prev_uv = near_uv.clone()
             prev_d = near_d.clone()
+            prev_side = near_side.clone()
             prev_land = land_err.clone()
             prev_ok = land_ok.clone()
+            prev_pick = torch.stack(
+                [store["committed"].float(), store["assign"].float(),
+                 store["commit_rule"].float(), store["commit_t"]], dim=-1)
             obs, _, dones, _ = env.step(policy(obs))
             done = dones.bool()
             # closest approach so far; stop updating once the face has hit
             fpos, fmat = face_pose()
             cpos = cork_pos()
-            local = torch.einsum("nij,ni->nj", fmat, cpos - fpos)
-            d = local.norm(dim=-1)
+            local = torch.einsum("nkij,nki->nkj", fmat,
+                                 cpos.unsqueeze(1) - fpos)
+            dk = local.norm(dim=-1)                 # (n, 2) per face
+            d, side = dk.min(dim=-1)
+            local = local[torch.arange(n, device=dev), side]
             closer = (d < near_d) & (~prev_hit) & (~done)
             near_d = torch.where(closer, d, near_d)
             near_uv[closer] = local[closer, :2]
+            near_side = torch.where(closer, side, near_side)
             first = store["first"] & (~done)
             if bool(first.any()):
                 spos, svel = mdp._shuttle_state(uenv)
@@ -148,9 +187,12 @@ def main() -> None:
                 uv = prev_uv[i].cpu().numpy()
                 rows.append((p[1] - base_y, p[2], p[0], bool(prev_hit[i]),
                              float(uv[0]), float(uv[1]), float(prev_d[i]),
-                             float(prev_land[i]), float(prev_ok[i])))
+                             float(prev_land[i]), float(prev_ok[i]),
+                             float(prev_side[i]),
+                             *prev_pick[i].tolist()))
             near_uv[done] = float("nan")
             near_d[done] = float("inf")
+            near_side[done] = -1
             land_err[done] = float("nan")
             land_ok[done] = False
             if len(done_ids):
@@ -161,6 +203,9 @@ def main() -> None:
     front, z, x, hit = r[:, 0], r[:, 1], r[:, 2], r[:, 3].astype(bool)
     uv, dmin = r[:, 4:6], r[:, 6]
     land, lok = r[:, 7], r[:, 8].astype(bool)
+    side = r[:, 9]
+    locked, chosen, rule, t_lock = (r[:, 10].astype(bool), r[:, 11],
+                                    r[:, 12], r[:, 13])
     has_land = np.isfinite(land)
     if has_land.any():
         cleared = has_land & lok
@@ -177,6 +222,21 @@ def main() -> None:
           f"   misses: median {np.median(dmin[~hit]) * 100:.1f} cm,"
           f" p90 {np.percentile(dmin[~hit], 90) * 100:.1f} cm")
     print(f"\nepisodes: {len(r)}   overall hit rate: {hit.mean():.3f}")
+    if hit.any():
+        print(f"hits by arm: right {(side[hit] == 0).mean():.3f}, "
+              f"left {(side[hit] == 1).mean():.3f}")
+    print(f"arm pick: locked {locked.mean():.3f} of episodes", end="")
+    if locked.any():
+        agree = chosen[locked] == rule[locked]
+        print(f"; right {(chosen[locked] == 0).mean():.3f}"
+              f"; agrees with strike-plane rule {agree.mean():.3f}"
+              f" (hit rate agree {hit[locked][agree].mean():.3f}"
+              + (f", disagree {hit[locked][~agree].mean():.3f}"
+                 if (~agree).any() else "") + ")"
+              f"; lock time median {np.median(t_lock[locked]):.2f} s,"
+              f" p90 {np.percentile(t_lock[locked], 90):.2f} s")
+    else:
+        print()
 
     def table(label, v, edges):
         print(f"\n{label}")
@@ -194,17 +254,18 @@ def main() -> None:
     tau = np.concatenate(tau_rows)[: args.episodes]
     duty = np.concatenate(duty_rows)[: args.episodes]
     arm = aero.load_params()["arm"]
-    peak, rated = arm["torque_limits"], arm["torque_rated"]
+    peak, rated = arm["torque_limits"] * 2, arm["torque_rated"] * 2
+    from humanoid_badminton.feasibility import joint_label
     print("\nfeasibility per joint (per-episode peaks; median / p95 / max)")
     print("  joint  |qvel| rad/s            |tau| Nm  (clamp)   at-clamp eps  duty>rated (mean)")
     for j in range(qv.shape[1]):
         q = np.percentile(qv[:, j], [50, 95, 100])
         t = np.percentile(tau[:, j], [50, 95, 100])
         at_clamp = (tau[:, j] >= 0.99 * peak[j]).mean()
-        print(f"  j{j + 1}    {q[0]:5.1f} / {q[1]:5.1f} / {q[2]:5.1f}"
+        print(f"  {joint_label(j):4s}  {q[0]:5.1f} / {q[1]:5.1f} / {q[2]:5.1f}"
               f"    {t[0]:5.2f} / {t[1]:5.2f} / {t[2]:5.2f} ({peak[j]:5.2f})"
               f"   {at_clamp:5.1%}        {duty[:, j].mean():5.1%} (rated {rated[j]})")
-    np.save("runs/eval_pstar_hits.npy", r)  # cols: front,z,x,hit,u,v,d_min,land_err,land_ok
+    np.save("runs/eval_pstar_hits.npy", r)  # cols: front,z,x,hit,u,v,d_min,land_err,land_ok,side,locked,chosen,rule,t_lock
     np.savez("runs/eval_feasibility.npz", qvel_peak=qv, tau_peak=tau, duty=duty)
     print("\nraw rows saved to runs/eval_pstar_hits.npy")
 

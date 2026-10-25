@@ -8,6 +8,7 @@ from isaaclab.utils import configclass
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
 from pioneer_humanoid.selective_self_collision import enable_selective_self_collision
+from pioneer_humanoid.rough_baseline import ROUGH_NO_STAIRS_BASELINE_CFG
 from pioneer_humanoid.whole_body import WHOLE_BODY_HUMANOID_CFG
 
 from ... import mdp
@@ -122,7 +123,7 @@ class PioneerHumanoidRewards(RewardsCfg):
     # no height-based termination at all on rough (unlike flat's extra `low_base`
     # override), so a seated pose that doesn't put contact force through the base link
     # itself survives indefinitely with zero risk. mdp.base_height_l2 penalizes
-    # deviation from the corrected 0.84 m nominal standing height in
+    # deviation from the legacy 0.75 m nominal standing height in
     # pioneer_humanoid.whole_body using the height scanner to stay terrain-relative -- a hard
     # world-Z threshold (like flat's low_base) isn't safe on uneven terrain, per
     # Isaac Lab's own root_height_below_minimum docstring ("currently only supported
@@ -130,7 +131,7 @@ class PioneerHumanoidRewards(RewardsCfg):
     base_height_l2 = RewTerm(
         func=mdp.base_height_l2_finite,
         weight=-5.0,
-        params={"target_height": 0.84, "sensor_cfg": SceneEntityCfg("height_scanner")},
+        params={"target_height": 0.75, "sensor_cfg": SceneEntityCfg("height_scanner")},
     )
 
 
@@ -417,6 +418,9 @@ class PioneerHumanoidRoughNoStairsSelectiveKneeShapeEnvCfg(PioneerHumanoidRoughE
     def __post_init__(self):
         super().__post_init__()
 
+        # Freeze the trained robot independently of upstream's shared model.
+        self.scene.robot = ROUGH_NO_STAIRS_BASELINE_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.rewards.base_height_l2.params["target_height"] = 0.84
         self.scene.terrain.terrain_generator = PIONEER_ROUGH_NO_STAIRS_TERRAINS_CFG.copy()
         self.scene.terrain.max_init_terrain_level = 1
         self.scene.terrain.terrain_generator.curriculum = self.curriculum.terrain_levels is not None

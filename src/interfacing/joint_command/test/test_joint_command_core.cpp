@@ -1,7 +1,7 @@
-// Does the moderation pipeline actually enforce what safety_limits.yaml claims?
+// Does the moderation pipeline actually enforce what arm_actuators.yaml claims?
 //
 // These run against the SHIPPED config files (CONFIG_DIR), not fixtures, so a future edit that
-// turns the position clamp off or raises a velocity past the testing ceiling fails here.
+// turns the position clamp off or raises a velocity past 2 rad/s fails here.
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -17,6 +17,8 @@ namespace {
 constexpr double kRateHz = 50.0;
 constexpr int kMit = common_msgs::msg::MotorCmd::MIT_CONTROL;
 constexpr int kPositionLoop = common_msgs::msg::MotorCmd::POSITION_LOOP;
+// ArmPose slot of the GL40 wrist; the gripper (when configured) comes after it.
+constexpr size_t kWrist = 5;
 
 std::string configPath(const std::string& name) {
   return std::string(CONFIG_DIR) + "/" + name;
@@ -40,8 +42,8 @@ common_msgs::msg::ArmPose uniformPose(double deg) {
 class ShippedConfig : public ::testing::Test {
 protected:
   void SetUp() override {
-    ASSERT_TRUE(core.loadFromYaml(YAML::LoadFile(configPath("hardware_mapping.yaml")), "left"));
-    ASSERT_TRUE(core.loadSafetyFromYaml(YAML::LoadFile(configPath("safety_limits.yaml"))["safety"],
+    ASSERT_TRUE(core.loadFromYaml(YAML::LoadFile(configPath("arm_calibration.yaml")), "left"));
+    ASSERT_TRUE(core.loadSafetyFromYaml(YAML::LoadFile(configPath("arm_actuators.yaml"))["safety"],
                                         kRateHz))
         << core.lastError();
   }
@@ -176,8 +178,8 @@ TEST_F(ShippedConfig, VelocityMaxIsADegreesPerSecondBound) {
 TEST_F(ShippedConfig, SpeedDoesNotDependOnHowOftenArmPoseArrives) {
   // The pipeline advances per tick: same ticks, same result, however many poses arrived.
   JointCommandCore other;
-  ASSERT_TRUE(other.loadFromYaml(YAML::LoadFile(configPath("hardware_mapping.yaml")), "left"));
-  ASSERT_TRUE(other.loadSafetyFromYaml(YAML::LoadFile(configPath("safety_limits.yaml"))["safety"],
+  ASSERT_TRUE(other.loadFromYaml(YAML::LoadFile(configPath("arm_calibration.yaml")), "left"));
+  ASSERT_TRUE(other.loadSafetyFromYaml(YAML::LoadFile(configPath("arm_actuators.yaml"))["safety"],
                                        kRateHz));
   seedAtCommandZero();
   other.seedPrevTargetsFromFeedback(feedbackForCommandFrame(0.0));
@@ -192,7 +194,7 @@ TEST_F(ShippedConfig, SpeedDoesNotDependOnHowOftenArmPoseArrives) {
 }
 
 TEST_F(ShippedConfig, DeltaLimitBindsWhenItIsTighterThanTheVelocityLimit) {
-  YAML::Node cfg = YAML::LoadFile(configPath("safety_limits.yaml"))["safety"];
+  YAML::Node cfg = YAML::LoadFile(configPath("arm_actuators.yaml"))["safety"];
   cfg["global"]["velocity_max"] = 1000.0; // effectively disable the velocity limiter
   cfg["global"]["delta_max"] = 0.05;
   cfg["global"]["enable_low_pass"] = false;
@@ -214,12 +216,12 @@ TEST_F(ShippedConfig, DeltaLimitBindsWhenItIsTighterThanTheVelocityLimit) {
   }
 }
 
-TEST_F(ShippedConfig, ShippedVelocitiesStayUnderTheTestingCeiling) {
-  // 2 rad/s = 114.6 deg/s is the per-joint testing limit in the real-hardware-safety skill.
+TEST_F(ShippedConfig, ShippedVelocitiesStayUnderTwoRadPerSecond) {
+  // 2 rad/s = 114.6 deg/s per joint while the arm is being brought up.
   constexpr double kCeilingDps = 114.59;
   for (size_t i = 0; i < core.jointCount(); ++i) {
     EXPECT_LE(core.safety(i).velocity_max, kCeilingDps)
-        << core.jointName(i) << " ships with velocity_max above the 2 rad/s testing ceiling";
+        << core.jointName(i) << " ships with velocity_max above 2 rad/s";
     EXPECT_GT(core.safety(i).velocity_max, 0.0) << core.jointName(i);
   }
 }
@@ -297,7 +299,7 @@ TEST_F(ShippedConfig, UnpoweredJointsAreExcludedUntilTheNextSeed) {
 TEST_F(ShippedConfig, JointFoundOutsideItsOwnLimitsIsFlaggedAndExcluded) {
   // A joint found outside its limits (stale calibration) must be excluded, not clamped.
   std::map<int, double> feedback = feedbackForCommandFrame(0.0);
-  const size_t wrist = core.jointCount() - 1;
+  const size_t wrist = kWrist;
   feedback[static_cast<int>(core.motorId(wrist))] = 140.0; // where the real GL40 actually sits
 
   const SeedReport report = core.seedPrevTargetsFromFeedback(feedback);
@@ -323,7 +325,7 @@ TEST_F(ShippedConfig, JointFoundOutsideItsOwnLimitsIsFlaggedAndExcluded) {
 // ---------------------------------------------------------------------------
 
 TEST_F(ShippedConfig, MitJointsUseTheirDriveFamilyAndAkJointsDamp) {
-  const size_t wrist = core.jointCount() - 1;
+  const size_t wrist = kWrist;
   EXPECT_TRUE(core.isMitJoint(wrist)) << "the GL40 wrist must run MIT_CONTROL";
   EXPECT_EQ(core.safety(wrist).mit_family, MitDriveFamily::Gl2);
   for (size_t i = 0; i < wrist; ++i) {
@@ -372,7 +374,7 @@ TEST_F(ShippedConfig, ShippedMitGainsSatisfyTheStallTorqueRule) {
 }
 
 TEST_F(ShippedConfig, UnsafeMitGainsAreRefusedAtLoadTime) {
-  YAML::Node cfg = YAML::LoadFile(configPath("safety_limits.yaml"))["safety"];
+  YAML::Node cfg = YAML::LoadFile(configPath("arm_actuators.yaml"))["safety"];
   // 1.46 N.m/rad * 12 deg = 0.306 N.m, over the 0.3 ceiling -> must be refused.
   cfg["joints"]["wrist"]["pitch"]["mit_kp"] = 1.46;
   EXPECT_FALSE(core.loadSafetyFromYaml(cfg, kRateHz));
@@ -397,7 +399,7 @@ TEST_F(ShippedConfig, GainQuantisationMatchesWhatTheDriveApplies) {
 
 TEST_F(ShippedConfig, MitWatchdogCatchesEveryFaultCondition) {
   seedAtCommandZero();
-  const size_t wrist = core.jointCount() - 1;
+  const size_t wrist = kWrist;
   const int id = static_cast<int>(core.motorId(wrist));
   core.armPoseToMotorCmds(uniformPose(0.0), kPositionLoop);
   const auto healthy_all = healthyMitFeedback();
@@ -462,13 +464,14 @@ namespace {
 constexpr size_t kElbowRoll = 4;
 
 YAML::Node configWithAkElbowRollOnMit(bool with_fault_kd = true) {
-  YAML::Node cfg = YAML::LoadFile(configPath("safety_limits.yaml"))["safety"];
+  YAML::Node cfg = YAML::LoadFile(configPath("arm_actuators.yaml"))["safety"];
   YAML::Node j = cfg["joints"]["elbow"]["roll"];
   j["control_type"] = 0;
   j["mit_family"] = "ak";
   j["mit_kp"] = 8.0; // quantised 8.06 * 12 deg = 1.69 N.m <= 5
   j["mit_kd"] = 0.4;
-  j["mit_max_torque"] = 5.0; // AK80-9 testing ceiling
+  j["mit_max_torque"] = 5.0;     // the shipped AK80-9 cap
+  j["mit_max_track_err"] = 12.0; // pinned: the shipped global may be looser
   if (with_fault_kd) {
     j["mit_fault_kd"] = 0.5;
   } else {
@@ -485,7 +488,7 @@ TEST_F(ShippedConfig, AkMitJointDefaultsToDampAndRequiresAFaultKd) {
 
   ASSERT_TRUE(core.loadSafetyFromYaml(configWithAkElbowRollOnMit(), kRateHz)) << core.lastError();
   EXPECT_EQ(core.safety(kElbowRoll).mit_fault_action, MitFaultAction::Damp);
-  EXPECT_EQ(core.safety(core.jointCount() - 1).mit_fault_action, MitFaultAction::Limp)
+  EXPECT_EQ(core.safety(kWrist).mit_fault_action, MitFaultAction::Limp)
       << "the GL40 wrist keeps its limp default";
   EXPECT_TRUE(core.hasDampedMitJoints());
 }
@@ -493,7 +496,7 @@ TEST_F(ShippedConfig, AkMitJointDefaultsToDampAndRequiresAFaultKd) {
 TEST_F(ShippedConfig, DampedJointIsHeldWithDampingNotDroppedOrExited) {
   ASSERT_TRUE(core.loadSafetyFromYaml(configWithAkElbowRollOnMit(), kRateHz)) << core.lastError();
   const int elbow = static_cast<int>(core.motorId(kElbowRoll));
-  const int wrist = static_cast<int>(core.motorId(core.jointCount() - 1));
+  const int wrist = static_cast<int>(core.motorId(kWrist));
 
   bool saw_elbow = false;
   for (const auto& cmd : core.mitSafeCommands()) {
@@ -512,10 +515,16 @@ TEST_F(ShippedConfig, DampedJointIsHeldWithDampingNotDroppedOrExited) {
     EXPECT_NE(cmd.motor_id, wrist) << "the GL40 wrist is limp, not damped";
   }
 
-  // The fault path exits only Limp joints: exiting the elbow would cut its damping.
-  const auto exits = core.mitModeCommands(common_msgs::msg::MotorCmd::MIT_EXIT, true);
-  ASSERT_EQ(exits.size(), 1u);
-  EXPECT_EQ(exits[0].motor_id, wrist);
+  // The fault path exits only Limp joints (the GL40s): exiting the elbow would cut its damping.
+  std::vector<int> exited;
+  for (const auto& cmd : core.mitModeCommands(common_msgs::msg::MotorCmd::MIT_EXIT, true)) {
+    exited.push_back(cmd.motor_id);
+  }
+  std::vector<int> limp = {wrist};
+  if (core.hasGripper()) {
+    limp.push_back(core.motorId(JointCommandCore::kGripperJoint));
+  }
+  EXPECT_EQ(exited, limp);
 }
 
 TEST_F(ShippedConfig, AkStatusOneIsOverTemperatureNotEnable) {
@@ -591,13 +600,14 @@ std::array<double, 6> degToRad(const std::array<double, 6>& deg) {
 // Shoulder pitch pinned to known AK MIT values (independent of bench tuning) with gravity
 // feed-forward.
 YAML::Node configWithShoulderPitchFf(double scale = 1.0, double max_torque = 5.5) {
-  YAML::Node cfg = YAML::LoadFile(configPath("safety_limits.yaml"))["safety"];
+  YAML::Node cfg = YAML::LoadFile(configPath("arm_actuators.yaml"))["safety"];
   YAML::Node j = cfg["joints"]["shoulder"]["pitch"];
   j["control_type"] = 0;
   j["mit_family"] = "ak";
   j["mit_kp"] = 15.0; // quantised 15.01 * 12 deg = 3.14 N.m
   j["mit_kd"] = 0.8;
-  j["mit_max_torque"] = 10.0; // AK10-9 testing ceiling
+  j["mit_max_torque"] = 10.0;    // the shipped AK10-9 cap
+  j["mit_max_track_err"] = 12.0; // pinned: the shipped global may be looser
   j["mit_fault_kd"] = 1.0;
   j["gravity_ff_scale"] = scale;
   j["gravity_ff_max_torque"] = max_torque;
@@ -676,11 +686,15 @@ TEST_F(ShippedConfig, FeedForwardRampsInAfterSeedingAndMatchesTheModel) {
       << "a re-seed restarts the ramp";
 }
 
-TEST_F(ShippedConfig, FeedForwardIsClampedAndFollowsTheUrdfMapping) {
-  YAML::Node cfg = configWithShoulderPitchFf(1.0, 1.0);
-  const auto pose = makePose(0, 0, 0, 0, 0, 0);
+TEST_F(ShippedConfig, FeedForwardIsClampedAndFollowsTheMotorDirection) {
+  const auto pose = makePose(60, 0, 0, 0, 0, 0);
   const int dir = core.joint(kShoulderPitch).direction;
   const int id = core.motorId(kShoulderPitch);
+  auto seedAtPitch60 = [&]() {
+    std::map<int, double> fb = feedbackForCommandFrame(0.0);
+    fb[id] = core.joint(kShoulderPitch).direction * (60.0 - core.joint(kShoulderPitch).zero_offset);
+    ASSERT_TRUE(core.seedPrevTargetsFromFeedback(fb).out_of_range.empty());
+  };
   auto settle = [&]() {
     float torque = 0.0f;
     for (int tick = 0; tick < 60; ++tick) {
@@ -693,27 +707,47 @@ TEST_F(ShippedConfig, FeedForwardIsClampedAndFollowsTheUrdfMapping) {
     return torque;
   };
 
-  // cmd 0 -> URDF 90 (arm straight out): 4.79 N.m wanted, clamped to 1.0.
-  cfg["joints"]["shoulder"]["pitch"]["urdf_offset_deg"] = 90.0;
-  ASSERT_TRUE(core.loadSafetyFromYaml(cfg, kRateHz)) << core.lastError();
-  core.seedPrevTargetsFromFeedback(feedbackForCommandFrame(0.0));
+  // cmd 60 = URDF 60: 4.07 N.m wanted, clamped to 1.0.
+  ASSERT_TRUE(core.loadSafetyFromYaml(configWithShoulderPitchFf(1.0, 1.0), kRateHz))
+      << core.lastError();
+  seedAtPitch60();
   EXPECT_FLOAT_EQ(settle(), static_cast<float>(dir * 1.0));
 
-  // Flipping urdf_direction flips the torque the motor is sent.
-  cfg["joints"]["shoulder"]["pitch"]["urdf_direction"] = -1;
-  ASSERT_TRUE(core.loadSafetyFromYaml(cfg, kRateHz)) << core.lastError();
-  core.seedPrevTargetsFromFeedback(feedbackForCommandFrame(0.0));
+  // Flipping the motor's direction flips the torque it is sent.
+  YAML::Node mapping = YAML::LoadFile(configPath("arm_calibration.yaml"));
+  mapping["left"]["shoulder"]["pitch"]["direction"] = -dir;
+  ASSERT_TRUE(core.loadFromYaml(mapping, "left"));
+  ASSERT_TRUE(core.loadSafetyFromYaml(configWithShoulderPitchFf(1.0, 1.0), kRateHz))
+      << core.lastError();
+  seedAtPitch60();
   EXPECT_FLOAT_EQ(settle(), static_cast<float>(-dir * 1.0));
 }
 
+TEST_F(ShippedConfig, RemovedUrdfMappingKeysAreRefused) {
+  // The command frame is the URDF frame; a leftover key (even an identity one) is refused so a
+  // stale -1 can never be silently ignored.
+  for (const char* key : {"urdf_direction", "urdf_offset_deg"}) {
+    YAML::Node cfg = YAML::LoadFile(configPath("arm_actuators.yaml"))["safety"];
+    cfg["joints"]["elbow"]["pitch"][key] = 1;
+    EXPECT_FALSE(core.loadSafetyFromYaml(cfg, kRateHz)) << key;
+    EXPECT_NE(core.lastError().find(key), std::string::npos) << core.lastError();
+
+    cfg = YAML::LoadFile(configPath("arm_actuators.yaml"))["safety"];
+    cfg["global"][key] = 1;
+    EXPECT_FALSE(core.loadSafetyFromYaml(cfg, kRateHz)) << "global " << key;
+  }
+}
+
 TEST_F(ShippedConfig, BlockedJointZeroesAllFeedForward) {
-  YAML::Node cfg = configWithShoulderPitchFf();
-  cfg["joints"]["shoulder"]["pitch"]["urdf_offset_deg"] = 90.0;
-  ASSERT_TRUE(core.loadSafetyFromYaml(cfg, kRateHz)) << core.lastError();
-  core.seedPrevTargetsFromFeedback(feedbackForCommandFrame(0.0));
+  ASSERT_TRUE(core.loadSafetyFromYaml(configWithShoulderPitchFf(), kRateHz)) << core.lastError();
+  // Shoulder pitch at 60 deg: a real load (4.07 N.m) that blocking must still zero.
+  std::map<int, double> fb = feedbackForCommandFrame(0.0);
+  fb[core.motorId(kShoulderPitch)] =
+      core.joint(kShoulderPitch).direction * (60.0 - core.joint(kShoulderPitch).zero_offset);
+  ASSERT_TRUE(core.seedPrevTargetsFromFeedback(fb).out_of_range.empty());
   core.blockJoints({kElbowRoll});
   for (int tick = 0; tick < 60; ++tick) {
-    for (const auto& cmd : core.armPoseToMotorCmds(uniformPose(0.0), kPositionLoop)) {
+    for (const auto& cmd : core.armPoseToMotorCmds(makePose(60, 0, 0, 0, 0, 0), kPositionLoop)) {
       EXPECT_FLOAT_EQ(cmd.torque, 0.0f) << "an unknown joint angle makes every load unknown";
     }
   }
@@ -726,17 +760,13 @@ TEST_F(ShippedConfig, UnsafeGravityFeedForwardConfigIsRefused) {
 
   EXPECT_FALSE(core.loadSafetyFromYaml(configWithShoulderPitchFf(1.0, 0.0), kRateHz));
 
-  YAML::Node cfg = YAML::LoadFile(configPath("safety_limits.yaml"))["safety"];
+  YAML::Node cfg = YAML::LoadFile(configPath("arm_actuators.yaml"))["safety"];
   cfg["joints"]["elbow"]["pitch"]["control_type"] = kPositionLoop;
   cfg["joints"]["elbow"]["pitch"]["gravity_ff_scale"] = 1.0;
   EXPECT_FALSE(core.loadSafetyFromYaml(cfg, kRateHz));
   EXPECT_NE(core.lastError().find("POSITION_LOOP"), std::string::npos) << core.lastError();
 
-  cfg = configWithShoulderPitchFf();
-  cfg["joints"]["elbow"]["roll"]["urdf_direction"] = 0;
-  EXPECT_FALSE(core.loadSafetyFromYaml(cfg, kRateHz));
-
-  YAML::Node mapping = YAML::LoadFile(configPath("hardware_mapping.yaml"));
+  YAML::Node mapping = YAML::LoadFile(configPath("arm_calibration.yaml"));
   mapping["right"] = mapping["left"];
   ASSERT_TRUE(core.loadFromYaml(mapping, "right"));
   EXPECT_FALSE(core.loadSafetyFromYaml(configWithShoulderPitchFf(), kRateHz))
@@ -767,10 +797,8 @@ TEST_F(ShippedConfig, UnpoweredJointUsesItsGravityAssumptionOnlyWhenSet) {
     return t;
   };
 
-  // Elbow pitch: identity URDF mapping and no assumption, whatever the shipped file says.
+  // Elbow pitch: no assumption, whatever the shipped file says.
   YAML::Node cfg = configWithShoulderPitchFf();
-  cfg["joints"]["elbow"]["pitch"]["urdf_direction"] = 1;
-  cfg["joints"]["elbow"]["pitch"]["urdf_offset_deg"] = 0.0;
   cfg["joints"]["elbow"]["pitch"].remove("gravity_assume_deg");
   ASSERT_TRUE(core.loadSafetyFromYaml(cfg, kRateHz)) << core.lastError();
   seedWithElbowPitchSilent();
@@ -786,4 +814,200 @@ TEST_F(ShippedConfig, UnpoweredJointUsesItsGravityAssumptionOnlyWhenSet) {
   core.seedPrevTargetsFromFeedback(feedbackForCommandFrame(0.0));
   core.blockJoints({kElbowPitch});
   EXPECT_FLOAT_EQ(settledTorque(), 0.0f);
+}
+
+// ---------------------------------------------------------------------------
+// Gripper (GL40, after the wrist): position 0 open .. 1 closed, driven only when the pose asks
+// ---------------------------------------------------------------------------
+
+namespace {
+
+constexpr size_t kGripper = JointCommandCore::kGripperJoint;
+
+common_msgs::msg::ArmPose poseWithGripper(double position) {
+  common_msgs::msg::ArmPose pose = uniformPose(0.0);
+  pose.include_gripper = true;
+  pose.gripper_position = position;
+  return pose;
+}
+
+} // namespace
+
+TEST_F(ShippedConfig, GripperPositionMapsOpenToZeroAndClosedToTheUpperLimit) {
+  seedAtCommandZero();
+  const double closed = core.joint(kGripper).upper_limit;
+  auto settle = [&](double position) {
+    for (int tick = 0; tick < 2000; ++tick) {
+      core.armPoseToMotorCmds(poseWithGripper(position), kPositionLoop);
+    }
+    return core.prevTargets()[kGripper];
+  };
+
+  core.armPoseToMotorCmds(poseWithGripper(1.0), kPositionLoop);
+  EXPECT_LE(core.prevTargets()[kGripper], 60.0 / kRateHz + 1e-9) << "rate-limited like any joint";
+
+  EXPECT_NEAR(settle(1.0), closed, 1e-6);
+  EXPECT_NEAR(settle(0.5), closed / 2, 1e-6);
+  EXPECT_NEAR(settle(0.0), 0.0, 1e-6);
+  EXPECT_NEAR(settle(5.0), closed, 1e-6) << "position is clamped to [0, 1]";
+  EXPECT_NEAR(settle(-1.0), 0.0, 1e-6);
+}
+
+TEST_F(ShippedConfig, GripperHoldsWhereItIsUnlessThePoseIncludesIt) {
+  std::map<int, double> fb = feedbackForCommandFrame(0.0);
+  fb[core.motorId(kGripper)] =
+      core.joint(kGripper).direction * (30.0 - core.joint(kGripper).zero_offset);
+  ASSERT_TRUE(core.seedPrevTargetsFromFeedback(fb).out_of_range.empty());
+
+  for (int tick = 0; tick < 200; ++tick) {
+    core.armPoseToMotorCmds(uniformPose(0.0), kPositionLoop); // include_gripper false
+  }
+  EXPECT_DOUBLE_EQ(core.prevTargets()[kGripper], 30.0) << "not opened: that would drop the object";
+
+  auto nan_pose = poseWithGripper(std::numeric_limits<double>::quiet_NaN());
+  for (int tick = 0; tick < 200; ++tick) {
+    core.armPoseToMotorCmds(nan_pose, kPositionLoop);
+  }
+  EXPECT_DOUBLE_EQ(core.prevTargets()[kGripper], 30.0);
+}
+
+TEST_F(ShippedConfig, ClosingOnAnObjectDoesNotFaultTheArm) {
+  seedAtCommandZero();
+  for (int tick = 0; tick < 2000; ++tick) {
+    core.armPoseToMotorCmds(poseWithGripper(1.0), kPositionLoop);
+  }
+  // Fingers stopped by an object at the open end: the whole travel short of the target, at the
+  // stall torque kp * travel.
+  auto fb = healthyMitFeedback();
+  const JointConfig& g = core.joint(kGripper);
+  const double travel_rad = (g.upper_limit - g.lower_limit) * kDeg;
+  fb[core.motorId(kGripper)].position_deg = g.direction * (0.0 - g.zero_offset);
+  fb[core.motorId(kGripper)].torque_nm =
+      JointCommandCore::quantiseKp(core.safety(kGripper).mit_kp) * travel_rad;
+  EXPECT_FALSE(core.checkMitFaults(fb).has_value()) << *core.checkMitFaults(fb);
+}
+
+TEST_F(ShippedConfig, UnsafeGripperConfigIsRefused) {
+  auto expectRefused = [&](const YAML::Node& cfg, const std::string& needle) {
+    EXPECT_FALSE(core.loadSafetyFromYaml(cfg, kRateHz)) << needle;
+    EXPECT_NE(core.lastError().find(needle), std::string::npos) << core.lastError();
+  };
+  auto shipped = [&]() { return YAML::LoadFile(configPath("arm_actuators.yaml"))["safety"]; };
+
+  YAML::Node cfg = shipped();
+  cfg["joints"]["gripper"]["open_close"].remove("control_type"); // inherits POSITION_LOOP
+  expectRefused(cfg, "MIT");
+
+  cfg = shipped();
+  cfg["joints"]["gripper"]["open_close"]["mit_max_track_err"] = 50.0;
+  expectRefused(cfg, "full travel");
+
+  cfg = shipped();
+  cfg["joints"]["gripper"]["open_close"]["gravity_ff_scale"] = 0.5;
+  cfg["joints"]["gripper"]["open_close"]["gravity_ff_max_torque"] = 0.01;
+  expectRefused(cfg, "gravity model");
+
+  // Calibrated with closing negative: upper_limit is the open end.
+  YAML::Node mapping = YAML::LoadFile(configPath("arm_calibration.yaml"));
+  mapping["left"]["gripper"]["open_close"]["lower_limit"] = -100.0;
+  mapping["left"]["gripper"]["open_close"]["upper_limit"] = 0.0;
+  ASSERT_TRUE(core.loadFromYaml(mapping, "left"));
+  expectRefused(shipped(), "closing is positive");
+
+  mapping = YAML::LoadFile(configPath("arm_calibration.yaml"));
+  mapping["left"].remove("gripper");
+  ASSERT_TRUE(core.loadFromYaml(mapping, "left"));
+  expectRefused(shipped(), "arm_calibration");
+}
+
+TEST_F(ShippedConfig, WithoutAGripperBlockTheArmIsSixJointsAsBefore) {
+  YAML::Node cfg = YAML::LoadFile(configPath("arm_actuators.yaml"))["safety"];
+  cfg["joints"].remove("gripper");
+  ASSERT_TRUE(core.loadSafetyFromYaml(cfg, kRateHz)) << core.lastError();
+  EXPECT_FALSE(core.hasGripper());
+  EXPECT_EQ(core.jointCount(), 6u);
+  seedAtCommandZero();
+  const auto cmds = core.armPoseToMotorCmds(poseWithGripper(1.0), kPositionLoop);
+  EXPECT_EQ(cmds.size(), 6u);
+  for (const auto& cmd : cmds) {
+    EXPECT_NE(cmd.motor_id, 21) << "an unconfigured gripper is never commanded";
+  }
+}
+
+// ---------------------------------------------------------------------------
+// active: which actuators a run uses (arm_actuators.yaml, per joint)
+// ---------------------------------------------------------------------------
+
+namespace {
+
+// The shipped config with only `names` active.
+YAML::Node configWithOnlyActive(const std::vector<std::string>& names) {
+  YAML::Node cfg = YAML::LoadFile(configPath("arm_actuators.yaml"))["safety"];
+  for (auto group : cfg["joints"]) {
+    for (auto joint : group.second) {
+      const std::string name = group.first.as<std::string>() + "." + joint.first.as<std::string>();
+      joint.second["active"] = std::find(names.begin(), names.end(), name) != names.end();
+    }
+  }
+  return cfg;
+}
+
+} // namespace
+
+TEST_F(ShippedConfig, AnInactiveJointIsNeverCommandedEnteredOrWatched) {
+  constexpr size_t kElbowPitch = 3;
+  const int elbow = core.motorId(kElbowPitch);
+  ASSERT_TRUE(core.loadSafetyFromYaml(configWithOnlyActive({"elbow.pitch"}), kRateHz))
+      << core.lastError();
+  seedAtCommandZero();
+
+  const auto cmds = core.armPoseToMotorCmds(uniformPose(0.0), kPositionLoop);
+  ASSERT_EQ(cmds.size(), 1u);
+  EXPECT_EQ(cmds[0].motor_id, elbow);
+  for (const auto& batch :
+       {core.mitModeCommands(common_msgs::msg::MotorCmd::MIT_ENTER), core.mitSafeCommands()}) {
+    ASSERT_EQ(batch.size(), 1u);
+    EXPECT_EQ(batch[0].motor_id, elbow);
+  }
+  EXPECT_EQ(core.mitMotorIds(), std::vector<int>{elbow});
+
+  // Only the active joint reports: the silent inactive ones are not a fault.
+  std::map<int, MotorFeedbackSample> fb;
+  fb[elbow] = healthyMitFeedback().at(elbow);
+  EXPECT_FALSE(core.checkMitFaults(fb).has_value()) << *core.checkMitFaults(fb);
+}
+
+TEST_F(ShippedConfig, ARunWithNoActiveJointIsRefused) {
+  EXPECT_FALSE(core.loadSafetyFromYaml(configWithOnlyActive({}), kRateHz));
+  EXPECT_NE(core.lastError().find("no joint is active"), std::string::npos) << core.lastError();
+}
+
+TEST_F(ShippedConfig, InactiveArmJointIsUnknownToTheGravityModel) {
+  const int pitch_id = core.motorId(kShoulderPitch);
+  auto settledTorque = [&]() {
+    std::map<int, double> fb = feedbackForCommandFrame(0.0);
+    fb[pitch_id] =
+        core.joint(kShoulderPitch).direction * (60.0 - core.joint(kShoulderPitch).zero_offset);
+    core.seedPrevTargetsFromFeedback(fb);
+    double t = 0.0;
+    for (int tick = 0; tick < 60; ++tick) {
+      for (const auto& cmd : core.armPoseToMotorCmds(makePose(60, 0, 0, 0, 0, 0), kPositionLoop)) {
+        if (cmd.motor_id == pitch_id) {
+          t = cmd.torque;
+        }
+      }
+    }
+    return t;
+  };
+
+  YAML::Node cfg = configWithShoulderPitchFf();
+  cfg["joints"]["elbow"]["pitch"]["active"] = false;
+  cfg["joints"]["elbow"]["pitch"].remove("gravity_assume_deg");
+  ASSERT_TRUE(core.loadSafetyFromYaml(cfg, kRateHz)) << core.lastError();
+  EXPECT_FLOAT_EQ(settledTorque(), 0.0f) << "inactive, no assumption: its angle is unknown";
+
+  cfg["joints"]["elbow"]["pitch"]["gravity_assume_deg"] = 0.0;
+  ASSERT_TRUE(core.loadSafetyFromYaml(cfg, kRateHz)) << core.lastError();
+  EXPECT_NEAR(settledTorque(), core.joint(kShoulderPitch).direction * 4.0696, 0.01)
+      << "with an assumed angle the feed-forward still runs";
 }

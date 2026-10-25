@@ -1,16 +1,9 @@
 # DBC Interface
 
-This folder contains DBC (CAN database) file handling and integration for the humanoid autonomy system.
+`humanoid.dbc` defines the CAN messages and signals `can_node` encodes and decodes: servo-mode
+commands and feedback (also the AK's MIT feedback), plus the GL II's MIT command frame below.
 
-## Overview
-
-DBC files define CAN bus messages, signals, and communication protocols used in vehicle communication systems.
-
-## Contents
-
-- `humanoid.dbc` - message definitions
-
-### MITControlCmd
+## MITControlCmd
 
 A **standard 11-bit** frame (`BO_ 0`); every servo message is extended. A GL II in MIT mode only
 listens to standard frames. Its signals are raw MIT codes (`pos(16) vel(12) kp(12) kd(12)

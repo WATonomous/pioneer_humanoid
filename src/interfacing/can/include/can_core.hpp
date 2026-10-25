@@ -20,7 +20,7 @@ struct CanMessage {
 
 struct CanConfig {
   std::string interface_name;  // CAN interface name (e.g., "can0")
-  std::string device_path;     // Device path for SLCAN (e.g., "/dev/ttyACM0")
+  std::string device_path;     // Device path for SLCAN (e.g., "/dev/canable")
   std::string bustype;         // Bus type: "socketcan" or "slcan"
   uint32_t bitrate;            // Bitrate in bps for arbitration phase
   uint32_t data_bitrate;       // Data bitrate in bps for CAN-FD data phase

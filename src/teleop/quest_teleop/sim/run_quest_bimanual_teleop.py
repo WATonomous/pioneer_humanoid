@@ -81,19 +81,19 @@ parser.add_argument("--record", action="store_true",
                     help="Record demonstrations (requires: pip install -e src/robot_learning[record]). Records the "
                          "L-suffixed (link6l) arm only -- that's the arm ego_cam/wrist_cam are mounted for.")
 parser.add_argument("--schema", type=str,
-                    default=str(_ROBOT_LEARNING_PKG / "config" / "dataset_schema_wato_arm_v2_push_box.yaml"),
+                    default=str(_ROBOT_LEARNING_PKG / "config" / "pioneer_humanoid_dataset_schema.yaml"),
                     help="Path to dataset_schema.yaml (only used with --record)")
 parser.add_argument("--sink", type=str, default="lerobot",
                     help="Output sinks when --record: lerobot, hdf5, or lerobot,hdf5")
 parser.add_argument("--dataset_root", type=str, default=None,
-                    help="Output directory (default: <repo>/<schema record.root>)")
+                    help="Output directory (default: <repo>/<schema record.root>/quest_sim)")
 parser.add_argument("--num_episodes", type=int, default=10)
 parser.add_argument("--task_description", type=str, default="pick up box and place it in container")
 parser.add_argument("--publish-real-left-arm", action="store_true",
                     help="Also publish the left arm's DLS-solved joint targets to /arm/joint_targets for "
                          "joint_command_node to drive the REAL physical left arm over CAN. Off by default -- "
                          "sim-only unless explicitly requested. RIGHT ARM HAS NO REAL-HARDWARE CAN MAPPING YET "
-                         "(hardware_mapping.yaml only has a left: section) -- this flag does not and cannot "
+                         "(arm_calibration.yaml only has a left: section) -- this flag does not and cannot "
                          "touch the right arm. Requires can_node + joint_command_node already running, the "
                          "CANable adapter connected, e-stop armed, and the real arm manually positioned near "
                          "the sim's rest pose (see PUBLISH_START_DELAY below).")
@@ -244,9 +244,9 @@ _DLS_LAMBDA_MAX_RIGHT = 0.9
 _DLS_MANIPULABILITY_EPSILON = 0.01
 
 # Joint-space output smoothing, modelled on joint_command_core.cpp's active default (velocity +
-# delta clamp; NOT its trapezoidal ramp or low-pass, both inactive on hardware). safety_limits
+# delta clamp; NOT its trapezoidal ramp or low-pass, both inactive on hardware). arm_actuators
 # .yaml's per-joint overrides are deliberately NOT applied -- the arm config's joint
-# grouping (2-DOF shoulder/3-DOF elbow) does not match hardware_mapping.yaml's ArmPose split.
+# grouping (2-DOF shoulder/3-DOF elbow) does not match arm_calibration.yaml's ArmPose split.
 # All three are UNUSED as of the revert to unsmoothed IK output; kept for a retry.
 _JOINT_VELOCITY_MAX_RAD_S = 1.7453292519943295  # 100 deg/s speed ceiling
 _JOINT_DELTA_MAX_RAD = 0.2617993877991494  # 15 deg/step
@@ -312,28 +312,11 @@ _HEAD_VIEWPOINT_HOME_POS = (0.0905602619765378, 0.04, 0.23809789390566405)
 _HEAD_VIEWPOINT_HOME_QUAT = (0.9063077870366499, 0.0, 0.42261826174069944, 0.0)  # ~50deg pitch, no roll
 _EYE_LOCAL_RIGHT = torch.tensor([0.0, -1.0, 0.0])
 _EYE_IPD_M = 0.063
-_EYE_LOCAL_FORWARD = torch.tensor([1.0, 0.0, 0.0])
-# ego_cam is pinned to the left eye's pose but nudged clear of the RSD455 housing mesh, which
-# otherwise blacks out half the frame: forward along the gaze, plus a straight base-frame +Z
-# (the forward offset alone was not enough -- it needed to clear geometry above it, not ahead).
-_EGO_CAM_FORWARD_OFFSET_M = 0.25
-_EGO_CAM_UP_OFFSET_M = 0.1
-# When True, ego_cam is never repositioned, so a manual GUI drag sticks. Probing aid only.
-_EGO_CAM_FREE_MOVE_DEBUG = False
-
 # Head tracking is not live -- head_viewpoint_pos_b/quat_b are set once at startup and never
 # mutated (see run_simulator). With this False the camera mounts are positioned once before the
 # sim loop instead of re-authored every physics step; flip to True the moment the head pose is
 # actually driven from the Quest, and per-step tracking resumes with no other change.
 _HEAD_TRACKING_LIVE = False
-# ego_cam is a bare USD Camera prim (looks down local -Z, up +Y), NOT an rsd455 payload
-# (+X forward, +Z up, -Y right). _HEAD_VIEWPOINT_HOME_QUAT is calibrated for the rsd455
-# convention, so it aims ego_cam wrong despite being the identical quaternion value. This is the
-# basis change between them -- compose as quat_mul(head_orient_b, this), not the reverse.
-_EGO_CAM_CONVENTION_FIX_QUAT = (-0.5, -0.5, 0.5, 0.5)
-# Extra +20deg downward pitch on ego_cam only (70deg total); the eye views keep their own
-# orientation. Applied as the OUTERMOST rotation: quat_mul(this, head_orient * convention_fix).
-_EGO_CAM_EXTRA_TILT_QUAT = (0.984807753012208, 0.0, 0.17364817766693033, 0.0)
 # Sub-path to the actual renderable Camera prim inside the rsd455 payload --
 # same as the SO101 vial task's camera_external_D455 (task_env_cfg.py).
 _RSD455_CAMERA_SUBPATH = "rsd455/RSD455/Camera_OmniVision_OV9782_Right"
@@ -413,36 +396,6 @@ def _widen_camera_fov(camera_prim_path: str, focal_length: float) -> None:
             return
         app.update()
     print(f"[Quest] WARNING: could not widen FOV on {camera_prim_path} (camera prim never became valid)", flush=True)
-
-
-def _read_camera_fov(camera_prim_path: str) -> tuple[float, float, float] | None:
-    """Read a Camera prim's focalLength/apertures; same load-wait as _widen_camera_fov.
-
-    Call BEFORE _widen_camera_fov, to capture the RSD455's native FOV before it is overwritten."""
-    stage = omni.usd.get_context().get_stage()
-    app = omni.kit.app.get_app_interface()
-    for _ in range(100):
-        cam_prim = stage.GetPrimAtPath(camera_prim_path)
-        if cam_prim.IsValid() and cam_prim.IsA(UsdGeom.Camera):
-            cam = UsdGeom.Camera(cam_prim)
-            return (
-                cam.GetFocalLengthAttr().Get(),
-                cam.GetHorizontalApertureAttr().Get(),
-                cam.GetVerticalApertureAttr().Get(),
-            )
-        app.update()
-    print(f"[Quest] WARNING: could not read FOV on {camera_prim_path} (camera prim never became valid)", flush=True)
-    return None
-
-
-def _set_camera_fov(camera_prim_path: str, focal_length: float, h_aperture: float, v_aperture: float) -> None:
-    """Set a Camera prim's focalLength/apertures. No load-wait -- ego_cam is baked into the USD,
-    unlike the late-composing rsd455 payload."""
-    stage = omni.usd.get_context().get_stage()
-    cam = UsdGeom.Camera(stage.GetPrimAtPath(camera_prim_path))
-    cam.GetFocalLengthAttr().Set(focal_length)
-    cam.GetHorizontalApertureAttr().Set(h_aperture)
-    cam.GetVerticalApertureAttr().Set(v_aperture)
 
 
 def _project_world_point_to_uv(camera_prim: Usd.Prim, world_xyz: tuple) -> tuple[float, float, bool]:
@@ -685,8 +638,8 @@ class ArmV2SceneCfg(InteractiveSceneCfg):
     # Data-collection / HUD cameras, not the headset display (the RSD455 pair, attached at
     # runtime). wrist_cam is on link6l (LEFT arm), wrist_cam_right its mirror on link6. Pose and
     # lens live in quest_cameras.py -- adjust there, not here. wrist_cam keeps its
-    # unsuffixed name because _capture_record_images, the dataset schema, and the keyboard
-    # teleop scenes all bind that key.
+    # unsuffixed name because the keyboard teleop scenes bind that key; the dataset schema calls
+    # it wrist_left (RECORD_CAMERA_SENSORS).
     ego_cam = make_ego_cam_cfg()
     wrist_cam = make_wrist_cam_cfg()
     wrist_cam_right = make_wrist_cam_cfg(body="link6", name="wrist_cam_right", mirror=True)
@@ -823,7 +776,7 @@ def _publish_real_left_arm_pose(pub, clock_node, joint_pos_des_rad) -> None:
     publish_joint_pos -- same LEFT_ARM_JOINTS order (joint1L, joint2l,
     joint3l, joint4l, joint5l, joint6l) maps 1:1 to
     shoulder(flexion,abduction,rotation) / elbow(flexion,forearm_rotation) /
-    wrist(extension), degrees (hardware_mapping.yaml + the CAN PositionDeg
+    wrist(extension), degrees (arm_calibration.yaml + the CAN PositionDeg
     signal expect degrees, joint_pos_des is radians)."""
     import math
 
@@ -1096,31 +1049,43 @@ class _ArmDlsController:
         return tip_pos_b, tip_quat_b
 
 
-# ── recording (see dataset_schema_wato_arm_v2_push_box.yaml) ─────────────────
+# ── recording (see pioneer_humanoid_dataset_schema.yaml) ─────────────────────
+
+# schema image key -> scene camera
+RECORD_CAMERA_SENSORS = {"ego": "ego_cam", "wrist_left": "wrist_cam"}
+
+
+def _gripper_closure(finger_pos: torch.Tensor, open_pos: float, closed_pos: float) -> torch.Tensor:
+    """joint7l position -> the schema's 0-1 gripper closure (0 open, 1 closed)."""
+    return ((finger_pos - open_pos) / (closed_pos - open_pos)).clamp(0.0, 1.0)
+
 
 def _init_recorder(device: str):
-    """Returns (recorder, schema_cfg), or (None, None) if --record wasn't passed."""
+    """Returns (recorder, {schema image key: scene camera}), or (None, None) if --record wasn't passed."""
     if not args_cli.record:
         return None, None
     _ensure_robot_learning_on_path()
     try:
-        from humanoid_robot_learning.record_utils import resolve_config_path, resolve_dataset_root
-        from humanoid_robot_learning.schema import enabled_images, load_yaml
-        from humanoid_robot_learning.sim_recorder import SimLeRobotRecorder
+        from humanoid_robot_learning.recording.record_utils import resolve_config_path, resolve_dataset_root
+        from humanoid_robot_learning.recording.schema import enabled_images, load_yaml, select_arms
+        from humanoid_robot_learning.sim.sim_recorder import SimLeRobotRecorder
     except ImportError as exc:
         raise ImportError("Recording requires humanoid-robot-learning. Install with:\n  pip install -e src/robot_learning[sim]") from exc
 
     schema_path = resolve_config_path(args_cli.schema, anchor=_ROBOT_LEARNING_PKG)
-    cfg = load_yaml(schema_path)
-    dataset_root = resolve_dataset_root(cfg, args_cli.dataset_root, default="datasets/record_wato_arm_v2_push_box")
+    cfg = select_arms(load_yaml(schema_path), ["left"])  # records the link6l arm only, see --record
+    # Own subdir: this dataset is recorded at _RECORD_FPS, not the schema's fps, so it must not
+    # append to the <root>/sim dataset the keyboard and leader teleops write.
+    dataset_root = resolve_dataset_root(cfg, args_cli.dataset_root, subdir="quest_sim")
     cameras = {name: {"height": spec["height"], "width": spec["width"]} for name, spec in enabled_images(cfg).items()}
+    sensors = {name: RECORD_CAMERA_SENSORS[name] for name in cameras}  # KeyError: no scene camera for that image
     # device="cpu" always: the recorder's multi-GB circular frame buffer on "cuda" competes with
     # Isaac Sim's own GPU memory and silently kills the process. buffer_capacity_s=30 (not the
     # 120 default): at 2x 640x480x30fps, 120s is ~20GB RSS and hung the host twice; episodes run
     # 15-20s. Overrunning it drops frames with a warning, no crash.
     recorder = SimLeRobotRecorder(
         task_name=args_cli.task_description,
-        repo_id=str(cfg.get("repo_id", "humanoid/wato_arm_v2_push_box")),
+        repo_id=str(cfg["repo_id"]),
         dataset_root=dataset_root,
         fps=_RECORD_FPS,     # render cadence, not the schema -- see _RECORD_FPS
         rate_limit=False,    # the render gate is the sole decimator
@@ -1130,20 +1095,20 @@ def _init_recorder(device: str):
         num_episodes=args_cli.num_episodes,
         buffer_capacity_s=30.0,
         # else the dataset records itself as an SO-101 (recorder default)
-        robot_type=str(cfg.get("robot_type", "wato_arm_v2")),
+        robot_type=str(cfg["robot_id"]),
     )
     recorder.init_dataset()
     print(f"[RECORD] Writing to {dataset_root} at {_RECORD_FPS} fps "
           f"(1 frame / {_POV_CAPTURE_EVERY_N_STEPS} physics steps)", flush=True)
     # Key bindings differ from humanoid_robot_learning's defaults -- see run_simulator's _on_keyboard_event.
-    return recorder, cfg
+    return recorder, sensors
 
 
-def _capture_record_images(scene: InteractiveScene) -> dict:
-    """{schema_key: HxWx3 uint8 rgb} for the two data-collection cameras --
+def _capture_record_images(scene: InteractiveScene, sensors: dict[str, str]) -> dict:
+    """{schema_key: HxWx3 uint8 rgb} for the schema's enabled data-collection cameras --
     NOT the RSD455 headset pair, see module docstring."""
     images = {}
-    for schema_key, scene_key in (("ego", "ego_cam"), ("wrist", "wrist_cam")):
+    for schema_key, scene_key in sensors.items():
         rgb = scene[scene_key].data.output["rgb"]
         frame = rgb[0].detach().cpu().numpy()
         if frame.shape[-1] > 3:
@@ -1195,8 +1160,6 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         _spawn_wrist_cam_marker("/World/envs/env_0/Robot/link6l/wrist_cam_marker", WRIST_CAM_POS)
         print(f"[Quest] wrist_cam calibration marker ON (2cm green sphere at {WRIST_CAM_POS} "
               "on link6l) -- set _SHOW_WRIST_CAM_MARKER=False to hide.", flush=True)
-    # Read the native FOV BEFORE widening it for the headset display.
-    _rsd455_native_fov = _read_camera_fov(f"{left_eye_mount}/{_RSD455_CAMERA_SUBPATH}")
     _widen_camera_fov(f"{left_eye_mount}/{_RSD455_CAMERA_SUBPATH}", _RSD455_WIDENED_FOCAL_LENGTH)
     _widen_camera_fov(f"{right_eye_mount}/{_RSD455_CAMERA_SUBPATH}", _RSD455_WIDENED_FOCAL_LENGTH)
     left_eye_camera = _open_pov_camera(f"{left_eye_mount}/{_RSD455_CAMERA_SUBPATH}", "Left Eye POV")
@@ -1206,18 +1169,6 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     _stage_for_cams = omni.usd.get_context().get_stage()
     _left_eye_cam_prim = _stage_for_cams.GetPrimAtPath(f"{left_eye_mount}/{_RSD455_CAMERA_SUBPATH}")
     _right_eye_cam_prim = _stage_for_cams.GetPrimAtPath(f"{right_eye_mount}/{_RSD455_CAMERA_SUBPATH}")
-    # ego_cam gets the RSD455's aperture but the WIDENED focal length -- native FOV is too
-    # zoomed in to be usable. Extra Kit preview windows for ego_cam/wrist_cam were removed here:
-    # they render on every app tick regardless of the render gate, and cost real time.
-    #
-    # args_cli.record is the same flag main() uses to decide whether ego_cam exists -- without
-    # it there is no prim to write to. Keep the two conditions identical.
-    _ego_cam_prim_path = f"{_base_link_prim_path}/ego_cam"
-    if args_cli.record and _rsd455_native_fov is not None:
-        _ego_cam_fov = (_RSD455_WIDENED_FOCAL_LENGTH, _rsd455_native_fov[1], _rsd455_native_fov[2])
-        _set_camera_fov(_ego_cam_prim_path, *_ego_cam_fov)
-        print(f"[Quest] ego_cam FOV set to WIDENED RSD455 (not native) "
-              f"(focalLength/hAperture/vAperture)={_ego_cam_fov}", flush=True)
     if left_eye_camera is not None and right_eye_camera is not None:
         _POV_STATIC_DIR.mkdir(parents=True, exist_ok=True)
         print(f"[Quest] Stereo POV feed will be captured to {_POV_FRAME_PATH_LEFT} / {_POV_FRAME_PATH_RIGHT} "
@@ -1320,14 +1271,10 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     head_viewpoint_pos_b = head_home_viewpoint_pos_b.clone()
     head_viewpoint_quat_b = head_home_viewpoint_quat_b.clone()
     eye_local_right = _EYE_LOCAL_RIGHT.to(device)
-    eye_local_forward = _EYE_LOCAL_FORWARD.to(device)
-    ego_cam_convention_fix_quat = torch.tensor([_EGO_CAM_CONVENTION_FIX_QUAT], dtype=torch.float32, device=device)
-    ego_cam_extra_tilt_quat = torch.tensor([_EGO_CAM_EXTRA_TILT_QUAT], dtype=torch.float32, device=device)
-
     def _sync_camera_mounts() -> None:
-        """Aim the stereo eye mounts (and ego_cam) at the current head viewpoint.
+        """Aim the stereo eye mounts at the current head viewpoint.
 
-        NOT cheap: three USD transform authorings, each firing change notifications through Kit's
+        NOT cheap: two USD transform authorings, each firing change notifications through Kit's
         render graph. Running it per physics step cost ~20ms/step while writing identical values,
         since the head viewpoint is static. Called once at startup; _HEAD_TRACKING_LIVE restores
         per-step tracking when head pose is actually driven."""
@@ -1337,32 +1284,20 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         head_orient_b = head_viewpoint_quat_b[0].tolist()
         _set_mount_pose(left_eye_mount, tuple(left_eye_pos_b), tuple(head_orient_b))
         _set_mount_pose(right_eye_mount, tuple(right_eye_pos_b), tuple(head_orient_b))
-        # ego_cam pinned to the left eye's pose so recorded frames match what the operator saw,
-        # nudged clear of the RSD455 housing mesh. Skipped without --record: main() leaves the
-        # sensor out of the scene entirely then.
-        if _EGO_CAM_FREE_MOVE_DEBUG or not args_cli.record:
-            return
-        forward_offset_b = quat_apply(head_viewpoint_quat_b, eye_local_forward.unsqueeze(0)) * _EGO_CAM_FORWARD_OFFSET_M
-        ego_cam_pos_b = (head_viewpoint_pos_b - right_offset_b + forward_offset_b)[0].tolist()
-        ego_cam_pos_b[2] += _EGO_CAM_UP_OFFSET_M  # straight base-frame +Z, per live feedback
-        ego_cam_orient_b = quat_mul(
-            ego_cam_extra_tilt_quat, quat_mul(head_viewpoint_quat_b, ego_cam_convention_fix_quat)
-        )[0].tolist()
-        _set_mount_pose(_ego_cam_prim_path, tuple(ego_cam_pos_b), tuple(ego_cam_orient_b))
 
     _sync_camera_mounts()
 
     left_closed = False
     right_closed = False
 
-    recorder, record_cfg = _init_recorder(device)
+    recorder, record_sensors = _init_recorder(device)
     if recorder is not None:
         # NOT recorder.start_keyboard() -- that attaches humanoid_robot_learning's shared pynput listener,
         # whose bindings other teleop scripts rely on. S/D are handled through the same
         # carb.input listener as R/T instead, calling save_episode()/cancel_recording() directly
         # so recording continues straight into the next demo. EpisodeFlags is still needed
         # (tick() no-ops without it) but is constructed directly.
-        from humanoid_robot_learning.episode_keys import EpisodeFlags
+        from humanoid_robot_learning.recording.episode_keys import EpisodeFlags
         recorder._flags = EpisodeFlags(start=False)
 
     def _sphere_cfg(color, radius, opacity=1.0):
@@ -1711,7 +1646,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         if recorder is not None and _render_this_step:
             _record_state = torch.cat([
                 robot.data.joint_pos[:, left_arm.arm_ids],
-                robot.data.joint_pos[:, left_gripper_ids[:1]],
+                _gripper_closure(robot.data.joint_pos[:, left_gripper_ids[:1]],
+                                 LEFT_GRIPPER_OPEN["joint7l"], LEFT_GRIPPER_CLOSED["joint7l"]),
             ], dim=1)[0].clone()
 
         # ── Differential IK (DLS) solve, both arms, every frame ─────────────────
@@ -1817,10 +1753,13 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
                 # snaps 0 -> -0.05 in one frame while _smooth_damp eases the joint over ~50ms,
                 # and it is the eased value that was actually commanded. Logging the snap
                 # trained the policy to slam a gripper the demos never slammed.
-                action = torch.cat([left_arm.last_joint_pos_des, left_gripper_smoothed[:, :1]], dim=1)[0]
+                action = torch.cat([
+                    left_arm.last_joint_pos_des,
+                    _gripper_closure(left_gripper_smoothed[:, :1], LEFT_GRIPPER_OPEN["joint7l"], LEFT_GRIPPER_CLOSED["joint7l"]),
+                ], dim=1)[0]
                 # images as a callable, not a dict: two 640x480 GPU->CPU copies that must only
                 # run on pushed frames. Every step tanked RTF -- looked like the arm barely moving.
-                recorder.tick(action, _record_state, lambda: _capture_record_images(scene))
+                recorder.tick(action, _record_state, lambda: _capture_record_images(scene, record_sensors))
 
         # Mounts are static while _HEAD_TRACKING_LIVE is False -- positioned once before the
         # loop by _sync_camera_mounts (see there for why this is not a cheap no-op).

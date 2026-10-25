@@ -59,7 +59,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install --no-cache-dir mujoco mjviser numpy jax[cuda12] brax flax optax
+# Pinned: newer numpy/jax/flax/brax releases need Python >= 3.11 (jammy is 3.10), and unpinned
+# installs leave pip to backtrack through them. Versions resolved together with the LeRobot step below.
+RUN pip3 install --no-cache-dir mujoco==3.15.0 mjviser==0.0.14 numpy==2.2.6 "jax[cuda12]==0.6.2" \
+    brax==0.14.1 flax==0.10.7 optax==0.2.8
 
 # ── Pioneer leader-arm teleop + recording (pioneer_leader_arm_teleop.py --target mujoco) ───────
 # GL/X libs for the MuJoCo viewer and offscreen camera rendering.
@@ -69,14 +72,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 # ffmpeg with SVT-AV1 for LeRobot videos (same build as the Isaac image).
 RUN curl --proto "=https" --tlsv1.2 -sSf -L -o /tmp/ffmpeg.tar.xz \
-    https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n7.1-latest-linux64-lgpl-shared-7.1.tar.xz && \
+    https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-07-31-14-10/ffmpeg-n7.1.5-12-g1fdbca85aa-linux64-lgpl-shared-7.1.tar.xz && \
+    echo "f5f0ad52c6ee28a222eb10838c231469a10ad325f84063d3bc0aadf08164b3ec  /tmp/ffmpeg.tar.xz" | sha256sum -c - && \
     tar -xf /tmp/ffmpeg.tar.xz -C /usr/local --strip-components=1 && \
     ldconfig && \
     rm /tmp/ffmpeg.tar.xz
 # CPU torch (LeRobot at this commit needs <2.8), then LeRobot at the Isaac image's commit, the
 # leader's servo SDK and the episode keys. Repo packages are not installed: the scripts add
 # src/ paths themselves (repo mounted at /workspace/humanoid).
-RUN pip3 install --no-cache-dir torch==2.7.1 torchvision==0.22.1 --index-url https://download.pytorch.org/whl/cpu && \
+RUN python3 -m pip install --no-cache-dir pip==26.2.1 && \
+    pip3 install --no-cache-dir torch==2.7.1 torchvision==0.22.1 --index-url https://download.pytorch.org/whl/cpu && \
     pip3 install --no-cache-dir \
     "lerobot @ git+https://github.com/huggingface/lerobot.git@e670ac5daf9b76" \
     "feetech-servo-sdk>=1.0.0,<2.0.0" pynput pillow tqdm
@@ -85,10 +90,10 @@ RUN pip3 install --no-cache-dir torch==2.7.1 torchvision==0.22.1 --index-url htt
 ENV ROS_DOMAIN_ID=0
 ENV FASTDDS_BUILTIN_TRANSPORTS=UDPv4
 
-# Append setup sourcing to bashrc
-RUN echo 'source /opt/ros/humble/setup.bash' >> /root/.bashrc && \
-    echo 'cd /root/ament_ws && colcon build --packages-select common_msgs 2>/dev/null || true' >> /root/.bashrc && \
-    echo 'source /root/ament_ws/install/setup.bash 2>/dev/null || true' >> /root/.bashrc
+# Append setup sourcing to the system bashrc (the develop stage runs as the host user, not root)
+RUN echo 'source /opt/ros/humble/setup.bash' >> /etc/bash.bashrc && \
+    echo 'cd /root/ament_ws && colcon build --packages-select common_msgs 2>/dev/null || true' >> /etc/bash.bashrc && \
+    echo 'source /root/ament_ws/install/setup.bash 2>/dev/null || true' >> /etc/bash.bashrc
 
 # Hook into the team's shared entrypoint script
 COPY docker/wato_ros_entrypoint.sh ${AMENT_WS}/wato_ros_entrypoint.sh

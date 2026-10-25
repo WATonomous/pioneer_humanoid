@@ -8,9 +8,8 @@ class PioneerHumanoidRoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
     max_iterations = 3000
     save_interval = 50
-    # The shared corrected-knee asset is incompatible with old-geometry policies.
-    # Keep normalization enabled, but do not auto-resume from their log namespace.
-    experiment_name = "pioneer_humanoid_rough_knee_axis_v2"
+    # Legacy tasks retain upstream's shared robot and existing log namespaces.
+    experiment_name = "pioneer_humanoid_rough"
     empirical_normalization = True
     policy = RslRlPpoActorCriticCfg(
         init_noise_std=1.0,
@@ -90,7 +89,7 @@ class PioneerHumanoidFlatPPORunnerCfg(PioneerHumanoidRoughPPORunnerCfg):
         super().__post_init__()
 
         self.max_iterations = 10000
-        self.experiment_name = "pioneer_humanoid_flat_knee_axis_v2"
+        self.experiment_name = "pioneer_humanoid_flat"
         # Raised from 0.5 to match G1's flat config: G1FlatPPORunnerCfg never overrides
         # init_noise_std, so it inherits G1RoughPPORunnerCfg's 1.0 -- Wato's flat config
         # had been sitting at half that (0.5) since before this session, unexamined.

@@ -2,7 +2,8 @@
 
 The fingerprint was captured from the pre-flattening recipe, excluding only the
 two unused self-contact diagnostic sensors deliberately removed by this change.
-It covers all source-defined settings, not installed Isaac defaults or physics.
+Only the explicit versioned-asset relocation is normalized; physical settings
+remain part of the fingerprint. This does not validate installed Isaac physics.
 """
 
 import ast
@@ -123,6 +124,7 @@ def _namespace(rough_source=None, runner_source=None):
     for name in ("CurrTerm", "EventTerm", "ObsTerm", "RewTerm", "DoneTerm"):
         namespace[name] = _Term
     _execute(ROOT / "src/pioneer_humanoid/pioneer_humanoid/whole_body.py", namespace)
+    _execute(ROOT / "src/pioneer_humanoid/pioneer_humanoid/rough_baseline.py", namespace)
     _execute(TASKS / "locomotion_env_cfg.py", namespace)
     _execute(CONFIG / "rough_env_cfg.py", namespace, rough_source)
     _execute(CONFIG / "agents/rsl_rl_ppo_cfg.py", namespace, runner_source)
@@ -139,7 +141,16 @@ def _plain(value):
     if isinstance(value, str):
         # whole_body.py joins source asset paths using the host path dialect.
         # A Windows CPU run must produce the same recipe hash as Linux.
-        return value.replace("\\", "/").replace(str(ROOT).replace("\\", "/"), "<repo>")
+        value = value.replace("\\", "/").replace(str(ROOT).replace("\\", "/"), "<repo>")
+        # Exact path-only aliases preserve the original physical recipe digest.
+        # Do not normalize the upstream shared asset: it is a different robot.
+        return value.replace(
+            "assets/old_leg_only_humanoid/rl_baseline_v1.urdf",
+            "assets/whole_body_humanoid/whole_body_humanoid.urdf",
+        ).replace(
+            "assets/old_leg_only_humanoid/usd/rl_baseline_v1",
+            "assets/whole_body_humanoid/usd",
+        )
     return value
 
 
@@ -155,6 +166,7 @@ def _fingerprint(config):
 ENV_FINGERPRINT = "1ab6c2f1d436b938143df441906027c09115a1b38eab92cf200113c092723c52"
 PLAY_FINGERPRINT = "fcd2321e9c1143042fafdf2f7248b21cd3f784a2d0655854b4f335b5dccbc105"
 RUNNER_FINGERPRINT = "96ec2750a32602bf58e3e7e189aa6d0e3ff8c52787d87c112a538fb0a586afb3"
+ROBOT_FINGERPRINT = "6f82889fad2810d1abcddac3136bc14964a51b7e8709b296c1700a746310918f"
 ACTIVE_REWARDS = {
     "track_lin_vel_xy_exp": ("track_lin_vel_xy_yaw_frame_exp", 1.0),
     "track_ang_vel_z_exp": ("track_ang_vel_z_world_exp", 2.0),
@@ -204,13 +216,38 @@ class FinalRecipeContracts(unittest.TestCase):
     def test_final_runner_preserves_the_saved_normalized_ppo_recipe(self):
         self.assertEqual(_fingerprint(self.namespace[RUNNER_CLASS]()), RUNNER_FINGERPRINT)
 
-    def test_legacy_tasks_remain_normalized_and_cannot_default_to_old_geometry_logs(self):
+    def test_legacy_tasks_retain_upstream_normalization_and_log_names(self):
         for terrain in ("Rough", "Flat"):
             runner = self.namespace[f"PioneerHumanoid{terrain}PPORunnerCfg"]()
             self.assertTrue(runner.empirical_normalization)
             self.assertTrue(runner.policy.actor_obs_normalization)
             self.assertTrue(runner.policy.critic_obs_normalization)
-            self.assertEqual(runner.experiment_name, f"pioneer_humanoid_{terrain.lower()}_knee_axis_v2")
+            self.assertEqual(runner.experiment_name, f"pioneer_humanoid_{terrain.lower()}")
+
+    def test_baseline_preserves_all_original_robot_settings_except_asset_location(self):
+        baseline = self.namespace["ROUGH_NO_STAIRS_BASELINE_CFG"]
+        self.assertEqual(_fingerprint(baseline), ROBOT_FINGERPRINT)
+        self.assertTrue(baseline.spawn.asset_path.replace("\\", "/").endswith(
+            "/assets/old_leg_only_humanoid/rl_baseline_v1.urdf"))
+        self.assertTrue(baseline.spawn.usd_dir.replace("\\", "/").endswith(
+            "/assets/old_leg_only_humanoid/usd/rl_baseline_v1"))
+
+    def test_final_baseline_does_not_change_legacy_robot_or_height_target(self):
+        shared = self.namespace["WHOLE_BODY_HUMANOID_CFG"]
+        before = _fingerprint(shared)
+        final = self.namespace[ENV_CLASS]()
+        legacy = self.namespace["PioneerHumanoidRoughEnvCfg"]()
+        self.assertEqual(_fingerprint(shared), before)
+        self.assertEqual(_fingerprint(legacy.scene.robot), _fingerprint(
+            shared.replace(prim_path="{ENV_REGEX_NS}/Robot")))
+        self.assertEqual(legacy.scene.robot.init_state.pos, (0.0, 0.0, 0.75))
+        self.assertEqual(legacy.scene.robot.init_state.joint_pos["Ankle_P_R"], -0.10)
+        self.assertEqual(legacy.scene.robot.init_state.joint_pos["Ankle_R_R"], 0.04)
+        self.assertEqual(legacy.rewards.base_height_l2.params["target_height"], 0.75)
+        self.assertEqual(final.scene.robot.init_state.pos, (0.0, 0.0, 0.84))
+        self.assertEqual(final.scene.robot.init_state.joint_pos["Ankle_P_R"], 0.10)
+        self.assertEqual(final.scene.robot.init_state.joint_pos["Ankle_R_R"], 0.0)
+        self.assertEqual(final.rewards.base_height_l2.params["target_height"], 0.84)
 
     def test_final_recipe_has_one_reward_and_train_play_pair_not_historical_lineage(self):
         parsed = ast.parse((CONFIG / "rough_env_cfg.py").read_text(encoding="utf-8"))

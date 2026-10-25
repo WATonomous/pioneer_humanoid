@@ -27,6 +27,8 @@ enum class MitDriveFamily { Gl2, Ak };
 enum class MitFaultAction { Limp, Damp };
 
 struct JointSafetyConfig {
+  // false: this run leaves the motor alone (no command, no MIT enter, no watchdog).
+  bool active{true};
   bool enable_position_clamp{true};
   bool enable_velocity_limit{true};
   bool enable_delta_limit{true};
@@ -38,12 +40,9 @@ struct JointSafetyConfig {
   // MotorCmd::control_type for this joint; -1 = the node default (joint_command.yaml).
   int control_type{-1};
 
-  // MIT_CONTROL (compliant holding) gains. Only used on joints whose control_type is
-  // MIT_CONTROL; ignored for POSITION_LOOP etc. Default 0/0 is deliberately a
-  // safe no-op (zero stiffness/damping = motor free) -- a joint must be explicitly configured
-  // with nonzero mit_kp/mit_kd to actually hold under MIT. Units match the CubeMars AK-series
-  // manual's MIT protocol range for this motor (see can/config/mit_profiles.yaml): kp in
-  // [0,500], kd in [0,5] -- can_node clamps to the exact per-motor range before sending.
+  // MIT_CONTROL gains, physical units; ignored for other control types. Default 0/0 is a safe
+  // no-op (motor free): a joint holds only with nonzero gains. can_node clamps them to each
+  // motor's range in can/config/mit_profiles.yaml (kp [0, 500], kd [0, 5] for every motor here).
   double mit_kp{0.0};
   double mit_kd{0.0};
 
@@ -61,9 +60,6 @@ struct JointSafetyConfig {
   // Gravity feed-forward (MIT joints only), sent as MotorCmd.torque. scale 0 = off.
   double gravity_ff_scale{0.0};
   double gravity_ff_max_torque{0.0}; // N.m, |feed-forward| is clamped to this
-  // cmd -> URDF frame for the gravity model: q_urdf = urdf_direction * q_cmd + urdf_offset_deg.
-  int urdf_direction{1};
-  double urdf_offset_deg{0.0};
   // Cmd-frame angle assumed while this joint is unpowered. Unset = feed-forward off.
   std::optional<double> gravity_assume_deg;
 };
@@ -115,6 +111,10 @@ public:
   // commands until the next seed.
   SeedReport seedPrevTargetsFromFeedback(const std::map<int, double>& motor_positions);
 
+  // arm_actuators.yaml `active` (default true). An inactive joint gets no command at all (no MIT
+  // enter, no watchdog); to the gravity model its angle is unknown, as if unpowered.
+  bool isActive(size_t joint) const;
+
   // Exclude joints seeded outside their limits (calibration mismatch) until the next seed.
   void blockJoints(const std::vector<size_t>& indices);
   bool isBlocked(size_t joint) const;
@@ -147,6 +147,13 @@ public:
     return joints_.size();
   }
 
+  // The gripper (GL40, gripper.open_close) is joint kGripperJoint, present only when
+  // arm_actuators.yaml has a block for it. gripper_position 0 (open) -> cmd 0, 1 -> upper_limit.
+  static constexpr size_t kGripperJoint = 6;
+  bool hasGripper() const {
+    return joints_.size() > kGripperJoint;
+  }
+
   const JointSafetyConfig& safety(size_t joint) const {
     return safety_.at(joint);
   }
@@ -168,10 +175,14 @@ private:
   static double clampStep(double target, double previous, double delta_max);
   static double applyLowPass(double target, double previous, double alpha);
   bool validateMitGains();
+  bool validateGripper();
+  void resizeJointState();
   common_msgs::msg::MotorCmd mitSafeCommand(size_t joint) const;
   std::vector<double> gravityTorqueMotor(const std::vector<double>& cmd_targets_deg) const;
 
   std::vector<JointConfig> joints_;
+  // arm_calibration.yaml's gripper, appended to joints_ only if arm_actuators.yaml drives it.
+  std::optional<JointConfig> gripper_mapping_;
   std::vector<JointSafetyConfig> safety_;
   std::vector<double> prev_targets_;
   std::vector<double> last_motor_cmd_deg_;

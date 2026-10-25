@@ -20,15 +20,17 @@ The equivalent `Isaac-Locomotion-Stairs-PioneerHumanoid-v0` and
 - Course mesh: [terrains/stair_course.py](terrains/stair_course.py).
 - Completion, corridor, and curriculum terms: [mdp/stair_course.py](mdp/stair_course.py).
 - PPO runner: [config/pioneer_humanoid_v1/agents/stairs_ppo_cfg.py](config/pioneer_humanoid_v1/agents/stairs_ppo_cfg.py).
-- Baseline: `PioneerHumanoidRoughNoStairsSelectiveKneeShapeEnvCfg`. The robot,
-  corrected knee geometry, selective self-collision, ground-contact sensors,
+- Baseline: `PioneerHumanoidRoughNoStairsSelectiveKneeShapeEnvCfg`. The isolated
+  `pioneer_humanoid/rough_baseline.py` robot, frozen research knee geometry,
+  selective self-collision, ground-contact sensors,
   knee-shaping rewards, observation layout, action ordering, actuators, and physics
   come from this repository baseline. No new stairs-specific reward is added.
 - The stairs task does **not** import the local swing-timing experiment or require
   any helper under `outputs/`. The final rough walking recipe is preserved.
-  Legacy Flat/Rough tasks keep observation normalization enabled, but now use
-  versioned corrected-knee log namespaces; see the
-  [checkpoint compatibility notes](locomotion.md#train--play).
+  Legacy Flat/Rough robot configuration, observation normalization, and original
+  log namespaces remain as upstream. The new tasks use a
+  [separate frozen research baseline](../../../../../assets/old_leg_only_humanoid/RL_BASELINE.md),
+  not the latest hardware-oriented robot definition.
 
 When preparing a PR, include the baseline's robot/asset, selective-collision,
 contact-sensor, and knee-shaping dependencies as well as these stairs files. A
@@ -265,3 +267,9 @@ FFmpeg build fix is kept separately rather than bundled into locomotion changes.
 The earlier simulator results above predate this refactor. Re-run the real
 configuration check and runtime smoke in the pinned team image before merge;
 CPU doubles do not establish current PhysX behavior or stair-climbing success.
+
+Upstream compatibility cleanup (2026-10-25): relocated the existing research
+robot into an isolated baseline so upstream Flat/Rough assets and stance stay
+unchanged. The rough-no-stairs/stairs reward recipe, PPO settings, observation
+layout, and action ordering are retained. Path/configuration isolation is not
+a new simulator result; the runtime smoke remains a separate validation gate.

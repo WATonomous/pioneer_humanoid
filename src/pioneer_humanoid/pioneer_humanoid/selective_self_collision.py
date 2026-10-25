@@ -53,7 +53,7 @@ _SELECTIVE_USD_CACHE = os.path.abspath(
         "..",
         "outputs",
         "isaac",
-        "selective_self_collision_usd_cache",
+        "rough_baseline_v1",
     )
 )
 

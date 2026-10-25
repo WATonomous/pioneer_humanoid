@@ -1,27 +1,18 @@
-"""Bare scene: ground + light + arm, nothing else. The default teleop scene."""
+"""Bare scene: the empty lightbox workcell + arm. The default teleop scene.
+
+The lightbox (``humanoid_rl_tasks.workcell``) is the default manipulation
+setup, so even "nothing on the table" is the real rig: arm on its floor stand,
+30.5-inch table, CAD lightbox.
+"""
 from __future__ import annotations
 
-from dataclasses import MISSING
-
-import isaaclab.sim as sim_utils
-from isaaclab.assets import ArticulationCfg, AssetBaseCfg
-from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.utils import configclass
 
 from humanoid_isaac_scenes import scene
+from humanoid_rl_tasks.workcell import ROBOT_BASE_POS, WORKCELL_CAMERA, LightboxWorkcellCfg
 
 
-@scene("bare", camera=([2.5, 2.5, 2.0], [0.0, 0.0, 0.8]))
+@scene("bare", robot_pos=ROBOT_BASE_POS, camera=WORKCELL_CAMERA)
 @configclass
-class BareSceneCfg(InteractiveSceneCfg):
-    robot: ArticulationCfg = MISSING
-
-    ground = AssetBaseCfg(
-        prim_path="/World/defaultGroundPlane",
-        spawn=sim_utils.GroundPlaneCfg(),
-        init_state=AssetBaseCfg.InitialStateCfg(pos=(0.0, 0.0, -1.05)),
-    )
-    dome_light = AssetBaseCfg(
-        prim_path="/World/Light",
-        spawn=sim_utils.DomeLightCfg(intensity=3000.0, color=(0.75, 0.75, 0.75)),
-    )
+class BareSceneCfg(LightboxWorkcellCfg):
+    pass

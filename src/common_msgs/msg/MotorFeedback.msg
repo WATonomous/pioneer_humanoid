@@ -1,6 +1,6 @@
 int8 motor_id
 
-# position: degrees in the MOTOR frame (apply hardware_mapping.yaml's direction/zero_offset
+# position: degrees in the MOTOR frame (apply arm_calibration.yaml's direction/zero_offset
 # to get the command frame). velocity: servo mode -> ERPM, MIT mode -> the drive's velocity
 # units (GL II: "r/s") scaled by mit_profiles.yaml.
 float32 position
