@@ -81,8 +81,63 @@ class ACTAdapter:
         return chunk.cpu().numpy().reshape(self.chunk_size, -1)
 
 
+class FlowAdapter:
+    """``humanoid_il.flow_transformer`` checkpoint (EMA weights); executes ``n_action_steps`` per chunk."""
+
+    kind = "flow"
+    NOISE_SEED_OFFSET = 50_000_000  # per-episode noise seed = layout seed + offset (matches the saved evaluations)
+
+    def __init__(self, checkpoint, device="cpu", n_action_steps=None, refinement_steps=None):
+        from humanoid_il.flow_transformer.policy import FlowConfig, FlowPolicy
+
+        saved = torch.load(checkpoint, map_location="cpu", weights_only=False)
+        self.config = FlowConfig(**saved["config"])
+        self.model = FlowPolicy(self.config).to(device).eval()
+        self.model.load_state_dict(saved["ema"])
+        self.norm = {k: (torch.tensor(v["mean"], device=device), torch.tensor(v["std"], device=device)) for k, v in saved["normalization"].items()}
+        self.device, self.step, self.checkpoint = device, saved["step"], str(Path(checkpoint).resolve())
+        self.chunk_size = self.config.chunk_size
+        self.n_action_steps = n_action_steps or self.chunk_size
+        self.refinement_steps = refinement_steps or self.config.refinement_steps
+        self.cameras = {"ego": (self.config.height, self.config.width), "wrist_left": (self.config.height, self.config.width)}
+        self.queue, self.generator = [], None
+
+    def describe(self):
+        return {"policy": "flow_transformer", "checkpoint": self.checkpoint, "step": self.step, "chunk_size": self.chunk_size,
+                "n_action_steps": self.n_action_steps, "refinement_steps": self.refinement_steps, "ema": True}
+
+    def set_n_action_steps(self, steps):
+        self.n_action_steps = steps
+
+    def reset(self, seed=None):
+        self.queue = []
+        self.generator = torch.Generator(device=self.device).manual_seed((seed or 0) + self.NOISE_SEED_OFFSET)
+
+    def _inputs(self, state, images):
+        frames = to_tensor_images(images)
+        pixels = torch.stack([frames["ego"], frames["wrist_left"]])[None].to(self.device)
+        mean, std = self.norm["observation.state"]
+        return pixels, (torch.from_numpy(np.asarray(state, dtype=np.float32))[None].to(self.device) - mean) / std
+
+    @torch.inference_mode()
+    def predict_chunk(self, state, images, noise_seed=None, generator=None):
+        if noise_seed is not None:
+            generator = torch.Generator(device=self.device).manual_seed(noise_seed)
+        actions = self.model.sample(*self._inputs(state, images), generator=generator or self.generator, steps=self.refinement_steps)[0]
+        mean, std = self.norm["action"]
+        return (actions * std + mean).cpu().numpy()
+
+    def select_action(self, state, images):
+        if not self.queue:
+            self.queue = list(self.predict_chunk(state, images)[:self.n_action_steps])
+        return self.queue.pop(0)
+
+
 def load_policy(path, device="cpu", n_action_steps=None, **options):
+    """ACT ``pretrained_model`` directory or flow ``<step>.pt`` checkpoint."""
     path = Path(path)
     if (path / "model.safetensors").is_file():
         return ACTAdapter(path, device, n_action_steps, **options)
+    if path.suffix == ".pt":
+        return FlowAdapter(path, device, n_action_steps, **options)
     raise ValueError(f"unrecognised policy checkpoint: {path}")

@@ -204,6 +204,8 @@ def plot_map(rows, path):
 def sample_layouts(args):
     """Balanced, expert-validated jittered layouts per (group, band); optionally record demos."""
     cells = [c for c in json.loads(args.map.read_text())["cells"] if c["valid"] and args.split in ("any", c["split"])]
+    if args.cells_from:  # e.g. a curate plan's reserved interpolation cells
+        cells = json.loads(args.cells_from.read_text())["heldout_cells"]
     model = make_model("peg_insert", cameras=CAMERAS)
     expert = PegExpert(model, mujoco.MjData(model))
     raw = RawDataset(args.record, randomize=0, expert_only=True) if args.record else None
@@ -270,6 +272,7 @@ def main():
     sample.add_argument("--split", choices=["train", "test", "any"], required=True, help="which mapped cells to sample")
     sample.add_argument("--counts", type=int, nargs=2, default=[20, 30], metavar=("INNER", "OUTER"), help="layouts per object for bands 0-3 / 3-7 cm")
     sample.add_argument("--jitter-mm", type=float, default=3.0)
+    sample.add_argument("--cells-from", type=Path, help="sample only the heldout_cells of this selection plan")
     sample.add_argument("--seed", type=int, default=70)
     sample.add_argument("--output", type=Path, required=True, help="layouts JSON (resumes if present)")
     sample.add_argument("--record", type=Path, help="also record each accepted layout as an expert demo here")
