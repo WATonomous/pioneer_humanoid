@@ -154,6 +154,41 @@ moves far (22/29); flow does better when the hole moves (17/50 vs 7/50). The hol
 is still the weakest case for both (7/30 and 3/30). Most failures are still a peg held near the
 hole that never seats.
 
+In round 3, the 40-correction cap filled in file order: nominal failures first, then holes moved 0–3
+cm. So no correction came from the hardest case, a hole moved 3–7 cm (flow 26 nominal + 14 hole
+0–3 cm; ACT 23 + 17).
+
+**Round 4: corrections balanced across groups.** `collect_corrections --max-corrections 40
+--group-quota hole_3_7=20` took 20 corrections from holes moved 3–7 cm and spread the other 20
+round-robin across nominal, hole 0–3 cm and both peg groups. These came from each policy's own
+round-3 failures. Training continued 15k updates as before (flow 265k → 280k, ACT 387k → 402k),
+about 2.3 h per job. Both were evaluated on new held-out layouts, identical for the two: nominal
+seeds from 19000, and 99 new jitters.
+
+| Held-out (new layouts) | Flow 280k | ACT 402k | p (flow vs ACT) |
+|---|---|---|---|
+| nominal | **17/20** | 3/20 | |
+| fresh: hole moved 0–3 / 3–7 cm | 16/20 · **16/30** | 1/20 · 2/30 | |
+| fresh: peg moved 0–3 / 3–7 cm | 14/20 · 16/29 | 7/20 · 18/29 | |
+| **fresh total** | **62/99** | 28/99 | < 0.001 |
+| all held-out | **79/119 (66%)** | 31/119 (26%) | < 0.001 |
+| lifted (all held-out) | 119/119 | 119/119 | |
+
+**Flow** improved on every group from round 3 to round 4:
+
+- fresh 44 → 62/99 (p = 0.015)
+- hole moved 3–7 cm 7 → 16/30 (p = 0.03)
+- nominal 10 → 17/20 (p = 0.04)
+
+Targeting the hardest group helped more than the round-3 mix, and the other groups held up too.
+
+**ACT** did not improve with the same data budget: fresh 37 → 28/99 and nominal 6 → 3/20 (both
+within noise, p = 0.23 and 0.45). Holes moved 3–7 cm stayed at 2/30, and only peg moves far
+remain strong (18/29).
+
+In the workcell, flow now inserts in two thirds of held-out episodes, against a quarter for ACT.
+That's the clearest flow-over-ACT result in this study.
+
 ## Reproducing a round with the current tools
 
 The per-round scripts (`phase_correction_round`, `broad_correction_round`,
