@@ -72,12 +72,12 @@ STANCE_SOLES = {LEAD: (0.207, 0.1248), REAR: (-0.175, -0.1722)}  # sole centres 
 STANCE_FOOT_YAW = {LEAD: -106.1, REAR: -136.4}  # foot turn from the zero pose [deg]
 STANCE_BASE_QUAT = (0.5629, -0.0713, 0.082, -0.8194)  # pelvis (wxyz): faces the opponent, bladed, tilted
 KNEE_MIN_BEND = 5.0  # deg
-CROUCH = 0.08  # hips below standing [m]: knees ~50 deg of their 65 (the defence moves fit in the rest)
+# Sized for the DESIGN joint ranges in humanoid_tracking/robot.py (knee 110 deg, ankles, hips past the
+# URDF's). With the URDF's ranges this stance does not fit: it was 60% as long, hips 8 cm down.
+CROUCH = 0.12  # hips below standing [m]: knees ~60 deg of their 110
 STANCE_TILT = 0.5  # share of Wato's pelvis tilt kept: its full forward lean sat this robot's hips over the rear foot
-STANCE_SCALE = 0.6  # of Wato's 45 cm stance: this robot's legs reach less (knee 65 deg, ankle 30 deg, hip extension 20 deg)
-# ...but sideways only 0.6 would put the feet under the hips (18 cm apart, hip joints 17 cm): widen
-# the stance sideways by this much on top, back to Wato's 30 cm (soles 38 cm apart in all)
-STANCE_WIDTH = 1.67
+STANCE_SCALE = 1.0  # of Wato's stance: soles 48 cm apart
+STANCE_WIDTH = 1.0  # extra sideways scale on top (Wato's 30 cm)
 WATO_ARM = 0.539  # Wato's shoulder -> elbow -> wrist length [m]
 # from the shoulder (roll link), in the pelvis frame (x right, y forward, z up), for Wato's arm length
 GUARD = {
@@ -713,20 +713,19 @@ def main(
   hold: float = 1.0,
   fps: float = 50.0,
   max_cap_use: float = 0.8,
-  # sizes: the largest each move this robot's joint ranges allow (IK within 1 cm), as a share of Wato's;
-  # the ducks, slip and weave go 3.5 cm less deep from the 3 cm lower stance (about the same hip height)
-  # (weight 0.5: with the wider stance, more weight on the lead foot leaves the step back short of leg)
-  step: StepCfg = StepCfg(forward=0.06, side=0.048, lift=0.018, weight_shift=0.5),  # noqa: B008  (60%)
-  duck: DuckCfg = DuckCfg(depth=0.045, lean=8.0, down=0.25, bottom=0.1, up=0.3),  # noqa: B008
-  deep_duck: DuckCfg = DuckCfg(depth=0.034, lean=7.5, down=0.5, bottom=0.2, up=0.55),  # noqa: B008
-  slip: SlipCfg = SlipCfg(depth=0.013, lean=9.6),  # noqa: B008
-  weave: WeaveCfg = WeaveCfg(depth=0.049, side_depth=0.0185, lean=4.8, forward_lean=6.0),  # noqa: B008
-  pivot: PivotCfg = PivotCfg(angle=13.5, lift=0.009, weight=0.5),  # noqa: B008  (30%; weight 0.5: the wide stance)
+  # sizes: Wato's, which the design ranges allow (IK within 1 cm), but steps of 9 cm (Wato 10: the step
+  # back runs out of leg) with half the weight shifted (Wato 60%)
+  step: StepCfg = StepCfg(forward=0.09, weight_shift=0.5),  # noqa: B008
+  duck: DuckCfg = DuckCfg(depth=0.10, lean=10.0, down=0.25, bottom=0.1, up=0.3),  # noqa: B008
+  deep_duck: DuckCfg = DuckCfg(depth=0.20, lean=20.0, down=0.5, bottom=0.2, up=0.55),  # noqa: B008  (Wato 25 deg)
+  slip: SlipCfg = SlipCfg(),  # noqa: B008
+  weave: WeaveCfg = WeaveCfg(),  # noqa: B008
+  pivot: PivotCfg = PivotCfg(weight=0.5),  # noqa: B008
 ):
   """Args:
     sequence: moves in order (see the module docstring).
     output_file: CSV to write.
-    stance_scale: scales the distance between the feet (1 = Wato's 45 cm stance; 0.6 fits this robot).
+    stance_scale: scales the distance between the feet (1 = Wato's 48 cm stance).
     crouch: how far below standing the hips are in the stance [m].
     hold: stance pause at the start, end and for each H [s].
     fps: output frame rate.

@@ -88,10 +88,10 @@ SMPLX_JOINTS = {
   "LeftToeBase": 10, "RightToeBase": 11, "Head": 15, "LeftArm": 16, "RightArm": 17,
   "LeftForeArm": 18, "RightForeArm": 19, "LeftHand": 20, "RightHand": 21,
 }  # fmt: skip
-MAX_HEADING = 0.15  # rad, hip turn (the hip yaw joints have little room in the stance; the waist turns the rest)
+MAX_HEADING = 0.3  # rad, hip turn (with the design ranges; past it the jab's shoulder roll runs out)
 MAX_WAIST = 0.5  # rad, torso turn on the waist beyond the hips' (more and the jab's shoulder roll runs out)
 MAX_SWING = 0.6  # rad, body turn beyond the hips and waist made up by the arm
-DROP_RANGE = (-0.02, 0.02)  # m, hip drop (the stance's knees are bent ~50 of 65 deg; with the hip turn, more is past them)
+DROP_RANGE = (-0.02, 0.04)  # m, hip drop
 MAX_WEIGHT = 0.35  # fraction of the way from the neutral CoM to a sole
 # "hook" mapping: elbow angle, glove arc about the shoulder (deg from straight
 # ahead, outside -> across) per hand and glove height above the shoulder [m].

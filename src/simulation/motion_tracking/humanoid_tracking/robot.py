@@ -166,6 +166,20 @@ def _reroot(spec: mujoco.MjSpec, base: mujoco.MjsBody) -> None:
   move(base, "ipos", "iquat")
 
 
+# DESIGN TARGETS, not the robot as built: leg ranges [deg] wide enough for a Wato-size boxing stance and
+# moves (knee, ankles, hip pitch and yaw past the URDF's). Mechanical blockers (part collisions, the ankle
+# linkage, cables) are ignored for now. USE_DESIGN_RANGES = False puts back the URDF's ranges.
+USE_DESIGN_RANGES = True
+DESIGN_RANGES = {
+  "Knee_.": (-110.0, 0.0),  # URDF -65..0
+  "Hip_F_.": (-20.0, 115.0),  # URDF -20..90
+  "Hip_R_.": (-50.0, 90.0),  # URDF -30..90
+  "Ankle_P_.": (-50.0, 50.0),  # URDF -30..50
+  "Ankle_R_.": (-30.0, 30.0),  # URDF -15..15 (it was -30..30 before #403)
+  "Hip_A_.": (-25.0, 60.0),  # URDF -10..60 (the pivots swing the lead leg in)
+}
+
+
 def _urdf_text() -> str:
   text = PIONEER_URDF.read_text()
   free = ('<link name="world"/><joint name="floating_base" type="floating">'
@@ -206,6 +220,10 @@ def get_spec() -> mujoco.MjSpec:
   # URDF effort -> MuJoCo actuatorfrcrange: a hidden clamp at the URDF value; the actuators carry the limits
   for joint in spec.joints:
     joint.actfrclimited = mujoco.mjtLimited.mjLIMITED_FALSE
+    if USE_DESIGN_RANGES:
+      for pattern, deg in DESIGN_RANGES.items():
+        if re.fullmatch(pattern, joint.name):
+          joint.range = np.radians(deg)
   for geom in spec.geoms:
     geom.contype = 0
     geom.conaffinity = 0
