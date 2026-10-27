@@ -105,6 +105,7 @@ def test_missing_limit_raises(name, unset):
     with pytest.raises(ValueError, match=name):  # message must name the missing field
         make_actuator(**{name: unset})
 
+
 @pytest.mark.parametrize("n", [0, 1, 2])  # runs the test 3 times: delay 0, 1, 2 steps
 def test_delay_n_steps(n):
     act = make_actuator(min_delay=n, max_delay=n)  # min = max -> delay is exactly n

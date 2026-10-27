@@ -14,12 +14,12 @@ from __future__ import annotations
 from dataclasses import MISSING
 from typing import TYPE_CHECKING
 
-_MISSING_TYPE = type(MISSING)  # class of the "field not set" placeholder
-
 from isaaclab.actuators import DCMotor, DelayedPDActuator
 
 if TYPE_CHECKING:  # only for type hints; avoids a circular import with the cfg file
     from .delayed_dc_motor_cfg import DelayedDCMotorCfg
+
+_MISSING_TYPE = type(MISSING)  # class of the "field not set" placeholder
 
 # Limits the torque-speed clip needs, with what each one means.
 # None is rejected as well as MISSING: for velocity_limit / effort_limit, Isaac treats None as
