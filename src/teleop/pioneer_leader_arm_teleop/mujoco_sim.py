@@ -41,7 +41,9 @@ from leader_mapping import (  # noqa: E402
     check_leader_args,
 )
 
-_KEY_R = 82  # GLFW key code
+# Every letter, 0-5, Esc and the F1-F5 keys are MuJoCo viewer shortcuts; 6-9 are free.
+_KEY_RESET = ord("6")  # GLFW key code
+RECORD_KEYS = dict(start="7", save="8", discard="9", esc_aborts=False)  # Esc: viewer's free camera
 
 
 @dataclass
@@ -123,7 +125,7 @@ def run() -> None:
     reset_requested = [False]
 
     def on_key(key: int) -> None:
-        if key == _KEY_R:
+        if key == _KEY_RESET:
             reset_requested[0] = True
 
     substeps = max(1, round(CONTROL_DT / model.opt.timestep))
@@ -132,8 +134,8 @@ def run() -> None:
     extra = {"subtask_index": ["subtask_index"]} if scene_steps is not None else None
     recorder, record_every = make_sim_recorder(args, record, device="cpu", sim_dt=control_dt, extra_features=extra)
     if recorder is not None:
-        print("[RECORD] Keys: S=start, N=save episode (then reset), D=discard")
-        recorder.start_keyboard()
+        print("[RECORD] Keys: 7=start, 8=save episode (then reset), 9=discard, 6=reset")
+        recorder.start_keyboard(**RECORD_KEYS)
     renderers = {name: mujoco.Renderer(model, h, w) for name, (h, w) in cameras.items()}
 
     # Called by tick() only on recorded frames.
@@ -157,7 +159,7 @@ def run() -> None:
     clock = WallClock(control_dt)
     step = 0
     shown_step = None  # last task step announced
-    print("[INFO] Leader calibrated (hanging = 0). Move it to home: elbow bent 90 deg, forearm forward, gripper open. R = reset.", flush=True)
+    print("[INFO] Leader calibrated (hanging = 0). Move it to home: elbow bent 90 deg, forearm forward, gripper open. 6 = reset.", flush=True)
     try:
         for arm in arms:
             arm.leader = LeaderInput(arm.board, args.baud, label=arm.side.upper() if len(arms) > 1 else "")
@@ -210,7 +212,7 @@ def run() -> None:
                     index, total, instruction = scene_steps(model, data)
                     if (index, instruction) != shown_step:
                         shown_step = (index, instruction)
-                        msg = "all steps done -- N to save" if index >= total else f"step {index + 1}/{total}: {instruction}"
+                        msg = "all steps done -- 8 to save" if index >= total else f"step {index + 1}/{total}: {instruction}"
                         print(f"\n[TASK] {msg}", flush=True)
                 viewer.sync()
 
