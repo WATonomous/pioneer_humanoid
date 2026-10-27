@@ -20,8 +20,8 @@ from pathlib import Path
 # in this order and callers index it positionally.
 SERVO_IDS: dict[str, int] = {
     "A": 2,  # joint1L shoulder flexion
-    "B": 3,  # joint2l shoulder abduction
-    "C": 1,  # joint3l shoulder rotation
+    "B": 1,  # joint2l shoulder abduction
+    "C": 3,  # joint3l shoulder rotation
     "D": 5,  # joint4l elbow flexion
     "E": 4,  # joint5l forearm rotation
     "F": 7,  # joint6l wrist
