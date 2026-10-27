@@ -28,7 +28,7 @@ safety:
     mit_feedback_timeout: 0.2  # s without feedback -> fault
     # Optional, per joint: mit_peak_torque (N.m) and mit_max_temperature (deg C, as the drive
     # reports it). Above mit_max_torque (rated) is then allowed while the drive reads below
-    # mit_max_temperature, up to mit_peak_torque. At or above mit_max_temperature faults at any
+    mit_max_temperature: 50
     # torque; no reading (0) falls back to the rated cap. The startup rule then checks against
     # the peak, so a stalled joint can push at up to mit_peak_torque until the temperature trips.
     # The sensor lags the windings: set mit_max_temperature well below the drive's own cutoff.
@@ -54,14 +54,13 @@ safety:
         delta_max: 2.0
         control_type: 0
         mit_family: ak
-        mit_kp: 20.0                  # stall 11.5 N.m
+        mit_kp: 200.0                  # stall 11.5 N.m
         mit_kd: 0.5
         mit_max_torque: 18
         mit_peak_torque: 48.0      # AK10-9 datasheet peak; bench-check before enabling
-        mit_max_temperature: 45       # deg C; check the reading at power-on first
         mit_fault_kd: 5.0
         gravity_ff_max_torque: 7.0   # model max 4.7 N.m
-        gravity_ff_scale: 1.0
+        gravity_ff_scale: 0.0
       roll:    # AK80-9, id 13
         active: true
         delta_max: 4.0
@@ -71,7 +70,6 @@ safety:
         mit_kd: 0.8
         mit_max_torque: 9.0
         mit_peak_torque: 48.0      # AK80-9: its MIT torque reading saturates at 18
-        mit_max_temperature: 45      # deg C; check the reading at power-on first
         mit_fault_kd: 1.0
         gravity_ff_max_torque: 5.5    # model max 4.7 N.m
         gravity_ff_scale: 0.0
@@ -84,7 +82,6 @@ safety:
         mit_kd: 0.4
         mit_max_torque: 18.0   # gravity max 1.24 N.m
         mit_peak_torque: 48.0      # AK10-9 datasheet peak; bench-check before enabling
-        mit_max_temperature: 45       # deg C; check the reading at power-on first
         mit_fault_kd: 5.0
         mit_max_track_err: 15.0
         gravity_ff_max_torque: 12.5    # model max 1.2 N.m
@@ -95,11 +92,10 @@ safety:
         delta_max: 1.6
         control_type: 0
         mit_family: ak
-        mit_kp: 30.0                  # stall 6.7 N.m + 3.59 ff
+        mit_kp: 60.0                  # stall 6.7 N.m + 3.59 ff
         mit_kd: 0.4
         mit_max_torque: 9.0
         mit_peak_torque: 22.0      # AK80-9: its MIT torque reading saturates at 18
-        mit_max_temperature: 45       # deg C; check the reading at power-on first
         mit_fault_kd: 5.0
         gravity_ff_max_torque: 3.59
         gravity_ff_scale: 0.0
@@ -113,7 +109,6 @@ safety:
         mit_kd: 0.4
         mit_max_torque: 9.0
         mit_peak_torque: 22.0      # AK80-9: its MIT torque reading saturates at 18
-        mit_max_temperature: 45       # deg C; check the reading at power-on first
         mit_fault_kd: 0.5
         gravity_ff_max_torque: 0.18    # model max 0.18 N.m
         gravity_ff_scale: 0.0
@@ -140,7 +135,7 @@ safety:
         gravity_assume_deg: 0.0
     gripper:
       open_close:   # GL40, id 21
-        active: true
+        active: false
         velocity_max: 60.0
         delta_max: 2.4
         control_type: 0        # MIT_CONTROL
