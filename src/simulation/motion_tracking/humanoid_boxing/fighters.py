@@ -12,8 +12,9 @@ A fighter's hitboxes never touch its own body; they meet the opponent
 and the floor. Hitboxes are simple shapes fitted to the CAD meshes; the
 meshes stay visual only.
 
-Hitbox geoms (per fighter): glove_l, glove_r (spheres on the wrists, shown),
-head, torso, pelvis, and capsules along the arms and legs (hidden, group 3).
+Hitbox geoms (per fighter): glove_l, glove_r (spheres on the fists, inside the
+glove props), head, torso, pelvis, and capsules along the arms and legs (hidden,
+group 3). The glove props take the team's glove colour.
 """
 
 import dataclasses
@@ -24,7 +25,7 @@ import numpy as np
 
 from mjlab.entity import EntityArticulationInfoCfg, EntityCfg
 from mjlab.utils.spec_config import CollisionCfg
-from humanoid_tracking.robot import ACTUATORS, FEET_COLLISION, get_spec
+from humanoid_tracking.robot import ACTUATORS, FEET_COLLISION, HIDDEN_GROUP, get_spec
 
 Team = Literal["red", "blue"]
 
@@ -142,8 +143,10 @@ def _body_quat_of_world_axes(data: mujoco.MjData, model: mujoco.MjModel, body: s
 def add_hitboxes(spec: mujoco.MjSpec, team: Team) -> None:
   """Recolour the robot and add gloves + hitboxes for `team`."""
   for geom in spec.geoms:
-    if geom.type == mujoco.mjtGeom.mjGEOM_MESH:
+    if geom.type == mujoco.mjtGeom.mjGEOM_MESH and geom.group != HIDDEN_GROUP:
       geom.rgba = TEAM_RGBA[team]
+    elif geom.name.endswith(("_glove", "_glove_cuff")):
+      geom.rgba = GLOVE_RGBA[team]
 
   # measure at qpos0 (upright, all joints 0): offsets in body frames are fixed
   model = spec.copy().compile()
@@ -166,7 +169,6 @@ def add_hitboxes(spec: mujoco.MjSpec, team: Team) -> None:
     add(
       wrist,
       f"glove_{side}",
-      group=1,
       rgba=GLOVE_RGBA[team],
       type=mujoco.mjtGeom.mjGEOM_SPHERE,
       size=(GLOVE_RADIUS, 0, 0),

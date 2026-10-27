@@ -33,6 +33,11 @@ PIONEER_URDF = ASSET_DIR / "pioneer_whole_body_humanoid.urdf"
 FEET = ("l_foot", "r_foot")
 WRISTS = ("l_hand_H", "r_hand_H")  # left, right: the hands (fists)
 SOLE_THICKNESS = 0.02
+# Boxing-glove props in place of the hand meshes (visual only: no mass, no contact). The hand meshes stay
+# in the model, hidden in HIDDEN_GROUP, because the fist's centre is measured from them.
+GLOVE_PROP_RGBA = (0.70, 0.06, 0.06, 1.0)
+GLOVE_PAD = 1.1  # the glove's half-axes over the fist's
+HIDDEN_GROUP = 5
 
 # The fist the hands are closed into [deg]; positive curls both hands the same way (URDF README).
 FIST = {
@@ -182,6 +187,36 @@ DESIGN_RANGES = {
 }
 
 
+def _glove_props(spec: mujoco.MjSpec) -> None:
+  """Hide each hand's meshes and put a boxing glove on the fist: a padded ellipsoid around the fist's
+  bounding box (its long axis along the fingers) and a cuff round the wrist."""
+  model = spec.copy().compile()
+  data = mujoco.MjData(model)
+  mujoco.mj_kinematics(model, data)
+  for hand in WRISTS:
+    b = model.body(hand).id
+    pts = []
+    for g in range(model.ngeom):
+      if model.geom_bodyid[g] == b and model.geom_type[g] == mujoco.mjtGeom.mjGEOM_MESH:
+        mid = model.geom_dataid[g]
+        v = model.mesh_vert[model.mesh_vertadr[mid] : model.mesh_vertadr[mid] + model.mesh_vertnum[mid]]
+        pts.append(data.geom_xpos[g] + v @ data.geom_xmat[g].reshape(3, 3).T)
+    local = (np.vstack(pts) - data.xpos[b]) @ data.xmat[b].reshape(3, 3)
+    lo, hi = local.min(0), local.max(0)
+    centre, half = (lo + hi) / 2, (hi - lo) / 2
+    body = spec.body(hand)
+    for g in body.find_all(mujoco.mjtObj.mjOBJ_GEOM):  # the palm and the finger links under it
+      if g.type == mujoco.mjtGeom.mjGEOM_MESH:
+        g.group, g.material, g.rgba = HIDDEN_GROUP, "", (0, 0, 0, 0)
+    common = dict(group=2, rgba=GLOVE_PROP_RGBA, contype=0, conaffinity=0, mass=0.0, density=0.0)
+    body.add_geom(name=f"{hand}_glove", type=mujoco.mjtGeom.mjGEOM_ELLIPSOID, size=GLOVE_PAD * half, pos=centre, **common)
+    # the cuff: a short cylinder round the wrist end of the fist (+z in the hand frame, along the forearm)
+    body.add_geom(
+      name=f"{hand}_glove_cuff", type=mujoco.mjtGeom.mjGEOM_CYLINDER, size=(0.8 * min(half[:2]), 0.035),
+      pos=(centre[0], centre[1], hi[2] + 0.01), **common,
+    )  # fmt: skip
+
+
 def _urdf_text() -> str:
   text = PIONEER_URDF.read_text()
   free = ('<link name="world"/><joint name="floating_base" type="floating">'
@@ -230,6 +265,7 @@ def get_spec() -> mujoco.MjSpec:
     geom.contype = 0
     geom.conaffinity = 0
     geom.group = 2
+  _glove_props(spec)
 
   for foot in FEET:
     half, centre = _sole_box(spec, foot)
