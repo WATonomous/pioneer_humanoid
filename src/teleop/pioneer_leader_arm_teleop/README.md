@@ -11,7 +11,7 @@ That is the URDF zero, the real arm's calibrated zero, and the leader's (`calibr
 | Servo | Bus ID | Sim joint | Default sign |
 |-------|--------|-----------|--------------|
 | A | 2 | `joint1L` shoulder flexion | +1 |
-| B | 3 | `joint2l` shoulder abduction | −1 |
+| B | 3 | `joint2l` shoulder abduction | +1 |
 | C | 1 | `joint3l` shoulder rotation | −1 |
 | D | 5 | `joint4l` elbow flexion | +1 |
 | E | 4 | `joint5l` forearm rotation | +1 |
@@ -29,7 +29,7 @@ python calibrate_leader.py --side left --port /dev/ttyACM0 --from leader_calibra
 ```
 
 Writes that board into `leader_arm.json` here and enables it: zero encoder counts per servo, the signs (left
-default `1,-1,-1,1,1,-1,1`) and the board's USB serial number. The teleop finds each board by that serial, so
+default `1,1,-1,1,1,-1,1`) and the board's USB serial number. The teleop finds each board by that serial, so
 plugging the boards in the other order can't swap the arms; two boards with the same serial (or none) are refused.
 The right board stays disabled until it is calibrated. Teleop refuses to start without the file.
 **Commit `leader_arm.json`:** it describes the team's one leader unit, so nobody else has to calibrate; a different
@@ -79,7 +79,7 @@ python pioneer_leader_arm_teleop.py --target mujoco --scene peg_insert   # macOS
 Scenes: `bare`, `peg_insert`, `zip_tie`, `drawer_stow`, `matcha`, `duplo`, or any scene in `humanoid_mujoco_scenes` (see `src/simulation/mujoco_scenes/`).
 
 - **Home:** the arm starts at home (elbow bent 90°, forearm forward, gripper open) and follows the leader only once every leader joint is within 3° of home and the gripper is open. The status line lists the joints still off.
-- **Directions:** move one leader joint at a time. If a sim joint goes the wrong way, re-run `calibrate_leader.py` for that side with that entry flipped in `--signs` (order A..G, left default `1,-1,-1,1,1,-1,1`).
+- **Directions:** move one leader joint at a time. If a sim joint goes the wrong way, re-run `calibrate_leader.py` for that side with that entry flipped in `--signs` (order A..G, left default `1,1,-1,1,1,-1,1`).
 - **6:** reset the arm and every object in the scene; the arm waits at home until the leader is back at home. During a take, it also discards the take.
 - **`--record`:** `7` start · `8` save (then auto-reset) · `9` discard → `<repo>/datasets/pioneer_v1_left_arm/sim/` · `--cameras ego,wrist_left` / `none`.
   Digits because every letter, 0-5 and Esc are MuJoCo viewer shortcuts (Esc stays the viewer's free camera here). The status line starts `REC <frames>` while recording.

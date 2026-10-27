@@ -22,7 +22,7 @@ from arm_limits import gripper_fraction, limited_target
 from servo_leader import ARM_SERVOS, GRIPPER_SERVO, SERVO_IDS, ServoLeader, calibration_zeros, parse_signs
 
 # Per-servo direction of the left board, A..F then G (calibrate_leader.py --signs to change).
-DEFAULT_SIGNS = "1,-1,-1,1,1,-1,1"
+DEFAULT_SIGNS = "1,1,-1,1,1,-1,1"
 # The leader unit's two boards (one per arm): port, USB serial, signs and zeros, written by
 # calibrate_leader.py and committed: the numbers belong to the unit, which is found by USB serial.
 DEFAULT_LEADER_ARM = Path(__file__).resolve().parent / "leader_arm.json"
