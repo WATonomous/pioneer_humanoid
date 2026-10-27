@@ -50,7 +50,7 @@ from servo_leader import ARM_SERVOS, GRIPPER_SERVO, SERVO_IDS  # noqa: E402
 
 # The --live gate: leader within HOME_TOL_DEG of home and within AGREE_TOL_DEG of the real arm on
 # every active joint, gripper within GRIP_TOL.
-HOME_TOL_DEG = 95.0
+HOME_TOL_DEG = 15.0
 AGREE_TOL_DEG = 15.0
 STALE_AFTER_S = 0.5
 PRINT_PERIOD_S = 0.2
@@ -445,8 +445,8 @@ def run() -> None:
     homed = None
     published = False
     try:
-        # if args.live:
-        #     homed = home_real_joint()
+        if args.live:
+            homed = home_real_joint()
         while rclpy.ok():
             rows, grip, real_grip = snapshot()
             failures = [] if pub else gate_failures(rows, grip, real_grip, active, grip_active, grip_range)
