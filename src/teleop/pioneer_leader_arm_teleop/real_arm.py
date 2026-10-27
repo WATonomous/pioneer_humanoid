@@ -4,7 +4,7 @@ Dry run by default: subscribes to /interfacing/motorFeedback and never creates a
 cannot move the arm. --live publishes the leader as ArmPose on /arm/joint_targets (50 Hz) through
 joint_command, but only after the gate passes (every active joint: real arm inside its calibrated
 limits, leader within 3 deg of home and within 10 deg of the real arm; gripper inside its calibrated
-limits and within 0.1) and you type `live`. Before the gate, --live
+limits and within 0.1) and you press Enter. Before the gate, --live
 offers to ramp the real elbow.pitch from its measured angle to home at --home-rate deg/s (default
 5) and hold it there; it refuses if home is outside the joint's calibrated limits or it is inactive.
 
@@ -32,6 +32,7 @@ from __future__ import annotations
 import argparse
 import math
 import sys
+import termios
 import threading
 import time
 from pathlib import Path
@@ -289,7 +290,7 @@ def run() -> None:
     parser.add_argument("--arm-calibration", "--mapping", dest="mapping", default=None,
                         help="the real arm's arm_calibration.yaml (default: auto, as joint_command)")
     parser.add_argument("--live", action="store_true",
-                        help="publish /arm/joint_targets once the gate passes and you type `live`")
+                        help="publish /arm/joint_targets once the gate passes and you press Enter")
     parser.add_argument("--home-rate", type=float, default=HOME_RATE_DEG_S,
                         help=f"--live: deg/s of the optional ramp of the real {HOME_JOINT} to home")
     parser.add_argument("--self-test", action="store_true", help="check the angle math and exit (no ROS, no leader)")
@@ -451,9 +452,12 @@ def run() -> None:
             rows, grip, real_grip = snapshot()
             failures = [] if pub else gate_failures(rows, grip, real_grip, active, grip_active, grip_range)
             if args.live and pub is None and not failures:
+                # Drop keys typed before the prompt, so only an Enter pressed after it starts live.
+                if sys.stdin.isatty():
+                    termios.tcflush(sys.stdin, termios.TCIFLUSH)
                 answer = input("\nGate passed: leader at home and matching the real arm. Hand on the "
-                               "E-stop, then type `live` to start publishing (anything else quits): ")
-                if answer.strip() != "live":
+                               "E-stop, then press Enter to start publishing (anything else quits): ")
+                if answer.strip():
                     break
                 # Re-check: either arm may have moved while waiting at the prompt.
                 rows, grip, real_grip = snapshot()
