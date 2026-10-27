@@ -39,38 +39,11 @@ Prompt: **Enter**=yes · id=correct id · **s**=skip · **q**=quit.
 
 > You will hear buzzing as the motors are activated. Don't worry, that is normal.
 
-### Gripper (GL40, id 21)
-The gripper is driven and reported as a **position, 0 = open .. 1 = closed**, from
-`position = cmd_deg / upper_limit` (`joint_command` and `real_arm.py` use the same formula). So its
-calibration has a stricter contract than the arm joints:
 
-- **HOME = fully open.** Its zero is position 0, which is also where the leader's fully open claw maps.
-- **`direction` makes closing positive**, so `upper_limit` (> 0) is fully closed and
-  `lower_limit` is about 0. `calibrate_arm.py` keeps the `direction` that is already in the YAML.
-  It never flips it.
-
-If the zero is taken mid-travel, the travel on the open side of zero becomes negative positions,
-scaled by `1/upper_limit`. Example: zero 33° from one end and 16° from the other gives
-`lower_limit: -31` (after the 2° pad) and `upper_limit: 16`. The gripper then reads about **-2.0** at
-that end, outside the calibrated range, so the `--live` gate refuses to start. `joint_command` only
-ever commands `[0, upper_limit]`, so it could never open the gripper past that mid-travel zero.
-
-Calibrate the gripper on its own, unpowered, moving it by hand:
-```bash
-ros2 run can calibrate_arm.py --arm-side left --only-motors 21 --limit-pad 0 --write-mapping
-```
-HOME prompt: hold it **fully open**. End A: fully open. End B: fully closed. Use `--limit-pad 0`:
-the default 2° pad would turn the open end into `lower_limit ≈ +2`, and `joint_command` refuses a
-gripper with `lower_limit > 0`.
-
-Check the result in `arm_calibration.yaml` → `gripper.open_close`:
-- `lower_limit` ≈ 0 and `upper_limit` > 0 (about 45–50°). If `lower_limit` comes out a hair above 0
-  from encoder noise, set it to `0.0`.
-- If the limits come out as `[-50, 0]`, closing is negative: flip `direction` and recalibrate.
-  `zero_offset` depends on `direction`, so editing only `direction` is not enough.
-- Dry run (`pioneer_leader_arm_teleop.py --target real`, no `--live`): the `gripper` row's `real`
-  should read about `+0.00` open and rise to `+1.00` as you close it by hand. It should never go
-  negative. The leader's column should do the same (zero the leader with its claw fully open, step 4).
+Gripper is unique: 
+1. Set home position just small of fully open (5deg smaller). 
+2. First pose: Fully open. Second pose: fully closed
+3. If gripper lower limit in `arm_calibration` >0, swap the value with 0
 
 ## 2. Visualize
 Read-only mirror of live motor feedback in the browser. Confirms calibration looks right

@@ -47,9 +47,13 @@ struct JointSafetyConfig {
   double mit_kd{0.0};
 
   // MIT watchdog limits (a PD drive has no internal limit checking).
-  double mit_max_torque{0.3};       // N.m -- fault above this
+  double mit_max_torque{0.3};       // N.m, rated -- fault above this unless the temperature allows
   double mit_max_track_err{12.0};   // deg -- fault if the joint lags its setpoint by more
   double mit_feedback_timeout{0.2}; // s without feedback before faulting
+  // Above mit_max_torque is allowed while the drive reads below mit_max_temperature, up to
+  // mit_peak_torque. Unset peak = mit_max_torque is the hard cap; unset temperature = no check.
+  std::optional<double> mit_peak_torque;     // N.m
+  std::optional<double> mit_max_temperature; // deg C -- fault at or above this, at any torque
 
   MitDriveFamily mit_family{MitDriveFamily::Gl2};
   // Defaults from mit_family (ak -> Damp, gl2 -> Limp) unless set in the YAML.
@@ -68,7 +72,8 @@ struct JointSafetyConfig {
 struct MotorFeedbackSample {
   double position_deg{0.0}; // MOTOR frame, as published on /interfacing/motorFeedback
   double torque_nm{0.0};
-  int status{0}; // GL II: 0 Disable / 1 Enable / else fault. AK: 0 ok / else fault.
+  double temperature_c{0.0}; // as the drive reports it; 0 = no reading
+  int status{0};             // GL II: 0 Disable / 1 Enable / else fault. AK: 0 ok / else fault.
   double age_s{0.0};
 };
 

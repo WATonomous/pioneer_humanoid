@@ -19,8 +19,8 @@ constexpr double kGravityFfRampSec = 1.0;
 // ArmPose joint order, shared by both config files.
 const std::vector<std::pair<std::string, std::string>>& jointPaths() {
   static const std::vector<std::pair<std::string, std::string>> paths = {
-      {"shoulder", "pitch"}, {"shoulder", "yaw"}, {"shoulder", "roll"}, 
-      {"elbow", "pitch"},    {"elbow", "roll"},    {"wrist", "pitch"},
+      {"shoulder", "pitch"}, {"shoulder", "yaw"}, {"shoulder", "roll"},
+      {"elbow", "pitch"},    {"elbow", "roll"},   {"wrist", "pitch"},
   };
   return paths;
 }
@@ -232,6 +232,12 @@ JointSafetyConfig JointCommandCore::loadJointSafetyConfig(const YAML::Node& join
   if (joint_node["mit_feedback_timeout"]) {
     cfg.mit_feedback_timeout = joint_node["mit_feedback_timeout"].as<double>();
   }
+  if (joint_node["mit_peak_torque"]) {
+    cfg.mit_peak_torque = joint_node["mit_peak_torque"].as<double>();
+  }
+  if (joint_node["mit_max_temperature"]) {
+    cfg.mit_max_temperature = joint_node["mit_max_temperature"].as<double>();
+  }
   if (joint_node["mit_family"]) {
     const std::string family = joint_node["mit_family"].as<std::string>();
     if (family == "gl2") {
@@ -322,15 +328,34 @@ bool JointCommandCore::validateMitGains() {
              << ") -- the GL II manual warns kd = 0 in position control makes the motor "
                 "oscillate / run away";
     }
+    // Above rated is allowed only while the temperature is watched.
+    if (s.mit_peak_torque.has_value()) {
+      if (!(*s.mit_peak_torque >= s.mit_max_torque)) {
+        errors << "\n  " << name << ": mit_peak_torque " << *s.mit_peak_torque
+               << " N.m must be >= mit_max_torque " << s.mit_max_torque << " N.m";
+      }
+      if (!s.mit_max_temperature.has_value()) {
+        errors << "\n  " << name << ": mit_peak_torque needs mit_max_temperature -- torque above "
+               << "mit_max_torque is only allowed while the temperature is below it";
+      }
+    }
+    if (s.mit_max_temperature.has_value() &&
+        !(*s.mit_max_temperature > 0.0 && *s.mit_max_temperature <= 127.0)) {
+      errors << "\n  " << name << ": mit_max_temperature must be in (0, 127] deg C (got "
+             << *s.mit_max_temperature << "; MotorFeedback.temperature is int8)";
+    }
     // Worst case is a stalled joint: the tracking fault caps PD torque at kp * mit_max_track_err.
-    // Uses the quantised kp the drive applies; feed-forward adds on top.
+    // Uses the quantised kp the drive applies; feed-forward adds on top. Bounded by the peak cap
+    // when one is set: a stalled joint above rated is then stopped only by the temperature check.
     const double kp_q = quantiseKp(s.mit_kp);
     const double ff_max = s.gravity_ff_scale > 0.0 ? s.gravity_ff_max_torque : 0.0;
     const double worst = kp_q * s.mit_max_track_err * kDegToRad + ff_max;
-    if (worst > s.mit_max_torque) {
+    const double cap = s.mit_peak_torque.value_or(s.mit_max_torque);
+    const char* cap_name = s.mit_peak_torque.has_value() ? "mit_peak_torque" : "mit_max_torque";
+    if (worst > cap) {
       errors << "\n  " << name << ": mit_kp " << kp_q << " N.m/rad (quantised) x "
              << s.mit_max_track_err << " deg + gravity_ff_max_torque " << ff_max
-             << " N.m = " << worst << " N.m exceeds mit_max_torque " << s.mit_max_torque
+             << " N.m = " << worst << " N.m exceeds " << cap_name << " " << cap
              << " N.m -- lower mit_kp, mit_max_track_err or gravity_ff_max_torque";
     }
     // Damp must damp, within the 12-bit kd field's 5.0 ceiling.
@@ -373,6 +398,10 @@ bool JointCommandCore::validateGripper() {
   }
   if (s.gravity_ff_scale != 0.0) {
     errors << "\n  gripper: has no gravity model, gravity_ff_scale must be 0";
+  }
+  // The startup rule would then cap the squeeze at the peak instead of mit_max_torque.
+  if (s.mit_peak_torque.has_value()) {
+    errors << "\n  gripper: mit_peak_torque would raise the squeeze limit; set mit_max_torque";
   }
   const std::string text = errors.str();
   if (!text.empty()) {
@@ -579,10 +608,27 @@ JointCommandCore::checkMitFaults(const std::map<int, MotorFeedbackSample>& feedb
       return name + ": drive reports fault status " + std::to_string(fb.status) +
              (s.mit_family == MitDriveFamily::Ak ? " (AK error code)" : " (GL II status)");
     }
-    if (std::abs(fb.torque_nm) > s.mit_max_torque) {
+    // Torque: hard cap at the peak; above rated only while a real reading is below the maximum.
+    const double torque = std::abs(fb.torque_nm);
+    if (torque > s.mit_peak_torque.value_or(s.mit_max_torque)) {
+      std::ostringstream os;
+      os << name << ": torque " << fb.torque_nm << " N.m exceeds "
+         << (s.mit_peak_torque.has_value() ? "mit_peak_torque " : "mit_max_torque ")
+         << s.mit_peak_torque.value_or(s.mit_max_torque) << " N.m (at " << fb.temperature_c
+         << " C)";
+      return os.str();
+    }
+    if (s.mit_max_temperature.has_value() && fb.temperature_c >= *s.mit_max_temperature) {
+      std::ostringstream os;
+      os << name << ": temperature " << fb.temperature_c << " C reached mit_max_temperature "
+         << *s.mit_max_temperature << " C (torque " << fb.torque_nm << " N.m)";
+      return os.str();
+    }
+    if (torque > s.mit_max_torque &&
+        !(s.mit_max_temperature.has_value() && fb.temperature_c > 0.0)) {
       std::ostringstream os;
       os << name << ": torque " << fb.torque_nm << " N.m exceeds mit_max_torque "
-         << s.mit_max_torque << " N.m";
+         << s.mit_max_torque << " N.m (rated) with no temperature reading to allow it";
       return os.str();
     }
     const double err = std::abs(fb.position_deg - last_motor_cmd_deg_[i]);
