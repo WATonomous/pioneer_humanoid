@@ -19,8 +19,8 @@ constexpr double kGravityFfRampSec = 1.0;
 // ArmPose joint order, shared by both config files.
 const std::vector<std::pair<std::string, std::string>>& jointPaths() {
   static const std::vector<std::pair<std::string, std::string>> paths = {
-      {"shoulder", "pitch"}, {"shoulder", "yaw"}, {"shoulder", "roll"}, 
-      {"elbow", "pitch"},    {"elbow", "roll"},    {"wrist", "pitch"},
+      {"shoulder", "pitch"}, {"shoulder", "yaw"}, {"shoulder", "roll"},
+      {"elbow", "pitch"},    {"elbow", "roll"},   {"wrist", "pitch"},
   };
   return paths;
 }

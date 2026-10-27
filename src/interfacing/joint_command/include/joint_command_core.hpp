@@ -73,7 +73,7 @@ struct MotorFeedbackSample {
   double position_deg{0.0}; // MOTOR frame, as published on /interfacing/motorFeedback
   double torque_nm{0.0};
   double temperature_c{0.0}; // as the drive reports it; 0 = no reading
-  int status{0}; // GL II: 0 Disable / 1 Enable / else fault. AK: 0 ok / else fault.
+  int status{0};             // GL II: 0 Disable / 1 Enable / else fault. AK: 0 ok / else fault.
   double age_s{0.0};
 };
 

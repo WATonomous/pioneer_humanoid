@@ -1058,10 +1058,10 @@ TEST_F(ShippedConfig, AboveRatedTorqueIsAllowedOnlyWhileTheMotorIsCool) {
   EXPECT_FALSE(core.checkMitFaults(withShoulder(-25.0, 40.0)).has_value())
       << *core.checkMitFaults(withShoulder(-25.0, 40.0));
 
-  expectFault(25.0, 60.0, "mit_max_temperature");    // hot
-  expectFault(1.0, 60.0, "mit_max_temperature");     // hot at a light load
-  expectFault(-31.0, 40.0, "mit_peak_torque");       // over the peak while cool
-  expectFault(25.0, 0.0, "no temperature reading");  // no reading: the rated cap applies
+  expectFault(25.0, 60.0, "mit_max_temperature");   // hot
+  expectFault(1.0, 60.0, "mit_max_temperature");    // hot at a light load
+  expectFault(-31.0, 40.0, "mit_peak_torque");      // over the peak while cool
+  expectFault(25.0, 0.0, "no temperature reading"); // no reading: the rated cap applies
 }
 
 TEST_F(ShippedConfig, WithoutAPeakRatedTorqueStaysTheHardCap) {
@@ -1123,6 +1123,5 @@ TEST_F(ShippedConfig, StartupRuleChecksAgainstThePeakWhenOneIsSet) {
 
   j.remove("mit_peak_torque");
   EXPECT_FALSE(core.loadSafetyFromYaml(cfg, kRateHz));
-  EXPECT_NE(core.lastError().find("exceeds mit_max_torque"), std::string::npos)
-      << core.lastError();
+  EXPECT_NE(core.lastError().find("exceeds mit_max_torque"), std::string::npos) << core.lastError();
 }
