@@ -11,6 +11,7 @@ Produces, in the run folder itself:
     velocity.png  measured joint velocity vs the configured ceiling
     tracking.png  |commanded - measured| vs the fault threshold
     torque.png    torque (MIT) or current (servo) vs the ceiling
+    temperature.png  drive temperature vs each joint's mit_max_temperature
     summary.md    the same numbers as text
 
 `--sweep RUN [RUN ...]` overlays several runs instead, for gain comparisons.
@@ -27,6 +28,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 from matplotlib.lines import Line2D  # noqa: E402
+from matplotlib.ticker import MaxNLocator  # noqa: E402
 
 # Reuse telemetry.py's loader and metrics.
 _SCRIPTS = Path(__file__).resolve().parent.parent / "src" / "interfacing" / "can" / "scripts"
@@ -80,9 +82,13 @@ def new_figure(rows: int, title: str, subtitle: str = ""):
     return fig, [ax[0] for ax in axes]
 
 
-def save(fig, path: Path) -> Path:
+def layout(fig) -> None:
     # Right margin leaves room for the direct labels, which sit outside the axes.
     fig.tight_layout(rect=(0, 0, 0.88, 1 - getattr(fig, "_header_frac", 0.15)))
+
+
+def save(fig, path: Path) -> Path:
+    layout(fig)
     fig.savefig(path, dpi=140, facecolor=SURFACE)
     plt.close(fig)
     return path
@@ -96,6 +102,17 @@ def label_end(ax, xs, ys, text: str, color: str, dy: int = 0) -> None:
                         color=color, fontsize=8, va="center", ha="left",
                         annotation_clip=False)
             return
+
+
+def trailing_max(t, ys, window_s: float = 1.0):
+    """Highest reading over the trailing `window_s`. A whole-degree sensor dithers between two
+    values; this drops the dips but keeps every reading that reaches a limit."""
+    out, j = [], 0
+    for i in range(len(t)):
+        while t[i] - t[j] > window_s:
+            j += 1
+        out.append(max(ys[j:i + 1]))
+    return out
 
 
 def shade_phases(ax, rows) -> None:
@@ -348,6 +365,51 @@ def plot_run(run_dir: Path) -> List[Path]:
             ax.legend(loc="upper left", frameon=False, fontsize=8, labelcolor=INK_SECONDARY,
                       ncol=min(3, len(motors)))
         written.append(save(fig, run_dir / "torque.png"))
+
+    # --- drive temperature (0 = no reading, as joint_command treats it) ---
+    if any(r["drive_c"] for r in rows):
+        fig, axes = new_figure(1, f"Drive temperature over time - {label}", run_subtitle(meta))
+        ax = axes[0]
+        style_axes(ax, "drive temperature, highest reading in the last 1 s", "temperature (C)")
+        ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+        plotted, ends = [], []
+        for motor_id in motors:
+            mrows = [r for r in by_motor[motor_id] if r["drive_c"]]
+            if not mrows:
+                continue
+            joint = mrows[0]["joint"] or f"motor {motor_id}"
+            plotted.append(joint)
+            colour = SERIES[motors.index(motor_id) % len(SERIES)]
+            xs = [r["t_s"] for r in mrows]
+            ys = trailing_max(xs, [r["drive_c"] for r in mrows])
+            ax.plot(xs, ys, color=colour, linewidth=LINE_W, drawstyle="steps-post", label=joint,
+                    zorder=4)
+            ends.append((xs, ys, joint, colour))
+        mit = (meta.get("limits", {}) or {}).get("mit") or {}
+        ceilings: Dict[float, List[str]] = {}
+        for j in plotted:
+            value = (mit.get(j) or {}).get("max_temperature_c")
+            if value is not None:
+                ceilings.setdefault(float(value), []).append(j)
+        for value, names in sorted(ceilings.items()):
+            # Name the joints only when the line does not cover every trace.
+            limit_lines(ax, None, value, "fault at" if names == plotted
+                        else f"{', '.join(names)} fault at")
+        # Whole degrees, so traces end on the same or adjacent values: stack the labels upward
+        # at least 10 pt apart. Measured after the limit lines (they can stretch the y-range) and
+        # the layout (it shrinks the panel).
+        layout(fig)
+        lo, hi = ax.get_ylim()
+        pt_per_c = ax.get_window_extent().height * 72 / fig.dpi / (hi - lo)
+        floor = -float("inf")
+        for xs, ys, joint, colour in sorted(ends, key=lambda e: e[1][-1]):
+            at = max(ys[-1] * pt_per_c, floor + 10)
+            label_end(ax, xs, ys, joint, colour, dy=at - ys[-1] * pt_per_c)
+            floor = at
+        # Above the panel: the traces span the full width and height.
+        ax.legend(loc="lower right", bbox_to_anchor=(1.0, 1.0), frameon=False, fontsize=8,
+                  labelcolor=INK_SECONDARY, ncol=min(3, len(plotted)))
+        written.append(save(fig, run_dir / "temperature.png"))
 
     summary = telemetry.format_metrics(meta, metrics)
     (run_dir / "summary.md").write_text(summary, encoding="utf-8")

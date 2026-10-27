@@ -87,19 +87,19 @@ restart the node.
 1. Inside `simulation_mj` shell:
 ```bash
 cd /workspace/humanoid/src/teleop/pioneer_leader_arm_teleop
-python3 calibrate_leader.py --port /dev/ttyACM1 # Set the leader arm to joints hanging straight down and rotated to face forward, gripper fully open
+python3 calibrate_leader.py --port /dev/ttyACM1 --side left # Set the leader arm to joints hanging straight down and rotated to face forward, gripper fully open
 ```
 > ❗If the command fails, you might need to do `ls /dev` and search for which `ttyACM*` ports are running 
 2. Configure which real-arm joints you want to move. In `arm_actuators.yaml`, configure the `active` attribute for each joint.
 
 3. vRun the teleop script through a dry run, verifying that leader arm direction is aligned with real-arm:
 ```bash
-python3 pioneer_leader_arm_teleop.py --target real --port /dev/ttyACM1
+python3 pioneer_leader_arm_teleop.py --target real 
 ```
 
 4. Run live script. Ensure the `joint_command` node is running
 ```bash
-python3 pioneer_leader_arm_teleop.py --target real --port /dev/ttyACM1 --live
+python3 pioneer_leader_arm_teleop.py --target real --live
 ```
 
 >⚠️ Currently to shutdown the teleop, you must Ctrl-C the teleop script before Ctrl-C the `joint_command` node. Otherwise the teleop script will continue publishing `ArmPose` messages, conflicting with the `joint_command` node's shutdown process.

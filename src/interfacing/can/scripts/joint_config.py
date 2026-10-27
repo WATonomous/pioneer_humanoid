@@ -47,7 +47,8 @@ MIT_PROFILES = [
 # Keys a joint block may override; anything missing falls back to safety.global, exactly as
 # JointCommandCore::loadJointSafetyConfig does.
 _SAFETY_KEYS = ("active", "velocity_max", "delta_max", "control_type", "mit_kp", "mit_kd",
-                "mit_max_torque", "mit_max_track_err", "mit_feedback_timeout", "mit_family",
+                "mit_max_torque", "mit_max_track_err", "mit_feedback_timeout",
+                "mit_max_temperature", "mit_family",
                 "mit_fault_kd", "enable_position_clamp", "enable_velocity_limit",
                 "gravity_ff_scale", "gravity_ff_max_torque", "gravity_assume_deg")
 
@@ -164,6 +165,7 @@ def load_actuator_limits(explicit: Optional[str]):
                 "mit_kd": block.get("mit_kd"),
                 "max_torque_nm": block.get("mit_max_torque"),
                 "max_track_err_deg": block.get("mit_max_track_err"),
+                "max_temperature_c": block.get("mit_max_temperature"),
             }
     return vmax, mit
 
