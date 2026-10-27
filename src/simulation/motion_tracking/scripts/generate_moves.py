@@ -61,8 +61,9 @@ from humanoid_tracking.robot import ACTUATORS, CSV_JOINT_NAMES, SOLE_THICKNESS, 
 LEAD, REAR = "l_foot", "r_foot"  # orthodox
 LEG_JOINTS = tuple(j for j in CSV_JOINT_NAMES if re.match(r"(Hip|Knee|Ankle)_", j))
 LEG_COLS = np.array([7 + CSV_JOINT_NAMES.index(j) for j in LEG_JOINTS])  # their columns in a CSV row
+# the arm joints the guard is solved with; the wrists stay straight (0), as a boxer's
 ARM_JOINTS = {
-  s: tuple(f"{s}_{j}" for j in ("shoulder_pitch", "shoulder_roll", "upper_arm_yaw", "elbow", "forearm_roll", "wrist_dev", "wrist_flex"))
+  s: tuple(f"{s}_{j}" for j in ("shoulder_pitch", "shoulder_roll", "upper_arm_yaw", "elbow", "forearm_roll"))
   for s in "lr"
 }  # fmt: skip
 
@@ -250,23 +251,11 @@ class Robot:
     for i, j in enumerate(LEG_JOINTS):
       if j.startswith("Knee_"):
         self.leg_range[i, 1] = min(self.leg_range[i, 1], -np.radians(KNEE_MIN_BEND))
-    # the fist's centre in the hand frame (where the glove goes, fighters.py)
-    self.d.qpos[3] = 1.0
-    self.forward()
-    self.fist = {}
-    for s, hand in zip("lr", WRISTS):
-      b = self.m.body(hand).id
-      pts = []
-      for g in range(self.m.ngeom):
-        if self.m.geom_bodyid[g] == b and self.m.geom_type[g] == mujoco.mjtGeom.mjGEOM_MESH:
-          mid = self.m.geom_dataid[g]
-          v = self.m.mesh_vert[self.m.mesh_vertadr[mid] : self.m.mesh_vertadr[mid] + self.m.mesh_vertnum[mid]]
-          pts.append(self.d.geom_xpos[g] + v @ self.d.geom_xmat[g].reshape(3, 3).T)
-      pts = np.vstack(pts)
-      self.fist[s] = self.d.xmat[b].reshape(3, 3).T @ ((pts.min(0) + pts.max(0)) / 2 - self.d.xpos[b])
+    # the glove's centre in the hand frame (robot.py's glove site; the arena's glove hitbox sits there)
+    self.fist = {s: self.m.site_pos[self.m.site(f"{hand}_glove").id].copy() for s, hand in zip("lr", WRISTS)}
 
   def solve_arm(self, side: str, glove: np.ndarray, elbow: np.ndarray, iters: int = 200) -> float:
-    """Arm joints that put the fist's centre on `glove` (first) and the elbow near `elbow`, the forearm
+    """Arm joints that put the glove's centre on `glove` (first) and the elbow near `elbow`, the forearm
     roll near the middle of its range (it barely moves the fist, and a punch needs it free)."""
     m, d, nv = self.m, self.d, self.m.nv
     joints = [m.joint(j).id for j in ARM_JOINTS[side]]

@@ -34,7 +34,7 @@ ROPE_BIT = 8
 TEAM_RGBA = {"red": (0.80, 0.30, 0.28, 1.0), "blue": (0.30, 0.40, 0.80, 1.0)}
 GLOVE_RGBA = {"red": (0.65, 0.05, 0.05, 1.0), "blue": (0.05, 0.12, 0.60, 1.0)}
 
-GLOVE_RADIUS = 0.07  # round the fist (12.6 x 13.4 x 16.9 cm)
+GLOVE_RADIUS = 0.07  # round the glove prop's centre (the fist is 12.6 x 13.4 x 16.9 cm)
 HEAD_RADIUS = 0.11
 ARM_RADIUS = 0.045
 LEG_RADIUS = 0.06
@@ -69,38 +69,38 @@ LIMB_CHAINS = {
 # full size with the DESIGN joint ranges (robot.py), half its forward lean, hips 12 cm lower, both
 # soles flat, weight 50/50; see that script). Root pose is relative to the centre between the feet,
 # facing +x (the opponent). Regenerate from data/motions/moves.csv row 0 if the stance changes.
-STANCE_ROOT_POS = (-0.0710, 0.0113, 0.7279)
+STANCE_ROOT_POS = (-0.0668, 0.0115, 0.7279)
 STANCE_ROOT_QUAT = (0.5659, -0.0357, 0.0411, -0.8226)  # wxyz
 STANCE_JOINTS = {
   "waist_yaw": 0.0000,
   "neck_yaw": 0.0000,
   "neck_pitch": 0.0000,
-  "r_shoulder_pitch": -0.5044,
-  "r_shoulder_roll": -0.1756,
-  "r_upper_arm_yaw": 0.6719,
-  "r_elbow": -2.2280,
+  "r_shoulder_pitch": -0.4967,
+  "r_shoulder_roll": -0.1706,
+  "r_upper_arm_yaw": 0.5841,
+  "r_elbow": -2.2913,
   "r_forearm_roll": -0.0000,
-  "r_wrist_dev": 0.2699,
-  "r_wrist_flex": -0.7958,
-  "l_shoulder_pitch": -0.6991,
-  "l_shoulder_roll": -0.1286,
-  "l_upper_arm_yaw": 0.1408,
-  "l_elbow": -1.9943,
-  "l_forearm_roll": -0.0000,
-  "l_wrist_dev": 0.5236,
-  "l_wrist_flex": 0.5011,
-  "Hip_F_L": 0.8780,
-  "Hip_A_L": 0.1120,
-  "Hip_R_L": 0.0082,
-  "Knee_L": -1.0089,
-  "Ankle_P_L": -0.2365,
-  "Ankle_R_L": 0.0623,
-  "Hip_F_R": 0.5173,
-  "Hip_A_R": 0.2781,
-  "Hip_R_R": 0.3631,
-  "Knee_R": -1.1057,
-  "Ankle_P_R": -0.6185,
-  "Ankle_R_R": 0.1054,
+  "r_wrist_dev": 0.0000,
+  "r_wrist_flex": 0.0000,
+  "l_shoulder_pitch": -0.5811,
+  "l_shoulder_roll": -0.0873,
+  "l_upper_arm_yaw": 0.3419,
+  "l_elbow": -2.1512,
+  "l_forearm_roll": -0.0001,
+  "l_wrist_dev": 0.0000,
+  "l_wrist_flex": 0.0000,
+  "Hip_F_L": 0.8756,
+  "Hip_A_L": 0.1106,
+  "Hip_R_L": 0.0098,
+  "Knee_L": -1.0150,
+  "Ankle_P_L": -0.2450,
+  "Ankle_R_L": 0.0605,
+  "Hip_F_R": 0.5107,
+  "Hip_A_R": 0.2799,
+  "Hip_R_R": 0.3629,
+  "Knee_R": -1.1032,
+  "Ankle_P_R": -0.6214,
+  "Ankle_R_R": 0.1098,
 }
 
 
@@ -163,16 +163,15 @@ def add_hitboxes(spec: mujoco.MjSpec, team: Team) -> None:
       **kw,
     )
 
-  # gloves: around the fist, on the hand body
+  # gloves: at the glove props' centres (robot.py), on the hand body
   for side, wrist in WRISTS.items():
-    pts = _mesh_points_world(model, data, wrist)
     add(
       wrist,
       f"glove_{side}",
       rgba=GLOVE_RGBA[team],
       type=mujoco.mjtGeom.mjGEOM_SPHERE,
       size=(GLOVE_RADIUS, 0, 0),
-      pos=_to_body(data, model, wrist, (pts.min(0) + pts.max(0)) / 2),
+      pos=model.site_pos[model.site(f"{wrist}_glove").id],
     )
 
   # head: sphere at the centre of the head

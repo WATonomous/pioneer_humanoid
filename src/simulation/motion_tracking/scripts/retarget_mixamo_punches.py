@@ -5,7 +5,7 @@ library (scripts/build_move_library.py runs this).
 
 From the source punch (in its stance frame: x towards the opponent, y left,
 z up; southpaw takes mirrored to orthodox, the library's stance):
-  * glove (fist centre) and elbow paths, scaled by the robot's / the source's arm
+  * glove (centre) and elbow paths, scaled by the robot's / the source's arm
     length and added to the robot's guard glove and elbow, either as they move in
     the stance frame ("world": the boxer's torso turns about as far as the robot's
     hips can) or relative to the turning chest, carried with the robot's own (clipped) hip
@@ -89,7 +89,7 @@ SMPLX_JOINTS = {
   "LeftForeArm": 18, "RightForeArm": 19, "LeftHand": 20, "RightHand": 21,
 }  # fmt: skip
 MAX_HEADING = 0.3  # rad, hip turn (with the design ranges; past it the jab's shoulder roll runs out)
-MAX_WAIST = 0.5  # rad, torso turn on the waist beyond the hips' (more and the jab's shoulder roll runs out)
+MAX_WAIST = 0.35  # rad, torso turn on the waist beyond the hips' (more and the jab's shoulder roll runs out)
 MAX_SWING = 0.6  # rad, body turn beyond the hips and waist made up by the arm
 DROP_RANGE = (-0.02, 0.04)  # m, hip drop
 MAX_WEIGHT = 0.35  # fraction of the way from the neutral CoM to a sole
@@ -290,7 +290,7 @@ class ArmIK:
     self.qadr = np.array([m.jnt_qposadr[j] for j in joints])
     self.range = np.array([m.jnt_range[j] for j in joints])
     self.hand = m.body(WRISTS["lr".index(side[0])]).id
-    self.fist_off = robot.fist[side[0]]  # the fist's centre in the hand frame: the glove
+    self.fist_off = robot.fist[side[0]]  # the glove's centre in the hand frame
     self.elbow = m.body(f"{side[0]}_{ELBOW}").id
 
   def glove(self) -> np.ndarray:
