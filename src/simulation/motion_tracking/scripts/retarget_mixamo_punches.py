@@ -11,8 +11,8 @@ z up; southpaw takes mirrored to orthodox, the library's stance):
     hips can) or relative to the turning chest, carried with the robot's own (clipped) hip
     turn and up to MAX_SWING more made up by swinging the arm about the
     shoulder ("chest": a martial artist's hook turns the torso ~110 deg);
-    the glove is kept between the guard's distance from the shoulder (the
-    elbow bends no further than 90 deg) and full reach; damped least-squares IK
+    the glove is kept between the elbow's tightest fold and full reach from
+    the shoulder; damped least-squares IK
     on the punching arm (ArmIK; the wrists keep the guard)
   * hip turn, hip drop and weight shift: from the source pelvis, scaled to
     the robot's legs and clipped, driven through the whole-body leg IK of
@@ -97,19 +97,21 @@ MAX_WEIGHT = 0.35  # fraction of the way from the neutral CoM to a sole
 # ahead, outside -> across) per hand and glove height above the shoulder [m].
 # The lead shoulder sits forward and low in the bladed stance: its elbow can
 # not come round from as far outside before the shoulder roll reaches its limit
-HOOK_ELBOW = 120.0
+HOOK_ELBOW = 100.0  # (from the tight guard: a wider elbow and lower arc keep the shoulder smooth)
 HOOK_ARC = {"left": (30.0, 0.0), "right": (45.0, 10.0)}
-HOOK_HEIGHT = 0.02
-# "uppercut" mapping: from the guard glove, the dip (down, forward) and the
-# impact (forward, in towards the centreline, up) [m]; the elbow stays under
-# the glove, at its 90 deg limit
-UPPERCUT_DIP = (0.02, 0.0, -0.10)
-UPPERCUT_HIT = (0.12, 0.06, 0.16)
-SETTLE = 8  # frames at the end of a punch blended into the guard arm angles
+HOOK_HEIGHT = -0.05
+# "uppercut" mapping [m] (forward, in towards the centreline, up). The load, from the guard: the elbow
+# drops and tucks into the ribs and the glove sinks to the lower chest. The impact, from the shoulder:
+# the elbow under the glove and below the shoulder, the forearm ~30 deg off upright, the glove at chin
+# height (the guard glove's) and in towards the centreline
+UPPERCUT_LOAD = {"glove": (-0.02, 0.02, -0.20), "elbow": (-0.04, 0.03, -0.10)}
+UPPERCUT_HIT = {"glove": (0.39, 0.10, 0.14), "elbow": (0.20, 0.04, -0.20)}
+SETTLE = 12  # frames at the end of a punch blended into the guard arm angles (the tight guard is further from the punch's end)
 MAX_SLOW = 4.0  # give up slowing a punch down past this factor
 KEY_DT = 0.1  # s of source time between body waypoints
 REACH = 0.92  # furthest glove from the shoulder, as a fraction of the arm length
-# nearest: the guard's glove, with the elbow at its 90 deg limit (a boxer's folds further)
+# nearest: the elbow folded to its limit, plus this margin (a boxer's elbow folds further)
+NEAR_MARGIN = 1.05
 
 
 # ---------------------------------------------------------------- source motion
@@ -498,10 +500,10 @@ def hook_paths(robot, side, ch, frame_tau, start, end, n, g0, e0, sh0):
 
 def uppercut_paths(side, ch, frame_tau, start, end, n, g0, e0, sh0):
   """UPPERCUT mapping: glove and elbow paths relative to the shoulder in the
-  hips' turned frame. Guard -> dip (UPPERCUT_DIP) -> drive up and forward to
-  impact (UPPERCUT_HIT), the elbow under the glove -> guard. The dip and impact
-  fall where the source glove is lowest and highest, so the punch keeps the
-  source's timing."""
+  hips' turned frame. Guard -> load (UPPERCUT_LOAD: elbow down and tucked,
+  glove low) -> drive up and forward to the impact pose (UPPERCUT_HIT), the
+  elbow under the glove -> guard. The load and impact fall where the source glove is lowest
+  and highest, so the punch keeps the source's timing."""
   up = ch["glove_world"][:, 2]
   i_imp = int(np.argmax(up))
   i_dip = int(np.argmin(up[: i_imp + 1]))
@@ -511,11 +513,11 @@ def uppercut_paths(side, ch, frame_tau, start, end, n, g0, e0, sh0):
   k_imp = min(max(k_imp, k_dip + 4), end - 2)
   inward = -1.0 if side == "left" else 1.0  # +y is left: the left glove comes in towards -y
   vg, ve = g0 - sh0, e0 - sh0
-  dip = np.array(UPPERCUT_DIP) * [1, inward, 1]
-  hit = np.array(UPPERCUT_HIT) * [1, inward, 1]
-  # the elbow rises with the glove, staying under it
-  gw = [(0, vg, True), (start, vg, True), (k_dip, vg + dip, True), (k_imp, vg + hit, True), (end, vg, True), (n, vg, True)]
-  ew = [(0, ve, True), (start, ve, True), (k_dip, ve + dip, True), (k_imp, ve + hit * [1, 1, 0.5], True), (end, ve, True), (n, ve, True)]
+  side_ = np.array([1.0, inward, 1.0])
+  load = {k: np.array(v) * side_ for k, v in UPPERCUT_LOAD.items()}
+  hit = {k: np.array(v) * side_ for k, v in UPPERCUT_HIT.items()}
+  gw = [(0, vg, True), (start, vg, True), (k_dip, vg + load["glove"], True), (k_imp, hit["glove"], True), (end, vg, True), (n, vg, True)]
+  ew = [(0, ve, True), (start, ve, True), (k_dip, ve + load["elbow"], True), (k_imp, hit["elbow"], True), (end, ve, True), (n, ve, True)]
   return gm.smooth_through(gw, n), gm.smooth_through(ew, n)
 
 
@@ -565,7 +567,9 @@ def build(robot, stance, guard_row, ch, side: str, mapping: str, warp: Warp, fps
   arm_len = np.linalg.norm(e0 - sh) + np.linalg.norm(g0 - e0)
   scale = arm_len / ch["arm_len"]
   reach = REACH * arm_len
-  near = np.linalg.norm(g0 - sh)
+  upper, fore = np.linalg.norm(e0 - sh), np.linalg.norm(g0 - e0)
+  fold = np.pi + robot.m.jnt_range[robot.m.joint(f"{side[0]}_elbow").id][0]  # interior angle at full bend
+  near = NEAR_MARGIN * np.sqrt(upper**2 + fore**2 - 2 * upper * fore * np.cos(fold))
 
   out, worst = [], 0.0
   roll = robot.m.joint(f"{side[0]}_shoulder_roll").id
@@ -593,7 +597,7 @@ def build(robot, stance, guard_row, ch, side: str, mapping: str, warp: Warp, fps
         R = rot_z(torso_yaw(robot) - yaw0)
         glove = robot.d.xanchor[roll] + R @ hook_g[k]
         elbow = robot.d.xanchor[roll] + R @ hook_e[k]
-        elbow_w = 1.0 if mapping == "hook" else 0.5
+        elbow_w = 1.0
       elif mapping == "world":  # the glove's own path, the robot's hips and waist turn as far as they can
         glove = g0 + scale * sample(ch, "glove_world", tau)
         elbow = e0 + scale * sample(ch, "elbow_world", tau)
@@ -601,7 +605,7 @@ def build(robot, stance, guard_row, ch, side: str, mapping: str, warp: Warp, fps
         glove, elbow = chest_targets(robot, ch, tau, yaw0, g_rel, e_rel, sh_rel, scale)
       # the guard already holds the glove well out, so the boxer's full
       # extension can overshoot: stop at the arm's reach from its shoulder; and
-      # the boxer's tightest fold is past the elbow's limit: no nearer than the guard
+      # the boxer's tightest fold can be past the elbow's limit
       to = glove - robot.d.xpos[sh_body]
       glove = robot.d.xpos[sh_body] + to * np.clip(np.linalg.norm(to), near, reach) / np.linalg.norm(to)
       worst = max(worst, arm.solve(glove, elbow, elbow_w, q_rest, arm_q))

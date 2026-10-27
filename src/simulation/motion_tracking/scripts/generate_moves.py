@@ -78,11 +78,13 @@ CROUCH = 0.12  # hips below standing [m]: knees ~60 deg of their 110
 STANCE_TILT = 0.5  # share of Wato's pelvis tilt kept: its full forward lean sat this robot's hips over the rear foot
 STANCE_SCALE = 1.0  # of Wato's stance: soles 48 cm apart
 STANCE_WIDTH = 1.0  # extra sideways scale on top (Wato's 30 cm)
-WATO_ARM = 0.539  # Wato's shoulder -> elbow -> wrist length [m]
-# from the shoulder (roll link), in the pelvis frame (x right, y forward, z up), for Wato's arm length
+# A tight guard: elbows down by the ribs and in front of the body, just inside the shoulders; the lead
+# glove at the cheek, the rear one by the chin. From the shoulder (arm_link2), in the pelvis frame
+# (x right, y forward, z up) [m]. It needs the elbows to bend past 90 deg (the DESIGN ranges, robot.py):
+# Wato's guard, with its elbows out level with the chest, kept this robot's elbows at their 90 deg limit.
 GUARD = {
-  "l": {"elbow": (-0.1137, 0.2591, -0.1067), "glove": (0.0612, 0.3437, 0.1820)},
-  "r": {"elbow": (0.0543, 0.2786, -0.0982), "glove": (-0.1486, 0.2596, 0.1822)},
+  "l": {"elbow": (0.03, 0.17, -0.20), "glove": (0.12, 0.30, 0.14)},
+  "r": {"elbow": (-0.04, 0.12, -0.21), "glove": (-0.17, 0.22, 0.14)},
 }
 UP = np.array([0.0, 0.0, 1.0])
 
@@ -264,13 +266,16 @@ class Robot:
       self.fist[s] = self.d.xmat[b].reshape(3, 3).T @ ((pts.min(0) + pts.max(0)) / 2 - self.d.xpos[b])
 
   def solve_arm(self, side: str, glove: np.ndarray, elbow: np.ndarray, iters: int = 200) -> float:
-    """Arm joints that put the fist's centre on `glove` (first) and the elbow near `elbow`."""
+    """Arm joints that put the fist's centre on `glove` (first) and the elbow near `elbow`, the forearm
+    roll near the middle of its range (it barely moves the fist, and a punch needs it free)."""
     m, d, nv = self.m, self.d, self.m.nv
     joints = [m.joint(j).id for j in ARM_JOINTS[side]]
     dofs = np.array([m.jnt_dofadr[j] for j in joints])
     qadr = np.array([m.jnt_qposadr[j] for j in joints])
     rng = np.array([m.jnt_range[j] for j in joints])
     hand, elb = m.body(WRISTS["lr".index(side)]).id, m.body(f"{side}_arm_link4").id
+    roll_i = ARM_JOINTS[side].index(f"{side}_forearm_roll")
+    roll = np.eye(len(dofs))[roll_i : roll_i + 1]
     jp = np.zeros((3, nv))
     err = np.inf
     for _ in range(iters):
@@ -281,8 +286,8 @@ class Robot:
       je = jp[:, dofs].copy()
       eg, ee = glove - fist, elbow - d.xpos[elb]
       err = float(np.linalg.norm(eg))
-      J = np.vstack([10.0 * jg, 2.0 * je, 0.05 * np.eye(len(dofs))])
-      e = np.concatenate([10.0 * eg, 2.0 * ee, np.zeros(len(dofs))])
+      J = np.vstack([10.0 * jg, 2.0 * je, 0.05 * np.eye(len(dofs)), 0.3 * roll])
+      e = np.concatenate([10.0 * eg, 2.0 * ee, np.zeros(len(dofs)), -0.3 * d.qpos[qadr][roll_i : roll_i + 1]])
       dq = np.linalg.solve(J.T @ J + 1e-4 * np.eye(len(dofs)), J.T @ e)
       dq *= min(1.0, 0.1 / max(np.abs(dq).max(), 1e-12))
       d.qpos[qadr] = np.clip(d.qpos[qadr] + dq, rng[:, 0], rng[:, 1])
@@ -645,20 +650,15 @@ def make_stance(robot: Robot, scale: float, crouch: float) -> Stance:
       base_z0 - s * crouch,
       slerp(base_quat0, base_quat, s),
     )
-  # the guard: gloves and elbows from the shoulders, as Wato's, scaled to this arm. The arms move
-  # the centre of mass, so legs (balance) and arms are solved in turn until both settle
-  arm = sum(
-    np.linalg.norm(d.xpos[robot.m.body(b).id] - d.xpos[robot.m.body(a).id])
-    for a, b in (("l_arm_link2", "l_arm_link4"), ("l_arm_link4", "l_hand_W"))
-  )
-  k = arm / WATO_ARM
+  # the guard: gloves and elbows from the shoulders (GUARD). The arms move the centre of mass, so
+  # legs (balance) and arms are solved in turn until both settle
   for _ in range(4):
     Rp = d.xmat[robot.base].reshape(3, 3)
     errs = {}
     for side in "lr":
       shoulder = d.xpos[robot.m.body(f"{side}_arm_link2").id].copy()
       errs[side] = robot.solve_arm(
-        side, shoulder + Rp @ (k * np.array(GUARD[side]["glove"])), shoulder + Rp @ (k * np.array(GUARD[side]["elbow"]))
+        side, shoulder + Rp @ np.array(GUARD[side]["glove"]), shoulder + Rp @ np.array(GUARD[side]["elbow"])
       )
     robot.solve(feet_pos, feet_quat, com, base_z0 - crouch, base_quat, iters=200)
   for side, err in errs.items():

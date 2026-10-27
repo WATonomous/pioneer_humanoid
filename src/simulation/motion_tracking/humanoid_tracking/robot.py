@@ -166,9 +166,10 @@ def _reroot(spec: mujoco.MjSpec, base: mujoco.MjsBody) -> None:
   move(base, "ipos", "iquat")
 
 
-# DESIGN TARGETS, not the robot as built: leg ranges [deg] wide enough for a Wato-size boxing stance and
-# moves (knee, ankles, hip pitch and yaw past the URDF's). Mechanical blockers (part collisions, the ankle
-# linkage, cables) are ignored for now. USE_DESIGN_RANGES = False puts back the URDF's ranges.
+# DESIGN TARGETS, not the robot as built: joint ranges [deg] wide enough for a Wato-size boxing stance
+# and moves (knee, ankles, hips past the URDF's) and a tight guard (elbows). Mechanical blockers (part
+# collisions, the ankle linkage, cables) are ignored for now. USE_DESIGN_RANGES = False puts back the
+# URDF's ranges.
 USE_DESIGN_RANGES = True
 DESIGN_RANGES = {
   "Knee_.": (-110.0, 0.0),  # URDF -65..0
@@ -177,6 +178,7 @@ DESIGN_RANGES = {
   "Ankle_P_.": (-50.0, 50.0),  # URDF -30..50
   "Ankle_R_.": (-30.0, 30.0),  # URDF -15..15 (it was -30..30 before #403)
   "Hip_A_.": (-25.0, 60.0),  # URDF -10..60 (the pivots swing the lead leg in)
+  "[lr]_elbow": (-135.0, 0.0),  # URDF -90..0 (a tight guard folds the arm past 90 deg)
 }
 
 
