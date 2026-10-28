@@ -16,7 +16,7 @@ from pathlib import Path
 import mujoco
 import numpy as np
 
-from humanoid_robot_learning.policies.loading import load_policy, training_task
+from humanoid_robot_learning.policies.checkpoint import load_policy, training_task
 
 # leader_mapping.py: the teleop's control period (scene step hooks run at this rate) and the wrist damping it adds.
 CONTROL_DT = 0.01
