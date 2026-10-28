@@ -8,11 +8,11 @@
    ```
 3. **Dry run** (nothing moves). Check the printed target and measured angles agree:
    ```bash
-   python3 -m humanoid_robot_learning.deploy.real_arm --policy <path_to_model_checkpoint>
+   python3 -m humanoid_robot_learning.deploy.real_arm --policy <run>/checkpoints/last/pretrained_model
    ```
 4. **Live:** add `--live`, then type `live` at the prompt:
    ```bash
-   python3 -m humanoid_robot_learning.deploy.real_arm --policy <path_to_model_checkpoint> --live
+   python3 -m humanoid_robot_learning.deploy.real_arm --policy <run>/checkpoints/last/pretrained_model --live
    ```
 5. **Stop:** press Ctrl-C and the arm holds where it is. Support the arm, then press Ctrl-C again.
    10 s later joint_command sets kp = 0 and the arm goes limp.
