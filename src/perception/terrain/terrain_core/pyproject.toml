@@ -7,10 +7,10 @@ name = "terrain_core"
 version = "0.0.0"
 description = "ROS-free terrain mapping core: preprocessing, elevation, traversability"
 requires-python = ">=3.10"
-dependencies = ["numpy"]
+dependencies = ["numpy", "pyyaml"]
 
 [project.optional-dependencies]
-dev = ["matplotlib"]
+dev = ["matplotlib", "scipy"]
 
 [tool.setuptools.packages.find]
 include = ["terrain_core*"]
