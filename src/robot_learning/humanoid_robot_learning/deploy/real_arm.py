@@ -66,7 +66,12 @@ def action_failures(action: np.ndarray, measured_deg: np.ndarray, names: list[st
 
 
 class RealArmPolicyRunner:
-    """policy_fn(observation) -> (7,) action; observation has observation.state and observation.images.<cam>."""
+    """Run policy_fn on the real arm: read -> infer -> check -> command, once per period (see _policy_loop).
+
+    Adapter in:  /interfacing/motorFeedback + camera topics -> observation.state (7,), observation.images.<cam>
+    Adapter out: action (7,) rad + gripper 0..1 -> ArmPose (deg) on /arm/joint_targets
+    Safety:      preflight before the start, action_failures on every action, hold() on every way out.
+    """
 
     def __init__(self, node: Any, policy_fn: PolicyFn, feedback: ArmFeedbackState, *, fps: float,
                  cameras: dict[str, tuple[str, int, int]], live: bool = False,
@@ -89,6 +94,79 @@ class RealArmPolicyRunner:
         # Dry run: no publisher exists, so nothing here can reach joint_command.
         self._pub = node.create_publisher(ArmPose, ACTION_TOPIC, 10) if live else None
 
+    # ---- loop -------------------------------------------------------------------------------------------
+
+    def run(self) -> None:
+        """Policy loop at fps until Ctrl-C. Every way out after the start, errors included, holds the arm."""
+        start = self.observation()
+        if start is None:  # the preflight passed, but data went stale while waiting at the `live` prompt
+            print("[REFUSED] no fresh data: " + ", ".join(self.missing()), flush=True)
+            return
+        self._q_deg = start[1]
+        try:
+            reason = self._policy_loop()
+        except KeyboardInterrupt:
+            reason = "Ctrl-C"
+        except Exception as e:
+            self.hold(f"{type(e).__name__}: {e}")
+            raise
+        if reason is not None:
+            self.hold(reason)
+
+    def _policy_loop(self) -> str | None:
+        """-> why to hold, or None if the first action was refused (nothing published)."""
+        first, next_status = True, 0.0
+        while True:
+            t0 = time.monotonic()
+
+            # 1. Read (adapter in): motor feedback + cameras -> policy observation, and q_deg of the same sample.
+            snapshot = self.observation()
+            if snapshot is None:
+                return "lost data: " + ", ".join(self.missing())
+            obs, self._q_deg = snapshot
+
+            # 2. Infer: observation -> action (7,) = 6 joint targets in rad + gripper 0 open .. 1 closed.
+            action = np.asarray(self.policy_fn(obs), dtype=np.float64).reshape(-1)
+
+            # 3. Check: is the action safe to send? The first must start within start_tol of the arm.
+            failures = action_failures(action, self._q_deg, self.names, self.start_tol_deg if first else self.max_gap_deg)
+            if failures and first:
+                print("[REFUSED] first target is not where the arm is:\n  " + "\n  ".join(failures), flush=True)
+                return None
+            if failures:
+                return "; ".join(failures)
+            first = False
+
+            # 4. Command (adapter out): action rad -> ArmPose deg -> /arm/joint_targets (no-op in a dry run).
+            self.publish(action)
+
+            # 5. Pace: status line once a second, then sleep out the rest of the period.
+            if t0 >= next_status:
+                next_status = t0 + STATUS_PERIOD_S
+                self._print_status(action, time.monotonic() - t0)
+            time.sleep(max(0.0, self.period - (time.monotonic() - t0)))
+
+    def _print_status(self, action: np.ndarray, step_s: float) -> None:
+        cols = "  ".join(f"{n} {np.degrees(a):+6.1f}/{m:+6.1f}" for n, a, m in zip(self.names, action, self._q_deg))
+        late = "  LATE: inference slower than --fps" if step_s > self.period else ""
+        tag = "LIVE" if self.live else "DRY"
+        print(f"[{tag}] target/measured deg  {cols}  grip {action[6]:.2f}  step {step_s * 1e3:.0f} ms{late}", flush=True)
+
+    # ---- adapter in: ROS -> policy observation ----------------------------------------------------------
+
+    def observation(self) -> tuple[dict[str, np.ndarray], np.ndarray] | None:
+        """(policy observation, measured q_deg of the same feedback sample), or None if any data is stale."""
+        snapshot, images = self.feedback.snapshot(), self._fresh_images()
+        if snapshot is None or len(images) < len(self._sizes):
+            return None
+        state, q_deg = snapshot
+        return {"observation.state": state, **{f"observation.images.{k}": v for k, v in images.items()}}, q_deg
+
+    def missing(self) -> list[str]:
+        """Motors and cameras with no fresh data; empty when observation() can be built."""
+        images = self._fresh_images()
+        return self.feedback.missing() + [f"camera {k}" for k in self._sizes if k not in images]
+
     def _on_image(self, name: str, msg: Any) -> None:
         image = fit_image(image_msg_to_hwc(msg), *self._sizes[name])
         with self._lock:
@@ -99,18 +177,16 @@ class RealArmPolicyRunner:
         with self._lock:
             return {k: image for k, (image, t) in self._images.items() if now - t < IMAGE_STALE_S}
 
-    def missing(self) -> list[str]:
-        """Motors and cameras with no fresh data; empty when observation() can be built."""
-        images = self._fresh_images()
-        return self.feedback.missing() + [f"camera {k}" for k in self._sizes if k not in images]
+    # ---- adapter out: policy action -> ArmPose ----------------------------------------------------------
 
-    def observation(self) -> tuple[dict[str, np.ndarray], np.ndarray] | None:
-        """(policy observation, measured q_deg of the same feedback sample), or None if any data is stale."""
-        snapshot, images = self.feedback.snapshot(), self._fresh_images()
-        if snapshot is None or len(images) < len(self._sizes):
-            return None
-        state, q_deg = snapshot
-        return {"observation.state": state, **{f"observation.images.{k}": v for k, v in images.items()}}, q_deg
+    def publish(self, action: np.ndarray, unit: str = "rad") -> None:
+        if self._pub is None:
+            return
+        msg = vector_to_arm_pose(self._ArmPose, action, unit=unit, name="real_arm_policy_runner")
+        msg.header.stamp = self.node.get_clock().now().to_msg()
+        self._pub.publish(msg)
+
+    # ---- safety -----------------------------------------------------------------------------------------
 
     def preflight(self) -> list[str]:
         """Why the policy may not start; empty when it may. Waits up to PREFLIGHT_WAIT_S for data."""
@@ -126,13 +202,6 @@ class RealArmPolicyRunner:
             out.append(f"nobody subscribes to {ACTION_TOPIC}: start joint_command (interfacing container)")
         return out
 
-    def publish(self, action: np.ndarray, unit: str = "rad") -> None:
-        if self._pub is None:
-            return
-        msg = vector_to_arm_pose(self._ArmPose, action, unit=unit, name="real_arm_policy_runner")
-        msg.header.stamp = self.node.get_clock().now().to_msg()
-        self._pub.publish(msg)
-
     def hold(self, reason: str) -> None:
         """Publish the last measured pose (gripper left where it is) until Ctrl-C."""
         print(f"\n[STOP] {reason}", flush=True)
@@ -146,53 +215,6 @@ class RealArmPolicyRunner:
                 time.sleep(self.period)
         except KeyboardInterrupt:
             pass
-
-    def run(self, max_s: float) -> None:
-        """Policy loop at fps for max_s seconds. Every way out after the start, errors included, holds the arm."""
-        start = self.observation()
-        if start is None:  # the preflight passed, but data went stale while waiting at the `live` prompt
-            print("[REFUSED] no fresh data: " + ", ".join(self.missing()), flush=True)
-            return
-        self._q_deg = start[1]
-        try:
-            reason = self._policy_loop(max_s)
-        except KeyboardInterrupt:
-            reason = "Ctrl-C"
-        except Exception as e:
-            self.hold(f"{type(e).__name__}: {e}")
-            raise
-        if reason is not None:
-            self.hold(reason)
-
-    def _policy_loop(self, max_s: float) -> str | None:
-        """Publish policy actions until a check fails; -> why to hold, or None if the start was refused."""
-        first, t_end, next_status = True, time.monotonic() + max_s, 0.0
-        while time.monotonic() < t_end:
-            t0 = time.monotonic()
-            snapshot = self.observation()
-            if snapshot is None:
-                return "lost data: " + ", ".join(self.missing())
-            obs, self._q_deg = snapshot
-            action = np.asarray(self.policy_fn(obs), dtype=np.float64).reshape(-1)
-            failures = action_failures(action, self._q_deg, self.names, self.start_tol_deg if first else self.max_gap_deg)
-            if failures and first:
-                print("[REFUSED] first target is not where the arm is:\n  " + "\n  ".join(failures), flush=True)
-                return None
-            if failures:
-                return "; ".join(failures)
-            first = False
-            self.publish(action)
-            if t0 >= next_status:
-                next_status = t0 + STATUS_PERIOD_S
-                self._print_status(action, self._q_deg, time.monotonic() - t0)
-            time.sleep(max(0.0, self.period - (time.monotonic() - t0)))
-        return f"--max_s {max_s:g} s reached"
-
-    def _print_status(self, action: np.ndarray, q_deg: np.ndarray, step_s: float) -> None:
-        cols = "  ".join(f"{n} {np.degrees(a):+6.1f}/{m:+6.1f}" for n, a, m in zip(self.names, action, q_deg))
-        late = "  LATE: inference slower than --fps" if step_s > self.period else ""
-        tag = "LIVE" if self.live else "DRY"
-        print(f"[{tag}] target/measured deg  {cols}  grip {action[6]:.2f}  step {step_s * 1e3:.0f} ms{late}", flush=True)
 
 
 def make_policy_fn(path: str, device: str, task: str | None) -> tuple[PolicyFn, dict[str, tuple[int, int]], Any]:
@@ -232,7 +254,6 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--schema", default=str(pkg / "config" / "pioneer_humanoid_dataset_schema.yaml"),
                    help="dataset schema: fps and camera topics (default: the one the teleops record)")
     p.add_argument("--fps", type=float, default=None, help="policy rate (default: the schema's fps, which training used)")
-    p.add_argument("--max_s", type=float, default=60.0, help="stop (and hold) after this many seconds")
     p.add_argument("--arm-calibration", default=None, help="arm_calibration.yaml (default: auto, as joint_command)")
     p.add_argument("--start-tol", type=float, default=START_TOL_DEG, help="deg: the first target must be this close to the arm")
     p.add_argument("--max-gap", type=float, default=MAX_GAP_DEG, help="deg: stop if a target gets this far from the arm")
@@ -276,7 +297,7 @@ def main() -> None:
                                "(anything else quits): ").strip() != "live":
             return
         policy.reset()
-        runner.run(args.max_s)
+        runner.run()
     finally:
         node.destroy_node()
         rclpy.try_shutdown()
