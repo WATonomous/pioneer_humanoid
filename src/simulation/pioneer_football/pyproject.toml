@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pioneer-football"
+version = "0.1.0"
+description = "Astronaut whole-body locomotion baseline for Pioneer football"
+requires-python = ">=3.12,<3.13"
+dependencies = ["mjlab==1.6.0", "torch==2.10.0", "torchvision==0.25.0", "wandb>=0.22.3,<0.29"]
+
+[project.optional-dependencies]
+cpu = ["torch==2.10.0", "torchvision==0.25.0"]
+cu128 = ["torch==2.10.0", "torchvision==0.25.0"]
+
+[project.scripts]
+pioneer-train = "pioneer_football.cli:train"
+pioneer-play = "pioneer_football.cli:play"
+pioneer-validate = "pioneer_football.validate:main"
+pioneer-evaluate = "pioneer_football.evaluate:main"
+
+[tool.setuptools.packages.find]
+include = ["pioneer_football*"]
+
+[tool.uv]
+conflicts = [[{extra = "cpu"}, {extra = "cu128"}]]
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", extra = "cpu" }, { index = "pytorch-cu128", extra = "cu128" }]
+torchvision = [{ index = "pytorch-cpu", extra = "cpu" }, { index = "pytorch-cu128", extra = "cu128" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
