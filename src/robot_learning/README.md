@@ -86,7 +86,7 @@ Sim rollout for a flow-matching policy (pi0 / pi0.5 / SmolVLA) on the push-block
 ```bash
 # simulation_mj container, interfacing up
 cd /workspace/humanoid/src/robot_learning
-python3 -m humanoid_robot_learning.deploy.real_arm --policy <run>/checkpoints/last/pretrained_model   # dry run; add --live
+python3 -m humanoid_robot_learning.deploy.real_arm --policy <path_to_model_checkpoint>   # dry run; add --live
 ```
 
 **Record real demos (planned):** the same leader arm and the same schema, saved under `datasets/pioneer_v1_left_arm/real/`:
