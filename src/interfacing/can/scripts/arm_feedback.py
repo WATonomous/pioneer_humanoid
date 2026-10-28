@@ -1,15 +1,15 @@
-"""MotorFeedback -> the dataset's observation.state: six joints in rad + gripper closure 0..1.
+"""Live arm state from /interfacing/motorFeedback: the latest command-frame angle of each motor, minus stale ones.
 
-Feedback arrives in each drive's motor frame (deg). joint_config.py, the arm_calibration.yaml reader
-that joint_command's Python tools share, turns it into the command frame (= URDF frame), the
-frame policies were trained in. Slots follow ArmPose (arm_pose_io.JOINT_ORDER_DOC). No ROS imports:
-on_feedback takes any object with motor_id and position.
+Feedback arrives in each drive's motor frame (deg); joint_config turns it into the command frame
+(= URDF frame, what ArmPose carries). Slots follow ArmPose (joint_config.ARM_POSE_JOINTS).
+snapshot() also gives the dataset's observation.state (six joints in rad + gripper closure 0..1),
+used by the policy deploy in robot_learning. No ROS imports: on_feedback takes any object with
+motor_id and position.
 """
 
 from __future__ import annotations
 
 import math
-import sys
 import threading
 import time
 from pathlib import Path
@@ -17,11 +17,7 @@ from typing import Any, Callable
 
 import numpy as np
 
-# joint_config lives with the CAN tools, which are scripts rather than a package. real_arm.py's
-# `import joint_config` relies on this path too.
-sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "interfacing" / "can" / "scripts"))
-
-from joint_config import gripper_position, load_joint_map, motor_to_cmd_deg  # noqa: E402
+from joint_config import gripper_position, load_joint_map, motor_to_cmd_deg
 
 # Same as joint_command's kSeedFeedbackMaxAgeS: older feedback is a motor that stopped reporting.
 FEEDBACK_STALE_S = 0.5

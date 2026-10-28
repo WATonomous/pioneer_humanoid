@@ -1,4 +1,4 @@
-"""PolicyDrivenRealArm: run a trained policy on the real left arm through joint_command.
+"""RealArmPolicyRunner: run a trained policy on the real left arm through joint_command.
 
 A dry run by default: it reads motor feedback and cameras, runs the policy and prints its targets
 next to the measured pose, but never creates a publisher. --live publishes each action as ArmPose
@@ -30,6 +30,7 @@ out of the loop, Ctrl-C and exceptions included, goes through hold().
 from __future__ import annotations
 
 import argparse
+import sys
 import threading
 import time
 from pathlib import Path
@@ -37,9 +38,12 @@ from typing import Any, Callable
 
 import numpy as np
 
-from humanoid_robot_learning.recording.arm_feedback import ArmFeedbackState
-from humanoid_robot_learning.recording.arm_pose_io import vector_to_arm_pose
-from humanoid_robot_learning.recording.observation import fit_image, image_msg_to_hwc
+# The arm's calibration and feedback readers live with the CAN tools, which are scripts rather than a package.
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "interfacing" / "can" / "scripts"))
+
+from arm_feedback import ArmFeedbackState  # noqa: E402
+from humanoid_robot_learning.recording.arm_pose_io import vector_to_arm_pose  # noqa: E402
+from humanoid_robot_learning.recording.observation import fit_image, image_msg_to_hwc  # noqa: E402
 
 ACTION_TOPIC = "/arm/joint_targets"
 FEEDBACK_TOPIC = "/interfacing/motorFeedback"
@@ -61,7 +65,7 @@ def action_failures(action: np.ndarray, measured_deg: np.ndarray, names: list[st
     return [f"{n}: target {g:+.1f} deg from measured" for n, g in zip(names, gap) if abs(g) > tol_deg]
 
 
-class PolicyDrivenRealArm:
+class RealArmPolicyRunner:
     """policy_fn(observation) -> (7,) action; observation has observation.state and observation.images.<cam>."""
 
     def __init__(self, node: Any, policy_fn: PolicyFn, feedback: ArmFeedbackState, *, fps: float,
@@ -125,7 +129,7 @@ class PolicyDrivenRealArm:
     def publish(self, action: np.ndarray, unit: str = "rad") -> None:
         if self._pub is None:
             return
-        msg = vector_to_arm_pose(self._ArmPose, action, unit=unit, name="policy_driven_real_arm")
+        msg = vector_to_arm_pose(self._ArmPose, action, unit=unit, name="real_arm_policy_runner")
         msg.header.stamp = self.node.get_clock().now().to_msg()
         self._pub.publish(msg)
 
@@ -260,19 +264,19 @@ def main() -> None:
     # rclpy's own SIGINT handler shuts the context down, after which hold() could not publish. Without it,
     # Ctrl-C is a plain KeyboardInterrupt in this thread and the publisher stays valid for the hold.
     rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
-    node = Node("policy_driven_real_arm")
-    arm = PolicyDrivenRealArm(node, policy_fn, feedback, fps=args.fps or float(schema["fps"]), cameras=cameras,
-                              live=args.live, start_tol_deg=args.start_tol, max_gap_deg=args.max_gap)
+    node = Node("real_arm_policy_runner")
+    runner = RealArmPolicyRunner(node, policy_fn, feedback, fps=args.fps or float(schema["fps"]), cameras=cameras,
+                                 live=args.live, start_tol_deg=args.start_tol, max_gap_deg=args.max_gap)
     threading.Thread(target=rclpy.spin, args=(node,), daemon=True).start()
     try:
-        failures = arm.preflight()
+        failures = runner.preflight()
         if failures:
             raise SystemExit("[PREFLIGHT] not starting:\n  " + "\n  ".join(failures))
         if args.live and input("\nPreflight passed. Arm supported, hand on the E-stop, then type `live` "
                                "(anything else quits): ").strip() != "live":
             return
         policy.reset()
-        arm.run(args.max_s)
+        runner.run(args.max_s)
     finally:
         node.destroy_node()
         rclpy.try_shutdown()
