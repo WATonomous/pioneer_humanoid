@@ -28,16 +28,24 @@ Follow `.claude/skills/real-hardware-safety` and [ARM_BRINGUP.md](../../../inter
 
 ### Run
 
-```bash
-# 1. interfacing container: can_node + joint_command up, arm powered (see src/interfacing/README.md)
-# 2. simulation_mj container (ROS, common_msgs, CPU torch + LeRobot):
-./watod -t simulation_mj
-cd /workspace/humanoid/src/robot_learning
-python3 -m humanoid_robot_learning.deploy.real_arm --policy <run>/checkpoints/last/pretrained_model          # dry run
-python3 -m humanoid_robot_learning.deploy.real_arm --policy <run>/checkpoints/last/pretrained_model --live   # commands the arm
-```
+1. **Bring up the arm**: follow [ARM_BRINGUP.md](../../../interfacing/ARM_BRINGUP.md) §0–3 (can_node, calibrate, joint_command).
+2. **Open the policy container:**
+   ```bash
+   ./watod -t simulation_mj
+   cd /workspace/humanoid/src/robot_learning
+   ```
+3. **Dry run** (nothing moves). Check the printed target and measured angles agree:
+   ```bash
+   python3 -m humanoid_robot_learning.deploy.real_arm --policy <run>/checkpoints/last/pretrained_model
+   ```
+4. **Live:** add `--live`, then type `live` at the prompt:
+   ```bash
+   python3 -m humanoid_robot_learning.deploy.real_arm --policy <run>/checkpoints/last/pretrained_model --live
+   ```
+5. **Stop:** press Ctrl-C and the arm holds where it is. Support the arm, then press Ctrl-C again.
+   10 s later joint_command sets kp = 0 and the arm goes limp.
 
-`pip install -e src/robot_learning` also installs the same CLI as `humanoid-deploy-real`.
+### Flags
 
 | Flag | Default | Meaning |
 |------|---------|---------|
@@ -52,7 +60,9 @@ python3 -m humanoid_robot_learning.deploy.real_arm --policy <run>/checkpoints/la
 | `--arm-calibration` | auto, the same file joint_command loads | `arm_calibration.yaml` |
 | `--schema` | `config/pioneer_humanoid_dataset_schema.yaml` | fps and camera topics |
 
-A live run goes like this:
+`pip install -e src/robot_learning` also installs the same CLI as `humanoid-deploy-real`.
+
+### What a `--live` run checks
 
 1. **Preflight.** It waits up to 5 s for data, then refuses to start if any of these hold:
    - a joint or the gripper has no feedback;
