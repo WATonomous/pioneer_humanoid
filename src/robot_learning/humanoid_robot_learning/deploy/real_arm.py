@@ -3,7 +3,7 @@
 A dry run by default: it reads motor feedback and cameras, runs the policy and prints its targets
 next to the measured pose, but never creates a publisher. --live publishes each action as ArmPose
 on /arm/joint_targets once the preflight passes and you type `live`. The path from there to the
-motors (src/robot_learning/humanoid_robot_learning/deploy/README.md has it in full):
+motors:
 
     policy action (7,) rad + gripper 0..1      dataset schema = sim joint1L..joint6l, joint7l closure
       -> vector_to_arm_pose: deg, ArmPose slots  slot i = joint_command jointPaths()[i]

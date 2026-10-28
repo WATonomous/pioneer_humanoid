@@ -81,7 +81,7 @@ Sim rollout for a flow-matching policy (pi0 / pi0.5 / SmolVLA) on the push-block
 
 ## 4. Real arm
 
-**Deploy a policy:** `PolicyDrivenRealArm` ([`humanoid_robot_learning/deploy/real_arm.py`](humanoid_robot_learning/deploy/real_arm.py)) runs a checkpoint trained on this schema on the real left arm through `joint_command`. Dry run by default, `--live` to command the arm. It reads `observation.state` from motor feedback. Usage, safety steps and the full path from policy to motors: [`humanoid_robot_learning/deploy/README.md`](humanoid_robot_learning/deploy/README.md).
+**Deploy a policy:** `PolicyDrivenRealArm` ([`humanoid_robot_learning/deploy/real_arm.py`](humanoid_robot_learning/deploy/real_arm.py)) runs a checkpoint trained on this schema on the real left arm through `joint_command`. Dry run by default, `--live` to command the arm. It reads `observation.state` from motor feedback. How to run it: [`humanoid_robot_learning/deploy/README.md`](humanoid_robot_learning/deploy/README.md). Its checks and the path from policy to motors are in the module docstring.
 
 ```bash
 # simulation_mj container, interfacing up
