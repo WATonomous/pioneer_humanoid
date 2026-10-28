@@ -17,7 +17,8 @@ from typing import Any, Callable
 
 import numpy as np
 
-# joint_config lives with the CAN tools, which are scripts rather than a package (as in real_arm.py).
+# joint_config lives with the CAN tools, which are scripts rather than a package. real_arm.py's
+# `import joint_config` relies on this path too.
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "interfacing" / "can" / "scripts"))
 
 from joint_config import gripper_position, load_joint_map, motor_to_cmd_deg  # noqa: E402
@@ -61,20 +62,18 @@ class ArmFeedbackState:
         fresh = self.fresh_deg()
         return [j["name"] for j in self.joints + [self.gripper] if j["motor_id"] not in fresh]
 
-    def joints_deg(self) -> np.ndarray | None:
-        """(6,) command-frame deg in ArmPose slot order, or None if any joint is stale."""
-        fresh = self.fresh_deg()
-        if any(j["motor_id"] not in fresh for j in self.joints):
-            return None
-        return np.array([fresh[j["motor_id"]] for j in self.joints])
+    def snapshot(self) -> tuple[np.ndarray, np.ndarray] | None:
+        """(observation.state, q_deg) from one read of the feedback, or None if any motor is stale.
 
-    def state(self) -> np.ndarray | None:
-        """(7,) float32 observation.state: joints in rad, then gripper 0 open .. 1 closed."""
-        q_deg, fresh = self.joints_deg(), self.fresh_deg()
-        if q_deg is None or self.gripper["motor_id"] not in fresh:
+        observation.state: (7,) float32, joints in rad then gripper 0 open .. 1 closed.
+        q_deg: (6,) command-frame deg in ArmPose slot order, the same sample as the state.
+        """
+        fresh = self.fresh_deg()
+        if any(j["motor_id"] not in fresh for j in self.joints + [self.gripper]):
             return None
+        q_deg = np.array([fresh[j["motor_id"]] for j in self.joints])
         grip = float(np.clip(gripper_position(self.gripper, fresh[self.gripper["motor_id"]]), 0.0, 1.0))
-        return np.append(np.radians(q_deg), grip).astype(np.float32)
+        return np.append(np.radians(q_deg), grip).astype(np.float32), q_deg
 
     def out_of_limits(self) -> list[str]:
         """Joints measured outside their calibrated limits: joint_command excludes those (stale calibration)."""

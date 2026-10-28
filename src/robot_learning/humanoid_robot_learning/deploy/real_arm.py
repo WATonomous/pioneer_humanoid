@@ -15,14 +15,16 @@ motors:
 Cases, checked every tick before anything is published:
 
     case               trigger                                         behaviour
-    no state           a joint or the gripper has no feedback < 0.5 s  hold the last measured pose, stop
+    no data            a motor or camera has nothing newer than 0.5 s  hold the last measured pose, stop
     bad action         not 7 finite values                             hold, stop
     far first target   first action > --start-tol deg from measured    refuse to start (nothing moved)
     diverged           a target > --max-gap deg from measured          hold, stop
+    error              the policy or the loop raises                   hold, then re-raise
     otherwise          -                                               publish the action
 
 "Hold" publishes the measured pose (gripper left where it is) until Ctrl-C. Going silent instead
-would leave joint_command ramping to the last target for command_timeout_sec (10 s).
+would leave joint_command ramping to the last target for command_timeout_sec (10 s). So every way
+out of the loop, Ctrl-C and exceptions included, goes through hold().
 """
 
 from __future__ import annotations
@@ -44,6 +46,7 @@ FEEDBACK_TOPIC = "/interfacing/motorFeedback"
 START_TOL_DEG = 15.0  # the leader teleop's AGREE_TOL_DEG: the first target must start from the arm
 MAX_GAP_DEG = 30.0    # 2x START_TOL: past the rate-limit lag, the policy has left the arm behind
 PREFLIGHT_WAIT_S = 5.0
+IMAGE_STALE_S = 0.5   # s, as FEEDBACK_STALE_S: an older frame is a camera that stopped publishing
 STATUS_PERIOD_S = 1.0
 
 PolicyFn = Callable[[dict[str, np.ndarray]], np.ndarray]
@@ -73,8 +76,9 @@ class PolicyDrivenRealArm:
         self.names = [j["name"] for j in feedback.joints]
         self._ArmPose = ArmPose
         self._sizes = {name: (h, w) for name, (_, h, w) in cameras.items()}
-        self._images: dict[str, np.ndarray] = {}
+        self._images: dict[str, tuple[np.ndarray, float]] = {}  # camera -> (image, monotonic time)
         self._lock = threading.Lock()
+        self._q_deg: np.ndarray | None = None  # last measured joints: what hold() publishes
         node.create_subscription(MotorFeedback, FEEDBACK_TOPIC, feedback.on_feedback, 20)
         for name, (topic, _, _) in cameras.items():
             node.create_subscription(Image, topic, lambda msg, k=name: self._on_image(k, msg), 2)
@@ -84,24 +88,32 @@ class PolicyDrivenRealArm:
     def _on_image(self, name: str, msg: Any) -> None:
         image = fit_image(image_msg_to_hwc(msg), *self._sizes[name])
         with self._lock:
-            self._images[name] = image
+            self._images[name] = (image, time.monotonic())
 
-    def observation(self) -> dict[str, np.ndarray] | None:
-        state = self.feedback.state()
+    def _fresh_images(self) -> dict[str, np.ndarray]:
+        now = time.monotonic()
         with self._lock:
-            images = dict(self._images)
-        if state is None or len(images) < len(self._sizes):
+            return {k: image for k, (image, t) in self._images.items() if now - t < IMAGE_STALE_S}
+
+    def missing(self) -> list[str]:
+        """Motors and cameras with no fresh data; empty when observation() can be built."""
+        images = self._fresh_images()
+        return self.feedback.missing() + [f"camera {k}" for k in self._sizes if k not in images]
+
+    def observation(self) -> tuple[dict[str, np.ndarray], np.ndarray] | None:
+        """(policy observation, measured q_deg of the same feedback sample), or None if any data is stale."""
+        snapshot, images = self.feedback.snapshot(), self._fresh_images()
+        if snapshot is None or len(images) < len(self._sizes):
             return None
-        return {"observation.state": state, **{f"observation.images.{k}": v for k, v in images.items()}}
+        state, q_deg = snapshot
+        return {"observation.state": state, **{f"observation.images.{k}": v for k, v in images.items()}}, q_deg
 
     def preflight(self) -> list[str]:
         """Why the policy may not start; empty when it may. Waits up to PREFLIGHT_WAIT_S for data."""
         deadline = time.monotonic() + PREFLIGHT_WAIT_S
         while time.monotonic() < deadline and self.observation() is None:
             time.sleep(0.1)
-        out = [f"{n}: no motor feedback" for n in self.feedback.missing()]
-        with self._lock:
-            out += [f"camera {k}: no image" for k in self._sizes if k not in self._images]
+        out = [f"{k}: no data in the last 0.5 s" for k in self.missing()]
         out += self.feedback.out_of_limits()
         others = [i.node_name for i in self.node.get_publishers_info_by_topic(ACTION_TOPIC) if i.node_name != self.node.get_name()]
         if others:
@@ -117,46 +129,60 @@ class PolicyDrivenRealArm:
         msg.header.stamp = self.node.get_clock().now().to_msg()
         self._pub.publish(msg)
 
-    def hold(self, q_deg: np.ndarray, reason: str) -> None:
-        """Publish q_deg (gripper left where it is) until Ctrl-C."""
+    def hold(self, reason: str) -> None:
+        """Publish the last measured pose (gripper left where it is) until Ctrl-C."""
         print(f"\n[STOP] {reason}", flush=True)
-        if self._pub is None or q_deg is None:  # dry run, or nothing measured to hold
+        if self._pub is None:
             return
         print("[HOLD] holding the measured pose. Support the arm, then Ctrl-C: joint_command goes to kp = 0 "
               "command_timeout_sec (10 s) after the last ArmPose.", flush=True)
         try:
             while True:
-                self.publish(np.radians(q_deg))
+                self.publish(np.radians(self._q_deg))
                 time.sleep(self.period)
         except KeyboardInterrupt:
             pass
 
     def run(self, max_s: float) -> None:
-        """Policy loop at fps for max_s seconds; any failed check holds the arm and returns."""
-        q_deg, first, t_end, next_status = self.feedback.joints_deg(), True, time.monotonic() + max_s, 0.0
+        """Policy loop at fps for max_s seconds. Every way out after the start, errors included, holds the arm."""
+        start = self.observation()
+        if start is None:  # the preflight passed, but data went stale while waiting at the `live` prompt
+            print("[REFUSED] no fresh data: " + ", ".join(self.missing()), flush=True)
+            return
+        self._q_deg = start[1]
         try:
-            while time.monotonic() < t_end:
-                t0 = time.monotonic()
-                obs = self.observation()
-                if obs is None:
-                    return self.hold(q_deg, "lost feedback or camera: " + ", ".join(self.feedback.missing() or ["camera"]))
-                q_deg = self.feedback.joints_deg()
-                action = np.asarray(self.policy_fn(obs), dtype=np.float64).reshape(-1)
-                failures = action_failures(action, q_deg, self.names, self.start_tol_deg if first else self.max_gap_deg)
-                if failures and first:
-                    print("[REFUSED] first target is not where the arm is:\n  " + "\n  ".join(failures), flush=True)
-                    return
-                if failures:
-                    return self.hold(q_deg, "; ".join(failures))
-                first = False
-                self.publish(action)
-                if t0 >= next_status:
-                    next_status = t0 + STATUS_PERIOD_S
-                    self._print_status(action, q_deg, time.monotonic() - t0)
-                time.sleep(max(0.0, self.period - (time.monotonic() - t0)))
+            reason = self._policy_loop(max_s)
         except KeyboardInterrupt:
-            return self.hold(q_deg, "Ctrl-C")
-        self.hold(q_deg, f"--max_s {max_s:g} s reached")
+            reason = "Ctrl-C"
+        except Exception as e:
+            self.hold(f"{type(e).__name__}: {e}")
+            raise
+        if reason is not None:
+            self.hold(reason)
+
+    def _policy_loop(self, max_s: float) -> str | None:
+        """Publish policy actions until a check fails; -> why to hold, or None if the start was refused."""
+        first, t_end, next_status = True, time.monotonic() + max_s, 0.0
+        while time.monotonic() < t_end:
+            t0 = time.monotonic()
+            snapshot = self.observation()
+            if snapshot is None:
+                return "lost data: " + ", ".join(self.missing())
+            obs, self._q_deg = snapshot
+            action = np.asarray(self.policy_fn(obs), dtype=np.float64).reshape(-1)
+            failures = action_failures(action, self._q_deg, self.names, self.start_tol_deg if first else self.max_gap_deg)
+            if failures and first:
+                print("[REFUSED] first target is not where the arm is:\n  " + "\n  ".join(failures), flush=True)
+                return None
+            if failures:
+                return "; ".join(failures)
+            first = False
+            self.publish(action)
+            if t0 >= next_status:
+                next_status = t0 + STATUS_PERIOD_S
+                self._print_status(action, self._q_deg, time.monotonic() - t0)
+            time.sleep(max(0.0, self.period - (time.monotonic() - t0)))
+        return f"--max_s {max_s:g} s reached"
 
     def _print_status(self, action: np.ndarray, q_deg: np.ndarray, step_s: float) -> None:
         cols = "  ".join(f"{n} {np.degrees(a):+6.1f}/{m:+6.1f}" for n, a, m in zip(self.names, action, q_deg))
@@ -229,8 +255,11 @@ def main() -> None:
 
     import rclpy
     from rclpy.node import Node
+    from rclpy.signals import SignalHandlerOptions
 
-    rclpy.init()
+    # rclpy's own SIGINT handler shuts the context down, after which hold() could not publish. Without it,
+    # Ctrl-C is a plain KeyboardInterrupt in this thread and the publisher stays valid for the hold.
+    rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
     node = Node("policy_driven_real_arm")
     arm = PolicyDrivenRealArm(node, policy_fn, feedback, fps=args.fps or float(schema["fps"]), cameras=cameras,
                               live=args.live, start_tol_deg=args.start_tol, max_gap_deg=args.max_gap)
