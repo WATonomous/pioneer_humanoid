@@ -38,7 +38,7 @@ images:
     height: 480
     width: 640
     enabled: true
-    topic: /camera/color/image_raw
+    topic: /wrist_cam/image_rect  # wrist_camera node: already the sim's 640x480 pinhole
   wrist_right:  # not on the real arm yet
     height: 480
     width: 640
