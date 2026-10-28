@@ -11,8 +11,6 @@ if TYPE_CHECKING:
     pass
 
 # ArmPose slot i drives joint_command_core.cpp jointPaths()[i] and is sim joint (i+1) of LEFT_ARM_JOINTS
-# (joint1L..joint6l), so a dataset vector maps onto ArmPose slots by index. Since #433 the physical
-# joint behind slot 1 is shoulder.yaw and slot 2 shoulder.roll; the schema names below predate that.
 JOINT_ORDER_DOC = (
     "shoulder pitch, yaw, roll; elbow pitch, roll; wrist pitch"
 )
