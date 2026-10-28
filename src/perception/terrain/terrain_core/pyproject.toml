@@ -10,7 +10,7 @@ requires-python = ">=3.10"
 dependencies = ["numpy", "pyyaml"]
 
 [project.optional-dependencies]
-dev = ["matplotlib", "scipy"]
+dev = ["matplotlib", "scipy", "pytest"]
 
 [tool.setuptools.packages.find]
 include = ["terrain_core*"]
