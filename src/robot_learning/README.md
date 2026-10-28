@@ -79,9 +79,17 @@ Sim rollout for a flow-matching policy (pi0 / pi0.5 / SmolVLA) on the push-block
   --policy_path <checkpoint> --num_episodes 10
 ```
 
-## 4. Real arm (planned)
+## 4. Real arm
 
-Not runnable yet. The plan is the same leader arm and the same schema, saved under `datasets/pioneer_v1_left_arm/real/`:
+**Deploy a policy:** `PolicyDrivenRealArm` ([`humanoid_robot_learning/deploy/real_arm.py`](humanoid_robot_learning/deploy/real_arm.py)) runs a checkpoint trained on this schema on the real left arm through `joint_command`. Dry run by default, `--live` to command the arm. It reads `observation.state` from motor feedback. Usage, safety steps and the full path from policy to motors: [`humanoid_robot_learning/deploy/README.md`](humanoid_robot_learning/deploy/README.md).
+
+```bash
+# simulation_mj container, interfacing up
+cd /workspace/humanoid/src/robot_learning
+python3 -m humanoid_robot_learning.deploy.real_arm --policy <run>/checkpoints/last/pretrained_model   # dry run; add --live
+```
+
+**Record real demos (planned):** the same leader arm and the same schema, saved under `datasets/pioneer_v1_left_arm/real/`:
 
 - [#327](https://github.com/WATonomous/pioneer_humanoid/issues/327) — `pioneer_leader_arm_teleop.py --target real`: dry-run by default, `--live` to command the arm; adds the gripper command path.
 - [#328](https://github.com/WATonomous/pioneer_humanoid/issues/328) — real demo recording (cameras, state from motor feedback). Still open there: a separate `humanoid-record` process, or `--target real --record`.

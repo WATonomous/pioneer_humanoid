@@ -10,12 +10,13 @@ gripper command, held for one frame (1 / ``--fps``); cameras are rendered at the
 from __future__ import annotations
 
 import argparse
-import json
 import math
 from pathlib import Path
 
 import mujoco
 import numpy as np
+
+from humanoid_robot_learning.policies.loading import load_policy, training_task
 
 # leader_mapping.py: the teleop's control period (scene step hooks run at this rate) and the wrist damping it adds.
 CONTROL_DT = 0.01
@@ -77,33 +78,6 @@ class SceneEnv:
     def close(self) -> None:
         for renderer in self.renderers.values():
             renderer.close()
-
-
-def load_policy(path: str, device: str):
-    from lerobot.configs.policies import PreTrainedConfig
-    from lerobot.policies.factory import get_policy_class, make_pre_post_processors
-
-    from humanoid_robot_learning.policies import register
-
-    register()
-    cfg = PreTrainedConfig.from_pretrained(path)
-    cfg.device = device
-    policy = get_policy_class(cfg.type).from_pretrained(path, config=cfg).eval()
-    pre, post = make_pre_post_processors(cfg, pretrained_path=path, preprocessor_overrides={"device_processor": {"device": device}})
-    return policy, pre, post
-
-
-def training_task(path: str) -> str | None:
-    """The task text of the policy's training dataset, if it has exactly one."""
-    import pandas as pd
-
-    config = Path(path) / "train_config.json"
-    root = json.loads(config.read_text())["dataset"].get("root") if config.exists() else None
-    tasks = Path(root or "") / "meta" / "tasks.parquet"
-    if not root or not tasks.exists():
-        return None
-    names = list(pd.read_parquet(tasks).index)
-    return names[0] if len(names) == 1 else None
 
 
 def wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]:

@@ -10,9 +10,11 @@ import numpy as np
 if TYPE_CHECKING:
     pass
 
-# Same order as joint_command_core.cpp armPoseToMotorCmds.
+# ArmPose slot i drives joint_command_core.cpp jointPaths()[i] and is sim joint (i+1) of LEFT_ARM_JOINTS
+# (joint1L..joint6l), so a dataset vector maps onto ArmPose slots by index. Since #433 the physical
+# joint behind slot 1 is shoulder.yaw and slot 2 shoulder.roll; the schema names below predate that.
 JOINT_ORDER_DOC = (
-    "shoulder pitch, roll, yaw; elbow pitch, roll; wrist pitch"
+    "shoulder pitch, yaw, roll; elbow pitch, roll; wrist pitch"
 )
 # Schema joint names ArmPose can supply, in arm_pose_to_vector order.
 ARM_POSE_JOINT_NAMES = (
@@ -70,3 +72,23 @@ def arm_pose_to_vector(
     if input_unit == "rad" and output_unit == "deg":
         return rad_to_deg(vec).astype(np.float32)
     raise ValueError(f"Unsupported unit conversion: {input_unit} -> {output_unit}")
+
+
+def vector_to_arm_pose(msg_type: Any, vec: np.ndarray, *, unit: str = "rad", is_left: bool = True,
+                       name: str = "") -> Any:
+    """Inverse of arm_pose_to_vector for a dataset action: (6,) joints, or (7,) joints + gripper
+    (0 open .. 1 closed). ArmPose carries degrees; a (6,) vector leaves the gripper where it is."""
+    vec = np.asarray(vec, dtype=np.float64).reshape(-1)
+    if vec.shape[0] not in (6, 7):
+        raise ValueError(f"expected 6 joints (+ gripper), got {vec.shape[0]} values")
+    if unit not in ("rad", "deg"):
+        raise ValueError(f"Unsupported unit: {unit}")
+    q_deg = rad_to_deg(vec[:6]) if unit == "rad" else vec[:6]
+    q = [float(a) for a in q_deg]
+    msg = msg_type()
+    msg.name = name
+    msg.is_left = is_left
+    msg.shoulder.position, msg.elbow.position, msg.wrist.position = q[0:3], q[3:5], q[5:6]
+    msg.include_gripper = vec.shape[0] == 7
+    msg.gripper_position = float(np.clip(vec[6], 0.0, 1.0)) if vec.shape[0] == 7 else 0.0
+    return msg

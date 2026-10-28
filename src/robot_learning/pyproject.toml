@@ -24,6 +24,7 @@ dit = ["lerobot>=0.4,<0.5", "transformers>=4.40"]
 
 [project.scripts]
 humanoid-record = "humanoid_robot_learning.recording.record:main"
+humanoid-deploy-real = "humanoid_robot_learning.deploy.real_arm:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
