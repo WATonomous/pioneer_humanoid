@@ -92,6 +92,9 @@ MAX_HEADING = 0.3  # rad, hip turn (with the design ranges; past it the jab's sh
 MAX_WAIST = 0.35  # rad, torso turn on the waist beyond the hips' (more and the jab's shoulder roll runs out)
 MAX_SWING = 0.6  # rad, body turn beyond the hips and waist made up by the arm
 DROP_RANGE = (-0.02, 0.04)  # m, hip drop
+# per punch, in place of MAX_HEADING / DROP_RANGE: the uppercut is thrown with the legs and hips, as
+# Wato's (54 deg, 6 cm); its arm stays clear of the shoulder roll's limit
+BODY_LIMITS = {"lead_uppercut": {"heading": 0.6, "drop": (-0.02, 0.08)}}
 MAX_WEIGHT = 0.35  # fraction of the way from the neutral CoM to a sole
 # "hook" mapping: elbow angle, glove arc about the shoulder (deg from straight
 # ahead, outside -> across) per hand and glove height above the shoulder [m].
@@ -101,11 +104,11 @@ HOOK_ELBOW = 100.0  # (from the tight guard: a wider elbow and lower arc keep th
 HOOK_ARC = {"left": (30.0, 0.0), "right": (45.0, 10.0)}
 HOOK_HEIGHT = -0.05
 # "uppercut" mapping [m] (forward, in towards the centreline, up). The load, from the guard: the elbow
-# drops and tucks into the ribs and the glove sinks to the lower chest. The impact, from the shoulder:
-# the elbow under the glove and below the shoulder, the forearm ~30 deg off upright, the glove at chin
-# height (the guard glove's) and in towards the centreline
-UPPERCUT_LOAD = {"glove": (-0.02, 0.02, -0.20), "elbow": (-0.04, 0.03, -0.10)}
-UPPERCUT_HIT = {"glove": (0.39, 0.10, 0.14), "elbow": (0.20, 0.04, -0.20)}
+# drops and tucks into the ribs and the glove sinks to the waist. The impact, from the shoulder: the
+# elbow under the glove and below the shoulder, the glove driven up through the chin to ~16 cm over the
+# guard glove and in towards the centreline (a long, visible drive, as Wato's: 39 cm down, 21 up)
+UPPERCUT_LOAD = {"glove": (-0.04, 0.02, -0.35), "elbow": (-0.06, 0.03, -0.15)}
+UPPERCUT_HIT = {"glove": (0.40, 0.10, 0.30), "elbow": (0.22, 0.04, -0.08)}
 SETTLE = 12  # frames at the end of a punch blended into the guard arm angles (the tight guard is further from the punch's end)
 MAX_SLOW = 4.0  # give up slowing a punch down past this factor
 KEY_DT = 0.1  # s of source time between body waypoints
@@ -521,7 +524,7 @@ def uppercut_paths(side, ch, frame_tau, start, end, n, g0, e0, sh0):
   return gm.smooth_through(gw, n), gm.smooth_through(ew, n)
 
 
-def build(robot, stance, guard_row, ch, side: str, mapping: str, warp: Warp, fps: float, hold: float):
+def build(robot, stance, guard_row, ch, side: str, mapping: str, warp: Warp, fps: float, hold: float, limits=None):
   """Returns (CSV rows, worst glove IK error [m], punch frame span, source time per frame)."""
   dur = ch["t"][-1]
   tl = gm.Timeline(stance, fps)
@@ -540,8 +543,10 @@ def build(robot, stance, guard_row, ch, side: str, mapping: str, warp: Warp, fps
     tl.frames(warp.out_time(tau) - warp.out_time(dur * (k - 1) / n_keys))
     w = np.clip(leg_scale * sample(ch, "hips", tau) @ axis / half, -MAX_WEIGHT, MAX_WEIGHT)
     com = tl.towards(gm.LEAD, w) if w >= 0 else tl.towards(gm.REAR, -w)
-    drop = float(np.clip(leg_scale * sample(ch, "drop", tau)[0], *DROP_RANGE))
-    heading = float(np.clip(sample(ch, "heading", tau)[0], -MAX_HEADING, MAX_HEADING))
+    limits = limits or {}
+    max_heading = limits.get("heading", MAX_HEADING)
+    drop = float(np.clip(leg_scale * sample(ch, "drop", tau)[0], *limits.get("drop", DROP_RANGE)))
+    heading = float(np.clip(sample(ch, "heading", tau)[0], -max_heading, max_heading))
     tl.body(com, drop=drop, heading=heading, stop=k == n_keys)
   end = len(tl.feet_frames)
   tl.frames(hold)
@@ -679,7 +684,7 @@ def main(
     warp = Warp(ch["t"][-1])
     best = None
     for _ in range(20):
-      rows, worst, (s, e), taus, leg_err = build(robot, stance, guard_row, ch, side, mapping, warp, fps, hold)
+      rows, worst, (s, e), taus, leg_err = build(robot, stance, guard_row, ch, side, mapping, warp, fps, hold, BODY_LIMITS.get(name))
       per_joint = cap_use(rows, fps)
       use, joint = float(per_joint.max()), CSV_JOINT_NAMES[int(np.argmax(per_joint.max(0)))]
       if best is None or use < best[1]:
