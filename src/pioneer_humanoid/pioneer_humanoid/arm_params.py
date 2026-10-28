@@ -61,9 +61,16 @@ LEFT_GRIPPER_CLOSED = {"joint7l": -0.05, "joint8l": 0.05}
 RIGHT_GRIPPER_OPEN = {"joint7": 0.0, "joint8": 0.0}
 RIGHT_GRIPPER_CLOSED = {"joint7": -0.05, "joint8": 0.05}
 
+# Midpoint of the two fingertips in the wrist (link6l) frame, m, gripper at 0.0. Checked at startup by
+# check_gripper_tip_offset (humanoid_rl_tasks push_block/mdp/events.py), which prints the value to paste if it drifts.
+LEFT_GRIPPER_TIP_OFFSET = (0.0, 0.053, -0.15638)
+
 # Prismatic gripper PD — tuned for hold during arm motion (not from motor datasheet).
 # If fingers bounce when the shoulder moves, raise stiffness; if jittery, raise damping.
 _GRIPPER = dict(stiffness=400.0, damping=40.0, effort_limit=30.0, velocity_limit=0.2)  # N, m/s
+
+# Sim-only joint speed cap shared by every revolute arm joint (rad/s); the gripper has its own in _GRIPPER.
+ARM_JOINT_VELOCITY_LIMIT = _deg(60)
 
 # Joint PD groups: stiffness (Nm/rad or N/m), damping, effort_limit (Nm or N), velocity_limit.
 # effort_limit is a sim-only cap at the motor's PEAK torque (rated saturates against gravity
@@ -73,19 +80,19 @@ ACTUATOR_GROUPS = {
     # AK10-9 V3.0 — shoulder joints 1-2 (18 Nm rated / 53 peak). Stiffness/damping raised ~50%
     # from the original static-hold tuning to stop the shoulder lagging on large reaches; watch
     # for overshoot if pushed further.
-    "left_shoulder": dict(joints=["joint1L", "joint2l"], stiffness=2270.0, damping=180.0, effort_limit=53.0, velocity_limit=6.0),
+    "left_shoulder": dict(joints=["joint1L", "joint2l"], stiffness=2270.0, damping=180.0, effort_limit=53.0, velocity_limit=ARM_JOINT_VELOCITY_LIMIT),
     # AK80-9 V3.0 — elbow joints 3-5 (9 rated / 22 peak); raised with the shoulder for "forearm too slow".
-    "left_elbow": dict(joints=["joint3l", "joint4l", "joint5l"], stiffness=1550.0, damping=110.0, effort_limit=22.0, velocity_limit=6.0),
+    "left_elbow": dict(joints=["joint3l", "joint4l", "joint5l"], stiffness=1550.0, damping=110.0, effort_limit=22.0, velocity_limit=ARM_JOINT_VELOCITY_LIMIT),
     # GL40 KV70 — wrist joint 6 (0.25 rated / 0.73 peak). Rated saturated instantly in Isaac;
     # don't exceed 0.73 -- raise stiffness instead.
-    "left_wrist": dict(joints=["joint6l"], stiffness=341.0, damping=18.0, effort_limit=0.73, velocity_limit=6.0),
+    "left_wrist": dict(joints=["joint6l"], stiffness=341.0, damping=18.0, effort_limit=0.73, velocity_limit=ARM_JOINT_VELOCITY_LIMIT),
     # GL40 KV70 rotary -> linkage -> two prismatic fingers, driven with synchronized targets.
     # effort_limit on a prismatic DOF is a force cap (N) -- tune by grasp, not the motor rating.
     "left_gripper": dict(joints=["joint7l", "joint8l"], **_GRIPPER),
     # Right arm (unsuffixed) mirrors the left: both arms are teleoperated and need equal headroom.
-    "right_shoulder": dict(joints=["joint1", "joint2"], stiffness=2270.0, damping=180.0, effort_limit=53.0, velocity_limit=6.0),
-    "right_elbow": dict(joints=["joint3", "joint4", "joint5"], stiffness=1550.0, damping=110.0, effort_limit=22.0, velocity_limit=6.0),
-    "right_wrist": dict(joints=["joint6"], stiffness=341.0, damping=18.0, effort_limit=0.73, velocity_limit=6.0),
+    "right_shoulder": dict(joints=["joint1", "joint2"], stiffness=2270.0, damping=180.0, effort_limit=53.0, velocity_limit=ARM_JOINT_VELOCITY_LIMIT),
+    "right_elbow": dict(joints=["joint3", "joint4", "joint5"], stiffness=1550.0, damping=110.0, effort_limit=22.0, velocity_limit=ARM_JOINT_VELOCITY_LIMIT),
+    "right_wrist": dict(joints=["joint6"], stiffness=341.0, damping=18.0, effort_limit=0.73, velocity_limit=ARM_JOINT_VELOCITY_LIMIT),
     "right_gripper": dict(joints=["joint7", "joint8"], **_GRIPPER),
 }
 

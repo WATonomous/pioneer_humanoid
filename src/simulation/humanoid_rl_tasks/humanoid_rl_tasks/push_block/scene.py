@@ -73,7 +73,7 @@ FLOOR_Z = TABLE_TOP_Z + 0.0063               # visual interior floor (absolute w
 FLOOR_Z_COLLISION = TABLE_TOP_Z + 0.0115
 FLOOR_X_MAX = 0.511 + TASK_X_OFFSET  # interior floor end (back wall)
 FLOOR_Y_HALF = 0.114
-FLOOR_TARGET = (0.37 + TASK_X_OFFSET, 0.0)  # target point on the interior floor (xy)
+FLOOR_TARGET = ((RAMP_TOP_X + FLOOR_X_MAX) / 2, 0.0)  # center of the interior floor (xy)
 
 BLOCK_DROP_MIN_Z = TABLE_TOP_Z - 0.10  # below this = block fell off the table
 

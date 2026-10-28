@@ -10,6 +10,7 @@ up-the-ramp direction (box-local +y) is the env-frame ``+x`` axis.
 
 from __future__ import annotations
 
+import os
 import sys
 from dataclasses import MISSING
 from pathlib import Path
@@ -28,6 +29,7 @@ from isaaclab.sensors.frame_transformer.frame_transformer_cfg import (
     OffsetCfg,
 )
 from isaaclab.utils import configclass
+from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
 from . import mdp
 from .scene import (  # noqa: F401  (BOX_* / FLOOR_TARGET re-exported for distill_env_cfg)
@@ -60,16 +62,49 @@ _PIONEER = Path(__file__).resolve().parents[4] / "pioneer_humanoid"
 if str(_PIONEER) not in sys.path:
     sys.path.insert(0, str(_PIONEER))
 # Uses canonical URDF-side names directly (formerly aliased LEFT_* as RIGHT_* from an old, since-fixed URDF flip).
+from pioneer_humanoid.arm_params import LEFT_GRIPPER_TIP_OFFSET  # noqa: E402
+from pioneer_humanoid.urdf_joint_limits import JOINT_POS_LIMITS  # noqa: E402
 from pioneer_humanoid.bimanual_arm import (  # noqa: E402
     BIMANUAL_ARM_CFG,
     LEFT_ARM_JOINTS,
     LEFT_EE_BODY,
+    LEFT_FINGER_TIP_BODIES,
 )
 
 
 ##
 # MDP settings
 ##
+
+
+# ══ DOMAIN RANDOMIZATION KNOBS (turn these; the events below read them) ══════════════════════
+# "scale" ranges multiply the nominal value (1.0 = unchanged). Friction is absolute (coefficient).
+# Nominal friction of the block, fingers and table was not checked, so the friction ranges are a first guess.
+DR_BLOCK_STATIC_FRICTION = (0.4, 1.0)
+DR_BLOCK_DYNAMIC_FRICTION = (0.3, 0.8)  # kept <= static by make_consistent
+DR_FINGER_STATIC_FRICTION = (0.5, 1.2)
+DR_FINGER_DYNAMIC_FRICTION = (0.4, 1.0)
+DR_RESTITUTION = (0.0, 0.05)
+DR_BLOCK_MASS_SCALE = (0.8, 1.2)
+DR_ARM_LINK_MASS_SCALE = (0.9, 1.2)  # heavier links -> more gravity load -> more sag
+DR_ARM_STIFFNESS_SCALE = (0.6, 1.2)  # softer than nominal -> more sag (real MIT gains are untuned bench defaults)
+DR_ARM_DAMPING_SCALE = (0.8, 1.2)
+DR_JOINT_POS_NOISE = 0.01  # rad, observation noise (training only)
+DR_JOINT_VEL_NOISE = 0.2  # rad/s, observation noise (training only)
+# Mass, actuator gains and observation noise ramp linearly from none (nominal) at DR_RAMP_START_ITER to the full
+# ranges above at DR_RAMP_END_ITER. Friction is NOT ramped: it is sampled once at startup, so it is full from iteration 0.
+DR_RAMP_START_ITER = 100
+DR_RAMP_END_ITER = 200
+PPO_STEPS_PER_ITER = 24  # = num_steps_per_env in agents/rsl_rl_ppo_cfg.py
+# The env step counter restarts at 0 when a run is resumed. RESUME_ITER=<iteration> keeps the ramps where they were.
+RESUME_ITER = int(os.environ.get("RESUME_ITER", "0"))
+# Block spawn range widens linearly from SPAWN_STAGES[0] to SPAWN_RAMP_TARGET (scene.py), after the DR ramp has finished.
+SPAWN_RAMP_START_ITER = 200
+SPAWN_RAMP_END_ITER = 300
+SPAWN_RAMP_TARGET = SPAWN_STAGES[1]
+# Event names the play configs switch off so you watch the policy on nominal physics.
+DR_EVENT_NAMES = ("dr_block_material", "dr_finger_material", "dr_block_mass", "dr_arm_mass", "dr_arm_gains")
+# ═════════════════════════════════════════════════════════════════════════════════════════════
 
 
 @configclass
@@ -93,8 +128,8 @@ class ObservationsCfg:
     class PolicyCfg(ObsGroup):
         """Observations for policy group."""
 
-        joint_pos = ObsTerm(func=mdp.joint_pos_rel)
-        joint_vel = ObsTerm(func=mdp.joint_vel_rel)
+        joint_pos = ObsTerm(func=mdp.joint_pos_rel, noise=Unoise(n_min=-DR_JOINT_POS_NOISE, n_max=DR_JOINT_POS_NOISE))
+        joint_vel = ObsTerm(func=mdp.joint_vel_rel, noise=Unoise(n_min=-DR_JOINT_VEL_NOISE, n_max=DR_JOINT_VEL_NOISE))
         ee_position = ObsTerm(func=mdp.ee_position_in_robot_root_frame)
         block_position = ObsTerm(func=mdp.block_center_in_robot_root_frame)
         block_orientation = ObsTerm(func=mdp.block_orientation)
@@ -122,7 +157,7 @@ class ObservationsCfg:
 class EventCfg:
     """Configuration for events."""
 
-    reset_all = EventTerm(func=mdp.reset_scene_to_default, mode="reset")
+    reset_all = EventTerm(func=mdp.reset_scene_to_default, mode="reset", params={"reset_joint_targets": True})
 
     reset_object_position = EventTerm(
         func=mdp.reset_block_center_uniform,
@@ -141,109 +176,93 @@ class EventCfg:
         },
     )
 
+    # ── domain randomization (values come from the DR_* knobs above) ──────────────
+    dr_block_material = EventTerm(
+        func=mdp.randomize_rigid_body_material,
+        mode="startup",
+        params={
+            "asset_cfg": SceneEntityCfg("object"),
+            "static_friction_range": DR_BLOCK_STATIC_FRICTION,
+            "dynamic_friction_range": DR_BLOCK_DYNAMIC_FRICTION,
+            "restitution_range": DR_RESTITUTION,
+            "num_buckets": 64,
+            "make_consistent": True,
+        },
+    )
+
+    dr_finger_material = EventTerm(
+        func=mdp.randomize_rigid_body_material,
+        mode="startup",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=list(LEFT_FINGER_TIP_BODIES)),
+            "static_friction_range": DR_FINGER_STATIC_FRICTION,
+            "dynamic_friction_range": DR_FINGER_DYNAMIC_FRICTION,
+            "restitution_range": DR_RESTITUTION,
+            "num_buckets": 64,
+            "make_consistent": True,
+        },
+    )
+
+    dr_block_mass = EventTerm(
+        func=mdp.randomize_rigid_body_mass,
+        mode="reset",
+        params={
+            "asset_cfg": SceneEntityCfg("object"),
+            "mass_distribution_params": DR_BLOCK_MASS_SCALE,
+            "operation": "scale",
+        },
+    )
+
+    dr_arm_mass = EventTerm(
+        func=mdp.randomize_rigid_body_mass,
+        mode="reset",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=".*"),
+            "mass_distribution_params": DR_ARM_LINK_MASS_SCALE,
+            "operation": "scale",
+        },
+    )
+
+    # arm joints only: the gripper keeps its nominal hold stiffness
+    dr_arm_gains = EventTerm(
+        func=mdp.randomize_actuator_gains,
+        mode="reset",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=LEFT_ARM_JOINTS),
+            "stiffness_distribution_params": DR_ARM_STIFFNESS_SCALE,
+            "damping_distribution_params": DR_ARM_DAMPING_SCALE,
+            "operation": "scale",
+        },
+    )
+
+    check_gripper_tip_offset = EventTerm(func=mdp.check_gripper_tip_offset, mode="startup")
+
+    # every 10 PPO iterations: 10 * 24 steps * 0.02 s
+    recheck_gripper_tip_offset = EventTerm(
+        func=mdp.check_gripper_tip_offset,
+        mode="interval",
+        interval_range_s=(4.8, 4.8),
+        is_global_time=True,
+    )
+
 
 @configclass
 class RewardsCfg:
-    """Reward terms for the MDP."""
+    """Reward terms for the MDP: reach behind the block, block to goal, smooth actions."""
 
-    # reach + stay behind the block relative to the push direction.
-    # Coarse + fine pair (mirrors block_to_target below): the SO101 default
-    # pose sits ~0.4-0.5 m from the push point, and a std=0.06-only kernel
-    # underflows to exact 0.0 reward (float32) at that range, giving zero
-    # gradient to ever learn reaching in the first place.
     ee_behind_block = RewTerm(
         func=mdp.ee_behind_block,
-        params={"std": 0.25, "push_offset": 0.05},
-        weight=1.5,
+        params={"temp": 15.0, "push_offset": 0.05},
+        weight=1,
     )
 
-    ee_behind_block_fine = RewTerm(
-        func=mdp.ee_behind_block,
-        params={"std": 0.06, "push_offset": 0.05},
-        weight=1.5,
-    )
-
-    # dense progress along the up-the-ramp axis (signed velocity)
-    push_progress = RewTerm(func=mdp.block_push_progress, params={"max_speed": 0.5}, weight=5.0)
-
-    # extra asymmetric penalty for sliding back down the ramp
-    backslide = RewTerm(func=mdp.block_backslide, weight=-8.0)
-
-    # distance to the target point on the interior floor
     block_to_target = RewTerm(
         func=mdp.block_to_target,
-        params={"std": 0.15, "target": FLOOR_TARGET},
-        weight=8.0,
+        params={"temp": 5.0, "target": FLOOR_TARGET},
+        weight=2,
     )
 
-    block_to_target_fine = RewTerm(
-        func=mdp.block_to_target,
-        params={"std": 0.05, "target": FLOOR_TARGET},
-        weight=5.0,
-    )
-
-    # success: settled on the elevated interior floor
-    block_on_floor = RewTerm(
-        func=mdp.block_on_floor,
-        params={
-            "x_min": RAMP_TOP_X + BLOCK_HALF,
-            "x_max": FLOOR_X_MAX - 0.01,
-            "y_half": FLOOR_Y_HALF - 0.025,
-            # use the effective collision floor: a settled block rests at center
-            # z ~= FLOOR_Z_COLLISION + BLOCK_HALF = 0.0369, ~5 mm above the visual
-            # floor, so keying on FLOOR_Z here made success unreachable.
-            "floor_z": FLOOR_Z_COLLISION,
-            "z_tol": 0.006,
-            "rest_speed": 0.05,
-        },
-        weight=30.0,
-    )
-
-    # location-aware anti-scoop: no lifting in open table space
-    # (~zero on the ramp and interior floor, where height gain is required)
-    scoop_penalty = RewTerm(
-        func=mdp.block_scoop_penalty,
-        params={
-            "ramp_base_x": RAMP_BASE_X,
-            "ramp_top_x": RAMP_TOP_X,
-            "ramp_base_z": RAMP_BASE_Z,
-            "floor_z": FLOOR_Z,
-            "box_x_max": FLOOR_X_MAX,
-            "box_y_half": FLOOR_Y_HALF,
-            "height_tol": 0.01,
-            "dist_std": 0.05,
-        },
-        weight=-40.0,
-    )
-
-    # sideways drift off the ramp approach corridor
-    lateral_deviation = RewTerm(func=mdp.block_lateral_deviation, params={"y_tol": 0.06}, weight=-10.0)
-
-    # repositioning shaping: route the EE behind an off-corridor block so it can
-    # be pushed toward the ramp mouth. Starts inactive (weight 0); the spawn
-    # curriculum turns it on only once spawns can land beside/behind the box
-    # (stage >= REPOSITION_START_STAGE).
-    ee_reposition = RewTerm(
-        func=mdp.ee_reposition_behind_block,
-        params={
-            "std": 0.06,
-            "push_offset": 0.05,
-            "ramp_mouth": (RAMP_BASE_X, 0.0),
-            "corridor_x_max": RAMP_BASE_X,
-            "corridor_y": 0.06,
-            "gate_std": 0.08,
-        },
-        weight=0.0,
-    )
-
-    # action penalties
-    action_rate = RewTerm(func=mdp.action_rate_l2, weight=-1e-4)
-
-    joint_vel = RewTerm(
-        func=mdp.joint_vel_l2,
-        weight=-1e-4,
-        params={"asset_cfg": SceneEntityCfg("robot")},
-    )
+    action_smoothness = RewTerm(func=mdp.action_smoothness, params={"temp": 0.5}, weight=-0.1)
 
 
 @configclass
@@ -259,45 +278,56 @@ class TerminationsCfg:
 
     block_off_course = DoneTerm(
         func=mdp.block_off_course,
-        params={"x_min": 0.05, "x_max": 0.55, "y_limit": 0.20},
+        params={"x_min": 0.05, "x_max": 0.8, "y_limit": 0.30},
     )
 
 
 @configclass
 class CurriculumCfg:
-    """Curriculum terms for the MDP."""
+    """Curriculum terms for the MDP: the domain randomization ramp, then the spawn-range ramp."""
 
-    action_rate = CurrTerm(
-        func=mdp.modify_reward_weight, params={"term_name": "action_rate", "weight": -1e-2, "num_steps": 10000}
-    )
-
-    joint_vel = CurrTerm(
-        func=mdp.modify_reward_weight, params={"term_name": "joint_vel", "weight": -1e-2, "num_steps": 10000}
-    )
-
-    # Performance-gated widening of the block spawn offsets. Advances a stage
-    # once the rolling success rate (block_on_floor) over the last `window`
-    # completed episodes clears `threshold`; also switches on the ee_reposition
-    # reward at REPOSITION_START_STAGE. Logs Curriculum/spawn/{stage,
-    # success_rate, x_off_hi, reposition_active}.
-    spawn = CurrTerm(
-        func=mdp.spawn_offset_curriculum,
+    dr_ramp = CurrTerm(
+        func=mdp.dr_ramp,
         params={
-            "stages": SPAWN_STAGES,
+            "start_iter": DR_RAMP_START_ITER,
+            "end_iter": DR_RAMP_END_ITER,
+            "steps_per_iter": PPO_STEPS_PER_ITER,
+            "iter_offset": RESUME_ITER,
+            "event_ranges": {
+                "dr_block_mass": {"mass_distribution_params": (DR_BLOCK_MASS_SCALE, 1.0)},
+                "dr_arm_mass": {"mass_distribution_params": (DR_ARM_LINK_MASS_SCALE, 1.0)},
+                "dr_arm_gains": {
+                    "stiffness_distribution_params": (DR_ARM_STIFFNESS_SCALE, 1.0),
+                    "damping_distribution_params": (DR_ARM_DAMPING_SCALE, 1.0),
+                },
+            },
+            "noise_terms": {"joint_pos": DR_JOINT_POS_NOISE, "joint_vel": DR_JOINT_VEL_NOISE},
+        },
+    )
+
+    success = CurrTerm(
+        func=mdp.success_rate_logger,
+        params={
+            "window": 2000,
+            "x_min": RAMP_TOP_X + BLOCK_HALF,
+            "x_max": FLOOR_X_MAX,
+            "y_half": FLOOR_Y_HALF - BLOCK_HALF,
+            "floor_z": FLOOR_Z_COLLISION,
+            "z_tol": 0.006,
+            "rest_speed": 0.05,
+        },
+    )
+
+    spawn_ramp = CurrTerm(
+        func=mdp.spawn_ramp,
+        params={
+            "start_iter": SPAWN_RAMP_START_ITER,
+            "end_iter": SPAWN_RAMP_END_ITER,
+            "steps_per_iter": PPO_STEPS_PER_ITER,
+            "iter_offset": RESUME_ITER,
             "event_term_name": "reset_object_position",
-            "success_reward_term": "block_on_floor",
-            "window": 100,
-            "threshold": 0.70,
-            # minimum training before a stage may advance. At num_steps_per_env=24
-            # the env step counter grows 24/iteration, so 1200 steps ~= 50 PPO
-            # iterations per stage. Without this the 100-episode window refills
-            # many times per iteration and the curriculum cascades straight to the
-            # last stage before the policy ever trains on the wider spawns.
-            "min_stage_steps": 1200,
-            "min_episode_len": 2,
-            "reposition_reward_term": "ee_reposition",
-            "reposition_weight": 1.5,
-            "reposition_start_stage": REPOSITION_START_STAGE,
+            "start_range": SPAWN_STAGES[0],
+            "end_range": SPAWN_RAMP_TARGET,
         },
     )
 
@@ -308,14 +338,7 @@ class CurriculumCfg:
 
 
 def _ee_frame_cfg(*, debug_vis: bool) -> FrameTransformerCfg:
-    """EE proxy at the left wrist link (LEFT_EE_BODY = link6l), zero offset.
-
-    No verified fingertip-center offset from link6l exists as a static frame (the
-    teleop code computes it dynamically from both finger tips at runtime, see
-    ``pioneer_humanoid.bimanual_arm.compute_gripper_tip_pose_b``). Zero offset is a
-    reasonable proxy for the push reward terms; refine with a measured offset if
-    pushing behavior looks visibly off from the wrist position.
-    """
+    """EE point: the fingertip midpoint, as a fixed offset from the left wrist link (LEFT_EE_BODY = link6l)."""
     marker_cfg = FRAME_MARKER_CFG.replace(prim_path="/Visuals/FrameTransformer/ee_tcp")
     marker_cfg.markers["frame"].scale = (0.03, 0.03, 0.03)
     return FrameTransformerCfg(
@@ -326,7 +349,7 @@ def _ee_frame_cfg(*, debug_vis: bool) -> FrameTransformerCfg:
             FrameTransformerCfg.FrameCfg(
                 prim_path="{ENV_REGEX_NS}/Robot/" + LEFT_EE_BODY,
                 name="end_effector",
-                offset=OffsetCfg(pos=(0.0, 0.0, 0.0), rot=(1.0, 0.0, 0.0, 0.0)),
+                offset=OffsetCfg(pos=LEFT_GRIPPER_TIP_OFFSET, rot=(1.0, 0.0, 0.0, 0.0)),
             ),
         ],
     )
@@ -369,7 +392,14 @@ class PushBlockEnvCfg(ManagerBasedRLEnvCfg):
         self.scene.replicate_physics = True
         self.scene.robot = BIMANUAL_ARM_CFG.replace(
             prim_path="{ENV_REGEX_NS}/Robot",
-            init_state=BIMANUAL_ARM_CFG.init_state.replace(pos=ROBOT_BASE_POS),
+            init_state=BIMANUAL_ARM_CFG.init_state.replace(
+                pos=ROBOT_BASE_POS,
+                joint_pos={
+                    **BIMANUAL_ARM_CFG.init_state.joint_pos,
+                    "joint7l": JOINT_POS_LIMITS["joint7l"][0],
+                    "joint8l": JOINT_POS_LIMITS["joint8l"][1],
+                },
+            ),
         )
         self.scene.robot.spawn.articulation_props.enabled_self_collisions = False
 
@@ -407,4 +437,8 @@ class PushBlockEnvCfg_PLAY(PushBlockEnvCfg):
         self.scene.num_envs = 16
         self.scene.env_spacing = 2.5
         self.observations.policy.enable_corruption = False
+        for name in DR_EVENT_NAMES:
+            setattr(self.events, name, None)
+        self.curriculum.dr_ramp = None
+        self.curriculum.spawn_ramp = None
         self.scene.ee_frame = _ee_frame_cfg(debug_vis=True)
