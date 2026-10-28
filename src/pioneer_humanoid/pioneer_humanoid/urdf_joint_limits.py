@@ -5,10 +5,10 @@ config imports JOINT_POS_LIMITS from here instead of carrying its own copy (it p
 hardcoded a +/-2pi placeholder that overrode the real limits). Stdlib only -- no
 isaaclab, no numpy.
 
-Isaac Sim loads the pre-converted USD under usd/, never the URDF, and nothing
-regenerates that USD on a URDF edit. The bridge is pioneer_humanoid.bimanual_arm's
-patch_joint_pos_limits_on_prim() (at spawn) and apply_joint_limits() (post-init),
-which write these values onto the spawned prims -- keep both call sites.
+Isaac now converts the current URDF at spawn. patch_joint_pos_limits_on_prim()
+and apply_joint_limits() also propagate the same table into spawned articulations.
+The source CAD supplies no certified stops: the updated asset's angular ranges
+are configurable preview limits, not newly measured hardware limits.
 """
 import os
 import xml.etree.ElementTree as ET
@@ -20,15 +20,8 @@ URDF_PATH = os.path.join(_REPO_ROOT, "assets", "pioneer_bimanual_arm", "urdf", "
 # "continuous" joint has no limits by definition and "fixed" has no DOF.
 _LIMITED_JOINT_TYPES = ("revolute", "prismatic")
 
-# Gripper travel is pinned here, not read from the URDF: GRIPPER_OPEN/CLOSED in the arm
-# configs and the empirically tuned grasp are built around this exact stroke. Delete this
-# dict to let the URDF ([-0.05, 0.02] / [-0.01, 0.05]) drive the grippers instead.
-GRIPPER_LIMIT_OVERRIDES = {
-    "joint7": (-0.05, 0.0),
-    "joint8": (0.0, 0.05),
-    "joint7l": (-0.05, 0.0),
-    "joint8l": (0.0, 0.05),
-}
+# Compatibility export: no legacy 50 mm stroke override on the new mechanism.
+GRIPPER_LIMIT_OVERRIDES = {}  # The replacement URDF owns the new mechanism's stroke.
 
 
 def load_joint_limits(

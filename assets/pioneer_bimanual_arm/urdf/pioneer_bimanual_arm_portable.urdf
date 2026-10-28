@@ -1,0 +1,4469 @@
+<?xml version='1.0' encoding='utf-8'?>
+<robot name="arm_v2_articulated">
+  <link name="base_link">
+    <visual name="original_241_shoulderbearingholder_cut_extrude5">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_241_shoulderbearingholder_cut_extrude5.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_242_arm12bearing_csk_for_m4_countersunk_flat_head_screw2">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_242_arm12bearing_csk_for_m4_countersunk_flat_head_screw2.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_243_shoulderbearingholder_cut_extrude5">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_243_shoulderbearingholder_cut_extrude5.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_244_shoulderbearingholder_cut_extrude5">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_244_shoulderbearingholder_cut_extrude5.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_245_arm12bearing_csk_for_m4_countersunk_flat_head_screw2">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_245_arm12bearing_csk_for_m4_countersunk_flat_head_screw2.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_246_ak10body_0_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_246_ak10body_0_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_247_ak10back_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_247_ak10back_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_248_ak10body_0_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_248_ak10body_0_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_249_ak10back_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_249_ak10back_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_250_4040bracket_4040bracket_1_">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_250_4040bracket_4040bracket_1_.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_251_squaremount_squaremount_1_">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_251_squaremount_squaremount_1_.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_252_ext2_ext2_1_">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_252_ext2_ext2_1_.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_253_4040bracket_4040bracket_1_">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_253_4040bracket_4040bracket_1_.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_254_frame1_frame1_1_">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_254_frame1_frame1_1_.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_255_squaremount_squaremount_1_">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_255_squaremount_squaremount_1_.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_256_frame1_frame1_1_">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_256_frame1_frame1_1_.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_257_extlong_boss_extrude1">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_257_extlong_boss_extrude1.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_258_3dpbracket_3dpbracket_1_">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_258_3dpbracket_3dpbracket_1_.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_259_ext1_ext1_1_">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_259_ext1_ext1_1_.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_260_ext1_ext1_1_">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_260_ext1_ext1_1_.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_261_3dpbracket_3dpbracket_1_">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_261_3dpbracket_3dpbracket_1_.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_262_extlong_boss_extrude1">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_262_extlong_boss_extrude1.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_263_4040flatbracket_4040flatbracket_1_">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_263_4040flatbracket_4040flatbracket_1_.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_264_frame1_frame1_1_">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_264_frame1_frame1_1_.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_265_ext3_ext3_1_">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_265_ext3_ext3_1_.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_266_3dpbracket_3dpbracket_1_">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_266_3dpbracket_3dpbracket_1_.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_267_frame1_frame1_1_">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_267_frame1_frame1_1_.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_268_ext5_ext5_1_">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_268_ext5_ext5_1_.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_269_4040bracket_4040bracket_1_">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_269_4040bracket_4040bracket_1_.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_270_4040bracket_4040bracket_1_">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_270_4040bracket_4040bracket_1_.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_271_ext3_ext3_1_">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_271_ext3_ext3_1_.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_272_3dpbracket_3dpbracket_1_">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_272_3dpbracket_3dpbracket_1_.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_273_shoulderbearingholder_cut_extrude5">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_273_shoulderbearingholder_cut_extrude5.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_274_camera_mount_boss_extrude3">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_274_camera_mount_boss_extrude3.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_275_attachment_fillet11">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_275_attachment_fillet11.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_276_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_276_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_277_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_277_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_278_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_278_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_279_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_279_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_280_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_280_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_281_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_281_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_282_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_282_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_283_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_283_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_284_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_284_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_285_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_285_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_286_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_286_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_287_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_287_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_288_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_288_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_289_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_289_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_290_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_290_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_291_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_291_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_292_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_292_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_293_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_293_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_294_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_294_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_295_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_295_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_296_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_296_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_297_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_297_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_298_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_298_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_299_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_299_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_300_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_300_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_301_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_301_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_302_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_302_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_303_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_303_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_304_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_304_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_305_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_305_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_306_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_306_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_307_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_307_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_308_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_308_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_309_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_309_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_310_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_310_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_311_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_311_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_312_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_312_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_313_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_313_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_314_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_314_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_315_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_315_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_316_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_316_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_317_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_317_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_318_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_318_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_319_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_319_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_320_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_320_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_321_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_321_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_322_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_322_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_323_intel_realsense_d455_none">
+      <origin xyz="0.0215734774383 0 -1.17951807079" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_323_intel_realsense_d455_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+  </link>
+  <link name="link1">
+    <visual name="original_005_arm12rotor_fillet1">
+      <origin xyz="0 0.163325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_005_arm12rotor_fillet1.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_006_arm12v2_boss_extrude10">
+      <origin xyz="0 0.163325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_006_arm12v2_boss_extrude10.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_007_arm12spider_fillet5">
+      <origin xyz="0 0.163325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_007_arm12spider_fillet5.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_008_ak10back_none">
+      <origin xyz="0 0.163325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_008_ak10back_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_009_ak10body_0_none">
+      <origin xyz="0 0.163325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_009_ak10body_0_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+  </link>
+  <link name="link2">
+    <visual name="original_185_arm23v2bearingmount_cut_extrude3">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_185_arm23v2bearingmount_cut_extrude3.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_186_arm23v2_cut_extrude6">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_186_arm23v2_cut_extrude6.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_187_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_187_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_188_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_188_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_189_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_189_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_190_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_190_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_191_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_191_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_192_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_192_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_193_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_193_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_194_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_194_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_195_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_195_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_196_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_196_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_197_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_197_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_198_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_198_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_199_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_199_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_200_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_200_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_201_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_201_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_202_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_202_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_203_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_203_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_204_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_204_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_205_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_205_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_206_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_206_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_207_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_207_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_208_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_208_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_209_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_209_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_210_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_210_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_211_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_211_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_212_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_212_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_213_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_213_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_214_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_214_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_215_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_215_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_216_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_216_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_217_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_217_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_218_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_218_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_219_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_219_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_220_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_220_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_221_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_221_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_222_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_222_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_223_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_223_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_224_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_224_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_225_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_225_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_226_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_226_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_227_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_227_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_228_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_228_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_229_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_229_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_230_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_230_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_231_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_231_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_232_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_232_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_233_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_233_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_234_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_234_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_235_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_235_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_236_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_236_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_237_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_237_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_238_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_238_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_239_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_239_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_240_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_240_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+  </link>
+  <link name="link3">
+    <visual name="original_380_arm34v2base_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_380_arm34v2base_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_381_arm34v2base_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_381_arm34v2base_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_382_arm34v2cover_fillet1">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_382_arm34v2cover_fillet1.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_383_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_383_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_384_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_384_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_385_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_385_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_386_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_386_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_387_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_387_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_388_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_388_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_389_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_389_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_390_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_390_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_391_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_391_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_392_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_392_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_393_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_393_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_394_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_394_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_395_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_395_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_396_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_396_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_397_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_397_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_398_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_398_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_399_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_399_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_400_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_400_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_401_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_401_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_402_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_402_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_403_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_403_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_404_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_404_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_405_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_405_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_406_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_406_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_407_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_407_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_408_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_408_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_409_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_409_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_410_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_410_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_411_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_411_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_412_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_412_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_413_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_413_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_414_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_414_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_415_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_415_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_416_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_416_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_417_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_417_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_418_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_418_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_419_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_419_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_420_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_420_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_421_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_421_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_422_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_422_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_423_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_423_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_424_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_424_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_425_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_425_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_426_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_426_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_427_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_427_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_428_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_428_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_429_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_429_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_430_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_430_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_431_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_431_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_432_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_432_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_433_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_433_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_434_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_434_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_435_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_435_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_436_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_436_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+  </link>
+  <link name="link4">
+    <visual name="original_130_arm45v2_cut_extrude6">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_130_arm45v2_cut_extrude6.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_131_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_131_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_132_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_132_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_133_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_133_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_134_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_134_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_135_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_135_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_136_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_136_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_137_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_137_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_138_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_138_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_139_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_139_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_140_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_140_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_141_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_141_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_142_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_142_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_143_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_143_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_144_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_144_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_145_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_145_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_146_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_146_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_147_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_147_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_148_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_148_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_149_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_149_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_150_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_150_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_151_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_151_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_152_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_152_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_153_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_153_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_154_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_154_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_155_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_155_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_156_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_156_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_157_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_157_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_158_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_158_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_159_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_159_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_160_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_160_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_161_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_161_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_162_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_162_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_163_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_163_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_164_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_164_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_165_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_165_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_166_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_166_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_167_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_167_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_168_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_168_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_169_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_169_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_170_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_170_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_171_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_171_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_172_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_172_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_173_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_173_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_174_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_174_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_175_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_175_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_176_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_176_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_177_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_177_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_178_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_178_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_179_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_179_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_180_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_180_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_181_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_181_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_182_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_182_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_183_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_183_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_184_ak80_motor_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_184_ak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+  </link>
+  <link name="link5">
+    <visual name="original_003_gl40iistat_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.831600001606" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_003_gl40iistat_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_004_gl40iistat_none">
+      <origin xyz="0.00702084238344 0.281575000803 -0.831600001606" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_004_gl40iistat_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="right_new_forearm_1">
+      <origin xyz="0.00702084238344 0.281575000803 -0.831600001606" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/right_new_forearm_1.stl" />
+      </geometry>
+      <material name="material_new_forearm">
+        <color rgba="0.85 0.55 0.12 1" />
+      </material>
+    </visual>
+    <visual name="right_new_cover_1">
+      <origin xyz="0.00702084238344 0.281575000803 -0.831600001606" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/right_new_cover_1.stl" />
+      </geometry>
+      <material name="material_new_cover">
+        <color rgba="0.75 0.6 0.3 1" />
+      </material>
+    </visual>
+  </link>
+  <link name="link6">
+    <visual name="original_012_gl40iirot_none">
+      <origin xyz="0.00702084238344 0.288575000803 -0.703600001606" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_012_gl40iirot_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_013_gl40iirot_none">
+      <origin xyz="0.00702084238344 0.288575000803 -0.703600001606" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_013_gl40iirot_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="right_new_wrist_07_0710_wrist_dual_support_6001_shouldered_none_1_body1">
+      <origin xyz="0.00702084238344 0.288575000803 -0.703600001606" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/right_new_wrist_07_0710_wrist_dual_support_6001_shouldered_none_1_body1.stl" />
+      </geometry>
+      <material name="material_new_wrist">
+        <color rgba="0.26 0.53 0.7 1" />
+      </material>
+    </visual>
+    <visual name="right_new_wrist_08_hum_arm_gripper_base_1_solid_body1_1_body1">
+      <origin xyz="0.00702084238344 0.288575000803 -0.703600001606" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/right_new_wrist_08_hum_arm_gripper_base_1_solid_body1_1_body1.stl" />
+      </geometry>
+      <material name="material_new_wrist">
+        <color rgba="0.26 0.53 0.7 1" />
+      </material>
+    </visual>
+    <visual name="right_new_wrist_09_hum_gl40ii_k82_5_step_2_1_body1">
+      <origin xyz="0.00702084238344 0.288575000803 -0.703600001606" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/right_new_wrist_09_hum_gl40ii_k82_5_step_2_1_body1.stl" />
+      </geometry>
+      <material name="material_new_wrist">
+        <color rgba="0.26 0.53 0.7 1" />
+      </material>
+    </visual>
+    <visual name="right_new_wrist_10_hum_gl40ii_k82_5_step_1_body1">
+      <origin xyz="0.00702084238344 0.288575000803 -0.703600001606" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/right_new_wrist_10_hum_gl40ii_k82_5_step_1_body1.stl" />
+      </geometry>
+      <material name="material_new_wrist">
+        <color rgba="0.26 0.53 0.7 1" />
+      </material>
+    </visual>
+    <visual name="right_new_wrist_11_hum_gl40ii_k82_5_step_hum_gl40iikv82_5_1_solid_body1_1_">
+      <origin xyz="0.00702084238344 0.288575000803 -0.703600001606" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/right_new_wrist_11_hum_gl40ii_k82_5_step_hum_gl40iikv82_5_1_solid_body1_1_.stl" />
+      </geometry>
+      <material name="material_new_wrist">
+        <color rgba="0.26 0.53 0.7 1" />
+      </material>
+    </visual>
+    <visual name="right_new_wrist_12_hum_gl40ii_k82_5_step_1_1_body1">
+      <origin xyz="0.00702084238344 0.288575000803 -0.703600001606" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/right_new_wrist_12_hum_gl40ii_k82_5_step_1_1_body1.stl" />
+      </geometry>
+      <material name="material_new_wrist">
+        <color rgba="0.26 0.53 0.7 1" />
+      </material>
+    </visual>
+    <visual name="right_new_wrist_13_hum_gl40ii_k82_5_step_none_1_body1">
+      <origin xyz="0.00702084238344 0.288575000803 -0.703600001606" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/right_new_wrist_13_hum_gl40ii_k82_5_step_none_1_body1.stl" />
+      </geometry>
+      <material name="material_new_wrist">
+        <color rgba="0.26 0.53 0.7 1" />
+      </material>
+    </visual>
+    <visual name="right_new_wrist_14_mgn9_rail_1_body1">
+      <origin xyz="0.00702084238344 0.288575000803 -0.703600001606" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/right_new_wrist_14_mgn9_rail_1_body1.stl" />
+      </geometry>
+      <material name="material_new_wrist">
+        <color rgba="0.26 0.53 0.7 1" />
+      </material>
+    </visual>
+  </link>
+  <link name="right_crank">
+    <visual name="right_new_wrist_03_grippermotorarm_swivel_rotor_1_step_1_1_step_none_1_bod">
+      <origin xyz="0.00702084238342 0.288575000803 -0.608288613305" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/right_new_wrist_03_grippermotorarm_swivel_rotor_1_step_1_1_step_none_1_bod.stl" />
+      </geometry>
+      <material name="material_new_wrist">
+        <color rgba="0.26 0.53 0.7 1" />
+      </material>
+    </visual>
+  </link>
+  <link name="link7">
+    <visual name="right_new_wrist_04_left_finger_1_body5">
+      <origin xyz="0.0622319394516 0.266830592257 -0.595788613305" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/right_new_wrist_04_left_finger_1_body5.stl" />
+      </geometry>
+      <material name="material_new_wrist">
+        <color rgba="0.26 0.53 0.7 1" />
+      </material>
+    </visual>
+    <visual name="right_new_wrist_05_left_finger_1_body2">
+      <origin xyz="0.0622319394516 0.266830592257 -0.595788613305" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/right_new_wrist_05_left_finger_1_body2.stl" />
+      </geometry>
+      <material name="material_new_wrist">
+        <color rgba="0.26 0.53 0.7 1" />
+      </material>
+    </visual>
+    <visual name="right_new_wrist_06_component25_1_body1">
+      <origin xyz="0.0622319394516 0.266830592257 -0.595788613305" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/right_new_wrist_06_component25_1_body1.stl" />
+      </geometry>
+      <material name="material_new_wrist">
+        <color rgba="0.26 0.53 0.7 1" />
+      </material>
+    </visual>
+  </link>
+  <link name="right_bar0">
+    <visual name="right_new_wrist_01_hum_arm_gripper_linkage_bearingless_part_1_1_1_body1">
+      <origin xyz="0.0329987431886 0.273570045963 -0.595788613305" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/right_new_wrist_01_hum_arm_gripper_linkage_bearingless_part_1_1_1_body1.stl" />
+      </geometry>
+      <material name="material_new_wrist">
+        <color rgba="0.26 0.53 0.7 1" />
+      </material>
+    </visual>
+  </link>
+  <link name="link8">
+    <visual name="right_new_wrist_15_hum_arm_gripper_finger_carriage_umi_fit_rail_guide_moun">
+      <origin xyz="-0.0481892415962 0.310323802235 -0.595788613305" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/right_new_wrist_15_hum_arm_gripper_finger_carriage_umi_fit_rail_guide_moun.stl" />
+      </geometry>
+      <material name="material_new_wrist">
+        <color rgba="0.26 0.53 0.7 1" />
+      </material>
+    </visual>
+    <visual name="right_new_wrist_16_right_finger_1_body2">
+      <origin xyz="-0.0481892415962 0.310323802235 -0.595788613305" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/right_new_wrist_16_right_finger_1_body2.stl" />
+      </geometry>
+      <material name="material_new_wrist">
+        <color rgba="0.26 0.53 0.7 1" />
+      </material>
+    </visual>
+    <visual name="right_new_wrist_17_component24_1_body1">
+      <origin xyz="-0.0481892415962 0.310323802235 -0.595788613305" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/right_new_wrist_17_component24_1_body1.stl" />
+      </geometry>
+      <material name="material_new_wrist">
+        <color rgba="0.26 0.53 0.7 1" />
+      </material>
+    </visual>
+  </link>
+  <link name="right_bar1">
+    <visual name="right_new_wrist_02_hum_arm_gripper_linkage_bearingless_part_1_1_1_body1">
+      <origin xyz="-0.0189570584217 0.303579955643 -0.595788613305" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/right_new_wrist_02_hum_arm_gripper_linkage_bearingless_part_1_1_1_body1.stl" />
+      </geometry>
+      <material name="material_new_wrist">
+        <color rgba="0.26 0.53 0.7 1" />
+      </material>
+    </visual>
+  </link>
+  <link name="link1L">
+    <visual name="original_014_mirrorarm12v2_arm12v2_boss_extrude10_">
+      <origin xyz="0 -0.163325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_014_mirrorarm12v2_arm12v2_boss_extrude10_.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_015_arm12spider_fillet5">
+      <origin xyz="0 -0.163325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_015_arm12spider_fillet5.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_016_mirrorak10back_none">
+      <origin xyz="0 -0.163325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_016_mirrorak10back_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_017_mirrorak10body_0_none">
+      <origin xyz="0 -0.163325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_017_mirrorak10body_0_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_018_arm12rotor_fillet1">
+      <origin xyz="0 -0.163325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_018_arm12rotor_fillet1.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+  </link>
+  <link name="link2l">
+    <visual name="original_074_mirrorarm23v2bearingmount_arm23v2bearingmount_cut_extru">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_074_mirrorarm23v2bearingmount_arm23v2bearingmount_cut_extru.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_075_mirrorarm23v2_arm23v2_cut_extrude6_">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_075_mirrorarm23v2_arm23v2_cut_extrude6_.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_076_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_076_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_077_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_077_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_078_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_078_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_079_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_079_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_080_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_080_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_081_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_081_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_082_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_082_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_083_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_083_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_084_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_084_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_085_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_085_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_086_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_086_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_087_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_087_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_088_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_088_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_089_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_089_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_090_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_090_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_091_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_091_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_092_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_092_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_093_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_093_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_094_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_094_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_095_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_095_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_096_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_096_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_097_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_097_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_098_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_098_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_099_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_099_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_100_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_100_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_101_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_101_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_102_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_102_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_103_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_103_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_104_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_104_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_105_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_105_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_106_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_106_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_107_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_107_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_108_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_108_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_109_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_109_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_110_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_110_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_111_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_111_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_112_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_112_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_113_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_113_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_114_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_114_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_115_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_115_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_116_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_116_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_117_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_117_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_118_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_118_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_119_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_119_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_120_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_120_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_121_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_121_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_122_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_122_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_123_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_123_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_124_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_124_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_125_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_125_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_126_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_126_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_127_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_127_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_128_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_128_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_129_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.24" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_129_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+  </link>
+  <link name="link3l">
+    <visual name="original_324_mirrorarm34v2cover_arm34v2cover_fillet1_">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_324_mirrorarm34v2cover_arm34v2cover_fillet1_.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_325_mirrorarm34v2base_arm34v2base_cut_extrude5_">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_325_mirrorarm34v2base_arm34v2base_cut_extrude5_.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_326_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_326_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_327_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_327_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_328_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_328_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_329_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_329_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_330_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_330_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_331_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_331_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_332_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_332_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_333_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_333_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_334_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_334_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_335_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_335_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_336_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_336_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_337_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_337_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_338_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_338_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_339_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_339_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_340_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_340_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_341_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_341_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_342_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_342_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_343_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_343_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_344_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_344_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_345_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_345_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_346_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_346_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_347_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_347_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_348_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_348_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_349_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_349_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_350_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_350_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_351_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_351_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_352_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_352_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_353_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_353_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_354_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_354_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_355_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_355_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_356_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_356_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_357_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_357_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_358_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_358_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_359_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_359_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_360_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_360_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_361_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_361_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_362_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_362_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_363_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_363_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_364_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_364_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_365_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_365_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_366_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_366_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_367_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_367_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_368_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_368_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_369_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_369_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_370_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_370_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_371_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_371_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_372_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_372_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_373_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_373_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_374_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_374_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_375_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_375_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_376_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_376_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_377_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_377_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_378_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_378_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_379_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.279325 -1.1237000008" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_379_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+  </link>
+  <link name="link4l">
+    <visual name="original_019_mirrorarm45v2_arm45v2_cut_extrude6_">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_019_mirrorarm45v2_arm45v2_cut_extrude6_.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_020_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_020_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_021_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_021_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_022_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_022_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_023_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_023_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_024_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_024_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_025_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_025_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_026_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_026_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_027_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_027_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_028_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_028_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_029_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_029_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_030_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_030_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_031_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_031_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_032_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_032_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_033_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_033_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_034_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_034_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_035_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_035_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_036_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_036_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_037_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_037_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_038_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_038_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_039_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_039_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_040_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_040_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_041_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_041_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_042_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_042_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_043_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_043_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_044_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_044_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_045_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_045_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_046_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_046_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_047_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_047_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_048_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_048_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_049_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_049_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_050_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_050_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_051_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_051_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_052_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_052_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_053_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_053_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_054_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_054_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_055_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_055_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_056_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_056_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_057_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_057_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_058_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_058_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_059_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_059_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_060_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_060_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_061_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_061_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_062_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_062_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_063_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_063_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_064_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_064_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_065_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_065_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_066_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_066_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_067_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_067_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_068_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_068_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_069_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_069_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_070_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_070_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_071_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_071_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_072_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_072_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_073_mirrorak80_motor_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.939100000803" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_073_mirrorak80_motor_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+  </link>
+  <link name="link5l">
+    <visual name="original_001_mirrorgl40iistat_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.831600001606" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_001_mirrorgl40iistat_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_002_mirrorgl40iistat_none">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.831600001606" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_002_mirrorgl40iistat_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="left_new_forearm_1">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.831600001606" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/left_new_forearm_1.stl" />
+      </geometry>
+      <material name="material_new_forearm">
+        <color rgba="0.85 0.55 0.12 1" />
+      </material>
+    </visual>
+    <visual name="left_new_cover_1">
+      <origin xyz="0.00702084238344 -0.281575000803 -0.831600001606" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/left_new_cover_1.stl" />
+      </geometry>
+      <material name="material_new_cover">
+        <color rgba="0.75 0.6 0.3 1" />
+      </material>
+    </visual>
+  </link>
+  <link name="link6l">
+    <visual name="original_010_mirrorgl40iirot_none">
+      <origin xyz="0.00702084238344 -0.288575000803 -0.703600001606" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_010_mirrorgl40iirot_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="original_011_mirrorgl40iirot_none">
+      <origin xyz="0.00702084238344 -0.288575000803 -0.703600001606" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/original_011_mirrorgl40iirot_none.stl" />
+      </geometry>
+      <material name="material_retained">
+        <color rgba="0.64 0.67 0.71 1" />
+      </material>
+    </visual>
+    <visual name="left_new_wrist_07_0710_wrist_dual_support_6001_shouldered_none_1_body1">
+      <origin xyz="0.00702084238344 -0.288575000803 -0.703600001606" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/left_new_wrist_07_0710_wrist_dual_support_6001_shouldered_none_1_body1.stl" />
+      </geometry>
+      <material name="material_new_wrist">
+        <color rgba="0.26 0.53 0.7 1" />
+      </material>
+    </visual>
+    <visual name="left_new_wrist_08_hum_arm_gripper_base_1_solid_body1_1_body1">
+      <origin xyz="0.00702084238344 -0.288575000803 -0.703600001606" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/left_new_wrist_08_hum_arm_gripper_base_1_solid_body1_1_body1.stl" />
+      </geometry>
+      <material name="material_new_wrist">
+        <color rgba="0.26 0.53 0.7 1" />
+      </material>
+    </visual>
+    <visual name="left_new_wrist_09_hum_gl40ii_k82_5_step_2_1_body1">
+      <origin xyz="0.00702084238344 -0.288575000803 -0.703600001606" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/left_new_wrist_09_hum_gl40ii_k82_5_step_2_1_body1.stl" />
+      </geometry>
+      <material name="material_new_wrist">
+        <color rgba="0.26 0.53 0.7 1" />
+      </material>
+    </visual>
+    <visual name="left_new_wrist_10_hum_gl40ii_k82_5_step_1_body1">
+      <origin xyz="0.00702084238344 -0.288575000803 -0.703600001606" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/left_new_wrist_10_hum_gl40ii_k82_5_step_1_body1.stl" />
+      </geometry>
+      <material name="material_new_wrist">
+        <color rgba="0.26 0.53 0.7 1" />
+      </material>
+    </visual>
+    <visual name="left_new_wrist_11_hum_gl40ii_k82_5_step_hum_gl40iikv82_5_1_solid_body1_1_">
+      <origin xyz="0.00702084238344 -0.288575000803 -0.703600001606" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/left_new_wrist_11_hum_gl40ii_k82_5_step_hum_gl40iikv82_5_1_solid_body1_1_.stl" />
+      </geometry>
+      <material name="material_new_wrist">
+        <color rgba="0.26 0.53 0.7 1" />
+      </material>
+    </visual>
+    <visual name="left_new_wrist_12_hum_gl40ii_k82_5_step_1_1_body1">
+      <origin xyz="0.00702084238344 -0.288575000803 -0.703600001606" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/left_new_wrist_12_hum_gl40ii_k82_5_step_1_1_body1.stl" />
+      </geometry>
+      <material name="material_new_wrist">
+        <color rgba="0.26 0.53 0.7 1" />
+      </material>
+    </visual>
+    <visual name="left_new_wrist_13_hum_gl40ii_k82_5_step_none_1_body1">
+      <origin xyz="0.00702084238344 -0.288575000803 -0.703600001606" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/left_new_wrist_13_hum_gl40ii_k82_5_step_none_1_body1.stl" />
+      </geometry>
+      <material name="material_new_wrist">
+        <color rgba="0.26 0.53 0.7 1" />
+      </material>
+    </visual>
+    <visual name="left_new_wrist_14_mgn9_rail_1_body1">
+      <origin xyz="0.00702084238344 -0.288575000803 -0.703600001606" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/left_new_wrist_14_mgn9_rail_1_body1.stl" />
+      </geometry>
+      <material name="material_new_wrist">
+        <color rgba="0.26 0.53 0.7 1" />
+      </material>
+    </visual>
+  </link>
+  <link name="left_crank">
+    <visual name="left_new_wrist_03_grippermotorarm_swivel_rotor_1_step_1_1_step_none_1_bod">
+      <origin xyz="0.00702084238342 -0.288575000803 -0.608288613305" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/left_new_wrist_03_grippermotorarm_swivel_rotor_1_step_1_1_step_none_1_bod.stl" />
+      </geometry>
+      <material name="material_new_wrist">
+        <color rgba="0.26 0.53 0.7 1" />
+      </material>
+    </visual>
+  </link>
+  <link name="link7l">
+    <visual name="left_new_wrist_04_left_finger_1_body5">
+      <origin xyz="0.0622319394516 -0.266830592257 -0.595788613305" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/left_new_wrist_04_left_finger_1_body5.stl" />
+      </geometry>
+      <material name="material_new_wrist">
+        <color rgba="0.26 0.53 0.7 1" />
+      </material>
+    </visual>
+    <visual name="left_new_wrist_05_left_finger_1_body2">
+      <origin xyz="0.0622319394516 -0.266830592257 -0.595788613305" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/left_new_wrist_05_left_finger_1_body2.stl" />
+      </geometry>
+      <material name="material_new_wrist">
+        <color rgba="0.26 0.53 0.7 1" />
+      </material>
+    </visual>
+    <visual name="left_new_wrist_06_component25_1_body1">
+      <origin xyz="0.0622319394516 -0.266830592257 -0.595788613305" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/left_new_wrist_06_component25_1_body1.stl" />
+      </geometry>
+      <material name="material_new_wrist">
+        <color rgba="0.26 0.53 0.7 1" />
+      </material>
+    </visual>
+  </link>
+  <link name="left_bar0">
+    <visual name="left_new_wrist_01_hum_arm_gripper_linkage_bearingless_part_1_1_1_body1">
+      <origin xyz="0.0329987431886 -0.273570045963 -0.595788613305" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/left_new_wrist_01_hum_arm_gripper_linkage_bearingless_part_1_1_1_body1.stl" />
+      </geometry>
+      <material name="material_new_wrist">
+        <color rgba="0.26 0.53 0.7 1" />
+      </material>
+    </visual>
+  </link>
+  <link name="link8l">
+    <visual name="left_new_wrist_15_hum_arm_gripper_finger_carriage_umi_fit_rail_guide_moun">
+      <origin xyz="-0.0481892415962 -0.310323802235 -0.595788613305" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/left_new_wrist_15_hum_arm_gripper_finger_carriage_umi_fit_rail_guide_moun.stl" />
+      </geometry>
+      <material name="material_new_wrist">
+        <color rgba="0.26 0.53 0.7 1" />
+      </material>
+    </visual>
+    <visual name="left_new_wrist_16_right_finger_1_body2">
+      <origin xyz="-0.0481892415962 -0.310323802235 -0.595788613305" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/left_new_wrist_16_right_finger_1_body2.stl" />
+      </geometry>
+      <material name="material_new_wrist">
+        <color rgba="0.26 0.53 0.7 1" />
+      </material>
+    </visual>
+    <visual name="left_new_wrist_17_component24_1_body1">
+      <origin xyz="-0.0481892415962 -0.310323802235 -0.595788613305" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/left_new_wrist_17_component24_1_body1.stl" />
+      </geometry>
+      <material name="material_new_wrist">
+        <color rgba="0.26 0.53 0.7 1" />
+      </material>
+    </visual>
+  </link>
+  <link name="left_bar1">
+    <visual name="left_new_wrist_02_hum_arm_gripper_linkage_bearingless_part_1_1_1_body1">
+      <origin xyz="-0.0189570584217 -0.303579955643 -0.595788613305" rpy="1.57079632679 0 -1.57079632679" />
+      <geometry>
+        <mesh filename="../meshes/left_new_wrist_02_hum_arm_gripper_linkage_bearingless_part_1_1_1_body1.stl" />
+      </geometry>
+      <material name="material_new_wrist">
+        <color rgba="0.26 0.53 0.7 1" />
+      </material>
+    </visual>
+  </link>
+  <joint name="joint1" type="revolute">
+    <parent link="base_link" />
+    <child link="link1" />
+    <origin xyz="0.0215734774383 -0.163325 0.060481929205" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="-1.7453292519943295" upper="1.7453292519943295" effort="100" velocity="1" />
+  </joint>
+  <joint name="joint2" type="revolute">
+    <parent link="link1" />
+    <child link="link2" />
+    <origin xyz="-0.00702084238344 -0.116 0" rpy="0 0 0" />
+    <axis xyz="1 0 0" />
+    <limit lower="-1.3089969389957472" upper="1.3089969389957472" effort="100" velocity="1" />
+  </joint>
+  <joint name="joint3" type="revolute">
+    <parent link="link2" />
+    <child link="link3" />
+    <origin xyz="0 0 -0.116299999197" rpy="0 0 0" />
+    <axis xyz="0 0 -1" />
+    <limit lower="-2.0943951023931953" upper="2.0943951023931953" effort="100" velocity="1" />
+  </joint>
+  <joint name="joint4" type="revolute">
+    <parent link="link3" />
+    <child link="link4" />
+    <origin xyz="0 -0.0022500008028 -0.1846" rpy="0 0 0" />
+    <axis xyz="0 -1 0" />
+    <limit lower="-1.9198621771937625" upper="1.9198621771937625" effort="100" velocity="1" />
+  </joint>
+  <joint name="joint5" type="revolute">
+    <parent link="link4" />
+    <child link="link5" />
+    <origin xyz="0 0 -0.107499999197" rpy="0 0 0" />
+    <axis xyz="0 0 1" />
+    <limit lower="-3.141592653589793" upper="3.141592653589793" effort="100" velocity="1" />
+  </joint>
+  <joint name="joint6" type="revolute">
+    <parent link="link5" />
+    <child link="link6" />
+    <origin xyz="0 -0.007 -0.128" rpy="0 0 0" />
+    <axis xyz="0 -1 0" />
+    <limit lower="-1.5707963267948966" upper="1.5707963267948966" effort="100" velocity="1" />
+  </joint>
+  <joint name="right_gripper" type="revolute">
+    <parent link="link6" />
+    <child link="right_crank" />
+    <origin xyz="1.60010893424e-14 -1.39888101103e-14 -0.0953113883009" rpy="0 0 0" />
+    <axis xyz="0 0 -1" />
+    <limit lower="-0.17453292519943295" upper="1.5707963267948966" effort="100" velocity="1" />
+  </joint>
+  <joint name="joint7" type="prismatic">
+    <parent link="link6" />
+    <child link="link7" />
+    <origin xyz="-0.0552110970681 0.0217444085457 -0.107811388301" rpy="0 0 0" />
+    <axis xyz="-1 -0 -0" />
+    <limit lower="-0.040517261618092236" upper="0.0007105513753589827" effort="100" velocity="1" />
+  </joint>
+  <joint name="right_linkage_pin0" type="revolute">
+    <parent link="right_crank" />
+    <child link="right_bar0" />
+    <origin xyz="-0.0259779008051 0.0150049548403 -0.0125" rpy="0 0 0" />
+    <axis xyz="0 0 -1" />
+    <limit lower="-6.283185307179586" upper="6.283185307179586" effort="100" velocity="1" />
+  </joint>
+  <joint name="joint8" type="prismatic">
+    <parent link="link6" />
+    <child link="link8" />
+    <origin xyz="0.0552100839797 -0.0217488014319 -0.107811388301" rpy="0 0 0" />
+    <axis xyz="-1 -0 -0" />
+    <limit lower="-0.0007098349346630607" upper="0.04051562268663317" effort="100" velocity="1" />
+  </joint>
+  <joint name="right_linkage_pin1" type="revolute">
+    <parent link="right_crank" />
+    <child link="right_bar1" />
+    <origin xyz="0.0259779008051 -0.0150049548403 -0.0125" rpy="0 0 0" />
+    <axis xyz="0 0 -1" />
+    <limit lower="-6.283185307179586" upper="6.283185307179586" effort="100" velocity="1" />
+  </joint>
+  <joint name="joint1L" type="revolute">
+    <parent link="base_link" />
+    <child link="link1L" />
+    <origin xyz="0.0215734774383 0.163325 0.060481929205" rpy="0 0 0" />
+    <axis xyz="0 -1 0" />
+    <limit lower="-1.7453292519943295" upper="1.7453292519943295" effort="100" velocity="1" />
+  </joint>
+  <joint name="joint2l" type="revolute">
+    <parent link="link1L" />
+    <child link="link2l" />
+    <origin xyz="-0.00702084238344 0.116 0" rpy="0 0 0" />
+    <axis xyz="1 0 0" />
+    <limit lower="-1.3089969389957472" upper="1.3089969389957472" effort="100" velocity="1" />
+  </joint>
+  <joint name="joint3l" type="revolute">
+    <parent link="link2l" />
+    <child link="link3l" />
+    <origin xyz="0 0 -0.116299999197" rpy="0 0 0" />
+    <axis xyz="0 0 -1" />
+    <limit lower="-2.0943951023931953" upper="2.0943951023931953" effort="100" velocity="1" />
+  </joint>
+  <joint name="joint4l" type="revolute">
+    <parent link="link3l" />
+    <child link="link4l" />
+    <origin xyz="0 0.0022500008028 -0.1846" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="-1.9198621771937625" upper="1.9198621771937625" effort="100" velocity="1" />
+  </joint>
+  <joint name="joint5l" type="revolute">
+    <parent link="link4l" />
+    <child link="link5l" />
+    <origin xyz="0 0 -0.107499999197" rpy="0 0 0" />
+    <axis xyz="0 0 1" />
+    <limit lower="-3.141592653589793" upper="3.141592653589793" effort="100" velocity="1" />
+  </joint>
+  <joint name="joint6l" type="revolute">
+    <parent link="link5l" />
+    <child link="link6l" />
+    <origin xyz="0 0.007 -0.128" rpy="0 0 0" />
+    <axis xyz="0 1 0" />
+    <limit lower="-1.5707963267948966" upper="1.5707963267948966" effort="100" velocity="1" />
+  </joint>
+  <joint name="left_gripper" type="revolute">
+    <parent link="link6l" />
+    <child link="left_crank" />
+    <origin xyz="1.60010893424e-14 1.39888101103e-14 -0.0953113883009" rpy="0 0 0" />
+    <axis xyz="0 0 1" />
+    <limit lower="-0.17453292519943295" upper="1.5707963267948966" effort="100" velocity="1" />
+  </joint>
+  <joint name="joint7l" type="prismatic">
+    <parent link="link6l" />
+    <child link="link7l" />
+    <origin xyz="-0.0552110970681 -0.0217444085457 -0.107811388301" rpy="0 0 0" />
+    <axis xyz="-1 -0 -0" />
+    <limit lower="-0.040517261618092236" upper="0.0007105513753589827" effort="100" velocity="1" />
+  </joint>
+  <joint name="left_linkage_pin0" type="revolute">
+    <parent link="left_crank" />
+    <child link="left_bar0" />
+    <origin xyz="-0.0259779008051 -0.0150049548403 -0.0125" rpy="0 0 0" />
+    <axis xyz="0 0 1" />
+    <limit lower="-6.283185307179586" upper="6.283185307179586" effort="100" velocity="1" />
+  </joint>
+  <joint name="joint8l" type="prismatic">
+    <parent link="link6l" />
+    <child link="link8l" />
+    <origin xyz="0.0552100839797 0.0217488014319 -0.107811388301" rpy="0 0 0" />
+    <axis xyz="-1 -0 -0" />
+    <limit lower="-0.0007098349346630607" upper="0.04051562268663317" effort="100" velocity="1" />
+  </joint>
+  <joint name="left_linkage_pin1" type="revolute">
+    <parent link="left_crank" />
+    <child link="left_bar1" />
+    <origin xyz="0.0259779008051 0.0150049548403 -0.0125" rpy="0 0 0" />
+    <axis xyz="0 0 1" />
+    <limit lower="-6.283185307179586" upper="6.283185307179586" effort="100" velocity="1" />
+  </joint>
+</robot>

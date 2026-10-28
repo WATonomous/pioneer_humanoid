@@ -1,1 +1,1 @@
-controller_joint_names: ['', 'joint1', 'joint2', 'joint3', 'joint4', 'joint5', 'joint6', 'joint7', 'joint8', 'joint1L', 'joint2l', 'joint3l', 'joint4l', 'joint5l', 'joint6l', 'joint7l', 'joint8l', ]
+controller_joint_names: ["joint1", "joint2", "joint3", "joint4", "joint5", "joint6", "right_gripper", "right_linkage_pin0", "right_linkage_pin1", "joint7", "joint8", "joint1L", "joint2l", "joint3l", "joint4l", "joint5l", "joint6l", "left_gripper", "left_linkage_pin0", "left_linkage_pin1", "joint7l", "joint8l"]

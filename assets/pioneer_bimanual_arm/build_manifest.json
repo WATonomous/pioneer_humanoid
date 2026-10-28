@@ -1,0 +1,5204 @@
+{
+  "retained_original_occurrences": 436,
+  "removed_original_occurrences": 32,
+  "replacement_occurrences": 38,
+  "components": [
+    {
+      "name": "original_001_mirrorgl40iistat_none",
+      "mesh": "original_001_mirrorgl40iistat_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink5 <1>",
+        "MirrorGL40IIStat <1>",
+        "MirrorGL40IIStat__NONE"
+      ]
+    },
+    {
+      "name": "original_002_mirrorgl40iistat_none",
+      "mesh": "original_002_mirrorgl40iistat_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink5 <1>",
+        "MirrorGL40IIStat <1>",
+        "MirrorGL40IIStat__NONE"
+      ]
+    },
+    {
+      "name": "original_003_gl40iistat_none",
+      "mesh": "original_003_gl40iistat_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link5 <1>",
+        "GL40IIStat <1>",
+        "GL40IIStat__NONE"
+      ]
+    },
+    {
+      "name": "original_004_gl40iistat_none",
+      "mesh": "original_004_gl40iistat_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link5 <1>",
+        "GL40IIStat <1>",
+        "GL40IIStat__NONE"
+      ]
+    },
+    {
+      "name": "original_005_arm12rotor_fillet1",
+      "mesh": "original_005_arm12rotor_fillet1.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link1 <1>",
+        "arm12Rotor__Fillet1"
+      ]
+    },
+    {
+      "name": "original_006_arm12v2_boss_extrude10",
+      "mesh": "original_006_arm12v2_boss_extrude10.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link1 <1>",
+        "arm12v2__Boss-Extrude10"
+      ]
+    },
+    {
+      "name": "original_007_arm12spider_fillet5",
+      "mesh": "original_007_arm12spider_fillet5.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link1 <1>",
+        "arm12Spider__Fillet5"
+      ]
+    },
+    {
+      "name": "original_008_ak10back_none",
+      "mesh": "original_008_ak10back_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link1 <1>",
+        "AK10 <1>",
+        "AK10Back__NONE"
+      ]
+    },
+    {
+      "name": "original_009_ak10body_0_none",
+      "mesh": "original_009_ak10body_0_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link1 <1>",
+        "AK10 <1>",
+        "AK10Body-0__NONE"
+      ]
+    },
+    {
+      "name": "original_010_mirrorgl40iirot_none",
+      "mesh": "original_010_mirrorgl40iirot_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink6 <1>",
+        "MirrorGL40IIRot <1>",
+        "MirrorGL40IIRot__NONE"
+      ]
+    },
+    {
+      "name": "original_011_mirrorgl40iirot_none",
+      "mesh": "original_011_mirrorgl40iirot_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink6 <1>",
+        "MirrorGL40IIRot <1>",
+        "MirrorGL40IIRot__NONE"
+      ]
+    },
+    {
+      "name": "original_012_gl40iirot_none",
+      "mesh": "original_012_gl40iirot_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link6 <1>",
+        "GL40IIRot <2>",
+        "GL40IIRot__NONE"
+      ]
+    },
+    {
+      "name": "original_013_gl40iirot_none",
+      "mesh": "original_013_gl40iirot_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link6 <1>",
+        "GL40IIRot <2>",
+        "GL40IIRot__NONE"
+      ]
+    },
+    {
+      "name": "original_014_mirrorarm12v2_arm12v2_boss_extrude10_",
+      "mesh": "original_014_mirrorarm12v2_arm12v2_boss_extrude10_.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink1 <1>",
+        "Mirrorarm12v2__<arm12v2>-<Boss-Extrude10>"
+      ]
+    },
+    {
+      "name": "original_015_arm12spider_fillet5",
+      "mesh": "original_015_arm12spider_fillet5.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink1 <1>",
+        "arm12Spider__Fillet5"
+      ]
+    },
+    {
+      "name": "original_016_mirrorak10back_none",
+      "mesh": "original_016_mirrorak10back_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink1 <1>",
+        "MirrorAK10 <1>",
+        "MirrorAK10Back__NONE"
+      ]
+    },
+    {
+      "name": "original_017_mirrorak10body_0_none",
+      "mesh": "original_017_mirrorak10body_0_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink1 <1>",
+        "MirrorAK10 <1>",
+        "MirrorAK10Body-0__NONE"
+      ]
+    },
+    {
+      "name": "original_018_arm12rotor_fillet1",
+      "mesh": "original_018_arm12rotor_fillet1.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink1 <1>",
+        "arm12Rotor__Fillet1"
+      ]
+    },
+    {
+      "name": "original_019_mirrorarm45v2_arm45v2_cut_extrude6_",
+      "mesh": "original_019_mirrorarm45v2_arm45v2_cut_extrude6_.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "Mirrorarm45v2__<arm45v2>-<Cut-Extrude6>"
+      ]
+    },
+    {
+      "name": "original_020_mirrorak80_motor_none",
+      "mesh": "original_020_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_021_mirrorak80_motor_none",
+      "mesh": "original_021_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_022_mirrorak80_motor_none",
+      "mesh": "original_022_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_023_mirrorak80_motor_none",
+      "mesh": "original_023_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_024_mirrorak80_motor_none",
+      "mesh": "original_024_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_025_mirrorak80_motor_none",
+      "mesh": "original_025_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_026_mirrorak80_motor_none",
+      "mesh": "original_026_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_027_mirrorak80_motor_none",
+      "mesh": "original_027_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_028_mirrorak80_motor_none",
+      "mesh": "original_028_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_029_mirrorak80_motor_none",
+      "mesh": "original_029_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_030_mirrorak80_motor_none",
+      "mesh": "original_030_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_031_mirrorak80_motor_none",
+      "mesh": "original_031_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_032_mirrorak80_motor_none",
+      "mesh": "original_032_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_033_mirrorak80_motor_none",
+      "mesh": "original_033_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_034_mirrorak80_motor_none",
+      "mesh": "original_034_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_035_mirrorak80_motor_none",
+      "mesh": "original_035_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_036_mirrorak80_motor_none",
+      "mesh": "original_036_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_037_mirrorak80_motor_none",
+      "mesh": "original_037_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_038_mirrorak80_motor_none",
+      "mesh": "original_038_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_039_mirrorak80_motor_none",
+      "mesh": "original_039_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_040_mirrorak80_motor_none",
+      "mesh": "original_040_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_041_mirrorak80_motor_none",
+      "mesh": "original_041_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_042_mirrorak80_motor_none",
+      "mesh": "original_042_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_043_mirrorak80_motor_none",
+      "mesh": "original_043_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_044_mirrorak80_motor_none",
+      "mesh": "original_044_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_045_mirrorak80_motor_none",
+      "mesh": "original_045_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_046_mirrorak80_motor_none",
+      "mesh": "original_046_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_047_mirrorak80_motor_none",
+      "mesh": "original_047_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_048_mirrorak80_motor_none",
+      "mesh": "original_048_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_049_mirrorak80_motor_none",
+      "mesh": "original_049_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_050_mirrorak80_motor_none",
+      "mesh": "original_050_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_051_mirrorak80_motor_none",
+      "mesh": "original_051_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_052_mirrorak80_motor_none",
+      "mesh": "original_052_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_053_mirrorak80_motor_none",
+      "mesh": "original_053_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_054_mirrorak80_motor_none",
+      "mesh": "original_054_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_055_mirrorak80_motor_none",
+      "mesh": "original_055_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_056_mirrorak80_motor_none",
+      "mesh": "original_056_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_057_mirrorak80_motor_none",
+      "mesh": "original_057_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_058_mirrorak80_motor_none",
+      "mesh": "original_058_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_059_mirrorak80_motor_none",
+      "mesh": "original_059_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_060_mirrorak80_motor_none",
+      "mesh": "original_060_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_061_mirrorak80_motor_none",
+      "mesh": "original_061_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_062_mirrorak80_motor_none",
+      "mesh": "original_062_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_063_mirrorak80_motor_none",
+      "mesh": "original_063_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_064_mirrorak80_motor_none",
+      "mesh": "original_064_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_065_mirrorak80_motor_none",
+      "mesh": "original_065_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_066_mirrorak80_motor_none",
+      "mesh": "original_066_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_067_mirrorak80_motor_none",
+      "mesh": "original_067_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_068_mirrorak80_motor_none",
+      "mesh": "original_068_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_069_mirrorak80_motor_none",
+      "mesh": "original_069_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_070_mirrorak80_motor_none",
+      "mesh": "original_070_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_071_mirrorak80_motor_none",
+      "mesh": "original_071_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_072_mirrorak80_motor_none",
+      "mesh": "original_072_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_073_mirrorak80_motor_none",
+      "mesh": "original_073_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink4 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_074_mirrorarm23v2bearingmount_arm23v2bearingmount_cut_extru",
+      "mesh": "original_074_mirrorarm23v2bearingmount_arm23v2bearingmount_cut_extru.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "Mirrorarm23v2BearingMount__<arm23v2BearingMount>-<Cut-Extrude3>"
+      ]
+    },
+    {
+      "name": "original_075_mirrorarm23v2_arm23v2_cut_extrude6_",
+      "mesh": "original_075_mirrorarm23v2_arm23v2_cut_extrude6_.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "Mirrorarm23v2__<arm23v2>-<Cut-Extrude6>"
+      ]
+    },
+    {
+      "name": "original_076_mirrorak80_motor_none",
+      "mesh": "original_076_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_077_mirrorak80_motor_none",
+      "mesh": "original_077_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_078_mirrorak80_motor_none",
+      "mesh": "original_078_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_079_mirrorak80_motor_none",
+      "mesh": "original_079_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_080_mirrorak80_motor_none",
+      "mesh": "original_080_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_081_mirrorak80_motor_none",
+      "mesh": "original_081_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_082_mirrorak80_motor_none",
+      "mesh": "original_082_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_083_mirrorak80_motor_none",
+      "mesh": "original_083_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_084_mirrorak80_motor_none",
+      "mesh": "original_084_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_085_mirrorak80_motor_none",
+      "mesh": "original_085_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_086_mirrorak80_motor_none",
+      "mesh": "original_086_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_087_mirrorak80_motor_none",
+      "mesh": "original_087_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_088_mirrorak80_motor_none",
+      "mesh": "original_088_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_089_mirrorak80_motor_none",
+      "mesh": "original_089_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_090_mirrorak80_motor_none",
+      "mesh": "original_090_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_091_mirrorak80_motor_none",
+      "mesh": "original_091_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_092_mirrorak80_motor_none",
+      "mesh": "original_092_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_093_mirrorak80_motor_none",
+      "mesh": "original_093_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_094_mirrorak80_motor_none",
+      "mesh": "original_094_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_095_mirrorak80_motor_none",
+      "mesh": "original_095_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_096_mirrorak80_motor_none",
+      "mesh": "original_096_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_097_mirrorak80_motor_none",
+      "mesh": "original_097_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_098_mirrorak80_motor_none",
+      "mesh": "original_098_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_099_mirrorak80_motor_none",
+      "mesh": "original_099_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_100_mirrorak80_motor_none",
+      "mesh": "original_100_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_101_mirrorak80_motor_none",
+      "mesh": "original_101_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_102_mirrorak80_motor_none",
+      "mesh": "original_102_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_103_mirrorak80_motor_none",
+      "mesh": "original_103_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_104_mirrorak80_motor_none",
+      "mesh": "original_104_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_105_mirrorak80_motor_none",
+      "mesh": "original_105_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_106_mirrorak80_motor_none",
+      "mesh": "original_106_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_107_mirrorak80_motor_none",
+      "mesh": "original_107_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_108_mirrorak80_motor_none",
+      "mesh": "original_108_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_109_mirrorak80_motor_none",
+      "mesh": "original_109_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_110_mirrorak80_motor_none",
+      "mesh": "original_110_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_111_mirrorak80_motor_none",
+      "mesh": "original_111_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_112_mirrorak80_motor_none",
+      "mesh": "original_112_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_113_mirrorak80_motor_none",
+      "mesh": "original_113_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_114_mirrorak80_motor_none",
+      "mesh": "original_114_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_115_mirrorak80_motor_none",
+      "mesh": "original_115_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_116_mirrorak80_motor_none",
+      "mesh": "original_116_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_117_mirrorak80_motor_none",
+      "mesh": "original_117_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_118_mirrorak80_motor_none",
+      "mesh": "original_118_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_119_mirrorak80_motor_none",
+      "mesh": "original_119_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_120_mirrorak80_motor_none",
+      "mesh": "original_120_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_121_mirrorak80_motor_none",
+      "mesh": "original_121_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_122_mirrorak80_motor_none",
+      "mesh": "original_122_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_123_mirrorak80_motor_none",
+      "mesh": "original_123_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_124_mirrorak80_motor_none",
+      "mesh": "original_124_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_125_mirrorak80_motor_none",
+      "mesh": "original_125_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_126_mirrorak80_motor_none",
+      "mesh": "original_126_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_127_mirrorak80_motor_none",
+      "mesh": "original_127_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_128_mirrorak80_motor_none",
+      "mesh": "original_128_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_129_mirrorak80_motor_none",
+      "mesh": "original_129_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink2 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_130_arm45v2_cut_extrude6",
+      "mesh": "original_130_arm45v2_cut_extrude6.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "arm45v2__Cut-Extrude6"
+      ]
+    },
+    {
+      "name": "original_131_ak80_motor_none",
+      "mesh": "original_131_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_132_ak80_motor_none",
+      "mesh": "original_132_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_133_ak80_motor_none",
+      "mesh": "original_133_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_134_ak80_motor_none",
+      "mesh": "original_134_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_135_ak80_motor_none",
+      "mesh": "original_135_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_136_ak80_motor_none",
+      "mesh": "original_136_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_137_ak80_motor_none",
+      "mesh": "original_137_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_138_ak80_motor_none",
+      "mesh": "original_138_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_139_ak80_motor_none",
+      "mesh": "original_139_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_140_ak80_motor_none",
+      "mesh": "original_140_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_141_ak80_motor_none",
+      "mesh": "original_141_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_142_ak80_motor_none",
+      "mesh": "original_142_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_143_ak80_motor_none",
+      "mesh": "original_143_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_144_ak80_motor_none",
+      "mesh": "original_144_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_145_ak80_motor_none",
+      "mesh": "original_145_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_146_ak80_motor_none",
+      "mesh": "original_146_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_147_ak80_motor_none",
+      "mesh": "original_147_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_148_ak80_motor_none",
+      "mesh": "original_148_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_149_ak80_motor_none",
+      "mesh": "original_149_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_150_ak80_motor_none",
+      "mesh": "original_150_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_151_ak80_motor_none",
+      "mesh": "original_151_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_152_ak80_motor_none",
+      "mesh": "original_152_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_153_ak80_motor_none",
+      "mesh": "original_153_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_154_ak80_motor_none",
+      "mesh": "original_154_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_155_ak80_motor_none",
+      "mesh": "original_155_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_156_ak80_motor_none",
+      "mesh": "original_156_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_157_ak80_motor_none",
+      "mesh": "original_157_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_158_ak80_motor_none",
+      "mesh": "original_158_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_159_ak80_motor_none",
+      "mesh": "original_159_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_160_ak80_motor_none",
+      "mesh": "original_160_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_161_ak80_motor_none",
+      "mesh": "original_161_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_162_ak80_motor_none",
+      "mesh": "original_162_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_163_ak80_motor_none",
+      "mesh": "original_163_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_164_ak80_motor_none",
+      "mesh": "original_164_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_165_ak80_motor_none",
+      "mesh": "original_165_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_166_ak80_motor_none",
+      "mesh": "original_166_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_167_ak80_motor_none",
+      "mesh": "original_167_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_168_ak80_motor_none",
+      "mesh": "original_168_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_169_ak80_motor_none",
+      "mesh": "original_169_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_170_ak80_motor_none",
+      "mesh": "original_170_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_171_ak80_motor_none",
+      "mesh": "original_171_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_172_ak80_motor_none",
+      "mesh": "original_172_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_173_ak80_motor_none",
+      "mesh": "original_173_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_174_ak80_motor_none",
+      "mesh": "original_174_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_175_ak80_motor_none",
+      "mesh": "original_175_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_176_ak80_motor_none",
+      "mesh": "original_176_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_177_ak80_motor_none",
+      "mesh": "original_177_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_178_ak80_motor_none",
+      "mesh": "original_178_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_179_ak80_motor_none",
+      "mesh": "original_179_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_180_ak80_motor_none",
+      "mesh": "original_180_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_181_ak80_motor_none",
+      "mesh": "original_181_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_182_ak80_motor_none",
+      "mesh": "original_182_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_183_ak80_motor_none",
+      "mesh": "original_183_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_184_ak80_motor_none",
+      "mesh": "original_184_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link4 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_185_arm23v2bearingmount_cut_extrude3",
+      "mesh": "original_185_arm23v2bearingmount_cut_extrude3.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "arm23v2BearingMount__Cut-Extrude3"
+      ]
+    },
+    {
+      "name": "original_186_arm23v2_cut_extrude6",
+      "mesh": "original_186_arm23v2_cut_extrude6.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "arm23v2__Cut-Extrude6"
+      ]
+    },
+    {
+      "name": "original_187_ak80_motor_none",
+      "mesh": "original_187_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_188_ak80_motor_none",
+      "mesh": "original_188_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_189_ak80_motor_none",
+      "mesh": "original_189_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_190_ak80_motor_none",
+      "mesh": "original_190_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_191_ak80_motor_none",
+      "mesh": "original_191_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_192_ak80_motor_none",
+      "mesh": "original_192_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_193_ak80_motor_none",
+      "mesh": "original_193_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_194_ak80_motor_none",
+      "mesh": "original_194_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_195_ak80_motor_none",
+      "mesh": "original_195_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_196_ak80_motor_none",
+      "mesh": "original_196_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_197_ak80_motor_none",
+      "mesh": "original_197_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_198_ak80_motor_none",
+      "mesh": "original_198_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_199_ak80_motor_none",
+      "mesh": "original_199_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_200_ak80_motor_none",
+      "mesh": "original_200_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_201_ak80_motor_none",
+      "mesh": "original_201_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_202_ak80_motor_none",
+      "mesh": "original_202_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_203_ak80_motor_none",
+      "mesh": "original_203_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_204_ak80_motor_none",
+      "mesh": "original_204_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_205_ak80_motor_none",
+      "mesh": "original_205_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_206_ak80_motor_none",
+      "mesh": "original_206_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_207_ak80_motor_none",
+      "mesh": "original_207_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_208_ak80_motor_none",
+      "mesh": "original_208_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_209_ak80_motor_none",
+      "mesh": "original_209_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_210_ak80_motor_none",
+      "mesh": "original_210_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_211_ak80_motor_none",
+      "mesh": "original_211_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_212_ak80_motor_none",
+      "mesh": "original_212_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_213_ak80_motor_none",
+      "mesh": "original_213_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_214_ak80_motor_none",
+      "mesh": "original_214_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_215_ak80_motor_none",
+      "mesh": "original_215_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_216_ak80_motor_none",
+      "mesh": "original_216_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_217_ak80_motor_none",
+      "mesh": "original_217_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_218_ak80_motor_none",
+      "mesh": "original_218_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_219_ak80_motor_none",
+      "mesh": "original_219_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_220_ak80_motor_none",
+      "mesh": "original_220_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_221_ak80_motor_none",
+      "mesh": "original_221_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_222_ak80_motor_none",
+      "mesh": "original_222_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_223_ak80_motor_none",
+      "mesh": "original_223_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_224_ak80_motor_none",
+      "mesh": "original_224_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_225_ak80_motor_none",
+      "mesh": "original_225_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_226_ak80_motor_none",
+      "mesh": "original_226_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_227_ak80_motor_none",
+      "mesh": "original_227_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_228_ak80_motor_none",
+      "mesh": "original_228_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_229_ak80_motor_none",
+      "mesh": "original_229_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_230_ak80_motor_none",
+      "mesh": "original_230_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_231_ak80_motor_none",
+      "mesh": "original_231_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_232_ak80_motor_none",
+      "mesh": "original_232_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_233_ak80_motor_none",
+      "mesh": "original_233_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_234_ak80_motor_none",
+      "mesh": "original_234_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_235_ak80_motor_none",
+      "mesh": "original_235_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_236_ak80_motor_none",
+      "mesh": "original_236_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_237_ak80_motor_none",
+      "mesh": "original_237_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_238_ak80_motor_none",
+      "mesh": "original_238_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_239_ak80_motor_none",
+      "mesh": "original_239_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_240_ak80_motor_none",
+      "mesh": "original_240_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link2 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_241_shoulderbearingholder_cut_extrude5",
+      "mesh": "original_241_shoulderbearingholder_cut_extrude5.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "shoulderBearingHolder__Cut-Extrude5"
+      ]
+    },
+    {
+      "name": "original_242_arm12bearing_csk_for_m4_countersunk_flat_head_screw2",
+      "mesh": "original_242_arm12bearing_csk_for_m4_countersunk_flat_head_screw2.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "arm12Bearing__CSK for M4 Countersunk Flat Head Screw2"
+      ]
+    },
+    {
+      "name": "original_243_shoulderbearingholder_cut_extrude5",
+      "mesh": "original_243_shoulderbearingholder_cut_extrude5.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "shoulderBearingHolder__Cut-Extrude5"
+      ]
+    },
+    {
+      "name": "original_244_shoulderbearingholder_cut_extrude5",
+      "mesh": "original_244_shoulderbearingholder_cut_extrude5.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "shoulderBearingHolder__Cut-Extrude5"
+      ]
+    },
+    {
+      "name": "original_245_arm12bearing_csk_for_m4_countersunk_flat_head_screw2",
+      "mesh": "original_245_arm12bearing_csk_for_m4_countersunk_flat_head_screw2.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "arm12Bearing__CSK for M4 Countersunk Flat Head Screw2"
+      ]
+    },
+    {
+      "name": "original_246_ak10body_0_none",
+      "mesh": "original_246_ak10body_0_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "AK10 <1>",
+        "AK10Body-0__NONE"
+      ]
+    },
+    {
+      "name": "original_247_ak10back_none",
+      "mesh": "original_247_ak10back_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "AK10 <1>",
+        "AK10Back__NONE"
+      ]
+    },
+    {
+      "name": "original_248_ak10body_0_none",
+      "mesh": "original_248_ak10body_0_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "AK10 <2>",
+        "AK10Body-0__NONE"
+      ]
+    },
+    {
+      "name": "original_249_ak10back_none",
+      "mesh": "original_249_ak10back_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "AK10 <2>",
+        "AK10Back__NONE"
+      ]
+    },
+    {
+      "name": "original_250_4040bracket_4040bracket_1_",
+      "mesh": "original_250_4040bracket_4040bracket_1_.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "fullStand <1>",
+        "4040Bracket__4040Bracket[1]"
+      ]
+    },
+    {
+      "name": "original_251_squaremount_squaremount_1_",
+      "mesh": "original_251_squaremount_squaremount_1_.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "fullStand <1>",
+        "squareMount__squareMount[1]"
+      ]
+    },
+    {
+      "name": "original_252_ext2_ext2_1_",
+      "mesh": "original_252_ext2_ext2_1_.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "fullStand <1>",
+        "ext2__ext2[1]"
+      ]
+    },
+    {
+      "name": "original_253_4040bracket_4040bracket_1_",
+      "mesh": "original_253_4040bracket_4040bracket_1_.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "fullStand <1>",
+        "4040Bracket__4040Bracket[1]"
+      ]
+    },
+    {
+      "name": "original_254_frame1_frame1_1_",
+      "mesh": "original_254_frame1_frame1_1_.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "fullStand <1>",
+        "frame1__frame1[1]"
+      ]
+    },
+    {
+      "name": "original_255_squaremount_squaremount_1_",
+      "mesh": "original_255_squaremount_squaremount_1_.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "fullStand <1>",
+        "squareMount__squareMount[1]"
+      ]
+    },
+    {
+      "name": "original_256_frame1_frame1_1_",
+      "mesh": "original_256_frame1_frame1_1_.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "fullStand <1>",
+        "frame1__frame1[1]"
+      ]
+    },
+    {
+      "name": "original_257_extlong_boss_extrude1",
+      "mesh": "original_257_extlong_boss_extrude1.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "fullStand <1>",
+        "extlong__Boss-Extrude1"
+      ]
+    },
+    {
+      "name": "original_258_3dpbracket_3dpbracket_1_",
+      "mesh": "original_258_3dpbracket_3dpbracket_1_.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "fullStand <1>",
+        "3DPBracket__3DPBracket[1]"
+      ]
+    },
+    {
+      "name": "original_259_ext1_ext1_1_",
+      "mesh": "original_259_ext1_ext1_1_.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "fullStand <1>",
+        "ext1__ext1[1]"
+      ]
+    },
+    {
+      "name": "original_260_ext1_ext1_1_",
+      "mesh": "original_260_ext1_ext1_1_.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "fullStand <1>",
+        "ext1__ext1[1]"
+      ]
+    },
+    {
+      "name": "original_261_3dpbracket_3dpbracket_1_",
+      "mesh": "original_261_3dpbracket_3dpbracket_1_.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "fullStand <1>",
+        "3DPBracket__3DPBracket[1]"
+      ]
+    },
+    {
+      "name": "original_262_extlong_boss_extrude1",
+      "mesh": "original_262_extlong_boss_extrude1.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "fullStand <1>",
+        "extlong__Boss-Extrude1"
+      ]
+    },
+    {
+      "name": "original_263_4040flatbracket_4040flatbracket_1_",
+      "mesh": "original_263_4040flatbracket_4040flatbracket_1_.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "fullStand <1>",
+        "4040FlatBracket__4040FlatBracket[1]"
+      ]
+    },
+    {
+      "name": "original_264_frame1_frame1_1_",
+      "mesh": "original_264_frame1_frame1_1_.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "fullStand <1>",
+        "frame1__frame1[1]"
+      ]
+    },
+    {
+      "name": "original_265_ext3_ext3_1_",
+      "mesh": "original_265_ext3_ext3_1_.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "fullStand <1>",
+        "ext3__ext3[1]"
+      ]
+    },
+    {
+      "name": "original_266_3dpbracket_3dpbracket_1_",
+      "mesh": "original_266_3dpbracket_3dpbracket_1_.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "fullStand <1>",
+        "3DPBracket__3DPBracket[1]"
+      ]
+    },
+    {
+      "name": "original_267_frame1_frame1_1_",
+      "mesh": "original_267_frame1_frame1_1_.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "fullStand <1>",
+        "frame1__frame1[1]"
+      ]
+    },
+    {
+      "name": "original_268_ext5_ext5_1_",
+      "mesh": "original_268_ext5_ext5_1_.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "fullStand <1>",
+        "ext5__ext5[1]"
+      ]
+    },
+    {
+      "name": "original_269_4040bracket_4040bracket_1_",
+      "mesh": "original_269_4040bracket_4040bracket_1_.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "fullStand <1>",
+        "4040Bracket__4040Bracket[1]"
+      ]
+    },
+    {
+      "name": "original_270_4040bracket_4040bracket_1_",
+      "mesh": "original_270_4040bracket_4040bracket_1_.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "fullStand <1>",
+        "4040Bracket__4040Bracket[1]"
+      ]
+    },
+    {
+      "name": "original_271_ext3_ext3_1_",
+      "mesh": "original_271_ext3_ext3_1_.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "fullStand <1>",
+        "ext3__ext3[1]"
+      ]
+    },
+    {
+      "name": "original_272_3dpbracket_3dpbracket_1_",
+      "mesh": "original_272_3dpbracket_3dpbracket_1_.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "fullStand <1>",
+        "3DPBracket__3DPBracket[1]"
+      ]
+    },
+    {
+      "name": "original_273_shoulderbearingholder_cut_extrude5",
+      "mesh": "original_273_shoulderbearingholder_cut_extrude5.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "shoulderBearingHolder__Cut-Extrude5"
+      ]
+    },
+    {
+      "name": "original_274_camera_mount_boss_extrude3",
+      "mesh": "original_274_camera_mount_boss_extrude3.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "camera-mount__Boss-Extrude3"
+      ]
+    },
+    {
+      "name": "original_275_attachment_fillet11",
+      "mesh": "original_275_attachment_fillet11.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Attachment__Fillet11"
+      ]
+    },
+    {
+      "name": "original_276_intel_realsense_d455_none",
+      "mesh": "original_276_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_277_intel_realsense_d455_none",
+      "mesh": "original_277_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_278_intel_realsense_d455_none",
+      "mesh": "original_278_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_279_intel_realsense_d455_none",
+      "mesh": "original_279_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_280_intel_realsense_d455_none",
+      "mesh": "original_280_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_281_intel_realsense_d455_none",
+      "mesh": "original_281_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_282_intel_realsense_d455_none",
+      "mesh": "original_282_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_283_intel_realsense_d455_none",
+      "mesh": "original_283_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_284_intel_realsense_d455_none",
+      "mesh": "original_284_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_285_intel_realsense_d455_none",
+      "mesh": "original_285_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_286_intel_realsense_d455_none",
+      "mesh": "original_286_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_287_intel_realsense_d455_none",
+      "mesh": "original_287_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_288_intel_realsense_d455_none",
+      "mesh": "original_288_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_289_intel_realsense_d455_none",
+      "mesh": "original_289_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_290_intel_realsense_d455_none",
+      "mesh": "original_290_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_291_intel_realsense_d455_none",
+      "mesh": "original_291_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_292_intel_realsense_d455_none",
+      "mesh": "original_292_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_293_intel_realsense_d455_none",
+      "mesh": "original_293_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_294_intel_realsense_d455_none",
+      "mesh": "original_294_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_295_intel_realsense_d455_none",
+      "mesh": "original_295_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_296_intel_realsense_d455_none",
+      "mesh": "original_296_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_297_intel_realsense_d455_none",
+      "mesh": "original_297_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_298_intel_realsense_d455_none",
+      "mesh": "original_298_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_299_intel_realsense_d455_none",
+      "mesh": "original_299_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_300_intel_realsense_d455_none",
+      "mesh": "original_300_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_301_intel_realsense_d455_none",
+      "mesh": "original_301_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_302_intel_realsense_d455_none",
+      "mesh": "original_302_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_303_intel_realsense_d455_none",
+      "mesh": "original_303_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_304_intel_realsense_d455_none",
+      "mesh": "original_304_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_305_intel_realsense_d455_none",
+      "mesh": "original_305_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_306_intel_realsense_d455_none",
+      "mesh": "original_306_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_307_intel_realsense_d455_none",
+      "mesh": "original_307_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_308_intel_realsense_d455_none",
+      "mesh": "original_308_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_309_intel_realsense_d455_none",
+      "mesh": "original_309_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_310_intel_realsense_d455_none",
+      "mesh": "original_310_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_311_intel_realsense_d455_none",
+      "mesh": "original_311_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_312_intel_realsense_d455_none",
+      "mesh": "original_312_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_313_intel_realsense_d455_none",
+      "mesh": "original_313_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_314_intel_realsense_d455_none",
+      "mesh": "original_314_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_315_intel_realsense_d455_none",
+      "mesh": "original_315_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_316_intel_realsense_d455_none",
+      "mesh": "original_316_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_317_intel_realsense_d455_none",
+      "mesh": "original_317_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_318_intel_realsense_d455_none",
+      "mesh": "original_318_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_319_intel_realsense_d455_none",
+      "mesh": "original_319_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_320_intel_realsense_d455_none",
+      "mesh": "original_320_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_321_intel_realsense_d455_none",
+      "mesh": "original_321_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_322_intel_realsense_d455_none",
+      "mesh": "original_322_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_323_intel_realsense_d455_none",
+      "mesh": "original_323_intel_realsense_d455_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "baseLink <1>",
+        "Camera-Head <1>",
+        "Intel Realsense D455 <1>",
+        "Intel Realsense D455__NONE"
+      ]
+    },
+    {
+      "name": "original_324_mirrorarm34v2cover_arm34v2cover_fillet1_",
+      "mesh": "original_324_mirrorarm34v2cover_arm34v2cover_fillet1_.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "Mirrorarm34v2Cover__<arm34v2Cover>-<Fillet1>"
+      ]
+    },
+    {
+      "name": "original_325_mirrorarm34v2base_arm34v2base_cut_extrude5_",
+      "mesh": "original_325_mirrorarm34v2base_arm34v2base_cut_extrude5_.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "Mirrorarm34v2Base__<arm34v2Base>-<Cut-Extrude5>"
+      ]
+    },
+    {
+      "name": "original_326_mirrorak80_motor_none",
+      "mesh": "original_326_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_327_mirrorak80_motor_none",
+      "mesh": "original_327_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_328_mirrorak80_motor_none",
+      "mesh": "original_328_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_329_mirrorak80_motor_none",
+      "mesh": "original_329_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_330_mirrorak80_motor_none",
+      "mesh": "original_330_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_331_mirrorak80_motor_none",
+      "mesh": "original_331_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_332_mirrorak80_motor_none",
+      "mesh": "original_332_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_333_mirrorak80_motor_none",
+      "mesh": "original_333_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_334_mirrorak80_motor_none",
+      "mesh": "original_334_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_335_mirrorak80_motor_none",
+      "mesh": "original_335_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_336_mirrorak80_motor_none",
+      "mesh": "original_336_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_337_mirrorak80_motor_none",
+      "mesh": "original_337_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_338_mirrorak80_motor_none",
+      "mesh": "original_338_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_339_mirrorak80_motor_none",
+      "mesh": "original_339_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_340_mirrorak80_motor_none",
+      "mesh": "original_340_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_341_mirrorak80_motor_none",
+      "mesh": "original_341_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_342_mirrorak80_motor_none",
+      "mesh": "original_342_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_343_mirrorak80_motor_none",
+      "mesh": "original_343_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_344_mirrorak80_motor_none",
+      "mesh": "original_344_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_345_mirrorak80_motor_none",
+      "mesh": "original_345_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_346_mirrorak80_motor_none",
+      "mesh": "original_346_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_347_mirrorak80_motor_none",
+      "mesh": "original_347_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_348_mirrorak80_motor_none",
+      "mesh": "original_348_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_349_mirrorak80_motor_none",
+      "mesh": "original_349_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_350_mirrorak80_motor_none",
+      "mesh": "original_350_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_351_mirrorak80_motor_none",
+      "mesh": "original_351_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_352_mirrorak80_motor_none",
+      "mesh": "original_352_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_353_mirrorak80_motor_none",
+      "mesh": "original_353_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_354_mirrorak80_motor_none",
+      "mesh": "original_354_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_355_mirrorak80_motor_none",
+      "mesh": "original_355_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_356_mirrorak80_motor_none",
+      "mesh": "original_356_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_357_mirrorak80_motor_none",
+      "mesh": "original_357_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_358_mirrorak80_motor_none",
+      "mesh": "original_358_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_359_mirrorak80_motor_none",
+      "mesh": "original_359_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_360_mirrorak80_motor_none",
+      "mesh": "original_360_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_361_mirrorak80_motor_none",
+      "mesh": "original_361_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_362_mirrorak80_motor_none",
+      "mesh": "original_362_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_363_mirrorak80_motor_none",
+      "mesh": "original_363_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_364_mirrorak80_motor_none",
+      "mesh": "original_364_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_365_mirrorak80_motor_none",
+      "mesh": "original_365_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_366_mirrorak80_motor_none",
+      "mesh": "original_366_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_367_mirrorak80_motor_none",
+      "mesh": "original_367_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_368_mirrorak80_motor_none",
+      "mesh": "original_368_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_369_mirrorak80_motor_none",
+      "mesh": "original_369_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_370_mirrorak80_motor_none",
+      "mesh": "original_370_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_371_mirrorak80_motor_none",
+      "mesh": "original_371_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_372_mirrorak80_motor_none",
+      "mesh": "original_372_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_373_mirrorak80_motor_none",
+      "mesh": "original_373_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_374_mirrorak80_motor_none",
+      "mesh": "original_374_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_375_mirrorak80_motor_none",
+      "mesh": "original_375_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_376_mirrorak80_motor_none",
+      "mesh": "original_376_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_377_mirrorak80_motor_none",
+      "mesh": "original_377_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_378_mirrorak80_motor_none",
+      "mesh": "original_378_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_379_mirrorak80_motor_none",
+      "mesh": "original_379_mirrorak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "Mirrorlink3 <1>",
+        "MirrorAK80 motor <1>",
+        "MirrorAK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_380_arm34v2base_none",
+      "mesh": "original_380_arm34v2base_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "arm34v2Base <1>",
+        "arm34v2Base__NONE"
+      ]
+    },
+    {
+      "name": "original_381_arm34v2base_none",
+      "mesh": "original_381_arm34v2base_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "arm34v2Base <1>",
+        "arm34v2Base__NONE"
+      ]
+    },
+    {
+      "name": "original_382_arm34v2cover_fillet1",
+      "mesh": "original_382_arm34v2cover_fillet1.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "arm34v2Cover__Fillet1"
+      ]
+    },
+    {
+      "name": "original_383_ak80_motor_none",
+      "mesh": "original_383_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_384_ak80_motor_none",
+      "mesh": "original_384_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_385_ak80_motor_none",
+      "mesh": "original_385_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_386_ak80_motor_none",
+      "mesh": "original_386_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_387_ak80_motor_none",
+      "mesh": "original_387_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_388_ak80_motor_none",
+      "mesh": "original_388_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_389_ak80_motor_none",
+      "mesh": "original_389_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_390_ak80_motor_none",
+      "mesh": "original_390_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_391_ak80_motor_none",
+      "mesh": "original_391_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_392_ak80_motor_none",
+      "mesh": "original_392_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_393_ak80_motor_none",
+      "mesh": "original_393_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_394_ak80_motor_none",
+      "mesh": "original_394_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_395_ak80_motor_none",
+      "mesh": "original_395_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_396_ak80_motor_none",
+      "mesh": "original_396_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_397_ak80_motor_none",
+      "mesh": "original_397_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_398_ak80_motor_none",
+      "mesh": "original_398_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_399_ak80_motor_none",
+      "mesh": "original_399_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_400_ak80_motor_none",
+      "mesh": "original_400_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_401_ak80_motor_none",
+      "mesh": "original_401_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_402_ak80_motor_none",
+      "mesh": "original_402_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_403_ak80_motor_none",
+      "mesh": "original_403_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_404_ak80_motor_none",
+      "mesh": "original_404_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_405_ak80_motor_none",
+      "mesh": "original_405_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_406_ak80_motor_none",
+      "mesh": "original_406_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_407_ak80_motor_none",
+      "mesh": "original_407_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_408_ak80_motor_none",
+      "mesh": "original_408_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_409_ak80_motor_none",
+      "mesh": "original_409_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_410_ak80_motor_none",
+      "mesh": "original_410_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_411_ak80_motor_none",
+      "mesh": "original_411_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_412_ak80_motor_none",
+      "mesh": "original_412_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_413_ak80_motor_none",
+      "mesh": "original_413_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_414_ak80_motor_none",
+      "mesh": "original_414_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_415_ak80_motor_none",
+      "mesh": "original_415_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_416_ak80_motor_none",
+      "mesh": "original_416_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_417_ak80_motor_none",
+      "mesh": "original_417_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_418_ak80_motor_none",
+      "mesh": "original_418_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_419_ak80_motor_none",
+      "mesh": "original_419_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_420_ak80_motor_none",
+      "mesh": "original_420_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_421_ak80_motor_none",
+      "mesh": "original_421_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_422_ak80_motor_none",
+      "mesh": "original_422_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_423_ak80_motor_none",
+      "mesh": "original_423_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_424_ak80_motor_none",
+      "mesh": "original_424_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_425_ak80_motor_none",
+      "mesh": "original_425_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_426_ak80_motor_none",
+      "mesh": "original_426_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_427_ak80_motor_none",
+      "mesh": "original_427_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_428_ak80_motor_none",
+      "mesh": "original_428_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_429_ak80_motor_none",
+      "mesh": "original_429_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_430_ak80_motor_none",
+      "mesh": "original_430_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_431_ak80_motor_none",
+      "mesh": "original_431_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_432_ak80_motor_none",
+      "mesh": "original_432_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_433_ak80_motor_none",
+      "mesh": "original_433_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_434_ak80_motor_none",
+      "mesh": "original_434_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_435_ak80_motor_none",
+      "mesh": "original_435_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "original_436_ak80_motor_none",
+      "mesh": "original_436_ak80_motor_none.stl",
+      "role": "retained",
+      "source_hierarchy": [
+        "armV2",
+        "link3 <1>",
+        "AK80 motor <1>",
+        "AK80 motor__NONE"
+      ]
+    },
+    {
+      "name": "right_new_forearm_1",
+      "mesh": "right_new_forearm_1.stl",
+      "role": "new_forearm",
+      "source_hierarchy": []
+    },
+    {
+      "name": "right_new_cover_1",
+      "mesh": "right_new_cover_1.stl",
+      "role": "new_cover",
+      "source_hierarchy": []
+    },
+    {
+      "name": "right_new_wrist_01_hum_arm_gripper_linkage_bearingless_part_1_1_1_body1",
+      "mesh": "right_new_wrist_01_hum_arm_gripper_linkage_bearingless_part_1_1_1_body1.stl",
+      "role": "new_wrist",
+      "source_hierarchy": [
+        "2026-10-27-14-38-00-077",
+        "1027 Gripper:1 <1>",
+        "HUM-ARM-GRIPPER-LINKAGE-BEARINGLESS__Part 1[1]:1__Body1"
+      ]
+    },
+    {
+      "name": "right_new_wrist_02_hum_arm_gripper_linkage_bearingless_part_1_1_1_body1",
+      "mesh": "right_new_wrist_02_hum_arm_gripper_linkage_bearingless_part_1_1_1_body1.stl",
+      "role": "new_wrist",
+      "source_hierarchy": [
+        "2026-10-27-14-38-00-077",
+        "1027 Gripper:1 <1>",
+        "HUM-ARM-GRIPPER-LINKAGE-BEARINGLESS__Part 1[1]:1__Body1"
+      ]
+    },
+    {
+      "name": "right_new_wrist_03_grippermotorarm_swivel_rotor_1_step_1_1_step_none_1_bod",
+      "mesh": "right_new_wrist_03_grippermotorarm_swivel_rotor_1_step_1_1_step_none_1_bod.stl",
+      "role": "new_wrist",
+      "source_hierarchy": [
+        "2026-10-27-14-38-00-077",
+        "1027 Gripper:1 <1>",
+        "gripperMotorArm__swivel_rotor_1.step[1] (1).step__NONE:1__Body1"
+      ]
+    },
+    {
+      "name": "right_new_wrist_04_left_finger_1_body5",
+      "mesh": "right_new_wrist_04_left_finger_1_body5.stl",
+      "role": "new_wrist",
+      "source_hierarchy": [
+        "2026-10-27-14-38-00-077",
+        "Left Finger:1 <1>",
+        "Left Finger:1__Body5"
+      ]
+    },
+    {
+      "name": "right_new_wrist_05_left_finger_1_body2",
+      "mesh": "right_new_wrist_05_left_finger_1_body2.stl",
+      "role": "new_wrist",
+      "source_hierarchy": [
+        "2026-10-27-14-38-00-077",
+        "Left Finger:1 <1>",
+        "Left Finger:1__Body2"
+      ]
+    },
+    {
+      "name": "right_new_wrist_06_component25_1_body1",
+      "mesh": "right_new_wrist_06_component25_1_body1.stl",
+      "role": "new_wrist",
+      "source_hierarchy": [
+        "2026-10-27-14-38-00-077",
+        "Left Finger:1 <1>",
+        "Component25:1__Body1"
+      ]
+    },
+    {
+      "name": "right_new_wrist_07_0710_wrist_dual_support_6001_shouldered_none_1_body1",
+      "mesh": "right_new_wrist_07_0710_wrist_dual_support_6001_shouldered_none_1_body1.stl",
+      "role": "new_wrist",
+      "source_hierarchy": [
+        "2026-10-27-14-38-00-077",
+        "Gripper Base:1 <1>",
+        "0710-WRIST-DUAL-SUPPORT-6001-SHOULDERED__NONE:1__Body1"
+      ]
+    },
+    {
+      "name": "right_new_wrist_08_hum_arm_gripper_base_1_solid_body1_1_body1",
+      "mesh": "right_new_wrist_08_hum_arm_gripper_base_1_solid_body1_1_body1.stl",
+      "role": "new_wrist",
+      "source_hierarchy": [
+        "2026-10-27-14-38-00-077",
+        "Gripper Base:1 <1>",
+        "HUM-ARM-GRIPPER-BASE-1-solid body1:1__Body1"
+      ]
+    },
+    {
+      "name": "right_new_wrist_09_hum_gl40ii_k82_5_step_2_1_body1",
+      "mesh": "right_new_wrist_09_hum_gl40ii_k82_5_step_2_1_body1.stl",
+      "role": "new_wrist",
+      "source_hierarchy": [
+        "2026-10-27-14-38-00-077",
+        "Gripper Base:1 <1>",
+        "HUM-GL40II-K82.5.step <1>:1 <1>",
+        "HUM-GL40II-K82.5.step__????? (2):1__Body1"
+      ]
+    },
+    {
+      "name": "right_new_wrist_10_hum_gl40ii_k82_5_step_1_body1",
+      "mesh": "right_new_wrist_10_hum_gl40ii_k82_5_step_1_body1.stl",
+      "role": "new_wrist",
+      "source_hierarchy": [
+        "2026-10-27-14-38-00-077",
+        "Gripper Base:1 <1>",
+        "HUM-GL40II-K82.5.step <1>:1 <1>",
+        "HUM-GL40II-K82.5.step__?????:1__Body1"
+      ]
+    },
+    {
+      "name": "right_new_wrist_11_hum_gl40ii_k82_5_step_hum_gl40iikv82_5_1_solid_body1_1_",
+      "mesh": "right_new_wrist_11_hum_gl40ii_k82_5_step_hum_gl40iikv82_5_1_solid_body1_1_.stl",
+      "role": "new_wrist",
+      "source_hierarchy": [
+        "2026-10-27-14-38-00-077",
+        "Gripper Base:1 <1>",
+        "HUM-GL40II-K82.5.step <1>:1 <1>",
+        "HUM-GL40II-K82.5.step__HUM-GL40IIKV82.5-1-solid body1[1]:1__Body1"
+      ]
+    },
+    {
+      "name": "right_new_wrist_12_hum_gl40ii_k82_5_step_1_1_body1",
+      "mesh": "right_new_wrist_12_hum_gl40ii_k82_5_step_1_1_body1.stl",
+      "role": "new_wrist",
+      "source_hierarchy": [
+        "2026-10-27-14-38-00-077",
+        "Gripper Base:1 <1>",
+        "HUM-GL40II-K82.5.step <1>:1 <1>",
+        "HUM-GL40II-K82.5.step__????? (1):1__Body1"
+      ]
+    },
+    {
+      "name": "right_new_wrist_13_hum_gl40ii_k82_5_step_none_1_body1",
+      "mesh": "right_new_wrist_13_hum_gl40ii_k82_5_step_none_1_body1.stl",
+      "role": "new_wrist",
+      "source_hierarchy": [
+        "2026-10-27-14-38-00-077",
+        "Gripper Base:1 <1>",
+        "HUM-GL40II-K82.5.step <1>:1 <1>",
+        "HUM-GL40II-K82.5.step__NONE:1__Body1"
+      ]
+    },
+    {
+      "name": "right_new_wrist_14_mgn9_rail_1_body1",
+      "mesh": "right_new_wrist_14_mgn9_rail_1_body1.stl",
+      "role": "new_wrist",
+      "source_hierarchy": [
+        "2026-10-27-14-38-00-077",
+        "Gripper Base:1 <1>",
+        "MGN9 Rail:1__Body1"
+      ]
+    },
+    {
+      "name": "right_new_wrist_15_hum_arm_gripper_finger_carriage_umi_fit_rail_guide_moun",
+      "mesh": "right_new_wrist_15_hum_arm_gripper_finger_carriage_umi_fit_rail_guide_moun.stl",
+      "role": "new_wrist",
+      "source_hierarchy": [
+        "2026-10-27-14-38-00-077",
+        "Right Finger:1 <1>",
+        "HUM-ARM-GRIPPER-FINGER_CARRIAGE-UMI_FIT__Rail Guide Mount Pad Depth Correction:1__Body1"
+      ]
+    },
+    {
+      "name": "right_new_wrist_16_right_finger_1_body2",
+      "mesh": "right_new_wrist_16_right_finger_1_body2.stl",
+      "role": "new_wrist",
+      "source_hierarchy": [
+        "2026-10-27-14-38-00-077",
+        "Right Finger:1 <1>",
+        "Right Finger:1__Body2"
+      ]
+    },
+    {
+      "name": "right_new_wrist_17_component24_1_body1",
+      "mesh": "right_new_wrist_17_component24_1_body1.stl",
+      "role": "new_wrist",
+      "source_hierarchy": [
+        "2026-10-27-14-38-00-077",
+        "Right Finger:1 <1>",
+        "Component24:1__Body1"
+      ]
+    },
+    {
+      "name": "left_new_forearm_1",
+      "mesh": "left_new_forearm_1.stl",
+      "role": "new_forearm",
+      "source_hierarchy": []
+    },
+    {
+      "name": "left_new_cover_1",
+      "mesh": "left_new_cover_1.stl",
+      "role": "new_cover",
+      "source_hierarchy": []
+    },
+    {
+      "name": "left_new_wrist_01_hum_arm_gripper_linkage_bearingless_part_1_1_1_body1",
+      "mesh": "left_new_wrist_01_hum_arm_gripper_linkage_bearingless_part_1_1_1_body1.stl",
+      "role": "new_wrist",
+      "source_hierarchy": [
+        "2026-10-27-14-38-00-077",
+        "1027 Gripper:1 <1>",
+        "HUM-ARM-GRIPPER-LINKAGE-BEARINGLESS__Part 1[1]:1__Body1"
+      ]
+    },
+    {
+      "name": "left_new_wrist_02_hum_arm_gripper_linkage_bearingless_part_1_1_1_body1",
+      "mesh": "left_new_wrist_02_hum_arm_gripper_linkage_bearingless_part_1_1_1_body1.stl",
+      "role": "new_wrist",
+      "source_hierarchy": [
+        "2026-10-27-14-38-00-077",
+        "1027 Gripper:1 <1>",
+        "HUM-ARM-GRIPPER-LINKAGE-BEARINGLESS__Part 1[1]:1__Body1"
+      ]
+    },
+    {
+      "name": "left_new_wrist_03_grippermotorarm_swivel_rotor_1_step_1_1_step_none_1_bod",
+      "mesh": "left_new_wrist_03_grippermotorarm_swivel_rotor_1_step_1_1_step_none_1_bod.stl",
+      "role": "new_wrist",
+      "source_hierarchy": [
+        "2026-10-27-14-38-00-077",
+        "1027 Gripper:1 <1>",
+        "gripperMotorArm__swivel_rotor_1.step[1] (1).step__NONE:1__Body1"
+      ]
+    },
+    {
+      "name": "left_new_wrist_04_left_finger_1_body5",
+      "mesh": "left_new_wrist_04_left_finger_1_body5.stl",
+      "role": "new_wrist",
+      "source_hierarchy": [
+        "2026-10-27-14-38-00-077",
+        "Left Finger:1 <1>",
+        "Left Finger:1__Body5"
+      ]
+    },
+    {
+      "name": "left_new_wrist_05_left_finger_1_body2",
+      "mesh": "left_new_wrist_05_left_finger_1_body2.stl",
+      "role": "new_wrist",
+      "source_hierarchy": [
+        "2026-10-27-14-38-00-077",
+        "Left Finger:1 <1>",
+        "Left Finger:1__Body2"
+      ]
+    },
+    {
+      "name": "left_new_wrist_06_component25_1_body1",
+      "mesh": "left_new_wrist_06_component25_1_body1.stl",
+      "role": "new_wrist",
+      "source_hierarchy": [
+        "2026-10-27-14-38-00-077",
+        "Left Finger:1 <1>",
+        "Component25:1__Body1"
+      ]
+    },
+    {
+      "name": "left_new_wrist_07_0710_wrist_dual_support_6001_shouldered_none_1_body1",
+      "mesh": "left_new_wrist_07_0710_wrist_dual_support_6001_shouldered_none_1_body1.stl",
+      "role": "new_wrist",
+      "source_hierarchy": [
+        "2026-10-27-14-38-00-077",
+        "Gripper Base:1 <1>",
+        "0710-WRIST-DUAL-SUPPORT-6001-SHOULDERED__NONE:1__Body1"
+      ]
+    },
+    {
+      "name": "left_new_wrist_08_hum_arm_gripper_base_1_solid_body1_1_body1",
+      "mesh": "left_new_wrist_08_hum_arm_gripper_base_1_solid_body1_1_body1.stl",
+      "role": "new_wrist",
+      "source_hierarchy": [
+        "2026-10-27-14-38-00-077",
+        "Gripper Base:1 <1>",
+        "HUM-ARM-GRIPPER-BASE-1-solid body1:1__Body1"
+      ]
+    },
+    {
+      "name": "left_new_wrist_09_hum_gl40ii_k82_5_step_2_1_body1",
+      "mesh": "left_new_wrist_09_hum_gl40ii_k82_5_step_2_1_body1.stl",
+      "role": "new_wrist",
+      "source_hierarchy": [
+        "2026-10-27-14-38-00-077",
+        "Gripper Base:1 <1>",
+        "HUM-GL40II-K82.5.step <1>:1 <1>",
+        "HUM-GL40II-K82.5.step__????? (2):1__Body1"
+      ]
+    },
+    {
+      "name": "left_new_wrist_10_hum_gl40ii_k82_5_step_1_body1",
+      "mesh": "left_new_wrist_10_hum_gl40ii_k82_5_step_1_body1.stl",
+      "role": "new_wrist",
+      "source_hierarchy": [
+        "2026-10-27-14-38-00-077",
+        "Gripper Base:1 <1>",
+        "HUM-GL40II-K82.5.step <1>:1 <1>",
+        "HUM-GL40II-K82.5.step__?????:1__Body1"
+      ]
+    },
+    {
+      "name": "left_new_wrist_11_hum_gl40ii_k82_5_step_hum_gl40iikv82_5_1_solid_body1_1_",
+      "mesh": "left_new_wrist_11_hum_gl40ii_k82_5_step_hum_gl40iikv82_5_1_solid_body1_1_.stl",
+      "role": "new_wrist",
+      "source_hierarchy": [
+        "2026-10-27-14-38-00-077",
+        "Gripper Base:1 <1>",
+        "HUM-GL40II-K82.5.step <1>:1 <1>",
+        "HUM-GL40II-K82.5.step__HUM-GL40IIKV82.5-1-solid body1[1]:1__Body1"
+      ]
+    },
+    {
+      "name": "left_new_wrist_12_hum_gl40ii_k82_5_step_1_1_body1",
+      "mesh": "left_new_wrist_12_hum_gl40ii_k82_5_step_1_1_body1.stl",
+      "role": "new_wrist",
+      "source_hierarchy": [
+        "2026-10-27-14-38-00-077",
+        "Gripper Base:1 <1>",
+        "HUM-GL40II-K82.5.step <1>:1 <1>",
+        "HUM-GL40II-K82.5.step__????? (1):1__Body1"
+      ]
+    },
+    {
+      "name": "left_new_wrist_13_hum_gl40ii_k82_5_step_none_1_body1",
+      "mesh": "left_new_wrist_13_hum_gl40ii_k82_5_step_none_1_body1.stl",
+      "role": "new_wrist",
+      "source_hierarchy": [
+        "2026-10-27-14-38-00-077",
+        "Gripper Base:1 <1>",
+        "HUM-GL40II-K82.5.step <1>:1 <1>",
+        "HUM-GL40II-K82.5.step__NONE:1__Body1"
+      ]
+    },
+    {
+      "name": "left_new_wrist_14_mgn9_rail_1_body1",
+      "mesh": "left_new_wrist_14_mgn9_rail_1_body1.stl",
+      "role": "new_wrist",
+      "source_hierarchy": [
+        "2026-10-27-14-38-00-077",
+        "Gripper Base:1 <1>",
+        "MGN9 Rail:1__Body1"
+      ]
+    },
+    {
+      "name": "left_new_wrist_15_hum_arm_gripper_finger_carriage_umi_fit_rail_guide_moun",
+      "mesh": "left_new_wrist_15_hum_arm_gripper_finger_carriage_umi_fit_rail_guide_moun.stl",
+      "role": "new_wrist",
+      "source_hierarchy": [
+        "2026-10-27-14-38-00-077",
+        "Right Finger:1 <1>",
+        "HUM-ARM-GRIPPER-FINGER_CARRIAGE-UMI_FIT__Rail Guide Mount Pad Depth Correction:1__Body1"
+      ]
+    },
+    {
+      "name": "left_new_wrist_16_right_finger_1_body2",
+      "mesh": "left_new_wrist_16_right_finger_1_body2.stl",
+      "role": "new_wrist",
+      "source_hierarchy": [
+        "2026-10-27-14-38-00-077",
+        "Right Finger:1 <1>",
+        "Right Finger:1__Body2"
+      ]
+    },
+    {
+      "name": "left_new_wrist_17_component24_1_body1",
+      "mesh": "left_new_wrist_17_component24_1_body1.stl",
+      "role": "new_wrist",
+      "source_hierarchy": [
+        "2026-10-27-14-38-00-077",
+        "Right Finger:1 <1>",
+        "Component24:1__Body1"
+      ]
+    }
+  ]
+}

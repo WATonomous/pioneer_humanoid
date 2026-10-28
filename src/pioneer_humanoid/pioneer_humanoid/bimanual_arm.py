@@ -1,7 +1,7 @@
 """
 Canonical articulation config for the pioneer_bimanual_arm.
 
-Robot model: assets/pioneer_bimanual_arm (pioneer_bimanual_arm.usd),
+Robot model: assets/pioneer_bimanual_arm (current URDF; USD generated at spawn),
 formerly wato_arm_v2/armWithStand.usd. This replaces the old bimanual_arm_cfg.py,
 which used a reversed L/R convention, inverted gripper dicts, X-axis fingertip
 geometry (wrong for this asset), and a rest pose tuned for a superseded CAD
@@ -36,6 +36,7 @@ Actuator groups were tuned for holding a static pose -- recheck stiffness/dampin
 if an arm feels sluggish tracking a moving IK target.
 """
 import math
+import json
 from pathlib import Path
 
 import isaaclab.sim as sim_utils
@@ -62,7 +63,6 @@ from .urdf_joint_limits import JOINT_POS_LIMITS
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _ARM_ROOT = str(_REPO_ROOT / "assets" / "pioneer_bimanual_arm")
-_ARM_USD_PATH = str(Path(_ARM_ROOT) / "usd" / "pioneer_bimanual_arm.usd")
 
 
 # --- Joint limits -----------------------------------------------------------
@@ -83,23 +83,11 @@ LEFT_EE_BODY = "link6l"
 RIGHT_EE_BODY = "link6"
 LEFT_FINGER_TIP_BODIES = ("link7l", "link8l")
 RIGHT_FINGER_TIP_BODIES = ("link7", "link8")
-# Distal mesh point of each finger, in that link's OWN object-space frame: the outward-Y extreme
-# (larger-magnitude Y bbox bound) with X/Z at the bbox centre, measured via
-# UsdGeom.BBoxCache.ComputeRelativeBound against this asset's mesh. Same "outward extreme along
-# the travel axis" methodology bimanual_arm_cfg.py used, but along Y -- bimanual's joint7/8 axis
-# is X, so its numbers are wrong here (see module docstring).
-#
-# LINK-LOCAL, so they do not survive a re-export that moves the link origins; re-measure the same
-# way if the arm asset changes. Sanity check: composed with the joint7/8 origins these give a
-# 0.1625m open fingertip gap on both grippers, matching the empirically measured 0.161m below.
-LEFT_FINGER_DISTAL_TIP_LOCAL = {
-    "link7l": (0.0, 0.151416, -0.045369),
-    "link8l": (0.0, -0.114416, -0.039825),
-}
-RIGHT_FINGER_DISTAL_TIP_LOCAL = {
-    "link7": (0.0, -0.151416, -0.045369),
-    "link8": (0.0, 0.114416, -0.039825),
-}
+# Finger-tip coordinates regenerated from the replacement meshes, in each
+# slider link's own frame. The new rail travels along X, not the old Y axis.
+_MECHANISM = json.loads((Path(_ARM_ROOT)/'config'/'arm_v2_mechanism.json').read_text())
+LEFT_FINGER_DISTAL_TIP_LOCAL = {name: tuple(_MECHANISM['finger_tip_local'][name]) for name in LEFT_FINGER_TIP_BODIES}
+RIGHT_FINGER_DISTAL_TIP_LOCAL = {name: tuple(_MECHANISM['finger_tip_local'][name]) for name in RIGHT_FINGER_TIP_BODIES}
 
 
 def _joint_limit_key(name: str) -> str | None:
@@ -264,30 +252,54 @@ def patch_joint_pos_limits_on_prim(prim_path: str) -> None:
         print(f"[INFO] Patched USD joint limits for {len(updated)} joints under {prim_path}.")
 
 
-def _spawn_bimanual_arm_from_usd(prim_path, cfg, translation=None, orientation=None):
-    from isaaclab.sim.spawners.from_files.from_files import _spawn_from_usd_file
-
-    prim = _spawn_from_usd_file(prim_path, cfg.usd_path, cfg, translation, orientation)
+def _spawn_bimanual_arm_from_urdf(prim_path, cfg, translation=None, orientation=None):
+    from pxr import Gf, Usd, UsdPhysics
+    import omni.usd
+    prim = sim_utils.spawn_from_urdf(prim_path, cfg, translation, orientation)
+    stage = omni.usd.get_context().get_stage()
+    bodies = {p.GetName(): p for p in Usd.PrimRange(prim) if p.HasAPI(UsdPhysics.RigidBodyAPI)}
+    for pin in _MECHANISM['pin_connections']:
+        if pin['bar'] not in bodies or pin['jaw'] not in bodies:
+            raise RuntimeError(f"Arm V2 URDF importer omitted linkage bodies: {pin}")
+        joint = UsdPhysics.SphericalJoint.Define(stage, prim.GetPath().AppendChild(pin['bar']+'_slider_pin'))
+        joint.CreateBody0Rel().SetTargets([bodies[pin['bar']].GetPath()])
+        joint.CreateBody1Rel().SetTargets([bodies[pin['jaw']].GetPath()])
+        joint.CreateLocalPos0Attr(Gf.Vec3f(*pin['bar_anchor']))
+        joint.CreateLocalPos1Attr(Gf.Vec3f(0, 0, 0))
+        # Close the loop as a maximal-coordinate constraint, outside the tree articulation.
+        joint.CreateExcludeFromArticulationAttr(True)
     patch_joint_pos_limits_on_prim(prim_path)
     return prim
 
 
 from isaaclab.sim.utils import clone  # noqa: E402
 
-spawn_bimanual_arm_from_usd = clone(_spawn_bimanual_arm_from_usd)
+spawn_bimanual_arm_from_urdf = clone(_spawn_bimanual_arm_from_urdf)
 # functools.wraps (via clone()) copies the inner __name__ onto this wrapper. IsaacLab config
 # (de)serialization round-trips a callable as "module:__name__", so it would resolve back to
 # the unwrapped inner function, losing the {ENV_REGEX_NS} resolution and crashing scene
 # creation. Restore module-name == __name__ so the round-trip lands on this wrapper.
 # Metadata-only; direct callers are unaffected.
-spawn_bimanual_arm_from_usd.__name__ = "spawn_bimanual_arm_from_usd"
-spawn_bimanual_arm_from_usd.__qualname__ = "spawn_bimanual_arm_from_usd"
+spawn_bimanual_arm_from_urdf.__name__ = "spawn_bimanual_arm_from_urdf"
+spawn_bimanual_arm_from_urdf.__qualname__ = "spawn_bimanual_arm_from_urdf"
 
 
 BIMANUAL_ARM_CFG = ArticulationCfg(
-    spawn=sim_utils.UsdFileCfg(
-        func=spawn_bimanual_arm_from_usd,
-        usd_path=_ARM_USD_PATH,
+    spawn=sim_utils.UrdfFileCfg(
+        func=spawn_bimanual_arm_from_urdf,
+        asset_path=str(Path(_ARM_ROOT)/'urdf'/'pioneer_bimanual_arm.urdf'),
+        usd_dir=str(Path(_ARM_ROOT)/'usd'),
+        usd_file_name='pioneer_bimanual_arm.usd',
+        force_usd_conversion=True,
+        fix_base=True,
+        merge_fixed_joints=False,
+        make_instanceable=False,
+        link_density=1000.0,
+        collision_from_visuals=True,
+        self_collision=False,
+        joint_drive=sim_utils.UrdfConverterCfg.JointDriveCfg(
+            gains=sim_utils.UrdfConverterCfg.JointDriveCfg.PDGainsCfg(stiffness=0.0, damping=0.0),
+        ),
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,
             max_depenetration_velocity=5.0,

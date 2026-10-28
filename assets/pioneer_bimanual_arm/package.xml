@@ -1,8 +1,8 @@
 <package format="2">
   <name>armv2URDF</name>
-  <version>1.0.0</version>
+  <version>1.1.0</version>
   <description>
-    <p>URDF Description package for armv2URDF</p>
+    <p>Articulated Arm V2 with updated forearms and 2026-10-27 wrist grippers</p>
     <p>This package contains configuration data, 3D models and launch files
 for armv2URDF robot</p>
   </description>
