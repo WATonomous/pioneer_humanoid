@@ -122,10 +122,10 @@ class PolicyDrivenRealArm:
             out.append(f"nobody subscribes to {ACTION_TOPIC}: start joint_command (interfacing container)")
         return out
 
-    def publish(self, action: np.ndarray) -> None:
+    def publish(self, action: np.ndarray, unit: str = "rad") -> None:
         if self._pub is None:
             return
-        msg = vector_to_arm_pose(self._ArmPose, action, name="policy_driven_real_arm")
+        msg = vector_to_arm_pose(self._ArmPose, action, unit=unit, name="policy_driven_real_arm")
         msg.header.stamp = self.node.get_clock().now().to_msg()
         self._pub.publish(msg)
 
@@ -138,7 +138,7 @@ class PolicyDrivenRealArm:
               "command_timeout_sec (10 s) after the last ArmPose.", flush=True)
         try:
             while True:
-                self.publish(np.radians(self._q_deg))
+                self.publish(self._q_deg, unit="deg")
                 time.sleep(self.period)
         except KeyboardInterrupt:
             pass
