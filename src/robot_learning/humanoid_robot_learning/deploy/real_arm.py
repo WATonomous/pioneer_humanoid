@@ -170,7 +170,7 @@ def make_policy_fn(path: str, device: str, task: str | None) -> tuple[PolicyFn, 
     import torch
     from lerobot.utils.control_utils import predict_action
 
-    from humanoid_robot_learning.policies.checkpoint import load_policy
+    from humanoid_robot_learning.utils.checkpoint import load_policy
 
     policy, pre, post = load_policy(path, device)
     cameras = {k.removeprefix("observation.images."): tuple(ft.shape[1:]) for k, ft in policy.config.image_features.items()}
@@ -213,7 +213,7 @@ def main() -> None:
     args = parse_args()
     from joint_config import find_calibration
 
-    from humanoid_robot_learning.policies.checkpoint import training_task
+    from humanoid_robot_learning.utils.checkpoint import training_task
     from humanoid_robot_learning.recording.schema import load_yaml
 
     schema = load_yaml(Path(args.schema))
