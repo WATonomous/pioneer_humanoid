@@ -445,9 +445,18 @@ def run() -> None:
     pub = None
     homed = None
     published = False
+    joint_command = None
     try:
         if args.live:
+            
+            import subprocess
+
+            joint_command = subprocess.Popen([
+                "ros2", "launch", "joint_command", "joint_command.launch.py"
+            ])
+
             homed = home_real_joint()
+
         while rclpy.ok():
             rows, grip, real_grip = snapshot()
             failures = [] if pub else gate_failures(rows, grip, real_grip, active, grip_active, grip_range)
@@ -473,6 +482,7 @@ def run() -> None:
                 else:
                     pub = node.create_publisher(ArmPose, "/arm/joint_targets", 10)
                     published = True
+
             if pub is not None:
                 msg = arm_pose(ArmPose, [row["leader"] for row in rows], grip, grip_active)
                 msg.header.stamp = node.get_clock().now().to_msg()
@@ -503,3 +513,7 @@ def run() -> None:
         else:
             print("\n[INFO] Stopped publishing. joint_command holds the last pose for its "
                   "command_timeout_sec, then sets kp = 0 and the arm sinks: support it.", flush=True)
+        
+        if joint_command is not None:
+            joint_command.terminate()
+            joint_command.wait()
