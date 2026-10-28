@@ -69,14 +69,15 @@ SRC_FPS = 30  # source motion is resampled to this rate
 # uppercut's shape (uppercut_paths). This robot's elbow folds only to 90 deg and
 # its torso turns less than the ACCAD performer's, so the ACCAD hook and uppercut
 # (a swing from the hip to overhead) take the "hook" and "uppercut" shapes.
-# Not used: ACCAD E5 (a second rear hook) and E7 (rear uppercut), which looked
-# wrong on Wato.
+# Not used: ACCAD E5 (a second rear hook). E7 (rear uppercut) looked wrong on
+# Wato with the "chest" mapping; it takes the "uppercut" shape here.
 SOURCES = {
   "jab": ("Boxing", 9.30, 10.10, "Left", False, "world"),
   "cross": ("Boxing", 5.47, 6.07, "Left", True, "world"),
   "rear_hook": ("Boxing", 9.67, 10.20, "Right", False, "hook"),
   "lead_hook": ("ACCAD/E6_-__hook_right", 0.67, 1.87, "Right", True, "hook"),
   "lead_uppercut": ("ACCAD/E8_-_uppercut_right", 0.30, 1.73, "Right", True, "uppercut"),
+  "rear_uppercut": ("ACCAD/E7_-_uppercut_left", 0.43, 1.97, "Left", True, "uppercut"),
 }
 # move -> (cut s, recovery s): after `cut` (source time from the window start)
 # the source's own recovery is replaced by a smooth return to the guard over
@@ -94,7 +95,7 @@ MAX_SWING = 0.6  # rad, body turn beyond the hips and waist made up by the arm
 DROP_RANGE = (-0.02, 0.04)  # m, hip drop
 # per punch, in place of MAX_HEADING / DROP_RANGE: the uppercut is thrown with the legs and hips, as
 # Wato's (54 deg, 6 cm); its arm stays clear of the shoulder roll's limit
-BODY_LIMITS = {"lead_uppercut": {"heading": 0.6, "drop": (-0.02, 0.08)}}
+BODY_LIMITS = {u: {"heading": 0.6, "drop": (-0.02, 0.08)} for u in ("lead_uppercut", "rear_uppercut")}
 MAX_WEIGHT = 0.35  # fraction of the way from the neutral CoM to a sole
 # "hook" mapping: elbow angle, glove arc about the shoulder (deg from straight
 # ahead, outside -> across) per hand and glove height above the shoulder [m].

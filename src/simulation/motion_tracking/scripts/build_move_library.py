@@ -6,7 +6,7 @@
    punches are retargeted by retarget_mixamo_punches.py (the source's glove
    path, elbow, hip turn and timing, slowed only where a motor would pass
    --max-cap-use of its speed cap): jab, cross and rear hook from the Mixamo
-   boxing takes, lead hook and lead uppercut from the ACCAD martial-arts clips.
+   boxing takes, lead hook and both uppercuts from the ACCAD martial-arts clips.
    Every punch is whole body: the hips turn.
 2. Impact labels: for each punch, which glove, which way it drives (straight:
    forward, hook: across, uppercut: up) and the impact frame, mid-strike where
@@ -59,6 +59,7 @@ PUNCHES = {
   "rear_hook": ("right", "hook"),
   "lead_hook": ("left", "hook"),
   "lead_uppercut": ("left", "uppercut"),
+  "rear_uppercut": ("right", "uppercut"),
 }
 IMPACT_FRACTION = 0.5
 STRAIGHT_PULL = 0.5  # a straight's target is pulled this far towards the centreline...
@@ -66,9 +67,9 @@ STRAIGHT_PULL_MAX = 0.04  # ...at most this far [m]
 
 PUNCH_COMBO = (
   "guard", "jab", "cross", "step_forward", "lead_hook", "rear_hook", "step_back",
-  "lead_uppercut", "slip_left", "cross", "slip_right", "jab", "duck", "rear_hook",
+  "lead_uppercut", "slip_left", "cross", "slip_right", "jab", "duck", "rear_uppercut",
   "step_left", "jab", "step_right", "weave_left", "lead_hook", "weave_right", "cross",
-  "pivot_left", "jab", "cross", "pivot_right", "deep_duck", "lead_uppercut", "guard",
+  "pivot_left", "jab", "rear_uppercut", "pivot_right", "deep_duck", "lead_uppercut", "rear_hook", "guard",
 )  # fmt: skip
 FOOTWORK_COMBO = (
   "guard", "step_forward", "step_forward", "slip_left", "step_back", "step_back", "step_left",
