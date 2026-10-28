@@ -88,7 +88,18 @@ struct SeedReport {
 class JointCommandCore {
 public:
   bool loadFromYaml(const YAML::Node& config, const std::string& arm_side);
+  // safety_cfg is arm_actuators.yaml's `safety`: `global` fallbacks, then this arm's block
+  // (`safety.<arm_side>`). Call loadFromYaml first.
   bool loadSafetyFromYaml(const YAML::Node& safety_cfg, double control_rate_hz);
+
+  const std::string& armSide() const {
+    return arm_side_;
+  }
+
+  // gravity_model.hpp models the left arm only; elsewhere gravity_ff_scale must stay 0.
+  bool hasGravityModel() const {
+    return arm_side_ == "left";
+  }
 
   // Why loadSafetyFromYaml refused; empty on success.
   const std::string& lastError() const {
@@ -119,6 +130,8 @@ public:
   // arm_actuators.yaml `active` (default true). An inactive joint gets no command at all (no MIT
   // enter, no watchdog); to the gravity model its angle is unknown, as if unpowered.
   bool isActive(size_t joint) const;
+  // False: nothing on this arm is driven this run.
+  bool anyActive() const;
 
   // Exclude joints seeded outside their limits (calibration mismatch) until the next seed.
   void blockJoints(const std::vector<size_t>& indices);
@@ -201,3 +214,7 @@ private:
   double control_rate_hz_{50.0};
   std::string last_error_;
 };
+
+// Feedback and commands are matched by motor id alone, so every arm's motors need their own ids.
+// Returns the first clash ("motor 14 is left shoulder.pitch and right shoulder.pitch"), or nullopt.
+std::optional<std::string> findDuplicateMotorIds(const std::vector<const JointCommandCore*>& arms);

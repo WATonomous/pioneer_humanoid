@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Angle benchmark for the real arm: ramp out to a pose, dwell, ramp back, settle.
 
-Publishes ArmPose on /arm/joint_targets exactly like teleop, so joint_command's clamp, velocity
-limits and MIT watchdog all apply. Nothing here bypasses them.
+Publishes ArmPose on /arm/<side>/joint_targets (--arm-side) exactly like teleop, so
+joint_command's clamp, velocity limits and MIT watchdog all apply. Nothing here bypasses them.
 
 Run (joint_command container; joint_command_node and can_node running; nothing else
-publishing /arm/joint_targets)::
+publishing that topic)::
 
   python3 /opt/humanoid_scripts/arm_roundtrip.py --joints elbow.roll --offset "0,0,0,0,5,0"
   python3 /opt/humanoid_scripts/arm_roundtrip.py --pose "0,0,10,20,0,0" --max-delta 25
@@ -58,11 +58,12 @@ N = len(jc.ARM_POSE_JOINTS)
 class RoundTripNode(TelemetryRecorder):
     """The telemetry recorder, plus the ArmPose publisher and feedback timestamps."""
 
-    def __init__(self, joint_map, log, rate_hz):
-        super().__init__(joint_map, log, None, rate_hz)
+    def __init__(self, joint_map, log, rate_hz, arm_side):
+        super().__init__(joint_map, log, None, rate_hz, arm_side)
+        self.arm_side = arm_side
         self.fb_time: Dict[int, float] = {}
         self.temp_c: Dict[int, List[int]] = {}  # [first, peak] drive reading; 0 = no reading
-        self.pub = self.create_publisher(ArmPose, "/arm/joint_targets", 10)
+        self.pub = self.create_publisher(ArmPose, jc.arm_pose_topic(arm_side), 10)
 
     def _on_feedback(self, msg: MotorFeedback) -> None:
         super()._on_feedback(msg)
@@ -76,7 +77,7 @@ class RoundTripNode(TelemetryRecorder):
         msg = ArmPose()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.name = "arm_roundtrip"
-        msg.is_left = True
+        msg.is_left = self.arm_side == "left"  # joint_command ignores a pose for the other arm
         msg.shoulder.position = [float(v) for v in pose[0:3]]
         msg.elbow.position = [float(v) for v in pose[3:5]]
         msg.wrist.position = [float(v) for v in pose[5:6]]
@@ -201,7 +202,7 @@ def main(argv=None) -> int:
         slot_motor.append(mid)
     infos = [joint_map[m] for m in slot_motor]
 
-    blocks = [jc.joint_safety(safety_path, name) for name in jc.ARM_POSE_NAMES]
+    blocks = [jc.joint_safety(safety_path, args.arm_side, name) for name in jc.ARM_POSE_NAMES]
     vel = []
     for name, blk in zip(jc.ARM_POSE_NAMES, blocks):
         vmax = float(blk.get("velocity_max") or 0.0)
@@ -227,7 +228,7 @@ def main(argv=None) -> int:
         f"{n.replace('.', '')[:6]}{v:+g}".replace("+", "p").replace("-", "m")
         for n, v in zip(jc.ARM_POSE_NAMES, rel or absolute) if n in moving and v)
 
-    velocity_max, mit_limits = jc.load_actuator_limits(str(safety_path))
+    velocity_max, mit_limits = jc.load_actuator_limits(str(safety_path), args.arm_side)
     log = RunFolder(
         label=label or "rt", source="ros", enabled=not args.no_log,
         meta={
@@ -245,7 +246,7 @@ def main(argv=None) -> int:
                 "mit": mit_limits,
                 "max_torque_nm": min((v["max_torque_nm"] for v in mit_limits.values()
                                       if v.get("max_torque_nm") is not None), default=None),
-                "max_torque_nm_by_joint": jc.max_torque_by_joint(str(safety_path)),
+                "max_torque_nm_by_joint": jc.max_torque_by_joint(str(safety_path), args.arm_side),
                 "max_track_err_deg": args.max_track_err,
             },
         },
@@ -262,7 +263,7 @@ def main(argv=None) -> int:
             print("\n[stop] stopping the stream now", flush=True)
 
     rclpy.init()
-    node = RoundTripNode(joint_map, log, args.rate)
+    node = RoundTripNode(joint_map, log, args.rate, args.arm_side)
     period = 1.0 / args.rate
     outcome, reason = "completed", None
     try:
@@ -270,17 +271,19 @@ def main(argv=None) -> int:
         t_end = time.monotonic() + 2.0
         while time.monotonic() < t_end and not all(m in node.feedback for m in slot_motor):
             rclpy.spin_once(node, timeout_sec=0.05)
-        others = [i for i in node.get_publishers_info_by_topic("/arm/joint_targets")
+        topic = jc.arm_pose_topic(args.arm_side)
+        others = [i for i in node.get_publishers_info_by_topic(topic)
                   if i.node_name != node.get_name()]
         if others:
-            raise SystemExit("something else is publishing /arm/joint_targets ("
+            raise SystemExit(f"something else is publishing {topic} ("
                              + ", ".join(sorted({i.node_name for i in others}))
                              + "); stop it (teleop, ros2 topic pub) first")
-        consumers = [i for i in node.get_subscriptions_info_by_topic("/arm/joint_targets")
+        consumers = [i for i in node.get_subscriptions_info_by_topic(topic)
                      if i.node_name != node.get_name()]
         if not consumers:
-            raise SystemExit("nobody subscribes to /arm/joint_targets -- start joint_command: "
-                             "ros2 launch joint_command joint_command.launch.py")
+            raise SystemExit(f"nobody subscribes to {topic} -- start joint_command "
+                             "(ros2 launch joint_command joint_command.launch.py) with this arm "
+                             "in `arms` and at least one of its joints active")
         silent = {i for i, m in enumerate(slot_motor) if m not in node.feedback}
         silent_moving = [f"{infos[i]['name']} (motor {slot_motor[i]})" for i in sorted(silent)
                          if infos[i]["name"] in moving]

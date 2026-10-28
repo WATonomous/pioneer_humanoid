@@ -1,7 +1,7 @@
 """Real-arm backend of pioneer_leader_arm_teleop.py: leader vs real left arm, side by side.
 
 Dry run by default: subscribes to /interfacing/motorFeedback and never creates a publisher, so it
-cannot move the arm. --live publishes the leader as ArmPose on /arm/joint_targets (50 Hz) through
+cannot move the arm. --live publishes the leader as ArmPose on /arm/left/joint_targets (50 Hz) through
 joint_command, but only after the gate passes (every active joint: real arm inside its calibrated
 limits, leader within 3 deg of home and within 10 deg of the real arm; gripper inside its calibrated
 limits and within 0.1) and you press Enter. Before the gate, --live
@@ -42,8 +42,8 @@ _SRC = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_SRC / "interfacing" / "can" / "scripts"))
 sys.path.insert(0, str(_SRC / "pioneer_humanoid"))
 
-from joint_config import (find_actuators, find_calibration, gripper_position, joint_safety,  # noqa: E402
-                          load_joint_map, load_joint_safety, motor_to_cmd_deg)
+from joint_config import (arm_pose_topic, find_actuators, find_calibration, gripper_position,  # noqa: E402
+                          joint_safety, load_joint_map, load_joint_safety, motor_to_cmd_deg)
 
 from arm_limits import gripper_fraction, limited_target  # noqa: E402
 from leader_mapping import add_leader_args, check_leader_args  # noqa: E402
@@ -226,7 +226,8 @@ def self_test() -> None:
     assert gate_failures(compare([joint], (0.0,), [1.0], {1: 1.0}, [0.0]), 0.0, 0.05, active, True) == []
     assert gate_failures(compare([joint], (0.0,), [1.0], {}, [0.0]), 0.0, 0.0, active, True) == [
         "shoulder.pitch: no feedback"]
-    assert len(gate_failures(compare([joint], (math.radians(15.0),), [1.0], {1: 0.0}, [0.0]),
+    off = math.radians(max(HOME_TOL_DEG, AGREE_TOL_DEG) + 1.0)
+    assert len(gate_failures(compare([joint], (off,), [1.0], {1: 0.0}, [0.0]),
                              0.0, None, active, True)) == 3  # off real, off home, gripper silent
     assert gate_failures(compare([joint], (math.radians(10.0),), [1.0], {}, [0.0]), 0.5, None, set(), False) == []
 
@@ -257,7 +258,7 @@ def self_test() -> None:
     mapping = find_calibration(None)
     joints = build_joints(mapping, LEFT_ARM_JOINTS, JOINT_POS_LIMITS)
     assert [j["urdf_joint"] for j in joints] == LEFT_ARM_JOINTS
-    assert [j["name"] for j in joints] == ["shoulder.pitch", "shoulder.roll", "shoulder.yaw",
+    assert [j["name"] for j in joints] == ["shoulder.pitch", "shoulder.yaw", "shoulder.roll",
                                            "elbow.pitch", "elbow.roll", "wrist.pitch"], joints
     for j in joints:
         if j["limit_range"]:
@@ -290,7 +291,7 @@ def run() -> None:
     parser.add_argument("--arm-calibration", "--mapping", dest="mapping", default=None,
                         help="the real arm's arm_calibration.yaml (default: auto, as joint_command)")
     parser.add_argument("--live", action="store_true",
-                        help="publish /arm/joint_targets once the gate passes and you press Enter")
+                        help="publish /arm/left/joint_targets once the gate passes and you press Enter")
     parser.add_argument("--home-rate", type=float, default=HOME_RATE_DEG_S,
                         help=f"--live: deg/s of the optional ramp of the real {HOME_JOINT} to home")
     parser.add_argument("--self-test", action="store_true", help="check the angle math and exit (no ROS, no leader)")
@@ -317,11 +318,11 @@ def run() -> None:
     # arm_actuators.yaml `active`: joint_command leaves inactive joints alone, so the gate skips them.
     # It drives the gripper only if the gripper has a block there.
     actuators = find_actuators(None)
-    _, blocks = load_joint_safety(actuators)
-    active = {j["name"] for j in joints if joint_safety(actuators, j["name"]).get("active") is not False}
+    _, blocks = load_joint_safety(actuators, "left")
+    active = {j["name"] for j in joints if joint_safety(actuators, "left", j["name"]).get("active") is not False}
     grip_active = (grip_info is not None and grip_info["name"] in blocks and
                    blocks[grip_info["name"]].get("active") is not False)
-    home_vmax = float(joint_safety(actuators, HOME_JOINT).get("velocity_max") or 0.0)
+    home_vmax = float(joint_safety(actuators, "left", HOME_JOINT).get("velocity_max") or 0.0)
     if not 0.0 < args.home_rate <= home_vmax:
         parser.error(f"--home-rate must be in (0, {home_vmax:g}], {HOME_JOINT}'s velocity_max")
 
@@ -414,7 +415,7 @@ def run() -> None:
         # Inactive joints are ignored by joint_command; any finite angle will do for their slots.
         q = [real.get(j["motor_id"], math.degrees(home[i])) for i, j in enumerate(joints)]
         start = q[slot]
-        publisher = node.create_publisher(ArmPose, "/arm/joint_targets", 10)
+        publisher = node.create_publisher(ArmPose, arm_pose_topic("left"), 10)
         published = True
         t0 = time.monotonic()
         settle_by = None
@@ -471,7 +472,7 @@ def run() -> None:
                     pub, hold = homed
                     hold.cancel()
                 else:
-                    pub = node.create_publisher(ArmPose, "/arm/joint_targets", 10)
+                    pub = node.create_publisher(ArmPose, arm_pose_topic("left"), 10)
                     published = True
             if pub is not None:
                 msg = arm_pose(ArmPose, [row["leader"] for row in rows], grip, grip_active)
@@ -482,7 +483,7 @@ def run() -> None:
                 next_print = now + PRINT_PERIOD_S
                 lines = format_rows(rows, grip, real_grip, grip_range)
                 if pub is not None:
-                    lines.append("LIVE: publishing /arm/joint_targets.  Ctrl-C to stop.")
+                    lines.append("LIVE: publishing /arm/left/joint_targets.  Ctrl-C to stop.")
                 elif homed is not None:
                     lines.append("waiting for the gate: " + ("; ".join(failures) or "ok"))
                     lines.append(f"HOLDING the real {HOME_JOINT} at home.  Ctrl-C to stop (the arm then sinks).")
