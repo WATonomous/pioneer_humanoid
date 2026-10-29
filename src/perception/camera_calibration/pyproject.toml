@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "humanoid-camera-calibration"
+version = "0.1.0"
+description = "Wrist camera calibration tool and the rectify() used by the wrist_camera ROS node"
+requires-python = ">=3.10"
+# opencv comes from pip on a laptop (opencv-python) or apt in the ROS containers (python3-opencv),
+# so it isn't pinned here. pioneer_humanoid (pip install -e src/pioneer_humanoid) holds the YAMLs.
+dependencies = ["numpy"]
+
+[tool.setuptools]
+py-modules = ["wrist_cam", "calibrate_intrinsics"]
