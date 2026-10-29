@@ -297,7 +297,7 @@ def fig_scorecard(d, p, out, bank):
         (f"{hit.mean():.1%}", "serves hit", f"{hit.sum()} of {n}"),
         (f"{right.mean():.0%} / {1 - right.mean():.0%}", "right / left arm picked",
          f"locked within {t_med:.2f} s median"),
-        (f"{clear.sum() / hit.sum():.0%}", "returns clear the net", "by 0.5 m, landing on the far court"),
+        (f"{clear.sum() / hit.sum():.0%}", "returns clear the net", "above the net top, landing on the far court"),
         (f"{med:.2f} m", "median landing error", "cleared returns, to the serve origin"),
     ]
     y_big = 1 - (M_PANEL_TOP - 0.3) / h
