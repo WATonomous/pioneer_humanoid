@@ -26,7 +26,9 @@ _DEFAULT_SCHEMA = _PKG_ROOT / "config" / "pioneer_humanoid_dataset_schema.yaml"
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Record demonstrations to LeRobot and/or HDF5 (WATO humanoid arm, ROS 2)."
+        description="Record demonstrations to LeRobot and/or HDF5 (WATO humanoid arm, ROS 2). "
+        "Keys: S start a take, N stop and save it, D delete the last saved take, ESC quit. "
+        "Each take is its own dataset folder; combine them with humanoid-merge-takes."
     )
     parser.add_argument(
         "--schema",
@@ -44,7 +46,8 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--dataset_root",
         type=str,
         default=None,
-        help="Output directory (default: <repo>/<schema record.root>/real)",
+        help="Output directory; each run adds a session folder NNN/ of take_NNN/ datasets "
+        "(default: <repo>/<schema record.root>/real)",
     )
     parser.add_argument(
         "--sink",
@@ -52,25 +55,26 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default="lerobot",
         help="Output sinks: lerobot, hdf5, or comma-separated (e.g. lerobot,hdf5)",
     )
-    parser.add_argument("--num_episodes", type=int, default=10)
+    parser.add_argument("--num_episodes", type=int, default=10,
+                        help="Takes to save this session (deleted takes don't count)")
     parser.add_argument("--task_description", type=str, default="humanoid demonstration")
     parser.add_argument(
         "--episode_time_s",
         type=float,
         default=None,
-        help="Auto-finish each episode after N seconds (keyboard optional)",
+        help="Auto-stop and save each take after N seconds (as if N were pressed)",
     )
     parser.add_argument(
         "--reset_time_s",
         type=float,
         default=5.0,
-        help="Pause between saved episodes",
+        help="Pause between takes, --auto_start only",
     )
     parser.add_argument(
         "--auto_start",
         action=argparse.BooleanOptionalAction,
-        default=True,
-        help="Log frames immediately when an episode begins",
+        default=False,
+        help="Start each take without pressing S (on automatically when no keyboard is available)",
     )
     parser.add_argument(
         "--dry_run",
@@ -196,7 +200,7 @@ def main(argv: list[str] | None = None) -> int:
         sink_names=sink_names,
         dry_run=args.dry_run,
     )
-    print(f"Dataset saved under: {output_dir}")
+    print(f"Takes saved under: {output_dir} (combine them with humanoid-merge-takes)")
     return 0
 
 
