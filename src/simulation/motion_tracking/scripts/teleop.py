@@ -8,14 +8,15 @@ back; with nothing queued the robot holds the guard.
   j / l   step left / right         r / t   bob-and-weave left / right
   u / o   pivot left / right        space   duck
   c       deep duck                 x   clear the queue      ?   help
-  1 jab   2 cross   3 lead hook   4 rear hook   5 lead uppercut
+  1 jab   2 cross   3 lead hook   4 rear hook   5 lead uppercut   6 rear uppercut
 
 None of these are viser camera keys (W A S D Q E and the arrows).
 
 Each punch puts a 2 kg target ball where it lands (mid-punch); the ball only
 moves along the punch's line (straight: forward, hook: across, uppercut: up)
 and the momentum it got is printed after the punch. --checkpoint-file needs a
-policy trained on the punches (e.g. on data/motions/punch_training.npz).
+policy trained on the punches (default: the all-moves tracker, trained on
+data/motions/all_moves.npz).
 
 Two modes:
   reference  replays the clips exactly, no physics policy: checks the clips
@@ -25,7 +26,7 @@ Two modes:
   uv run scripts/build_move_library.py           # once, writes data/moves/
   uv run scripts/teleop.py --mode reference --viewer viser
   uv run scripts/teleop.py --mode policy --viewer viser \
-      --checkpoint-file logs/rsl_rl/wato_tracking/<run>/model_<n>.pt
+      --checkpoint-file logs/rsl_rl/pioneer_tracking/<run>/model_<n>.pt
 """
 
 import os
@@ -55,8 +56,8 @@ from humanoid_boxing.fighters import add_hitboxes  # noqa: E402
 from humanoid_tracking.target_ball import GLOVE_HIT, free_ball_spec  # noqa: E402
 from humanoid_tracking.teleop import TeleopMotionCommandCfg  # noqa: E402
 
-TASK = "Mjlab-Tracking-Flat-Wato"
-BEST = "logs/rsl_rl/wato_tracking/2026-10-08_07-05-43_exp6_angvel_std1.5/model_12995.pt"
+TASK = "Mjlab-Tracking-Flat-Pioneer"
+BEST = "logs/rsl_rl/pioneer_tracking/2026-10-29_21-49-59_all_moves_v1_resume2/model_10500.pt"
 
 # key -> (move, button label); kept off viser's camera keys (W A S D Q E, arrows)
 KEYMAP = {
@@ -77,6 +78,7 @@ KEYMAP = {
   "3": ("lead_hook", "3  lead hook"),
   "4": ("rear_hook", "4  rear hook"),
   "5": ("lead_uppercut", "5  lead uppercut"),
+  "6": ("rear_uppercut", "6  rear uppercut"),
 }
 
 
@@ -201,7 +203,7 @@ def main(
       everything else when there is no footwork policy).
     footwork_checkpoint_file: optional separate policy for the footwork and
       defence moves (FOOTWORK_MOVES), e.g. one trained on
-      Mjlab-Tracking-Flat-Wato-Footwork.
+      a footwork tracking task (not ported to Pioneer yet).
     library_dir: output of scripts/build_move_library.py.
     viewer: native needs a display; viser serves http://localhost:8080.
     device: torch / MuJoCo Warp device (default cuda:0 if available).
