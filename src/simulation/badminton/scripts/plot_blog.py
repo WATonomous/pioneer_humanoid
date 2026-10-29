@@ -474,7 +474,7 @@ def fig_returns(d, p, out, bank):
                 f"{hit.sum()} hits: {clear.sum() / hit.sum():.1%} over the net by 0.5 m or more, "
                 f"{low.sum() / hit.sum():.1%} by less, {into.sum() / hit.sum():.1%} into the net, "
                 f"{short.sum() / hit.sum():.1%} short of it; {cl_n} cleared returns mapped",
-                "Return flight predicted from the shuttle state at contact through the drag model",
+                "Return flight predicted through the drag model from the shuttle state on the tick it leaves the face",
                 bank, legend=True)
     gs = fig.add_gridspec(1, 2, width_ratios=[1.3, 1], wspace=0.22)
     a = fig.add_subplot(gs[0]); b = fig.add_subplot(gs[1])
