@@ -10,6 +10,12 @@ requires-python = ">=3.10"
 # isaaclab / isaacsim are provided by the Isaac Sim environment, not pip-installable here.
 dependencies = []
 
+[project.optional-dependencies]
+mujoco = ["mujoco>=3.3", "numpy>=1.25"]
+
+[project.scripts]
+pioneer-arm-keyboard = "pioneer_humanoid.arm_v2_keyboard:main"
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["pioneer_humanoid*"]

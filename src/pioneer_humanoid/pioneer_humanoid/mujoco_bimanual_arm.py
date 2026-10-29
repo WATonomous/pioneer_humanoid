@@ -42,6 +42,14 @@ def arm_spec(cameras: dict[str, tuple[int, int]] | None = None) -> mujoco.MjSpec
         f'<mujoco><compiler meshdir="{_MESH_DIR}" discardvisual="false" fusestatic="false"/></mujoco></robot>',
     )
     spec = mujoco.MjSpec.from_string(urdf)
+    from .arm_v2_backend import mechanism
+    mechanism().add_pin_constraints(spec)
+    # CAD surfaces carry no calibrated inertias. Positive shell estimates make
+    # the replacement movable; hardware torque/hold tuning requires revalidation.
+    for mesh in spec.meshes:
+        mesh.inertia = mujoco.mjtMeshInertia.mjMESH_INERTIA_SHELL
+    for geom in spec.geoms:
+        geom.density = 1000.0
 
     for joint in spec.joints:
         if joint.name in JOINT_POS_LIMITS:
@@ -87,17 +95,20 @@ def _box_fingers(spec: mujoco.MjSpec) -> None:
     """
     model = spec.compile()
     for body in FINGER_BODIES:
-        geom_id = next(
-            i for i in range(model.ngeom)
-            if model.geom_bodyid[i] == model.body(body).id and model.geom_contype[i]
-        )
-        mesh = model.geom_dataid[geom_id]
-        verts = model.mesh_vert[model.mesh_vertadr[mesh]:model.mesh_vertadr[mesh] + model.mesh_vertnum[mesh]]
-        rot = np.zeros(9)
-        mujoco.mju_quat2Mat(rot, model.geom_quat[geom_id])
-        verts = verts @ rot.reshape(3, 3).T + model.geom_pos[geom_id]  # mesh frame -> link frame
+        vertices = []
+        for geom_id in range(model.ngeom):
+            if model.geom_bodyid[geom_id] != model.body(body).id or model.geom_dataid[geom_id] < 0:
+                continue
+            mesh = model.geom_dataid[geom_id]
+            verts = model.mesh_vert[model.mesh_vertadr[mesh]:model.mesh_vertadr[mesh] + model.mesh_vertnum[mesh]]
+            rot = np.zeros(9)
+            mujoco.mju_quat2Mat(rot, model.geom_quat[geom_id])
+            vertices.append(verts @ rot.reshape(3, 3).T + model.geom_pos[geom_id])
+        verts = np.concatenate(vertices)
         lo, hi = verts.min(axis=0), verts.max(axis=0)
-        spec.delete(next(g for g in spec.body(body).geoms if g.contype))
+        for geom in list(spec.body(body).geoms):
+            if geom.contype:
+                spec.delete(geom)
         spec.body(body).add_geom(
             type=mujoco.mjtGeom.mjGEOM_BOX,
             size=(hi - lo) / 2,
@@ -114,3 +125,5 @@ def set_home(model: mujoco.MjModel, data: mujoco.MjData, prefix: str = "") -> No
     for name, value in DEFAULT_JOINT_POS.items():
         data.qpos[model.joint(prefix + name).qposadr[0]] = value
         data.ctrl[model.actuator(prefix + name).id] = value
+    from .arm_v2_backend import initialize_gripper_linkages
+    initialize_gripper_linkages(model, data, prefix)

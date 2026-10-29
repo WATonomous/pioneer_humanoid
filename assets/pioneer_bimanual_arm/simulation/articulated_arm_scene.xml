@@ -1,0 +1,1037 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mujoco model="Articulated Arm V2 - keyboard joint control">
+  <compiler angle="radian" meshdir="../meshes" />
+  <option gravity="0 0 0" />
+  <visual>
+    <global offwidth="1600" offheight="1200" />
+  </visual>
+  <asset>
+    <mesh name="original_241_shoulderbearingholder_cut_extrude5" content_type="model/stl" file="original_241_shoulderbearingholder_cut_extrude5.stl" inertia="shell" />
+    <mesh name="original_242_arm12bearing_csk_for_m4_countersunk_flat_head_screw2" content_type="model/stl" file="original_242_arm12bearing_csk_for_m4_countersunk_flat_head_screw2.stl" inertia="shell" />
+    <mesh name="original_243_shoulderbearingholder_cut_extrude5" content_type="model/stl" file="original_243_shoulderbearingholder_cut_extrude5.stl" inertia="shell" />
+    <mesh name="original_244_shoulderbearingholder_cut_extrude5" content_type="model/stl" file="original_244_shoulderbearingholder_cut_extrude5.stl" inertia="shell" />
+    <mesh name="original_245_arm12bearing_csk_for_m4_countersunk_flat_head_screw2" content_type="model/stl" file="original_245_arm12bearing_csk_for_m4_countersunk_flat_head_screw2.stl" inertia="shell" />
+    <mesh name="original_246_ak10body_0_none" content_type="model/stl" file="original_246_ak10body_0_none.stl" inertia="shell" />
+    <mesh name="original_247_ak10back_none" content_type="model/stl" file="original_247_ak10back_none.stl" inertia="shell" />
+    <mesh name="original_248_ak10body_0_none" content_type="model/stl" file="original_248_ak10body_0_none.stl" inertia="shell" />
+    <mesh name="original_249_ak10back_none" content_type="model/stl" file="original_249_ak10back_none.stl" inertia="shell" />
+    <mesh name="original_250_4040bracket_4040bracket_1_" content_type="model/stl" file="original_250_4040bracket_4040bracket_1_.stl" inertia="shell" />
+    <mesh name="original_251_squaremount_squaremount_1_" content_type="model/stl" file="original_251_squaremount_squaremount_1_.stl" inertia="shell" />
+    <mesh name="original_252_ext2_ext2_1_" content_type="model/stl" file="original_252_ext2_ext2_1_.stl" inertia="shell" />
+    <mesh name="original_253_4040bracket_4040bracket_1_" content_type="model/stl" file="original_253_4040bracket_4040bracket_1_.stl" inertia="shell" />
+    <mesh name="original_254_frame1_frame1_1_" content_type="model/stl" file="original_254_frame1_frame1_1_.stl" inertia="shell" />
+    <mesh name="original_255_squaremount_squaremount_1_" content_type="model/stl" file="original_255_squaremount_squaremount_1_.stl" inertia="shell" />
+    <mesh name="original_256_frame1_frame1_1_" content_type="model/stl" file="original_256_frame1_frame1_1_.stl" inertia="shell" />
+    <mesh name="original_257_extlong_boss_extrude1" content_type="model/stl" file="original_257_extlong_boss_extrude1.stl" inertia="shell" />
+    <mesh name="original_258_3dpbracket_3dpbracket_1_" content_type="model/stl" file="original_258_3dpbracket_3dpbracket_1_.stl" inertia="shell" />
+    <mesh name="original_259_ext1_ext1_1_" content_type="model/stl" file="original_259_ext1_ext1_1_.stl" inertia="shell" />
+    <mesh name="original_260_ext1_ext1_1_" content_type="model/stl" file="original_260_ext1_ext1_1_.stl" inertia="shell" />
+    <mesh name="original_261_3dpbracket_3dpbracket_1_" content_type="model/stl" file="original_261_3dpbracket_3dpbracket_1_.stl" inertia="shell" />
+    <mesh name="original_262_extlong_boss_extrude1" content_type="model/stl" file="original_262_extlong_boss_extrude1.stl" inertia="shell" />
+    <mesh name="original_263_4040flatbracket_4040flatbracket_1_" content_type="model/stl" file="original_263_4040flatbracket_4040flatbracket_1_.stl" inertia="shell" />
+    <mesh name="original_264_frame1_frame1_1_" content_type="model/stl" file="original_264_frame1_frame1_1_.stl" inertia="shell" />
+    <mesh name="original_265_ext3_ext3_1_" content_type="model/stl" file="original_265_ext3_ext3_1_.stl" inertia="shell" />
+    <mesh name="original_266_3dpbracket_3dpbracket_1_" content_type="model/stl" file="original_266_3dpbracket_3dpbracket_1_.stl" inertia="shell" />
+    <mesh name="original_267_frame1_frame1_1_" content_type="model/stl" file="original_267_frame1_frame1_1_.stl" inertia="shell" />
+    <mesh name="original_268_ext5_ext5_1_" content_type="model/stl" file="original_268_ext5_ext5_1_.stl" inertia="shell" />
+    <mesh name="original_269_4040bracket_4040bracket_1_" content_type="model/stl" file="original_269_4040bracket_4040bracket_1_.stl" inertia="shell" />
+    <mesh name="original_270_4040bracket_4040bracket_1_" content_type="model/stl" file="original_270_4040bracket_4040bracket_1_.stl" inertia="shell" />
+    <mesh name="original_271_ext3_ext3_1_" content_type="model/stl" file="original_271_ext3_ext3_1_.stl" inertia="shell" />
+    <mesh name="original_272_3dpbracket_3dpbracket_1_" content_type="model/stl" file="original_272_3dpbracket_3dpbracket_1_.stl" inertia="shell" />
+    <mesh name="original_273_shoulderbearingholder_cut_extrude5" content_type="model/stl" file="original_273_shoulderbearingholder_cut_extrude5.stl" inertia="shell" />
+    <mesh name="original_274_camera_mount_boss_extrude3" content_type="model/stl" file="original_274_camera_mount_boss_extrude3.stl" inertia="shell" />
+    <mesh name="original_275_attachment_fillet11" content_type="model/stl" file="original_275_attachment_fillet11.stl" inertia="shell" />
+    <mesh name="original_276_intel_realsense_d455_none" content_type="model/stl" file="original_276_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_277_intel_realsense_d455_none" content_type="model/stl" file="original_277_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_278_intel_realsense_d455_none" content_type="model/stl" file="original_278_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_279_intel_realsense_d455_none" content_type="model/stl" file="original_279_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_280_intel_realsense_d455_none" content_type="model/stl" file="original_280_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_281_intel_realsense_d455_none" content_type="model/stl" file="original_281_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_282_intel_realsense_d455_none" content_type="model/stl" file="original_282_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_283_intel_realsense_d455_none" content_type="model/stl" file="original_283_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_284_intel_realsense_d455_none" content_type="model/stl" file="original_284_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_285_intel_realsense_d455_none" content_type="model/stl" file="original_285_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_286_intel_realsense_d455_none" content_type="model/stl" file="original_286_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_287_intel_realsense_d455_none" content_type="model/stl" file="original_287_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_288_intel_realsense_d455_none" content_type="model/stl" file="original_288_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_289_intel_realsense_d455_none" content_type="model/stl" file="original_289_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_290_intel_realsense_d455_none" content_type="model/stl" file="original_290_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_291_intel_realsense_d455_none" content_type="model/stl" file="original_291_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_292_intel_realsense_d455_none" content_type="model/stl" file="original_292_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_293_intel_realsense_d455_none" content_type="model/stl" file="original_293_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_294_intel_realsense_d455_none" content_type="model/stl" file="original_294_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_295_intel_realsense_d455_none" content_type="model/stl" file="original_295_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_296_intel_realsense_d455_none" content_type="model/stl" file="original_296_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_297_intel_realsense_d455_none" content_type="model/stl" file="original_297_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_298_intel_realsense_d455_none" content_type="model/stl" file="original_298_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_299_intel_realsense_d455_none" content_type="model/stl" file="original_299_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_300_intel_realsense_d455_none" content_type="model/stl" file="original_300_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_301_intel_realsense_d455_none" content_type="model/stl" file="original_301_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_302_intel_realsense_d455_none" content_type="model/stl" file="original_302_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_303_intel_realsense_d455_none" content_type="model/stl" file="original_303_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_304_intel_realsense_d455_none" content_type="model/stl" file="original_304_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_305_intel_realsense_d455_none" content_type="model/stl" file="original_305_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_306_intel_realsense_d455_none" content_type="model/stl" file="original_306_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_307_intel_realsense_d455_none" content_type="model/stl" file="original_307_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_308_intel_realsense_d455_none" content_type="model/stl" file="original_308_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_309_intel_realsense_d455_none" content_type="model/stl" file="original_309_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_310_intel_realsense_d455_none" content_type="model/stl" file="original_310_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_311_intel_realsense_d455_none" content_type="model/stl" file="original_311_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_312_intel_realsense_d455_none" content_type="model/stl" file="original_312_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_313_intel_realsense_d455_none" content_type="model/stl" file="original_313_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_314_intel_realsense_d455_none" content_type="model/stl" file="original_314_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_315_intel_realsense_d455_none" content_type="model/stl" file="original_315_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_316_intel_realsense_d455_none" content_type="model/stl" file="original_316_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_317_intel_realsense_d455_none" content_type="model/stl" file="original_317_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_318_intel_realsense_d455_none" content_type="model/stl" file="original_318_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_319_intel_realsense_d455_none" content_type="model/stl" file="original_319_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_320_intel_realsense_d455_none" content_type="model/stl" file="original_320_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_321_intel_realsense_d455_none" content_type="model/stl" file="original_321_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_322_intel_realsense_d455_none" content_type="model/stl" file="original_322_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_323_intel_realsense_d455_none" content_type="model/stl" file="original_323_intel_realsense_d455_none.stl" inertia="shell" />
+    <mesh name="original_005_arm12rotor_fillet1" content_type="model/stl" file="original_005_arm12rotor_fillet1.stl" inertia="shell" />
+    <mesh name="original_006_arm12v2_boss_extrude10" content_type="model/stl" file="original_006_arm12v2_boss_extrude10.stl" inertia="shell" />
+    <mesh name="original_007_arm12spider_fillet5" content_type="model/stl" file="original_007_arm12spider_fillet5.stl" inertia="shell" />
+    <mesh name="original_008_ak10back_none" content_type="model/stl" file="original_008_ak10back_none.stl" inertia="shell" />
+    <mesh name="original_009_ak10body_0_none" content_type="model/stl" file="original_009_ak10body_0_none.stl" inertia="shell" />
+    <mesh name="original_185_arm23v2bearingmount_cut_extrude3" content_type="model/stl" file="original_185_arm23v2bearingmount_cut_extrude3.stl" inertia="shell" />
+    <mesh name="original_186_arm23v2_cut_extrude6" content_type="model/stl" file="original_186_arm23v2_cut_extrude6.stl" inertia="shell" />
+    <mesh name="original_187_ak80_motor_none" content_type="model/stl" file="original_187_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_188_ak80_motor_none" content_type="model/stl" file="original_188_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_189_ak80_motor_none" content_type="model/stl" file="original_189_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_190_ak80_motor_none" content_type="model/stl" file="original_190_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_191_ak80_motor_none" content_type="model/stl" file="original_191_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_192_ak80_motor_none" content_type="model/stl" file="original_192_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_193_ak80_motor_none" content_type="model/stl" file="original_193_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_194_ak80_motor_none" content_type="model/stl" file="original_194_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_195_ak80_motor_none" content_type="model/stl" file="original_195_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_196_ak80_motor_none" content_type="model/stl" file="original_196_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_197_ak80_motor_none" content_type="model/stl" file="original_197_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_198_ak80_motor_none" content_type="model/stl" file="original_198_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_199_ak80_motor_none" content_type="model/stl" file="original_199_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_200_ak80_motor_none" content_type="model/stl" file="original_200_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_201_ak80_motor_none" content_type="model/stl" file="original_201_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_202_ak80_motor_none" content_type="model/stl" file="original_202_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_203_ak80_motor_none" content_type="model/stl" file="original_203_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_204_ak80_motor_none" content_type="model/stl" file="original_204_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_205_ak80_motor_none" content_type="model/stl" file="original_205_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_206_ak80_motor_none" content_type="model/stl" file="original_206_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_207_ak80_motor_none" content_type="model/stl" file="original_207_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_208_ak80_motor_none" content_type="model/stl" file="original_208_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_209_ak80_motor_none" content_type="model/stl" file="original_209_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_210_ak80_motor_none" content_type="model/stl" file="original_210_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_211_ak80_motor_none" content_type="model/stl" file="original_211_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_212_ak80_motor_none" content_type="model/stl" file="original_212_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_213_ak80_motor_none" content_type="model/stl" file="original_213_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_214_ak80_motor_none" content_type="model/stl" file="original_214_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_215_ak80_motor_none" content_type="model/stl" file="original_215_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_216_ak80_motor_none" content_type="model/stl" file="original_216_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_217_ak80_motor_none" content_type="model/stl" file="original_217_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_218_ak80_motor_none" content_type="model/stl" file="original_218_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_219_ak80_motor_none" content_type="model/stl" file="original_219_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_220_ak80_motor_none" content_type="model/stl" file="original_220_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_221_ak80_motor_none" content_type="model/stl" file="original_221_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_222_ak80_motor_none" content_type="model/stl" file="original_222_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_223_ak80_motor_none" content_type="model/stl" file="original_223_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_224_ak80_motor_none" content_type="model/stl" file="original_224_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_225_ak80_motor_none" content_type="model/stl" file="original_225_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_226_ak80_motor_none" content_type="model/stl" file="original_226_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_227_ak80_motor_none" content_type="model/stl" file="original_227_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_228_ak80_motor_none" content_type="model/stl" file="original_228_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_229_ak80_motor_none" content_type="model/stl" file="original_229_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_230_ak80_motor_none" content_type="model/stl" file="original_230_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_231_ak80_motor_none" content_type="model/stl" file="original_231_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_232_ak80_motor_none" content_type="model/stl" file="original_232_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_233_ak80_motor_none" content_type="model/stl" file="original_233_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_234_ak80_motor_none" content_type="model/stl" file="original_234_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_235_ak80_motor_none" content_type="model/stl" file="original_235_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_236_ak80_motor_none" content_type="model/stl" file="original_236_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_237_ak80_motor_none" content_type="model/stl" file="original_237_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_238_ak80_motor_none" content_type="model/stl" file="original_238_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_239_ak80_motor_none" content_type="model/stl" file="original_239_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_240_ak80_motor_none" content_type="model/stl" file="original_240_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_380_arm34v2base_none" content_type="model/stl" file="original_380_arm34v2base_none.stl" inertia="shell" />
+    <mesh name="original_381_arm34v2base_none" content_type="model/stl" file="original_381_arm34v2base_none.stl" inertia="shell" />
+    <mesh name="original_382_arm34v2cover_fillet1" content_type="model/stl" file="original_382_arm34v2cover_fillet1.stl" inertia="shell" />
+    <mesh name="original_383_ak80_motor_none" content_type="model/stl" file="original_383_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_384_ak80_motor_none" content_type="model/stl" file="original_384_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_385_ak80_motor_none" content_type="model/stl" file="original_385_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_386_ak80_motor_none" content_type="model/stl" file="original_386_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_387_ak80_motor_none" content_type="model/stl" file="original_387_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_388_ak80_motor_none" content_type="model/stl" file="original_388_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_389_ak80_motor_none" content_type="model/stl" file="original_389_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_390_ak80_motor_none" content_type="model/stl" file="original_390_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_391_ak80_motor_none" content_type="model/stl" file="original_391_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_392_ak80_motor_none" content_type="model/stl" file="original_392_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_393_ak80_motor_none" content_type="model/stl" file="original_393_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_394_ak80_motor_none" content_type="model/stl" file="original_394_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_395_ak80_motor_none" content_type="model/stl" file="original_395_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_396_ak80_motor_none" content_type="model/stl" file="original_396_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_397_ak80_motor_none" content_type="model/stl" file="original_397_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_398_ak80_motor_none" content_type="model/stl" file="original_398_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_399_ak80_motor_none" content_type="model/stl" file="original_399_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_400_ak80_motor_none" content_type="model/stl" file="original_400_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_401_ak80_motor_none" content_type="model/stl" file="original_401_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_402_ak80_motor_none" content_type="model/stl" file="original_402_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_403_ak80_motor_none" content_type="model/stl" file="original_403_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_404_ak80_motor_none" content_type="model/stl" file="original_404_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_405_ak80_motor_none" content_type="model/stl" file="original_405_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_406_ak80_motor_none" content_type="model/stl" file="original_406_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_407_ak80_motor_none" content_type="model/stl" file="original_407_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_408_ak80_motor_none" content_type="model/stl" file="original_408_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_409_ak80_motor_none" content_type="model/stl" file="original_409_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_410_ak80_motor_none" content_type="model/stl" file="original_410_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_411_ak80_motor_none" content_type="model/stl" file="original_411_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_412_ak80_motor_none" content_type="model/stl" file="original_412_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_413_ak80_motor_none" content_type="model/stl" file="original_413_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_414_ak80_motor_none" content_type="model/stl" file="original_414_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_415_ak80_motor_none" content_type="model/stl" file="original_415_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_416_ak80_motor_none" content_type="model/stl" file="original_416_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_417_ak80_motor_none" content_type="model/stl" file="original_417_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_418_ak80_motor_none" content_type="model/stl" file="original_418_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_419_ak80_motor_none" content_type="model/stl" file="original_419_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_420_ak80_motor_none" content_type="model/stl" file="original_420_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_421_ak80_motor_none" content_type="model/stl" file="original_421_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_422_ak80_motor_none" content_type="model/stl" file="original_422_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_423_ak80_motor_none" content_type="model/stl" file="original_423_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_424_ak80_motor_none" content_type="model/stl" file="original_424_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_425_ak80_motor_none" content_type="model/stl" file="original_425_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_426_ak80_motor_none" content_type="model/stl" file="original_426_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_427_ak80_motor_none" content_type="model/stl" file="original_427_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_428_ak80_motor_none" content_type="model/stl" file="original_428_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_429_ak80_motor_none" content_type="model/stl" file="original_429_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_430_ak80_motor_none" content_type="model/stl" file="original_430_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_431_ak80_motor_none" content_type="model/stl" file="original_431_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_432_ak80_motor_none" content_type="model/stl" file="original_432_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_433_ak80_motor_none" content_type="model/stl" file="original_433_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_434_ak80_motor_none" content_type="model/stl" file="original_434_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_435_ak80_motor_none" content_type="model/stl" file="original_435_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_436_ak80_motor_none" content_type="model/stl" file="original_436_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_130_arm45v2_cut_extrude6" content_type="model/stl" file="original_130_arm45v2_cut_extrude6.stl" inertia="shell" />
+    <mesh name="original_131_ak80_motor_none" content_type="model/stl" file="original_131_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_132_ak80_motor_none" content_type="model/stl" file="original_132_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_133_ak80_motor_none" content_type="model/stl" file="original_133_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_134_ak80_motor_none" content_type="model/stl" file="original_134_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_135_ak80_motor_none" content_type="model/stl" file="original_135_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_136_ak80_motor_none" content_type="model/stl" file="original_136_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_137_ak80_motor_none" content_type="model/stl" file="original_137_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_138_ak80_motor_none" content_type="model/stl" file="original_138_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_139_ak80_motor_none" content_type="model/stl" file="original_139_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_140_ak80_motor_none" content_type="model/stl" file="original_140_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_141_ak80_motor_none" content_type="model/stl" file="original_141_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_142_ak80_motor_none" content_type="model/stl" file="original_142_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_143_ak80_motor_none" content_type="model/stl" file="original_143_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_144_ak80_motor_none" content_type="model/stl" file="original_144_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_145_ak80_motor_none" content_type="model/stl" file="original_145_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_146_ak80_motor_none" content_type="model/stl" file="original_146_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_147_ak80_motor_none" content_type="model/stl" file="original_147_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_148_ak80_motor_none" content_type="model/stl" file="original_148_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_149_ak80_motor_none" content_type="model/stl" file="original_149_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_150_ak80_motor_none" content_type="model/stl" file="original_150_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_151_ak80_motor_none" content_type="model/stl" file="original_151_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_152_ak80_motor_none" content_type="model/stl" file="original_152_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_153_ak80_motor_none" content_type="model/stl" file="original_153_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_154_ak80_motor_none" content_type="model/stl" file="original_154_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_155_ak80_motor_none" content_type="model/stl" file="original_155_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_156_ak80_motor_none" content_type="model/stl" file="original_156_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_157_ak80_motor_none" content_type="model/stl" file="original_157_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_158_ak80_motor_none" content_type="model/stl" file="original_158_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_159_ak80_motor_none" content_type="model/stl" file="original_159_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_160_ak80_motor_none" content_type="model/stl" file="original_160_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_161_ak80_motor_none" content_type="model/stl" file="original_161_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_162_ak80_motor_none" content_type="model/stl" file="original_162_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_163_ak80_motor_none" content_type="model/stl" file="original_163_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_164_ak80_motor_none" content_type="model/stl" file="original_164_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_165_ak80_motor_none" content_type="model/stl" file="original_165_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_166_ak80_motor_none" content_type="model/stl" file="original_166_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_167_ak80_motor_none" content_type="model/stl" file="original_167_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_168_ak80_motor_none" content_type="model/stl" file="original_168_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_169_ak80_motor_none" content_type="model/stl" file="original_169_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_170_ak80_motor_none" content_type="model/stl" file="original_170_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_171_ak80_motor_none" content_type="model/stl" file="original_171_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_172_ak80_motor_none" content_type="model/stl" file="original_172_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_173_ak80_motor_none" content_type="model/stl" file="original_173_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_174_ak80_motor_none" content_type="model/stl" file="original_174_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_175_ak80_motor_none" content_type="model/stl" file="original_175_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_176_ak80_motor_none" content_type="model/stl" file="original_176_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_177_ak80_motor_none" content_type="model/stl" file="original_177_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_178_ak80_motor_none" content_type="model/stl" file="original_178_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_179_ak80_motor_none" content_type="model/stl" file="original_179_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_180_ak80_motor_none" content_type="model/stl" file="original_180_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_181_ak80_motor_none" content_type="model/stl" file="original_181_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_182_ak80_motor_none" content_type="model/stl" file="original_182_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_183_ak80_motor_none" content_type="model/stl" file="original_183_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_184_ak80_motor_none" content_type="model/stl" file="original_184_ak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_003_gl40iistat_none" content_type="model/stl" file="original_003_gl40iistat_none.stl" inertia="shell" />
+    <mesh name="original_004_gl40iistat_none" content_type="model/stl" file="original_004_gl40iistat_none.stl" inertia="shell" />
+    <mesh name="right_new_forearm_1" content_type="model/stl" file="right_new_forearm_1.stl" inertia="shell" />
+    <mesh name="right_new_cover_1" content_type="model/stl" file="right_new_cover_1.stl" inertia="shell" />
+    <mesh name="original_012_gl40iirot_none" content_type="model/stl" file="original_012_gl40iirot_none.stl" inertia="shell" />
+    <mesh name="original_013_gl40iirot_none" content_type="model/stl" file="original_013_gl40iirot_none.stl" inertia="shell" />
+    <mesh name="right_new_wrist_07_0710_wrist_dual_support_6001_shouldered_none_1_body1" content_type="model/stl" file="right_new_wrist_07_0710_wrist_dual_support_6001_shouldered_none_1_body1.stl" inertia="shell" />
+    <mesh name="right_new_wrist_08_hum_arm_gripper_base_1_solid_body1_1_body1" content_type="model/stl" file="right_new_wrist_08_hum_arm_gripper_base_1_solid_body1_1_body1.stl" inertia="shell" />
+    <mesh name="right_new_wrist_09_hum_gl40ii_k82_5_step_2_1_body1" content_type="model/stl" file="right_new_wrist_09_hum_gl40ii_k82_5_step_2_1_body1.stl" inertia="shell" />
+    <mesh name="right_new_wrist_10_hum_gl40ii_k82_5_step_1_body1" content_type="model/stl" file="right_new_wrist_10_hum_gl40ii_k82_5_step_1_body1.stl" inertia="shell" />
+    <mesh name="right_new_wrist_11_hum_gl40ii_k82_5_step_hum_gl40iikv82_5_1_solid_body1_1_" content_type="model/stl" file="right_new_wrist_11_hum_gl40ii_k82_5_step_hum_gl40iikv82_5_1_solid_body1_1_.stl" inertia="shell" />
+    <mesh name="right_new_wrist_12_hum_gl40ii_k82_5_step_1_1_body1" content_type="model/stl" file="right_new_wrist_12_hum_gl40ii_k82_5_step_1_1_body1.stl" inertia="shell" />
+    <mesh name="right_new_wrist_13_hum_gl40ii_k82_5_step_none_1_body1" content_type="model/stl" file="right_new_wrist_13_hum_gl40ii_k82_5_step_none_1_body1.stl" inertia="shell" />
+    <mesh name="right_new_wrist_14_mgn9_rail_1_body1" content_type="model/stl" file="right_new_wrist_14_mgn9_rail_1_body1.stl" inertia="shell" />
+    <mesh name="right_new_wrist_03_grippermotorarm_swivel_rotor_1_step_1_1_step_none_1_bod" content_type="model/stl" file="right_new_wrist_03_grippermotorarm_swivel_rotor_1_step_1_1_step_none_1_bod.stl" inertia="shell" />
+    <mesh name="right_new_wrist_04_left_finger_1_body5" content_type="model/stl" file="right_new_wrist_04_left_finger_1_body5.stl" inertia="shell" />
+    <mesh name="right_new_wrist_05_left_finger_1_body2" content_type="model/stl" file="right_new_wrist_05_left_finger_1_body2.stl" inertia="shell" />
+    <mesh name="right_new_wrist_06_component25_1_body1" content_type="model/stl" file="right_new_wrist_06_component25_1_body1.stl" inertia="shell" />
+    <mesh name="right_new_wrist_01_hum_arm_gripper_linkage_bearingless_part_1_1_1_body1" content_type="model/stl" file="right_new_wrist_01_hum_arm_gripper_linkage_bearingless_part_1_1_1_body1.stl" inertia="shell" />
+    <mesh name="right_new_wrist_15_hum_arm_gripper_finger_carriage_umi_fit_rail_guide_moun" content_type="model/stl" file="right_new_wrist_15_hum_arm_gripper_finger_carriage_umi_fit_rail_guide_moun.stl" inertia="shell" />
+    <mesh name="right_new_wrist_16_right_finger_1_body2" content_type="model/stl" file="right_new_wrist_16_right_finger_1_body2.stl" inertia="shell" />
+    <mesh name="right_new_wrist_17_component24_1_body1" content_type="model/stl" file="right_new_wrist_17_component24_1_body1.stl" inertia="shell" />
+    <mesh name="right_new_wrist_02_hum_arm_gripper_linkage_bearingless_part_1_1_1_body1" content_type="model/stl" file="right_new_wrist_02_hum_arm_gripper_linkage_bearingless_part_1_1_1_body1.stl" inertia="shell" />
+    <mesh name="original_014_mirrorarm12v2_arm12v2_boss_extrude10_" content_type="model/stl" file="original_014_mirrorarm12v2_arm12v2_boss_extrude10_.stl" inertia="shell" />
+    <mesh name="original_015_arm12spider_fillet5" content_type="model/stl" file="original_015_arm12spider_fillet5.stl" inertia="shell" />
+    <mesh name="original_016_mirrorak10back_none" content_type="model/stl" file="original_016_mirrorak10back_none.stl" inertia="shell" />
+    <mesh name="original_017_mirrorak10body_0_none" content_type="model/stl" file="original_017_mirrorak10body_0_none.stl" inertia="shell" />
+    <mesh name="original_018_arm12rotor_fillet1" content_type="model/stl" file="original_018_arm12rotor_fillet1.stl" inertia="shell" />
+    <mesh name="original_074_mirrorarm23v2bearingmount_arm23v2bearingmount_cut_extru" content_type="model/stl" file="original_074_mirrorarm23v2bearingmount_arm23v2bearingmount_cut_extru.stl" inertia="shell" />
+    <mesh name="original_075_mirrorarm23v2_arm23v2_cut_extrude6_" content_type="model/stl" file="original_075_mirrorarm23v2_arm23v2_cut_extrude6_.stl" inertia="shell" />
+    <mesh name="original_076_mirrorak80_motor_none" content_type="model/stl" file="original_076_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_077_mirrorak80_motor_none" content_type="model/stl" file="original_077_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_078_mirrorak80_motor_none" content_type="model/stl" file="original_078_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_079_mirrorak80_motor_none" content_type="model/stl" file="original_079_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_080_mirrorak80_motor_none" content_type="model/stl" file="original_080_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_081_mirrorak80_motor_none" content_type="model/stl" file="original_081_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_082_mirrorak80_motor_none" content_type="model/stl" file="original_082_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_083_mirrorak80_motor_none" content_type="model/stl" file="original_083_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_084_mirrorak80_motor_none" content_type="model/stl" file="original_084_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_085_mirrorak80_motor_none" content_type="model/stl" file="original_085_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_086_mirrorak80_motor_none" content_type="model/stl" file="original_086_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_087_mirrorak80_motor_none" content_type="model/stl" file="original_087_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_088_mirrorak80_motor_none" content_type="model/stl" file="original_088_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_089_mirrorak80_motor_none" content_type="model/stl" file="original_089_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_090_mirrorak80_motor_none" content_type="model/stl" file="original_090_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_091_mirrorak80_motor_none" content_type="model/stl" file="original_091_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_092_mirrorak80_motor_none" content_type="model/stl" file="original_092_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_093_mirrorak80_motor_none" content_type="model/stl" file="original_093_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_094_mirrorak80_motor_none" content_type="model/stl" file="original_094_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_095_mirrorak80_motor_none" content_type="model/stl" file="original_095_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_096_mirrorak80_motor_none" content_type="model/stl" file="original_096_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_097_mirrorak80_motor_none" content_type="model/stl" file="original_097_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_098_mirrorak80_motor_none" content_type="model/stl" file="original_098_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_099_mirrorak80_motor_none" content_type="model/stl" file="original_099_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_100_mirrorak80_motor_none" content_type="model/stl" file="original_100_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_101_mirrorak80_motor_none" content_type="model/stl" file="original_101_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_102_mirrorak80_motor_none" content_type="model/stl" file="original_102_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_103_mirrorak80_motor_none" content_type="model/stl" file="original_103_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_104_mirrorak80_motor_none" content_type="model/stl" file="original_104_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_105_mirrorak80_motor_none" content_type="model/stl" file="original_105_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_106_mirrorak80_motor_none" content_type="model/stl" file="original_106_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_107_mirrorak80_motor_none" content_type="model/stl" file="original_107_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_108_mirrorak80_motor_none" content_type="model/stl" file="original_108_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_109_mirrorak80_motor_none" content_type="model/stl" file="original_109_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_110_mirrorak80_motor_none" content_type="model/stl" file="original_110_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_111_mirrorak80_motor_none" content_type="model/stl" file="original_111_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_112_mirrorak80_motor_none" content_type="model/stl" file="original_112_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_113_mirrorak80_motor_none" content_type="model/stl" file="original_113_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_114_mirrorak80_motor_none" content_type="model/stl" file="original_114_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_115_mirrorak80_motor_none" content_type="model/stl" file="original_115_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_116_mirrorak80_motor_none" content_type="model/stl" file="original_116_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_117_mirrorak80_motor_none" content_type="model/stl" file="original_117_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_118_mirrorak80_motor_none" content_type="model/stl" file="original_118_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_119_mirrorak80_motor_none" content_type="model/stl" file="original_119_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_120_mirrorak80_motor_none" content_type="model/stl" file="original_120_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_121_mirrorak80_motor_none" content_type="model/stl" file="original_121_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_122_mirrorak80_motor_none" content_type="model/stl" file="original_122_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_123_mirrorak80_motor_none" content_type="model/stl" file="original_123_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_124_mirrorak80_motor_none" content_type="model/stl" file="original_124_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_125_mirrorak80_motor_none" content_type="model/stl" file="original_125_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_126_mirrorak80_motor_none" content_type="model/stl" file="original_126_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_127_mirrorak80_motor_none" content_type="model/stl" file="original_127_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_128_mirrorak80_motor_none" content_type="model/stl" file="original_128_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_129_mirrorak80_motor_none" content_type="model/stl" file="original_129_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_324_mirrorarm34v2cover_arm34v2cover_fillet1_" content_type="model/stl" file="original_324_mirrorarm34v2cover_arm34v2cover_fillet1_.stl" inertia="shell" />
+    <mesh name="original_325_mirrorarm34v2base_arm34v2base_cut_extrude5_" content_type="model/stl" file="original_325_mirrorarm34v2base_arm34v2base_cut_extrude5_.stl" inertia="shell" />
+    <mesh name="original_326_mirrorak80_motor_none" content_type="model/stl" file="original_326_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_327_mirrorak80_motor_none" content_type="model/stl" file="original_327_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_328_mirrorak80_motor_none" content_type="model/stl" file="original_328_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_329_mirrorak80_motor_none" content_type="model/stl" file="original_329_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_330_mirrorak80_motor_none" content_type="model/stl" file="original_330_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_331_mirrorak80_motor_none" content_type="model/stl" file="original_331_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_332_mirrorak80_motor_none" content_type="model/stl" file="original_332_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_333_mirrorak80_motor_none" content_type="model/stl" file="original_333_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_334_mirrorak80_motor_none" content_type="model/stl" file="original_334_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_335_mirrorak80_motor_none" content_type="model/stl" file="original_335_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_336_mirrorak80_motor_none" content_type="model/stl" file="original_336_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_337_mirrorak80_motor_none" content_type="model/stl" file="original_337_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_338_mirrorak80_motor_none" content_type="model/stl" file="original_338_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_339_mirrorak80_motor_none" content_type="model/stl" file="original_339_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_340_mirrorak80_motor_none" content_type="model/stl" file="original_340_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_341_mirrorak80_motor_none" content_type="model/stl" file="original_341_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_342_mirrorak80_motor_none" content_type="model/stl" file="original_342_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_343_mirrorak80_motor_none" content_type="model/stl" file="original_343_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_344_mirrorak80_motor_none" content_type="model/stl" file="original_344_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_345_mirrorak80_motor_none" content_type="model/stl" file="original_345_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_346_mirrorak80_motor_none" content_type="model/stl" file="original_346_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_347_mirrorak80_motor_none" content_type="model/stl" file="original_347_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_348_mirrorak80_motor_none" content_type="model/stl" file="original_348_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_349_mirrorak80_motor_none" content_type="model/stl" file="original_349_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_350_mirrorak80_motor_none" content_type="model/stl" file="original_350_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_351_mirrorak80_motor_none" content_type="model/stl" file="original_351_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_352_mirrorak80_motor_none" content_type="model/stl" file="original_352_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_353_mirrorak80_motor_none" content_type="model/stl" file="original_353_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_354_mirrorak80_motor_none" content_type="model/stl" file="original_354_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_355_mirrorak80_motor_none" content_type="model/stl" file="original_355_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_356_mirrorak80_motor_none" content_type="model/stl" file="original_356_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_357_mirrorak80_motor_none" content_type="model/stl" file="original_357_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_358_mirrorak80_motor_none" content_type="model/stl" file="original_358_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_359_mirrorak80_motor_none" content_type="model/stl" file="original_359_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_360_mirrorak80_motor_none" content_type="model/stl" file="original_360_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_361_mirrorak80_motor_none" content_type="model/stl" file="original_361_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_362_mirrorak80_motor_none" content_type="model/stl" file="original_362_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_363_mirrorak80_motor_none" content_type="model/stl" file="original_363_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_364_mirrorak80_motor_none" content_type="model/stl" file="original_364_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_365_mirrorak80_motor_none" content_type="model/stl" file="original_365_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_366_mirrorak80_motor_none" content_type="model/stl" file="original_366_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_367_mirrorak80_motor_none" content_type="model/stl" file="original_367_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_368_mirrorak80_motor_none" content_type="model/stl" file="original_368_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_369_mirrorak80_motor_none" content_type="model/stl" file="original_369_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_370_mirrorak80_motor_none" content_type="model/stl" file="original_370_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_371_mirrorak80_motor_none" content_type="model/stl" file="original_371_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_372_mirrorak80_motor_none" content_type="model/stl" file="original_372_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_373_mirrorak80_motor_none" content_type="model/stl" file="original_373_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_374_mirrorak80_motor_none" content_type="model/stl" file="original_374_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_375_mirrorak80_motor_none" content_type="model/stl" file="original_375_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_376_mirrorak80_motor_none" content_type="model/stl" file="original_376_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_377_mirrorak80_motor_none" content_type="model/stl" file="original_377_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_378_mirrorak80_motor_none" content_type="model/stl" file="original_378_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_379_mirrorak80_motor_none" content_type="model/stl" file="original_379_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_019_mirrorarm45v2_arm45v2_cut_extrude6_" content_type="model/stl" file="original_019_mirrorarm45v2_arm45v2_cut_extrude6_.stl" inertia="shell" />
+    <mesh name="original_020_mirrorak80_motor_none" content_type="model/stl" file="original_020_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_021_mirrorak80_motor_none" content_type="model/stl" file="original_021_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_022_mirrorak80_motor_none" content_type="model/stl" file="original_022_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_023_mirrorak80_motor_none" content_type="model/stl" file="original_023_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_024_mirrorak80_motor_none" content_type="model/stl" file="original_024_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_025_mirrorak80_motor_none" content_type="model/stl" file="original_025_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_026_mirrorak80_motor_none" content_type="model/stl" file="original_026_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_027_mirrorak80_motor_none" content_type="model/stl" file="original_027_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_028_mirrorak80_motor_none" content_type="model/stl" file="original_028_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_029_mirrorak80_motor_none" content_type="model/stl" file="original_029_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_030_mirrorak80_motor_none" content_type="model/stl" file="original_030_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_031_mirrorak80_motor_none" content_type="model/stl" file="original_031_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_032_mirrorak80_motor_none" content_type="model/stl" file="original_032_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_033_mirrorak80_motor_none" content_type="model/stl" file="original_033_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_034_mirrorak80_motor_none" content_type="model/stl" file="original_034_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_035_mirrorak80_motor_none" content_type="model/stl" file="original_035_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_036_mirrorak80_motor_none" content_type="model/stl" file="original_036_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_037_mirrorak80_motor_none" content_type="model/stl" file="original_037_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_038_mirrorak80_motor_none" content_type="model/stl" file="original_038_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_039_mirrorak80_motor_none" content_type="model/stl" file="original_039_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_040_mirrorak80_motor_none" content_type="model/stl" file="original_040_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_041_mirrorak80_motor_none" content_type="model/stl" file="original_041_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_042_mirrorak80_motor_none" content_type="model/stl" file="original_042_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_043_mirrorak80_motor_none" content_type="model/stl" file="original_043_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_044_mirrorak80_motor_none" content_type="model/stl" file="original_044_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_045_mirrorak80_motor_none" content_type="model/stl" file="original_045_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_046_mirrorak80_motor_none" content_type="model/stl" file="original_046_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_047_mirrorak80_motor_none" content_type="model/stl" file="original_047_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_048_mirrorak80_motor_none" content_type="model/stl" file="original_048_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_049_mirrorak80_motor_none" content_type="model/stl" file="original_049_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_050_mirrorak80_motor_none" content_type="model/stl" file="original_050_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_051_mirrorak80_motor_none" content_type="model/stl" file="original_051_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_052_mirrorak80_motor_none" content_type="model/stl" file="original_052_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_053_mirrorak80_motor_none" content_type="model/stl" file="original_053_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_054_mirrorak80_motor_none" content_type="model/stl" file="original_054_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_055_mirrorak80_motor_none" content_type="model/stl" file="original_055_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_056_mirrorak80_motor_none" content_type="model/stl" file="original_056_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_057_mirrorak80_motor_none" content_type="model/stl" file="original_057_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_058_mirrorak80_motor_none" content_type="model/stl" file="original_058_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_059_mirrorak80_motor_none" content_type="model/stl" file="original_059_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_060_mirrorak80_motor_none" content_type="model/stl" file="original_060_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_061_mirrorak80_motor_none" content_type="model/stl" file="original_061_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_062_mirrorak80_motor_none" content_type="model/stl" file="original_062_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_063_mirrorak80_motor_none" content_type="model/stl" file="original_063_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_064_mirrorak80_motor_none" content_type="model/stl" file="original_064_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_065_mirrorak80_motor_none" content_type="model/stl" file="original_065_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_066_mirrorak80_motor_none" content_type="model/stl" file="original_066_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_067_mirrorak80_motor_none" content_type="model/stl" file="original_067_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_068_mirrorak80_motor_none" content_type="model/stl" file="original_068_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_069_mirrorak80_motor_none" content_type="model/stl" file="original_069_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_070_mirrorak80_motor_none" content_type="model/stl" file="original_070_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_071_mirrorak80_motor_none" content_type="model/stl" file="original_071_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_072_mirrorak80_motor_none" content_type="model/stl" file="original_072_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_073_mirrorak80_motor_none" content_type="model/stl" file="original_073_mirrorak80_motor_none.stl" inertia="shell" />
+    <mesh name="original_001_mirrorgl40iistat_none" content_type="model/stl" file="original_001_mirrorgl40iistat_none.stl" inertia="shell" />
+    <mesh name="original_002_mirrorgl40iistat_none" content_type="model/stl" file="original_002_mirrorgl40iistat_none.stl" inertia="shell" />
+    <mesh name="left_new_forearm_1" content_type="model/stl" file="left_new_forearm_1.stl" inertia="shell" />
+    <mesh name="left_new_cover_1" content_type="model/stl" file="left_new_cover_1.stl" inertia="shell" />
+    <mesh name="original_010_mirrorgl40iirot_none" content_type="model/stl" file="original_010_mirrorgl40iirot_none.stl" inertia="shell" />
+    <mesh name="original_011_mirrorgl40iirot_none" content_type="model/stl" file="original_011_mirrorgl40iirot_none.stl" inertia="shell" />
+    <mesh name="left_new_wrist_07_0710_wrist_dual_support_6001_shouldered_none_1_body1" content_type="model/stl" file="left_new_wrist_07_0710_wrist_dual_support_6001_shouldered_none_1_body1.stl" inertia="shell" />
+    <mesh name="left_new_wrist_08_hum_arm_gripper_base_1_solid_body1_1_body1" content_type="model/stl" file="left_new_wrist_08_hum_arm_gripper_base_1_solid_body1_1_body1.stl" inertia="shell" />
+    <mesh name="left_new_wrist_09_hum_gl40ii_k82_5_step_2_1_body1" content_type="model/stl" file="left_new_wrist_09_hum_gl40ii_k82_5_step_2_1_body1.stl" inertia="shell" />
+    <mesh name="left_new_wrist_10_hum_gl40ii_k82_5_step_1_body1" content_type="model/stl" file="left_new_wrist_10_hum_gl40ii_k82_5_step_1_body1.stl" inertia="shell" />
+    <mesh name="left_new_wrist_11_hum_gl40ii_k82_5_step_hum_gl40iikv82_5_1_solid_body1_1_" content_type="model/stl" file="left_new_wrist_11_hum_gl40ii_k82_5_step_hum_gl40iikv82_5_1_solid_body1_1_.stl" inertia="shell" />
+    <mesh name="left_new_wrist_12_hum_gl40ii_k82_5_step_1_1_body1" content_type="model/stl" file="left_new_wrist_12_hum_gl40ii_k82_5_step_1_1_body1.stl" inertia="shell" />
+    <mesh name="left_new_wrist_13_hum_gl40ii_k82_5_step_none_1_body1" content_type="model/stl" file="left_new_wrist_13_hum_gl40ii_k82_5_step_none_1_body1.stl" inertia="shell" />
+    <mesh name="left_new_wrist_14_mgn9_rail_1_body1" content_type="model/stl" file="left_new_wrist_14_mgn9_rail_1_body1.stl" inertia="shell" />
+    <mesh name="left_new_wrist_03_grippermotorarm_swivel_rotor_1_step_1_1_step_none_1_bod" content_type="model/stl" file="left_new_wrist_03_grippermotorarm_swivel_rotor_1_step_1_1_step_none_1_bod.stl" inertia="shell" />
+    <mesh name="left_new_wrist_04_left_finger_1_body5" content_type="model/stl" file="left_new_wrist_04_left_finger_1_body5.stl" inertia="shell" />
+    <mesh name="left_new_wrist_05_left_finger_1_body2" content_type="model/stl" file="left_new_wrist_05_left_finger_1_body2.stl" inertia="shell" />
+    <mesh name="left_new_wrist_06_component25_1_body1" content_type="model/stl" file="left_new_wrist_06_component25_1_body1.stl" inertia="shell" />
+    <mesh name="left_new_wrist_01_hum_arm_gripper_linkage_bearingless_part_1_1_1_body1" content_type="model/stl" file="left_new_wrist_01_hum_arm_gripper_linkage_bearingless_part_1_1_1_body1.stl" inertia="shell" />
+    <mesh name="left_new_wrist_15_hum_arm_gripper_finger_carriage_umi_fit_rail_guide_moun" content_type="model/stl" file="left_new_wrist_15_hum_arm_gripper_finger_carriage_umi_fit_rail_guide_moun.stl" inertia="shell" />
+    <mesh name="left_new_wrist_16_right_finger_1_body2" content_type="model/stl" file="left_new_wrist_16_right_finger_1_body2.stl" inertia="shell" />
+    <mesh name="left_new_wrist_17_component24_1_body1" content_type="model/stl" file="left_new_wrist_17_component24_1_body1.stl" inertia="shell" />
+    <mesh name="left_new_wrist_02_hum_arm_gripper_linkage_bearingless_part_1_1_1_body1" content_type="model/stl" file="left_new_wrist_02_hum_arm_gripper_linkage_bearingless_part_1_1_1_body1.stl" inertia="shell" />
+  </asset>
+  <worldbody>
+    <geom name="floor" size="3 3 0.1" pos="0 0 -1.20052" type="plane" contype="0" conaffinity="0" rgba="0.21 0.23 0.27 1" />
+    <light pos="1 -2 3" dir="-0.17609 0.440225 -0.880451" diffuse="0.9 0.9 0.9" />
+    <light pos="-1 1 2" dir="0.188144 -0.282216 -0.940721" diffuse="0.5 0.5 0.5" />
+    <body name="base_link">
+      <geom name="original_241_shoulderbearingholder_cut_extrude5" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_241_shoulderbearingholder_cut_extrude5" />
+      <geom name="original_242_arm12bearing_csk_for_m4_countersunk_flat_head_screw2" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_242_arm12bearing_csk_for_m4_countersunk_flat_head_screw2" />
+      <geom name="original_243_shoulderbearingholder_cut_extrude5" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_243_shoulderbearingholder_cut_extrude5" />
+      <geom name="original_244_shoulderbearingholder_cut_extrude5" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_244_shoulderbearingholder_cut_extrude5" />
+      <geom name="original_245_arm12bearing_csk_for_m4_countersunk_flat_head_screw2" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_245_arm12bearing_csk_for_m4_countersunk_flat_head_screw2" />
+      <geom name="original_246_ak10body_0_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_246_ak10body_0_none" />
+      <geom name="original_247_ak10back_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_247_ak10back_none" />
+      <geom name="original_248_ak10body_0_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_248_ak10body_0_none" />
+      <geom name="original_249_ak10back_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_249_ak10back_none" />
+      <geom name="original_250_4040bracket_4040bracket_1_" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_250_4040bracket_4040bracket_1_" />
+      <geom name="original_251_squaremount_squaremount_1_" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_251_squaremount_squaremount_1_" />
+      <geom name="original_252_ext2_ext2_1_" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_252_ext2_ext2_1_" />
+      <geom name="original_253_4040bracket_4040bracket_1_" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_253_4040bracket_4040bracket_1_" />
+      <geom name="original_254_frame1_frame1_1_" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_254_frame1_frame1_1_" />
+      <geom name="original_255_squaremount_squaremount_1_" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_255_squaremount_squaremount_1_" />
+      <geom name="original_256_frame1_frame1_1_" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_256_frame1_frame1_1_" />
+      <geom name="original_257_extlong_boss_extrude1" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_257_extlong_boss_extrude1" />
+      <geom name="original_258_3dpbracket_3dpbracket_1_" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_258_3dpbracket_3dpbracket_1_" />
+      <geom name="original_259_ext1_ext1_1_" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_259_ext1_ext1_1_" />
+      <geom name="original_260_ext1_ext1_1_" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_260_ext1_ext1_1_" />
+      <geom name="original_261_3dpbracket_3dpbracket_1_" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_261_3dpbracket_3dpbracket_1_" />
+      <geom name="original_262_extlong_boss_extrude1" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_262_extlong_boss_extrude1" />
+      <geom name="original_263_4040flatbracket_4040flatbracket_1_" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_263_4040flatbracket_4040flatbracket_1_" />
+      <geom name="original_264_frame1_frame1_1_" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_264_frame1_frame1_1_" />
+      <geom name="original_265_ext3_ext3_1_" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_265_ext3_ext3_1_" />
+      <geom name="original_266_3dpbracket_3dpbracket_1_" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_266_3dpbracket_3dpbracket_1_" />
+      <geom name="original_267_frame1_frame1_1_" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_267_frame1_frame1_1_" />
+      <geom name="original_268_ext5_ext5_1_" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_268_ext5_ext5_1_" />
+      <geom name="original_269_4040bracket_4040bracket_1_" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_269_4040bracket_4040bracket_1_" />
+      <geom name="original_270_4040bracket_4040bracket_1_" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_270_4040bracket_4040bracket_1_" />
+      <geom name="original_271_ext3_ext3_1_" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_271_ext3_ext3_1_" />
+      <geom name="original_272_3dpbracket_3dpbracket_1_" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_272_3dpbracket_3dpbracket_1_" />
+      <geom name="original_273_shoulderbearingholder_cut_extrude5" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_273_shoulderbearingholder_cut_extrude5" />
+      <geom name="original_274_camera_mount_boss_extrude3" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_274_camera_mount_boss_extrude3" />
+      <geom name="original_275_attachment_fillet11" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_275_attachment_fillet11" />
+      <geom name="original_276_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_276_intel_realsense_d455_none" />
+      <geom name="original_277_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_277_intel_realsense_d455_none" />
+      <geom name="original_278_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_278_intel_realsense_d455_none" />
+      <geom name="original_279_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_279_intel_realsense_d455_none" />
+      <geom name="original_280_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_280_intel_realsense_d455_none" />
+      <geom name="original_281_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_281_intel_realsense_d455_none" />
+      <geom name="original_282_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_282_intel_realsense_d455_none" />
+      <geom name="original_283_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_283_intel_realsense_d455_none" />
+      <geom name="original_284_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_284_intel_realsense_d455_none" />
+      <geom name="original_285_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_285_intel_realsense_d455_none" />
+      <geom name="original_286_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_286_intel_realsense_d455_none" />
+      <geom name="original_287_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_287_intel_realsense_d455_none" />
+      <geom name="original_288_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_288_intel_realsense_d455_none" />
+      <geom name="original_289_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_289_intel_realsense_d455_none" />
+      <geom name="original_290_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_290_intel_realsense_d455_none" />
+      <geom name="original_291_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_291_intel_realsense_d455_none" />
+      <geom name="original_292_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_292_intel_realsense_d455_none" />
+      <geom name="original_293_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_293_intel_realsense_d455_none" />
+      <geom name="original_294_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_294_intel_realsense_d455_none" />
+      <geom name="original_295_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_295_intel_realsense_d455_none" />
+      <geom name="original_296_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_296_intel_realsense_d455_none" />
+      <geom name="original_297_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_297_intel_realsense_d455_none" />
+      <geom name="original_298_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_298_intel_realsense_d455_none" />
+      <geom name="original_299_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_299_intel_realsense_d455_none" />
+      <geom name="original_300_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_300_intel_realsense_d455_none" />
+      <geom name="original_301_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_301_intel_realsense_d455_none" />
+      <geom name="original_302_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_302_intel_realsense_d455_none" />
+      <geom name="original_303_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_303_intel_realsense_d455_none" />
+      <geom name="original_304_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_304_intel_realsense_d455_none" />
+      <geom name="original_305_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_305_intel_realsense_d455_none" />
+      <geom name="original_306_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_306_intel_realsense_d455_none" />
+      <geom name="original_307_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_307_intel_realsense_d455_none" />
+      <geom name="original_308_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_308_intel_realsense_d455_none" />
+      <geom name="original_309_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_309_intel_realsense_d455_none" />
+      <geom name="original_310_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_310_intel_realsense_d455_none" />
+      <geom name="original_311_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_311_intel_realsense_d455_none" />
+      <geom name="original_312_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_312_intel_realsense_d455_none" />
+      <geom name="original_313_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_313_intel_realsense_d455_none" />
+      <geom name="original_314_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_314_intel_realsense_d455_none" />
+      <geom name="original_315_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_315_intel_realsense_d455_none" />
+      <geom name="original_316_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_316_intel_realsense_d455_none" />
+      <geom name="original_317_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_317_intel_realsense_d455_none" />
+      <geom name="original_318_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_318_intel_realsense_d455_none" />
+      <geom name="original_319_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_319_intel_realsense_d455_none" />
+      <geom name="original_320_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_320_intel_realsense_d455_none" />
+      <geom name="original_321_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_321_intel_realsense_d455_none" />
+      <geom name="original_322_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_322_intel_realsense_d455_none" />
+      <geom name="original_323_intel_realsense_d455_none" pos="0.0215735 0 -1.17952" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_323_intel_realsense_d455_none" />
+      <body name="link1" pos="0.0215735 -0.163325 0.0604819">
+        <joint name="joint1" range="-1.74533 1.74533" actuatorfrcrange="-100 100" axis="0 1 0" />
+        <geom name="original_005_arm12rotor_fillet1" pos="0 0.163325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_005_arm12rotor_fillet1" />
+        <geom name="original_006_arm12v2_boss_extrude10" pos="0 0.163325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_006_arm12v2_boss_extrude10" />
+        <geom name="original_007_arm12spider_fillet5" pos="0 0.163325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_007_arm12spider_fillet5" />
+        <geom name="original_008_ak10back_none" pos="0 0.163325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_008_ak10back_none" />
+        <geom name="original_009_ak10body_0_none" pos="0 0.163325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_009_ak10body_0_none" />
+        <body name="link2" pos="-0.00702084 -0.116 0">
+          <joint name="joint2" range="-1.309 1.309" actuatorfrcrange="-100 100" axis="1 0 0" />
+          <geom name="original_185_arm23v2bearingmount_cut_extrude3" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_185_arm23v2bearingmount_cut_extrude3" />
+          <geom name="original_186_arm23v2_cut_extrude6" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_186_arm23v2_cut_extrude6" />
+          <geom name="original_187_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_187_ak80_motor_none" />
+          <geom name="original_188_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_188_ak80_motor_none" />
+          <geom name="original_189_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_189_ak80_motor_none" />
+          <geom name="original_190_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_190_ak80_motor_none" />
+          <geom name="original_191_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_191_ak80_motor_none" />
+          <geom name="original_192_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_192_ak80_motor_none" />
+          <geom name="original_193_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_193_ak80_motor_none" />
+          <geom name="original_194_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_194_ak80_motor_none" />
+          <geom name="original_195_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_195_ak80_motor_none" />
+          <geom name="original_196_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_196_ak80_motor_none" />
+          <geom name="original_197_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_197_ak80_motor_none" />
+          <geom name="original_198_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_198_ak80_motor_none" />
+          <geom name="original_199_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_199_ak80_motor_none" />
+          <geom name="original_200_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_200_ak80_motor_none" />
+          <geom name="original_201_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_201_ak80_motor_none" />
+          <geom name="original_202_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_202_ak80_motor_none" />
+          <geom name="original_203_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_203_ak80_motor_none" />
+          <geom name="original_204_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_204_ak80_motor_none" />
+          <geom name="original_205_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_205_ak80_motor_none" />
+          <geom name="original_206_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_206_ak80_motor_none" />
+          <geom name="original_207_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_207_ak80_motor_none" />
+          <geom name="original_208_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_208_ak80_motor_none" />
+          <geom name="original_209_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_209_ak80_motor_none" />
+          <geom name="original_210_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_210_ak80_motor_none" />
+          <geom name="original_211_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_211_ak80_motor_none" />
+          <geom name="original_212_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_212_ak80_motor_none" />
+          <geom name="original_213_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_213_ak80_motor_none" />
+          <geom name="original_214_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_214_ak80_motor_none" />
+          <geom name="original_215_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_215_ak80_motor_none" />
+          <geom name="original_216_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_216_ak80_motor_none" />
+          <geom name="original_217_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_217_ak80_motor_none" />
+          <geom name="original_218_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_218_ak80_motor_none" />
+          <geom name="original_219_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_219_ak80_motor_none" />
+          <geom name="original_220_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_220_ak80_motor_none" />
+          <geom name="original_221_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_221_ak80_motor_none" />
+          <geom name="original_222_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_222_ak80_motor_none" />
+          <geom name="original_223_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_223_ak80_motor_none" />
+          <geom name="original_224_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_224_ak80_motor_none" />
+          <geom name="original_225_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_225_ak80_motor_none" />
+          <geom name="original_226_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_226_ak80_motor_none" />
+          <geom name="original_227_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_227_ak80_motor_none" />
+          <geom name="original_228_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_228_ak80_motor_none" />
+          <geom name="original_229_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_229_ak80_motor_none" />
+          <geom name="original_230_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_230_ak80_motor_none" />
+          <geom name="original_231_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_231_ak80_motor_none" />
+          <geom name="original_232_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_232_ak80_motor_none" />
+          <geom name="original_233_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_233_ak80_motor_none" />
+          <geom name="original_234_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_234_ak80_motor_none" />
+          <geom name="original_235_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_235_ak80_motor_none" />
+          <geom name="original_236_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_236_ak80_motor_none" />
+          <geom name="original_237_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_237_ak80_motor_none" />
+          <geom name="original_238_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_238_ak80_motor_none" />
+          <geom name="original_239_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_239_ak80_motor_none" />
+          <geom name="original_240_ak80_motor_none" pos="0.00702084 0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_240_ak80_motor_none" />
+          <body name="link3" pos="0 0 -0.1163">
+            <joint name="joint3" range="-2.0944 2.0944" actuatorfrcrange="-100 100" axis="0 0 -1" />
+            <geom name="original_380_arm34v2base_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_380_arm34v2base_none" />
+            <geom name="original_381_arm34v2base_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_381_arm34v2base_none" />
+            <geom name="original_382_arm34v2cover_fillet1" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_382_arm34v2cover_fillet1" />
+            <geom name="original_383_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_383_ak80_motor_none" />
+            <geom name="original_384_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_384_ak80_motor_none" />
+            <geom name="original_385_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_385_ak80_motor_none" />
+            <geom name="original_386_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_386_ak80_motor_none" />
+            <geom name="original_387_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_387_ak80_motor_none" />
+            <geom name="original_388_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_388_ak80_motor_none" />
+            <geom name="original_389_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_389_ak80_motor_none" />
+            <geom name="original_390_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_390_ak80_motor_none" />
+            <geom name="original_391_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_391_ak80_motor_none" />
+            <geom name="original_392_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_392_ak80_motor_none" />
+            <geom name="original_393_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_393_ak80_motor_none" />
+            <geom name="original_394_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_394_ak80_motor_none" />
+            <geom name="original_395_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_395_ak80_motor_none" />
+            <geom name="original_396_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_396_ak80_motor_none" />
+            <geom name="original_397_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_397_ak80_motor_none" />
+            <geom name="original_398_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_398_ak80_motor_none" />
+            <geom name="original_399_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_399_ak80_motor_none" />
+            <geom name="original_400_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_400_ak80_motor_none" />
+            <geom name="original_401_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_401_ak80_motor_none" />
+            <geom name="original_402_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_402_ak80_motor_none" />
+            <geom name="original_403_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_403_ak80_motor_none" />
+            <geom name="original_404_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_404_ak80_motor_none" />
+            <geom name="original_405_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_405_ak80_motor_none" />
+            <geom name="original_406_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_406_ak80_motor_none" />
+            <geom name="original_407_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_407_ak80_motor_none" />
+            <geom name="original_408_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_408_ak80_motor_none" />
+            <geom name="original_409_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_409_ak80_motor_none" />
+            <geom name="original_410_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_410_ak80_motor_none" />
+            <geom name="original_411_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_411_ak80_motor_none" />
+            <geom name="original_412_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_412_ak80_motor_none" />
+            <geom name="original_413_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_413_ak80_motor_none" />
+            <geom name="original_414_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_414_ak80_motor_none" />
+            <geom name="original_415_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_415_ak80_motor_none" />
+            <geom name="original_416_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_416_ak80_motor_none" />
+            <geom name="original_417_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_417_ak80_motor_none" />
+            <geom name="original_418_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_418_ak80_motor_none" />
+            <geom name="original_419_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_419_ak80_motor_none" />
+            <geom name="original_420_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_420_ak80_motor_none" />
+            <geom name="original_421_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_421_ak80_motor_none" />
+            <geom name="original_422_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_422_ak80_motor_none" />
+            <geom name="original_423_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_423_ak80_motor_none" />
+            <geom name="original_424_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_424_ak80_motor_none" />
+            <geom name="original_425_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_425_ak80_motor_none" />
+            <geom name="original_426_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_426_ak80_motor_none" />
+            <geom name="original_427_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_427_ak80_motor_none" />
+            <geom name="original_428_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_428_ak80_motor_none" />
+            <geom name="original_429_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_429_ak80_motor_none" />
+            <geom name="original_430_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_430_ak80_motor_none" />
+            <geom name="original_431_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_431_ak80_motor_none" />
+            <geom name="original_432_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_432_ak80_motor_none" />
+            <geom name="original_433_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_433_ak80_motor_none" />
+            <geom name="original_434_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_434_ak80_motor_none" />
+            <geom name="original_435_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_435_ak80_motor_none" />
+            <geom name="original_436_ak80_motor_none" pos="0.00702084 0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_436_ak80_motor_none" />
+            <body name="link4" pos="0 -0.00225 -0.1846">
+              <joint name="joint4" range="-1.91986 1.91986" actuatorfrcrange="-100 100" axis="0 -1 0" />
+              <geom name="original_130_arm45v2_cut_extrude6" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_130_arm45v2_cut_extrude6" />
+              <geom name="original_131_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_131_ak80_motor_none" />
+              <geom name="original_132_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_132_ak80_motor_none" />
+              <geom name="original_133_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_133_ak80_motor_none" />
+              <geom name="original_134_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_134_ak80_motor_none" />
+              <geom name="original_135_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_135_ak80_motor_none" />
+              <geom name="original_136_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_136_ak80_motor_none" />
+              <geom name="original_137_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_137_ak80_motor_none" />
+              <geom name="original_138_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_138_ak80_motor_none" />
+              <geom name="original_139_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_139_ak80_motor_none" />
+              <geom name="original_140_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_140_ak80_motor_none" />
+              <geom name="original_141_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_141_ak80_motor_none" />
+              <geom name="original_142_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_142_ak80_motor_none" />
+              <geom name="original_143_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_143_ak80_motor_none" />
+              <geom name="original_144_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_144_ak80_motor_none" />
+              <geom name="original_145_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_145_ak80_motor_none" />
+              <geom name="original_146_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_146_ak80_motor_none" />
+              <geom name="original_147_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_147_ak80_motor_none" />
+              <geom name="original_148_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_148_ak80_motor_none" />
+              <geom name="original_149_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_149_ak80_motor_none" />
+              <geom name="original_150_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_150_ak80_motor_none" />
+              <geom name="original_151_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_151_ak80_motor_none" />
+              <geom name="original_152_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_152_ak80_motor_none" />
+              <geom name="original_153_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_153_ak80_motor_none" />
+              <geom name="original_154_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_154_ak80_motor_none" />
+              <geom name="original_155_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_155_ak80_motor_none" />
+              <geom name="original_156_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_156_ak80_motor_none" />
+              <geom name="original_157_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_157_ak80_motor_none" />
+              <geom name="original_158_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_158_ak80_motor_none" />
+              <geom name="original_159_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_159_ak80_motor_none" />
+              <geom name="original_160_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_160_ak80_motor_none" />
+              <geom name="original_161_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_161_ak80_motor_none" />
+              <geom name="original_162_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_162_ak80_motor_none" />
+              <geom name="original_163_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_163_ak80_motor_none" />
+              <geom name="original_164_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_164_ak80_motor_none" />
+              <geom name="original_165_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_165_ak80_motor_none" />
+              <geom name="original_166_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_166_ak80_motor_none" />
+              <geom name="original_167_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_167_ak80_motor_none" />
+              <geom name="original_168_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_168_ak80_motor_none" />
+              <geom name="original_169_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_169_ak80_motor_none" />
+              <geom name="original_170_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_170_ak80_motor_none" />
+              <geom name="original_171_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_171_ak80_motor_none" />
+              <geom name="original_172_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_172_ak80_motor_none" />
+              <geom name="original_173_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_173_ak80_motor_none" />
+              <geom name="original_174_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_174_ak80_motor_none" />
+              <geom name="original_175_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_175_ak80_motor_none" />
+              <geom name="original_176_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_176_ak80_motor_none" />
+              <geom name="original_177_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_177_ak80_motor_none" />
+              <geom name="original_178_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_178_ak80_motor_none" />
+              <geom name="original_179_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_179_ak80_motor_none" />
+              <geom name="original_180_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_180_ak80_motor_none" />
+              <geom name="original_181_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_181_ak80_motor_none" />
+              <geom name="original_182_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_182_ak80_motor_none" />
+              <geom name="original_183_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_183_ak80_motor_none" />
+              <geom name="original_184_ak80_motor_none" pos="0.00702084 0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_184_ak80_motor_none" />
+              <body name="link5" pos="0 0 -0.1075">
+                <joint name="joint5" range="-3.14159 3.14159" actuatorfrcrange="-100 100" />
+                <geom name="original_003_gl40iistat_none" pos="0.00702084 0.281575 -0.8316" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_003_gl40iistat_none" />
+                <geom name="original_004_gl40iistat_none" pos="0.00702084 0.281575 -0.8316" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_004_gl40iistat_none" />
+                <geom name="right_new_forearm_1" pos="0.00702084 0.281575 -0.8316" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.85 0.55 0.12 1" mesh="right_new_forearm_1" />
+                <geom name="right_new_cover_1" pos="0.00702084 0.281575 -0.8316" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.75 0.6 0.3 1" mesh="right_new_cover_1" />
+                <body name="link6" pos="0 -0.007 -0.128">
+                  <joint name="joint6" range="-1.5708 1.5708" actuatorfrcrange="-100 100" axis="0 -1 0" />
+                  <geom name="original_012_gl40iirot_none" pos="0.00702084 0.288575 -0.7036" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_012_gl40iirot_none" />
+                  <geom name="original_013_gl40iirot_none" pos="0.00702084 0.288575 -0.7036" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_013_gl40iirot_none" />
+                  <geom name="right_new_wrist_07_0710_wrist_dual_support_6001_shouldered_none_1_body1" pos="0.00702084 0.288575 -0.7036" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.26 0.53 0.7 1" mesh="right_new_wrist_07_0710_wrist_dual_support_6001_shouldered_none_1_body1" />
+                  <geom name="right_new_wrist_08_hum_arm_gripper_base_1_solid_body1_1_body1" pos="0.00702084 0.288575 -0.7036" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.26 0.53 0.7 1" mesh="right_new_wrist_08_hum_arm_gripper_base_1_solid_body1_1_body1" />
+                  <geom name="right_new_wrist_09_hum_gl40ii_k82_5_step_2_1_body1" pos="0.00702084 0.288575 -0.7036" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.26 0.53 0.7 1" mesh="right_new_wrist_09_hum_gl40ii_k82_5_step_2_1_body1" />
+                  <geom name="right_new_wrist_10_hum_gl40ii_k82_5_step_1_body1" pos="0.00702084 0.288575 -0.7036" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.26 0.53 0.7 1" mesh="right_new_wrist_10_hum_gl40ii_k82_5_step_1_body1" />
+                  <geom name="right_new_wrist_11_hum_gl40ii_k82_5_step_hum_gl40iikv82_5_1_solid_body1_1_" pos="0.00702084 0.288575 -0.7036" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.26 0.53 0.7 1" mesh="right_new_wrist_11_hum_gl40ii_k82_5_step_hum_gl40iikv82_5_1_solid_body1_1_" />
+                  <geom name="right_new_wrist_12_hum_gl40ii_k82_5_step_1_1_body1" pos="0.00702084 0.288575 -0.7036" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.26 0.53 0.7 1" mesh="right_new_wrist_12_hum_gl40ii_k82_5_step_1_1_body1" />
+                  <geom name="right_new_wrist_13_hum_gl40ii_k82_5_step_none_1_body1" pos="0.00702084 0.288575 -0.7036" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.26 0.53 0.7 1" mesh="right_new_wrist_13_hum_gl40ii_k82_5_step_none_1_body1" />
+                  <geom name="right_new_wrist_14_mgn9_rail_1_body1" pos="0.00702084 0.288575 -0.7036" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.26 0.53 0.7 1" mesh="right_new_wrist_14_mgn9_rail_1_body1" />
+                  <body name="right_crank" pos="0 0 -0.0953114">
+                    <joint name="right_gripper" range="-0.174533 1.5708" actuatorfrcrange="-100 100" axis="0 0 -1" />
+                    <geom name="right_new_wrist_03_grippermotorarm_swivel_rotor_1_step_1_1_step_none_1_bod" pos="0.00702084 0.288575 -0.608289" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.26 0.53 0.7 1" mesh="right_new_wrist_03_grippermotorarm_swivel_rotor_1_step_1_1_step_none_1_bod" />
+                    <body name="right_bar0" pos="-0.0259779 0.015005 -0.0125">
+                      <joint name="right_linkage_pin0" range="-6.28319 6.28319" actuatorfrcrange="-100 100" axis="0 0 -1" />
+                      <geom name="right_new_wrist_01_hum_arm_gripper_linkage_bearingless_part_1_1_1_body1" pos="0.0329987 0.27357 -0.595789" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.26 0.53 0.7 1" mesh="right_new_wrist_01_hum_arm_gripper_linkage_bearingless_part_1_1_1_body1" />
+                    </body>
+                    <body name="right_bar1" pos="0.0259779 -0.015005 -0.0125">
+                      <joint name="right_linkage_pin1" range="-6.28319 6.28319" actuatorfrcrange="-100 100" axis="0 0 -1" />
+                      <geom name="right_new_wrist_02_hum_arm_gripper_linkage_bearingless_part_1_1_1_body1" pos="-0.0189571 0.30358 -0.595789" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.26 0.53 0.7 1" mesh="right_new_wrist_02_hum_arm_gripper_linkage_bearingless_part_1_1_1_body1" />
+                    </body>
+                  </body>
+                  <body name="link7" pos="-0.0552111 0.0217444 -0.107811">
+                    <joint name="joint7" type="slide" range="-0.0405173 0.000710551" actuatorfrcrange="-100 100" axis="-1 0 0" />
+                    <geom name="right_new_wrist_04_left_finger_1_body5" pos="0.0622319 0.266831 -0.595789" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.26 0.53 0.7 1" mesh="right_new_wrist_04_left_finger_1_body5" />
+                    <geom name="right_new_wrist_05_left_finger_1_body2" pos="0.0622319 0.266831 -0.595789" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.26 0.53 0.7 1" mesh="right_new_wrist_05_left_finger_1_body2" />
+                    <geom name="right_new_wrist_06_component25_1_body1" pos="0.0622319 0.266831 -0.595789" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.26 0.53 0.7 1" mesh="right_new_wrist_06_component25_1_body1" />
+                  </body>
+                  <body name="link8" pos="0.0552101 -0.0217488 -0.107811">
+                    <joint name="joint8" type="slide" range="-0.000709835 0.0405156" actuatorfrcrange="-100 100" axis="-1 0 0" />
+                    <geom name="right_new_wrist_15_hum_arm_gripper_finger_carriage_umi_fit_rail_guide_moun" pos="-0.0481892 0.310324 -0.595789" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.26 0.53 0.7 1" mesh="right_new_wrist_15_hum_arm_gripper_finger_carriage_umi_fit_rail_guide_moun" />
+                    <geom name="right_new_wrist_16_right_finger_1_body2" pos="-0.0481892 0.310324 -0.595789" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.26 0.53 0.7 1" mesh="right_new_wrist_16_right_finger_1_body2" />
+                    <geom name="right_new_wrist_17_component24_1_body1" pos="-0.0481892 0.310324 -0.595789" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.26 0.53 0.7 1" mesh="right_new_wrist_17_component24_1_body1" />
+                  </body>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+      <body name="link1L" pos="0.0215735 0.163325 0.0604819">
+        <joint name="joint1L" range="-1.74533 1.74533" actuatorfrcrange="-100 100" axis="0 -1 0" />
+        <geom name="original_014_mirrorarm12v2_arm12v2_boss_extrude10_" pos="0 -0.163325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_014_mirrorarm12v2_arm12v2_boss_extrude10_" />
+        <geom name="original_015_arm12spider_fillet5" pos="0 -0.163325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_015_arm12spider_fillet5" />
+        <geom name="original_016_mirrorak10back_none" pos="0 -0.163325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_016_mirrorak10back_none" />
+        <geom name="original_017_mirrorak10body_0_none" pos="0 -0.163325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_017_mirrorak10body_0_none" />
+        <geom name="original_018_arm12rotor_fillet1" pos="0 -0.163325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_018_arm12rotor_fillet1" />
+        <body name="link2l" pos="-0.00702084 0.116 0">
+          <joint name="joint2l" range="-1.309 1.309" actuatorfrcrange="-100 100" axis="1 0 0" />
+          <geom name="original_074_mirrorarm23v2bearingmount_arm23v2bearingmount_cut_extru" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_074_mirrorarm23v2bearingmount_arm23v2bearingmount_cut_extru" />
+          <geom name="original_075_mirrorarm23v2_arm23v2_cut_extrude6_" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_075_mirrorarm23v2_arm23v2_cut_extrude6_" />
+          <geom name="original_076_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_076_mirrorak80_motor_none" />
+          <geom name="original_077_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_077_mirrorak80_motor_none" />
+          <geom name="original_078_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_078_mirrorak80_motor_none" />
+          <geom name="original_079_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_079_mirrorak80_motor_none" />
+          <geom name="original_080_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_080_mirrorak80_motor_none" />
+          <geom name="original_081_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_081_mirrorak80_motor_none" />
+          <geom name="original_082_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_082_mirrorak80_motor_none" />
+          <geom name="original_083_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_083_mirrorak80_motor_none" />
+          <geom name="original_084_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_084_mirrorak80_motor_none" />
+          <geom name="original_085_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_085_mirrorak80_motor_none" />
+          <geom name="original_086_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_086_mirrorak80_motor_none" />
+          <geom name="original_087_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_087_mirrorak80_motor_none" />
+          <geom name="original_088_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_088_mirrorak80_motor_none" />
+          <geom name="original_089_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_089_mirrorak80_motor_none" />
+          <geom name="original_090_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_090_mirrorak80_motor_none" />
+          <geom name="original_091_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_091_mirrorak80_motor_none" />
+          <geom name="original_092_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_092_mirrorak80_motor_none" />
+          <geom name="original_093_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_093_mirrorak80_motor_none" />
+          <geom name="original_094_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_094_mirrorak80_motor_none" />
+          <geom name="original_095_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_095_mirrorak80_motor_none" />
+          <geom name="original_096_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_096_mirrorak80_motor_none" />
+          <geom name="original_097_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_097_mirrorak80_motor_none" />
+          <geom name="original_098_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_098_mirrorak80_motor_none" />
+          <geom name="original_099_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_099_mirrorak80_motor_none" />
+          <geom name="original_100_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_100_mirrorak80_motor_none" />
+          <geom name="original_101_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_101_mirrorak80_motor_none" />
+          <geom name="original_102_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_102_mirrorak80_motor_none" />
+          <geom name="original_103_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_103_mirrorak80_motor_none" />
+          <geom name="original_104_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_104_mirrorak80_motor_none" />
+          <geom name="original_105_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_105_mirrorak80_motor_none" />
+          <geom name="original_106_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_106_mirrorak80_motor_none" />
+          <geom name="original_107_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_107_mirrorak80_motor_none" />
+          <geom name="original_108_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_108_mirrorak80_motor_none" />
+          <geom name="original_109_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_109_mirrorak80_motor_none" />
+          <geom name="original_110_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_110_mirrorak80_motor_none" />
+          <geom name="original_111_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_111_mirrorak80_motor_none" />
+          <geom name="original_112_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_112_mirrorak80_motor_none" />
+          <geom name="original_113_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_113_mirrorak80_motor_none" />
+          <geom name="original_114_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_114_mirrorak80_motor_none" />
+          <geom name="original_115_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_115_mirrorak80_motor_none" />
+          <geom name="original_116_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_116_mirrorak80_motor_none" />
+          <geom name="original_117_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_117_mirrorak80_motor_none" />
+          <geom name="original_118_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_118_mirrorak80_motor_none" />
+          <geom name="original_119_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_119_mirrorak80_motor_none" />
+          <geom name="original_120_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_120_mirrorak80_motor_none" />
+          <geom name="original_121_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_121_mirrorak80_motor_none" />
+          <geom name="original_122_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_122_mirrorak80_motor_none" />
+          <geom name="original_123_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_123_mirrorak80_motor_none" />
+          <geom name="original_124_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_124_mirrorak80_motor_none" />
+          <geom name="original_125_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_125_mirrorak80_motor_none" />
+          <geom name="original_126_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_126_mirrorak80_motor_none" />
+          <geom name="original_127_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_127_mirrorak80_motor_none" />
+          <geom name="original_128_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_128_mirrorak80_motor_none" />
+          <geom name="original_129_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.24" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_129_mirrorak80_motor_none" />
+          <body name="link3l" pos="0 0 -0.1163">
+            <joint name="joint3l" range="-2.0944 2.0944" actuatorfrcrange="-100 100" axis="0 0 -1" />
+            <geom name="original_324_mirrorarm34v2cover_arm34v2cover_fillet1_" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_324_mirrorarm34v2cover_arm34v2cover_fillet1_" />
+            <geom name="original_325_mirrorarm34v2base_arm34v2base_cut_extrude5_" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_325_mirrorarm34v2base_arm34v2base_cut_extrude5_" />
+            <geom name="original_326_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_326_mirrorak80_motor_none" />
+            <geom name="original_327_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_327_mirrorak80_motor_none" />
+            <geom name="original_328_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_328_mirrorak80_motor_none" />
+            <geom name="original_329_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_329_mirrorak80_motor_none" />
+            <geom name="original_330_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_330_mirrorak80_motor_none" />
+            <geom name="original_331_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_331_mirrorak80_motor_none" />
+            <geom name="original_332_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_332_mirrorak80_motor_none" />
+            <geom name="original_333_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_333_mirrorak80_motor_none" />
+            <geom name="original_334_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_334_mirrorak80_motor_none" />
+            <geom name="original_335_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_335_mirrorak80_motor_none" />
+            <geom name="original_336_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_336_mirrorak80_motor_none" />
+            <geom name="original_337_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_337_mirrorak80_motor_none" />
+            <geom name="original_338_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_338_mirrorak80_motor_none" />
+            <geom name="original_339_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_339_mirrorak80_motor_none" />
+            <geom name="original_340_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_340_mirrorak80_motor_none" />
+            <geom name="original_341_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_341_mirrorak80_motor_none" />
+            <geom name="original_342_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_342_mirrorak80_motor_none" />
+            <geom name="original_343_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_343_mirrorak80_motor_none" />
+            <geom name="original_344_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_344_mirrorak80_motor_none" />
+            <geom name="original_345_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_345_mirrorak80_motor_none" />
+            <geom name="original_346_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_346_mirrorak80_motor_none" />
+            <geom name="original_347_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_347_mirrorak80_motor_none" />
+            <geom name="original_348_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_348_mirrorak80_motor_none" />
+            <geom name="original_349_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_349_mirrorak80_motor_none" />
+            <geom name="original_350_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_350_mirrorak80_motor_none" />
+            <geom name="original_351_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_351_mirrorak80_motor_none" />
+            <geom name="original_352_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_352_mirrorak80_motor_none" />
+            <geom name="original_353_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_353_mirrorak80_motor_none" />
+            <geom name="original_354_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_354_mirrorak80_motor_none" />
+            <geom name="original_355_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_355_mirrorak80_motor_none" />
+            <geom name="original_356_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_356_mirrorak80_motor_none" />
+            <geom name="original_357_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_357_mirrorak80_motor_none" />
+            <geom name="original_358_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_358_mirrorak80_motor_none" />
+            <geom name="original_359_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_359_mirrorak80_motor_none" />
+            <geom name="original_360_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_360_mirrorak80_motor_none" />
+            <geom name="original_361_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_361_mirrorak80_motor_none" />
+            <geom name="original_362_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_362_mirrorak80_motor_none" />
+            <geom name="original_363_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_363_mirrorak80_motor_none" />
+            <geom name="original_364_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_364_mirrorak80_motor_none" />
+            <geom name="original_365_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_365_mirrorak80_motor_none" />
+            <geom name="original_366_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_366_mirrorak80_motor_none" />
+            <geom name="original_367_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_367_mirrorak80_motor_none" />
+            <geom name="original_368_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_368_mirrorak80_motor_none" />
+            <geom name="original_369_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_369_mirrorak80_motor_none" />
+            <geom name="original_370_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_370_mirrorak80_motor_none" />
+            <geom name="original_371_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_371_mirrorak80_motor_none" />
+            <geom name="original_372_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_372_mirrorak80_motor_none" />
+            <geom name="original_373_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_373_mirrorak80_motor_none" />
+            <geom name="original_374_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_374_mirrorak80_motor_none" />
+            <geom name="original_375_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_375_mirrorak80_motor_none" />
+            <geom name="original_376_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_376_mirrorak80_motor_none" />
+            <geom name="original_377_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_377_mirrorak80_motor_none" />
+            <geom name="original_378_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_378_mirrorak80_motor_none" />
+            <geom name="original_379_mirrorak80_motor_none" pos="0.00702084 -0.279325 -1.1237" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_379_mirrorak80_motor_none" />
+            <body name="link4l" pos="0 0.00225 -0.1846">
+              <joint name="joint4l" range="-1.91986 1.91986" actuatorfrcrange="-100 100" axis="0 1 0" />
+              <geom name="original_019_mirrorarm45v2_arm45v2_cut_extrude6_" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_019_mirrorarm45v2_arm45v2_cut_extrude6_" />
+              <geom name="original_020_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_020_mirrorak80_motor_none" />
+              <geom name="original_021_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_021_mirrorak80_motor_none" />
+              <geom name="original_022_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_022_mirrorak80_motor_none" />
+              <geom name="original_023_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_023_mirrorak80_motor_none" />
+              <geom name="original_024_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_024_mirrorak80_motor_none" />
+              <geom name="original_025_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_025_mirrorak80_motor_none" />
+              <geom name="original_026_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_026_mirrorak80_motor_none" />
+              <geom name="original_027_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_027_mirrorak80_motor_none" />
+              <geom name="original_028_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_028_mirrorak80_motor_none" />
+              <geom name="original_029_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_029_mirrorak80_motor_none" />
+              <geom name="original_030_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_030_mirrorak80_motor_none" />
+              <geom name="original_031_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_031_mirrorak80_motor_none" />
+              <geom name="original_032_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_032_mirrorak80_motor_none" />
+              <geom name="original_033_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_033_mirrorak80_motor_none" />
+              <geom name="original_034_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_034_mirrorak80_motor_none" />
+              <geom name="original_035_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_035_mirrorak80_motor_none" />
+              <geom name="original_036_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_036_mirrorak80_motor_none" />
+              <geom name="original_037_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_037_mirrorak80_motor_none" />
+              <geom name="original_038_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_038_mirrorak80_motor_none" />
+              <geom name="original_039_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_039_mirrorak80_motor_none" />
+              <geom name="original_040_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_040_mirrorak80_motor_none" />
+              <geom name="original_041_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_041_mirrorak80_motor_none" />
+              <geom name="original_042_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_042_mirrorak80_motor_none" />
+              <geom name="original_043_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_043_mirrorak80_motor_none" />
+              <geom name="original_044_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_044_mirrorak80_motor_none" />
+              <geom name="original_045_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_045_mirrorak80_motor_none" />
+              <geom name="original_046_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_046_mirrorak80_motor_none" />
+              <geom name="original_047_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_047_mirrorak80_motor_none" />
+              <geom name="original_048_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_048_mirrorak80_motor_none" />
+              <geom name="original_049_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_049_mirrorak80_motor_none" />
+              <geom name="original_050_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_050_mirrorak80_motor_none" />
+              <geom name="original_051_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_051_mirrorak80_motor_none" />
+              <geom name="original_052_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_052_mirrorak80_motor_none" />
+              <geom name="original_053_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_053_mirrorak80_motor_none" />
+              <geom name="original_054_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_054_mirrorak80_motor_none" />
+              <geom name="original_055_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_055_mirrorak80_motor_none" />
+              <geom name="original_056_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_056_mirrorak80_motor_none" />
+              <geom name="original_057_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_057_mirrorak80_motor_none" />
+              <geom name="original_058_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_058_mirrorak80_motor_none" />
+              <geom name="original_059_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_059_mirrorak80_motor_none" />
+              <geom name="original_060_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_060_mirrorak80_motor_none" />
+              <geom name="original_061_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_061_mirrorak80_motor_none" />
+              <geom name="original_062_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_062_mirrorak80_motor_none" />
+              <geom name="original_063_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_063_mirrorak80_motor_none" />
+              <geom name="original_064_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_064_mirrorak80_motor_none" />
+              <geom name="original_065_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_065_mirrorak80_motor_none" />
+              <geom name="original_066_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_066_mirrorak80_motor_none" />
+              <geom name="original_067_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_067_mirrorak80_motor_none" />
+              <geom name="original_068_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_068_mirrorak80_motor_none" />
+              <geom name="original_069_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_069_mirrorak80_motor_none" />
+              <geom name="original_070_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_070_mirrorak80_motor_none" />
+              <geom name="original_071_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_071_mirrorak80_motor_none" />
+              <geom name="original_072_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_072_mirrorak80_motor_none" />
+              <geom name="original_073_mirrorak80_motor_none" pos="0.00702084 -0.281575 -0.9391" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_073_mirrorak80_motor_none" />
+              <body name="link5l" pos="0 0 -0.1075">
+                <joint name="joint5l" range="-3.14159 3.14159" actuatorfrcrange="-100 100" />
+                <geom name="original_001_mirrorgl40iistat_none" pos="0.00702084 -0.281575 -0.8316" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_001_mirrorgl40iistat_none" />
+                <geom name="original_002_mirrorgl40iistat_none" pos="0.00702084 -0.281575 -0.8316" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_002_mirrorgl40iistat_none" />
+                <geom name="left_new_forearm_1" pos="0.00702084 -0.281575 -0.8316" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.85 0.55 0.12 1" mesh="left_new_forearm_1" />
+                <geom name="left_new_cover_1" pos="0.00702084 -0.281575 -0.8316" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.75 0.6 0.3 1" mesh="left_new_cover_1" />
+                <body name="link6l" pos="0 0.007 -0.128">
+                  <joint name="joint6l" range="-1.5708 1.5708" actuatorfrcrange="-100 100" axis="0 1 0" />
+                  <geom name="original_010_mirrorgl40iirot_none" pos="0.00702084 -0.288575 -0.7036" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_010_mirrorgl40iirot_none" />
+                  <geom name="original_011_mirrorgl40iirot_none" pos="0.00702084 -0.288575 -0.7036" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.64 0.67 0.71 1" mesh="original_011_mirrorgl40iirot_none" />
+                  <geom name="left_new_wrist_07_0710_wrist_dual_support_6001_shouldered_none_1_body1" pos="0.00702084 -0.288575 -0.7036" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.26 0.53 0.7 1" mesh="left_new_wrist_07_0710_wrist_dual_support_6001_shouldered_none_1_body1" />
+                  <geom name="left_new_wrist_08_hum_arm_gripper_base_1_solid_body1_1_body1" pos="0.00702084 -0.288575 -0.7036" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.26 0.53 0.7 1" mesh="left_new_wrist_08_hum_arm_gripper_base_1_solid_body1_1_body1" />
+                  <geom name="left_new_wrist_09_hum_gl40ii_k82_5_step_2_1_body1" pos="0.00702084 -0.288575 -0.7036" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.26 0.53 0.7 1" mesh="left_new_wrist_09_hum_gl40ii_k82_5_step_2_1_body1" />
+                  <geom name="left_new_wrist_10_hum_gl40ii_k82_5_step_1_body1" pos="0.00702084 -0.288575 -0.7036" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.26 0.53 0.7 1" mesh="left_new_wrist_10_hum_gl40ii_k82_5_step_1_body1" />
+                  <geom name="left_new_wrist_11_hum_gl40ii_k82_5_step_hum_gl40iikv82_5_1_solid_body1_1_" pos="0.00702084 -0.288575 -0.7036" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.26 0.53 0.7 1" mesh="left_new_wrist_11_hum_gl40ii_k82_5_step_hum_gl40iikv82_5_1_solid_body1_1_" />
+                  <geom name="left_new_wrist_12_hum_gl40ii_k82_5_step_1_1_body1" pos="0.00702084 -0.288575 -0.7036" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.26 0.53 0.7 1" mesh="left_new_wrist_12_hum_gl40ii_k82_5_step_1_1_body1" />
+                  <geom name="left_new_wrist_13_hum_gl40ii_k82_5_step_none_1_body1" pos="0.00702084 -0.288575 -0.7036" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.26 0.53 0.7 1" mesh="left_new_wrist_13_hum_gl40ii_k82_5_step_none_1_body1" />
+                  <geom name="left_new_wrist_14_mgn9_rail_1_body1" pos="0.00702084 -0.288575 -0.7036" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.26 0.53 0.7 1" mesh="left_new_wrist_14_mgn9_rail_1_body1" />
+                  <body name="left_crank" pos="0 0 -0.0953114">
+                    <joint name="left_gripper" range="-0.174533 1.5708" actuatorfrcrange="-100 100" />
+                    <geom name="left_new_wrist_03_grippermotorarm_swivel_rotor_1_step_1_1_step_none_1_bod" pos="0.00702084 -0.288575 -0.608289" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.26 0.53 0.7 1" mesh="left_new_wrist_03_grippermotorarm_swivel_rotor_1_step_1_1_step_none_1_bod" />
+                    <body name="left_bar0" pos="-0.0259779 -0.015005 -0.0125">
+                      <joint name="left_linkage_pin0" range="-6.28319 6.28319" actuatorfrcrange="-100 100" />
+                      <geom name="left_new_wrist_01_hum_arm_gripper_linkage_bearingless_part_1_1_1_body1" pos="0.0329987 -0.27357 -0.595789" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.26 0.53 0.7 1" mesh="left_new_wrist_01_hum_arm_gripper_linkage_bearingless_part_1_1_1_body1" />
+                    </body>
+                    <body name="left_bar1" pos="0.0259779 0.015005 -0.0125">
+                      <joint name="left_linkage_pin1" range="-6.28319 6.28319" actuatorfrcrange="-100 100" />
+                      <geom name="left_new_wrist_02_hum_arm_gripper_linkage_bearingless_part_1_1_1_body1" pos="-0.0189571 -0.30358 -0.595789" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.26 0.53 0.7 1" mesh="left_new_wrist_02_hum_arm_gripper_linkage_bearingless_part_1_1_1_body1" />
+                    </body>
+                  </body>
+                  <body name="link7l" pos="-0.0552111 -0.0217444 -0.107811">
+                    <joint name="joint7l" type="slide" range="-0.0405173 0.000710551" actuatorfrcrange="-100 100" axis="-1 0 0" />
+                    <geom name="left_new_wrist_04_left_finger_1_body5" pos="0.0622319 -0.266831 -0.595789" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.26 0.53 0.7 1" mesh="left_new_wrist_04_left_finger_1_body5" />
+                    <geom name="left_new_wrist_05_left_finger_1_body2" pos="0.0622319 -0.266831 -0.595789" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.26 0.53 0.7 1" mesh="left_new_wrist_05_left_finger_1_body2" />
+                    <geom name="left_new_wrist_06_component25_1_body1" pos="0.0622319 -0.266831 -0.595789" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.26 0.53 0.7 1" mesh="left_new_wrist_06_component25_1_body1" />
+                  </body>
+                  <body name="link8l" pos="0.0552101 0.0217488 -0.107811">
+                    <joint name="joint8l" type="slide" range="-0.000709835 0.0405156" actuatorfrcrange="-100 100" axis="-1 0 0" />
+                    <geom name="left_new_wrist_15_hum_arm_gripper_finger_carriage_umi_fit_rail_guide_moun" pos="-0.0481892 -0.310324 -0.595789" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.26 0.53 0.7 1" mesh="left_new_wrist_15_hum_arm_gripper_finger_carriage_umi_fit_rail_guide_moun" />
+                    <geom name="left_new_wrist_16_right_finger_1_body2" pos="-0.0481892 -0.310324 -0.595789" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.26 0.53 0.7 1" mesh="left_new_wrist_16_right_finger_1_body2" />
+                    <geom name="left_new_wrist_17_component24_1_body1" pos="-0.0481892 -0.310324 -0.595789" quat="0.5 0.5 -0.5 -0.5" type="mesh" contype="0" conaffinity="0" rgba="0.26 0.53 0.7 1" mesh="left_new_wrist_17_component24_1_body1" />
+                  </body>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+  <equality>
+    <connect name="right_jaw_pin0" body1="right_bar0" body2="link7" anchor="-0.0292332 0.00673945 0" />
+    <connect name="right_jaw_pin1" body1="right_bar1" body2="link8" anchor="0.0292322 -0.00674385 0" />
+    <connect name="left_jaw_pin0" body1="left_bar0" body2="link7l" anchor="-0.0292332 -0.00673945 0" />
+    <connect name="left_jaw_pin1" body1="left_bar1" body2="link8l" anchor="0.0292322 0.00674385 0" />
+  </equality>
+</mujoco>

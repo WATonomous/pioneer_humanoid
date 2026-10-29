@@ -42,6 +42,18 @@ Your `src/<module>` folder is mounted into the container, so edits on your machi
 
 ## Repo map
 
+### Updated Arm V2 keyboard simulator
+
+```bash
+pip install -e 'src/pioneer_humanoid[mujoco]'
+python -m pioneer_humanoid.arm_v2_keyboard
+```
+
+This opens the updated two-arm stand with redesigned forearms and wrist/grippers,
+14 keyboard/slider controls, and coupled gripper linkages. See
+[the Arm V2 asset guide](assets/pioneer_bimanual_arm/README.md) for keys, validation,
+and the distinction between preview limits and hardware calibration.
+
 Two workflows share this repo:
 
 - **Real robot:** `embedded` firmware ⇄ `interfacing` (CAN ⇄ ROS 2) ⇄ `perception` — driven live by `teleop`, or by a policy.

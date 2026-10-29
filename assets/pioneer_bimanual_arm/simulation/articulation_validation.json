@@ -1,0 +1,109 @@
+{
+  "status": "passed",
+  "moving_joints": 22,
+  "independent_keyboard_controls": 14,
+  "source_visual_meshes_preserved": 474,
+  "per_control_motion_checks": [
+    {
+      "channel": 0,
+      "side": "right",
+      "label": 1,
+      "moved_body_count": 10,
+      "loop_closure_residual_m": 5.551115123125783e-17
+    },
+    {
+      "channel": 1,
+      "side": "right",
+      "label": 2,
+      "moved_body_count": 9,
+      "loop_closure_residual_m": 1.1102230246251565e-16
+    },
+    {
+      "channel": 2,
+      "side": "right",
+      "label": 3,
+      "moved_body_count": 8,
+      "loop_closure_residual_m": 5.551115123125783e-17
+    },
+    {
+      "channel": 3,
+      "side": "right",
+      "label": 4,
+      "moved_body_count": 7,
+      "loop_closure_residual_m": 4.163336342344337e-17
+    },
+    {
+      "channel": 4,
+      "side": "right",
+      "label": 5,
+      "moved_body_count": 6,
+      "loop_closure_residual_m": 5.551115123125783e-17
+    },
+    {
+      "channel": 5,
+      "side": "right",
+      "label": 6,
+      "moved_body_count": 5,
+      "loop_closure_residual_m": 1.1102230246251565e-16
+    },
+    {
+      "channel": 6,
+      "side": "right",
+      "label": 7,
+      "moved_body_count": 4,
+      "loop_closure_residual_m": 1.3877787807814457e-14
+    },
+    {
+      "channel": 7,
+      "side": "left",
+      "label": 1,
+      "moved_body_count": 10,
+      "loop_closure_residual_m": 5.551115123125783e-17
+    },
+    {
+      "channel": 8,
+      "side": "left",
+      "label": 2,
+      "moved_body_count": 9,
+      "loop_closure_residual_m": 1.1102230246251565e-16
+    },
+    {
+      "channel": 9,
+      "side": "left",
+      "label": 3,
+      "moved_body_count": 8,
+      "loop_closure_residual_m": 5.551115123125783e-17
+    },
+    {
+      "channel": 10,
+      "side": "left",
+      "label": 4,
+      "moved_body_count": 7,
+      "loop_closure_residual_m": 4.163336342344337e-17
+    },
+    {
+      "channel": 11,
+      "side": "left",
+      "label": 5,
+      "moved_body_count": 6,
+      "loop_closure_residual_m": 5.551115123125783e-17
+    },
+    {
+      "channel": 12,
+      "side": "left",
+      "label": 6,
+      "moved_body_count": 5,
+      "loop_closure_residual_m": 1.1102230246251565e-16
+    },
+    {
+      "channel": 13,
+      "side": "left",
+      "label": 7,
+      "moved_body_count": 4,
+      "loop_closure_residual_m": 1.3877787807814457e-14
+    }
+  ],
+  "gripper_sweep_samples": 201,
+  "maximum_closed_loop_residual_m": 6.350475700855895e-14,
+  "mode": "kinematic preview; user-configurable motion ranges, not hardware stop certification"
+}
