@@ -52,6 +52,10 @@ def _state(env: "ManagerBasedRlEnv") -> dict:
             "t_star": torch.zeros(n, device=dev),
             "hit": torch.zeros(n, dtype=torch.bool, device=dev),
             "first": torch.zeros(n, dtype=torch.bool, device=dev),
+            # the face has let go of the cork: latched, and the one tick
+            # on which it happened (return_landing reads that tick)
+            "released": torch.zeros(n, dtype=torch.bool, device=dev),
+            "release": torch.zeros(n, dtype=torch.bool, device=dev),
             # active arm for the shot (0 right, 1 left) and whether it is
             # locked (shared.SharedArmAction in training, ChooserPolicy at
             # deployment)
@@ -89,6 +93,7 @@ def reset_badminton_episode(env: "ManagerBasedRlEnv",
     store["p_star"][env_ids] = store["bank_p_star"][idx]
     store["t_star"][env_ids] = store["bank_t_star"][idx]
     store["hit"][env_ids] = False
+    store["released"][env_ids] = False
     store["p0_xy"][env_ids] = p0[:, :2]
 
 
@@ -159,12 +164,22 @@ def intercept_target(env: "ManagerBasedRlEnv") -> torch.Tensor:
 
 def face_contact(env: "ManagerBasedRlEnv", sensor_name: str) -> torch.Tensor:
     """Sparse: 1 on the tick the racket face first meets the cork. Also
-    latches the has-hit flag, so list this term before return_flight."""
+    latches the has-hit flag, so list this term before return_flight.
+
+    The face contact (solref 12 ms) outlasts a 20 ms control tick when it
+    starts partway through one, so the shuttle state at the end of the
+    first-contact tick is mid-contact: a landing predicted from it can put
+    a return that clears the net short of it. The release flag marks the
+    first tick after the hit on which no substep touched the cork; the
+    shuttle is in free flight at the end of that tick."""
     store = _state(env)
     hit_now = _sensor_hit(env, sensor_name)
     first = hit_now & ~store["hit"]
+    release = store["hit"] & ~hit_now & ~store["released"]
     store["hit"] |= hit_now
-    store["first"] = first          # this tick only; return_landing reads it
+    store["released"] |= release
+    store["first"] = first          # this tick only
+    store["release"] = release      # this tick only; return_landing reads it
     return first.float()
 
 
@@ -230,20 +245,21 @@ def predict_landing(p: torch.Tensor, v: torch.Tensor,
 
 def return_landing(env: "ManagerBasedRlEnv", sigma: float = 1.5
                    ) -> torch.Tensor:
-    """Sparse, paid once at the hit tick: gaussian in the predicted landing
-    point's distance to the episode's launch origin (the target zone), zero
-    if the predicted flight does not clear the net into the far court. The
-    prediction rolls the post-contact shuttle state through the same drag
-    model the launcher bank was built with, so the reward needs no extra
-    sim time beyond the hit tick."""
+    """Sparse, paid once on the tick the shuttle leaves the face: gaussian
+    in the predicted landing point's distance to the episode's launch origin
+    (the target zone), zero if the predicted flight does not clear the net
+    into the far court. The prediction rolls the free-flight shuttle state
+    through the same drag model the launcher bank was built with, so the
+    reward needs no extra sim time beyond the release tick (one or two
+    ticks after the first contact, see face_contact)."""
     store = _state(env)
     out = torch.zeros(env.num_envs, device=env.device)
-    first = store["first"]
-    if bool(first.any()):
+    rel = store["release"]
+    if bool(rel.any()):
         pos, vel = _shuttle_state(env)
-        land_xy, ok = predict_landing(pos[first], vel[first])
-        d2 = ((land_xy - store["p0_xy"][first]) ** 2).sum(dim=-1)
-        out[first] = torch.exp(-d2 / (2.0 * sigma**2)) * ok.float()
+        land_xy, ok = predict_landing(pos[rel], vel[rel])
+        d2 = ((land_xy - store["p0_xy"][rel]) ** 2).sum(dim=-1)
+        out[rel] = torch.exp(-d2 / (2.0 * sigma**2)) * ok.float()
     return out
 
 

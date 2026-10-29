@@ -57,7 +57,14 @@ def main() -> None:
     ap.add_argument("--critic-checkpoint", default=None,
                     help="checkpoint holding that critic (default: "
                          "--checkpoint-file)")
+    ap.add_argument("--bank-seed", type=int, default=mdp.BANK_SEED,
+                    help="seed of the launcher bank to roll over (training "
+                         "uses mdp.BANK_SEED; any other value is a held-out "
+                         "bank of fresh serves from the same distribution)")
     args = ap.parse_args()
+    # the bank is built on the env's first reset from this module global
+    mdp.BANK_SEED = args.bank_seed
+    print(f"launcher bank: {mdp.BANK_SIZE} serves, seed {mdp.BANK_SEED}")
 
     # the play cfg waits for the chooser's lock and adds the per-arm
     # observation groups the critic reads
@@ -131,8 +138,9 @@ def main() -> None:
     near_uv = torch.full((n, 2), float("nan"), device=dev)
     near_d = torch.full((n,), float("inf"), device=dev)
     near_side = torch.full((n,), -1, dtype=torch.long, device=dev)  # 0 right, 1 left
-    # predicted landing of the return, at the hit tick: distance to the
-    # launch origin (the run-12 target zone) and net-clearance flag
+    # predicted landing of the return, from the shuttle state on the tick
+    # it leaves the face (store["release"], see mdp.face_contact): distance
+    # to the launch origin (the run-12 target zone) and net-clearance flag
     land_err = torch.full((n,), float("nan"), device=dev)
     land_ok = torch.zeros(n, dtype=torch.bool, device=dev)
     # landing point, launch origin and net-crossing point of the return
@@ -176,17 +184,17 @@ def main() -> None:
             near_d = torch.where(closer, d, near_d)
             near_uv[closer] = local[closer, :2]
             near_side = torch.where(closer, side, near_side)
-            first = store["first"] & (~done)
-            if bool(first.any()):
+            rel = store["release"] & (~done)
+            if bool(rel.any()):
                 spos, svel = mdp._shuttle_state(uenv)
-                xy, ok, cxz = mdp.predict_landing(spos[first], svel[first],
+                xy, ok, cxz = mdp.predict_landing(spos[rel], svel[rel],
                                                   with_crossing=True)
-                land_err[first] = (
-                    (xy - store["p0_xy"][first]).norm(dim=-1))
-                land_ok[first] = ok
-                land_xy[first] = xy
-                p0_xy[first] = store["p0_xy"][first]
-                cross_xz[first] = cxz
+                land_err[rel] = (
+                    (xy - store["p0_xy"][rel]).norm(dim=-1))
+                land_ok[rel] = ok
+                land_xy[rel] = xy
+                p0_xy[rel] = store["p0_xy"][rel]
+                cross_xz[rel] = cxz
             if args.count_first_episodes:
                 done_ids = done.nonzero(as_tuple=False).squeeze(-1)
             else:

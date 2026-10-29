@@ -146,6 +146,7 @@ class Rally:
     hit_tick: int | None     # first face contact, or None (miss)
     landing: tuple | None    # predicted landing (x, y) of the return
     landing_ok: bool         # clears the net into the far court
+    crossed: bool            # the predicted flight reaches the net line
     err: float               # landing distance to the origin (m)
     arm: str | None          # arm the policy locked (right / left)
 
@@ -205,9 +206,11 @@ def simulate_batch(env, policy) -> list[Rally]:
     start_tick = torch.full((n,), -1, dtype=torch.long, device=dev)
     done_tick = torch.full((n,), -1, dtype=torch.long, device=dev)
     hit_tick = torch.full((n,), -1, dtype=torch.long, device=dev)
+    rel_tick = torch.full((n,), -1, dtype=torch.long, device=dev)
     origin = torch.zeros(n, 2, device=dev)
     landing = torch.zeros(n, 2, device=dev)
     landing_ok = torch.zeros(n, dtype=torch.bool, device=dev)
+    crossed = torch.zeros(n, dtype=torch.bool, device=dev)
     err = torch.zeros(n, device=dev)
     arm = torch.full((n,), -1, dtype=torch.long, device=dev)
     qpos_hist, qvel_hist = [], []
@@ -223,13 +226,19 @@ def simulate_batch(env, policy) -> list[Rally]:
         # the live envs before the next step can reset them
         arm = torch.where(live & store["committed"], store["assign"], arm)
         first = store["first"] & ~prev_hit & live
-        if bool(first.any()):
+        hit_tick[first] = t
+        # the landing is predicted from the tick the shuttle leaves the
+        # face, not the first-contact tick (mid-contact state there)
+        rel = store["release"] & live & (hit_tick >= 0)
+        if bool(rel.any()):
             pos, vel = mdp._shuttle_state(uenv)
-            xy, ok = mdp.predict_landing(pos[first], vel[first])
-            landing[first] = xy
-            landing_ok[first] = ok
-            err[first] = (xy - origin[first]).norm(dim=-1)
-            hit_tick[first] = t
+            xy, ok, cxz = mdp.predict_landing(pos[rel], vel[rel],
+                                              with_crossing=True)
+            rel_tick[rel] = t
+            landing[rel] = xy
+            landing_ok[rel] = ok
+            crossed[rel] = torch.isfinite(cxz[:, 1])
+            err[rel] = (xy - origin[rel]).norm(dim=-1)
         done_tick[d & live] = t
         # an env's recording begins on the tick after its reset: the state
         # captured at the top of the next loop iteration is the new episode
@@ -255,8 +264,10 @@ def simulate_batch(env, policy) -> list[Rally]:
             mocap_pos=mp[i:i + 1], mocap_quat=mq[i:i + 1],
             origin=tuple(origin[i].tolist()),
             hit_tick=(h - a) if h >= 0 else None,
-            landing=tuple(landing[i].tolist()) if h >= 0 else None,
-            landing_ok=bool(landing_ok[i]), err=float(err[i]),
+            # no landing when the episode ended before the face let go
+            landing=tuple(landing[i].tolist()) if rel_tick[i] >= 0 else None,
+            landing_ok=bool(landing_ok[i]), crossed=bool(crossed[i]),
+            err=float(err[i]),
             arm={0: "right", 1: "left"}.get(int(arm[i]))))
     return out
 
@@ -451,19 +462,24 @@ def main() -> None:
                 prev_hit_flag = rl.hit_tick is not None
                 marks["origin"], marks["landing"] = rl.origin, None
                 status, colour = "serving...", INK
+                labelled = False
                 T = rl.qpos.shape[0]
                 total = (T - 1) * step_dt + args.hold
                 t_r = 0.0
                 while t_r < total:
                     k = min(int(round(t_r / step_dt)), T - 1)
-                    if rl.hit_tick is not None and k >= rl.hit_tick and marks["landing"] is None:
+                    if rl.hit_tick is not None and k >= rl.hit_tick and not labelled:
+                        labelled = True
                         marks["landing"], marks["landing_ok"] = rl.landing, rl.landing_ok
                         who = f" ({rl.arm} arm)" if rl.arm else ""
-                        if rl.landing_ok:
+                        if rl.landing is None:
+                            status, colour = f"HIT{who}", GOOD
+                        elif rl.landing_ok:
                             status = f"HIT{who}   return lands {rl.err:.1f} m from the serve origin"
                             colour = GOOD
                         else:
-                            status, colour = f"HIT{who}   return short / into the net", WARN
+                            where = "into the net" if rl.crossed else "short of the net"
+                            status, colour = f"HIT{who}   return {where}", WARN
                     if k == T - 1 and rl.hit_tick is None:
                         status, colour = "MISS" + (f" ({rl.arm} arm)" if rl.arm else ""), BAD
                     data = RecordedData(rl.qpos[k:k + 1], rl.qvel[k:k + 1],
