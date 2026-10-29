@@ -94,3 +94,17 @@ slam/
 ├── docs/                architecture, failure cases, benchmarks
 └── data/                datasets and bags (gitignored, local only)
 ```
+
+## Foxglove
+
+Layout: `slam_ros/foxglove/slam_layout.json`. In Foxglove: Layouts → Import from file, then open a bag or connect to `foxglove_bridge`.
+
+| Panel | Topic |
+|-------|-------|
+| Image | `/camera/rgb/image_color` (camera view) |
+| Image | `/vo/debug_image` (tracked features) |
+| 3D | TF, `/vo/odom` (pose and trajectory) |
+| Raw Messages | `/vo/stats` (tracking health) |
+| Plot | empty until `TrackingStats` in `slam_msgs` has fields |
+
+The `/vo/*` panels stay empty until the frontend publishes them. Built against the TUM RGB-D `freiburg1_xyz` bag; change the camera topic to the D455's once our bags are recorded.
