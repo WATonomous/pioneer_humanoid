@@ -2,10 +2,6 @@
 
 from __future__ import annotations
 
-import math
-
-import numpy as np
-
 import isaaclab.sim as sim_utils
 from isaaclab.managers import EventTermCfg as EventTerm
 from isaaclab.managers import ObservationGroupCfg as ObsGroup
@@ -13,65 +9,63 @@ from isaaclab.managers import ObservationTermCfg as ObsTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.sensors import TiledCameraCfg
 from isaaclab.utils import configclass
+from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
 from . import mdp
 from .push_env_cfg import PushBlockEnvCfg, PushBlockEnvCfg_PLAY
-from .mdp.vision_dr import list_push_textures
 from .push_env_cfg import (
     BOX_EXCLUSION,
+    DR_JOINT_POS_NOISE,
+    DR_JOINT_VEL_NOISE,
     EventCfg,
     FLOOR_TARGET,
     FLOOR_Z,
     RAMP_BASE_X,
     RAMP_TOP_X,
-    SPAWN_STAGES,
+    SPAWN_RAMP_TARGET,
 )
+from pioneer_humanoid.arm_params import CAMERAS, vertical_aperture  # noqa: E402
 
-# External table-side camera (env frame). Looks at the ramp mouth / block workspace.
-# Keep in sync with mdp/vision_dr.py nominal eye/target.
-_CAM_EYE = (0.55, -0.50, 0.42)
-_CAM_TARGET = (0.30, 0.0, 0.05)
-_CAM_WIDTH = 64
-_CAM_HEIGHT = 64
-
-
-def _look_at_quat_ros(eye, target, up=(0.0, 0.0, 1.0)) -> tuple[float, float, float, float]:
-    """Camera quaternion (wxyz, ROS optical: +Z forward, +Y down)."""
-    eye_a, target_a = np.asarray(eye, float), np.asarray(target, float)
-    z = target_a - eye_a
-    z /= np.linalg.norm(z)
-    up_a = np.asarray(up, float)
-    x = np.cross(z, up_a)
-    x /= np.linalg.norm(x)
-    y = np.cross(z, x)
-    m = np.stack([x, y, z], axis=1)
-    w = math.sqrt(max(1.0 + m[0, 0] + m[1, 1] + m[2, 2], 1e-12)) / 2.0
-    return (
-        float(w),
-        float((m[2, 1] - m[1, 2]) / (4 * w)),
-        float((m[0, 2] - m[2, 0]) / (4 * w)),
-        float((m[1, 0] - m[0, 1]) / (4 * w)),
-    )
+# Student cameras are the robot's own ego and left-wrist cameras (arm_params.CAMERAS), rendered at this size.
+# 4:3 is required by the sensor calibration. Block is ~9 px wide in the ego view at 160x120.
+STUDENT_IMG_WIDTH = 160
+STUDENT_IMG_HEIGHT = 120
+# Noise on the student's end-effector position (m): it is computed from the joint encoders, so it inherits their error (~0.01 rad x ~0.4 m).
+STUDENT_EE_POS_NOISE = 0.005
 
 
-def _make_tiled_camera() -> TiledCameraCfg:
+# Colour ranges around each object's real colour: table white plastic, cube red, tray blue.
+VISION_MATERIAL_TARGETS = {
+    "/TableCollision": dict(tint=((0.85, 0.85, 0.85), (1.0, 1.0, 1.0)), roughness=(0.1, 0.5), metallic=(0.0, 0.3)),  # the asset's own 0.5 metallic renders gray
+    "/Object": dict(tint=((0.75, 0.05, 0.05), (0.95, 0.20, 0.20)), roughness=(0.3, 0.8), metallic=(0.0, 0.05)),
+    "/Box": dict(tint=((0.05, 0.25, 0.70), (0.25, 0.45, 0.95)), roughness=(0.3, 0.8), metallic=(0.0, 0.05)),
+}
+
+
+def _tiled_camera_cfg(name: str) -> TiledCameraCfg:
+    """TiledCameraCfg for robot camera ``name``, with the same mount and lens as bimanual_arm.make_camera_cfg.
+
+    Tiled: one batched render for all envs. Per-env CameraCfg cameras exhaust GPU render resources at 64 envs."""
+    cam = CAMERAS[name]
     return TiledCameraCfg(
-        prim_path="{ENV_REGEX_NS}/tiled_camera",
-        offset=TiledCameraCfg.OffsetCfg(
-            pos=_CAM_EYE,
-            rot=_look_at_quat_ros(_CAM_EYE, _CAM_TARGET),
-            convention="ros",
-        ),
+        prim_path="{ENV_REGEX_NS}/Robot/" + f"{cam.body}/{cam.prim}",
+        offset=TiledCameraCfg.OffsetCfg(pos=cam.pos, rot=cam.rot, convention="opengl"),
         spawn=sim_utils.PinholeCameraCfg(
-            focal_length=18.0,
-            horizontal_aperture=20.955,
-            clipping_range=(0.05, 3.0),
+            focal_length=cam.focal,
+            horizontal_aperture=cam.h_aperture,
+            vertical_aperture=vertical_aperture(name, STUDENT_IMG_HEIGHT, STUDENT_IMG_WIDTH),
+            clipping_range=cam.clip,
         ),
-        width=_CAM_WIDTH,
-        height=_CAM_HEIGHT,
+        width=STUDENT_IMG_WIDTH,
+        height=STUDENT_IMG_HEIGHT,
         data_types=["rgb"],
         update_period=0.0,
     )
+
+
+def _add_student_cameras(scene) -> None:
+    scene.ego_cam = _tiled_camera_cfg("ego")
+    scene.wrist_cam = _tiled_camera_cfg("wrist_left")
 
 
 @configclass
@@ -105,11 +99,14 @@ class DistillObservationsCfg:
 
     @configclass
     class StudentCfg(ObsGroup):
-        """Proprioceptive student terms (no privileged block state)."""
+        """Proprioceptive student terms (no privileged block state), with sensor noise. The teacher's obs stay clean."""
 
-        joint_pos = ObsTerm(func=mdp.joint_pos_rel)
-        joint_vel = ObsTerm(func=mdp.joint_vel_rel)
-        ee_position = ObsTerm(func=mdp.ee_position_in_robot_root_frame)
+        joint_pos = ObsTerm(func=mdp.joint_pos_rel, noise=Unoise(n_min=-DR_JOINT_POS_NOISE, n_max=DR_JOINT_POS_NOISE))
+        joint_vel = ObsTerm(func=mdp.joint_vel_rel, noise=Unoise(n_min=-DR_JOINT_VEL_NOISE, n_max=DR_JOINT_VEL_NOISE))
+        ee_position = ObsTerm(
+            func=mdp.ee_position_in_robot_root_frame,
+            noise=Unoise(n_min=-STUDENT_EE_POS_NOISE, n_max=STUDENT_EE_POS_NOISE),
+        )
         ramp_geometry = ObsTerm(
             func=mdp.ramp_geometry,
             params={
@@ -122,25 +119,25 @@ class DistillObservationsCfg:
         actions = ObsTerm(func=mdp.last_action)
 
         def __post_init__(self):
-            self.enable_corruption = False
+            self.enable_corruption = True
             self.concatenate_terms = True
 
     @configclass
     class StudentRgbCfg(ObsGroup):
-        """RGB image for the student vision encoder."""
+        """RGB images (ego + left wrist) for the student vision encoders."""
 
-        rgb = ObsTerm(
+        ego_rgb = ObsTerm(
             func=mdp.image,
-            params={
-                "sensor_cfg": SceneEntityCfg("tiled_camera"),
-                "data_type": "rgb",
-                "normalize": True,
-            },
+            params={"sensor_cfg": SceneEntityCfg("ego_cam"), "data_type": "rgb", "normalize": True},
+        )
+        wrist_rgb = ObsTerm(
+            func=mdp.image,
+            params={"sensor_cfg": SceneEntityCfg("wrist_cam"), "data_type": "rgb", "normalize": True},
         )
 
         def __post_init__(self):
             self.enable_corruption = False
-            # Keep spatial dims — do not flatten the image into a vector.
+            # Keep spatial dims — do not flatten the images into a vector.
             self.concatenate_terms = False
 
     # Keep a `policy` alias so tools that expect it still see teacher-sized obs.
@@ -154,14 +151,26 @@ class DistillObservationsCfg:
 class DistillEventCfg(EventCfg):
     """Push reset events + vision DR (camera / light / materials+textures)."""
 
-    # Mild camera jitter (±3 cm, ±3 deg) — scale up for harder sim2real later.
-    vision_camera = EventTerm(
-        func=mdp.randomize_tiled_camera_pose,
+    # Mounting-tolerance jitter around the real camera mounts (guesses until the real tolerance is known).
+    vision_camera_ego = EventTerm(
+        func=mdp.randomize_robot_camera_pose,
         mode="reset",
         params={
-            "camera_cfg": SceneEntityCfg("tiled_camera"),
-            "pos_range": (-0.03, 0.03),
-            "rot_deg_range": (-3.0, 3.0),
+            "camera_cfg": SceneEntityCfg("ego_cam"),
+            "mount": "ego",
+            "pos_range": (-0.01, 0.01),
+            "rot_deg_range": (-2.0, 2.0),
+        },
+    )
+
+    vision_camera_wrist = EventTerm(
+        func=mdp.randomize_robot_camera_pose,
+        mode="reset",
+        params={
+            "camera_cfg": SceneEntityCfg("wrist_cam"),
+            "mount": "wrist_left",
+            "pos_range": (-0.001, 0.001),
+            "rot_deg_range": (-2.0, 2.0),
         },
     )
 
@@ -177,16 +186,13 @@ class DistillEventCfg(EventCfg):
     vision_materials = EventTerm(
         func=mdp.randomize_visual_materials,
         mode="reset",
-        params={
-            "texture_paths": list_push_textures(),
-            "apply_textures": True,
-        },
+        params={"targets": VISION_MATERIAL_TARGETS},
     )
 
 
 @configclass
 class PushBlockDistillEnvCfg(PushBlockEnvCfg):
-    """Push-block env with an external camera for vision distillation (bimanual arm)."""
+    """Push-block env with the robot's ego and left-wrist cameras for vision distillation (bimanual arm)."""
 
     observations: DistillObservationsCfg = DistillObservationsCfg()
     events: DistillEventCfg = DistillEventCfg()
@@ -197,9 +203,11 @@ class PushBlockDistillEnvCfg(PushBlockEnvCfg):
         self.scene.num_envs = 64
         self.scene.env_spacing = 2.5
         self.sim.render_interval = self.decimation
-        self.scene.tiled_camera = _make_tiled_camera()
-        # Ensure spawn event still uses stage-0 defaults (parent EventCfg fields).
-        self.events.reset_object_position.params["pose_range"] = dict(SPAWN_STAGES[0])
+        _add_student_cameras(self.scene)
+        # Distillation runs at full difficulty from iteration 0: no DR / spawn ramps, final spawn range.
+        self.curriculum.dr_ramp = None
+        self.curriculum.spawn_ramp = None
+        self.events.reset_object_position.params["pose_range"] = dict(SPAWN_RAMP_TARGET)
         self.events.reset_object_position.params["box_exclusion"] = BOX_EXCLUSION
 
 
@@ -215,4 +223,7 @@ class PushBlockDistillEnvCfg_PLAY(PushBlockEnvCfg_PLAY):
         super().__post_init__()
         self.scene.num_envs = 16
         self.sim.render_interval = self.decimation
-        self.scene.tiled_camera = _make_tiled_camera()
+        self.observations.student.enable_corruption = False  # clean proprio for eval
+        # the EE frame marker would be drawn into the student's camera images
+        self.scene.ee_frame.debug_vis = False
+        _add_student_cameras(self.scene)

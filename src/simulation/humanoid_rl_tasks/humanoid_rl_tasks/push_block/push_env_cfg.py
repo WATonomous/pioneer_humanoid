@@ -43,7 +43,6 @@ from .scene import (  # noqa: F401  (BOX_* / FLOOR_TARGET re-exported for distil
     FLOOR_X_MAX,
     FLOOR_Y_HALF,
     FLOOR_Z,
-    FLOOR_Z_COLLISION,
     FULL_YAW,
     PUSH_DIR,
     RAMP_BASE_X,
@@ -102,8 +101,6 @@ RESUME_ITER = int(os.environ.get("RESUME_ITER", "0"))
 SPAWN_RAMP_START_ITER = 200
 SPAWN_RAMP_END_ITER = 300
 SPAWN_RAMP_TARGET = SPAWN_STAGES[1]
-# Event names the play configs switch off so you watch the policy on nominal physics.
-DR_EVENT_NAMES = ("dr_block_material", "dr_finger_material", "dr_block_mass", "dr_arm_mass", "dr_arm_gains")
 # ═════════════════════════════════════════════════════════════════════════════════════════════
 
 
@@ -252,7 +249,7 @@ class RewardsCfg:
 
     ee_behind_block = RewTerm(
         func=mdp.ee_behind_block,
-        params={"temp": 15.0, "push_offset": 0.05},
+        params={"temp": 15.0, "push_offset": 0.065, "target": FLOOR_TARGET, "angle_gain": 2.0, "max_angle_deg": 80.0},
         weight=1,
     )
 
@@ -262,7 +259,7 @@ class RewardsCfg:
         weight=2,
     )
 
-    action_smoothness = RewTerm(func=mdp.action_smoothness, params={"temp": 0.5}, weight=-0.1)
+    action_smoothness = RewTerm(func=mdp.action_smoothness, params={"temp": 0.5}, weight=-0.2)
 
 
 @configclass
@@ -312,7 +309,7 @@ class CurriculumCfg:
             "x_min": RAMP_TOP_X + BLOCK_HALF,
             "x_max": FLOOR_X_MAX,
             "y_half": FLOOR_Y_HALF - BLOCK_HALF,
-            "floor_z": FLOOR_Z_COLLISION,
+            "floor_z": FLOOR_Z,
             "z_tol": 0.006,
             "rest_speed": 0.05,
         },
@@ -387,6 +384,10 @@ class PushBlockEnvCfg(ManagerBasedRLEnvCfg):
         # give real headroom since randomized block spawns/yaw create varied contacts.
         self.sim.physx.gpu_total_aggregate_pairs_capacity = 128 * 1024
         self.sim.physx.friction_correlation_distance = 0.00625
+        # the exact-mesh ramp makes block-vs-ramp contacts overflow the 2**26 default at 8192 envs (needed ~69M, so ~138M at 16384)
+        self.sim.physx.gpu_collision_stack_size = 2**28
+        # contact patches overflow the 5 * 2**15 default at 16384 envs (needed ~166k)
+        self.sim.physx.gpu_max_rigid_patch_count = 5 * 2**16
 
         # ── bimanual arm ────────────────────────────────────────────────────
         self.scene.replicate_physics = True
@@ -436,9 +437,9 @@ class PushBlockEnvCfg_PLAY(PushBlockEnvCfg):
         super().__post_init__()
         self.scene.num_envs = 16
         self.scene.env_spacing = 2.5
-        self.observations.policy.enable_corruption = False
-        for name in DR_EVENT_NAMES:
-            setattr(self.events, name, None)
+        # Full training difficulty: all DR, observation noise and the final spawn range (no ramps), so play shows
+        # what the policy meets at the end of training.
         self.curriculum.dr_ramp = None
         self.curriculum.spawn_ramp = None
+        self.events.reset_object_position.params["pose_range"] = dict(SPAWN_RAMP_TARGET)
         self.scene.ee_frame = _ee_frame_cfg(debug_vis=True)

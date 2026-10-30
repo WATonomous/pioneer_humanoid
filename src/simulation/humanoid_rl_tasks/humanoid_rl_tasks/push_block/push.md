@@ -30,8 +30,7 @@ and target together onto the lightbox table; every x below already includes it.
 | Block start | center ≈ `(0.48, 0.0)` on the table | in front of the ramp mouth |
 | Ramp base | `RAMP_BASE_X = 0.549` | ramp meets the table |
 | Ramp top | `RAMP_TOP_X = 0.578` | ramp meets the interior floor |
-| Floor (visual) | `FLOOR_Z = TABLE_TOP_Z + 0.0063` | interior floor height (obs) |
-| Floor (collision) | `FLOOR_Z_COLLISION = TABLE_TOP_Z + 0.0115` | effective rest height for the success check |
+| Floor | `FLOOR_Z = TABLE_TOP_Z + 0.0063` | interior floor height (obs and success check; the collider matches the visual) |
 | Floor extent | `0.578 ≤ x ≤ FLOOR_X_MAX = 0.781`, `|y| ≤ 0.114` | interior floor footprint |
 | Target | `FLOOR_TARGET = ((RAMP_TOP_X + FLOOR_X_MAX) / 2, 0) = (0.6795, 0)` | centered on the interior floor |
 
@@ -80,7 +79,7 @@ rl-play --task Isaac-Bimanual-Push-Block-Play-v0 --num_envs 4 \
   --checkpoint outputs/rl/push_bimanual/<folder_name>/model_150.pt                 # a specific one
 ```
 
-Play uses nominal physics (domain randomization and observation noise are off) and
+Play runs at full training difficulty (all domain randomization, observation noise and the final spawn range) and
 exports `exported/policy.pt` (TorchScript) and `policy.onnx` before the sim loop.
 **Gotcha:** `--checkpoint` is resolved literally and ignores `--load_run`; give a
 real path, or omit it to load the latest from `outputs/rl/push_bimanual/`.
@@ -115,7 +114,7 @@ Weighted sum of the terms below (`RewardsCfg` in `push_env_cfg.py`, implemented 
 
 | Term | Weight | `temp` | What it does |
 |---|---:|---:|---|
-| `ee_behind_block` | **+1.0** | 15 | `exp(−temp·d)`, d = 3D distance from the fingertip midpoint to the push point (block center − 0.05 m along x). The point moves with the block |
+| `ee_behind_block` | **+1.0** | 15 | `exp(−temp·d)`, d = 3D distance from the fingertip midpoint to the push point: 6.5 cm from the block centre at angle `2N` from straight behind (N = angle between the block→goal line and the centerline, clamped to 80°), so off-centre blocks are pushed back toward the centerline. The point moves with the block |
 | `block_to_target` | **+2.0** | 5 | `exp(−temp·d)`, d = xy distance from the block center to `FLOOR_TARGET` |
 | `action_smoothness` | **−0.1** | 0.5 | `1 − exp(−temp·‖Δaction‖)`, bounded in [0, 1): penalizes step-to-step action changes (jitter) |
 
@@ -134,7 +133,7 @@ spurious warnings.
 
 ### How the shaping fits together
 
-1. **Get behind the block** — `ee_behind_block` pulls the fingertips to the push point.
+1. **Get behind the block** — `ee_behind_block` pulls the fingertips to the push point (behind and to the outside of an off-centre block).
 2. **Land it on the target** — `block_to_target` pulls the block toward the floor center.
 3. **Stay smooth** — `action_smoothness` penalizes jitter.
 4. **Measure success** — `success_rate_logger` logs how often an episode ends on the floor.
@@ -204,7 +203,7 @@ The play configs switch these events and the ramp off.
 
 ## Minimal vision distillation
 
-Distills a privileged PPO teacher into a camera student (RGB 64×64 + proprio, no
+Distills a privileged PPO teacher into a camera student (the robot's own ego and left-wrist cameras at 160×120 + proprio, no
 block state). Uses a small custom DAgger-style loop (`rsl_rl_scripts/distill_push.py`),
 not RSL-RL's MLP-only DistillationRunner.
 
@@ -227,18 +226,34 @@ PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/play_distill_push.py \
 
 Checkpoints land in `outputs/rl/push_distill/<timestamp>/nn/`.
 
+The distillation env runs at full DR and the full spawn range from iteration 0 (it drops the `dr_ramp` and `spawn_ramp` curriculum terms), so no `RESUME_ITER` is needed.
+
+**Cameras.** Both come from `pioneer_humanoid/arm_params.py` (`CAMERAS`: `ego` on `base_link`, `wrist_left` on
+`link6l`; `wrist_right` is not used). They are `TiledCameraCfg` (built in `distill_env_cfg.py` from the same mount and lens as
+`bimanual_arm.make_camera_cfg`) because per-env `CameraCfg` cameras fail at 64 envs. The image size is
+`STUDENT_IMG_WIDTH/HEIGHT` in `distill_env_cfg.py` (4:3 is required by the calibration). `mdp.image` divides by 255 and
+subtracts each image's per-channel mean, and deployment must do the same. The ego intrinsics in `arm_params` are an
+estimate; the wrist lens is measured.
+
 ### Vision domain randomization (sim2real template)
 
 Train distill env (`*-Distill-v0`) runs reset-time vision DR via `mdp/vision_dr.py`:
 
 | Term | What |
 |------|------|
-| Camera | ±3 cm position, ±3° look-at jitter on the external tiled cam |
+| Camera mounts | ego ±1 cm / ±2°, left wrist ±1 mm / ±2°, around the mounts in `arm_params.CAMERAS` (guesses until the real tolerance is known) |
 | Light | Dome intensity 1500–4500, mild RGB tint |
-| Materials | Diffuse tint / roughness / metallic on table, block, box |
-| Textures | Random pick from `tasks/push/assets/textures/` (3 small PNGs) |
+| Materials | Per-object colour around the real colour (cube red, tray blue, table white), roughness and metallic: `VISION_MATERIAL_TARGETS` in `distill_env_cfg.py` |
+| Textures | Off (`apply_textures: False`): the real surfaces are plain. The 3 PNGs in `assets/textures/` are unused |
 
-Play distill (`*-Distill-Play-v0`) keeps vision DR **off** for clean eval. To scale
+Student proprio noise is on in the train env: joint pos ±0.01 rad, joint vel ±0.2 rad/s (same as the teacher's DR knobs), ee position ±5 mm; the last action is exact. The teacher's observations stay clean.
+`distill_push.py` also augments the student's images when computing the loss (`student_policy.augment_rgb`: shift ±4 px, contrast ×0.8–1.2, per-channel gain ×0.9–1.1, pixel noise σ=0.02); `--no_image_aug` turns it off. It acts on the clean images, so the logged success is the deployed student's.
+
+**No frame history needed for this task.** The student sees a single frame per camera (`--history 1`, the default) plus proprio, with no
+memory, and `student_v3_colors` still reached ~98.2% success at full difficulty against the teacher's ~98.6%. `--history` stays as an option
+but is not worth using here.
+
+Play distill (`*-Distill-Play-v0`) keeps vision DR, proprio noise and augmentation **off** for clean eval. To scale
 sim2real later: widen the ranges in `DistillEventCfg` and/or drop more PNGs into
 `assets/textures/` (no Git LFS required for a small pack).
 
@@ -248,9 +263,9 @@ This distill path is intentionally a **mono-RGB + light sim2real template**:
 
 | Area | This push distill setup | Fuller stacks (e.g. DextrAH-style) |
 |------|-------------------------|-------------------------------------|
-| Sensors | Single external RGB (64×64) | Mono and/or stereo RGB, optional depth |
+| Sensors | Ego + left-wrist RGB (160×120 each, separate CNN per camera) | Mono and/or stereo RGB, optional depth |
 | Vision DR | Camera jitter, dome tint/intensity, material tint/roughness, small texture pack | Large texture/HDRI packs, arm appearance DR, richer lighting |
-| Image augs | None (env appearance only) | Post-render RGB/depth augs (color jitter, blur, background paste, depth noise) |
+| Image augs | Random shift, contrast, colour cast, pixel noise at training time (`augment_rgb`) | Post-render RGB/depth augs (color jitter, blur, background paste, depth noise) |
 | Physics DR | Friction, block/link mass, arm gains, joint obs noise (mass/gains/noise ramped); no latency | Full ADR (friction, mass, joint gains, obs noise, etc.), often maxed during distill |
 | Student train loop | Custom DAgger/BC over RSL-RL teacher | Custom distill loop (often rl-games), aux heads, multi-GPU |
 

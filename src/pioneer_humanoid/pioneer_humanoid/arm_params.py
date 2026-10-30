@@ -7,7 +7,6 @@ chain (joint1L..joint6l) = physical LEFT arm; RIGHT_* = unsuffixed.
 import math
 from typing import NamedTuple
 
-from .camera_info import CALIB_DIR, read_camera_info
 
 
 def _deg(degrees: float) -> float:
@@ -115,12 +114,15 @@ class CameraMount(NamedTuple):
 
 # ego          RealSense D455 colour at 640x480 (4:3), 50 deg down. ESTIMATE ~80 x 65 deg: native
 #              1280x800 lens with the sides cropped to 4:3. Replace with the real camera_info.
-# wrist_left   between the fingers. Sonix UVC webcam, MEASURED: real frames are remapped to the
-#              centred 640x480 pinhole in calib/wrist_cam_pinhole_640x480.yaml (723 px, 47.75 x
-#              36.73 deg), and the focal length below is read from that file. 4:3 to match it.
-# wrist_right  mirror of wrist_left
-_WRIST_PINHOLE_SIZE, _WRIST_PINHOLE_K, _ = read_camera_info(CALIB_DIR / "wrist_cam_pinhole_640x480.yaml")
-WRIST_FOCAL_MM = _WRIST_PINHOLE_K[0][0] * 20.955 / _WRIST_PINHOLE_SIZE[0]   # px -> mm at 20.955 mm aperture
+# wrist_left   on the camera bracket plate of link6l: centre of its 4-hole pattern (24 x 25 mm) on face 1 plus 0.1 mm,
+#              from meshes/link6l.STL. The plate is tilted 20 deg, so the optical axis is the plate normal: pitch 20 deg,
+#              roll 270. Lens: 120 deg DIAGONAL FOV on the 4:3 sensor (about 108 x 92 deg), a deliberate choice.
+#              The real camera calibrates to ~74 deg horizontal on its raw 1920x1080 frame, and real frames are remapped
+#              to the pinhole in calib/wrist_cam_pinhole_640x480.yaml (47.75 x 36.73 deg), so sim and real no longer
+#              share a camera here: change the remap target (perception/camera_calibration) before sim2real.
+# wrist_right  mirror of wrist_left (old pose and lens, unused)
+WRIST_DIAG_FOV_DEG = 120.0
+WRIST_FOCAL_MM = math.hypot(20.955, 20.955 * 3 / 4) / (2.0 * math.tan(math.radians(WRIST_DIAG_FOV_DEG / 2.0)))
 CAMERAS = {
     "ego": CameraMount(
         "base_link", "cam_ego",
@@ -129,8 +131,8 @@ CAMERAS = {
     ),
     "wrist_left": CameraMount(
         "link6l", "cam_wrist_left",
-        (0.06179, 0.05297, -0.07077), (0.696364, -0.122788, 0.122788, -0.696364),
-        WRIST_FOCAL_MM, 20.955, (0.05, 5.0), 4 / 3,
+        (0.062138, 0.053, -0.068179), (0.696364, -0.122788, 0.122788, -0.696364),
+        WRIST_FOCAL_MM, 20.955, (0.01, 100.0), 4 / 3,
     ),
     "wrist_right": CameraMount(
         "link6", "cam_wrist_right",

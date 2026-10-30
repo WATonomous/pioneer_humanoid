@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import argparse
 import os
+import time
+from collections import deque
 from datetime import datetime
 
 from isaaclab.app import AppLauncher
@@ -34,6 +36,8 @@ parser.add_argument("--lr", type=float, default=3e-4)
 parser.add_argument("--save_interval", type=int, default=100)
 parser.add_argument("--beta_teacher", type=float, default=0.0,
                     help="Probability of stepping with teacher actions (1=pure BC data, 0=DAgger).")
+parser.add_argument("--history", type=int, default=1, help="Frames the student sees per camera (current + previous ones, stacked on channels).")
+parser.add_argument("--no_image_aug", action="store_true", help="Train on clean images (default: random shift/contrast/colour/noise).")
 parser.add_argument("--run_name", type=str, default="")
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
@@ -51,7 +55,7 @@ from rsl_rl.modules import ActorCritic
 from torch.utils.tensorboard import SummaryWriter
 
 import humanoid_rl_tasks  # noqa: F401
-from humanoid_rl_tasks.push_block.student_policy import StudentVisionPolicy
+from humanoid_rl_tasks.push_block.student_policy import FrameStack, StudentVisionPolicy, augment_rgb, student_images
 from isaaclab_tasks.utils import parse_env_cfg
 
 
@@ -106,16 +110,66 @@ def _obs_group(obs: dict, key: str):
     return obs[key]
 
 
-def _rgb_tensor(obs: dict) -> torch.Tensor:
-    """Return NHWC RGB from the student_rgb group (dict or tensor)."""
-    rgb_group = _obs_group(obs, "student_rgb")
-    if isinstance(rgb_group, dict):
-        rgb = rgb_group["rgb"]
-    else:
-        rgb = rgb_group
-    if rgb.dim() != 4:
-        raise RuntimeError(f"Expected 4D RGB tensor, got shape {tuple(rgb.shape)}")
-    return rgb
+def _image_shapes(images: dict) -> dict:
+    """(H, W, C) per camera from NHWC tensors."""
+    shapes = {}
+    for name, img in images.items():
+        if img.dim() != 4 or img.shape[-1] not in (1, 3, 4):
+            raise RuntimeError(f"Expected NHWC RGB for camera '{name}', got {tuple(img.shape)}")
+        shapes[name] = (img.shape[1], img.shape[2], min(img.shape[3], 3))
+    return shapes
+
+
+def augment_rgb_dict(images: dict) -> dict:
+    return {name: augment_rgb(img) for name, img in images.items()}
+
+
+def _sync_time(device) -> float:
+    """perf_counter after waiting for queued GPU work, so per-phase timings are honest."""
+    if str(device).startswith("cuda"):
+        torch.cuda.synchronize()
+    return time.perf_counter()
+
+
+def _hms(seconds: float) -> str:
+    seconds = int(max(seconds, 0))
+    return f"{seconds // 3600:02d}:{seconds % 3600 // 60:02d}:{seconds % 60:02d}"
+
+
+def _num(x: float, spec: str = ".4f") -> str:
+    return "n/a" if x != x else format(x, spec)
+
+
+def _format_report(it: int, total_its: int, horizon: int, num_envs: int, stats: dict, env_log: dict, elapsed: float, tot_timesteps: int) -> str:
+    """One iteration's block, laid out like the teacher's RSL-RL printout (rewards swapped for the behavior loss)."""
+    width, pad = 80, 35
+    fps = int(horizon * num_envs / max(stats["collect_s"] + stats["learn_s"], 1e-9))
+    rows = [
+        ("Computation:", f"{fps:.0f} steps/s (collection: {stats['collect_s']:.3f}s, learning {stats['learn_s']:.3f}s)"),
+        ("Mean behavior loss (MSE):", _num(stats["loss"])),
+        ("Last-step behavior loss:", _num(stats["loss_last"])),
+        ("Mean action error (L1):", _num(stats["l1"])),
+        ("Mean gradient norm (pre-clip):", _num(stats["grad"])),
+        ("Learning rate:", format(stats["lr"], ".2e")),
+        ("Teacher-driven steps:", f"{stats['teacher_frac'] * 100:.0f}%"),
+        ("Mean episode length:", _num(stats["ep_len"], ".2f")),
+    ]
+    rows += [(f"{k}:", _num(env_log[k])) for k in sorted(env_log) if k.startswith("Curriculum/")]
+    rows += [(f"{k}:", _num(env_log[k])) for k in sorted(env_log) if k.startswith("Episode_Termination/")]
+    header = f" \033[1m Student distillation iteration {it}/{total_its} \033[0m "
+    out = [f"{'#' * width}", header.center(width, " "), ""]
+    out += [f"{label:>{pad}} {value}" for label, value in rows]
+    iter_time = stats["collect_s"] + stats["learn_s"]
+    eta = elapsed / max(it + 1, 1) * (total_its - it - 1)
+    out += [
+        "-" * width,
+        f"{'Total timesteps:':>{pad}} {tot_timesteps}",
+        f"{'Iteration time:':>{pad}} {iter_time:.2f}s",
+        f"{'Time elapsed:':>{pad}} {_hms(elapsed)}",
+        f"{'ETA:':>{pad}} {_hms(eta)}",
+        "",
+    ]
+    return "\n".join(out)
 
 
 def main():
@@ -142,23 +196,19 @@ def main():
     obs_dict, _ = env.reset()
     teacher_obs = _obs_group(obs_dict, "teacher")
     student_obs = _obs_group(obs_dict, "student")
-    student_rgb = _rgb_tensor(obs_dict)
+    student_rgb = student_images(obs_dict)
 
     num_actions = unwrapped.action_manager.total_action_dim
     teacher = _load_teacher_actor(
         args_cli.teacher, teacher_obs.shape[-1], num_actions, device
     )
 
-    # Expect NHWC from isaaclab image term
-    if student_rgb.shape[-1] not in (1, 3, 4):
-        raise RuntimeError(f"Expected NHWC RGB, got {tuple(student_rgb.shape)}")
-    h, w, c = student_rgb.shape[1], student_rgb.shape[2], min(student_rgb.shape[3], 3)
-    image_shape = (h, w, c)
-
+    image_shapes = _image_shapes(student_rgb)
+    image_shapes = {name: (h, w, c * args_cli.history) for name, (h, w, c) in image_shapes.items()}
     student = StudentVisionPolicy(
         proprio_dim=student_obs.shape[-1],
         num_actions=num_actions,
-        image_shape=image_shape,
+        image_shapes=image_shapes,
     ).to(device)
     if args_cli.student_checkpoint:
         student.load_state_dict(
@@ -170,51 +220,95 @@ def main():
     loss_fn = nn.MSELoss()
 
     obs_dict, _ = env.reset()
-    global_step = 0
+    num_envs = unwrapped.num_envs
+    frame_stack = FrameStack(args_cli.history)
+    prev_dones = None
+    tot_timesteps = 0
+    ep_len = torch.zeros(num_envs, device=device)
+    len_buffer = deque(maxlen=100)  # lengths of the last 100 finished episodes
+    env_log: dict = {}  # latest Curriculum/* and Episode_Termination/* values from the env
+    start_time = time.time()
     for iteration in range(args_cli.max_iterations):
         student.train()
-        total_loss = 0.0
-        n_updates = 0
-        ep_rew = torch.zeros(unwrapped.num_envs, device=device)
+        losses, l1_errors, grad_norms = [], [], []
+        teacher_steps = 0
+        collect_s = learn_s = 0.0
 
         for _ in range(args_cli.horizon):
+            t0 = _sync_time(device)
             teacher_o = _obs_group(obs_dict, "teacher")
             student_o = _obs_group(obs_dict, "student")
-            rgb = _rgb_tensor(obs_dict)
+            rgb = frame_stack(student_images(obs_dict), prev_dones)
 
             with torch.no_grad():
                 teacher_actions = teacher(teacher_o)
-            student_actions = student(rgb, student_o)
+            if args_cli.no_image_aug:
+                student_actions = student(rgb, student_o)
+                rollout_actions = student_actions.detach()
+            else:
+                # learn from augmented images, but act on clean ones so the logged success is the deployed student's
+                student_actions = student(augment_rgb_dict(rgb), student_o)
+                with torch.no_grad():
+                    rollout_actions = student(rgb, student_o)
 
             loss = loss_fn(student_actions, teacher_actions)
             optimizer.zero_grad()
             loss.backward()
-            nn.utils.clip_grad_norm_(student.parameters(), 1.0)
+            grad_norms.append(float(nn.utils.clip_grad_norm_(student.parameters(), 1.0)))
             optimizer.step()
-            total_loss += loss.item()
-            n_updates += 1
+            losses.append(loss.item())
+            l1_errors.append((student_actions - teacher_actions).abs().mean().item())
+            t1 = _sync_time(device)
 
             if torch.rand(1).item() < args_cli.beta_teacher:
                 step_actions = teacher_actions
+                teacher_steps += 1
             else:
-                step_actions = student_actions.detach()
+                step_actions = rollout_actions
 
             obs_dict, rew, terminated, truncated, extras = env.step(step_actions)
-            ep_rew += rew
-            dones = terminated | truncated
-            global_step += unwrapped.num_envs
-            if dones.any():
-                # episode returns are already handled by env reset; keep rolling mean via extras if present
-                pass
+            t2 = _sync_time(device)
+            learn_s += t1 - t0
+            collect_s += t2 - t1
 
-        mean_loss = total_loss / max(n_updates, 1)
-        writer.add_scalar("distill/behavior_loss", mean_loss, iteration)
-        writer.add_scalar("distill/ep_rew_mean", ep_rew.mean().item(), iteration)
-        if iteration % 10 == 0:
-            print(
-                f"iter={iteration:5d}  loss={mean_loss:.6f}  "
-                f"rew_mean={ep_rew.mean().item():.3f}  steps={global_step}"
-            )
+            dones = terminated | truncated
+            prev_dones = dones
+            ep_len += 1
+            if dones.any():
+                len_buffer.extend(ep_len[dones].tolist())
+                ep_len[dones] = 0
+            tot_timesteps += num_envs
+            for key, value in extras.get("log", {}).items():
+                if key.startswith(("Curriculum/", "Episode_Termination/")):
+                    env_log[key] = float(value)
+
+        stats = dict(
+            collect_s=collect_s,
+            learn_s=learn_s,
+            loss=sum(losses) / len(losses),
+            loss_last=losses[-1],
+            l1=sum(l1_errors) / len(l1_errors),
+            grad=sum(grad_norms) / len(grad_norms),
+            lr=optimizer.param_groups[0]["lr"],
+            teacher_frac=teacher_steps / args_cli.horizon,
+            ep_len=sum(len_buffer) / len(len_buffer) if len_buffer else float("nan"),
+        )
+        print(
+            _format_report(iteration, args_cli.max_iterations, args_cli.horizon, num_envs, stats, env_log,
+                           time.time() - start_time, tot_timesteps),
+            flush=True,
+        )
+        writer.add_scalar("Loss/behavior", stats["loss"], iteration)
+        writer.add_scalar("Loss/behavior_last_step", stats["loss_last"], iteration)
+        writer.add_scalar("Loss/action_error_l1", stats["l1"], iteration)
+        writer.add_scalar("Loss/grad_norm", stats["grad"], iteration)
+        writer.add_scalar("Perf/collection_time", collect_s, iteration)
+        writer.add_scalar("Perf/learning_time", learn_s, iteration)
+        writer.add_scalar("Train/teacher_driven_fraction", stats["teacher_frac"], iteration)
+        if len_buffer:
+            writer.add_scalar("Train/mean_episode_length", stats["ep_len"], iteration)
+        for key, value in env_log.items():
+            writer.add_scalar(key, value, iteration)
 
         if iteration % args_cli.save_interval == 0 or iteration == args_cli.max_iterations - 1:
             path = os.path.join(log_dir, "nn", f"student_{iteration}.pt")
@@ -224,7 +318,8 @@ def main():
                     "iteration": iteration,
                     "proprio_dim": student_obs.shape[-1],
                     "num_actions": num_actions,
-                    "image_shape": image_shape,
+                    "image_shapes": image_shapes,
+                    "history": args_cli.history,
                 },
                 path,
             )

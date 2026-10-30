@@ -7,6 +7,7 @@ ramp's up-direction aligned to ``+x``).
 
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING
 
 import torch
@@ -32,18 +33,44 @@ def block_to_target(
     distance = torch.norm(center[:, :2] - target_t, dim=1)
     return torch.exp(-temp * distance)
 
+def push_point_w(
+    env: ManagerBasedRLEnv,
+    push_offset: float,
+    target: tuple[float, float],
+    angle_gain: float,
+    max_angle_deg: float,
+    object_cfg: SceneEntityCfg = SceneEntityCfg("object"),
+) -> torch.Tensor:
+    """World-frame point ``push_offset`` m from the block center (at its height) that the fingertips should sit at.
+    N is the angle from the centerline (+x) to the block->``target`` direction. The push comes along ``angle_gain * N``
+    (clamped to ``max_angle_deg``), so a block off the centerline is pushed back toward it harder than the straight
+    line to the target. N = 0 puts the point straight behind the block."""
+    object: RigidObject = env.scene[object_cfg.name]
+    center = block_center_w(object)
+    target_w = env.scene.env_origins[:, :2] + torch.tensor(target, device=env.device)
+    to_target = target_w - center[:, :2]
+    n = torch.atan2(to_target[:, 1], to_target[:, 0].clamp(min=1e-3))
+    limit = math.radians(max_angle_deg)
+    angle = (angle_gain * n).clamp(-limit, limit)
+    push_point = center
+    push_point[:, 0] -= push_offset * torch.cos(angle)
+    push_point[:, 1] -= push_offset * torch.sin(angle)
+    return push_point
+
+
 def ee_behind_block(
     env: ManagerBasedRLEnv,
     temp: float,
     push_offset: float,
+    target: tuple[float, float],
+    angle_gain: float,
+    max_angle_deg: float,
     object_cfg: SceneEntityCfg = SceneEntityCfg("object"),
     ee_frame_cfg: SceneEntityCfg = SceneEntityCfg("ee_frame"),
 ) -> torch.Tensor:
-    """``exp(-temp * d)``, where d is the 3D distance from the end-effector to a point ``push_offset`` m behind the block."""
-    object: RigidObject = env.scene[object_cfg.name]
+    """``exp(-temp * d)``, where d is the 3D distance from the end-effector to ``push_point_w``."""
     ee_frame: FrameTransformer = env.scene[ee_frame_cfg.name]
-    push_point = block_center_w(object)
-    push_point[:, 0] -= push_offset
+    push_point = push_point_w(env, push_offset, target, angle_gain, max_angle_deg, object_cfg)
     ee_w = ee_frame.data.target_pos_w[..., 0, :]
     distance = torch.norm(ee_w - push_point, dim=1)
     return torch.exp(-temp * distance)

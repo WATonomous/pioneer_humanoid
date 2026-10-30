@@ -9,8 +9,8 @@ from isaaclab.sensors import CameraCfg
 from pioneer_humanoid.arm_params import WRIST_FOCAL_MM
 from pioneer_humanoid.bimanual_arm import make_camera_cfg
 
-# VR wrist-camera lens: the measured real wrist camera (arm_params.WRIST_FOCAL_MM, 47.75 deg hFOV
-# at 640x480). It was 110 deg, far wider than the real lens. The ego camera uses the shared Pioneer lens.
+# VR wrist-camera lens: arm_params.WRIST_FOCAL_MM, a 120 deg diagonal FOV (about 108 x 92 deg at 4:3), the same
+# lens the student sees. The ego camera uses the shared Pioneer lens.
 DATA_CAM_LENS = sim_utils.PinholeCameraCfg(
     focal_length=WRIST_FOCAL_MM, horizontal_aperture=20.955, vertical_aperture=20.955 * 480 / 640,
     clipping_range=(0.01, 100.0),
@@ -18,12 +18,13 @@ DATA_CAM_LENS = sim_utils.PinholeCameraCfg(
 
 # wrist_cam aiming. The two angles are independent: roll spins the image, pitch aims the camera.
 WRIST_CAM_ROLL_DEG = 270.0   # rotates the image counter-clockwise; 90 / 180 / 270
-WRIST_CAM_PITCH_DEG = 30.0   # angles the camera down toward the gripper
+WRIST_CAM_PITCH_DEG = 20.0   # the bracket plate's tilt: the optical axis is the plate normal
 
 # wrist_cam mount, relative to link6l's origin. Gripper-relative: +X up, +Y left, -Z forward
-# (follows from the roll/pitch above). It sits inside the wrist housing, so large moves bury it
-# in the mesh; the Quest script's _SHOW_WRIST_CAM_MARKER flag draws a sphere here to check.
-WRIST_CAM_POS = (0.06168, 0.053, -0.06995)
+# (follows from the roll/pitch above). It is the centre of the 4-hole pattern on the camera bracket
+# plate (face 1, +0.1 mm clear of the mesh), measured from meshes/link6l.STL; large moves bury it
+# in the mesh. The Quest script's _SHOW_WRIST_CAM_MARKER flag draws a sphere here to check.
+WRIST_CAM_POS = (0.062138, 0.053, -0.068179)
 
 
 def _quat_mul_wxyz(a: tuple, b: tuple) -> tuple:
