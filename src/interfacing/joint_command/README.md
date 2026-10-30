@@ -1,10 +1,10 @@
 # Joint command: `joint_command_node` + `joint_command_core`
 
-Converts arm joint targets (`ArmPose`) into per-motor CAN commands (`MotorCmd`), with YAML-driven calibration and runtime safety moderation (clamp, rate limit, smoothing, MIT watchdog). Every teleop / policy path to the real arm goes through it.
+Converts arm joint targets (`ArmPose`) into per-motor CAN commands (`MotorCmd`), with YAML-driven calibration and runtime safety moderation (clamp, rate limit, smoothing, MIT watchdog). Every teleop / policy path to the real arm goes through it. One node drives every arm listed in `joint_command.yaml`'s `arms`.
 
 ## Pipeline
 
-**Input:** `common_msgs/ArmPose` on `/arm/joint_targets` (6 angles: 3 shoulder, 2 elbow, 1 wrist; plus `gripper_position` when `include_gripper`).
+**Input:** `common_msgs/ArmPose` on `/arm/<side>/joint_targets`, one topic per arm in `arms` (6 angles: 3 shoulder, 2 elbow, 1 wrist; plus `gripper_position` when `include_gripper`). A pose whose `is_left` disagrees with its topic is ignored.
 
 **Output:** one `common_msgs/MotorCmd` per active joint (six, seven with the gripper) on `/interfacing/motorCMD`, with each joint's `control_type` (all MIT now).
 
@@ -14,6 +14,10 @@ Converts arm joint targets (`ArmPose`) into per-motor CAN commands (`MotorCmd`),
    true deg/s bound however fast `ArmPose` arrives.
 3. Nothing is published until the rate-limiter has been seeded from real feedback.
 4. If no `ArmPose` arrives within `command_timeout_sec`, commands stop and the next one re-seeds.
+
+Each arm is seeded, timed out and moderated on its own. They share the feedback topic (motor ids
+must be unique across arms; the node refuses to start otherwise), the control tick and the MIT
+fault latch: **a fault on any arm halts every arm.**
 
 ## Per-joint processing (`armPoseToMotorCmds`)
 
@@ -68,9 +72,9 @@ A MIT joint is a PD drive with no internal limit checking, so `joint_command` ad
 peak set, a stalled joint can push at up to the peak until the temperature check trips.
 
 Lifecycle: `MIT_ENTER` at startup, zero-stiffness frames until seeded, then gains, then
-zero-stiffness frames again when the stream goes stale. A fault latches: `limp` joints get
-`MIT_EXIT`, `damp` joints keep getting damping frames (a silent AK trips its CAN timeout and drops
-the arm). On Ctrl-C, `damp` joints are damped for `mit_shutdown_damp_sec` (default 2 s), then every
+zero-stiffness frames again when the stream goes stale. A fault latches for every arm: `limp`
+joints get `MIT_EXIT`, `damp` joints keep getting damping frames (a silent AK trips its CAN timeout
+and drops the arm). On Ctrl-C, `damp` joints are damped for `mit_shutdown_damp_sec` (default 2 s), then every
 MIT joint is exited. Stop `joint_command` **before** `can_node`, with the arm supported.
 
 ## Gravity feed-forward
@@ -84,7 +88,9 @@ MIT joints can be sent the torque that holds the arm's weight, in `MotorCmd.torq
 $\tau_{\mathrm{model}}$ ([gravity_model.cpp](src/gravity_model.cpp)) is the left arm's static load
 from the URDF masses at the commanded pose; $r$ ramps 0 → 1 over 1 s after each seed. It is zeroed
 while any joint's angle is unknown, unless an unpowered joint sets `gravity_assume_deg` (valid
-only while that joint is strapped at that angle).
+only while that joint is strapped at that angle). There is no right-arm model yet: on any other
+arm `gravity_ff_scale` must stay 0 (the node refuses otherwise), and the bring-up log shows only
+the measured torque.
 
 The model reads command-frame angles as URDF angles: **the command frame is the URDF frame.**
 `arm_calibration.yaml`'s zero is the URDF zero (arm hanging straight down, elbow straight) and
@@ -129,9 +135,9 @@ a limit, and the rest of the arm keeps working.
 
 | File | Role |
 |------|------|
-| `config/joint_command.yaml` | ROS params: arm side, topics, control rate, default control type |
+| `config/joint_command.yaml` | ROS params: `arms`, topics, control rate, default control type |
 | `config/arm_calibration.yaml` | Per-joint `can_id`, limits, `direction`, `zero_offset` (written by `calibrate_arm.py`) |
-| `config/arm_actuators.yaml` | Hand-set, under `safety:` (`global` defaults, `joints` overrides); each value's reason is in its comment |
+| `config/arm_actuators.yaml` | Hand-set, under `safety:` (`global` defaults, then one full block per arm: `left`, `right`); each value's reason is in its comment |
 
 `arm_actuators.yaml` keys (degrees, deg/s; at 50 Hz `velocity_max: 100` is 2°/tick):
 
@@ -158,7 +164,12 @@ ros2 launch joint_command joint_command.launch.py
 **Which actuators a run uses:** each joint's `active: true` in `arm_actuators.yaml`. Set it to
 `false` (e.g. every joint but one for a single-joint test) and restart the node. An inactive
 joint gets no command at all (no `MIT_ENTER`, no watchdog), and to the gravity model its angle is
-unknown, as if unpowered (`gravity_assume_deg` applies). The node logs which joints are active,
-and refuses to start with none.
+unknown, as if unpowered (`gravity_assume_deg` applies). An arm with no active joint is not
+driven at all (no subscription, no `MIT_ENTER`). The node logs which joints are active, and
+refuses to start when no arm has one.
 
-**Defaults:** `arm_side=left`, `control_rate_hz=50`, `control_type=POSITION_LOOP` (4), overridden per joint in `arm_actuators.yaml`.
+**Which arms:** `arms` in `joint_command.yaml`; each needs a block in `arm_calibration.yaml` and
+in `arm_actuators.yaml`. The right arm's `arm_actuators.yaml` block ships all inactive with
+bring-up gains; add `right` to `arms` once its `arm_calibration.yaml` block (ids) exists.
+
+**Defaults:** `arms=[left]`, `control_rate_hz=50`, `control_type=POSITION_LOOP` (4), overridden per joint in `arm_actuators.yaml`.

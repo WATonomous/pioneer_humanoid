@@ -43,6 +43,19 @@ when no peak is set). Gains are snapped
 to the nearest 12-bit code. The gripper is driven from `ArmPose.gripper_position`
 ([joint_command/README.md](../joint_command/README.md#gripper)).
 
+## Both arms on one bus
+
+Both arms' harnesses join at the one adapter, so they are one bus (`can0`) and one `can_node`.
+That only works with:
+- **Wiring:** one line, left end → adapter → right end, a 120 Ω terminator at each far end and the
+  adapter's own off. Unpowered, CAN_H to CAN_L reads ≈ 60 Ω (≈ 40 Ω: three terminators; ≈ 120 Ω:
+  one end unterminated).
+- **Ids:** every motor's id unique and ≤ 127 (`motor_id` is `int8`). The GL40s all reply on master
+  id 0 with only their id's last hex digit, so every GL40 needs a different last hex digit, and no
+  AK may end in the same hex digit as a GL40 (`can_node` drops that AK's profile). Set the GL40
+  master id to 0 and keep the drives' MIT ranges as in `mit_profiles.yaml`.
+- Every motor listed in `config/mit_profiles.yaml`.
+
 **AK bring-up, per joint** (arm supported, hardware E-stop in reach):
 1. `candump can0`: extended frames on `0000080<id>`, KP first, no `FF..FC` to the AK.
 2. Servo-mode and zero-gain-MIT readings at one pose agree within 0.5°.
@@ -71,7 +84,8 @@ tools/arm_roundtrip.sh --offset "3,1.5,5,5,5,10" --dwell 5            # all six 
 ```
 
 It holds at the origin, ramps out (cosine, ≤ `--vel` and `velocity_max`), dwells, returns and
-rests. It refuses to start if something else publishes `/arm/joint_targets`, a moving joint is
+rests. `--arm-side` (default `left`) picks the arm and its topic, `/arm/<side>/joint_targets`.
+It refuses to start if something else publishes that topic, a moving joint is
 silent or near a limit, a move exceeds `--max-delta`, or `joint_command`'s installed configs
 differ from the repo's (rebuild after every calibration or limits edit). Ctrl-C ramps back, a
 second Ctrl-C stops streaming, and lost feedback freezes in place. `--exercise-limits` sends an
