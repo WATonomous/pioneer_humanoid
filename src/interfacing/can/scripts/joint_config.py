@@ -26,6 +26,7 @@ def arm_pose_topic(arm_side: str) -> str:
     """The ArmPose topic joint_command listens on for this arm (joint_command_node.cpp)."""
     return f"/arm/{arm_side}/joint_targets"
 
+
 # The repo copy, found relative to this file (src/interfacing/can/scripts -> src/interfacing).
 _REPO_CONFIG = Path(__file__).resolve().parents[2] / "joint_command" / "config"
 
