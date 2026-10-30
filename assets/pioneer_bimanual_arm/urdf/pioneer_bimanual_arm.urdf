@@ -2,6 +2,13 @@
 <!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
      Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
      For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
+<!-- WRIST/GRIPPER GEOMETRY UPDATE (2026-10-26): link5 through link8 and their mirrored
+     left-arm meshes were rebuilt from ARMV2-WRIST-DUAL-SUPPORT-ASSEMBLY-READY.SLDASM.
+     The established 16-joint kinematic tree, joint frames, limits, names, and inertial
+     parameters are intentionally preserved for compatibility with the existing control,
+     teleoperation, MuJoCo, and Isaac Lab code. The assembly had no material assignments
+     suitable for link-level dynamics, so its default-density mass result was not substituted
+     for the calibrated URDF inertial data. -->
 <!-- MANUAL FIXES below, not from the exporter. urdf_joint_limits.py parses the limit tags and
      writes them onto the spawned USD prims, so these are live. -->
 <!-- joint5/joint5l origins: joint5's frame had a 4.5mm Y drift; joint5l/joint6l a +/-0.001264 X
