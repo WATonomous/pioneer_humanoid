@@ -1,12 +1,12 @@
-"""Load VO text outputs and construct Keyframe objects.
+"""Load VO text outputs and construct backend data objects.
 
-This first step only converts keyframes.txt and kf_vo.txt into the shared
-Keyframe data type. Backend replay and optimized trajectory output come later.
+This helper currently converts keyframes.txt and kf_vo.txt into Keyframe
+objects. LoopClosure objects are imported for the next replay stage.
 """
 
 from pathlib import Path
 
-from slam_core.types import Keyframe
+from slam_core.types import Keyframe, LoopClosure
 from slam_core.types.pose import covariance_from_sigmas, from_tum
 
 
@@ -40,3 +40,23 @@ def load_vo_keyframes(keyframes_path, odom_path):
             )
         )
     return keyframes
+
+
+def load_vo_loops(loops_path, rot_sigma=0.05, trans_sigma=0.05):
+    covariance = covariance_from_sigmas(rot_sigma, trans_sigma)
+    loops = []
+    for line in Path(loops_path).read_text().splitlines():
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        values = line.split()
+        loops.append(
+            LoopClosure(
+                old_id=int(values[1]),
+                new_id=int(values[0]),
+                stamp=float(values[2]),
+                T_old_new=from_tum(values[3:10]),
+                covariance=covariance.copy(),
+                n_inliers=int(values[10]),
+            )
+        )
+    return loops
