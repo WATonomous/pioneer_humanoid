@@ -1,0 +1,3 @@
+# Keep the frozen CAD/export bytes stable on Windows as well as Linux.
+rl_baseline_v1.urdf -text whitespace=-blank-at-eol
+usd/rl_baseline_v1/** -text
