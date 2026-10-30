@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# camera name -> observation term name in the env's ``student_rgb`` group (distill_env_cfg.py)
+# camera name -> term name in the env's ``student_rgb`` group
 CAMERA_OBS_TERMS = {"ego": "ego_rgb", "wrist": "wrist_rgb"}
 
 
@@ -16,11 +16,11 @@ def student_images(obs: dict) -> dict[str, torch.Tensor]:
     return {camera: group[term] for camera, term in CAMERA_OBS_TERMS.items()}
 
 
-# Training-time image augmentation (see augment_rgb). The env images are already /255 and mean-subtracted per image.
-AUG_SHIFT_PX = 4  # max random translation, pixels
-AUG_CONTRAST = (0.8, 1.2)  # per-image gain on the mean-subtracted image
-AUG_CHANNEL_GAIN = (0.9, 1.1)  # per-image, per-channel gain (colour cast)
-AUG_PIXEL_NOISE_STD = 0.02  # sensor noise, in /255 units (~5 grey levels)
+# Training-time image augmentation (see augment_rgb), applied to /255, mean-subtracted images.
+AUG_SHIFT_PX = 4  # px
+AUG_CONTRAST = (0.8, 1.2)
+AUG_CHANNEL_GAIN = (0.9, 1.1)  # colour cast
+AUG_PIXEL_NOISE_STD = 0.02  # in /255 units
 
 
 def augment_rgb(rgb: torch.Tensor) -> torch.Tensor:
@@ -37,7 +37,7 @@ def augment_rgb(rgb: torch.Tensor) -> torch.Tensor:
     theta[:, 1, 2] = shift[:, 1] * 2 / h
     x = F.grid_sample(x, F.affine_grid(theta, x.shape, align_corners=False), padding_mode="border", align_corners=False)
     contrast = torch.empty(n, 1, 1, 1, device=x.device).uniform_(*AUG_CONTRAST)
-    gain = torch.empty(n, 3, 1, 1, device=x.device).uniform_(*AUG_CHANNEL_GAIN).repeat(1, c // 3, 1, 1)  # same cast on every stacked frame
+    gain = torch.empty(n, 3, 1, 1, device=x.device).uniform_(*AUG_CHANNEL_GAIN).repeat(1, c // 3, 1, 1)  # same on every stacked frame
     x = x * contrast * gain + torch.randn_like(x) * AUG_PIXEL_NOISE_STD
     return x.permute(0, 2, 3, 1)
 
@@ -90,8 +90,7 @@ class CameraEncoder(nn.Module):
 
     def forward(self, rgb: torch.Tensor) -> torch.Tensor:
         if rgb.shape[-1] == 4 and self.in_channels == 3:
-            rgb = rgb[..., :3]  # drop alpha
-        # NHWC -> NCHW
+            rgb = rgb[..., :3]
         x = rgb.permute(0, 3, 1, 2).contiguous() if rgb.shape[-1] == self.in_channels else rgb
         return self.fc(self.cnn(x))
 

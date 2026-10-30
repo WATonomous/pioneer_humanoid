@@ -225,8 +225,8 @@ def main():
     prev_dones = None
     tot_timesteps = 0
     ep_len = torch.zeros(num_envs, device=device)
-    len_buffer = deque(maxlen=100)  # lengths of the last 100 finished episodes
-    env_log: dict = {}  # latest Curriculum/* and Episode_Termination/* values from the env
+    len_buffer = deque(maxlen=100)
+    env_log: dict = {}
     start_time = time.time()
     for iteration in range(args_cli.max_iterations):
         student.train()

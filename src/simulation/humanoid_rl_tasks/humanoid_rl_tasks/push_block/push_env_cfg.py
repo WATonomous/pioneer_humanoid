@@ -76,32 +76,28 @@ from pioneer_humanoid.bimanual_arm import (  # noqa: E402
 ##
 
 
-# ══ DOMAIN RANDOMIZATION KNOBS (turn these; the events below read them) ══════════════════════
-# "scale" ranges multiply the nominal value (1.0 = unchanged). Friction is absolute (coefficient).
-# Nominal friction of the block, fingers and table was not checked, so the friction ranges are a first guess.
+# DR knobs read by the events below: scale ranges multiply the nominal value, friction is absolute (first guesses, nominal unchecked).
 DR_BLOCK_STATIC_FRICTION = (0.4, 1.0)
-DR_BLOCK_DYNAMIC_FRICTION = (0.3, 0.8)  # kept <= static by make_consistent
+DR_BLOCK_DYNAMIC_FRICTION = (0.3, 0.8)  # kept <= static
 DR_FINGER_STATIC_FRICTION = (0.5, 1.2)
 DR_FINGER_DYNAMIC_FRICTION = (0.4, 1.0)
 DR_RESTITUTION = (0.0, 0.05)
 DR_BLOCK_MASS_SCALE = (0.8, 1.2)
-DR_ARM_LINK_MASS_SCALE = (0.9, 1.2)  # heavier links -> more gravity load -> more sag
-DR_ARM_STIFFNESS_SCALE = (0.6, 1.2)  # softer than nominal -> more sag (real MIT gains are untuned bench defaults)
+DR_ARM_LINK_MASS_SCALE = (0.9, 1.2)
+DR_ARM_STIFFNESS_SCALE = (0.6, 1.2)  # real MIT gains are untuned bench defaults
 DR_ARM_DAMPING_SCALE = (0.8, 1.2)
-DR_JOINT_POS_NOISE = 0.01  # rad, observation noise (training only)
-DR_JOINT_VEL_NOISE = 0.2  # rad/s, observation noise (training only)
-# Mass, actuator gains and observation noise ramp linearly from none (nominal) at DR_RAMP_START_ITER to the full
-# ranges above at DR_RAMP_END_ITER. Friction is NOT ramped: it is sampled once at startup, so it is full from iteration 0.
+DR_JOINT_POS_NOISE = 0.01  # rad
+DR_JOINT_VEL_NOISE = 0.2  # rad/s
+# Mass, gains and obs noise ramp from nominal over these iterations; friction is sampled once at startup, so it is not ramped.
 DR_RAMP_START_ITER = 100
 DR_RAMP_END_ITER = 200
 PPO_STEPS_PER_ITER = 24  # = num_steps_per_env in agents/rsl_rl_ppo_cfg.py
-# The env step counter restarts at 0 when a run is resumed. RESUME_ITER=<iteration> keeps the ramps where they were.
+# Resuming restarts the env step counter; RESUME_ITER=<iteration> keeps the ramps in place.
 RESUME_ITER = int(os.environ.get("RESUME_ITER", "0"))
-# Block spawn range widens linearly from SPAWN_STAGES[0] to SPAWN_RAMP_TARGET (scene.py), after the DR ramp has finished.
+# Spawn range widens from SPAWN_STAGES[0] to SPAWN_RAMP_TARGET after the DR ramp.
 SPAWN_RAMP_START_ITER = 200
 SPAWN_RAMP_END_ITER = 300
 SPAWN_RAMP_TARGET = SPAWN_STAGES[1]
-# ═════════════════════════════════════════════════════════════════════════════════════════════
 
 
 @configclass
@@ -173,7 +169,7 @@ class EventCfg:
         },
     )
 
-    # ── domain randomization (values come from the DR_* knobs above) ──────────────
+    # domain randomization
     dr_block_material = EventTerm(
         func=mdp.randomize_rigid_body_material,
         mode="startup",
@@ -437,8 +433,7 @@ class PushBlockEnvCfg_PLAY(PushBlockEnvCfg):
         super().__post_init__()
         self.scene.num_envs = 16
         self.scene.env_spacing = 2.5
-        # Full training difficulty: all DR, observation noise and the final spawn range (no ramps), so play shows
-        # what the policy meets at the end of training.
+        # Full training difficulty: all DR, obs noise, final spawn range, no ramps.
         self.curriculum.dr_ramp = None
         self.curriculum.spawn_ramp = None
         self.events.reset_object_position.params["pose_range"] = dict(SPAWN_RAMP_TARGET)

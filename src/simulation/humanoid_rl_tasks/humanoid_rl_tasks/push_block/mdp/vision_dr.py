@@ -142,7 +142,7 @@ def randomize_visual_materials(
     if apply_textures and texture_paths is None:
         texture_paths = list_push_textures()
     stage = omni.usd.get_context().get_stage()
-    shader_cache = env.__dict__.setdefault("_vision_shader_cache", {})  # walking the USD tree is slow; do it once per prim
+    shader_cache = env.__dict__.setdefault("_vision_shader_cache", {})  # USD tree walk is slow
 
     for env_id in env_ids.tolist():
         env_root = f"/World/envs/env_{int(env_id)}"
@@ -158,12 +158,11 @@ def randomize_visual_materials(
             if key not in shader_cache:
                 shader_cache[key] = list(_iter_shader_prims(stage, root))
             for shader in shader_cache[key]:
-                # MDL / OmniPBR and UsdPreviewSurface input names
                 for attr_name, value in (
                     ("inputs:diffuse_tint", Gf.Vec3f(*tint)),
                     ("inputs:reflection_roughness_constant", roughness),
                     ("inputs:metallic_constant", metallic),
-                    ("inputs:roughness", roughness),  # UsdPreviewSurface (the table)
+                    ("inputs:roughness", roughness),
                     ("inputs:metallic", metallic),
                     ("inputs:diffuse_color_constant", Gf.Vec3f(*tint)),
                     ("inputs:diffuseColor", Gf.Vec3f(*tint)),

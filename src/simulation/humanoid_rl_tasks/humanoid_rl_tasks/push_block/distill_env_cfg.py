@@ -26,17 +26,16 @@ from .push_env_cfg import (
 )
 from pioneer_humanoid.arm_params import CAMERAS, vertical_aperture  # noqa: E402
 
-# Student cameras are the robot's own ego and left-wrist cameras (arm_params.CAMERAS), rendered at this size.
-# 4:3 is required by the sensor calibration. Block is ~9 px wide in the ego view at 160x120.
+# Image size of both student cameras (ego, left wrist); 4:3 is required by the calibration.
 STUDENT_IMG_WIDTH = 160
 STUDENT_IMG_HEIGHT = 120
-# Noise on the student's end-effector position (m): it is computed from the joint encoders, so it inherits their error (~0.01 rad x ~0.4 m).
+# Student ee position noise (m): inherits the joint encoder error (~0.01 rad x ~0.4 m).
 STUDENT_EE_POS_NOISE = 0.005
 
 
-# Colour ranges around each object's real colour: table white plastic, cube red, tray blue.
+# Colour ranges around the real colours: white table, red cube, blue tray.
 VISION_MATERIAL_TARGETS = {
-    "/TableCollision": dict(tint=((0.85, 0.85, 0.85), (1.0, 1.0, 1.0)), roughness=(0.1, 0.5), metallic=(0.0, 0.3)),  # the asset's own 0.5 metallic renders gray
+    "/TableCollision": dict(tint=((0.85, 0.85, 0.85), (1.0, 1.0, 1.0)), roughness=(0.1, 0.5), metallic=(0.0, 0.3)),  # asset's own 0.5 metallic renders gray
     "/Object": dict(tint=((0.75, 0.05, 0.05), (0.95, 0.20, 0.20)), roughness=(0.3, 0.8), metallic=(0.0, 0.05)),
     "/Box": dict(tint=((0.05, 0.25, 0.70), (0.25, 0.45, 0.95)), roughness=(0.3, 0.8), metallic=(0.0, 0.05)),
 }
@@ -137,7 +136,6 @@ class DistillObservationsCfg:
 
         def __post_init__(self):
             self.enable_corruption = False
-            # Keep spatial dims — do not flatten the images into a vector.
             self.concatenate_terms = False
 
     # Keep a `policy` alias so tools that expect it still see teacher-sized obs.
@@ -151,7 +149,7 @@ class DistillObservationsCfg:
 class DistillEventCfg(EventCfg):
     """Push reset events + vision DR (camera / light / materials+textures)."""
 
-    # Mounting-tolerance jitter around the real camera mounts (guesses until the real tolerance is known).
+    # Camera mount jitter (guessed tolerances).
     vision_camera_ego = EventTerm(
         func=mdp.randomize_robot_camera_pose,
         mode="reset",
@@ -204,7 +202,7 @@ class PushBlockDistillEnvCfg(PushBlockEnvCfg):
         self.scene.env_spacing = 2.5
         self.sim.render_interval = self.decimation
         _add_student_cameras(self.scene)
-        # Distillation runs at full difficulty from iteration 0: no DR / spawn ramps, final spawn range.
+        # Full difficulty from iteration 0: no ramps.
         self.curriculum.dr_ramp = None
         self.curriculum.spawn_ramp = None
         self.events.reset_object_position.params["pose_range"] = dict(SPAWN_RAMP_TARGET)
@@ -223,7 +221,7 @@ class PushBlockDistillEnvCfg_PLAY(PushBlockEnvCfg_PLAY):
         super().__post_init__()
         self.scene.num_envs = 16
         self.sim.render_interval = self.decimation
-        self.observations.student.enable_corruption = False  # clean proprio for eval
+        self.observations.student.enable_corruption = False
         # the EE frame marker would be drawn into the student's camera images
         self.scene.ee_frame.debug_vis = False
         _add_student_cameras(self.scene)

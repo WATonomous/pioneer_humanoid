@@ -123,7 +123,6 @@ def main():
     env_cfg = parse_env_cfg(args_cli.task, device=args_cli.device, num_envs=args_cli.num_envs)
     env_cfg.seed = args_cli.seed
     success_params = {k: v for k, v in env_cfg.curriculum.success.params.items() if k not in ("window", "min_episode_len")}
-    # full difficulty from step 0: no ramps, final spawn range
     env_cfg.curriculum.dr_ramp = None
     env_cfg.curriculum.spawn_ramp = None
     env_cfg.events.reset_object_position.params["pose_range"] = dict(SPAWN_STAGES[0] if args_cli.narrow_spawn else SPAWN_RAMP_TARGET)

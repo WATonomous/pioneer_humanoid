@@ -65,10 +65,10 @@ BLOCK_INIT_POS = (0.21 - BLOCK_HALF + TASK_X_OFFSET, -BLOCK_HALF, TABLE_TOP_Z)
 RAMP_BASE_X = 0.279 + TASK_X_OFFSET  # ramp meets the table
 RAMP_TOP_X = 0.308 + TASK_X_OFFSET   # ramp meets the interior floor
 RAMP_BASE_Z = TABLE_TOP_Z                    # support-surface height at the ramp base
-FLOOR_Z = TABLE_TOP_Z + 0.0063               # interior floor (absolute world Z); the collider matches the visual
+FLOOR_Z = TABLE_TOP_Z + 0.0063               # absolute world Z; collider matches the visual
 FLOOR_X_MAX = 0.511 + TASK_X_OFFSET  # interior floor end (back wall)
 FLOOR_Y_HALF = 0.114
-FLOOR_TARGET = ((RAMP_TOP_X + FLOOR_X_MAX) / 2, 0.0)  # center of the interior floor (xy)
+FLOOR_TARGET = ((RAMP_TOP_X + FLOOR_X_MAX) / 2, 0.0)  # xy
 
 BLOCK_DROP_MIN_Z = TABLE_TOP_Z - 0.10  # below this = block fell off the table
 
