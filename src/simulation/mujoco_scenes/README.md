@@ -28,12 +28,31 @@ An explicit loop runs Python scene mechanics, advances physics at the teleop con
 ## Use a scene
 
 ```bash
+# interactive viewer, no leader hardware (macOS)
+mjpython -m humanoid_mujoco_scenes.viewer --scene peg_insert
+
+# interactive viewer (Linux / Windows)
+python -m humanoid_mujoco_scenes.viewer --scene peg_insert
+
 # leader-arm teleop (needs a display; on macOS use mjpython)
 python src/teleop/pioneer_leader_arm_teleop/pioneer_leader_arm_teleop.py --target mujoco --scene peg_insert
 
 # headless check: render the scene with the arm at home
 MUJOCO_GL=egl python -m humanoid_mujoco_scenes.preview --scene peg_insert --png peg.png
 ```
+
+Replace `peg_insert` with any registered scene name (`bare`, `duplo`, `drawer_stow`,
+`matcha`, or `zip_tie`). Omitting `--scene` opens `bare`. Activate the Python
+environment with the installed packages before running these commands.
+
+The interactive viewer holds the arm at home and advances scene physics, including optional
+scene reset and step hooks. Close the window to stop; `--seconds 3` runs a short launch check.
+It does not perform the task automatically.
+
+For automatic peg demonstrations without keyboard control or leader hardware, see
+[the scripted peg expert and ACT workflow](humanoid_mujoco_scenes/peg_insert/README.md).
+It grasps and inserts through actuator targets and physics, verifies success after release,
+and records randomized successful demonstrations for LeRobot conversion.
 
 ## Add a scene
 

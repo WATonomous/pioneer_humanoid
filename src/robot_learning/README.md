@@ -79,6 +79,25 @@ Sim rollout for a flow-matching policy (pi0 / pi0.5 / SmolVLA) on the push-block
   --policy_path <checkpoint> --num_episodes 10
 ```
 
+For the scripted-expert peg-insertion pipeline (expert demos, expert corrections from a policy's own failures, phase-balanced fine-tuning), evaluate with
+[`humanoid_mujoco_scenes.peg_insert.eval`](../simulation/mujoco_scenes/humanoid_mujoco_scenes/peg_insert/README.md#train-and-evaluate).
+
+Task-agnostic tools for simulator demos and corrections:
+
+| Module | Use |
+|---|---|
+| `raw_to_lerobot` | raw sim episodes (`manifest.json` + `trajectory.npz` + PNGs) → image LeRobot dataset + `phase_index.json` |
+| `lerobot_finetune` | `lerobot_train` that concatenates `--extra-dataset`s in place, keeps saved normalization on resume, and applies `--phase-config` batch quotas |
+| `phase_sampling` | phase → pool rules (`config/peg_insert_phases.json`), fixed-quota batch sampler, per-phase error reporter |
+| `policy_adapters` | `load_policy(path)` → `reset / select_action / predict_chunk` on numpy observations, for any rollout loop |
+
+```bash
+python -m humanoid_robot_learning.raw_to_lerobot --raw datasets/peg_insert_raw --root datasets/pioneer_peg_insert
+python -m humanoid_robot_learning.lerobot_finetune --config_path=<ckpt>/pretrained_model/train_config.json --resume=true \
+  --dataset.root=datasets/pioneer_peg_insert --extra-dataset=datasets/corr_r1 \
+  --phase-config=src/robot_learning/config/peg_insert_phases.json --steps=174000 --batch_size=8 --output_dir=outputs/train/act_r1
+```
+
 ## 4. Real arm (planned)
 
 Not runnable yet. The plan is the same leader arm and the same schema, saved under `datasets/pioneer_v1_left_arm/real/`:
