@@ -2,14 +2,11 @@ import gymnasium as gym
 
 from . import agents
 
-for _name, _cfg, _runner in (("Flat", "PioneerLegOnlyFlatEnvCfg", "PioneerLegOnlyFlatPPORunnerCfg"),
-                             ("Gait", "PioneerLegOnlyGaitEnvCfg", "PioneerLegOnlyGaitPPORunnerCfg"),
-                             ("GaitSym", "PioneerLegOnlyGaitEnvCfg", "PioneerLegOnlyGaitSymPPORunnerCfg"),
-                             ("GaitWholeBody", "PioneerWholeBodyGaitEnvCfg", "PioneerWholeBodyGaitPPORunnerCfg"),
-                             ("GaitArmSwing", "PioneerWholeBodyArmSwingEnvCfg", "PioneerWholeBodyGaitPPORunnerCfg")):
+for _name, _cfg, _runner in (("PioneerLegOnly", "PioneerLegOnlyFlatEnvCfg", "PioneerLegOnlyFlatPPORunnerCfg"),
+                             ("PioneerWholeBody", "PioneerWholeBodyFlatEnvCfg", "PioneerWholeBodyFlatPPORunnerCfg")):
     for _suffix in ("", "_PLAY"):
         gym.register(
-            id=f"Isaac-Locomotion-{_name}-PioneerLegOnly{'-Play' if _suffix else ''}-v0",
+            id=f"Isaac-Locomotion-Flat-{_name}{'-Play' if _suffix else ''}-v0",
             entry_point="isaaclab.envs:ManagerBasedRLEnv",
             disable_env_checker=True,
             kwargs={

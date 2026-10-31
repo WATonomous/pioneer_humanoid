@@ -4,7 +4,7 @@ from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, R
 
 @configclass
 class PioneerLegOnlyFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
-    """Isaac Lab's G1 flat PPO settings."""
+    """Every batch is also trained on its left-right mirror image, for an even, symmetric gait."""
 
     num_steps_per_env = 24
     max_iterations = 3000
@@ -33,30 +33,14 @@ class PioneerLegOnlyFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         lam=0.95,
         desired_kl=0.01,
         max_grad_norm=1.0,
+        symmetry_cfg=RslRlSymmetryCfg(
+            use_data_augmentation=True, data_augmentation_func="humanoid_rl_tasks.locomotion.config.pioneer_leg_only.symmetry:mirror"
+        ),
     )
 
 
 @configclass
-class PioneerLegOnlyGaitPPORunnerCfg(PioneerLegOnlyFlatPPORunnerCfg):
+class PioneerWholeBodyFlatPPORunnerCfg(PioneerLegOnlyFlatPPORunnerCfg):
     def __post_init__(self):
         super().__post_init__()
-        self.experiment_name = "pioneer_leg_only_gait"
-
-
-@configclass
-class PioneerLegOnlyGaitSymPPORunnerCfg(PioneerLegOnlyGaitPPORunnerCfg):
-    """Every batch also trained on its left-right mirror image (Mittal et al. 2024), for an even, symmetric gait."""
-
-    def __post_init__(self):
-        super().__post_init__()
-        self.experiment_name = "pioneer_leg_only_gait_sym"
-        self.algorithm.symmetry_cfg = RslRlSymmetryCfg(
-            use_data_augmentation=True, data_augmentation_func="humanoid_rl_tasks.locomotion.config.pioneer_leg_only.symmetry:mirror"
-        )
-
-
-@configclass
-class PioneerWholeBodyGaitPPORunnerCfg(PioneerLegOnlyGaitSymPPORunnerCfg):
-    def __post_init__(self):
-        super().__post_init__()
-        self.experiment_name = "pioneer_whole_body_gait"
+        self.experiment_name = "pioneer_whole_body_flat"
