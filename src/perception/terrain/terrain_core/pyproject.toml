@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "terrain_core"
+version = "0.0.0"
+description = "ROS-free terrain mapping library for the WATonomous humanoid"
+requires-python = ">=3.10"
+dependencies = ["numpy<2", "pyyaml"]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.setuptools.packages.find]
+include = ["terrain_core*"]
