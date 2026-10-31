@@ -7,6 +7,8 @@ chain (joint1L..joint6l) = physical LEFT arm; RIGHT_* = unsuffixed.
 import math
 from typing import NamedTuple
 
+from .camera_info import CALIB_DIR, read_camera_info
+
 
 def _deg(degrees: float) -> float:
     return degrees * math.pi / 180.0
@@ -106,8 +108,12 @@ class CameraMount(NamedTuple):
 
 # ego          RealSense D455 colour at 640x480 (4:3), 50 deg down. ESTIMATE ~80 x 65 deg: native
 #              1280x800 lens with the sides cropped to 4:3. Replace with the real camera_info.
-# wrist_left   between the fingers, ~60 deg hFOV, real camera not chosen yet
+# wrist_left   between the fingers. Sonix UVC webcam, MEASURED: real frames are remapped to the
+#              centred 640x480 pinhole in calib/wrist_cam_pinhole_640x480.yaml (723 px, 47.75 x
+#              36.73 deg), and the focal length below is read from that file. 4:3 to match it.
 # wrist_right  mirror of wrist_left
+_WRIST_PINHOLE_SIZE, _WRIST_PINHOLE_K, _ = read_camera_info(CALIB_DIR / "wrist_cam_pinhole_640x480.yaml")
+WRIST_FOCAL_MM = _WRIST_PINHOLE_K[0][0] * 20.955 / _WRIST_PINHOLE_SIZE[0]   # px -> mm at 20.955 mm aperture
 CAMERAS = {
     "ego": CameraMount(
         "base_link", "cam_ego",
@@ -117,12 +123,12 @@ CAMERAS = {
     "wrist_left": CameraMount(
         "link6l", "cam_wrist_left",
         (0.06179, 0.05297, -0.07077), (0.696364, -0.122788, 0.122788, -0.696364),
-        18.147562, 20.955, (0.05, 5.0), None,
+        WRIST_FOCAL_MM, 20.955, (0.05, 5.0), 4 / 3,
     ),
     "wrist_right": CameraMount(
         "link6", "cam_wrist_right",
         (0.06179, -0.04397, -0.07077), (0.696364, -0.122788, 0.122788, -0.696364),
-        18.147562, 20.955, (0.05, 5.0), None,
+        WRIST_FOCAL_MM, 20.955, (0.05, 5.0), 4 / 3,
     ),
 }
 CAMERA_NAMES = tuple(CAMERAS)

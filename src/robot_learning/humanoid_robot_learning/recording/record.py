@@ -13,6 +13,7 @@ from humanoid_robot_learning.recording.record_loop import run_record_loop
 from humanoid_robot_learning.recording.recorder import RecordSettings
 from humanoid_robot_learning.recording.record_utils import resolve_config_path, resolve_dataset_root
 from humanoid_robot_learning.recording.arm_pose_io import ARM_POSE_JOINT_NAMES
+from humanoid_robot_learning.recording.record_gripper import GRIPPER_JOINT_NAME
 from humanoid_robot_learning.recording.schema import enabled_images, load_yaml, select_arms, select_cameras
 from humanoid_robot_learning.recording.sinks import parse_sink_names
 from humanoid_robot_learning.recording.snapshot import ObservationSnapshot
@@ -76,6 +77,19 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Synthetic data only; no ROS (tests write path)",
     )
+    parser.add_argument(
+        "--gripper_state",
+        choices=("feedback", "action"),
+        default="feedback",
+        help="left_gripper state: the gripper motor's measured closure (default; frames without a "
+        "fresh reading are skipped), or a copy of the commanded closure (gripper unpowered)",
+    )
+    parser.add_argument(
+        "--gripper_calibration",
+        type=str,
+        default=None,
+        help="arm_calibration.yaml for the gripper feedback (default: same lookup as joint_command)",
+    )
     parser.add_argument("-v", "--verbose", action="store_true")
     return parser.parse_args(argv)
 
@@ -84,11 +98,10 @@ def _check_real_support(cfg: dict[str, Any]) -> None:
     """Fail fast on schema fields the real arm cannot supply yet."""
     problems = []
     names = list(cfg["joint_names"])
-    if names != list(ARM_POSE_JOINT_NAMES):
-        missing = [n for n in names if n not in ARM_POSE_JOINT_NAMES]
-        problems.append(
-            f"joint_names {missing or names} have no ROS source (ArmPose supplies {list(ARM_POSE_JOINT_NAMES)})"
-        )
+    supplied = [*ARM_POSE_JOINT_NAMES, GRIPPER_JOINT_NAME]  # GripperRecordBuffer's 7 values
+    if names != supplied:
+        missing = [n for n in names if n not in supplied]
+        problems.append(f"joint_names {missing or names} have no ROS source (the recorder supplies {supplied})")
     no_topic = [k for k, spec in enabled_images(cfg).items() if not spec.get("topic")]
     if no_topic:
         problems.append(f"cameras {no_topic} have no ROS topic (use --cameras to pick others)")
@@ -117,16 +130,18 @@ class _DryRunSource(_SnapshotSource):
 
 
 class _RosSource(_SnapshotSource):
-    def __init__(self, cfg: dict[str, Any]) -> None:
+    def __init__(self, cfg: dict[str, Any], *, gripper_state: str, gripper_calibration: str | None) -> None:
         import rclpy
         from rclpy.node import Node
 
-        from humanoid_robot_learning.recording.ros_buffer import RosRecordBuffer
+        from humanoid_robot_learning.recording.record_gripper import GripperRecordBuffer
 
         self._rclpy = rclpy
         rclpy.init()
         self._node = Node("humanoid_record")
-        self._buffer = RosRecordBuffer(self._node, cfg)
+        self._buffer = GripperRecordBuffer(
+            self._node, cfg, gripper_state=gripper_state, calibration=gripper_calibration
+        )
 
     def maybe_spin(self) -> None:
         self._rclpy.spin_once(self._node, timeout_sec=0.0)
@@ -171,7 +186,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.dry_run:
         source: _SnapshotSource = _DryRunSource(image_shapes, dim)
     else:
-        source = _RosSource(cfg)
+        source = _RosSource(cfg, gripper_state=args.gripper_state, gripper_calibration=args.gripper_calibration)
 
     output_dir = run_record_loop(
         cfg,

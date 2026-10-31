@@ -1,0 +1,24 @@
+# ideal pinhole that wrist_cam.yaml frames are remapped to (zero distortion)
+# real frames: cv2.initUndistortRectifyMap(K, dist, None, K_new, (w, h), cv2.CV_16SC2) then cv2.remap
+# hfov 47.75 deg, vfov 36.73 deg; widest fully-covered focal 702.1 px
+# Isaac: focal_length=23.6726 mm, horizontal_aperture=20.955, vertical_aperture=15.7162
+image_width: 640
+image_height: 480
+camera_name: wrist_cam
+camera_matrix:
+  rows: 3
+  cols: 3
+  data: [723, 0, 320, 0, 723, 240, 0, 0, 1]
+distortion_model: plumb_bob
+distortion_coefficients:
+  rows: 1
+  cols: 5
+  data: [0, 0, 0, 0, 0]
+rectification_matrix:
+  rows: 3
+  cols: 3
+  data: [1, 0, 0, 0, 1, 0, 0, 0, 1]
+projection_matrix:
+  rows: 3
+  cols: 4
+  data: [723, 0, 320, 0, 0, 723, 240, 0, 0, 0, 1, 0]

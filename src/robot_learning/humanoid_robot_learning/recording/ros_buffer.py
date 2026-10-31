@@ -45,7 +45,7 @@ class RosRecordBuffer:
 
     def _create_subscriptions(self, node: Any, cfg: dict[str, Any]) -> None:
         ros_cfg = cfg.get("ros") or {}
-        action_topic = ros_cfg.get("action_topic", "/arm/joint_targets")
+        action_topic = ros_cfg.get("action_topic", "/arm/left/joint_targets")
         state_topic = ros_cfg.get("state_topic")
 
         node.create_subscription(
