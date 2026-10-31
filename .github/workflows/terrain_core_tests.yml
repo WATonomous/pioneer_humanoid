@@ -3,10 +3,10 @@ name: Terrain Core Tests
 on:
   pull_request:
     branches:
-      - main                     
-    paths:                       
-      - "src/perception/terrain/**"
-      - ".github/workflows/terrain_core_tests.yml"
+      - main    
+  push:
+    branches:
+      - main                 
 
 jobs:
   test:                          
