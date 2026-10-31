@@ -6,11 +6,13 @@ import math
 
 import isaaclab.sim as sim_utils
 from isaaclab.sensors import CameraCfg
+from pioneer_humanoid.arm_params import WRIST_FOCAL_MM
 from pioneer_humanoid.bimanual_arm import make_camera_cfg
 
-# VR wrist-camera lens. The ego camera uses the shared Pioneer lens.
+# VR wrist-camera lens: the measured real wrist camera (arm_params.WRIST_FOCAL_MM, 47.75 deg hFOV
+# at 640x480). It was 110 deg, far wider than the real lens. The ego camera uses the shared Pioneer lens.
 DATA_CAM_LENS = sim_utils.PinholeCameraCfg(
-    focal_length=7.336, horizontal_aperture=20.955, vertical_aperture=15.2908,
+    focal_length=WRIST_FOCAL_MM, horizontal_aperture=20.955, vertical_aperture=20.955 * 480 / 640,
     clipping_range=(0.01, 100.0),
 )
 

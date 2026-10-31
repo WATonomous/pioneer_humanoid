@@ -16,10 +16,16 @@ import yaml
 
 # The six ArmPose slots, in message order -- identical to joint_command_core.cpp's jointPaths().
 ARM_POSE_JOINTS = [
-    ("shoulder", "pitch"), ("shoulder", "roll"), ("shoulder", "yaw"),
+    ("shoulder", "pitch"), ("shoulder", "yaw"), ("shoulder", "roll"),
     ("elbow", "pitch"), ("elbow", "roll"), ("wrist", "pitch"),
 ]
 ARM_POSE_NAMES = [f"{group}.{joint}" for group, joint in ARM_POSE_JOINTS]
+
+
+def arm_pose_topic(arm_side: str) -> str:
+    """The ArmPose topic joint_command listens on for this arm (joint_command_node.cpp)."""
+    return f"/arm/{arm_side}/joint_targets"
+
 
 # The repo copy, found relative to this file (src/interfacing/can/scripts -> src/interfacing).
 _REPO_CONFIG = Path(__file__).resolve().parents[2] / "joint_command" / "config"
@@ -47,7 +53,8 @@ MIT_PROFILES = [
 # Keys a joint block may override; anything missing falls back to safety.global, exactly as
 # JointCommandCore::loadJointSafetyConfig does.
 _SAFETY_KEYS = ("active", "velocity_max", "delta_max", "control_type", "mit_kp", "mit_kd",
-                "mit_max_torque", "mit_max_track_err", "mit_feedback_timeout", "mit_family",
+                "mit_max_torque", "mit_max_track_err", "mit_feedback_timeout",
+                "mit_max_temperature", "mit_family",
                 "mit_fault_kd", "enable_position_clamp", "enable_velocity_limit",
                 "gravity_ff_scale", "gravity_ff_max_torque", "gravity_assume_deg")
 
@@ -129,14 +136,15 @@ def load_joint_map(path: Path, arm_side: str) -> Dict[int, dict]:
     return out
 
 
-def load_joint_safety(path: Optional[Path]) -> Tuple[Dict[str, Any], Dict[str, Dict[str, Any]]]:
-    """-> (global block, {"group.joint": joint block merged over global})."""
+def load_joint_safety(path: Optional[Path],
+                      arm_side: str) -> Tuple[Dict[str, Any], Dict[str, Dict[str, Any]]]:
+    """-> (global block, {"group.joint": arm_side's joint block merged over global})."""
     if path is None:
         return {}, {}
     cfg = (yaml.safe_load(path.read_text(encoding="utf-8")) or {}).get("safety", {}) or {}
     default = cfg.get("global", {}) or {}
     joints: Dict[str, Dict[str, Any]] = {}
-    for group, members in (cfg.get("joints") or {}).items():
+    for group, members in (cfg.get(arm_side) or {}).items():
         for joint, node in (members or {}).items():
             node = node or {}
             joints[f"{group}.{joint}"] = {key: node.get(key, default.get(key))
@@ -144,17 +152,17 @@ def load_joint_safety(path: Optional[Path]) -> Tuple[Dict[str, Any], Dict[str, D
     return default, joints
 
 
-def joint_safety(path: Optional[Path], name: str) -> Dict[str, Any]:
+def joint_safety(path: Optional[Path], arm_side: str, name: str) -> Dict[str, Any]:
     """One joint's effective block; a joint with no entry (e.g. the gripper) gets global."""
-    default, joints = load_joint_safety(path)
+    default, joints = load_joint_safety(path, arm_side)
     if name in joints:
         return joints[name]
     return {key: default.get(key) for key in _SAFETY_KEYS}
 
 
-def load_actuator_limits(explicit: Optional[str]):
+def load_actuator_limits(explicit: Optional[str], arm_side: str):
     """({joint: velocity_max_dps}, {joint: mit thresholds}) for the plots; empty if missing."""
-    _, joints = load_joint_safety(find_actuators(explicit))
+    _, joints = load_joint_safety(find_actuators(explicit), arm_side)
     vmax, mit = {}, {}
     for name, block in joints.items():
         vmax[name] = float(block.get("velocity_max") or 0)
@@ -164,13 +172,14 @@ def load_actuator_limits(explicit: Optional[str]):
                 "mit_kd": block.get("mit_kd"),
                 "max_torque_nm": block.get("mit_max_torque"),
                 "max_track_err_deg": block.get("mit_max_track_err"),
+                "max_temperature_c": block.get("mit_max_temperature"),
             }
     return vmax, mit
 
 
-def max_torque_by_joint(explicit: Optional[str]) -> Dict[str, float]:
+def max_torque_by_joint(explicit: Optional[str], arm_side: str) -> Dict[str, float]:
     """Every joint's mit_max_torque, MIT or not -- the cap a run is judged against."""
-    _, joints = load_joint_safety(find_actuators(explicit))
+    _, joints = load_joint_safety(find_actuators(explicit), arm_side)
     return {name: float(block["mit_max_torque"]) for name, block in joints.items()
             if block.get("mit_max_torque") is not None}
 

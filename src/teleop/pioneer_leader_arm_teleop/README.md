@@ -11,7 +11,7 @@ That is the URDF zero, the real arm's calibrated zero, and the leader's (`calibr
 | Servo | Bus ID | Sim joint | Default sign |
 |-------|--------|-----------|--------------|
 | A | 2 | `joint1L` shoulder flexion | +1 |
-| B | 3 | `joint2l` shoulder abduction | −1 |
+| B | 3 | `joint2l` shoulder abduction | +1 |
 | C | 1 | `joint3l` shoulder rotation | −1 |
 | D | 5 | `joint4l` elbow flexion | +1 |
 | E | 4 | `joint5l` forearm rotation | +1 |
@@ -29,7 +29,7 @@ python calibrate_leader.py --side left --port /dev/ttyACM0 --from leader_calibra
 ```
 
 Writes that board into `leader_arm.json` here and enables it: zero encoder counts per servo, the signs (left
-default `1,-1,-1,1,1,-1,1`) and the board's USB serial number. The teleop finds each board by that serial, so
+default `1,1,-1,1,1,-1,1`) and the board's USB serial number. The teleop finds each board by that serial, so
 plugging the boards in the other order can't swap the arms; two boards with the same serial (or none) are refused.
 The right board stays disabled until it is calibrated. Teleop refuses to start without the file.
 **Commit `leader_arm.json`:** it describes the team's one leader unit, so nobody else has to calibrate; a different
@@ -79,13 +79,13 @@ python pioneer_leader_arm_teleop.py --target mujoco --scene peg_insert   # macOS
 Scenes: `bare`, `peg_insert`, `zip_tie`, `drawer_stow`, `matcha`, `duplo`, or any scene in `humanoid_mujoco_scenes` (see `src/simulation/mujoco_scenes/`).
 
 - **Home:** the arm starts at home (elbow bent 90°, forearm forward, gripper open) and follows the leader only once every leader joint is within 3° of home and the gripper is open. The status line lists the joints still off.
-- **Directions:** move one leader joint at a time. If a sim joint goes the wrong way, re-run `calibrate_leader.py` for that side with that entry flipped in `--signs` (order A..G, left default `1,-1,-1,1,1,-1,1`).
-- **R:** reset the arm and every object in the scene; the arm waits at home until the leader is back at home. During a take, it also discards the take.
-- **`--record`:** `S` start · `N` save (then auto-reset) · `D` discard → `<repo>/datasets/pioneer_v1_left_arm/sim/` · `--cameras ego,wrist_left` / `none`.
+- **Directions:** move one leader joint at a time. If a sim joint goes the wrong way, re-run `calibrate_leader.py` for that side with that entry flipped in `--signs` (order A..G, left default `1,1,-1,1,1,-1,1`).
+- **6:** reset the arm and every object in the scene; the arm waits at home until the leader is back at home. During a take, it also discards the take.
+- **`--record`:** `7` start · `8` save (then auto-reset) · `9` discard → `<repo>/datasets/pioneer_v1_left_arm/sim/` · `--cameras ego,wrist_left` / `none`.
+  Digits because every letter, 0-5 and Esc are MuJoCo viewer shortcuts (Esc stays the viewer's free camera here). The status line starts `REC <frames>` while recording.
 - **Multi-step scenes** (`drawer_stow`, `matcha`, `duplo`): the terminal prints `[TASK] step k/n: <instruction>` as each step is done and
-  `all steps done -- N to save` at the end. Recorded frames carry the current step's instruction as their `task` and a
+  `all steps done -- 8 to save` at the end. Recorded frames carry the current step's instruction as their `task` and a
   `subtask_index`, so a take is labelled step by step with no hand annotation.
-  In the MuJoCo viewer these keys (and R) also toggle display flags (shadows, reflections, …); harmless.
 - **Both arms (MuJoCo):** `--arms bimanual` (or `right` for the right arm alone), once the right board is calibrated (`calibrate_leader.py --side right`).
   Recording waits for every leader at home; frames are the left arm's 7 values then the right's, into
   `<repo>/datasets/pioneer_v1_bimanual/sim/` (`pioneer_v1_right_arm` for the right arm alone).
@@ -168,13 +168,15 @@ python3 pioneer_leader_arm_teleop.py --target real --live   # needs joint_comman
 python3 pioneer_leader_arm_teleop.py --target real --self-test           # angle math only, no ROS / leader
 ```
 
-- Leader: `sign × leader` (clamped to the URDF limits, as in sim).
+- Leader: `sign × leader`, clamped to the `arm_calibration.yaml` limits `joint_command` enforces (the URDF
+  limits for a joint without `limit_range`; the sim backends keep the URDF limits).
   Real: `zero_offset + motor / direction` from `arm_calibration.yaml`. Same frame, compared directly.
 - Check: pose both arms the same, motors off; every joint should agree within 10° across its range.
   Fix the leader's signs (`calibrate_leader.py --signs`) or the real arm's `direction` / calibration (`calibrate_arm.py`) until it does.
-- Warnings (end of each row): `>10` (disagreement), `NO FEEDBACK` (none for 0.5 s), `urdf-clamp`, `outside hw [lo,hi]`
-  (the leader's target is outside `arm_calibration.yaml`'s limits; `joint_command` would clamp it).
-- Gripper: compared as position (0 open .. 1 closed), leader vs the real GL40 (id 21); `>0.1` warns.
+- Warnings (end of each row): `>10` (disagreement), `NO FEEDBACK` (none for 0.5 s), `limit-clamp` (the leader was cut to those
+  limits), `real outside hw [lo,hi]` (the real arm is outside `arm_calibration.yaml`'s limits: stale calibration).
+- Gripper: compared as position (0 open .. 1 closed), leader vs the real GL40 (id 21); `>0.1` and
+  `real outside hw` warn.
 
 `--live`:
 0. Optionally homes the real elbow.pitch first. Once every active joint has feedback, it asks `[y/N]`.
@@ -182,10 +184,11 @@ python3 pioneer_leader_arm_teleop.py --target real --self-test           # angle
    at most its `velocity_max`), holding the other joints where they are. It then keeps publishing that
    pose until the leader takes over. It refuses if elbow.pitch is not `active` or home is outside its
    `arm_calibration.yaml` limits (re-run `calibrate_arm.py` sweeping past home).
-1. Shows the dry run until the gate passes: on every joint `active` in `arm_actuators.yaml`, the leader is
-   within 3° of home and within 10° of the real arm, and the gripper within 0.1. The screen lists what fails.
-2. Asks you to type `live` (anything else quits), re-checks the gate, then publishes `ArmPose` on
-   `/arm/joint_targets` at 50 Hz, gripper included. `joint_command` clamps, rate-limits and runs the watchdog.
+1. Shows the dry run until the gate passes: on every joint `active` in `arm_actuators.yaml`, the real arm is
+   inside its `arm_calibration.yaml` limits and the leader is within 3° of home and within 10° of the real
+   arm; the gripper (if active) is inside its limits and within 0.1. The screen lists what fails.
+2. Asks you to press Enter (anything else quits), re-checks the gate, then publishes `ArmPose` on
+   `/arm/left/joint_targets` at 50 Hz, gripper included. `joint_command` clamps, rate-limits and runs the watchdog.
 3. Ctrl-C stops publishing. `joint_command` holds the last pose for `command_timeout_sec` (10 s), then
    sets kp = 0 and the arm sinks: support it.
 
@@ -195,7 +198,7 @@ python3 pioneer_leader_arm_teleop.py --target real --self-test           # angle
 |------|------|
 | `pioneer_leader_arm_teleop.py` | entry; `--target isaac\|mujoco\|real` picks the backend before any simulator import |
 | `isaac_sim.py` / `mujoco_sim.py` | sim backends |
-| `real_arm.py` | real-arm backend: dry run (leader vs `/interfacing/motorFeedback`), `--live` publishes `/arm/joint_targets` |
+| `real_arm.py` | real-arm backend: dry run (leader vs `/interfacing/motorFeedback`), `--live` publishes `/arm/left/joint_targets` |
 | `leader_mapping.py` | shared: 1:1 mapping, home check, filter, gripper closure, leader read, wall-clock pacing |
 | `servo_leader.py` / `arm_limits.py` | servo bus reader / clamp + gripper fraction |
 | `calibrate_leader.py` | stores a board's hanging-pose zero, signs and USB serial in `leader_arm.json` |

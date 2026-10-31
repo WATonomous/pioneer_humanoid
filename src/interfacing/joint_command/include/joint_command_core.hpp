@@ -47,9 +47,13 @@ struct JointSafetyConfig {
   double mit_kd{0.0};
 
   // MIT watchdog limits (a PD drive has no internal limit checking).
-  double mit_max_torque{0.3};       // N.m -- fault above this
+  double mit_max_torque{0.3};       // N.m, rated -- fault above this unless the temperature allows
   double mit_max_track_err{12.0};   // deg -- fault if the joint lags its setpoint by more
   double mit_feedback_timeout{0.2}; // s without feedback before faulting
+  // Above mit_max_torque is allowed while the drive reads below mit_max_temperature, up to
+  // mit_peak_torque. Unset peak = mit_max_torque is the hard cap; unset temperature = no check.
+  std::optional<double> mit_peak_torque;     // N.m
+  std::optional<double> mit_max_temperature; // deg C -- fault at or above this, at any torque
 
   MitDriveFamily mit_family{MitDriveFamily::Gl2};
   // Defaults from mit_family (ak -> Damp, gl2 -> Limp) unless set in the YAML.
@@ -68,7 +72,8 @@ struct JointSafetyConfig {
 struct MotorFeedbackSample {
   double position_deg{0.0}; // MOTOR frame, as published on /interfacing/motorFeedback
   double torque_nm{0.0};
-  int status{0}; // GL II: 0 Disable / 1 Enable / else fault. AK: 0 ok / else fault.
+  double temperature_c{0.0}; // as the drive reports it; 0 = no reading
+  int status{0};             // GL II: 0 Disable / 1 Enable / else fault. AK: 0 ok / else fault.
   double age_s{0.0};
 };
 
@@ -83,7 +88,18 @@ struct SeedReport {
 class JointCommandCore {
 public:
   bool loadFromYaml(const YAML::Node& config, const std::string& arm_side);
+  // safety_cfg is arm_actuators.yaml's `safety`: `global` fallbacks, then this arm's block
+  // (`safety.<arm_side>`). Call loadFromYaml first.
   bool loadSafetyFromYaml(const YAML::Node& safety_cfg, double control_rate_hz);
+
+  const std::string& armSide() const {
+    return arm_side_;
+  }
+
+  // gravity_model.hpp models the left arm only; elsewhere gravity_ff_scale must stay 0.
+  bool hasGravityModel() const {
+    return arm_side_ == "left";
+  }
 
   // Why loadSafetyFromYaml refused; empty on success.
   const std::string& lastError() const {
@@ -114,6 +130,8 @@ public:
   // arm_actuators.yaml `active` (default true). An inactive joint gets no command at all (no MIT
   // enter, no watchdog); to the gravity model its angle is unknown, as if unpowered.
   bool isActive(size_t joint) const;
+  // False: nothing on this arm is driven this run.
+  bool anyActive() const;
 
   // Exclude joints seeded outside their limits (calibration mismatch) until the next seed.
   void blockJoints(const std::vector<size_t>& indices);
@@ -196,3 +214,7 @@ private:
   double control_rate_hz_{50.0};
   std::string last_error_;
 };
+
+// Feedback and commands are matched by motor id alone, so every arm's motors need their own ids.
+// Returns the first clash ("motor 14 is left shoulder.pitch and right shoulder.pitch"), or nullopt.
+std::optional<std::string> findDuplicateMotorIds(const std::vector<const JointCommandCore*>& arms);
