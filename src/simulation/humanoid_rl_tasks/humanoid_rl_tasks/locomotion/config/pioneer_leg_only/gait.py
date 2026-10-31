@@ -1,4 +1,4 @@
-"""Gait-clock terms after Unitree's rl_gym humanoid recipe (legged_gym/envs/g1): the legs follow a fixed-period clock half
+"""Gait-clock terms: the legs follow a fixed-period clock half
 a cycle apart, each foot is meant to stand for the first STANCE of its cycle and to swing SWING_HEIGHT high."""
 import math
 
@@ -46,7 +46,7 @@ def stance_foot_velocity(env, sensor_cfg: SceneEntityCfg, asset_cfg: SceneEntity
 
 
 def joint_pos_l2(env, asset_cfg: SceneEntityCfg) -> torch.Tensor:
-    """Squared joint positions (rl_gym's hip_pos: hip roll and yaw kept near zero)."""
+    """Squared joint positions (hip roll and yaw kept near zero)."""
     return env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids].square().sum(dim=1)
 
 

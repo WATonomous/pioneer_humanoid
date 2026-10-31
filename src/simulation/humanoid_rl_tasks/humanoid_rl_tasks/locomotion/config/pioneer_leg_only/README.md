@@ -4,23 +4,51 @@ Velocity-commanded walking for `assets/pioneer_leg_only_humanoid` (12 leg joints
 whole-body humanoid (`assets/pioneer_whole_body_humanoid`, arms and hands, upper body held). Robot config:
 `pioneer_humanoid/leg_only.py` (the URDF re-rooted at the hips with +X forward; the asset's root is at the soles, -Y forward).
 
-| Task | What |
+| Task | Robot |
 |---|---|
-| `Isaac-Locomotion-Flat-PioneerLegOnly-v0` | Isaac Lab's G1 flat recipe, Pioneer names |
-| `Isaac-Locomotion-Gait-PioneerLegOnly-v0` | + Unitree rl_gym gait clock (1 s cycle), swing height, no-slip, straight stance knee, flat-foot landing, randomised motors/friction/mass/pushes |
-| `Isaac-Locomotion-GaitSym-PioneerLegOnly-v0` | + left-right symmetry augmentation (`symmetry.py`). **The recipe to use.** |
-| `Isaac-Locomotion-GaitWholeBody-PioneerLegOnly-v0` | GaitSym on the whole-body humanoid, everything above the hips fixed |
-| `Isaac-Locomotion-GaitArmSwing-PioneerLegOnly-v0` | the same with shoulders and elbows swung on the gait clock (`arm_swing.py`), fists closed |
+| `Isaac-Locomotion-Flat-PioneerLegOnly-v0` | leg-only humanoid |
+| `Isaac-Locomotion-Flat-PioneerWholeBody-v0` | whole-body humanoid, everything above the hips held rigid |
 
 Each has a `-Play-v0` variant. In the `simulation_isaac` container, from `$HUMANOID_ROOT`:
 
 ```bash
-rl-train --task=Isaac-Locomotion-GaitSym-PioneerLegOnly-v0 --headless          # ~1 h for 3000 iterations
-rl-play --task=Isaac-Locomotion-GaitSym-PioneerLegOnly-Play-v0 --num_envs 1 --video --checkpoint <run>/model_<n>.pt
+rl-train --task=Isaac-Locomotion-Flat-PioneerLegOnly-v0 --headless          # ~1 h for 3000 iterations
+rl-play --task=Isaac-Locomotion-Flat-PioneerLegOnly-Play-v0 --num_envs 1 --video --checkpoint <run>/model_<n>.pt
 # PLAY_COMMAND="vx,vy,wz" (default "0.5,0,0") or PLAY_COMMAND=random (a new command every 3 s)
 ```
 
 A whole-body run can start from a leg-only checkpoint (same observations and actions): `--resume True --load_run <run> --checkpoint <ckpt>`.
+
+## Rewards
+
+The reward is the weighted sum of these terms, every 20 ms step (`flat_env_cfg.py`; gait terms in `gait.py`).
+
+| Category | Term | Weight | What |
+|---|---|---|---|
+| Task | `track_lin_vel_xy_exp` | 1.0 | exp(-error² / 0.25) of the commanded x-y velocity (yaw frame) |
+| | `track_ang_vel_z_exp` | 0.5 | exp(-error² / 0.25) of the commanded yaw rate |
+| | `alive` | 0.15 | per step not fallen |
+| Gait | `contact` | 0.18 | feet (0-2) whose ground contact matches the clock: stance for the first 55% of each leg's 1 s cycle, legs half a cycle apart |
+| | `feet_swing_height` | -20 | squared error of each airborne sole from 10 cm |
+| | `contact_no_vel` | -0.2 | squared velocity of planted feet (slip) |
+| | `stance_knee` | -1.0 | squared distance of a stance knee from -0.15 rad (near-straight supporting leg) |
+| | `feet_flat` | -2.0 | squared tilt of planted feet (land on the sole, not its edge) |
+| | `feet_too_close` | -40 | squared amount the feet come closer than 0.2 m sideways or cross |
+| Posture | `base_height` | -10 | squared error of base height from 0.835 m |
+| | `flat_orientation_l2` | -1.0 | squared base tilt |
+| | `hip_pos` | -1.0 | squared hip roll and yaw angles |
+| Smoothness | `lin_vel_z_l2` | -2.0 | squared base vertical velocity |
+| | `ang_vel_xy_l2` | -0.05 | squared base roll and pitch rates |
+| | `dof_vel` | -1e-3 | squared joint velocities |
+| | `dof_acc_l2` | -2.5e-7 | squared hip and knee accelerations |
+| | `dof_torques_l2` | -2e-6 | squared hip and knee torques |
+| | `action_rate_l2` | -0.02 | squared change of the action |
+| Limits | `dof_pos_limits` | -5.0 | joint angles beyond 90% of their range |
+| | `termination_penalty` | -200 | episode ends by a fall (base touches the ground) |
+
+Randomised for transfer: friction 0.3-1.2, base mass -1 to +3 kg, base centre of mass ±3 cm, motor stiffness and damping
+×0.7-1.3, joint armature ×0.5-2, pushes up to 0.8 m/s every 5-10 s, start pose ±0.1 rad.
+PPO trains every batch also on its left-right mirror image (`symmetry.py`), for an even gait.
 
 ## Policy interface (for deployment)
 
