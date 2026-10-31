@@ -1,4 +1,4 @@
-# Pioneer leg-only humanoid: walking
+# Pioneer humanoid: flat-ground walking
 
 Velocity-commanded walking for `assets/pioneer_leg_only_humanoid` (12 leg joints, 32.2 kg), and the same policy on the
 whole-body humanoid (`assets/pioneer_whole_body_humanoid`, arms and hands, upper body held). Robot config:
