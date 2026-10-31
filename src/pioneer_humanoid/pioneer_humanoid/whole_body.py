@@ -1,7 +1,7 @@
 import os
 
 import isaaclab.sim as sim_utils
-from isaaclab.actuators import ImplicitActuatorCfg
+from isaaclab.actuators import DCMotorCfg, ImplicitActuatorCfg
 from isaaclab.assets.articulation import ArticulationCfg
 
 _ASSET_DIR = os.path.join(
@@ -12,7 +12,7 @@ _USD_DIR = os.path.join(_ASSET_DIR, "usd")
 
 # Mild crouch; keep feet near ground after bend.
 _SPAWN_HEIGHT = 0.75
-
+ANKLE_R = 1.5
 
 WHOLE_BODY_HUMANOID_CFG = ArticulationCfg(
     spawn=sim_utils.UrdfFileCfg(
@@ -64,42 +64,67 @@ WHOLE_BODY_HUMANOID_CFG = ArticulationCfg(
             "Ankle_R_R": 0.04,
         },
     ),
+    
     actuators={
-        "hip_flexion": ImplicitActuatorCfg(
+        # AKH70-48: 222 N·m peak, 35 RPM no-load, 48:1, rotor 1170 g·cm²
+        "hip_flexion": DCMotorCfg(
             joint_names_expr=["Hip_F_.*"],
-            effort_limit_sim=222.0,
-            velocity_limit_sim=3.6652,
-            stiffness=100.0,
-            damping=8.0,
+            stiffness=267.0,            # 5 Hz
+            damping=17.0,               # ζ ≈ 1.0
+            armature=0.270,
+            friction=2.2,               # datasheet back-drive torque
+            saturation_effort=222.0,
+            effort_limit=222.0,
+            velocity_limit=3.67,
         ),
-        "hip_abduction": ImplicitActuatorCfg(
+        # AK80-64 @ 48 V: 120 N·m peak, 75 RPM no-load, 64:1, rotor 564.5 g·cm²
+        "hip_abduction": DCMotorCfg(
             joint_names_expr=["Hip_A_.*"],
-            effort_limit_sim=120.0,
-            velocity_limit_sim=20.944,
-            stiffness=80.0,
-            damping=5.0,
+            stiffness=146.0,            # 4 Hz
+            damping=12.0,               # ζ ≈ 1.0
+            armature=0.231,
+            friction=2.0,               # estimate (not published)
+            saturation_effort=120.0,
+            effort_limit=120.0,
+            velocity_limit=7.85,
         ),
-        "hip_rotation": ImplicitActuatorCfg(
+        # AK80-64 @ 48 V (changed from AK60-39)
+        "hip_rotation": DCMotorCfg(
             joint_names_expr=["Hip_R_.*"],
-            effort_limit_sim=60.0,
-            velocity_limit_sim=20.42,
-            stiffness=60.0,
-            damping=4.0,
+            stiffness=146.0,            # 4 Hz
+            damping=12.0,               # ζ ≈ 1.0
+            armature=0.231,
+            friction=2.0,               # estimate (not published)
+            saturation_effort=120.0,
+            effort_limit=120.0,
+            velocity_limit=7.85,
         ),
-        "knee": ImplicitActuatorCfg(
+        # AKH70-48: same motor as hip flexion
+        "knee": DCMotorCfg(
             joint_names_expr=["Knee_.*"],
-            effort_limit_sim=222.0,
-            velocity_limit_sim=3.6652,
-            stiffness=100.0,
-            damping=8.0,
+            stiffness=267.0,            # 5 Hz
+            damping=17.0,               # ζ ≈ 1.0
+            armature=0.270,
+            friction=2.2,
+            saturation_effort=222.0,
+            effort_limit=222.0,
+            velocity_limit=3.67,
         ),
-        "ankle": ImplicitActuatorCfg(
+        # AK60-39 V3 through linkage: 72 N·m peak, 98 RPM no-load, 39:1, rotor 305 g·cm²
+        # Motor values reflected to the joint at ratio r: torque × r, speed ÷ r, inertia × r²
+        "ankle": DCMotorCfg(
             joint_names_expr=["Ankle_.*"],
-            effort_limit_sim=60.0,
-            velocity_limit_sim=20.42,
-            stiffness=80.0,
-            damping=6.0,
+            stiffness=103.0,            # 5 Hz
+            damping=6.6,                # ζ ≈ 1.0
+            armature=0.0464 * ANKLE_R**2,   # ≈ 0.104
+            friction=1.4 * ANKLE_R,         # ≈ 2.1
+            saturation_effort=72.0 * ANKLE_R,   # ≈ 108
+            effort_limit=72.0 * ANKLE_R,
+            velocity_limit=10.3 / ANKLE_R,      # ≈ 6.87
         ),
     },
+    
+
+
     soft_joint_pos_limit_factor=0.95,
 )

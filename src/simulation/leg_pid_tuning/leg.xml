@@ -1,0 +1,59 @@
+<!-- Single-knee test rig: Thigh_L fixed in the world, Calf_L on the knee hinge,
+     Ankle_L + Foot_L welded to the calf. Masses, inertias, joint frames and limits
+     copied from assets/whole_body_humanoid/whole_body_humanoid.urdf. -->
+<mujoco model="knee_test">
+  <compiler angle="radian" meshdir="../../../assets/whole_body_humanoid/meshes"/>
+  <option timestep="0.001" gravity="0 0 -9.81"/>
+
+  <asset>
+    <mesh name="thigh_l" file="Thigh_L.STL"/>
+    <mesh name="calf_l"  file="Calf_L.STL"/>
+    <mesh name="ankle_l" file="Ankle_L.STL"/>
+    <mesh name="foot_l"  file="Foot_L.STL"/>
+    <material name="shell" rgba="0.87 0.91 1 1"/>
+    <texture name="grid" type="2d" builtin="checker" width="512" height="512"
+             rgb1="0.2 0.3 0.4" rgb2="0.1 0.2 0.3"/>
+    <material name="grid" texture="grid" texrepeat="8 8"/>
+  </asset>
+
+  <default>
+    <!-- visual only: no contacts between links of the rig -->
+    <geom type="mesh" material="shell" contype="0" conaffinity="0"/>
+  </default>
+
+  <worldbody>
+    <light pos="0 -1 2" dir="0 0.5 -1"/>
+    <geom name="floor" type="plane" size="2 2 0.1" material="grid"/>
+
+    <!-- thigh: fixed, origin at the Hip_R_L joint -->
+    <body name="Thigh_L" pos="0 0 1.0">
+      <geom mesh="thigh_l"/>
+
+      <body name="Calf_L" pos="0 0 -0.2615" euler="0.00655 0 0">
+        <joint name="knee" type="hinge" axis="-1 0 0" range="-1.0472 0.0873"
+               armature="0.270"
+               frictionloss="2.2"
+               damping="0"/>
+        <inertial pos="-0.00422 -0.00846 -0.16191" mass="4.5728"
+                  fullinertia="0.050714 0.050955 0.0097246 0.000167 0.0026907 -0.0019425"/>
+        <geom mesh="calf_l"/>
+
+        <body name="Ankle_L" pos="0 0 -0.3936" euler="-0.00655 0 0">
+          <inertial pos="-0.0003 0.00203 -0.00967" mass="0.26362"
+                    fullinertia="0.00013523 0.000086217 0.00010848 0 0 0.0000044144"/>
+          <geom mesh="ankle_l"/>
+
+          <body name="Foot_L" pos="-0.0003 0 -0.017933">
+            <inertial pos="0 0.05764 -0.02327" mass="1.8897"
+                      fullinertia="0.0077078 0.0020484 0.0089078 0 0 -0.00019565"/>
+            <geom mesh="foot_l"/>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <motor name="knee_motor" joint="knee" ctrlrange="-222 222"/>
+  </actuator>
+</mujoco>

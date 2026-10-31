@@ -1,4 +1,5 @@
 from isaaclab.managers import RewardTermCfg as RewTerm
+from isaaclab.managers import EventTermCfg as EventTerm  
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.utils import configclass
@@ -7,7 +8,7 @@ from pioneer_humanoid.whole_body import WHOLE_BODY_HUMANOID_CFG
 
 from ... import mdp
 from ...locomotion_env_cfg import LocomotionVelocityRoughEnvCfg, RewardsCfg, TerminationsCfg
-
+from .sim2real_terms import DelayedJointPositionActionCfg
 
 BASE_BODY = "base"
 FOOT_BODIES = ["Foot_L", "Foot_R"]
@@ -124,7 +125,7 @@ class PioneerHumanoidRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         # Hip_R turning range) discovered during flat-terrain tuning -- that's a
         # hardware property, not something specific to flat terrain, so it applies here
         # too.
-        self.actions.joint_pos.scale = {
+        _joint_pos_scale = {
             "Hip_F_.*": 0.25,
             "Knee_.*": 0.30,
             "Hip_A_.*": 0.06,
@@ -132,6 +133,52 @@ class PioneerHumanoidRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
             "Ankle_R_.*": 0.08,
             "Ankle_P_.*": 0.12,
         }
+        _base_action = self.actions.joint_pos
+        self.actions.joint_pos = DelayedJointPositionActionCfg(
+            asset_name=_base_action.asset_name,
+            joint_names=_base_action.joint_names,
+            scale=_joint_pos_scale,
+            use_default_offset=_base_action.use_default_offset,
+            min_delay=0,
+            max_delay=4
+        )
+
+        # --- Sim-to-real randomization (actuator model) ---
+        # Kp / Kd mismatch between sim and the motor drivers.
+        self.events.actuator_gains = EventTerm(
+            func=mdp.randomize_actuator_gains,
+            mode="reset",
+            params={
+                "asset_cfg": SceneEntityCfg("robot", joint_names=LEG_JOINTS),
+                "stiffness_distribution_params": (0.85, 1.15),
+                "damping_distribution_params": (0.85, 1.15),
+                "operation": "scale",
+                "distribution": "uniform",
+            },
+        )
+        # Gearbox friction (only partly known from datasheets, so wide) and armature
+        # (gearbox stages add inertia beyond the rotor).
+        self.events.joint_friction_armature = EventTerm(
+            func=mdp.randomize_joint_parameters,
+            mode="reset",
+            params={
+                "asset_cfg": SceneEntityCfg("robot", joint_names=LEG_JOINTS),
+                "friction_distribution_params": (0.5, 1.5),
+                "armature_distribution_params": (0.9, 1.2),
+                "operation": "scale",
+                "distribution": "uniform",
+            },
+        )
+        # Link masses: CAD estimates, wiring, fasteners.
+        self.events.link_mass = EventTerm(
+            func=mdp.randomize_rigid_body_mass,
+            mode="startup",
+            params={
+                "asset_cfg": SceneEntityCfg("robot", body_names=".*"),
+                "mass_distribution_params": (0.9, 1.1),
+                "operation": "scale",
+            },
+        )
 
         self.events.push_robot = None
         self.events.add_base_mass = None
