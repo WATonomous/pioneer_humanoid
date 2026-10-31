@@ -25,6 +25,13 @@ rl-play --task=Isaac-Locomotion-Flat-PioneerLegOnly-Play-v0 --num_envs 1 --video
 # PLAY_COMMAND="vx,vy,wz" (default "0.5,0,0") or PLAY_COMMAND=random (a new command every 3 s)
 ```
 
+Trained policies (in `models/`):
+
+```bash
+rl-play --task=Isaac-Locomotion-Flat-PioneerLegOnly-Play-v0 --num_envs 1 --video --checkpoint models/pioneer_leg_only_flat/model_2999.pt
+rl-play --task=Isaac-Locomotion-Flat-PioneerWholeBody-Play-v0 --num_envs 1 --video --checkpoint models/pioneer_whole_body_flat/model_2299.pt
+```
+
 A whole-body run can start from a leg-only checkpoint (same observations and actions): `--resume True --load_run <run> --checkpoint <ckpt>`.
 
 ## Rewards
