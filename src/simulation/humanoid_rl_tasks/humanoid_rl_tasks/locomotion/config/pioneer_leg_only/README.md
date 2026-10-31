@@ -1,10 +1,13 @@
 # Pioneer humanoid: flat-ground walking
 
+![Whole-body humanoid walking at 0.5 m/s](walk.gif)
+
 Velocity-commanded walking on flat ground for two robots, with the same policy observations and actions:
 
 - leg-only humanoid (`assets/pioneer_leg_only_humanoid`): 12 leg joints, 32.2 kg;
-- whole-body humanoid (`assets/pioneer_whole_body_humanoid`): arms, hands and head, 44.7 kg; only the 12 leg joints
-  move, everything above the hips is held rigid.
+- whole-body humanoid (`assets/pioneer_whole_body_humanoid`): arms, hands and head, 44.7 kg; the policy drives the 12
+  leg joints, the shoulders and elbows swing on the gait clock (`arm_swing.py`) with the fists closed, and the rest of
+  the upper body is held rigid.
 
 Masses are the URDFs' estimates. Robot configs: `pioneer_humanoid/leg_only.py` (each URDF re-rooted at the hips with
 +X forward; the assets' root is at the soles, -Y forward).
@@ -12,7 +15,7 @@ Masses are the URDFs' estimates. Robot configs: `pioneer_humanoid/leg_only.py` (
 | Task | Robot |
 |---|---|
 | `Isaac-Locomotion-Flat-PioneerLegOnly-v0` | leg-only humanoid |
-| `Isaac-Locomotion-Flat-PioneerWholeBody-v0` | whole-body humanoid, everything above the hips held rigid |
+| `Isaac-Locomotion-Flat-PioneerWholeBody-v0` | whole-body humanoid, scripted arm swing, fists closed |
 
 Each has a `-Play-v0` variant. In the `simulation_isaac` container, from `$HUMANOID_ROOT`:
 
