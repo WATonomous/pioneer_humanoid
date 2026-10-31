@@ -14,10 +14,11 @@ from isaaclab.utils import configclass
 from isaaclab.utils.modifiers import ModifierCfg
 from isaaclab_tasks.manager_based.locomotion.velocity.velocity_env_cfg import LocomotionVelocityRoughEnvCfg, RewardsCfg
 
-from pioneer_humanoid.leg_only import LEG_ONLY_HUMANOID_CFG, WHOLE_BODY_WALKER_CFG
+from pioneer_humanoid.leg_only import LEG_ONLY_HUMANOID_CFG, WHOLE_BODY_ARM_SWING_CFG
 
 from ... import mdp as loco_mdp
 from . import gait
+from .arm_swing import ArmSwingActionCfg
 
 FEET = ".*_foot"
 LEGS = ["Hip_.*", "Knee_.*"]
@@ -183,14 +184,25 @@ class PioneerLegOnlyFlatEnvCfg_PLAY(PioneerLegOnlyFlatEnvCfg):
         _play(self)
 
 
+# the leg-only robot's joint order, which its policies' observations and actions follow
+LEG_ORDER = ["Hip_F_L", "Hip_F_R", "Hip_A_L", "Hip_A_R", "Hip_R_L", "Hip_R_R", "Knee_L", "Knee_R", "Ankle_P_L", "Ankle_P_R", "Ankle_R_L", "Ankle_R_R"]
+
+
 @configclass
 class PioneerWholeBodyFlatEnvCfg(PioneerLegOnlyFlatEnvCfg):
-    """The same task on the whole-body humanoid (arms and hands, 44.7 kg), upper body held rigid: the policy has the
-    leg-only robot's observations and actions, so a leg-only policy can start it."""
+    """The same task on the whole-body humanoid (arms and hands, 44.7 kg): fists closed, shoulders and elbows swung on the
+    gait clock (arm_swing.py), the rest of the upper body held rigid. The policy sees and drives only the 12 leg joints,
+    in the leg-only robot's order, so a leg-only policy can start it."""
 
     def __post_init__(self):
         super().__post_init__()
-        self.scene.robot = WHOLE_BODY_WALKER_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.robot = WHOLE_BODY_ARM_SWING_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        legs = SceneEntityCfg("robot", joint_names=LEG_ORDER, preserve_order=True)
+        self.actions.joint_pos.joint_names = LEG_ORDER
+        self.actions.joint_pos.preserve_order = True
+        self.actions.arm_swing = ArmSwingActionCfg()
+        self.observations.policy.joint_pos.params["asset_cfg"] = legs
+        self.observations.policy.joint_vel.params["asset_cfg"] = legs
 
 
 @configclass
