@@ -10,6 +10,8 @@ travel with the repo.
 | `pioneer_hand_cube/` | `Isaac-Repose-Cube-PioneerHand-v0` | in-hand reorientation (`model_6600.pt`) |
 | `pioneer_humanoid_flat/` | `Isaac-Locomotion-Flat-PioneerHumanoid-v0` | flat-ground walking (`model_3900.pt`) |
 | `pioneer_humanoid_rough/` | `Isaac-Locomotion-Rough-PioneerHumanoid-v0` | rough-terrain walking (`model_2999.pt`) |
+| `pioneer_leg_only_flat/` | `Isaac-Locomotion-Flat-PioneerLegOnly-v0` | Pioneer leg-only humanoid, flat-ground walking (`model_2999.pt`) |
+| `pioneer_whole_body_flat/` | `Isaac-Locomotion-Flat-PioneerWholeBody-v0` | Pioneer whole-body humanoid, flat-ground walking with arm swing (`model_2299.pt`) |
 | `badminton_shared_student_ppo/` | `Mjlab-Badminton-Shared-Student-PPO-Priv` | bimanual badminton receive on EKF perception (`model_11996.pt`): one single-arm policy drives whichever arm `badminton_shared_chooser/` picks; arms start at rest, grippers closed on a centred racket. 98.4% bank hits (chooser margin 1.0), hits split 49/51 right/left, 89% net clearance; the deployable one |
 | `badminton_shared_chooser/` | `Mjlab-Badminton-Shared-Student-PPO` | its critic picks the arm from the robot's own observations (`model_11997.pt`); pass it as `--critic-task`/`--critic-checkpoint` |
 
