@@ -1,8 +1,13 @@
 # Pioneer humanoid: flat-ground walking
 
-Velocity-commanded walking for `assets/pioneer_leg_only_humanoid` (12 leg joints, 32.2 kg), and the same policy on the
-whole-body humanoid (`assets/pioneer_whole_body_humanoid`, arms and hands, upper body held). Robot config:
-`pioneer_humanoid/leg_only.py` (the URDF re-rooted at the hips with +X forward; the asset's root is at the soles, -Y forward).
+Velocity-commanded walking on flat ground for two robots, with the same policy observations and actions:
+
+- leg-only humanoid (`assets/pioneer_leg_only_humanoid`): 12 leg joints, 32.2 kg;
+- whole-body humanoid (`assets/pioneer_whole_body_humanoid`): arms, hands and head, 44.7 kg; only the 12 leg joints
+  move, everything above the hips is held rigid.
+
+Masses are the URDFs' estimates. Robot configs: `pioneer_humanoid/leg_only.py` (each URDF re-rooted at the hips with
++X forward; the assets' root is at the soles, -Y forward).
 
 | Task | Robot |
 |---|---|
