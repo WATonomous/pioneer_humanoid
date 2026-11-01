@@ -111,6 +111,8 @@ class PioneerLegOnlyFootholdEnvCfg_PLAY(PioneerLegOnlyFootholdEnvCfg):
         self.scene.terrain.terrain_generator.curriculum = False
         for group in (self.observations.policy, self.observations.critic):
             group.foothold_scan.params.update(train_fpm=False, force_model=True)
+        # SHOW_FOOTHOLDS=1 draws the patches the policy sees
+        self.observations.policy.foothold_scan.params["show_patches"] = os.environ.get("SHOW_FOOTHOLDS", "0") == "1"
 
 
 def _whole_body(cfg: PioneerLegOnlyFootholdEnvCfg):

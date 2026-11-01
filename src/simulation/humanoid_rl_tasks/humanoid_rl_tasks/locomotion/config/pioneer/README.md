@@ -143,6 +143,8 @@ task's arm swing; the policy still sees and drives only the 12 leg joints. Train
 `Isaac-Locomotion-RoughFoothold-PioneerWholeBody-Demo-v0` walks one robot through one tile of each obstacle in a row
 (`DEMO_DIFFICULTY`, default 0.1 = 7 cm stairs; `DEMO_SPEED`, default 0.5 m/s); at the defaults it crosses all six (42 m)
 without falling.
+In the foothold Play and Demo tasks, `SHOW_FOOTHOLDS=1` draws the height patches the policy sees and its predicted
+footholds.
 
 ## Policy interface (for deployment)
 

@@ -1,7 +1,7 @@
 # Foothold-conditioned perception after leggedrobotics/foothold-prediction-model ("Watch Your Step: Anticipated Perception
 # for Humanoid Locomotion", Heyrman et al., ETH Zurich; MIT License, Copyright (c) 2026 ETH Zurich): foothold_scan and the
 # pose/contact observations from fpm/mdp/observations.py, the gravity assistance from fpm/mdp/events.py, unmodified but for
-# imports. foothold_scan runs the foot predictor (retrained every 500 iterations by foot_pred.FootPredictionSupervisor) and
+# imports and show_patches. foothold_scan runs the foot predictor (retrained every 500 iterations by foot_pred.FootPredictionSupervisor) and
 # returns, for each foot, its predicted next foothold (x, y in the base frame) and a 7 x 7 height patch around it.
 from __future__ import annotations
 
@@ -10,9 +10,11 @@ from typing import TYPE_CHECKING
 
 import torch
 
+import isaaclab.sim as sim_utils
 import isaaclab.utils.math as math_utils
 from isaaclab.assets import Articulation
 from isaaclab.managers import SceneEntityCfg
+from isaaclab.markers import VisualizationMarkers, VisualizationMarkersCfg
 from isaaclab.sensors import ContactSensor, RayCaster
 
 from .foot_pred import FootPredictionSupervisor
@@ -28,6 +30,7 @@ class _FootholdState:
     model_mtime: float = 0.0
     xy_drift: torch.Tensor | None = None
     z_drift: torch.Tensor | None = None
+    markers: VisualizationMarkers | None = None
 
 
 _STATE = _FootholdState()
@@ -58,6 +61,19 @@ def _predict_footholds(env: ManagerBasedEnv, use_model: bool, bootstrap_foothold
     return torch.tensor(bootstrap_footholds, device=env.device).expand(env.num_envs, 2, 2)
 
 
+def _draw_patches(patches_w: torch.Tensor):
+    """Draws what the policy sees: the height points around each predicted foothold (blue), the footholds (orange)."""
+    if _STATE.markers is None:
+        def ball(radius, color):
+            return sim_utils.SphereCfg(radius=radius, visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=color))
+        _STATE.markers = VisualizationMarkers(VisualizationMarkersCfg(
+            prim_path="/Visuals/footholds", markers={"patch": ball(0.014, (0.1, 0.8, 0.95)), "foothold": ball(0.04, (1.0, 0.45, 0.05))}))
+    centres = patches_w[:, :, patches_w.shape[2] // 2].reshape(-1, 3)
+    points = torch.cat([patches_w.reshape(-1, 3), centres])
+    kinds = torch.cat([torch.zeros(len(points) - len(centres)), torch.ones(len(centres))]).long()
+    _STATE.markers.visualize(translations=points + torch.tensor([0.0, 0.0, 0.012], device=points.device), marker_indices=kinds)
+
+
 def foothold_scan(
     env: ManagerBasedRLEnv,
     sensor_cfg: SceneEntityCfg,
@@ -70,6 +86,7 @@ def foothold_scan(
     train_fpm: bool = True,
     force_model: bool = False,
     fpm_kwargs: dict | None = None,
+    show_patches: bool = False,
 ) -> torch.Tensor:
     if _STATE.supervisor is None:
         _STATE.supervisor = FootPredictionSupervisor(env, train=train_fpm, **(fpm_kwargs or {}))
@@ -116,10 +133,11 @@ def foothold_scan(
         idx = sample_y * num_x + sample_x
         heights = torch.gather(height_map, 1, idx)
         outputs.append(torch.cat([preds_b[:, i, :], heights], dim=1))
-        patches_w.append(torch.gather(sensor.data.ray_hits_w, 1, idx.unsqueeze(-1).expand(-1, -1, 3)))
+        if show_patches:
+            patches_w.append(torch.gather(sensor.data.ray_hits_w, 1, idx.unsqueeze(-1).expand(-1, -1, 3)))
     obs = torch.cat(outputs, dim=1)
-    # what the policy sees, in the world, for demo videos (demo_record.py --show_patches)
-    _STATE.patches_w, _STATE.footholds_w = torch.stack(patches_w, dim=1), feet_w
+    if show_patches:
+        _draw_patches(torch.stack(patches_w, dim=1))
 
     z_on = tuple(z_drift_range) != (0.0, 0.0)
     if _STATE.z_drift is None or _STATE.z_drift.shape[0] != num_envs:
