@@ -1,4 +1,4 @@
-# Pioneer humanoid: flat-ground walking
+# Pioneer humanoid: walking
 
 ![Whole-body humanoid walking at 0.5 m/s](walk.gif)
 
@@ -90,6 +90,31 @@ It prints the distance and mean speed, or the time of a fall. Both trained polic
 | sideways 0.3 m/s | 0.18 lateral | 0.20 lateral |
 
 No falls, also with `--seed 0..4 --push 0.5` for 20 s at 0.5 m/s.
+
+## Uneven ground (leg-only)
+
+`rough_env_cfg.py`, the flat recipe on generated terrain with a terrain curriculum, tracking weighted up (1.5, std 0.35)
+and the swing height measured from the lower foot instead of z = 0:
+
+| Task | Terrain | Observation | Trained policy |
+|---|---|---|---|
+| `Isaac-Locomotion-Rough-PioneerLegOnly-v0` | mild: bumps, 2-8 cm boxes, gentle slopes, 3-8 cm steps | the flat task's (blind) | `models/pioneer_leg_only_rough/model_3999.pt` |
+| `Isaac-Locomotion-RoughPerceptive-PioneerLegOnly-v0` | Isaac Lab's rough course: stairs up to 23 cm | + 1.6 x 1.0 m height scan (187 rays) | `models/pioneer_leg_only_rough_perceptive/model_3500.pt` |
+
+The blind policy needs no terrain sensor, so it runs on the robot as it is, and `sim2sim_mujoco.py` runs it unchanged
+(flat MuJoCo: 0.27 / 0.47 / 0.77 m/s at 0.3 / 0.5 / 0.8, no falls in 5 pushed 20 s runs).
+
+Stairs, 1000 robots per policy, 0.5 m/s for 20 s, started in a stair pit (up) or on a pyramid (down); share past the
+last step:
+
+| Step height | blind: up | blind: down | perceptive: up | perceptive: down |
+|---|---|---|---|---|
+| 4-7 cm | 100% | 100% | | |
+| 8-10 cm | | | 11% | 100% |
+| 10-20 cm | | | 0% | 98-100% |
+
+The perceptive policy walks down stairs but does not climb above ~10 cm. Both were trained with a 65 deg knee range;
+the numbers above are with the current URDF (140 deg).
 
 ## Policy interface (for deployment)
 

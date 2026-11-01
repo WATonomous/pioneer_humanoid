@@ -44,3 +44,20 @@ class PioneerWholeBodyFlatPPORunnerCfg(PioneerLegOnlyFlatPPORunnerCfg):
     def __post_init__(self):
         super().__post_init__()
         self.experiment_name = "pioneer_whole_body_flat"
+
+
+@configclass
+class PioneerLegOnlyRoughPPORunnerCfg(PioneerLegOnlyFlatPPORunnerCfg):
+    def __post_init__(self):
+        super().__post_init__()
+        self.experiment_name = "pioneer_leg_only_rough"
+
+
+@configclass
+class PioneerLegOnlyPerceptivePPORunnerCfg(PioneerLegOnlyFlatPPORunnerCfg):
+    def __post_init__(self):
+        super().__post_init__()
+        self.experiment_name = "pioneer_leg_only_rough_perceptive"
+        self.max_iterations = 5000
+        self.policy.actor_hidden_dims = [512, 256, 128]  # the height scan adds 187 inputs
+        self.policy.critic_hidden_dims = [512, 256, 128]
