@@ -2,9 +2,12 @@
 
 One-to-one: the leader is calibrated hanging straight down (calibrate_leader.py), which is also the
 URDF zero and the real arm's zero, so a joint target is just sign x leader angle. The arm starts at
-home (arm_params.DEFAULT_JOINT_POS, elbow bent 90 deg) and only follows the leader once every
-leader joint is within ENGAGE_TOL_DEG of home with the gripper open -- at startup and after every
-reset -- so it never jumps to wherever the leader happens to be.
+home (arm_params.DEFAULT_JOINT_POS, elbow bent 90 deg) and starts following -- at startup and after
+every reset -- in one of two ways (--start), so it never chases the leader across the scene:
+
+  enter  Enter in the terminal: the backend places the sim arm at the leader's pose (sync) and it
+         follows from there. The leader can be anywhere.
+  home   once every leader joint is within ENGAGE_TOL_DEG of home with the gripper open.
 
 Plain Python: no simulator imports. The leader is an input device with torque always off.
 """
@@ -14,6 +17,8 @@ import argparse
 import json
 import math
 import os
+import sys
+import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -61,6 +66,13 @@ def add_leader_args(parser: argparse.ArgumentParser, *, scene_help: str) -> None
         type=float,
         default=0.35,
         help="target low-pass coefficient in (0,1]; 1 disables filtering",
+    )
+    parser.add_argument(
+        "--start",
+        choices=("enter", "home"),
+        default="enter",
+        help="sim only. enter: press Enter in the terminal to place the arm at the leader's pose and follow from there; "
+             "home: wait until the leader is within 3 deg of home (elbow 90, gripper open)",
     )
 
 
@@ -151,11 +163,12 @@ class LeaderMapping:
     """Filtered, URDF-clamped arm targets (rad) and gripper closure (0 open .. 1 closed)."""
 
     def __init__(self, signs: tuple[float, ...], filter_alpha: float, home_rad: list[float],
-                 limits_rad: list[tuple[float, float]]):
+                 limits_rad: list[tuple[float, float]], engage_at_home: bool = True):
         if len(home_rad) != len(ARM_SERVOS):
             raise ValueError(f"leader drives {len(ARM_SERVOS)} joints but the arm has {len(home_rad)}")
         self.signs = tuple(signs)
         self.alpha = filter_alpha
+        self.engage_at_home = engage_at_home  # False: only sync() engages (--start enter)
         self.home = list(home_rad)
         self.limits_deg = [(math.degrees(lo), math.degrees(hi)) for lo, hi in limits_rad]
         self.gripper_axis = tuple(SERVO_IDS).index(GRIPPER_SERVO)
@@ -168,19 +181,23 @@ class LeaderMapping:
         self.grip = 0.0
         self.home_errors: list[tuple[str, float]] = []
 
-    def update(self, angles: tuple[float, ...]) -> tuple[list[float], float]:
+    def _desired(self, angles: tuple[float, ...]) -> tuple[list[float], float]:
+        """Unfiltered, URDF-clamped joint targets and gripper closure for these leader angles."""
         desired = [
             limited_target(angles[i], self.signs[i], 1.0, self.limits_deg[i])
             for i in range(len(ARM_SERVOS))
         ]
-        grip = gripper_fraction(angles[self.gripper_axis], self.signs[self.gripper_axis])
+        return desired, gripper_fraction(angles[self.gripper_axis], self.signs[self.gripper_axis])
+
+    def update(self, angles: tuple[float, ...]) -> tuple[list[float], float]:
+        desired, grip = self._desired(angles)
         if not self.engaged:
             self.home_errors = [
                 (label, math.degrees(d - h))
                 for label, d, h in zip(ARM_SERVOS, desired, self.home)
             ]
             self.home_errors.append((GRIPPER_SERVO, grip))
-            if any(
+            if not self.engage_at_home or any(
                 abs(err) > (ENGAGE_GRIP_TOL if label == GRIPPER_SERVO else ENGAGE_TOL_DEG)
                 for label, err in self.home_errors
             ):
@@ -188,6 +205,12 @@ class LeaderMapping:
             self.engaged = True
         self.target = [t + self.alpha * (d - t) for t, d in zip(self.target, desired)]
         self.grip += self.alpha * (grip - self.grip)
+        return self.target, self.grip
+
+    def sync(self, angles: tuple[float, ...]) -> tuple[list[float], float]:
+        """Engage at the leader's current pose; the caller must place the sim arm there (no filter ramp from home)."""
+        self.target, self.grip = self._desired(angles)
+        self.engaged = True
         return self.target, self.grip
 
     def describe(self, joints: list[str]) -> str:
@@ -221,29 +244,48 @@ class LeaderInput:
                 self._last_warning = now
         return self.angles
 
-    def report(self, mapping: LeaderMapping, end: str = "") -> None:
-        """Status every 0.5 s: rewrites one terminal line, or (end="\n") prints a line per report."""
+    def report(self, mapping: LeaderMapping, end: str = "", prefix: str = "") -> None:
+        """Status every 0.5 s: rewrites one terminal line, or (end="\n") prints a line per report. `prefix`: e.g. REC time."""
         now = time.monotonic()
         if now - self._last_report < 0.5:
             return
         self._last_report = now
+        live = " ".join(f"{label}={math.degrees(a):+6.1f}" for label, a in zip(SERVO_IDS, self.angles))
         if mapping.engaged:
-            line = (
-                " ".join(f"{label}={math.degrees(a):+6.1f}" for label, a in zip(SERVO_IDS, self.angles))
-                + f" grip={mapping.grip:.2f}"
-            )
+            line = live + f" grip={mapping.grip:.2f}"
+        elif not mapping.engage_at_home:
+            line = "Enter = start from this leader pose: " + live
         else:
             line = "move leader to home (elbow 90, gripper open): " + " ".join(
                 f"{label} {err:+6.1f}deg" if label != GRIPPER_SERVO else f"{label} {err:4.2f}"
                 for label, err in mapping.home_errors
             )
         if end:
-            print(f"[LEADER{self.label}] {line}", end=end, flush=True)
+            print(f"{prefix}[LEADER{self.label}] {line}", end=end, flush=True)
         else:
-            print(f"\r[LEADER{self.label}] {line:<100}", end="", flush=True)
+            print(f"\r{prefix}[LEADER{self.label}] {line:<100}", end="", flush=True)
 
     def close(self) -> None:
         self.leader.close()
+
+
+class EnterKey:
+    """Enter pressed in this terminal (--start enter), read by a daemon thread so the sim loop never blocks."""
+
+    def __init__(self):
+        self._pressed = threading.Event()
+        threading.Thread(target=self._read, daemon=True).start()
+
+    def _read(self) -> None:
+        for _ in sys.stdin:
+            self._pressed.set()
+
+    def pressed(self) -> bool:
+        """True once per press (presses since the last call count as one)."""
+        if not self._pressed.is_set():
+            return False
+        self._pressed.clear()
+        return True
 
 
 class WallClock:

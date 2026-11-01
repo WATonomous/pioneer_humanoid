@@ -78,11 +78,13 @@ python pioneer_leader_arm_teleop.py --target mujoco --scene peg_insert   # macOS
 
 Scenes: `bare`, `peg_insert`, `zip_tie`, `drawer_stow`, `matcha`, `duplo`, or any scene in `humanoid_mujoco_scenes` (see `src/simulation/mujoco_scenes/`).
 
-- **Home:** the arm starts at home (elbow bent 90°, forearm forward, gripper open) and follows the leader only once every leader joint is within 3° of home and the gripper is open. The status line lists the joints still off.
+- **Start:** the arm waits at home (elbow bent 90°, forearm forward, gripper open). Pose the leader however you like and press **Enter in the terminal**: the sim arm is placed at the leader's pose and follows from there (the status line shows the leader angles while waiting). `--start home` instead waits until every leader joint is within 3° of home with the gripper open, so every take starts from the same pose (the status line lists the joints still off). Same flag for Isaac.
 - **Directions:** move one leader joint at a time. If a sim joint goes the wrong way, re-run `calibrate_leader.py` for that side with that entry flipped in `--signs` (order A..G, left default `1,1,-1,1,1,-1,1`).
-- **6:** reset the arm and every object in the scene; the arm waits at home until the leader is back at home. During a take, it also discards the take.
+- **6:** reset the arm and every object in the scene; the arm waits at home for the next start (Enter, or the leader at home with `--start home`). During a take, it also discards the take.
 - **`--record`:** `7` start · `8` save (then auto-reset) · `9` discard → `<repo>/datasets/pioneer_v1_left_arm/sim/` · `--cameras ego,wrist_left` / `none`.
-  Digits because every letter, 0-5 and Esc are MuJoCo viewer shortcuts (Esc stays the viewer's free camera here). The status line starts `REC <frames>` while recording.
+  Digits because every letter, 0-5 and Esc are MuJoCo viewer shortcuts (Esc stays the viewer's free camera here). The MuJoCo window's top-left corner shows whether you are recording (and for how long), the key to press next, and
+  `SAVED` / `take discarded` for 3 s after 8 / 9; the terminal status line starts `REC <seconds>s |` while recording.
+  **6-9 go to the MuJoCo window** (click it first; read by the viewer, so no macOS permission is needed); **Enter goes to the terminal**.
 - **Multi-step scenes** (`drawer_stow`, `matcha`, `duplo`): the terminal prints `[TASK] step k/n: <instruction>` as each step is done and
   `all steps done -- 8 to save` at the end. Recorded frames carry the current step's instruction as their `task` and a
   `subtask_index`, so a take is labelled step by step with no hand annotation.
