@@ -9,7 +9,7 @@ Velocity-commanded walking on flat ground for two robots, with the same policy o
   leg joints, the shoulders and elbows swing on the gait clock (`arm_swing.py`) with the fists closed, and the rest of
   the upper body is held rigid.
 
-Masses are the URDFs' estimates. Robot configs: `pioneer_humanoid/leg_only.py` (each URDF re-rooted at the hips with
+Masses are the URDFs' estimates. Robot configs: `pioneer_humanoid/leg_only.py` and `whole_body.py` (each URDF re-rooted at the hips with
 +X forward; the assets' root is at the soles, -Y forward).
 
 | Task | Robot |

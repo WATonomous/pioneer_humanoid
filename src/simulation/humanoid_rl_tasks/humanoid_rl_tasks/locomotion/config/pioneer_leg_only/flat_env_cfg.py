@@ -14,7 +14,8 @@ from isaaclab.utils import configclass
 from isaaclab.utils.modifiers import ModifierCfg
 from isaaclab_tasks.manager_based.locomotion.velocity.velocity_env_cfg import LocomotionVelocityRoughEnvCfg, RewardsCfg
 
-from pioneer_humanoid.leg_only import LEG_ONLY_HUMANOID_CFG, WHOLE_BODY_ARM_SWING_CFG
+from pioneer_humanoid.leg_only import LEG_ONLY_HUMANOID_CFG
+from pioneer_humanoid.whole_body import WHOLE_BODY_ARM_SWING_CFG
 
 from ... import mdp as loco_mdp
 from . import gait
