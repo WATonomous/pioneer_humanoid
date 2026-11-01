@@ -50,7 +50,7 @@ class PioneerWholeBodyFlatPPORunnerCfg(PioneerLegOnlyFlatPPORunnerCfg):
 class PioneerLegOnlyRoughPPORunnerCfg(PioneerLegOnlyFlatPPORunnerCfg):
     def __post_init__(self):
         super().__post_init__()
-        self.experiment_name = "pioneer_leg_only_rough"
+        self.experiment_name = "pioneer_leg_only_rough_blind"
 
 
 @configclass
