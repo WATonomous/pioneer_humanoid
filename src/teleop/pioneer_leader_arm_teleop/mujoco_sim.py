@@ -66,7 +66,7 @@ class Arm:
 
 
 class RecordStatus:
-    """What the recorder is doing and the key to press next, in the MuJoCo window's corner and the terminal.
+    """What the recorder is doing and the key to press next, in the MuJoCo window's corner.
 
     The keys go to the MuJoCo window, so the answer has to show up there too, not only in terminal output.
     """
@@ -82,10 +82,6 @@ class RecordStatus:
     def event(self, text: str) -> None:
         print(f"\n[RECORD] {text}", flush=True)
         self._event, self._event_t = text, time.monotonic()
-
-    def prefix(self, recording: bool) -> str:
-        """Terminal status line prefix while a take is being recorded."""
-        return f"REC {self.recorder.num_buffered_frames / self.recorder.fps:5.1f}s | " if recording else ""
 
     def _lines(self, started: bool, recording: bool) -> tuple[str, str]:
         if recording and not started:
@@ -295,7 +291,7 @@ def run() -> None:
 
                 for arm in arms:
                     if len(arms) == 1:
-                        arm.leader.report(arm.mapping, prefix=status.prefix(record_flags.start and started) if status else "")
+                        arm.leader.report(arm.mapping)
                     elif not arm.mapping.engaged:
                         # Two leaders: a line each while homing (a shared \r status line would be overwritten).
                         arm.leader.report(arm.mapping, end="\n")

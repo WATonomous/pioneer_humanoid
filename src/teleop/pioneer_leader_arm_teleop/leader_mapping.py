@@ -221,8 +221,8 @@ class LeaderInput:
                 self._last_warning = now
         return self.angles
 
-    def report(self, mapping: LeaderMapping, end: str = "", prefix: str = "") -> None:
-        """Status every 0.5 s: rewrites one terminal line, or (end="\n") prints a line per report. `prefix`: e.g. REC time."""
+    def report(self, mapping: LeaderMapping, end: str = "") -> None:
+        """Status every 0.5 s: rewrites one terminal line, or (end="\n") prints a line per report."""
         now = time.monotonic()
         if now - self._last_report < 0.5:
             return
@@ -238,9 +238,9 @@ class LeaderInput:
                 for label, err in mapping.home_errors
             )
         if end:
-            print(f"{prefix}[LEADER{self.label}] {line}", end=end, flush=True)
+            print(f"[LEADER{self.label}] {line}", end=end, flush=True)
         else:
-            print(f"\r{prefix}[LEADER{self.label}] {line:<100}", end="", flush=True)
+            print(f"\r[LEADER{self.label}] {line:<100}", end="", flush=True)
 
     def close(self) -> None:
         self.leader.close()
