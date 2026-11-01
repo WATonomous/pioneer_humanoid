@@ -3,6 +3,10 @@
 The cube sits in line with the left gripper's home pose (elbow bent 90 deg, forearm forward): centred
 between the open jaws (~9.5 cm apart there) and just past their tips, so reaching it is lowering the
 forearm ~15 cm and reaching ~5 cm further. One collision box (a solved cube; the layers don't turn); the 54 stickers are visual only.
+
+Success is a pick and place: the cube was lifted at least LIFT_MIN, then set down on the table and let go. The
+recorded demos lift it 8-16 cm and put it down 3-16 cm closer to the robot, wherever the operator chose, so where it
+lands is not checked. The highest lift so far is kept in data.userdata[0] by the step hook, so a reset clears it.
 """
 from __future__ import annotations
 
@@ -13,6 +17,9 @@ from humanoid_mujoco_scenes import TABLE_TOP_Z, add_workcell, scene
 CUBE_SIZE = 0.056               # m, a standard 3x3
 CUBE_MASS = 0.09                # kg, a speed cube is 70-100 g
 CUBE_POS = (0.45, 0.29)         # xy on the table: in line with the left jaws at home (x 0.36-0.45, centred y 0.289)
+REST_Z = TABLE_TOP_Z + CUBE_SIZE / 2    # m, cube centre resting on the table (any face down)
+LIFT_MIN = 0.05                 # m above REST_Z, the lift that counts as picked up (pushes and tips stay under 3 cm)
+REST_TOL = 0.005                # m, cube centre within this of REST_Z counts as back on the table
 
 STICKER_FRACTION = 0.85         # sticker width / cubie pitch; the rest shows the black body between them
 STICKER_THICKNESS = 0.0005      # m, stands proud of the body so it never z-fights
@@ -44,8 +51,35 @@ def add_stickers(body: mujoco.MjsBody) -> None:
                               contype=0, conaffinity=0, mass=0, group=1)
 
 
-@scene("rubiks_cube", camera=dict(lookat=[0.38, 0.29, TABLE_TOP_Z + 0.08], distance=0.5, azimuth=180, elevation=-40))
+def cube_height(model: mujoco.MjModel, data: mujoco.MjData) -> float:
+    """Cube centre above its resting height, m."""
+    return float(data.xpos[model.body("rubiks_cube").id][2] - REST_Z)
+
+
+def step(model: mujoco.MjModel, data: mujoco.MjData) -> None:
+    data.userdata[0] = max(data.userdata[0], cube_height(model, data))
+
+
+def touches_robot(model: mujoco.MjModel, data: mujoco.MjData) -> bool:
+    """Whether the cube is in contact with anything but the world body (table, lightbox)."""
+    cube = model.geom("rubiks_cube").id
+    for c in data.contact[:data.ncon]:
+        if cube in (c.geom1, c.geom2):
+            other = c.geom2 if c.geom1 == cube else c.geom1
+            if model.geom_bodyid[other] != 0:
+                return True
+    return False
+
+
+def placed(model: mujoco.MjModel, data: mujoco.MjData) -> bool:
+    """Lifted at least LIFT_MIN earlier in the episode, now resting on the table and released."""
+    return bool(data.userdata[0] >= LIFT_MIN and abs(cube_height(model, data)) < REST_TOL and not touches_robot(model, data))
+
+
+@scene("rubiks_cube", camera=dict(lookat=[0.38, 0.29, TABLE_TOP_Z + 0.08], distance=0.5, azimuth=180, elevation=-40),
+       step=step, success=placed)
 def build(spec: mujoco.MjSpec) -> None:
+    spec.nuserdata = 1                  # [highest lift so far, m]
     add_workcell(spec)
     x, y = CUBE_POS
     cube = spec.worldbody.add_body(name="rubiks_cube", pos=[x, y, TABLE_TOP_Z + CUBE_SIZE / 2])
