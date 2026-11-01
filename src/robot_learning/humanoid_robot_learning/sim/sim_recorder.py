@@ -188,8 +188,7 @@ class SimLeRobotRecorder:
     def external_flags(self) -> EpisodeFlags:
         """Episode flags for the caller's own key handler (e.g. a viewer's key callback), with no pynput listener.
 
-        Use instead of start_keyboard() where a global listener sees no keys: on macOS pynput needs the
-        terminal to have Input Monitoring permission, and without it gets nothing, silently."""
+        Use instead of start_keyboard() when the app already reads keys itself, so every key goes through one handler."""
         self._flags = EpisodeFlags(start=False)
         return self._flags
 

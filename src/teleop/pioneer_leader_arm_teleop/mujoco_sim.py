@@ -44,7 +44,7 @@ from leader_mapping import (  # noqa: E402
 )
 
 # Every letter, 0-5, Esc and the F1-F5 keys are MuJoCo viewer shortcuts; 6-9 are free. All four are read by the
-# viewer's key callback (MuJoCo window focused), not a global pynput listener, which macOS blocks without permission.
+# viewer's key callback (MuJoCo window focused), one handler for reset and the record keys.
 _KEY_RESET = ord("6")  # GLFW key code
 _RECORD_KEYS = {ord("7"): "start", ord("8"): "success", ord("9"): "remove"}  # GLFW key -> EpisodeFlags field
 

@@ -84,7 +84,7 @@ Scenes: `bare`, `peg_insert`, `zip_tie`, `drawer_stow`, `matcha`, `duplo`, or an
 - **`--record`:** `7` start · `8` save (then auto-reset) · `9` discard → `<repo>/datasets/pioneer_v1_left_arm/sim/` · `--cameras ego,wrist_left` / `none`.
   Digits because every letter, 0-5 and Esc are MuJoCo viewer shortcuts (Esc stays the viewer's free camera here). The MuJoCo window's top-left corner shows whether you are recording (and for how long), the key to press next, and
   `SAVED` / `take discarded` for 3 s after 8 / 9.
-  **6-9 go to the MuJoCo window** (click it first; read by the viewer, so no macOS permission is needed).
+  **6-9 go to the MuJoCo window** (click it first): all four are read by the viewer's key callback.
 - **Multi-step scenes** (`drawer_stow`, `matcha`, `duplo`): the terminal prints `[TASK] step k/n: <instruction>` as each step is done and
   `all steps done -- 8 to save` at the end. Recorded frames carry the current step's instruction as their `task` and a
   `subtask_index`, so a take is labelled step by step with no hand annotation.
