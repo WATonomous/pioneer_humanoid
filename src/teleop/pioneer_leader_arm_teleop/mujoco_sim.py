@@ -73,9 +73,8 @@ class RecordStatus:
 
     EVENT_S = 3.0  # how long a "saved" / "discarded" message stays up
 
-    def __init__(self, recorder: Any, start_hint: str):
+    def __init__(self, recorder: Any):
         self.recorder = recorder
-        self.start_hint = start_hint  # how the arm starts following, shown while recording is armed
         self._event, self._event_t = "", -math.inf
         self._shown = None
 
@@ -85,7 +84,7 @@ class RecordStatus:
 
     def _lines(self, started: bool, recording: bool) -> tuple[str, str]:
         if recording and not started:
-            head, keys = "REC armed", f"to start, {self.start_hint}"
+            head, keys = "REC armed", "bring the leader to home to start"
         elif recording:
             head, keys = f"RECORDING {self.recorder.num_buffered_frames / self.recorder.fps:.1f} s", "8 save   9 discard"
         else:
@@ -190,12 +189,11 @@ def run() -> None:
                 return
             if flag == "start" and not record_flags.start:
                 started = all(arm.mapping.engaged for arm in arms)
-                status.event("recording started" if started else f"recording armed: to start, {status.start_hint}")
+                status.event("recording started" if started else "recording armed: it starts once the leader is at home")
             elif flag == "remove":
                 status.event("take discarded, recording again")
             setattr(record_flags, flag, True)  # 8's message comes after the save
 
-    start_hint = "bring the leader to home: elbow bent 90 deg, forearm forward, gripper open"
     substeps = max(1, round(CONTROL_DT / model.opt.timestep))
     control_dt = substeps * model.opt.timestep
     # Multi-step scenes record the current step's instruction as each frame's task, plus its index.
@@ -204,7 +202,7 @@ def run() -> None:
     if recorder is not None:
         print("[RECORD] Keys, in the MuJoCo window: 7=start, 8=save episode (then reset), 9=discard, 6=reset")
         record_flags = recorder.external_flags()
-        status = RecordStatus(recorder, start_hint)
+        status = RecordStatus(recorder)
     renderers = {name: mujoco.Renderer(model, h, w) for name, (h, w) in cameras.items()}
 
     # Called by tick() only on recorded frames.
@@ -228,7 +226,7 @@ def run() -> None:
     clock = WallClock(control_dt)
     step = 0
     shown_step = None  # last task step announced
-    print(f"[INFO] Leader calibrated (hanging = 0). To start, {start_hint}. 6 = reset.", flush=True)
+    print("[INFO] Leader calibrated (hanging = 0). Move it to home: elbow bent 90 deg, forearm forward, gripper open. 6 = reset.", flush=True)
     try:
         for arm in arms:
             arm.leader = LeaderInput(arm.board, args.baud, label=arm.side.upper() if len(arms) > 1 else "")
@@ -246,7 +244,7 @@ def run() -> None:
                         recorder.cancel_recording()
                         status.event("reset mid-take: take discarded, recording again once started")
                     reset_all()
-                    print(f"\n[LEADER] Arm and scene reset; {start_hint}.", flush=True)
+                    print("\n[LEADER] Arm and scene reset; bring the leader back to home.", flush=True)
 
                 actions = []
                 for arm in arms:
