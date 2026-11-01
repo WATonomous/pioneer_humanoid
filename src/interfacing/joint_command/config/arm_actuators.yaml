@@ -40,7 +40,11 @@ safety:
 
   # active: false leaves that motor alone for the run (no command, no MIT enter, no watchdog);
   # to the gravity model its angle is then unknown, as if unpowered. Applies on node restart.
-  joints:
+  # An arm with no active joint is not driven at all.
+  #
+  # One block per arm (joint_command.yaml `arms`), keyed like arm_calibration.yaml. Each arm has
+  # its own full block on purpose: what you read here is what that arm runs.
+  left:
     # --- AK10-9 / AK80-9, MIT --------------------------------------------------
     # Limits come from calibrate_arm.py's software zero-mode (see arm_calibration.yaml).
     # Re-run calibration after any power cycle: AK80-9 joints lose their zero (src/interfacing/README.md).
@@ -136,12 +140,77 @@ safety:
     gripper:
       open_close:   # GL40, id 21
         active: false
-        velocity_max: 60.0
         delta_max: 2.4
         control_type: 0        # MIT_CONTROL
         mit_family: gl2        # fault action limp
         mit_kp: 0.1221         # N.m/rad -> raw 1, the softest nonzero stiffness
         mit_kd: 0.0098         # N.m.s/rad -> raw 8, as the wrist
+        mit_max_torque: 0.25   # N.m: squeeze limit
+        mit_max_track_err: 105.0  # deg, >= full travel (upper_limit - lower_limit)
+        mit_feedback_timeout: 0.2
+
+  right:
+    shoulder:
+      pitch:   # AK10-9
+        active: false
+        control_type: 0
+        mit_family: ak
+        mit_kp: 2.0
+        mit_kd: 0.3
+        mit_max_torque: 18
+        mit_fault_kd: 5.0
+      roll:    # AK80-9
+        active: false
+        control_type: 0
+        mit_family: ak
+        mit_kp: 2.0
+        mit_kd: 0.3
+        mit_max_torque: 9.0
+        mit_fault_kd: 1.0
+      yaw:     # AK10-9
+        active: false
+        control_type: 0
+        mit_family: ak
+        mit_kp: 2.0
+        mit_kd: 0.3
+        mit_max_torque: 18.0
+        mit_fault_kd: 5.0
+    elbow:
+      pitch:   # AK80-9
+        active: false
+        control_type: 0
+        mit_family: ak
+        mit_kp: 2.0
+        mit_kd: 0.3
+        mit_max_torque: 9.0
+        mit_fault_kd: 5.0
+      roll:    # AK80-9
+        active: false
+        control_type: 0
+        mit_family: ak
+        mit_kp: 2.0
+        mit_kd: 0.3
+        mit_max_torque: 9.0
+        mit_fault_kd: 0.5
+    wrist:
+      pitch:   # GL40
+        active: false
+        control_type: 0        # MIT_CONTROL
+        mit_family: gl2        # fault action defaults to limp
+        mit_kp: 0.22
+        mit_kd: 0.0098
+        mit_max_torque: 0.3
+        mit_max_track_err: 12.0
+        mit_feedback_timeout: 0.2
+    gripper:
+      open_close:   # GL40
+        active: false
+        velocity_max: 60.0
+        delta_max: 2.4
+        control_type: 0        # MIT_CONTROL
+        mit_family: gl2        # fault action limp
+        mit_kp: 0.1221         # N.m/rad -> raw 1, the softest nonzero stiffness
+        mit_kd: 0.0098
         mit_max_torque: 0.25   # N.m: squeeze limit
         mit_max_track_err: 105.0  # deg, >= full travel (upper_limit - lower_limit)
         mit_feedback_timeout: 0.2

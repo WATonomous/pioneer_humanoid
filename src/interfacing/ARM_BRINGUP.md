@@ -68,8 +68,9 @@ python3 /workspace/humanoid/src/interfacing/can/scripts/live_arm_mjviser.py --ar
 ## 3. Setup joint_command (real motor control)
 Only after 1–2 look right. Clear workspace, hardware E-stop on the 48 V supply in reach.
 Everything goes through `joint_command` (`ArmPose` on
-`/arm/joint_targets`): it clamps, rate-limits, seeds from live feedback (no startup jump) and
-runs the MIT watchdog. 
+`/arm/<side>/joint_targets`): it clamps, rate-limits, seeds from live feedback (no startup jump) and
+runs the MIT watchdog. One node drives every arm in `joint_command.yaml`'s `arms`; each joint's
+`active` in `arm_actuators.yaml` picks what moves.
 
 ``` bash
 ./watod -t joint_command
@@ -78,8 +79,8 @@ ros2 launch joint_command joint_command.launch.py
 
 ```
 
-A fault stops the whole arm: AK joints sink damped, the GL40s go limp. Support the arm and
-restart the node.
+A fault on any arm stops every arm: AK joints sink damped, the GL40s go limp. Support the arms
+and restart the node.
 
 ## 4. Move the arm
 
