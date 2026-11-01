@@ -247,7 +247,7 @@ while not done:
 
         # just for coms lol
         if step % 10 == 0:
-            print(f"step {step} | loss { running_loss/10:.4f} | grad {grad_norm:.2f} | lr {scheduler.get_last_lr()[0]:.2e}")
+            print(f"step {step} | loss {running_loss/10:.4f} | grad {grad_norm:.2f} | lr {scheduler.get_last_lr()[0]:.2e}")
             running_loss = 0
         val_loss = validate() if step % VAL_EVERY == 0 else None
         if val_loss is not None:

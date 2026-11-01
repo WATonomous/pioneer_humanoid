@@ -7,6 +7,7 @@ WORKDIR ${AMENT_WS}/src
 
 # Copy in source code 
 COPY src/perception/perception perception
+COPY src/perception/wrist_camera wrist_camera
 COPY src/common_msgs common_msgs
 
 # Install rosdep if not present, update package lists
@@ -124,6 +125,16 @@ RUN mkdir -p /root/models && \
 ################################ Build ################################
 FROM dependencies AS build
 COPY --from=source ${AMENT_WS}/src ${AMENT_WS}/src
+
+# wrist_camera imports wrist_cam.rectify() and the calibration YAMLs from these two plain Python
+# folders (not ROS packages, so outside the colcon workspace). On PYTHONPATH rather than
+# pip-installed, so the compose volume mounts over /opt/humanoid_py apply without a rebuild. Only
+# the code is copied: the calibration images next to it are ~100 MB and gitignored.
+COPY src/pioneer_humanoid /opt/humanoid_py/pioneer_humanoid
+COPY src/perception/camera_calibration/wrist_cam.py \
+     src/perception/camera_calibration/calibrate_intrinsics.py \
+     /opt/humanoid_py/camera_calibration/
+ENV PYTHONPATH=/opt/humanoid_py/pioneer_humanoid:/opt/humanoid_py/camera_calibration:${PYTHONPATH}
 
 # Build ROS2 packages
 WORKDIR ${AMENT_WS}

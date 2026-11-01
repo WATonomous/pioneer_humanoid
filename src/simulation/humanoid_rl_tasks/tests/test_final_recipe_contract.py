@@ -123,7 +123,7 @@ def _namespace(rough_source=None, runner_source=None):
         namespace[name] = _Cfg
     for name in ("CurrTerm", "EventTerm", "ObsTerm", "RewTerm", "DoneTerm"):
         namespace[name] = _Term
-    _execute(ROOT / "src/pioneer_humanoid/pioneer_humanoid/whole_body.py", namespace)
+    _execute(ROOT / "src/pioneer_humanoid/pioneer_humanoid/old_leg_only.py", namespace)
     _execute(ROOT / "src/pioneer_humanoid/pioneer_humanoid/rough_baseline.py", namespace)
     _execute(TASKS / "locomotion_env_cfg.py", namespace)
     _execute(CONFIG / "rough_env_cfg.py", namespace, rough_source)
@@ -139,7 +139,7 @@ def _plain(value):
     if isinstance(value, (tuple, list)):
         return [_plain(item) for item in value]
     if isinstance(value, str):
-        # whole_body.py joins source asset paths using the host path dialect.
+        # old_leg_only.py joins source asset paths using the host path dialect.
         # A Windows CPU run must produce the same recipe hash as Linux.
         value = value.replace("\\", "/").replace(str(ROOT).replace("\\", "/"), "<repo>")
         # Exact path-only aliases preserve the original physical recipe digest.

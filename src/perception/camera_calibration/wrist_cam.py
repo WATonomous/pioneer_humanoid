@@ -54,20 +54,32 @@ class WristCam:
         return cv2.remap(raw, self._map1, self._map2, cv2.INTER_LINEAR)
 
 
-def open_camera(index: int, cam: WristCam) -> cv2.VideoCapture:
-    """VideoCapture at the calibrated resolution (full sensor, so not cropped on macOS)."""
+def open_camera(device: int | str, cam: WristCam, fps: int = 30) -> cv2.VideoCapture:
+    """VideoCapture at the calibrated resolution (full sensor, so not cropped on macOS).
+
+    `device` is an OpenCV index or, on Linux, a path such as /dev/v4l/by-id/usb-...-video-index0
+    (stable across reboots, unlike /dev/videoN)."""
     backend = cv2.CAP_AVFOUNDATION if sys.platform == "darwin" else cv2.CAP_V4L2
-    cap = cv2.VideoCapture(index, backend)
+    cap = cv2.VideoCapture(device, backend)
     if not cap.isOpened():
-        raise RuntimeError(f"could not open camera {index}")
+        raise RuntimeError(f"could not open camera {device}")
+    # Raw 1080p doesn't fit through USB 2.0 at 30 fps; V4L2 falls back to ~5 fps unless MJPG.
+    cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, cam.raw_size[0])
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, cam.raw_size[1])
+    cap.set(cv2.CAP_PROP_FPS, fps)
+    got = (int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)))
+    if got != tuple(cam.raw_size):
+        cap.release()
+        raise RuntimeError(f"camera {device} gives {got[0]}x{got[1]}, calibration needs "
+                           f"{cam.raw_size[0]}x{cam.raw_size[1]}")
     return cap
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="live raw | rectified wrist camera preview")
-    ap.add_argument("--camera", type=int, default=0)
+    ap.add_argument("--camera", type=lambda v: int(v) if v.isdigit() else v, default=0,
+                    help="OpenCV index, or a device path on Linux")
     ap.add_argument("--calib", default=str(DEFAULT_CALIB))
     args = ap.parse_args()
 

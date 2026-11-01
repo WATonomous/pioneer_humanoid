@@ -42,3 +42,5 @@ services:
       - /dev:/dev
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - ${XAUTHORITY:-${HOME}/.Xauthority}:/tmp/.Xauthority:ro
+    group_add:
+      - "984"

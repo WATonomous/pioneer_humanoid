@@ -9,7 +9,7 @@ from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
 from pioneer_humanoid.selective_self_collision import enable_selective_self_collision
 from pioneer_humanoid.rough_baseline import ROUGH_NO_STAIRS_BASELINE_CFG
-from pioneer_humanoid.whole_body import WHOLE_BODY_HUMANOID_CFG
+from pioneer_humanoid.old_leg_only import WHOLE_BODY_HUMANOID_CFG
 
 from ... import mdp
 from ...locomotion_env_cfg import LocomotionVelocityRoughEnvCfg, RewardsCfg, TerminationsCfg
@@ -124,7 +124,7 @@ class PioneerHumanoidRewards(RewardsCfg):
     # override), so a seated pose that doesn't put contact force through the base link
     # itself survives indefinitely with zero risk. mdp.base_height_l2 penalizes
     # deviation from the legacy 0.75 m nominal standing height in
-    # pioneer_humanoid.whole_body using the height scanner to stay terrain-relative -- a hard
+    # pioneer_humanoid.old_leg_only using the height scanner to stay terrain-relative -- a hard
     # world-Z threshold (like flat's low_base) isn't safe on uneven terrain, per
     # Isaac Lab's own root_height_below_minimum docstring ("currently only supported
     # for flat terrains").

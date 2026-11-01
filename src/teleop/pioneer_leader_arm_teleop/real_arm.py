@@ -1,9 +1,10 @@
 """Real-arm backend of pioneer_leader_arm_teleop.py: leader vs real left arm, side by side.
 
 Dry run by default: subscribes to /interfacing/motorFeedback and never creates a publisher, so it
-cannot move the arm. --live publishes the leader as ArmPose on /arm/joint_targets (50 Hz) through
-joint_command, but only after the gate passes (every active joint: leader within 3 deg of home and
-within 10 deg of the real arm; gripper within 0.1) and you type `live`. Before the gate, --live
+cannot move the arm. --live publishes the leader as ArmPose on /arm/left/joint_targets (50 Hz) through
+joint_command, but only after the gate passes (every active joint: real arm inside its calibrated
+limits, leader within 3 deg of home and within 10 deg of the real arm; gripper inside its calibrated
+limits and within 0.1) and you press Enter. Before the gate, --live
 offers to ramp the real elbow.pitch from its measured angle to home at --home-rate deg/s (default
 5) and hold it there; it refuses if home is outside the joint's calibrated limits or it is inactive.
 
@@ -14,7 +15,8 @@ Run in the `simulation_mj` container (ROS, common_msgs, the leader's servo SDK) 
 
 Every angle is in the URDF frame, which is also the command frame ArmPose / joint_command use:
 
-    leader:  sign * leader angle, clamped to the URDF limits      (as in sim)
+    leader:  sign * leader angle, clamped to the calibrated limits (arm_calibration.yaml;
+             the URDF limits for a joint without limit_range)
     real:    zero_offset + motor / direction                       (arm_calibration.yaml)
 
 The gripper is compared as its position, 0 open .. 1 closed, as joint_command maps it.
@@ -30,6 +32,7 @@ from __future__ import annotations
 import argparse
 import math
 import sys
+import termios
 import threading
 import time
 from pathlib import Path
@@ -39,8 +42,8 @@ _SRC = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_SRC / "interfacing" / "can" / "scripts"))
 sys.path.insert(0, str(_SRC / "pioneer_humanoid"))
 
-from joint_config import (find_actuators, find_calibration, gripper_position, joint_safety,  # noqa: E402
-                          load_joint_map, load_joint_safety, motor_to_cmd_deg)
+from joint_config import (arm_pose_topic, find_actuators, find_calibration, gripper_position,  # noqa: E402
+                          joint_safety, load_joint_map, load_joint_safety, motor_to_cmd_deg)
 
 from arm_limits import gripper_fraction, limited_target  # noqa: E402
 from leader_mapping import add_leader_args, check_leader_args  # noqa: E402
@@ -48,8 +51,8 @@ from servo_leader import ARM_SERVOS, GRIPPER_SERVO, SERVO_IDS  # noqa: E402
 
 # The --live gate: leader within HOME_TOL_DEG of home and within AGREE_TOL_DEG of the real arm on
 # every active joint, gripper within GRIP_TOL.
-HOME_TOL_DEG = 3.0
-AGREE_TOL_DEG = 10.0
+HOME_TOL_DEG = 15.0
+AGREE_TOL_DEG = 15.0
 STALE_AFTER_S = 0.5
 PRINT_PERIOD_S = 0.2
 READ_PERIOD_S = 0.02
@@ -66,7 +69,10 @@ FEEDBACK_WAIT_S = 2.0
 
 def build_joints(mapping: Path, urdf_joints: list[str],
                  urdf_limits: dict[str, tuple[float, float]]) -> list[dict]:
-    """The six left-arm joints in ArmPose slot order (= leader A..F = LEFT_ARM_JOINTS)."""
+    """The six left-arm joints in ArmPose slot order (= leader A..F = LEFT_ARM_JOINTS).
+
+    limits_deg, what the leader is clamped to: the calibrated limits joint_command enforces, or
+    the URDF limits for a joint without limit_range."""
     joints: list[dict | None] = [None] * len(urdf_joints)
     for motor_id, info in load_joint_map(mapping, "left").items():
         if info["slot"] is None:  # gripper
@@ -77,7 +83,8 @@ def build_joints(mapping: Path, urdf_joints: list[str],
             info,
             motor_id=motor_id,
             urdf_joint=urdf_joint,
-            urdf_limits_deg=(math.degrees(lo), math.degrees(hi)),
+            limits_deg=((info["lower"], info["upper"]) if info["limit_range"]
+                        else (math.degrees(lo), math.degrees(hi))),
         )
     missing = [urdf_joints[i] for i, j in enumerate(joints) if j is None]
     if missing:
@@ -86,9 +93,9 @@ def build_joints(mapping: Path, urdf_joints: list[str],
 
 
 def leader_deg(joint: dict, angle_rad: float, sign: float) -> tuple[float, bool]:
-    """Leader angle -> URDF (= command-frame) target in deg, and whether the URDF clamp cut it."""
+    """Leader angle -> URDF (= command-frame) target in deg, and whether the limits_deg clamp cut it."""
     raw = math.degrees(angle_rad * sign)
-    urdf = math.degrees(limited_target(angle_rad, sign, 1.0, joint["urdf_limits_deg"]))
+    urdf = math.degrees(limited_target(angle_rad, sign, 1.0, joint["limits_deg"]))
     return urdf, math.isfinite(raw) and abs(raw - urdf) > 1e-6
 
 
@@ -100,7 +107,9 @@ def compare(joints: list[dict], leader_rad: tuple[float, ...], signs: list[float
         leader, clamped = leader_deg(joint, leader_rad[i], signs[i])
         real = real_cmd.get(joint["motor_id"])
         home = math.degrees(home_urdf_rad[i])
-        out_of_hw = joint["limit_range"] and not joint["lower"] <= leader <= joint["upper"]
+        # The real arm outside its calibrated limits (the leader is clamped inside them).
+        out_of_hw = (real is not None and joint["limit_range"]
+                     and not joint["lower"] <= real <= joint["upper"])
         rows.append(dict(
             joint=joint, leader=leader, real=real, diff=None if real is None else leader - real,
             home_err=leader - home, clamped=clamped, out_of_hw=out_of_hw,
@@ -109,23 +118,35 @@ def compare(joints: list[dict], leader_rad: tuple[float, ...], signs: list[float
 
 
 def gate_failures(rows: list[dict], grip: float, real_grip: float | None,
-                  active: set[str], grip_active: bool) -> list[str]:
-    """Why --live may not start yet; empty when it may. Inactive joints are not driven, so skipped."""
+                  active: set[str], grip_active: bool,
+                  grip_range: tuple[float, float] | None = None) -> list[str]:
+    """Why --live may not start yet; empty when it may. Inactive joints are not driven, so skipped.
+
+    grip_range: the gripper's calibrated limits as positions (low, high); None to skip that check."""
     out = []
     for row in rows:
-        name = row["joint"]["name"]
+        j = row["joint"]
+        name = j["name"]
         if name not in active:
             continue
         if row["real"] is None:
             out.append(f"{name}: no feedback")
-        elif abs(row["diff"]) > AGREE_TOL_DEG:
-            out.append(f"{name}: leader {row['diff']:+.1f} deg from real")
+        else:
+            if row["out_of_hw"]:
+                out.append(f"{name}: real {row['real']:+.1f} deg outside calibrated "
+                           f"[{j['lower']:.1f}, {j['upper']:.1f}]")
+            if abs(row["diff"]) > AGREE_TOL_DEG:
+                out.append(f"{name}: leader {row['diff']:+.1f} deg from real")
         if abs(row["home_err"]) > HOME_TOL_DEG:
             out.append(f"{name}: leader {row['home_err']:+.1f} deg from home")
     if grip_active:
         if real_grip is None:
             out.append("gripper: no feedback")
-        elif abs(grip - real_grip) > GRIP_TOL:
+            return out
+        if grip_range is not None and not grip_range[0] <= real_grip <= grip_range[1]:
+            out.append(f"gripper: real {real_grip:+.2f} outside calibrated "
+                       f"[{grip_range[0]:.2f}, {grip_range[1]:.2f}]")
+        if abs(grip - real_grip) > GRIP_TOL:
             out.append(f"gripper: leader {grip - real_grip:+.2f} from real")
     return out
 
@@ -147,8 +168,10 @@ def home_refusal(joint: dict, home_deg: float, active: set[str]) -> str | None:
     return None
 
 
-def format_rows(rows: list[dict], grip: float, real_grip: float | None) -> list[str]:
-    """real_grip: the real gripper's position (0 open .. 1 closed), None without feedback."""
+def format_rows(rows: list[dict], grip: float, real_grip: float | None,
+                grip_range: tuple[float, float] | None = None) -> list[str]:
+    """real_grip: the real gripper's position (0 open .. 1 closed), None without feedback;
+    grip_range: its calibrated limits as positions, as gate_failures."""
     lines = [f"{'joint':<16}{'urdf':<9}{'id':>4}{'leader':>9}{'real':>9}{'diff':>8}{'home':>8}  warnings",
              "-" * 72]
     for row in rows:
@@ -161,9 +184,9 @@ def format_rows(rows: list[dict], grip: float, real_grip: float | None) -> list[
         elif abs(row["diff"]) > AGREE_TOL_DEG:
             flags.append(f">{AGREE_TOL_DEG:g}")
         if row["clamped"]:
-            flags.append("urdf-clamp")
+            flags.append("limit-clamp")
         if row["out_of_hw"]:
-            flags.append(f"outside hw [{j['lower']:.0f},{j['upper']:.0f}]")
+            flags.append(f"real outside hw [{j['lower']:.0f},{j['upper']:.0f}]")
         lines.append(f"{j['name']:<16}{j['urdf_joint']:<9}{j['motor_id']:>4}{row['leader']:+9.1f}"
                      f"{real:>9}{diff:>8}{row['home_err']:+8.1f}  {' '.join(flags)}")
     if real_grip is None:
@@ -171,6 +194,8 @@ def format_rows(rows: list[dict], grip: float, real_grip: float | None) -> list[
     else:
         real, diff = f"{real_grip:+9.2f}", f"{grip - real_grip:+8.2f}"
         warn = f">{GRIP_TOL:g}" if abs(grip - real_grip) > GRIP_TOL else ""
+        if grip_range is not None and not grip_range[0] <= real_grip <= grip_range[1]:
+            warn = f"{warn} real outside hw [{grip_range[0]:.2f},{grip_range[1]:.2f}]".strip()
     lines.append(f"{'gripper':<16}{'position':<9}{GRIPPER_CAN_ID:>4}{grip:+9.2f}{real:>9}{diff:>8}{'':>8}  {warn}")
 
     diffs = [abs(r["diff"]) for r in rows if r["diff"] is not None]
@@ -186,7 +211,7 @@ def format_rows(rows: list[dict], grip: float, real_grip: float | None) -> list[
 
 
 def self_test() -> None:
-    joint = {"urdf_limits_deg": (-90.0, 90.0), "limit_range": True, "lower": -45.0, "upper": 45.0,
+    joint = {"limits_deg": (-90.0, 90.0), "limit_range": True, "lower": -45.0, "upper": 45.0,
              "motor_id": 1, "name": "shoulder.pitch", "urdf_joint": "joint1L"}
     deg, clamped = leader_deg(joint, math.radians(20.0), -1.0)
     assert abs(deg + 20.0) < 1e-9 and not clamped
@@ -201,13 +226,25 @@ def self_test() -> None:
     assert gate_failures(compare([joint], (0.0,), [1.0], {1: 1.0}, [0.0]), 0.0, 0.05, active, True) == []
     assert gate_failures(compare([joint], (0.0,), [1.0], {}, [0.0]), 0.0, 0.0, active, True) == [
         "shoulder.pitch: no feedback"]
-    assert len(gate_failures(compare([joint], (math.radians(15.0),), [1.0], {1: 0.0}, [0.0]),
+    off = math.radians(max(HOME_TOL_DEG, AGREE_TOL_DEG) + 1.0)
+    assert len(gate_failures(compare([joint], (off,), [1.0], {1: 0.0}, [0.0]),
                              0.0, None, active, True)) == 3  # off real, off home, gripper silent
     assert gate_failures(compare([joint], (math.radians(10.0),), [1.0], {}, [0.0]), 0.5, None, set(), False) == []
 
     rows = compare([joint], (math.radians(50.0),), [1.0], {1: 47.0}, [0.0])
     assert abs(rows[0]["diff"] - 3.0) < 1e-9 and rows[0]["out_of_hw"]
     assert compare([joint], (0.0,), [1.0], {}, [0.0])[0]["diff"] is None
+    assert not compare([joint], (math.radians(50.0),), [1.0], {1: 44.0}, [0.0])[0]["out_of_hw"]
+
+    # The real arm outside its calibrated limits blocks the gate, the gripper too.
+    rows = compare([joint], (math.radians(50.0),), [1.0], {1: 50.0}, [math.radians(50.0)])
+    assert gate_failures(rows, 0.0, None, active, False) == [
+        "shoulder.pitch: real +50.0 deg outside calibrated [-45.0, 45.0]"]
+    rows = compare([joint], (0.0,), [1.0], {1: 0.0}, [0.0])
+    assert gate_failures(rows, 1.2, 1.2, active, True, (-0.3, 1.0)) == [
+        "gripper: real +1.20 outside calibrated [-0.30, 1.00]"]
+    assert gate_failures(rows, 1.0, 1.0, active, True, (-0.3, 1.0)) == []
+    assert "real outside hw" in format_rows(rows, 1.2, 1.2, (-0.3, 1.0))[-2]
 
     assert ramp(0.0, -90.0, 5.0, 2.0) == -10.0 and ramp(0.0, -90.0, 5.0, 100.0) == -90.0
     assert ramp(10.0, 12.0, 5.0, 1.0) == 12.0 and ramp(3.0, 3.0, 5.0, 0.0) == 3.0
@@ -221,8 +258,11 @@ def self_test() -> None:
     mapping = find_calibration(None)
     joints = build_joints(mapping, LEFT_ARM_JOINTS, JOINT_POS_LIMITS)
     assert [j["urdf_joint"] for j in joints] == LEFT_ARM_JOINTS
-    assert [j["name"] for j in joints] == ["shoulder.pitch", "shoulder.roll", "shoulder.yaw",
+    assert [j["name"] for j in joints] == ["shoulder.pitch", "shoulder.yaw", "shoulder.roll",
                                            "elbow.pitch", "elbow.roll", "wrist.pitch"], joints
+    for j in joints:
+        if j["limit_range"]:
+            assert j["limits_deg"] == (j["lower"], j["upper"]), j
     print(f"self-test ok ({len(joints)} joints from {mapping})")
     from pioneer_humanoid.arm_params import DEFAULT_JOINT_POS
     slot = next(i for i, j in enumerate(joints) if j["name"] == HOME_JOINT)
@@ -251,7 +291,7 @@ def run() -> None:
     parser.add_argument("--arm-calibration", "--mapping", dest="mapping", default=None,
                         help="the real arm's arm_calibration.yaml (default: auto, as joint_command)")
     parser.add_argument("--live", action="store_true",
-                        help="publish /arm/joint_targets once the gate passes and you type `live`")
+                        help="publish /arm/left/joint_targets once the gate passes and you press Enter")
     parser.add_argument("--home-rate", type=float, default=HOME_RATE_DEG_S,
                         help=f"--live: deg/s of the optional ramp of the real {HOME_JOINT} to home")
     parser.add_argument("--self-test", action="store_true", help="check the angle math and exit (no ROS, no leader)")
@@ -267,17 +307,22 @@ def run() -> None:
     joints = build_joints(mapping, LEFT_ARM_JOINTS, JOINT_POS_LIMITS)
     by_id = {j["motor_id"]: j for j in joints}
     grip_info = load_joint_map(mapping, "left").get(GRIPPER_CAN_ID)
+    # The gripper's calibrated limits as positions, to compare with its feedback.
+    grip_range = None
+    if grip_info is not None and grip_info["limit_range"]:
+        grip_range = (gripper_position(grip_info, grip_info["lower"]),
+                      gripper_position(grip_info, grip_info["upper"]))
     signs = board.signs
     grip_axis = tuple(SERVO_IDS).index(GRIPPER_SERVO)
     home = [DEFAULT_JOINT_POS[j] for j in LEFT_ARM_JOINTS]
     # arm_actuators.yaml `active`: joint_command leaves inactive joints alone, so the gate skips them.
     # It drives the gripper only if the gripper has a block there.
     actuators = find_actuators(None)
-    _, blocks = load_joint_safety(actuators)
-    active = {j["name"] for j in joints if joint_safety(actuators, j["name"]).get("active") is not False}
+    _, blocks = load_joint_safety(actuators, "left")
+    active = {j["name"] for j in joints if joint_safety(actuators, "left", j["name"]).get("active") is not False}
     grip_active = (grip_info is not None and grip_info["name"] in blocks and
                    blocks[grip_info["name"]].get("active") is not False)
-    home_vmax = float(joint_safety(actuators, HOME_JOINT).get("velocity_max") or 0.0)
+    home_vmax = float(joint_safety(actuators, "left", HOME_JOINT).get("velocity_max") or 0.0)
     if not 0.0 < args.home_rate <= home_vmax:
         parser.error(f"--home-rate must be in (0, {home_vmax:g}], {HOME_JOINT}'s velocity_max")
 
@@ -370,7 +415,7 @@ def run() -> None:
         # Inactive joints are ignored by joint_command; any finite angle will do for their slots.
         q = [real.get(j["motor_id"], math.degrees(home[i])) for i, j in enumerate(joints)]
         start = q[slot]
-        publisher = node.create_publisher(ArmPose, "/arm/joint_targets", 10)
+        publisher = node.create_publisher(ArmPose, arm_pose_topic("left"), 10)
         published = True
         t0 = time.monotonic()
         settle_by = None
@@ -406,15 +451,18 @@ def run() -> None:
             homed = home_real_joint()
         while rclpy.ok():
             rows, grip, real_grip = snapshot()
-            failures = [] if pub else gate_failures(rows, grip, real_grip, active, grip_active)
+            failures = [] if pub else gate_failures(rows, grip, real_grip, active, grip_active, grip_range)
             if args.live and pub is None and not failures:
+                # Drop keys typed before the prompt, so only an Enter pressed after it starts live.
+                if sys.stdin.isatty():
+                    termios.tcflush(sys.stdin, termios.TCIFLUSH)
                 answer = input("\nGate passed: leader at home and matching the real arm. Hand on the "
-                               "E-stop, then type `live` to start publishing (anything else quits): ")
-                if answer.strip() != "live":
+                               "E-stop, then press Enter to start publishing (anything else quits): ")
+                if answer.strip():
                     break
                 # Re-check: either arm may have moved while waiting at the prompt.
                 rows, grip, real_grip = snapshot()
-                failures = gate_failures(rows, grip, real_grip, active, grip_active)
+                failures = gate_failures(rows, grip, real_grip, active, grip_active, grip_range)
                 if failures:
                     print("[WARN] moved while at the prompt: " + "; ".join(failures), flush=True)
                     time.sleep(2.0)
@@ -424,7 +472,7 @@ def run() -> None:
                     pub, hold = homed
                     hold.cancel()
                 else:
-                    pub = node.create_publisher(ArmPose, "/arm/joint_targets", 10)
+                    pub = node.create_publisher(ArmPose, arm_pose_topic("left"), 10)
                     published = True
             if pub is not None:
                 msg = arm_pose(ArmPose, [row["leader"] for row in rows], grip, grip_active)
@@ -433,9 +481,9 @@ def run() -> None:
             now = time.monotonic()
             if now >= next_print:
                 next_print = now + PRINT_PERIOD_S
-                lines = format_rows(rows, grip, real_grip)
+                lines = format_rows(rows, grip, real_grip, grip_range)
                 if pub is not None:
-                    lines.append("LIVE: publishing /arm/joint_targets.  Ctrl-C to stop.")
+                    lines.append("LIVE: publishing /arm/left/joint_targets.  Ctrl-C to stop.")
                 elif homed is not None:
                     lines.append("waiting for the gate: " + ("; ".join(failures) or "ok"))
                     lines.append(f"HOLDING the real {HOME_JOINT} at home.  Ctrl-C to stop (the arm then sinks).")

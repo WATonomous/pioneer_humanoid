@@ -4,7 +4,7 @@ Velocity-commanded bipedal locomotion for **Pioneer humanoid Simulation Model V1
 
 Asset: `assets/old_leg_only_humanoid/` (SolidWorks URDF export).
 Legacy Flat/Rough tasks use the upstream `old_leg_only_humanoid.urdf` and
-`pioneer_humanoid/whole_body.py` unchanged. The rough-no-stairs and stairs tasks
+`pioneer_humanoid/old_leg_only.py` unchanged. The rough-no-stairs and stairs tasks
 use a separate, frozen research baseline; see
 [robot baseline isolation](../../../../../assets/old_leg_only_humanoid/RL_BASELINE.md).
 
@@ -163,6 +163,6 @@ $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/diagnose_joints.py \
 | Knee | `Knee_L`, `Knee_R` |
 | Ankle pitch / roll | `Ankle_P_*`, `Ankle_R_*` |
 
-Robot configs: `pioneer_humanoid/whole_body.py` for legacy Flat/Rough;
+Robot configs: `pioneer_humanoid/old_leg_only.py` for legacy Flat/Rough;
 `pioneer_humanoid/rough_baseline.py` for rough-no-stairs and stairs.
 Task configs are under `config/pioneer_humanoid_v1/`.

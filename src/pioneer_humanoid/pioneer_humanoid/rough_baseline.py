@@ -2,7 +2,7 @@
 
 This version deliberately preserves the original simulation geometry/actuation.
 Do not replace it with the upstream legacy or new hardware model without policy
-revalidation. Shared legacy tasks continue to use whole_body.py unchanged.
+revalidation. Shared legacy tasks continue to use old_leg_only.py unchanged.
 """
 
 import os

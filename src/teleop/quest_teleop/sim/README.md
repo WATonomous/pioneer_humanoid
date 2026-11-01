@@ -436,7 +436,7 @@ sensor/body axis-convention correction, not a single home-pose snapshot.
 ## Real hardware bridge (left arm only)
 
 `run_quest_bimanual_teleop.py --publish-real-left-arm` publishes the LEFT
-arm's live DLS-solved joint targets to `/arm/joint_targets` (ROS 2), so
+arm's live DLS-solved joint targets to `/arm/left/joint_targets` (ROS 2), so
 `joint_command_node` drives the real physical left arm over CAN in lockstep
 with your Quest hand tracking. **Off by default** — normal runs are sim-only
 and completely unaffected by this flag.
@@ -513,13 +513,13 @@ degrades gracefully to whatever rate actually arrives.
    ```
 7. Watch for:
    ```
-   [Quest][REAL HARDWARE] Left arm will start publishing to /arm/joint_targets in 5s. ...
+   [Quest][REAL HARDWARE] Left arm will start publishing to /arm/left/joint_targets in 5s. ...
    ```
    During those 5 seconds, manually position the real left arm near wherever
    the sim's rest pose currently has it.
 8. After the delay:
    ```
-   [Quest][REAL HARDWARE] Publishing left arm to /arm/joint_targets now.
+   [Quest][REAL HARDWARE] Publishing left arm to /arm/left/joint_targets now.
    ```
    The real arm should now track the sim (and therefore your Quest hand
    tracking) in real time.

@@ -177,10 +177,12 @@ class SimLeRobotRecorder:
         # here can't line up with the render gate, and the extra ticks duplicate images.
         self._frame_period: float = (1.0 / fps) if rate_limit else 0.0
 
-    def start_keyboard(self) -> bool:
-        """Create episode flags, attach keyboard listener, and return whether keyboard started."""
+    def start_keyboard(self, **keys: Any) -> bool:
+        """Create episode flags, attach keyboard listener, and return whether keyboard started.
+
+        `keys`: EpisodeKeyboard overrides (start, save, discard, esc_aborts)."""
         self._flags = EpisodeFlags(start=False)
-        self._keyboard = EpisodeKeyboard(self._flags)
+        self._keyboard = EpisodeKeyboard(self._flags, **keys)
         return self._keyboard.start()
 
     def tick(

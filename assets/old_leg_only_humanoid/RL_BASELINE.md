@@ -6,7 +6,7 @@ latest upstream robot definition.
 
 | Robot definition | Users |
 | --- | --- |
-| `old_leg_only_humanoid.urdf`, `usd/`, and `pioneer_humanoid/whole_body.py` | Upstream robot and legacy Flat/Rough tasks; unchanged by this contribution |
+| `old_leg_only_humanoid.urdf`, `usd/`, and `pioneer_humanoid/old_leg_only.py` | Upstream robot and legacy Flat/Rough tasks; unchanged by this contribution |
 | `rl_baseline_v1.urdf`, `usd/rl_baseline_v1/`, and `pioneer_humanoid/rough_baseline.py` | Rough-no-stairs selective-knee recipe and stairs scaffold only |
 
 The isolated URDF and cached USD layers preserve the research baseline from

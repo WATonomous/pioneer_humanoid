@@ -30,6 +30,22 @@ services:
       - ${MONO_DIR}/src/perception/perception:/root/ament_ws/src/perception
     command: /bin/bash -c "ros2 launch perception perception.launch.py"
 
+  # Real wrist camera -> /wrist_cam/image_rect (src/perception/wrist_camera). Same image as
+  # perception, but its own service: host networking so the recorder and teleop containers see
+  # the topics, and /dev for the camera. Set WRIST_CAM_DEVICE to the camera's /dev/v4l/by-id path.
+  wrist_camera:
+    image: "${PERCEPTION_IMAGE:?}:${TAG}"
+    network_mode: host
+    privileged: true
+    environment:
+      - ROS_DOMAIN_ID=0
+    volumes:
+      - /dev:/dev
+      - ${MONO_DIR}/src/perception/wrist_camera:/root/ament_ws/src/wrist_camera
+      - ${MONO_DIR}/src/perception/camera_calibration:/opt/humanoid_py/camera_calibration
+      - ${MONO_DIR}/src/pioneer_humanoid:/opt/humanoid_py/pioneer_humanoid
+    command: /bin/bash -c "ros2 launch wrist_camera wrist_camera.launch.py device:=${WRIST_CAM_DEVICE:-/dev/video0}"
+
   voxel_grid:
     build:
       context: ..
