@@ -2,8 +2,7 @@
 
 Same leader mapping as the Isaac backend (leader_mapping.py). Scenes: humanoid_mujoco_scenes.
 
-  Enter  (in the terminal, --start enter) place the arm at the leader's pose and follow from there
-  6      reset the arm and every object in the scene; the arm waits at home for the next start
+  R   reset the arm and every object in the scene; bring the leader back to home to resume
 
 Recording (--record): same schema, keys and features as the Isaac backend (S start, N save then
 auto-reset, D discard); output under <repo>/datasets/<schema record.root>/sim. Needs a display for
@@ -34,7 +33,6 @@ from humanoid_robot_learning.sim.sim_teleop_record import (  # noqa: E402
 from leader_mapping import (  # noqa: E402
     CONTROL_DT,
     WRIST_DAMPING,
-    EnterKey,
     LeaderBoard,
     LeaderInput,
     LeaderMapping,
@@ -111,7 +109,7 @@ def run() -> None:
         arm_acts = [model.actuator(j).id for j in joints]
         mapping = LeaderMapping(
             boards[side].signs, args.filter_alpha, home_rad=[data.ctrl[a] for a in arm_acts],
-            limits_rad=[tuple(model.joint(j).range) for j in joints], engage_at_home=args.start == "home",
+            limits_rad=[tuple(model.joint(j).range) for j in joints],
         )
         arms.append(Arm(
             side=side, leader=None, board=boards[side], mapping=mapping, arm_acts=arm_acts,
@@ -130,9 +128,6 @@ def run() -> None:
         if key == _KEY_RESET:
             reset_requested[0] = True
 
-    enter = EnterKey() if args.start == "enter" else None
-    start_hint = ("pose the leader, then press Enter in the terminal to start from it" if enter is not None
-                  else "bring the leader to home: elbow bent 90 deg, forearm forward, gripper open")
     substeps = max(1, round(CONTROL_DT / model.opt.timestep))
     control_dt = substeps * model.opt.timestep
     # Multi-step scenes record the current step's instruction as each frame's task, plus its index.
@@ -161,20 +156,10 @@ def run() -> None:
         for arm in arms:
             arm.mapping.reset()
 
-    def start_at_leader():
-        """Episode start at the leader's pose: place each arm there (a reset-time state write) and follow from it."""
-        for arm in arms:
-            target, grip = arm.mapping.sync(arm.leader.read())
-            fingers = arm.grip_open + grip * (arm.grip_closed - arm.grip_open)
-            data.qpos[arm.arm_qpos] = data.ctrl[arm.arm_acts] = target
-            data.qpos[arm.grip_qpos] = data.ctrl[arm.grip_acts] = fingers
-        data.qvel[:] = 0.0
-        mujoco.mj_forward(model, data)
-
     clock = WallClock(control_dt)
     step = 0
     shown_step = None  # last task step announced
-    print(f"[INFO] Leader calibrated (hanging = 0). To start, {start_hint}. 6 = reset.", flush=True)
+    print("[INFO] Leader calibrated (hanging = 0). Move it to home: elbow bent 90 deg, forearm forward, gripper open. 6 = reset.", flush=True)
     try:
         for arm in arms:
             arm.leader = LeaderInput(arm.board, args.baud, label=arm.side.upper() if len(arms) > 1 else "")
@@ -192,12 +177,7 @@ def run() -> None:
                         recorder.cancel_recording()
                         print("\n[RECORD] Reset mid-episode: take discarded, recording restarts from home.")
                     reset_all()
-                    print(f"\n[LEADER] Arm and scene reset; {start_hint}.", flush=True)
-                # Enter while already following is ignored.
-                if enter is not None and enter.pressed() and not all(arm.mapping.engaged for arm in arms):
-                    with viewer.lock():
-                        start_at_leader()
-                    print("\n[LEADER] Started from the leader's pose.", flush=True)
+                    print("\n[LEADER] Arm and scene reset; bring the leader back to home.", flush=True)
 
                 actions = []
                 for arm in arms:
@@ -206,7 +186,7 @@ def run() -> None:
                     data.ctrl[arm.grip_acts] = arm.grip_open + grip * (arm.grip_closed - arm.grip_open)
                     actions.extend([*target, grip])
 
-                # Record one synchronized frame only once every active leader has started.
+                # Record one synchronized frame only once every active leader is at home.
                 if recorder is not None and all(arm.mapping.engaged for arm in arms) and step % record_every == 0:
                     states = []
                     for arm in arms:

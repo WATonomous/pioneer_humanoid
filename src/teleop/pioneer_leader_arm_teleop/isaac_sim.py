@@ -9,11 +9,10 @@
     G (servo ID 6) -> gripper (starts open at 41.5 deg, closes toward 0)
 
 Leader angles map 1:1 from its calibrated hanging pose (calibrate_leader.py), clamped to the URDF
-limits. The arm starts at home (elbow bent 90 deg). With --start enter (default), Enter in the terminal
-places it at the leader's pose and it follows from there; --start home waits for the leader to come
-within 3 deg of home (see leader_mapping.py). Leader torque is always off; it is an input device only.
+limits. The arm starts at home (elbow bent 90 deg) and follows once the leader is within 15 deg of
+home (see leader_mapping.py). Leader torque is always off; it is an input device only.
 
-  R   reset the arm and every object in the scene; the arm waits at home for the next start
+  R   reset the arm and every object in the scene; bring the leader back to home to resume
 
 Recording (--record, src/robot_learning/config/pioneer_humanoid_dataset_schema.yaml), 25 fps = every
 4th physics step. Keys S start, N save (then auto-reset), D discard:
@@ -41,7 +40,6 @@ from humanoid_robot_learning.sim.sim_teleop_record import (  # noqa: E402
 
 from leader_mapping import (  # noqa: E402
     WRIST_DAMPING,
-    EnterKey,
     LeaderInput,
     LeaderMapping,
     WallClock,
@@ -116,7 +114,6 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         _leader_board.signs, args_cli.filter_alpha,
         home_rad=default_pos[0, arm_ids].tolist(),
         limits_rad=robot.data.joint_pos_limits[0, arm_ids].tolist(),
-        engage_at_home=args_cli.start == "home",
     )
 
     gripper_open = torch.tensor([[LEFT_GRIPPER_OPEN[j] for j in LEFT_GRIPPER_JOINTS]], device=sim.device)
@@ -155,16 +152,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             obj.reset()
         mapping.reset()
 
-    def start_at_leader():
-        """Episode start at the leader's pose: place the arm there (a reset-time state write) and follow from it."""
-        target_list, grip = mapping.sync(leader.read())
-        pos = torch.cat([torch.tensor([target_list], device=sim.device), torch.lerp(gripper_open, gripper_closed, grip)], dim=1)
-        robot.write_joint_state_to_sim(pos, torch.zeros_like(pos), joint_ids=arm_ids + gripper_ids)
-
-    enter = EnterKey() if args_cli.start == "enter" else None
-    start_hint = ("pose the leader, then press Enter here to start from it" if enter is not None
-                  else "bring the leader to home: elbow bent 90 deg, forearm forward, gripper open")
-    print(f"[INFO] Leader calibrated (hanging = 0). To start, {start_hint}. R = reset.", flush=True)
+    print("[INFO] Leader calibrated (hanging = 0). Move it to home: elbow bent 90 deg, forearm forward, gripper open. R = reset.", flush=True)
 
     physics_step = 0
     clock = WallClock(sim_dt)
@@ -180,11 +168,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     recorder.cancel_recording()
                     print("[RECORD] Reset mid-episode: take discarded, recording restarts from home.")
                 reset_all()
-                print(f"\n[LEADER] Arm and scene reset; {start_hint}.", flush=True)
-            # Enter while already following is ignored.
-            if enter is not None and enter.pressed() and not mapping.engaged:
-                start_at_leader()
-                print("\n[LEADER] Started from the leader's pose.", flush=True)
+                print("\n[LEADER] Arm and scene reset; bring the leader back to home.", flush=True)
 
             target_list, grip = mapping.update(leader.read())
             target = torch.tensor([target_list], device=sim.device)
@@ -198,7 +182,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             robot.set_joint_position_target(held_gripper_open, joint_ids=held_gripper_ids)
             robot.set_joint_velocity_target(zero_gripper_vel, joint_ids=held_gripper_ids)
 
-            # No frames until the leader has started: a take starts from home or the synced leader pose.
+            # No frames until the leader is at home: a take starts from home.
             if recorder is not None and mapping.engaged and physics_step % record_every == 0:
                 finger_q = robot.data.joint_pos[:, gripper_ids]
                 closure = (
