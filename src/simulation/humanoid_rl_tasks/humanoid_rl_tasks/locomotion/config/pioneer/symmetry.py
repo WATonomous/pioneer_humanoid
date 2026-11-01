@@ -4,7 +4,7 @@ Each observation group ("policy", and "critic" if there is one) is mirrored term
 leggedrobotics/foothold-prediction-model. Joints come in left/right pairs (Isaac Lab orders them Hip_F_L, Hip_F_R, ...)
 and the URDF mirrors each left axis onto its right partner, so mirroring a joint vector is a plain swap with no sign
 change. The gait clock's mirror is the other leg's phase, half a cycle on: sin and cos change sign. A height scan flips
-its rows across the robot.
+its rows across the robot; a foothold scan swaps the feet, negates their y and flips each patch across.
 """
 import math
 
@@ -31,6 +31,17 @@ def _mirror_height_scan(x: torch.Tensor, env, term_cfg) -> torch.Tensor:
     return x.reshape(-1, ny, nx).flip(dims=[1]).reshape(x.shape)
 
 
+def _mirror_foothold_scan(x: torch.Tensor, term_cfg) -> torch.Tensor:
+    k = term_cfg.params["patch_size"]
+    stride = 2 + k * k
+    out = torch.empty_like(x)
+    for i, src in enumerate((x[:, stride:], x[:, :stride])):
+        o = i * stride
+        out[:, o], out[:, o + 1] = src[:, 0], -src[:, 1]
+        out[:, o + 2 : o + stride] = src[:, 2:].reshape(-1, k, k).flip(dims=[2]).reshape(-1, k * k)
+    return out
+
+
 def _mirror_group(env, obs: torch.Tensor, group: str) -> torch.Tensor:
     manager = env.observation_manager
     out, idx = obs.clone(), 0
@@ -45,6 +56,8 @@ def _mirror_group(env, obs: torch.Tensor, group: str) -> torch.Tensor:
             out[:, idx : idx + dim] = -seg
         elif name == "height_scan":
             out[:, idx : idx + dim] = _mirror_height_scan(seg, env, getattr(env.cfg.observations, group).height_scan)
+        elif name == "foothold_scan":
+            out[:, idx : idx + dim] = _mirror_foothold_scan(seg, getattr(env.cfg.observations, group).foothold_scan)
         else:
             raise ValueError(f"no mirror rule for observation term '{name}' in group '{group}'")
         idx += dim

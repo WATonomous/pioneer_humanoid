@@ -61,3 +61,24 @@ class PioneerLegOnlyPerceptivePPORunnerCfg(PioneerLegOnlyFlatPPORunnerCfg):
         self.max_iterations = 5000
         self.policy.actor_hidden_dims = [512, 256, 128]  # the height scan adds 187 inputs
         self.policy.critic_hidden_dims = [512, 256, 128]
+
+
+@configclass
+class PioneerLegOnlyFootholdPPORunnerCfg(PioneerLegOnlyFlatPPORunnerCfg):
+    """An asymmetric critic: it also sees the whole height map."""
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.experiment_name = "pioneer_leg_only_rough_foothold"
+        self.max_iterations = 4000
+        self.obs_groups = {"policy": ["policy"], "critic": ["critic"]}
+
+
+@configclass
+class PioneerWholeBodyFootholdPPORunnerCfg(PioneerLegOnlyFootholdPPORunnerCfg):
+    """Fine-tuned from the leg-only foothold policy."""
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.experiment_name = "pioneer_whole_body_rough_foothold"
+        self.max_iterations = 800
