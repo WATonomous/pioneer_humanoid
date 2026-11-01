@@ -34,7 +34,7 @@ class PioneerLegOnlyFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         desired_kl=0.01,
         max_grad_norm=1.0,
         symmetry_cfg=RslRlSymmetryCfg(
-            use_data_augmentation=True, data_augmentation_func="humanoid_rl_tasks.locomotion.config.pioneer_leg_only.symmetry:mirror"
+            use_data_augmentation=True, data_augmentation_func="humanoid_rl_tasks.locomotion.config.pioneer.symmetry:mirror"
         ),
     )
 

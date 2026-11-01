@@ -22,7 +22,7 @@ WHOLE_BODY_WALKER_CFG = LEG_ONLY_HUMANOID_CFG.replace(
     )
 )
 
-# The same with shoulder pitch and elbows free, for a scripted arm swing (humanoid_rl_tasks ... pioneer_leg_only/arm_swing.py).
+# The same with shoulder pitch and elbows free, for a scripted arm swing (humanoid_rl_tasks ... config/pioneer/arm_swing.py).
 ARM_SWING_JOINTS = ("l_shoulder_pitch", "r_shoulder_pitch", "l_elbow", "r_elbow")
 WHOLE_BODY_ARM_SWING_CFG = WHOLE_BODY_WALKER_CFG.replace(
     spawn=WHOLE_BODY_WALKER_CFG.spawn.replace(
