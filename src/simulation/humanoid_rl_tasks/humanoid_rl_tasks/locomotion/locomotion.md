@@ -62,4 +62,4 @@ $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/diagnose_joints.py \
 | Knee | `Knee_L`, `Knee_R` |
 | Ankle pitch / roll | `Ankle_P_*`, `Ankle_R_*` |
 
-Config: `pioneer_humanoid/whole_body.py`, tasks under `config/pioneer_humanoid_v1/`.
+Config: `pioneer_humanoid/old_leg_only.py`, tasks under `config/pioneer_humanoid_v1/`.

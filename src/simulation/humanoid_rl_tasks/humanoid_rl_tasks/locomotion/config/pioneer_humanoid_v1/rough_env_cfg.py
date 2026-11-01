@@ -3,7 +3,7 @@ from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.utils import configclass
 
-from pioneer_humanoid.whole_body import WHOLE_BODY_HUMANOID_CFG
+from pioneer_humanoid.old_leg_only import WHOLE_BODY_HUMANOID_CFG
 
 from ... import mdp
 from ...locomotion_env_cfg import LocomotionVelocityRoughEnvCfg, RewardsCfg, TerminationsCfg
