@@ -3,14 +3,14 @@ name: Terrain Core Tests
 on:
   pull_request:
     branches:
-      - main    
+      - main
   push:
     branches:
-      - main                 
+      - main
 
 jobs:
-  test:                          
-    name: terrain_core pytest   
+  test:
+    name: terrain_core pytest
     runs-on: ubuntu-22.04
 
     steps:

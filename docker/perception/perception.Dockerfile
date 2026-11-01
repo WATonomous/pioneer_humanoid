@@ -150,9 +150,6 @@ COPY src/perception/terrain/terrain_core /opt/terrain_core
 RUN python3 -m pip install --no-cache-dir /opt/terrain_core
 
 # Build ROS2 packages
-
-
-# Build ROS2 packages
 WORKDIR ${AMENT_WS}
 
 RUN . /opt/ros/$ROS_DISTRO/setup.sh && \
