@@ -145,6 +145,11 @@ COPY src/perception/camera_calibration/wrist_cam.py \
      /opt/humanoid_py/camera_calibration/
 ENV PYTHONPATH=/opt/humanoid_py/pioneer_humanoid:/opt/humanoid_py/camera_calibration:${PYTHONPATH}
 
+# terrain node and tools can import terrain_core
+COPY src/perception/terrain/terrain_core /opt/terrain_core
+RUN python3 -m pip install --no-cache-dir /opt/terrain_core
+
+
 # Build ROS2 packages
 WORKDIR ${AMENT_WS}
 
