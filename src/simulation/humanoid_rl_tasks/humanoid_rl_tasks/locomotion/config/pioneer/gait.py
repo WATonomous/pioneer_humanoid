@@ -39,6 +39,14 @@ def feet_swing_height(env, sensor_cfg: SceneEntityCfg, asset_cfg: SceneEntityCfg
     return ((sole_z - SWING_HEIGHT).square() * airborne).sum(dim=1)
 
 
+def feet_swing_height_relative(env, sensor_cfg: SceneEntityCfg, asset_cfg: SceneEntityCfg) -> torch.Tensor:
+    """feet_swing_height for uneven ground: the airborne foot's height above the lower foot, not above z = 0."""
+    foot_z = env.scene[asset_cfg.name].data.body_pos_w[:, asset_cfg.body_ids, 2]
+    above = foot_z - foot_z.min(dim=1, keepdim=True).values
+    airborne = ~_in_contact(env, sensor_cfg)
+    return ((above - SWING_HEIGHT).square() * airborne).sum(dim=1)
+
+
 def stance_foot_velocity(env, sensor_cfg: SceneEntityCfg, asset_cfg: SceneEntityCfg) -> torch.Tensor:
     """Squared velocity of the feet that are on the ground (slipping or scuffing)."""
     vel = env.scene[asset_cfg.name].data.body_lin_vel_w[:, asset_cfg.body_ids, :]
