@@ -91,7 +91,7 @@ It prints the distance and mean speed, or the time of a fall. Both trained polic
 
 No falls, also with `--seed 0..4 --push 0.5` for 20 s at 0.5 m/s.
 
-## Uneven ground (leg-only)
+## Uneven ground
 
 `rough_env_cfg.py`, the flat recipe on generated terrain with a terrain curriculum, tracking weighted up (1.5, std 0.35)
 and the swing height measured from the lower foot instead of z = 0:
@@ -120,8 +120,29 @@ the numbers above are with the current URDF (140 deg).
 perceptive task with foothold-conditioned perception: instead of the whole height map the policy sees a 7 x 7 height
 patch (5 cm cells) around each of the two footholds a small predictor expects next; the predictor is refit every 500
 iterations. Trained policy: `models/pioneer_leg_only_rough_foothold/model_3999.pt` (with its foot predictor
-`foot_model_3505.pt`, started from the blind policy). Same stair test: 8-9% up at 8-13 cm, 0-1% above, 96-100% down,
-so no better than the full height scan.
+`foot_model_3505.pt`, started from the blind policy). Same stair test: 8-9% up at 8-13 cm, 0-1% above, 96-100% down.
+
+Height scan vs foothold from the same start (the blind policy), 5000 iterations each on a stair-heavy course (45% stair
+pits, not included here), same stair test, share out of the pit:
+
+| Iteration | height scan: 8-10 / 10-13 / 13-15 cm | foothold: 8-10 / 10-13 / 13-15 cm |
+|---|---|---|
+| 1000 | 24 / 10 / 1% | 51 / 38 / 19% |
+| 2000 | 6 / 2 / 0% | 21 / 12 / 6% |
+| 3000 | 12 / 4 / 0% | 27 / 15 / 5% |
+| 4000 | 14 / 6 / 0% | 32 / 22 / 9% |
+| 5000 | 28 / 9 / 3% | 14 / 13 / 2% |
+
+Foothold learns to climb faster (2-4x at 1000 iterations) but neither climbs reliably, and longer training did not help;
+both walk down 94-100% at every checkpoint.
+
+`Isaac-Locomotion-RoughFoothold-PioneerWholeBody-v0` is the foothold task on the whole-body humanoid with the flat
+task's arm swing; the policy still sees and drives only the 12 leg joints. Trained policy:
+`models/pioneer_whole_body_rough_foothold/model_4500.pt`, fine-tuned 500 iterations from the leg-only foothold policy
+(same foot predictor). Stair test: 16% up at 8-10 cm, 3% at 10-13 cm, 0% above, 98-100% down.
+`Isaac-Locomotion-RoughFoothold-PioneerWholeBody-Demo-v0` walks one robot through one tile of each obstacle in a row
+(`DEMO_DIFFICULTY`, default 0.1 = 7 cm stairs; `DEMO_SPEED`, default 0.5 m/s); at the defaults it crosses all six (42 m)
+without falling.
 
 ## Policy interface (for deployment)
 

@@ -72,3 +72,13 @@ class PioneerLegOnlyFootholdPPORunnerCfg(PioneerLegOnlyFlatPPORunnerCfg):
         self.experiment_name = "pioneer_leg_only_rough_foothold"
         self.max_iterations = 4000
         self.obs_groups = {"policy": ["policy"], "critic": ["critic"]}
+
+
+@configclass
+class PioneerWholeBodyFootholdPPORunnerCfg(PioneerLegOnlyFootholdPPORunnerCfg):
+    """Fine-tuned from the leg-only foothold policy."""
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.experiment_name = "pioneer_whole_body_rough_foothold"
+        self.max_iterations = 800

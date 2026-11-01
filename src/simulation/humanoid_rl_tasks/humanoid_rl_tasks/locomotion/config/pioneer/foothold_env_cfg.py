@@ -1,9 +1,11 @@
 """The height-scan task with foothold-conditioned perception (foothold.py): the policy sees 7 x 7 height patches around
 the two footholds a small predictor expects next, instead of the whole height map."""
 import copy
+import math
 import os
 
 import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
+from isaaclab.envs import ViewerCfg
 from isaaclab.managers import CurriculumTermCfg as CurrTerm
 from isaaclab.managers import EventTermCfg as EventTerm
 from isaaclab.managers import ObservationGroupCfg as ObsGroup
@@ -13,9 +15,11 @@ from isaaclab.sensors import patterns
 from isaaclab.utils import configclass
 from isaaclab.utils.modifiers import ModifierCfg
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
+from pioneer_humanoid.whole_body import WHOLE_BODY_ARM_SWING_CFG
 
 from . import foothold, gait
-from .flat_env_cfg import _play
+from .arm_swing import ArmSwingActionCfg
+from .flat_env_cfg import LEG_ORDER, _play
 from .rough_env_cfg import PioneerLegOnlyPerceptiveEnvCfg
 
 _REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), *[".."] * 7))
@@ -107,3 +111,63 @@ class PioneerLegOnlyFootholdEnvCfg_PLAY(PioneerLegOnlyFootholdEnvCfg):
         self.scene.terrain.terrain_generator.curriculum = False
         for group in (self.observations.policy, self.observations.critic):
             group.foothold_scan.params.update(train_fpm=False, force_model=True)
+
+
+def _whole_body(cfg: PioneerLegOnlyFootholdEnvCfg):
+    """The whole-body humanoid with its arms swung on the gait clock, as Flat-PioneerWholeBody: every joint input (policy,
+    critic, foot predictor) stays the 12 leg joints in the leg-only order."""
+    cfg.scene.robot = WHOLE_BODY_ARM_SWING_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+    legs = SceneEntityCfg("robot", joint_names=LEG_ORDER, preserve_order=True)
+    cfg.actions.joint_pos.joint_names = LEG_ORDER
+    cfg.actions.joint_pos.preserve_order = True
+    cfg.actions.arm_swing = ArmSwingActionCfg()
+    for group in (cfg.observations.policy, cfg.observations.critic, cfg.observations.system_state):
+        group.joint_pos.params["asset_cfg"] = legs
+        group.joint_vel.params["asset_cfg"] = legs
+
+
+@configclass
+class PioneerWholeBodyFootholdEnvCfg(PioneerLegOnlyFootholdEnvCfg):
+    log_dir: str = os.path.join(_REPO, "outputs", "rl", "pioneer_whole_body_rough_foothold", "foot_models")
+
+    def __post_init__(self):
+        super().__post_init__()
+        _whole_body(self)
+
+
+@configclass
+class PioneerWholeBodyFootholdEnvCfg_PLAY(PioneerLegOnlyFootholdEnvCfg_PLAY):
+    log_dir: str = os.path.join(_REPO, "models", "pioneer_whole_body_rough_foothold")
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        _whole_body(self)
+
+
+@configclass
+class PioneerWholeBodyFootholdEnvCfg_DEMO(PioneerWholeBodyFootholdEnvCfg_PLAY):
+    """Demo course: one 8 m tile of each obstacle in a row along +y (down a stair pyramid, into and up out of a stair pit,
+    boxes, rough ground, slope up, slope down) at one difficulty (DEMO_DIFFICULTY, default 0.1 = 7 cm stairs); one robot
+    walks straight through it at DEMO_SPEED (default 0.5 m/s), filmed from a following three-quarter front view."""
+
+    def __post_init__(self):
+        super().__post_init__()
+        difficulty = float(os.environ.get("DEMO_DIFFICULTY", "0.1"))
+        speed = float(os.environ.get("DEMO_SPEED", "0.5"))
+        course = ("pyramid_stairs", "pyramid_stairs_inv", "boxes", "random_rough", "hf_pyramid_slope", "hf_pyramid_slope_inv")
+        gen = copy.deepcopy(self.scene.terrain.terrain_generator)
+        gen.sub_terrains = {name: gen.sub_terrains[name].replace(proportion=1.0) for name in course}
+        gen.num_rows, gen.num_cols, gen.curriculum, gen.difficulty_range = 1, len(course), True, (difficulty, difficulty)
+        self.scene.terrain.terrain_generator = gen
+        self.scene.terrain.max_init_terrain_level = 0
+        self.scene.num_envs = 1
+        self.episode_length_s = (8.0 * len(course) - 4.0) / speed + 10.0
+        cmd = self.commands.base_velocity
+        cmd.heading_command, cmd.rel_heading_envs, cmd.rel_standing_envs = True, 1.0, 0.0
+        cmd.resampling_time_range = (1.0e6, 1.0e6)
+        cmd.ranges.lin_vel_x, cmd.ranges.lin_vel_y, cmd.ranges.heading = (speed, speed), (0.0, 0.0), (math.pi / 2, math.pi / 2)
+        cmd.ranges.ang_vel_z = (-1.0, 1.0)  # the heading controller's turn rate is clipped to this
+        self.events.reset_base.params["pose_range"] = {"x": (0.0, 0.0), "y": (0.0, 0.0), "yaw": (math.pi / 2, math.pi / 2)}
+        self.commands.base_velocity.debug_vis = False
+        self.viewer = ViewerCfg(eye=(2.4, 2.4, 0.7), lookat=(0.0, 0.3, -0.1), resolution=(1280, 720), origin_type="asset_root",
+                                asset_name="robot")
