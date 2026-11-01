@@ -12,7 +12,7 @@ travel with the repo.
 | `pioneer_humanoid_rough/` | `Isaac-Locomotion-Rough-PioneerHumanoid-v0` | rough-terrain walking (`model_2999.pt`) |
 | `pioneer_leg_only_flat/` | `Isaac-Locomotion-Flat-PioneerLegOnly-v0` | Pioneer leg-only humanoid, flat-ground walking (`model_2999.pt`) |
 | `pioneer_whole_body_flat/` | `Isaac-Locomotion-Flat-PioneerWholeBody-v0` | Pioneer whole-body humanoid, flat-ground walking with arm swing (`model_2299.pt`) |
-| `pioneer_leg_only_rough/` | `Isaac-Locomotion-Rough-PioneerLegOnly-v0` | Pioneer leg-only humanoid, blind walking on mild uneven ground (`model_3999.pt`) |
+| `pioneer_leg_only_rough_blind/` | `Isaac-Locomotion-RoughBlind-PioneerLegOnly-v0` | Pioneer leg-only humanoid, blind walking on mild uneven ground, steps up to ~7 cm (`model_3999.pt`) |
 | `pioneer_leg_only_rough_perceptive/` | `Isaac-Locomotion-RoughPerceptive-PioneerLegOnly-v0` | Pioneer leg-only humanoid with a height scan, full rough course; walks down stairs, does not climb them (`model_3500.pt`) |
 | `pioneer_leg_only_rough_foothold/` | `Isaac-Locomotion-RoughFoothold-PioneerLegOnly-v0` | the same with foothold-conditioned perception (`model_3999.pt` + its foot predictor `foot_model_3505.pt`) |
 | `pioneer_whole_body_rough_foothold/` | `Isaac-Locomotion-RoughFoothold-PioneerWholeBody-v0` | Pioneer whole-body humanoid with arm swing, the same foothold task (`model_4500.pt` + `foot_model_3505.pt`); walks down stairs, climbs ~16% at 8-10 cm |

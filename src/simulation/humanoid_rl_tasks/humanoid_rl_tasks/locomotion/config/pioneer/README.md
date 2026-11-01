@@ -98,7 +98,7 @@ and the swing height measured from the lower foot instead of z = 0:
 
 | Task | Terrain | Observation | Trained policy |
 |---|---|---|---|
-| `Isaac-Locomotion-Rough-PioneerLegOnly-v0` | mild: bumps, 2-8 cm boxes, gentle slopes, 3-8 cm steps | the flat task's (blind) | `models/pioneer_leg_only_rough/model_3999.pt` |
+| `Isaac-Locomotion-RoughBlind-PioneerLegOnly-v0` | mild: bumps, 2-8 cm boxes, gentle slopes, 3-8 cm steps | the flat task's (blind) | `models/pioneer_leg_only_rough_blind/model_3999.pt` |
 | `Isaac-Locomotion-RoughPerceptive-PioneerLegOnly-v0` | Isaac Lab's rough course: stairs up to 23 cm | + 1.6 x 1.0 m height scan (187 rays) | `models/pioneer_leg_only_rough_perceptive/model_3500.pt` |
 
 The blind policy needs no terrain sensor, so it runs on the robot as it is, and `sim2sim_mujoco.py` runs it unchanged
