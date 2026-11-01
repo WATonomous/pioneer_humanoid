@@ -139,18 +139,17 @@ iterations. Trained policy: `models/pioneer_leg_only_rough_foothold/model_3999.p
 `foot_model_3505.pt`, started from the blind policy). Same stair test: 8-9% up at 8-13 cm, 0-1% above, 96-100% down.
 
 Height scan vs foothold from the same start (the blind policy), 5000 iterations each on a stair-heavy course (45% stair
-pits, not included here), same stair test, share out of the pit:
+pits, not included here), same stair test, best checkpoint of each, share out of the pit:
 
-| Iteration | height scan: 8-10 / 10-13 / 13-15 cm | foothold: 8-10 / 10-13 / 13-15 cm |
+| Step height | height scan | foothold |
 |---|---|---|
-| 1000 | 24 / 10 / 1% | 51 / 38 / 19% |
-| 2000 | 6 / 2 / 0% | 21 / 12 / 6% |
-| 3000 | 12 / 4 / 0% | 27 / 15 / 5% |
-| 4000 | 14 / 6 / 0% | 32 / 22 / 9% |
-| 5000 | 28 / 9 / 3% | 14 / 13 / 2% |
+| 8-10 cm | 28% | 51% |
+| 10-13 cm | 9% | 38% |
+| 13-15 cm | 3% | 19% |
 
-Foothold learns to climb faster (2-4x at 1000 iterations) but neither climbs reliably, and longer training did not help;
-both walk down 94-100% at every checkpoint.
+Foothold learns to climb faster but neither climbs reliably; both walk down 94-100%.
+
+![Whole-body humanoid with foothold perception on the demo course, 4x speed; dots: the height patches it sees](foothold.gif)
 
 `Isaac-Locomotion-RoughFoothold-PioneerWholeBody-v0` is the foothold task on the whole-body humanoid with the flat
 task's arm swing; the policy still sees and drives only the 12 leg joints. Trained policy:
