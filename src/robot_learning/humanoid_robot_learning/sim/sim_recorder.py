@@ -185,6 +185,14 @@ class SimLeRobotRecorder:
         self._keyboard = EpisodeKeyboard(self._flags, **keys)
         return self._keyboard.start()
 
+    def external_flags(self) -> EpisodeFlags:
+        """Episode flags for the caller's own key handler (e.g. a viewer's key callback), with no pynput listener.
+
+        Use instead of start_keyboard() where a global listener sees no keys: on macOS pynput needs the
+        terminal to have Input Monitoring permission, and without it gets nothing, silently."""
+        self._flags = EpisodeFlags(start=False)
+        return self._flags
+
     def tick(
         self,
         action: np.ndarray | torch.Tensor,
