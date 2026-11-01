@@ -91,6 +91,22 @@ It prints the distance and mean speed, or the time of a fall. Both trained polic
 
 No falls, also with `--seed 0..4 --push 0.5` for 20 s at 0.5 m/s.
 
+## Running (recipe, not a registered task)
+
+The whole-body flat task runs with these changes, fine-tuned ~2000 iterations from the walking policy:
+
+| Setting | Walk | Run |
+|---|---|---|
+| `gait.py` `PERIOD` / `STANCE` / `SWING_HEIGHT` | 1.0 s / 0.55 / 0.10 m | 0.6 s / 0.35 / 0.12 m (both feet off the ground between steps) |
+| commands `lin_vel_x` / `lin_vel_y` / `rel_standing_envs` | 0-1.0 / +-0.5 / default | 0.6-1.8 / +-0.3 / 0 |
+| `arm_swing` amplitude / full_speed / elbow_bend | 0.35 / 0.8 / 0.3 | 0.6 / 1.6 / 1.2 |
+| `track_lin_vel_xy_exp` weight | 1.0 | 1.5 |
+| `stance_knee` weight | -1.0 | -0.3 |
+| `base_height` target | 0.835 m | 0.80 m |
+
+Result in Isaac Lab: 1.20 / 1.48 / 1.78 m/s at 1.2 / 1.5 / 1.8 m/s commands, no falls; hip and knee at their 3.67 rad/s
+limit 40-47% of the time, so check the real motors before trying it on the robot. Trained with the 65 deg knee range.
+
 ## Uneven ground
 
 `rough_env_cfg.py`, the flat recipe on generated terrain with a terrain curriculum, tracking weighted up (1.5, std 0.35)
