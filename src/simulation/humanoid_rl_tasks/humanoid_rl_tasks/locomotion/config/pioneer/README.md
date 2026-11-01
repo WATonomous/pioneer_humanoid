@@ -116,6 +116,13 @@ last step:
 The perceptive policy walks down stairs but does not climb above ~10 cm. Both were trained with a 65 deg knee range;
 the numbers above are with the current URDF (140 deg).
 
+`Isaac-Locomotion-RoughFoothold-PioneerLegOnly-v0` (`foothold_env_cfg.py`, `foothold.py`, `foot_pred/`) is the
+perceptive task with foothold-conditioned perception: instead of the whole height map the policy sees a 7 x 7 height
+patch (5 cm cells) around each of the two footholds a small predictor expects next; the predictor is refit every 500
+iterations. Trained policy: `models/pioneer_leg_only_rough_foothold/model_3999.pt` (with its foot predictor
+`foot_model_3505.pt`, started from the blind policy). Same stair test: 8-9% up at 8-13 cm, 0-1% above, 96-100% down,
+so no better than the full height scan.
+
 ## Policy interface (for deployment)
 
 50 Hz. Observation (50): base linear velocity of the base's centre of mass and angular velocity, both in the base frame

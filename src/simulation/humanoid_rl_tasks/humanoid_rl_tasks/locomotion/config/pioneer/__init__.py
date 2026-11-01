@@ -6,7 +6,9 @@ for _name, _cfg, _runner in (("Flat-PioneerLegOnly", "flat_env_cfg:PioneerLegOnl
                              ("Flat-PioneerWholeBody", "flat_env_cfg:PioneerWholeBodyFlatEnvCfg", "PioneerWholeBodyFlatPPORunnerCfg"),
                              ("Rough-PioneerLegOnly", "rough_env_cfg:PioneerLegOnlyRoughEnvCfg", "PioneerLegOnlyRoughPPORunnerCfg"),
                              ("RoughPerceptive-PioneerLegOnly", "rough_env_cfg:PioneerLegOnlyPerceptiveEnvCfg",
-                              "PioneerLegOnlyPerceptivePPORunnerCfg")):
+                              "PioneerLegOnlyPerceptivePPORunnerCfg"),
+                             ("RoughFoothold-PioneerLegOnly", "foothold_env_cfg:PioneerLegOnlyFootholdEnvCfg",
+                              "PioneerLegOnlyFootholdPPORunnerCfg")):
     for _suffix in ("", "_PLAY"):
         gym.register(
             id=f"Isaac-Locomotion-{_name}{'-Play' if _suffix else ''}-v0",

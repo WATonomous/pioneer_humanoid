@@ -14,6 +14,7 @@ travel with the repo.
 | `pioneer_whole_body_flat/` | `Isaac-Locomotion-Flat-PioneerWholeBody-v0` | Pioneer whole-body humanoid, flat-ground walking with arm swing (`model_2299.pt`) |
 | `pioneer_leg_only_rough/` | `Isaac-Locomotion-Rough-PioneerLegOnly-v0` | Pioneer leg-only humanoid, blind walking on mild uneven ground (`model_3999.pt`) |
 | `pioneer_leg_only_rough_perceptive/` | `Isaac-Locomotion-RoughPerceptive-PioneerLegOnly-v0` | Pioneer leg-only humanoid with a height scan, full rough course; walks down stairs, does not climb them (`model_3500.pt`) |
+| `pioneer_leg_only_rough_foothold/` | `Isaac-Locomotion-RoughFoothold-PioneerLegOnly-v0` | the same with foothold-conditioned perception (`model_3999.pt` + its foot predictor `foot_model_3505.pt`); no better than the height scan |
 | `badminton_shared_student_ppo/` | `Mjlab-Badminton-Shared-Student-PPO-Priv` | bimanual badminton receive on EKF perception (`model_11996.pt`): one single-arm policy drives whichever arm `badminton_shared_chooser/` picks; arms start at rest, grippers closed on a centred racket. 98.4% bank hits (chooser margin 1.0), hits split 49/51 right/left, 89% net clearance; the deployable one |
 | `badminton_shared_chooser/` | `Mjlab-Badminton-Shared-Student-PPO` | its critic picks the arm from the robot's own observations (`model_11997.pt`); pass it as `--critic-task`/`--critic-checkpoint` |
 
