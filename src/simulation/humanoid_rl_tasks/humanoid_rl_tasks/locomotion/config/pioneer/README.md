@@ -65,6 +65,32 @@ Randomised for transfer: friction 0.3-1.2, base mass -1 to +3 kg, base centre of
 ×0.7-1.3, joint armature ×0.5-2, pushes up to 0.8 m/s every 5-10 s, start pose ±0.1 rad.
 PPO trains every batch also on its left-right mirror image (`symmetry.py`), for an even gait.
 
+## Sim2sim in MuJoCo
+
+![Whole-body humanoid walking at 0.5 m/s in MuJoCo](sim2sim.gif)
+
+`sim2sim_mujoco.py` runs a checkpoint on the same robot in MuJoCo: same URDF, gains, torque limits, observation and arm
+swing, no Isaac Lab needed (Python with `mujoco`, `torch`, `numpy`; `imageio` for `--video`). From the repo root:
+
+```bash
+python src/simulation/humanoid_rl_tasks/humanoid_rl_tasks/locomotion/config/pioneer/sim2sim_mujoco.py \
+    models/pioneer_whole_body_flat/model_2299.pt --whole_body --vx 0.5 --video walk.mp4
+# leg-only: models/pioneer_leg_only_flat/model_2999.pt without --whole_body
+# --vy, --wz: other commands; --seed N: a perturbed start; --push 0.5: a random shove every 3 s
+```
+
+It prints the distance and mean speed, or the time of a fall. Both trained policies, 10 s each (mean forward speed):
+
+| Command | leg-only | whole-body |
+|---|---|---|
+| 0.3 m/s | 0.30 | 0.29 |
+| 0.5 m/s | 0.48 | 0.47 |
+| 0.8 m/s | 0.74 | 0.76 |
+| 0.3 m/s + turn 0.6 rad/s | 0.30 | 0.29 |
+| sideways 0.3 m/s | 0.18 lateral | 0.20 lateral |
+
+No falls, also with `--seed 0..4 --push 0.5` for 20 s at 0.5 m/s.
+
 ## Policy interface (for deployment)
 
 50 Hz. Observation (50): base linear velocity of the base's centre of mass and angular velocity, both in the base frame
