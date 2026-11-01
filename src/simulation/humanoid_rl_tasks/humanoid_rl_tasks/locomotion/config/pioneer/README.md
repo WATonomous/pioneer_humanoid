@@ -147,7 +147,7 @@ pits, not included here), same stair test, best checkpoint of each, share out of
 | 10-13 cm | 9% | 38% |
 | 13-15 cm | 3% | 19% |
 
-Foothold learns to climb faster but neither climbs reliably; both walk down 94-100%.
+Foothold climbs better. Climbing steps above ~10 cm still needs work.
 
 ![Whole-body humanoid with foothold perception on the demo course, 4x speed; dots: the height patches it sees](foothold.gif)
 
