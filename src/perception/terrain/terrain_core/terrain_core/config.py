@@ -1,8 +1,10 @@
 """Output map specification for the terrain height map."""
 
-MAP_LENGTH_M = 1.6   
-MAP_WIDTH_M = 1.0   
+# Size of the height map in meters
+MAP_LENGTH_M = 1.6
+MAP_WIDTH_M = 1.0
 
+# Size of one grid cell (5 cm)
 RESOLUTION_M = 0.05
 
 

@@ -127,8 +127,8 @@ RUN mkdir -p /root/models && \
 # Foxglove visualization support
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-      ros-humble-foxglove-bridge \
-      ros-humble-rosbag2-storage-mcap && \
+      ros-$ROS_DISTRO-foxglove-bridge \
+      ros-$ROS_DISTRO-rosbag2-storage-mcap && \
     rm -rf /var/lib/apt/lists/*
 
 ################################ Build ################################
@@ -148,6 +148,8 @@ ENV PYTHONPATH=/opt/humanoid_py/pioneer_humanoid:/opt/humanoid_py/camera_calibra
 # terrain node and tools can import terrain_core
 COPY src/perception/terrain/terrain_core /opt/terrain_core
 RUN python3 -m pip install --no-cache-dir /opt/terrain_core
+
+# Build ROS2 packages
 
 
 # Build ROS2 packages

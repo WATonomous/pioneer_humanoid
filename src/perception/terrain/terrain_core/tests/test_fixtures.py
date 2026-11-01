@@ -64,8 +64,8 @@ def test_ramp_slope(ramp):
 
 
 def test_fixtures_are_independent(flat_floor, step):
-    flat_floor[:, 2] = 99.0 
-    assert not np.any(step[:, 2] == 99.0) 
+    flat_floor[:, 2] = 99.0
+    assert not np.any(step[:, 2] == 99.0)
 
 def test_make_floor_is_centered_where_asked(make_floor):
     floor = make_floor(z=0.6, center=(5.0, -3.0))
