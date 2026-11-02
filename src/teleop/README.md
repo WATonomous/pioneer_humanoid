@@ -30,10 +30,36 @@ cd /workspace/humanoid/src/teleop/keyboard_teleop
 PYTHONPATH=$(pwd) /workspace/isaaclab/isaaclab.sh -p keyboard_teleop.py [--scene bare|push] [--record]
 ```
 
-- **Move:** `W/S` x · `A/D` y · `Q/E` z · `Z/X` `T/G` `C/V` rotate · **hold `Shift`** = fine
-- **`K`** toggle gripper · **`R`** reset arm
+Keys: see [Keyboard controls](#keyboard-controls) below.
+
 - **`--scene`:** any `humanoid_isaac_scenes` scene — `bare` (default, empty lightbox workcell), `push` (ramp-box + block), `vial_rack`, …
-- **`--record`** (image already has `humanoid-robot-learning`): `S` start · `N` save · `D` discard · `Esc` stop → `<repo>/datasets/pioneer_v1_left_arm/sim/` · `--cameras ego,wrist_left` / `none`
+- **`--record`** (image already has `humanoid-robot-learning`) → `<repo>/datasets/pioneer_v1_left_arm/sim/` · `--cameras ego,wrist_left` / `none`
+
+## Keyboard controls
+
+Every key of every teleop in one place. Isaac Sim keys need the Isaac Sim window focused; MuJoCo keys need the
+MuJoCo viewer focused. Recording keys only do something with `--record`. **If you change a binding, update this table.**
+
+| Action | `keyboard_teleop` (Isaac) | leader arm, Isaac | leader arm, MuJoCo | Quest (Isaac) |
+|--------|---------------------------|-------------------|--------------------|---------------|
+| Move end effector x / y / z | `W`/`S` · `A`/`D` · `Q`/`E` | leader arm | leader arm | wrists |
+| Rotate roll / pitch / yaw | `Z`/`X` · `T`/`G` · `C`/`V` | leader arm | leader arm | wrists |
+| Fine motion (hold) | `Shift` | — | — | — |
+| Gripper | `K` toggle | leader gripper | leader gripper | thumb–index pinch |
+| Reset | `R` (arm only) | `R` (arm + scene; discards a take in progress) | `6` (arm + scene; discards a take in progress) | `T` (objects + arms to rest) |
+| Re-home to current wrist pose | — | — | — | `R` |
+| Start recording | `S` ¹ | `S` | `7` | automatic when the headset connects |
+| Save episode | `N` | `N` | `8` (then auto-reset) | `S` (keeps recording) |
+| Discard episode | `D` ¹ | `D` | `9` | `D` (keeps recording) |
+| Stop session, finalize dataset | `Esc` | `Esc` | close the window (`Esc` is the viewer's free camera) | close Isaac Sim |
+
+¹ `S` and `D` are also move keys in `keyboard_teleop`: pressing them to start / discard also nudges the arm.
+
+MuJoCo uses digits because every letter, `0`-`5` and `Esc` are MuJoCo viewer shortcuts. Where the keys are defined:
+recording defaults `S`/`N`/`D`/`Esc` in `src/robot_learning/humanoid_robot_learning/recording/episode_keys.py`;
+MuJoCo overrides in `pioneer_leader_arm_teleop/mujoco_sim.py` (`_KEY_RESET`, `RECORD_KEYS`);
+Quest in `quest_teleop/sim/run_quest_bimanual_teleop.py` (`_on_keyboard_event`);
+`keyboard_teleop` motion keys are Isaac Lab's `Se3Keyboard` defaults.
 
 ## Notes
 
