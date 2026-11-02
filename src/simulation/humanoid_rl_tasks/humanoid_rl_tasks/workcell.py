@@ -70,7 +70,7 @@ LIGHTBOX_ROT = (0.0, 0.70710678, -0.70710678, 0.0)  # wxyz: X=180 deg, Z=-90 deg
 LIGHTBOX_SCALE = (1.0, 1.0, 30.5 / 30.0)  # CAD table is 30 in; physical table is 30.5 in
 
 # Teleop initial view: from the robot's front-right, looking at the table top.
-WORKCELL_CAMERA = ([1.6, -1.2, 1.5], [0.55, 0.0, TABLE_TOP_Z])
+WORKCELL_CAMERA = ([-1.2, -1.2, 1.5], [0.55, 0.0, TABLE_TOP_Z])
 
 
 @configclass
