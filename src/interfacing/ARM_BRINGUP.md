@@ -19,9 +19,21 @@ benchmarks), [joint_command/README.md](joint_command/README.md) (command node, c
 4. **Verify**:
    ```bash
    ros2 node list                  # /can_node
-   candump can0                    # e.g. 0x290A–0x290E
+   candump can0
    ros2 topic echo /interfacing/motorFeedback common_msgs/msg/MotorFeedback --once
    ```
+   Reading `candump`:
+   - **AK status frames** are extended ids `0x2900 | can_id` (`ServoStatusFeedback` in
+     [`dbc/humanoid.dbc`](dbc/humanoid.dbc)). Left arm today: `0000290B`–`0000290E` (ids 11–14)
+     and `00002968` (id 104, elbow roll).
+   - **GL40s (wrist 22, gripper 21) are silent here, and that is normal.** They only answer MIT
+     frames, so they appear once `calibrate_arm.py` or `joint_command` sends `MIT_ENTER`: standard
+     id `000` (the master id), byte 0 = status nibble + the last hex digit of the motor id.
+   - An expected AK missing → check its power, its id, and that it is set to 1 Mbps.
+
+   Ids live in [joint_command/config/arm_calibration.yaml](joint_command/config/arm_calibration.yaml)
+   (`can_id`); the rules for picking them are in
+   [can/README.md](can/README.md#both-arms-on-one-bus).
 
 ## 1. Calibrate
 Per-joint zero + limits, from live motor feedback, with the arm **hanging** (the URDF zero).
@@ -110,3 +122,18 @@ python3 pioneer_leader_arm_teleop.py --target real --live
 
 - Scripted moves and benchmarks: `tools/arm_roundtrip.sh` → [can/README.md](can/README.md#angle-benchmarks-arm_roundtrippy)
 - Node, configs and tuning → [joint_command/README.md](joint_command/README.md)
+
+## Adding a motor (or the right arm)
+The motor's id must already be set on the drive (CubeMars tool) and follow the
+[id rules](can/README.md#both-arms-on-one-bus). Then, in the repo:
+1. **`can/config/mit_profiles.yaml`**: an entry keyed by the decimal id (`model`, `family`,
+   MIT ranges, and `kt` for an AK). Without it `can_node` refuses MIT commands to that id.
+2. **`joint_command/config/arm_calibration.yaml`**: the joint under its arm side with its
+   `can_id` and a `direction` matching the URDF. A new arm needs its own top-level block
+   (`right:`) first: `calibrate_arm.py --arm-side right` fails if the side is missing. Only
+   `left:` exists today.
+3. **`joint_command/config/arm_actuators.yaml`**: the joint's block under its side (`active`,
+   `control_type`, `mit_family`, limits, gains). A `right:` block already exists.
+4. **New arm only:** add the side to `arms` in `joint_command/config/joint_command.yaml`.
+5. `./watod build`: `joint_command` and `arm_roundtrip.py` read the *installed* configs.
+6. Bring it up from step 0: `candump`, calibrate, visualize, then move.

@@ -3,7 +3,7 @@
 
 READ-ONLY: subscribes to /interfacing/motorFeedback and never publishes, so it cannot move
 the arm. Use it after calibrate_arm.py to check the calibration looks right before commanding
-anything (src/interfacing/README.md step 2).
+anything (src/interfacing/ARM_BRINGUP.md step 2).
 
 Run in the `simulation_mj` container while `interfacing` is up and the arm is powered:
 

@@ -3,7 +3,7 @@
 ROS 2 bridge: `/interfacing/motorCMD` ↔ CAN ↔ `/interfacing/motorFeedback`.
 [Electrical docs](https://watonomous.github.io/humanoid-docs/electrical/index.html) · [Interfacing docs](https://watonomous.github.io/humanoid-docs/interfacing/index.html)
 
-Bring-up (connect, verify, calibrate) is in [../README.md](../README.md).
+Bring-up (connect, verify, calibrate) is in [../ARM_BRINGUP.md](../ARM_BRINGUP.md).
 
 ## Two encodings: servo mode vs MIT
 
