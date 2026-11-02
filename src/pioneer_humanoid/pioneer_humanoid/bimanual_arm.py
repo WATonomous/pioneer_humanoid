@@ -15,7 +15,7 @@ Notes on the values below:
   - _DEFAULT_JOINT_POS is this URDF's zero pose plus elbow flex (see below), a
     correct-by-construction rest pose -- not a hand-tuned one.
   - LEFT_/RIGHT_FINGER_DISTAL_TIP_LOCAL are measured against this asset's mesh,
-    along its joint7/8 travel axis (X for the new wrist gripper, step_to_links.py).
+    along its joint7/8 travel axis (Y, step_to_links.py).
   - _WRIST_ORIENT_OFFSET_* in run_quest_bimanual_teleop.py are identity and need
     live in-headset retuning for this asset's joint6 axis.
   - actuator gains are motor-derived but not independently verified; the +/-0.041 m
@@ -84,7 +84,7 @@ RIGHT_EE_BODY = "link6"
 LEFT_FINGER_TIP_BODIES = ("link7l", "link8l")
 RIGHT_FINGER_TIP_BODIES = ("link7", "link8")
 # Distal mesh point of each finger, in that link's OWN object-space frame: the outward extreme along
-# the travel axis (X: +X for link7, the front finger at joint5 = 0, -X for link8) with Y/Z at the bbox
+# the travel axis (Y: outward for link7, the outer finger, inward for link8) with X/Z at the bbox
 # centre, measured on the new wrist gripper's meshes (step_to_links.py puts each finger's origin at its
 # bbox centre). Same "outward extreme along the travel axis" methodology as before.
 #
@@ -92,12 +92,12 @@ RIGHT_FINGER_TIP_BODIES = ("link7", "link8")
 # way if the arm asset changes. Sanity check: composed with the joint7/8 origins these give a
 # 0.162m open fingertip gap on both grippers (the old gripper: 0.1625m).
 LEFT_FINGER_DISTAL_TIP_LOCAL = {
-    "link7l": (0.02, 0.0, 0.0),
-    "link8l": (-0.02, 0.0, 0.0),
+    "link7l": (0.0, 0.02, 0.0),
+    "link8l": (0.0, -0.02, 0.0),
 }
 RIGHT_FINGER_DISTAL_TIP_LOCAL = {
-    "link7": (0.02, 0.0, 0.0),
-    "link8": (-0.02, 0.0, 0.0),
+    "link7": (0.0, -0.02, 0.0),
+    "link8": (0.0, 0.02, 0.0),
 }
 
 

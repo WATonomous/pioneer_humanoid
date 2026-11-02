@@ -1,9 +1,10 @@
 """Checks the new forearm + wrist gripper (step_to_links.py) left the arm working as before:
 
-  1. joints 1-6 and links base..link4 are exactly as before the swap (the URDF at REF);
+  1. joints 1-5 and links base..link4 are exactly as before the swap (the URDF at REF); joint6 is the old axis
+     turned 90 deg about joint5 with the new zero, through the joint5 axis;
   2. MuJoCo loads the URDF;
-  3. the default pose (arm_params.DEFAULT_JOINT_POS) is inside every limit and closes the fingers
-     side to side (their travel along base Y), as the old gripper did;
+  3. the zero pose and the default pose (arm_params.DEFAULT_JOINT_POS) are inside every limit and close the
+     fingers side to side (along base Y, joint7 the outer finger), as the old gripper did;
   4. each gripper opens 82 mm and closes to touching, never overlapping on the way;
   5. at the default pose, open and closed, no link touches another it is not jointed to;
   6. the left arm mirrors the right (link poses across the XZ plane);
@@ -118,12 +119,25 @@ def touching(mesh, joints, q, skip_adjacent=True):
 def main(ref="5244df7"):
     text = open(URDF).read()
     joints = parse(text)
-    print("1. joints 1-6 and links base..link4 unchanged (vs %s)" % ref)
+    print("1. joints 1-5 and links base..link4 unchanged (vs %s)" % ref)
     old = subprocess.run(["git", "show", f"{ref}:assets/pioneer_bimanual_arm/urdf/pioneer_bimanual_arm.urdf"],
                          cwd=REPO, capture_output=True, text=True, check=True).stdout
     for side in SIDES.values():
-        for j in side["j"][:6]:
+        for j in side["j"][:5]:
             check(blocks(old, "joint")[j] == blocks(text, "joint")[j], f"{j} identical")
+    oj, z0 = parse(old), fk(joints, {})
+    for side in SIDES.values():
+        j5, j6 = side["j"][4], side["j"][5]
+        a5 = z0[joints[j5]["child"]][:3, :3] @ joints[j5]["axis"]
+        a6 = z0[joints[j6]["child"]][:3, :3] @ joints[j6]["axis"]
+        p5, p6 = z0[joints[j5]["child"]][:3, 3], z0[joints[j6]["child"]][:3, 3]
+        turn = -90.0 if j5 == "joint5" else 90.0
+        old_a6 = oj[j6]["axis"]
+        c, s_ = np.cos(np.radians(turn)), np.sin(np.radians(turn))
+        want = np.array([[c, -s_, 0], [s_, c, 0], [0, 0, 1]]) @ old_a6
+        check(np.allclose(a6, want), f"{j6} axis {a6} = the old {old_a6} turned {turn:+.0f} deg about {j5}")
+        check(np.allclose(p6[:2], p5[:2], atol=1e-4) and abs(np.dot(a5, a6)) < 1e-9,
+              f"{j6} crosses the {j5} axis at right angles")
     for link in ["base_link", "link1", "link2", "link3", "link4", "link1L", "link2l", "link3l", "link4l"]:
         check(blocks(old, "link")[link] == blocks(text, "link")[link], f"{link} identical")
 
@@ -135,19 +149,21 @@ def main(ref="5244df7"):
     except Exception as e:                                     # noqa: BLE001
         check(False, f"MuJoCo load: {e}")
 
-    print("3. the default pose")
+    print("3. the zero pose and the default pose")
     q0 = dict(DEFAULT_JOINT_POS)
     for n, v in q0.items():
         lo, hi = joints[n]["lim"]
         check(lo <= v <= hi, f"{n} = {np.degrees(v) if joints[n]['type'] == 'revolute' else v:+.1f} in [{lo}, {hi}]")
+    for label, q in (("zero", {}), ("default", q0)):
+        poses = fk(joints, q)
+        for side, s in SIDES.items():
+            j7 = joints[s["j"][6]]
+            d = poses[j7["parent"]][:3, :3] @ j7["axis"]
+            check(abs(abs(d[1]) - 1) < 1e-6, f"{label}: {side} fingers travel along base {np.round(d, 3)} (side to side)")
+            check(np.allclose(d, oj[s["j"][6]]["axis"]), f"{label}: {side} joint7 axis = the old gripper's")
+            a7, a8 = poses[j7["child"]][:3, 3], poses[joints[s["j"][7]]["child"]][:3, 3]
+            check(abs(a7[1]) > abs(a8[1]), f"{label}: {side} joint7's finger is the outer one, as before")
     poses = fk(joints, q0)
-    for side, s in SIDES.items():
-        j7 = joints[s["j"][6]]
-        d = poses[j7["parent"]][:3, :3] @ j7["axis"]
-        check(abs(abs(d[1]) - 1) < 1e-6, f"{side} fingers travel along base {np.round(d, 3)} (side to side)")
-        a7, a8 = poses[j7["child"]][:3, 3], poses[joints[s["j"][7]]["child"]][:3, 3]
-        outer = abs(a7[1]) > abs(a8[1])
-        check(outer, f"{side} joint7's finger is the outer one, as before")
 
     print("4. the grippers open and close")
     mesh = meshes(text)
@@ -186,7 +202,7 @@ def main(ref="5244df7"):
             pr, pl = z0[cr][:3, 3][:2], z0[cl][:3, 3][:2]
             check(np.allclose(pr * [1, -1], pl, atol=2e-3), f"{cr} / {cl} on mirrored axes")
             continue
-        if r in ("joint1", "joint2", "joint6"):                 # the exporter's frames differ along their own axes
+        if r in ("joint1", "joint2"):                           # the exporter's frames differ along their own axes
             continue
         check(np.allclose(M @ pr, pl, atol=2e-3), f"{cr} / {cl} mirrored ({np.round(M @ pr - pl, 4)} m)")
     for k in ("link5", "link6", "link7", "link8"):

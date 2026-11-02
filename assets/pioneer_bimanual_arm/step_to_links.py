@@ -1,6 +1,10 @@
 """Put the arm's new forearm and wrist gripper (ArmV2_NewForearms_NewWristGrippers.STEP) into this URDF: link5..link8
-of each arm get new meshes and inertias, joint7/joint8 (the fingers) follow the new rail. Joints 1-6 are untouched:
+of each arm get new meshes and inertias, joint7/joint8 (the fingers) follow the new rail. Joints 1-5 are untouched:
 their axes in the STEP match this URDF to 0.2 mm, which `check_new_gripper.py` tests.
+
+The arm's zero has the forearm and gripper turned about joint5 from the STEP (JOINT5_ZERO_TURN: -90 deg right,
++90 left), so the fingers close side to side at joint5 = 0. joint6 turns with them: its axis is the old one turned
+90 deg about joint5 (base -X on both arms), through the joint5 axis.
 
     python step_to_links.py ArmV2_NewForearms_NewWristGrippers.STEP
 
@@ -8,8 +12,8 @@ Needs build123d (the OCC kernel) and fast_simplification. The STEP is Y up, fron
 URDF is Z up, front +X, right arm at -Y (m). The links below joint5 are:
     link5  forearm + cover + the wrist GL40's stator
     link6  wrist yoke, gripper base, the gripper GL40, its swivel and linkages, the MGN9 rail, the wrist GL40's rotor
-    link7  the finger in front of the rail at joint5 = 0 (outer once joint5 is at its default -90 / +90 deg)
-    link8  the finger behind it (inner at the default)
+    link7  the outer finger (in front of the rail in the STEP)
+    link8  the inner finger
 Masses are volume x 1 g/cm^3, the density the rest of this URDF was exported with.
 """
 import os
@@ -36,6 +40,10 @@ MAX_FACES = 60_000
 R = np.array([[0.0, 0.0, -1.0], [-1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
 OFFSET_MM = np.array([21.8, 0.0, -1179.65])
 FINGER_TRAVEL = 0.041                 # m each: the STEP is fully open (82.1 mm between the fingers' inner faces)
+JOINT5_ZERO_TURN = {"right": -90.0, "left": 90.0}   # deg about joint5 (base +Z), STEP pose -> the arm's zero
+JOINT5_AXIS_XY = {"right": (0.0148, -0.2816), "left": (0.0148, 0.2816)}   # m, where the joint5 axes are
+JOINT6_AXIS_STEP = {"right": (0.0, -1.0, 0.0), "left": (0.0, 1.0, 0.0)}   # joint6 in the STEP pose (the old axis)
+RAIL_STEP = (1.0, 0.0, 0.0)           # the fingers' travel in the STEP pose, base frame
 
 # STEP part names (after "<side>_new_" or the wrist GL40's "original_..." name) per link
 LINKS = {
@@ -62,8 +70,16 @@ def link_of(label):
     return None
 
 
-def to_urdf(p_mm):
-    return (np.asarray(p_mm) @ R.T + OFFSET_MM) / 1000.0
+def turn(side):
+    a = np.radians(JOINT5_ZERO_TURN[side])
+    return np.array([[np.cos(a), -np.sin(a), 0.0], [np.sin(a), np.cos(a), 0.0], [0.0, 0.0, 1.0]])
+
+
+def to_urdf(p_mm, side):
+    """STEP points (mm) -> base_link (m), turned about joint5 to the arm's zero"""
+    p = (np.asarray(p_mm) @ R.T + OFFSET_MM) / 1000.0
+    c = np.array([*JOINT5_AXIS_XY[side], 0.0])
+    return (p - c) @ turn(side).T + c
 
 
 def mesh(shape):
@@ -172,26 +188,31 @@ def main(step):
         if side and link:
             parts.setdefault((side, link), []).append(c)
     text = open(URDF).read()
-    fingers = {}
+    fingers, wrist = {}, {}
     for (side, k), shapes in sorted(parts.items()):
         name = link_name(side, k)
         # joint7/joint8 sit at their finger's middle on the rail, in link6's frame
         if k in ("7", "8"):
-            ends = [to_urdf(tuple(getattr(s.bounding_box(), e))) for s in shapes for e in ("min", "max")]
+            boxes = [s.bounding_box() for s in shapes]
+            ends = np.vstack([to_urdf([(x, y, z) for x in (b.min.X, b.max.X) for y in (b.min.Y, b.max.Y)
+                                       for z in (b.min.Z, b.max.Z)], side) for b in boxes])
             lo, hi = np.min(ends, 0), np.max(ends, 0)
             fingers[name] = (lo + hi) / 2
             origin = fingers[name]
+        elif k == "6":
+            origin = wrist[side] = np.array([*JOINT5_AXIS_XY[side], frames[name][2]])   # on the joint5 axis
         else:
             origin = frames[name]
         V, F, m_tot, mc, props = [], [], 0.0, np.zeros(3), []
         for s in shapes:
             v, f = mesh(s)
             F.append(f + sum(len(x) for x in V))
-            V.append(to_urdf(v) - origin)
+            V.append(to_urdf(v, side) - origin)
             m, c, inertia = mass_props(s)
-            props.append((m, to_urdf(c) - origin, R @ inertia @ R.T))
+            Rt = turn(side) @ R
+            props.append((m, to_urdf(c, side) - origin, Rt @ inertia @ Rt.T))
             m_tot += m
-            mc += m * (to_urdf(c) - origin)
+            mc += m * (to_urdf(c, side) - origin)
         com = mc / m_tot
         I_tot = np.zeros((3, 3))
         for m, c, inertia in props:                              # parallel axes to the link's centre of mass
@@ -204,17 +225,24 @@ def main(step):
         tm.export(os.path.join(HERE, "meshes", f"{name}.STL"))
         text = re.sub(r"<link\s+name=\"%s\">[\s\S]*?</link>" % name, lambda _: link_block(name, m_tot, com, I_tot), text)
         print(f"{name}: {m_tot:.3f} kg, {len(tm.faces)} faces, com {np.round(com * 1000, 1)} mm")
-    # the finger joints: along the rail (+X at joint5 = 0); joint7 closes negative, joint8 positive, as before
+    # joint6 through the joint5 axis, turned with the wrist; the fingers along the turned rail (base Y, as the old
+    # gripper's): joint7 (outer) closes negative, joint8 (inner) positive, as before
     for side in ("right", "left"):
-        l6, l7, l8 = (link_name(side, k) for k in "678")
-        j7, j8 = ("joint7", "joint8") if side == "right" else ("joint7l", "joint8l")
-        for j, lk, lim in ((j7, l7, (-FINGER_TRAVEL, 0.0)), (j8, l8, (0.0, FINGER_TRAVEL))):
-            o = fingers[lk] - frames[l6]
+        l5, l7, l8 = (link_name(side, k) for k in "578")
+        j6, j7, j8 = ("joint6", "joint7", "joint8") if side == "right" else ("joint6l", "joint7l", "joint8l")
+        rail = turn(side) @ RAIL_STEP
+        todo = [(j6, wrist[side] - frames[l5], turn(side) @ JOINT6_AXIS_STEP[side], None)]
+        todo += [(j7, fingers[l7] - wrist[side], rail, (-FINGER_TRAVEL, 0.0)),
+                 (j8, fingers[l8] - wrist[side], rail, (0.0, FINGER_TRAVEL))]
+        for j, o, ax, lim in todo:
+            ax = np.round(ax, 9) + 0.0
 
-            def joint(mt, o=o, lim=lim):
+            def joint(mt, o=o, ax=ax, lim=lim):
                 b = mt.group(0)
                 b = re.sub(r"(<origin\s+xyz=\")[^\"]+(\")", lambda q: f"{q.group(1)}{fmt(o[0])} {fmt(o[1])} {fmt(o[2])}{q.group(2)}", b, count=1)
-                b = re.sub(r"(<axis\s+xyz=\")[^\"]+(\")", r"\g<1>1 0 0\g<2>", b)
+                b = re.sub(r"(<axis\s+xyz=\")[^\"]+(\")", lambda q: f"{q.group(1)}{ax[0]:g} {ax[1]:g} {ax[2]:g}{q.group(2)}", b)
+                if lim is None:
+                    return b
                 b = re.sub(r"lower=\"[^\"]+\"", f"lower=\"{lim[0]}\"", b)
                 return re.sub(r"upper=\"[^\"]+\"", f"upper=\"{lim[1]}\"", b)
             text, n = re.subn(r"<joint\s+name=\"%s\"[\s\S]*?</joint>" % j, joint, text)
