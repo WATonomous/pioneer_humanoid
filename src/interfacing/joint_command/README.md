@@ -98,7 +98,7 @@ each joint's `direction` makes positive turn the URDF's positive way: shoulder p
 arm forward, shoulder roll out to the side, elbow pitch backward. (The old `urdf_direction` /
 `urdf_offset_deg` keys are refused: fold any correction into `direction` / `zero_offset`.)
 
-Bring-up, after steps 1–2 of [../README.md](../README.md) (calibrated hanging, directions checked
+Bring-up, after steps 1–2 of [../ARM_BRINGUP.md](../ARM_BRINGUP.md) (calibrated hanging, directions checked
 against the list above), one joint at a time, arm supported, `gravity_ff_scale: 0`:
 1. At a few poses, the `Gravity model ... pred X meas Y` log (every 5 s) must agree in sign and
    roughly in size.
