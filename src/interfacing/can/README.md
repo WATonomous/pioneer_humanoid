@@ -81,10 +81,14 @@ publishes `ArmPose` like teleop, so the clamp, `velocity_max` and MIT watchdog a
 ```bash
 tools/arm_roundtrip.sh --joints elbow.roll --offset "0,0,0,0,5,0"    # one joint, +5 deg
 tools/arm_roundtrip.sh --offset "3,1.5,5,5,5,10" --dwell 5            # all six at once
+tools/arm_roundtrip.sh --arm-side both --joints left.elbow.roll,right.elbow.roll \
+  --offset "0,0,0,0,5,0,0,0,0,0,5,0"                                  # both arms, one run
 ```
 
 It holds at the origin, ramps out (cosine, ≤ `--vel` and `velocity_max`), dwells, returns and
 rests. `--arm-side` (default `left`) picks the arm and its topic, `/arm/<side>/joint_targets`.
+`--arm-side both` drives both arms together: joints are prefixed `left.`/`right.` and
+`--offset`/`--pose` take twelve values, the left arm's six then the right's.
 It refuses to start if something else publishes that topic, a moving joint is
 silent or near a limit, a move exceeds `--max-delta`, or `joint_command`'s installed configs
 differ from the repo's (rebuild after every calibration or limits edit). Ctrl-C ramps back, a
