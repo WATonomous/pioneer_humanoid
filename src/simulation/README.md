@@ -65,3 +65,7 @@ Pioneer humanoid walking: [source-only rough-no-stairs training and playback rec
 Stairs research starter: [twelve steps up, a raised walkway, and twelve steps down](humanoid_rl_tasks/humanoid_rl_tasks/locomotion/STAIRS.md).
 These two research tasks use an [isolated frozen robot baseline](../../assets/old_leg_only_humanoid/RL_BASELINE.md);
 the upstream robot definition and legacy Flat/Rough configuration are not changed.
+Its USD is generated from the baseline URDF on first launch into ignored
+`outputs/isaac/rough_baseline_v1/` and reused on later launches with matching
+conversion settings. Use the pinned team Isaac image to generate that cache;
+generated baseline USD files are not part of the PR.

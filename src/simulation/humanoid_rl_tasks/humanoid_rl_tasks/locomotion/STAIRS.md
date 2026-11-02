@@ -32,6 +32,12 @@ The equivalent `Isaac-Locomotion-Stairs-PioneerHumanoid-v0` and
   [separate frozen research baseline](../../../../../assets/old_leg_only_humanoid/RL_BASELINE.md),
   not the latest hardware-oriented robot definition.
 
+The baseline URDF and robot settings are checked in, but its generated USD is
+not. On first launch, Isaac converts the URDF into ignored
+`outputs/isaac/rough_baseline_v1/`; subsequent launches reuse matching cached
+output. Both baseline and selective-collision configurations use that location.
+Generate it with the pinned team image, not an arbitrary Isaac converter version.
+
 When preparing a PR, include the baseline's robot/asset, selective-collision,
 contact-sensor, and knee-shaping dependencies as well as these stairs files. A
 copy of `stairs_env_cfg.py` alone is not a standalone environment. This
@@ -123,6 +129,10 @@ loaded configuration, registration, generated geometry, and Hydra serialization;
 `--runtime` also creates two environments and runs 20 zero-action steps, checking
 finite observations, 235 policy observations, 12 leg actions, and contact sensors.
 Zero-action smoke steps check wiring, not locomotion success.
+After changing conversion paths or removing checked-in USD, validate once
+without an existing `outputs/isaac/rough_baseline_v1/` cache. Move that task-local
+cache aside before launching, rather than clearing unrelated experiment outputs;
+otherwise an old cache can hide a conversion failure.
 
 Enter the existing `simulation_isaac` development container from the host:
 
@@ -264,12 +274,27 @@ and terrain-only sensor force/history/timer/reset/subset parity tests. The viewe
 and its export tooling are no longer part of this contribution. The unrelated
 FFmpeg build fix is kept separately rather than bundled into locomotion changes.
 
-The earlier simulator results above predate this refactor. Re-run the real
-configuration check and runtime smoke in the pinned team image before merge;
-CPU doubles do not establish current PhysX behavior or stair-climbing success.
+The simulator results recorded above predate that refactor and do not by
+themselves validate later changes. CPU doubles do not establish current PhysX
+behavior or stair-climbing success.
 
 Upstream compatibility cleanup (2026-10-25): relocated the existing research
 robot into an isolated baseline so upstream Flat/Rough assets and stance stay
 unchanged. The rough-no-stairs/stairs reward recipe, PPO settings, observation
 layout, and action ordering are retained. Path/configuration isolation is not
-a new simulator result; the runtime smoke remains a separate validation gate.
+a new simulator result; the runtime smoke is a separate validation gate.
+
+Generated-asset cleanup (2026-11-01): removed the baseline's checked-in USD cache
+and pointed the base configuration at the same ignored runtime conversion cache
+already used by selective self-collision. The URDF, meshes, robot settings, and
+walking recipe are retained. The historical USD marker/layer checks above no
+longer apply; `test_baseline_assets.py` checks the retained URDF and mesh sources.
+All 96 retained CPU tests passed in the provided container with CUDA hidden and
+no Isaac application launched. A fresh-cache real Isaac check also passed: the
+old local cache was moved aside, the URDF was converted into ignored outputs,
+and two environments completed 20 zero-action steps with finite 235-value
+observations, rewards, and terrain-contact data and a 12-action layout. The same
+run verified registration, configuration round-trip, normalization, 19 nonzero
+rewards, and actual stair mesh profiles. It exited successfully despite the
+local WSL graphics initialization and CUDA shutdown errors. This validates
+conversion and wiring, not GUI rendering, stair walking, or training stability.

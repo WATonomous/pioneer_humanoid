@@ -15,7 +15,11 @@ _ASSET_DIR = os.path.join(
     os.path.dirname(__file__), "..", "..", "..", "assets", "old_leg_only_humanoid"
 )
 _URDF_PATH = os.path.join(_ASSET_DIR, "rl_baseline_v1.urdf")
-_USD_DIR = os.path.join(_ASSET_DIR, "usd", "rl_baseline_v1")
+# Generated conversion output is local to this checkout, never a tracked asset.
+# Isaac converts the frozen URDF on first launch and reuses the cache afterward.
+_USD_DIR = os.path.join(
+    os.path.dirname(__file__), "..", "..", "..", "outputs", "isaac", "rough_baseline_v1"
+)
 
 # Mild crouch; negative knee position is hardware-convention flexion.
 # With the corrected knee axes, 0.84 m places the foot soles at the terrain

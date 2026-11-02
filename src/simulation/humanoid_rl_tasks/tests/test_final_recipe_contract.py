@@ -2,7 +2,7 @@
 
 The fingerprint was captured from the pre-flattening recipe, excluding only the
 two unused self-contact diagnostic sensors deliberately removed by this change.
-Only the explicit versioned-asset relocation is normalized; physical settings
+Only explicit source-asset/cache relocation is normalized; physical settings
 remain part of the fingerprint. This does not validate installed Isaac physics.
 """
 
@@ -148,7 +148,7 @@ def _plain(value):
             "assets/old_leg_only_humanoid/rl_baseline_v1.urdf",
             "assets/whole_body_humanoid/whole_body_humanoid.urdf",
         ).replace(
-            "assets/old_leg_only_humanoid/usd/rl_baseline_v1",
+            "outputs/isaac/rough_baseline_v1",
             "assets/whole_body_humanoid/usd",
         )
     return value
@@ -229,8 +229,9 @@ class FinalRecipeContracts(unittest.TestCase):
         self.assertEqual(_fingerprint(baseline), ROBOT_FINGERPRINT)
         self.assertTrue(baseline.spawn.asset_path.replace("\\", "/").endswith(
             "/assets/old_leg_only_humanoid/rl_baseline_v1.urdf"))
-        self.assertTrue(baseline.spawn.usd_dir.replace("\\", "/").endswith(
-            "/assets/old_leg_only_humanoid/usd/rl_baseline_v1"))
+        self.assertEqual(Path(baseline.spawn.usd_dir).resolve(),
+                         ROOT / "outputs/isaac/rough_baseline_v1")
+        self.assertIn("outputs/", (ROOT / ".gitignore").read_text().splitlines())
 
     def test_final_baseline_does_not_change_legacy_robot_or_height_target(self):
         shared = self.namespace["WHOLE_BODY_HUMANOID_CFG"]

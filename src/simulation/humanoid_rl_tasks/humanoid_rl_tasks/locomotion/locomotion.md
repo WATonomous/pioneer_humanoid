@@ -124,8 +124,12 @@ The recipe uses `pioneer_humanoid/rough_baseline.py` and the isolated
 `assets/old_leg_only_humanoid/rl_baseline_v1.urdf`. This frozen baseline retains
 the recipe's knee axes/limits, 0.84 m nominal root height, mirrored nominal
 ankle-pitch signs, and actuator settings. It does **not** modify the latest
-upstream robot asset or legacy Flat/Rough tasks. The separate cached USD and
-selective-collision conversion cache also avoid replacing upstream assets.
+upstream robot asset or legacy Flat/Rough tasks. Isaac converts the baseline URDF
+on first launch into ignored `outputs/isaac/rough_baseline_v1/`; the baseline and
+selective-collision configuration share this cache. Generated USD is not checked
+in, and later launches reuse matching conversion output. Use the pinned team
+simulator stack when regenerating it, rather than substituting another robot's
+USD or assuming conversion across simulator versions is identical.
 See the [baseline compatibility notes](../../../../../assets/old_leg_only_humanoid/RL_BASELINE.md)
 before changing its geometry. Older checked-in flat model3900 and rough
 model2999 are not policies for this recipe. Do not mix a policy trained with

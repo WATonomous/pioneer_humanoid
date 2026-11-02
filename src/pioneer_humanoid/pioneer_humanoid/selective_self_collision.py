@@ -16,6 +16,8 @@ import isaaclab.sim as sim_utils
 from isaaclab.sim import schemas
 from pxr import Usd, UsdPhysics
 
+from .rough_baseline import _USD_DIR
+
 
 WATO_RIGID_BODY_NAMES = frozenset(
     {
@@ -45,17 +47,7 @@ WATO_ALLOWED_SELF_COLLISION_PAIRS = frozenset(
     }
 )
 
-_SELECTIVE_USD_CACHE = os.path.abspath(
-    os.path.join(
-        os.path.dirname(__file__),
-        "..",
-        "..",
-        "..",
-        "outputs",
-        "isaac",
-        "rough_baseline_v1",
-    )
-)
+_SELECTIVE_USD_CACHE = os.path.abspath(_USD_DIR)
 
 
 def _apply_selective_self_collision_filters(root_prim: Usd.Prim) -> None:
