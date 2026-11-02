@@ -1,338 +1,147 @@
+"""Shuttle EKF node: TrackNet hotspots (+ depth) in, the shuttle's 3D state and predicted impact out.
+
+The maths is in shuttle_ekf.py; this node only moves messages in and out.
+
+Subscribes  /shuttle/hotspots                        (vision_msgs/Detection2DArray, from tracknet_node)
+            /camera/color/camera_info                (sensor_msgs/CameraInfo: focal length, image centre)
+            /camera/aligned_depth_to_color/image_raw (sensor_msgs/Image: depth, pixel-aligned with the
+                                                      colour image; optional, used when available)
+Publishes   /shuttle/state     (nav_msgs/Odometry) position (m) and velocity (m/s) in the camera frame
+                               (x right, y down, z forward), with covariance; only while tracked
+            /shuttle/impact    (common_msgs/PerceptionImpactEstimation) when the shuttle is predicted
+                               to come within impact_radius of the camera
+
+Parameters  camera_pitch_deg  how far the camera looks up from level (0), sets gravity's direction
+            fps               camera frame rate (30)
+            impact_radius     m (2.0)
+            look_ahead        s, how far ahead to predict the impact (2.0)
+"""
+from collections import deque
+
+import numpy as np
 import rclpy
 from rclpy.node import Node
-
-from geometry_msgs.msg import Pose, PointStamped
-from std_msgs.msg import Bool
+from rclpy.qos import qos_profile_sensor_data
+from cv_bridge import CvBridge
 from common_msgs.msg import PerceptionImpactEstimation
-import numpy as np
+from nav_msgs.msg import Odometry
+from sensor_msgs.msg import CameraInfo, Image
+from vision_msgs.msg import Detection2DArray
+
+from perception.shuttle_ekf import Camera, ShuttleEKF
+
+
+def seconds(stamp):
+    return stamp.sec + stamp.nanosec * 1e-9
+
+
+def patch_depths(depth_img, u, v):
+    """Valid readings (m) in the 5x5 patch around (u, v)."""
+    to_m = 0.001 if depth_img.dtype == np.uint16 else 1.  # RealSense: uint16 mm; simulators: float m
+    ui, vi = int(round(u)), int(round(v))
+    patch = depth_img[max(vi - 2, 0):vi + 3, max(ui - 2, 0):ui + 3].astype(float)
+    return patch[(patch > 0) & np.isfinite(patch)] * to_m
+
+
+def depth_reader(depth_img, earlier_imgs, margin=0.3):
+    """depth_at(u, v) for ShuttleEKF.
+
+    A shuttle covers only a few pixels of the 5x5 patch, and TrackNet's pixel can be a few pixels off,
+    so most of the patch shows what is behind it: take the closest reading, not the median. The camera
+    is fixed, so the usual depth at that pixel (median over earlier images) is the background; the
+    closest reading counts as the shuttle only if it is at least margin (m) in front of it. Otherwise
+    the sensor missed the shuttle and saw the wall or floor: no reading."""
+    def depth_at(u, v):
+        now = patch_depths(depth_img, u, v)
+        if not now.size:
+            return None
+        behind = [np.median(d) for d in (patch_depths(img, u, v) for img in earlier_imgs) if d.size]
+        closest = float(now.min())
+        if behind and closest > np.median(behind) - margin:
+            return None
+        return closest
+    return depth_at
 
 
 class EKFPredictionNode(Node):
     def __init__(self):
         super().__init__('trajectory_EKF_prediction_node')
-        self.dt = 0.01
-        # ---------------- STATE ----------------
-        # [px, py, pz, vx, vy, vz]
-        self.x = np.zeros(6)
-        self.true_pos = np.zeros(3)
-        self.true_pos_valid = False
-        self.increments = 0
+        self.pitch = self.declare_parameter('camera_pitch_deg', 0.).value
+        self.fps = self.declare_parameter('fps', 30.).value
+        self.impact_radius = self.declare_parameter('impact_radius', 2.).value
+        self.look_ahead = self.declare_parameter('look_ahead', 2.).value
 
-        # ---------------- COVARIANCE ----------------
-        self.P = np.eye(6) * 0.1
-        self.P[3:6, 3:6] = np.eye(3) * 50.0   # high uncertainty on vx, vy, vz
-        self.R = (0.04 ** 2) * np.eye(3)  # measurement noise
-        self.process_noise_pos = 1e-2
-        self.process_noise_vel = 1e-2
+        self.ekf = None                   # created once the camera's calibration arrives
+        self.depths = deque(maxlen=15)    # recent (time, depth image): to match each frame's hotspots,
+        #                                   and as the background (half a second at 30 fps)
+        self.bridge = CvBridge()
+        self.create_subscription(CameraInfo, '/camera/color/camera_info', self.on_camera_info,
+                                 qos_profile_sensor_data)
+        self.create_subscription(Image, '/camera/aligned_depth_to_color/image_raw', self.on_depth,
+                                 qos_profile_sensor_data)
+        self.create_subscription(Detection2DArray, '/shuttle/hotspots', self.on_hotspots, 10)
+        self.state_pub = self.create_publisher(Odometry, '/shuttle/state', 10)
+        self.impact_pub = self.create_publisher(PerceptionImpactEstimation, '/shuttle/impact', 10)
 
-        # ---------------- CONSTANTS ----------------
-        self.g = np.array([0.0, 0.0, -9.81])
-        self.L = 3.4  # aerodynamic characteristic length (L-value)
-        self.look_ahead_time = 2  # seconds
-        self.bounding_sphere_radius = 2.0  # meters
+    def on_camera_info(self, msg):
+        if self.ekf is None:
+            fx, _, cx, _, fy, cy = msg.k[:6]
+            camera = Camera(fx, fy, cx, cy, msg.width, msg.height, self.pitch)
+            self.ekf = ShuttleEKF(camera, fps=self.fps)
+            self.get_logger().info(f'Camera {msg.width}x{msg.height}, fx {fx:.0f}: EKF ready')
 
-        # ---------------- ROS ----------------
-        self.pub = self.create_publisher(Pose, '/ekf_predicted_states', 10)
-        self.sub = self.create_subscription(
-            PointStamped, '/shuttle_states', self.shuttle_callback, 10)
-        self.true_sub = self.create_subscription(
-            PointStamped,
-            '/shuttle_states_true',
-            self.shuttle_true_callback,
-            10
-        )
-        self.new_spawn = self.create_subscription(
-            Bool, '/shuttle_spawned', self.shuttle_spawned_callback, 10)
-        self.impact_estimate_pub = self.create_publisher(
-            PerceptionImpactEstimation, '/ekf_impact', 10)
+    def on_depth(self, msg):
+        self.depths.append((seconds(msg.header.stamp), self.bridge.imgmsg_to_cv2(msg, 'passthrough')))
 
-        self.latest_meas = None
-        self.latest_meas_time = None
-        self.new_meas_available = False
-        self.low_uncertainty = False
+    def on_hotspots(self, msg):
+        if self.ekf is None:
+            self.get_logger().warn('No camera_info yet', throttle_duration_sec=2.)
+            return
+        time = seconds(msg.header.stamp)
+        hotspots = [(d.bbox.center.position.x, d.bbox.center.position.y, d.results[0].hypothesis.score)
+                    for d in msg.detections]
+        # Depth image taken at the same moment (within half a frame), if any
+        depth_at = None
+        if self.depths:
+            t, img = min(self.depths, key=lambda d: abs(d[0] - time))
+            if abs(t - time) <= 0.5 / self.fps:
+                depth_at = depth_reader(img, [d for _, d in self.depths if d is not img])
 
-        # ---------------- VELOCITY SEEDING ----------------
-        self.prev_meas = None
-        self.velocity_initialized = False
-        self.prev_meas_time = None
-
-        self.timer = self.create_timer(self.dt, self.step)
-
-    # ---------------- CALLBACK ----------------
-    def shuttle_callback(self, msg):
-
-        if self.latest_meas_time is not None:
-            dt_elapsed = (
-                msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
-                - (
-                    self.latest_meas_time.sec
-                    + self.latest_meas_time.nanosec * 1e-9
-                )
-            )
-            # over 3 seconds of no measurements, assume new shuttle
-            if dt_elapsed > 3:
-                self.shuttle_spawned_callback(Bool(data=True))
-
-        self.latest_meas = msg
-        self.latest_meas_time = msg.header.stamp
-        self.new_meas_available = True
-
-        z = np.array([msg.point.x, msg.point.y, msg.point.z])
-
-        if not self.velocity_initialized:
-            # Always initialize position from the first measurement so
-            # published state/impact estimation aren't based on (0, 0, 0).
-            if self.prev_meas is None:
-                self.x[0:3] = z
-                self.prev_meas = z
-                self.prev_meas_time = msg.header.stamp
-                return
-
-            dt_elapsed = (
-                self.latest_meas_time.sec
-                + self.latest_meas_time.nanosec * 1e-9
-                - (
-                    self.prev_meas_time.sec
-                    + self.prev_meas_time.nanosec * 1e-9
-                )
-            )
-            # Keep position synced to the latest measurement while we wait
-            # to seed velocity.
-            self.x[0:3] = z
-
-            # guard: only seed if elapsed time is not like zero or too small
-            if dt_elapsed > 0.001:
-                v_init = (z - self.prev_meas) / dt_elapsed
-                self.x[3:6] = v_init
-                self.velocity_initialized = True
-                self.get_logger().info(f"Velocity seeded: {v_init}")
-
-            self.prev_meas = z
-            self.prev_meas_time = msg.header.stamp
-
-    def shuttle_true_callback(self, msg):
-        self.true_pos = np.array([
-            msg.point.x,
-            msg.point.y,
-            msg.point.z
-        ])
-        self.true_pos_valid = True
-
-    def shuttle_spawned_callback(self, msg):
-        if msg.data:
-            self.get_logger().info("Shuttle spawned → resetting EKF state")
-            self.x = np.zeros(6)
-            self.P = np.eye(6) * 0.1
-            self.P[3:6, 3:6] = np.eye(3) * 50.0
-            self.increments = 0
-            self.latest_meas = None
-            self.new_meas_available = False
-            self.latest_meas_time = None
-            self.true_pos = np.zeros(3)
-            self.true_pos_valid = False
-            self.low_uncertainty = False
-            self.prev_meas = None
-            self.velocity_initialized = False
-            self.prev_meas_time = None
-
-    # ---------------- MODEL ----------------
-    def f(self, x):
-        p = x[0:3]
-        v = x[3:6]
-
-        speed = np.linalg.norm(v)
-
-        dp = v
-        dv = self.g - (speed / self.L) * v
-
-        p_new = p + dp * self.dt
-        v_new = v + dv * self.dt
-
-        return np.hstack((p_new, v_new))
-
-    # ---------------- JACOBIAN ----------------
-    def F_jacobian(self, x):
-        v = x[3:6]
-        speed = np.linalg.norm(v) + 1e-12
-
-        F = np.eye(6)
-
-        # dp/dv = I * dt
-        F[0:3, 3:6] = np.eye(3) * self.dt
-
-        # dv/dv nonlinear drag term
-        identity = np.eye(3)
-
-        # derivative of (|v| v)
-        outer = np.outer(v, v) / speed
-
-        drag_jac = (1 / self.L) * (speed * identity + outer)
-
-        F[3:6, 3:6] = identity - drag_jac * self.dt
-
-        return F
-
-    # ---------------- IMPACT ESTIMATION ----------------
-    def estimate_impact(self):
-        # Avoid publishing a false "impact at origin" before the filter is initialized.
-        if self.latest_meas is None or not self.velocity_initialized:
+        self.ekf.update(time, hotspots, depth_at)
+        if not self.ekf.visible():
             return
 
-        future_x = self.x.copy()
-        impact = False
-        time_to_impact = -1
-        position_of_impact = np.zeros(3)
-        hitback_direction = np.zeros(3)
+        x, P = self.ekf.x, self.ekf.P
+        state = Odometry(header=msg.header)
+        p, v = state.pose.pose.position, state.twist.twist.linear
+        p.x, p.y, p.z = x[:3]
+        v.x, v.y, v.z = x[3:]
+        state.pose.pose.orientation.w = 1.
+        cov = np.zeros((2, 6, 6))  # Odometry covariances are 6x6 (xyz + rotation); rotation unused
+        cov[0, :3, :3], cov[1, :3, :3] = P[:3, :3], P[3:, 3:]
+        state.pose.covariance, state.twist.covariance = cov[0].ravel(), cov[1].ravel()
+        self.state_pub.publish(state)
 
-        already_impacted = (
-            future_x[0]**2 + future_x[1]**2 + future_x[2]**2
-            <= self.bounding_sphere_radius**2
-        )
-        if already_impacted:
-            impact = True
-            time_to_impact = 0.0
-            position_of_impact = future_x[0:3]
-            vel = future_x[3:6]
-            vel_norm = np.linalg.norm(vel)
-            hitback_direction = (
-                -(vel / vel_norm) if vel_norm > 1e-9 else np.zeros(3)
-            )
-        else:
-            for i in range(int(self.look_ahead_time / self.dt)):
-                future_x = self.f(future_x)
-                if (
-                    future_x[0]**2 + future_x[1]**2 + future_x[2]**2
-                    <= self.bounding_sphere_radius**2
-                ):
-                    impact = True
-                    vel = future_x[3:6]
-                    vel_norm = np.linalg.norm(vel)
-                    hitback_direction = (
-                        -(vel / vel_norm) if vel_norm > 1e-9
-                        else np.zeros(3)
-                    )
-                    time_to_impact = (i + 1) * self.dt
-                    position_of_impact = future_x[0:3]
-                    break
-        if impact:
-            self.get_logger().debug(
-                "Impact estimated in "
-                f"{time_to_impact:.2f} seconds at position "
-                f"{position_of_impact} with hit back racket direction "
-                f"{hitback_direction}"
-            )
-        else:
-            self.get_logger().debug(
-                f"No impact estimated in the next {self.look_ahead_time} seconds"
-            )
-            return
-
-        # Publish the impact estimate
-        impact_msg = PerceptionImpactEstimation()
-        impact_msg.time_to_impact = float(time_to_impact)
-
-        impact_msg.position_of_impact.x = float(position_of_impact[0])
-        impact_msg.position_of_impact.y = float(position_of_impact[1])
-        impact_msg.position_of_impact.z = float(position_of_impact[2])
-
-        impact_msg.hitback_direction.x = float(hitback_direction[0])
-        impact_msg.hitback_direction.y = float(hitback_direction[1])
-        impact_msg.hitback_direction.z = float(hitback_direction[2])
-
-        impact_msg.uncertainty = float(np.trace(self.P))
-        impact_msg.header.stamp = self.get_clock().now().to_msg()
-        impact_msg.header.frame_id = (
-            self.latest_meas.header.frame_id
-            if self.latest_meas is not None
-            else "robot_base_link"
-        )
-
-        self.impact_estimate_pub.publish(impact_msg)
-
-    # ---------------- STEP ----------------
-
-    def step(self):
-        self.increments += 1
-        if (
-            self.true_pos_valid
-            and (
-                self.true_pos[0]**2
-                + self.true_pos[1]**2
-                + self.true_pos[2]**2
-                <= self.bounding_sphere_radius**2
-            )
-        ):
-            self.get_logger().debug(
-                f"Shuttle has impacted at true position {self.true_pos}")
-        if (np.trace(self.P) < 2):
-            if (not self.low_uncertainty):
-                self.get_logger().info(
-                    "Low uncertainty → reducing process noise"
-                )
-            self.process_noise_pos = 1e-5
-            self.process_noise_vel = 1e-5
-            self.low_uncertainty = True
-        else:
-            self.process_noise_pos = 1e-2
-            self.process_noise_vel = 1e-2
-
-        # ===== PREDICT =====
-        F = self.F_jacobian(self.x)   # old state
-        self.x = self.f(self.x)
-
-        Q = np.eye(6)
-        Q[0:3, 0:3] *= self.process_noise_pos
-        Q[3:6, 3:6] *= self.process_noise_vel
-        self.P = F @ self.P @ F.T + Q
-
-        # ===== UPDATE =====
-        if self.latest_meas is not None and self.new_meas_available:
-            z = np.array([
-                self.latest_meas.point.x,
-                self.latest_meas.point.y,
-                self.latest_meas.point.z
-            ])
-
-            H = np.zeros((3, 6))
-            H[:, 0:3] = np.eye(3)
-
-            y = z - H @ self.x
-
-            S = H @ self.P @ H.T + self.R
-            PHt = self.P @ H.T
-            K = np.linalg.solve(S.T, PHt.T).T
-            self.x = self.x + K @ y
-
-            identity = np.eye(6)
-            I_KH = identity - K @ H
-            self.P = I_KH @ self.P @ I_KH.T + K @ self.R @ K.T
-
-        # ==== IMPACT ESTIMATION (post-update) ====
-        self.estimate_impact()
-
-        # ===== PUBLISH =====
-        msg = Pose()
-        msg.position.x = float(self.x[0])
-        msg.position.y = float(self.x[1])
-        msg.position.z = float(self.x[2])
-        msg.orientation.w = 1.0
-        if (
-            self.true_pos_valid
-            and self.latest_meas is not None
-            and self.new_meas_available
-        ):
-            self.get_logger().debug(
-                f"Total Error: {np.linalg.norm(self.true_pos - self.x[0:3])}")
-
-        self.get_logger().debug(f'Predicted Position: {self.x[0:3]}')
-        self.new_meas_available = False
-
-        self.pub.publish(msg)
+        impact = self.ekf.predict_impact(self.impact_radius, self.look_ahead)
+        if impact is not None:
+            secs, position, velocity = impact
+            out = PerceptionImpactEstimation(header=msg.header)
+            out.time_to_impact = float(secs)
+            out.position_of_impact.x, out.position_of_impact.y, out.position_of_impact.z = position
+            # Hit back along the incoming path
+            out.hitback_direction.x, out.hitback_direction.y, out.hitback_direction.z = \
+                -velocity / (np.linalg.norm(velocity) + 1e-9)
+            out.uncertainty = float(np.trace(P))
+            self.impact_pub.publish(out)
 
 
 def main(args=None):
     rclpy.init(args=args)
     node = EKFPredictionNode()
-    rclpy.spin(node)
-    node.destroy_node()
-    rclpy.shutdown()
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
