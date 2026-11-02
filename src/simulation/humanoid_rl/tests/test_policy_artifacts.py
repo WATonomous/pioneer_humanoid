@@ -106,7 +106,7 @@ class PolicyMetadataTests(unittest.TestCase):
         expected["checkpoint"] = "/another/machine/model_4000.pt"
         self.assertEqual(self.load(expected), expected)
 
-    def test_play_aliases_and_separate_stairs_task(self):
+    def test_play_aliases_and_separate_onshape_tasks(self):
         for task, canonical in SUPPORTED_TASKS.items():
             with self.subTest(task=task):
                 self.assertEqual(canonical_task(task), canonical)
@@ -114,11 +114,12 @@ class PolicyMetadataTests(unittest.TestCase):
                 value["task"] = task
                 self.assertEqual(self.load(value, canonical)["task"], task)
         with self.assertRaisesRegex(ValueError, "Task mismatch"):
-            self.load(manifest(), "Isaac-Locomotion-Stairs-PioneerHumanoid-Play-v0")
+            self.load(manifest(), "Isaac-Locomotion-OnshapeCourse-PioneerHumanoid-Play-v0")
 
     def test_rejects_retired_training_and_flat_tasks(self):
         for task in (
             "Isaac-Locomotion-RoughNoStairs-PioneerHumanoid-Play-v0",
+            "Isaac-Locomotion-Stairs-PioneerHumanoid-Play-v0",
             DEFAULT_TASK.replace("-Play", ""),
             "Isaac-Locomotion-Flat-PioneerHumanoid-Play-v0",
             None,

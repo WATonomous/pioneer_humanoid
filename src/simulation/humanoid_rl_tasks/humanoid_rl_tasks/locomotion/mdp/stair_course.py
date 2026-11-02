@@ -1,6 +1,6 @@
 """Completion and curriculum for a forward up–walk–down stair course.
 
-Only the stairs task imports these terms. All coordinates are relative to the
+Only the Onshape stair-course tasks import these terms. All coordinates are relative to the
 terrain's spawn origin, so tiles can be translated freely in the training map.
 """
 
@@ -67,7 +67,7 @@ def face_course_direction(
     ascent followed by a slow backward re-climb and topple). Small yaw
     transients inside ``deadband`` stay free for balance recovery; beyond it
     the cost grows quadratically, symmetric left/right. Corridor-only: open
-    terrain tasks need turning, so this lives in the stairs MDP module.
+    terrain tasks need turning, so this lives in the Onshape stair-course MDP module.
     """
     yaw = env.scene[asset_name].data.heading_w
     err = (yaw - target + torch.pi) % (2.0 * torch.pi) - torch.pi

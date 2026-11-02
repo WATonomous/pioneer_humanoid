@@ -4,7 +4,7 @@ Velocity-commanded bipedal locomotion for **Pioneer humanoid Simulation Model V1
 
 Asset: `assets/old_leg_only_humanoid/` (SolidWorks URDF export).
 Legacy Flat/Rough tasks use the upstream `old_leg_only_humanoid.urdf` and
-`pioneer_humanoid/old_leg_only.py` unchanged. The rough-no-stairs and stairs tasks
+`pioneer_humanoid/old_leg_only.py` unchanged. The rough-no-stairs and Onshape tasks
 use a separate, frozen research baseline; see
 [robot baseline isolation](../../../../../assets/old_leg_only_humanoid/RL_BASELINE.md).
 
@@ -18,8 +18,10 @@ use a separate, frozen research baseline; see
 | `Isaac-Locomotion-Rough-PioneerHumanoid-Play-v0` | Procedural rough | Play |
 | `Isaac-Locomotion-RoughNoStairsSelectiveKneeShape-PioneerHumanoid-v0` | Rough without stairs, corrected knees and selective self-collision | Train |
 | `Isaac-Locomotion-RoughNoStairsSelectiveKneeShape-PioneerHumanoid-Play-v0` | Matching rough-no-stairs recipe | Play |
-| `Isaac-Locomotion-Stairs-PioneerHumanoid-v0` | Twelve steps up, raised walkway, twelve steps down | Train scaffold |
-| `Isaac-Locomotion-Stairs-PioneerHumanoid-Play-v0` | Fixed 8 cm full-course inspection | Play scaffold |
+| `Isaac-Locomotion-OnshapeCourse-PioneerHumanoid-v0` | Onshape straight staircase USD course | Train scaffold |
+| `Isaac-Locomotion-OnshapeCourse-PioneerHumanoid-Play-v0` | Fixed Onshape straight course inspection | Play scaffold |
+| `Isaac-Locomotion-OnshapeSpiral-PioneerHumanoid-v0` | Onshape spiral staircase USD course | Train scaffold |
+| `Isaac-Locomotion-OnshapeSpiral-PioneerHumanoid-Play-v0` | Fixed Onshape spiral course inspection | Play scaffold |
 
 Legacy aliases `Isaac-Velocity-*` register the same configs.
 
@@ -145,10 +147,9 @@ Evaluate learned stepping symmetry, foot paths, falls, turning, and sustained
 walking rather than relying on total reward or a short demonstration. Source
 and wiring tests do not establish locomotion or hardware robustness.
 
-The [stairs handoff](STAIRS.md) inherits this 19-reward recipe and provides a
-complete ascent → raised walkway → descent course. It is a training scaffold;
-no stairs policy is supplied. Its validation commands distinguish CPU checks,
-simulator wiring, and actual locomotion performance.
+The Onshape stair courses inherit this 19-reward recipe and use the STEP-derived
+USD meshes in `assets/staircase_onshape/`. They are training scaffolds; no
+trained Onshape policy is supplied.
 
 **Spawn / joint smoke checks**
 
@@ -173,5 +174,5 @@ $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/diagnose_joints.py \
 | Ankle pitch / roll | `Ankle_P_*`, `Ankle_R_*` |
 
 Robot configs: `pioneer_humanoid/old_leg_only.py` for legacy Flat/Rough;
-`pioneer_humanoid/rough_baseline.py` for rough-no-stairs and stairs.
+`pioneer_humanoid/rough_baseline.py` for rough-no-stairs and Onshape courses.
 Task configs are under `config/pioneer_humanoid_v1/`.

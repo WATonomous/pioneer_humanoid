@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Record a follow-camera video of a stair policy on a *-Play course task.
+"""Record a follow-camera video of a locomotion policy on a *-Play course task.
 
 The default headless viewport never follows the robot, so plain --video clips
 show empty ground. This script re-points the viewport camera at env 0's robot
@@ -12,7 +12,7 @@ after ``video_length`` steps.
 
 Example:
     isaaclab.sh -p record_follow.py \\
-        --task Isaac-Velocity-Stairs-PioneerHumanoid-Play-v0 \\
+        --task Isaac-Velocity-OnshapeCourse-PioneerHumanoid-Play-v0 \\
         --checkpoint <model.pt> --video_length 3000 --enable_cameras
 """
 

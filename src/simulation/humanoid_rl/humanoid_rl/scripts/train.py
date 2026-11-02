@@ -30,7 +30,7 @@ parser.add_argument("--max_iterations", type=int, default=None,
                     help="RL Policy training iterations.")
 parser.add_argument("--warm_start_checkpoint", type=str, default=None,
                     help="Policy checkpoint to warm-start from (e.g. a walker "
-                         "donor for a stairs curriculum). Loads policy weights "
+                         "donor for an Onshape course curriculum). Loads policy weights "
                          "only -- optimizer and iteration counter start fresh, "
                          "unlike --resume which continues the same run.")
 parser.add_argument(
@@ -166,7 +166,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         runner.load(resume_path)
     # warm-start: policy weights only (actor/critic/normalizers), fresh
     # optimizer and iteration counter. For cross-task transfer (e.g. walker
-    # donor -> stairs curriculum), NOT a continuation of the donor run.
+    # donor -> Onshape course curriculum), NOT a continuation of the donor run.
     if args_cli.warm_start_checkpoint:
         if not os.path.isfile(args_cli.warm_start_checkpoint):
             raise FileNotFoundError(

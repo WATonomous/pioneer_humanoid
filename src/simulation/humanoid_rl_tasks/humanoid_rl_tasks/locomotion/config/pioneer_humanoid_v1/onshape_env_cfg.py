@@ -171,7 +171,7 @@ _PUSH_VELOCITY = {"x": (-0.5, 0.5), "y": (-0.3, 0.3)}
 
 @configclass
 class PioneerHumanoidOnshapeCourseEnvCfg(PioneerHumanoidRoughNoStairsSelectiveKneeShapeEnvCfg):
-    """Onshape course training template (warm-started from stairs checkpoints).
+    """Onshape course training template (same 19-reward recipe as rough-no-stairs).
 
     The course runs +Y as modeled, so the spawn faces +Y at yaw pi/2 and every
     course reward / termination takes axis=1 (or target=pi/2). All envs share
@@ -482,7 +482,7 @@ class PioneerHumanoidOnshapeCourseEnvCfg(PioneerHumanoidRoughNoStairsSelectiveKn
         # deficit term.
         self.rewards.knee_swing_flexion.params["minimum_flexion"] = 0.28
         self.rewards.knee_swing_flexion.weight = -4.0
-        # Feet stay down: the inherited stairs air-time term is weight 4.0 with a
+        # Feet stay down: the inherited rough-no-stairs air-time term is weight 4.0 with a
         # 0.2 s threshold, and the visual eval flagged the result as "jumping"
         # (the policy buys air time). Cut to 1.0, NOT re-thresholded: the term is
         # paid as max(air - threshold, 0), so raising the threshold makes the
@@ -500,7 +500,7 @@ class PioneerHumanoidOnshapeCourseEnvCfg(PioneerHumanoidRoughNoStairsSelectiveKn
         self.rewards.track_ang_vel_z_exp.weight = 1.0
         self.rewards.action_rate_l2.weight = -0.002
         # Falls must hurt. Reward weights are per-second rates (x dt = 0.02),
-        # so the stairs recipe's -50 is only -1.0 per fall and -800 is -16.
+        # so the rough-no-stairs recipe's -50 is only -1.0 per fall and -800 is -16.
         # -800 is a *warm-start* setting: a fresh random policy sees a -16.0
         # spike (the whole iteration-0 return) and its noise std runs away into
         # the flail-and-fall collapse, which is why the from-scratch lineage

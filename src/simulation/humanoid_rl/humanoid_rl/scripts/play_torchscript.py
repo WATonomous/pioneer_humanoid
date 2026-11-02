@@ -54,8 +54,8 @@ def _parse_args():
         parser.error("--video_seconds must be finite and positive.")
     if not all(math.isfinite(value) for value in args.command):
         parser.error("--command values must be finite.")
-    if args.flat_terrain and "-Stairs-" in canonical_task(args.task):
-        parser.error("--flat_terrain is for RoughNoStairs; it does not replace the stairs course.")
+    if args.flat_terrain and "Onshape" in canonical_task(args.task):
+        parser.error("--flat_terrain is for RoughNoStairs; it does not replace the Onshape course.")
     if args.video:
         args.enable_cameras = True
     return args, AppLauncher

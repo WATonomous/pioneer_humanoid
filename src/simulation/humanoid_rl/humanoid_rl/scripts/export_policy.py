@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Export a normalized Pioneer checkpoint on CPU, without launching Isaac Sim.
 
-Only the registered rough-no-stairs knee-shape and stairs recipes are supported.
+Only the registered rough-no-stairs knee-shape and Onshape course (straight or spiral) recipes are supported.
 The task must be supplied from the training recipe: weights alone do not identify
 their training environment or prove stair-climbing capability.
 """

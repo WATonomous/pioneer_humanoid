@@ -7,9 +7,10 @@ Prefer matching **Isaac Lab 2.3.2 / Isaac Sim 5.1** on both sides. This contribu
 includes no trained policy, checkpoint, or training run.
 
 Supported play tasks are
-`Isaac-Locomotion-RoughNoStairsSelectiveKneeShape-PioneerHumanoid-Play-v0` and
-`Isaac-Locomotion-Stairs-PioneerHumanoid-Play-v0`. Equivalent `Isaac-Velocity-*`
-aliases are accepted. Legacy Flat/plain Rough tasks are not supported by this
+`Isaac-Locomotion-RoughNoStairsSelectiveKneeShape-PioneerHumanoid-Play-v0`,
+`Isaac-Locomotion-OnshapeCourse-PioneerHumanoid-Play-v0`, and
+`Isaac-Locomotion-OnshapeSpiral-PioneerHumanoid-Play-v0`. Equivalent
+`Isaac-Velocity-*` aliases are accepted. Legacy Flat/plain Rough tasks are not supported by this
 helper. The task label alone cannot prove that a checkpoint was trained with
 the matching recipe, or that it can walk or climb stairs.
 
@@ -31,9 +32,10 @@ CUDA_VISIBLE_DEVICES="" "$ISAACLAB/isaaclab.sh" -p -u "$RL_RUNNERS/export_policy
 ```
 
 Replace the placeholders with the exact saved checkpoint. For a checkpoint
-actually trained on the stairs recipe, use its path and set `POLICY_TASK` to
-`Isaac-Locomotion-Stairs-PioneerHumanoid-Play-v0` before exporting. Changing the
-label does not turn a rough-terrain checkpoint into a stairs policy.
+actually trained on the Onshape course recipe, use its path and set
+`POLICY_TASK` to `Isaac-Locomotion-OnshapeCourse-PioneerHumanoid-Play-v0` before
+exporting. Changing the label does not turn a rough-terrain checkpoint into an
+Onshape-course policy.
 
 The exporter reconstructs the actor and saved observation normalizers on CPU;
 it does not launch Isaac Sim or train. It produces TorchScript plus a **version-3
@@ -77,7 +79,7 @@ $viewer = '\\wsl.localhost\Ubuntu\home\your-user\humanoid\src\simulation\humanoi
   --num_envs 1 --seed 42 --command 0.5 0 0
 ```
 
-For stairs playback, substitute the matching stairs play ID used for export.
+For Onshape-course playback, substitute the matching Onshape play ID used for export.
 The launcher temporarily maps UNC paths with `pushd`, prepends this checkout's
 three Python source packages to `PYTHONPATH`, waits for the viewer, returns its
 upstream launcher's exit code, and removes the temporary mapping. Some Isaac Lab
@@ -97,7 +99,7 @@ wait until the GPU is available before opening another simulator.
 **Escape** with the Isaac viewport focused. Add `--max_steps 1000` for a finite
 smoke test. `--num_envs 9` gives an overview; `--command VX VY YAW_RATE` sets the
 fixed velocity command. `--flat_terrain` is a rough-task-only diagnostic override,
-not a different trained policy or a valid option for the stairs task.
+not a different trained policy or a valid option for the Onshape-course task.
 
 To record, append
 `--video --video_seconds 20 --video_folder outputs/native_viewer/videos` to a

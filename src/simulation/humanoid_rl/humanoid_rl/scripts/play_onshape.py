@@ -225,7 +225,7 @@ def _follow_cam_step(
     """Track the robot with a low-pass filter, so the shot does not judder.
 
     The pelvis bobs and pitches with every step, and the robot's speed is not
-    constant on the stairs, so a camera that simply copies the root's position
+    constant on the course, so a camera that simply copies the root's position
     makes the whole frame shake (the old follow-cam snapped to the root every
     10 steps, which is worse still: the jump is visible as a jolt). Here the
     desired eye/target are computed from the root and then low-pass filtered

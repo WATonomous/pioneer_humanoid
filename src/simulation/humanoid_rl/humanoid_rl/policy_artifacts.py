@@ -18,13 +18,17 @@ from typing import Any
 
 
 DEFAULT_TASK = "Isaac-Locomotion-RoughNoStairsSelectiveKneeShape-PioneerHumanoid-Play-v0"
-_STAIRS_TASK = "Isaac-Locomotion-Stairs-PioneerHumanoid-Play-v0"
+_ONSHAPE_TASKS = (
+    "Isaac-Locomotion-OnshapeCourse-PioneerHumanoid-Play-v0",
+    "Isaac-Locomotion-OnshapeSpiral-PioneerHumanoid-Play-v0",
+)
 SUPPORTED_TASKS = {
     DEFAULT_TASK: DEFAULT_TASK,
     DEFAULT_TASK.replace("Isaac-Locomotion-", "Isaac-Velocity-"): DEFAULT_TASK,
-    _STAIRS_TASK: _STAIRS_TASK,
-    _STAIRS_TASK.replace("Isaac-Locomotion-", "Isaac-Velocity-"): _STAIRS_TASK,
 }
+for _task in _ONSHAPE_TASKS:
+    SUPPORTED_TASKS[_task] = _task
+    SUPPORTED_TASKS[_task.replace("Isaac-Locomotion-", "Isaac-Velocity-")] = _task
 EXPECTED_OBSERVATION_TERMS = (
     ("base_lin_vel", 3),
     ("base_ang_vel", 3),

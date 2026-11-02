@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Quantitative course evaluation for stair-climbing policies (no camera needed).
+"""Quantitative course evaluation for Onshape stair-course policies (no camera needed).
 
 Rolls out a trained RSL-RL checkpoint deterministically on a *-Play course task
 and reports tensor-measured traversal stats: goal-reach rate while upright,
@@ -11,11 +11,8 @@ falls, distance covered, and foot-height evidence of real stepping. This is the
 acceptance gate for each stair-curriculum stage: curves and completion counters
 from training are not trusted on their own.
 
-NOTE (2026-10-12): currently hangs pre-rollout (~100% CPU, no output) in two
-attempts on a StepCount-Play task; cause unknown. Do not use without fixing.
-
 Example:
-    isaaclab.sh -p eval_course.py --task Isaac-Velocity-StepCount-PioneerHumanoid-Play-v0 \\
+    isaaclab.sh -p eval_course.py --task Isaac-Velocity-OnshapeCourse-PioneerHumanoid-Play-v0 \\
         --checkpoint <model.pt> --num_envs 32 --steps 1500 --seed 123
 """
 

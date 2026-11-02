@@ -3,16 +3,15 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Open a static course in the Isaac Sim GUI for visual inspection (no policy).
+"""Open the Onshape stair course in the Isaac Sim GUI for visual inspection (no policy).
 
-Builds one *-Play course task (default: the full 12-up/walkway/12-down
-stairs at fixed 8 cm risers), parks the viewport camera side-on so the
-flights read as silhouettes, and steps zero actions until the window closes.
+Builds the Onshape straight-course *-Play task, parks the viewport camera
+side-on to the robot's spawn, and steps zero actions until the window closes.
 No checkpoint, no training, no recording.
 
 Example:
     isaaclab.sh -p view_course.py \\
-        --task Isaac-Velocity-Stairs-PioneerHumanoid-Play-v0
+        --task Isaac-Velocity-OnshapeCourse-PioneerHumanoid-Play-v0
 """
 
 """Launch Isaac Sim Simulator first."""
@@ -24,12 +23,9 @@ from isaaclab.app import AppLauncher
 
 import cli_args  # isort: skip
 
-parser = argparse.ArgumentParser(description="View a stair course in the GUI.")
-parser.add_argument("--task", type=str, default="Isaac-Velocity-Stairs-PioneerHumanoid-Play-v0",
-                    help="Name of the *-Play task (stairs-only tiles guaranteed). "
-                         "Pass the train task id to see the live curriculum map.")
-parser.add_argument("--rows", type=int, default=2, help="Terrain rows to generate (small = fast, legible map).")
-parser.add_argument("--cols", type=int, default=3, help="Terrain cols to generate.")
+parser = argparse.ArgumentParser(description="View the Onshape stair course in the GUI.")
+parser.add_argument("--task", type=str, default="Isaac-Velocity-OnshapeCourse-PioneerHumanoid-Play-v0",
+                    help="Name of the Onshape *-Play task.")
 cli_args.add_rsl_rl_args(parser)
 AppLauncher.add_app_launcher_args(parser)
 args_cli, hydra_args = parser.parse_known_args()
@@ -51,30 +47,21 @@ from isaaclab_tasks.utils import parse_env_cfg
 
 def main():
     env_cfg = parse_env_cfg(args_cli.task, device=args_cli.device, num_envs=1, use_fabric=True)
-    env_cfg.scene.terrain.terrain_generator.num_rows = args_cli.rows
-    env_cfg.scene.terrain.terrain_generator.num_cols = args_cli.cols
     env = gym.make(args_cli.task, cfg=env_cfg)
     if isinstance(env.unwrapped, DirectMARLEnv):
         env = multi_agent_to_single_agent(env)
 
-    # Course layout summary from the live config (local tile frame, metres).
-    gen = env_cfg.scene.terrain.terrain_generator
-    course = gen.sub_terrains["stair_course"]
-    print(f"[VIEW] task={args_cli.task} num_envs=1 "
-          f"families={list(gen.sub_terrains)} rows={gen.num_rows} cols={gen.num_cols}")
-    print(f"[VIEW] stair_course: steps={course.num_steps} risers={course.step_height_range} "
-          f"tread={course.step_width} approach={course.approach_length} "
-          f"walkway={course.walkway_length} spawn_x={course.spawn_x}")
-
-    # Side-profile camera, close: course runs +X, so park on -Y and look at
-    # mid-course. Narrow tiles + mini-map keep the subject large in frame.
-    origin = env.unwrapped.scene.env_origins[0].tolist()
-    eye = (origin[0] + 5.0, origin[1] - 6.0, origin[2] + 2.2)
-    target = (origin[0] + 5.0, origin[1], origin[2] + 0.5)
-    env.unwrapped.sim.set_camera_view(eye, target)
-    print(f"[VIEW] camera eye={eye} target={target} (side profile, orbit with mouse)")
-
     env.reset()
+    robot = env.unwrapped.scene["robot"]
+    pos = robot.data.root_pos_w[0].tolist()
+
+    # Side profile: the straight course runs +Y from the spawn, so look at the
+    # first flights from the robot's left side.
+    eye = (pos[0] - 5.0, pos[1] + 4.0, pos[2] + 2.2)
+    target = (pos[0], pos[1] + 4.0, pos[2] + 0.5)
+    env.unwrapped.sim.set_camera_view(eye, target)
+    print(f"[VIEW] task={args_cli.task} camera eye={eye} target={target}")
+
     zero = torch.zeros(env.unwrapped.action_manager.total_action_dim,
                        device=env.unwrapped.device).unsqueeze(0)
     print("[VIEW] holding zero actions until the window closes")

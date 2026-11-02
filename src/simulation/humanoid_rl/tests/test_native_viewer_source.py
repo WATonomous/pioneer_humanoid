@@ -20,7 +20,8 @@ SCRIPTS = PACKAGE_ROOT / "humanoid_rl/scripts"
 VIEWER = SCRIPTS / "play_torchscript.py"
 LAUNCHER = SCRIPTS / "view_native_windows.cmd"
 ROUGH_TASK = "Isaac-Locomotion-RoughNoStairsSelectiveKneeShape-PioneerHumanoid-Play-v0"
-STAIRS_TASK = "Isaac-Locomotion-Stairs-PioneerHumanoid-Play-v0"
+ONSHAPE_TASK = "Isaac-Locomotion-OnshapeCourse-PioneerHumanoid-Play-v0"
+ONSHAPE_SPIRAL_TASK = "Isaac-Locomotion-OnshapeSpiral-PioneerHumanoid-Play-v0"
 
 
 def load_viewer():
@@ -88,8 +89,13 @@ class ViewerArgumentTests(unittest.TestCase):
             with self.subTest(task=task):
                 self.assertTrue(self.parse("--task", task, "--flat_terrain").flat_terrain)
 
-    def test_flat_override_rejects_stairs_task_and_equivalent_alias(self):
-        for task in (STAIRS_TASK, STAIRS_TASK.replace("Isaac-Locomotion-", "Isaac-Velocity-")):
+    def test_flat_override_rejects_onshape_tasks_and_equivalent_aliases(self):
+        for task in (
+            ONSHAPE_TASK,
+            ONSHAPE_TASK.replace("Isaac-Locomotion-", "Isaac-Velocity-"),
+            ONSHAPE_SPIRAL_TASK,
+            ONSHAPE_SPIRAL_TASK.replace("Isaac-Locomotion-", "Isaac-Velocity-"),
+        ):
             with self.subTest(task=task), self.assertRaises(SystemExit) as error:
                 self.parse("--task", task, "--flat_terrain")
             self.assertEqual(error.exception.code, 2)
