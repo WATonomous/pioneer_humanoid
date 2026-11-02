@@ -27,12 +27,16 @@ def _deg(degrees: float) -> float:
 # toward +X. Opposite-and-equal is what makes the pose mirror-symmetric. 90 holds the forearm
 # level (fingertip ~10cm higher than the previous 75); don't go below ~60 (tip nears the table).
 # Both inside the URDF limits (42.5 deg margin to joint4l's 132.5).
+#
+# joint5/joint5l at -90/+90 deg: the new wrist gripper sits turned 90 deg on the wrist from the old one
+# (its fingers close front to back at joint5 = 0), and this roll closes them side to side as before.
+# Inside the URDF limits (joint5 -4.33..1.316, joint5l mirrored). It turns joint6 with it.
 DEFAULT_JOINT_POS = {
     "joint1": 0.0,
     "joint2": 0.0,
     "joint3": 0.0,
     "joint4": _deg(90.0),
-    "joint5": 0.0,
+    "joint5": _deg(-90.0),
     "joint6": 0.0,
     "joint7": 0.0,
     "joint8": 0.0,
@@ -41,7 +45,7 @@ DEFAULT_JOINT_POS = {
     "joint2l": 0.0,
     "joint3l": 0.0,
     "joint4l": _deg(-90.0),
-    "joint5l": 0.0,
+    "joint5l": _deg(90.0),
     "joint6l": 0.0,
     "joint7l": 0.0,
     "joint8l": 0.0,
@@ -52,12 +56,12 @@ RIGHT_ARM_JOINTS = ["joint1", "joint2", "joint3", "joint4", "joint5", "joint6"]
 LEFT_GRIPPER_JOINTS = ["joint7l", "joint8l"]
 RIGHT_GRIPPER_JOINTS = ["joint7", "joint8"]
 
-# Gripper finger targets, verified empirically in headless Isaac sim: fingertip gap 0.074m
-# closed / ~0.16m open at these endpoints. This asset's joint7/8 axis is Y.
+# Gripper finger targets: the new wrist gripper's full travel (URDF limits, from the CAD): 82 mm between the
+# fingers open, touching closed. This asset's joint7/8 axis is X (along the rail at joint5 = 0).
 LEFT_GRIPPER_OPEN = {"joint7l": 0.0, "joint8l": 0.0}
-LEFT_GRIPPER_CLOSED = {"joint7l": -0.05, "joint8l": 0.05}
+LEFT_GRIPPER_CLOSED = {"joint7l": -0.041, "joint8l": 0.041}
 RIGHT_GRIPPER_OPEN = {"joint7": 0.0, "joint8": 0.0}
-RIGHT_GRIPPER_CLOSED = {"joint7": -0.05, "joint8": 0.05}
+RIGHT_GRIPPER_CLOSED = {"joint7": -0.041, "joint8": 0.041}
 
 # Prismatic gripper PD — tuned for hold during arm motion (not from motor datasheet).
 # If fingers bounce when the shoulder moves, raise stiffness; if jittery, raise damping.
