@@ -26,8 +26,8 @@ from perception.live_tracker import LiveTracker
 class TrackNetNode(Node):
     def __init__(self):
         super().__init__('tracknet_node')
-        default_model = os.path.join(get_package_share_directory('perception'), 'models', 'TrackNet_best.pt')
-        model_path = self.declare_parameter('model_path', default_model).value
+        model_path = self.declare_parameter('model_path', '').value or \
+            os.path.join(get_package_share_directory('perception'), 'models', 'TrackNet_best.pt')
         top_k = self.declare_parameter('top_k', 3).value
         min_score = self.declare_parameter('min_score', 0.05).value
 
@@ -63,4 +63,5 @@ def main(args=None):
         pass
     finally:
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():  # Ctrl+C may already have shut ROS down
+            rclpy.shutdown()

@@ -144,4 +144,5 @@ def main(args=None):
         pass
     finally:
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():  # Ctrl+C may already have shut ROS down
+            rclpy.shutdown()
