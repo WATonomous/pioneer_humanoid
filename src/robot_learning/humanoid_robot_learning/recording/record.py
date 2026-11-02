@@ -85,6 +85,14 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "fresh reading are skipped), or a copy of the commanded closure (gripper unpowered)",
     )
     parser.add_argument(
+        "--arm_state",
+        choices=("feedback", "action"),
+        default="feedback",
+        help="arm joints in observation.state: measured by the motors (default; what a deployed policy "
+        "reads, and frames without a fresh reading of every joint are skipped), or a copy of the commanded "
+        "targets (for runs with a motor unpowered; such a dataset doesn't match deployment)",
+    )
+    parser.add_argument(
         "--gripper_calibration",
         type=str,
         default=None,
@@ -130,7 +138,7 @@ class _DryRunSource(_SnapshotSource):
 
 
 class _RosSource(_SnapshotSource):
-    def __init__(self, cfg: dict[str, Any], *, gripper_state: str, gripper_calibration: str | None) -> None:
+    def __init__(self, cfg: dict[str, Any], *, arm_state: str, gripper_state: str, gripper_calibration: str | None) -> None:
         import rclpy
         from rclpy.node import Node
 
@@ -140,7 +148,7 @@ class _RosSource(_SnapshotSource):
         rclpy.init()
         self._node = Node("humanoid_record")
         self._buffer = GripperRecordBuffer(
-            self._node, cfg, gripper_state=gripper_state, calibration=gripper_calibration
+            self._node, cfg, arm_state=arm_state, gripper_state=gripper_state, calibration=gripper_calibration
         )
 
     def maybe_spin(self) -> None:
@@ -172,7 +180,8 @@ def main(argv: list[str] | None = None) -> int:
     image_shapes = {k: (int(v["height"]), int(v["width"])) for k, v in enabled_images(cfg).items()}
     dim = len(cfg["joint_names"])
 
-    record_root = resolve_dataset_root(cfg, args.dataset_root, subdir="real")
+    # A sim schema names its own folder, so its demos can't land among the real arm's.
+    record_root = resolve_dataset_root(cfg, args.dataset_root, subdir=(cfg.get("record") or {}).get("subdir", "real"))
 
     settings = RecordSettings(
         num_episodes=args.num_episodes,
@@ -186,7 +195,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.dry_run:
         source: _SnapshotSource = _DryRunSource(image_shapes, dim)
     else:
-        source = _RosSource(cfg, gripper_state=args.gripper_state, gripper_calibration=args.gripper_calibration)
+        source = _RosSource(cfg, arm_state=args.arm_state, gripper_state=args.gripper_state,
+                            gripper_calibration=args.gripper_calibration)
 
     output_dir = run_record_loop(
         cfg,

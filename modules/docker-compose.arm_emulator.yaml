@@ -1,0 +1,25 @@
+# The arm emulator, kept apart from the real arm (src/interfacing/arm_emulator/README.md):
+#   - network_mode none: this container has only its own loopback, so no ROS traffic can leave it
+#   - not privileged, no /dev, no CAN tools in the image
+#   - its own ROS domain, localhost only (arm_emulator.safety_guard refuses to start otherwise)
+#
+#   MONO_DIR=$PWD docker compose -f modules/docker-compose.arm_emulator.yaml up -d --build
+#   docker compose -f modules/docker-compose.arm_emulator.yaml exec arm_emulator bash
+services:
+  arm_emulator:
+    build:
+      context: ..
+      dockerfile: docker/interfacing/arm_emulator/arm_emulator.Dockerfile
+      target: ${ARM_EMULATOR_TARGET:-full}
+    image: humanoid_arm_emulator:${ARM_EMULATOR_TARGET:-full}
+    network_mode: none
+    user: "${USER_UID:-0}:${USER_GID:-0}"
+    environment:
+      - ROS_DOMAIN_ID=42
+      - ROS_LOCALHOST_ONLY=1
+      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+      # CPU rendering by default; docker-compose.arm_emulator.gpu.yaml switches to the GPU.
+      - MUJOCO_GL=${MUJOCO_GL:-osmesa}
+    command: sleep infinity
+    volumes:
+      - ${MONO_DIR:-..}:/workspace/humanoid:rw

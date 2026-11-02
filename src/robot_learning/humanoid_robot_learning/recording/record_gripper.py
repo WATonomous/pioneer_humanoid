@@ -9,12 +9,16 @@ The schema's 7th value per arm is `left_gripper`, a closure fraction (0 = open, 
                joint_command and real_arm.py do. The sim uses the mean of its two finger joints;
                the real gripper is one motor, so its position is the equivalent.
 
+The arm's six joints in state come from the same feedback through ArmFeedbackState, the reader the
+policy deploy uses, so a policy is trained on what it will read (arm_state "action" copies the targets).
+
 Read-only: this subscribes, it never publishes, so it cannot move a motor.
 """
 
 from __future__ import annotations
 
 import logging
+import sys
 import threading
 import time
 from pathlib import Path
@@ -85,6 +89,7 @@ class GripperRecordBuffer(RosRecordBuffer):
 
     gripper_state: "feedback" records the measured closure and skips frames without a fresh
     reading; "action" copies the commanded closure (for runs with the gripper unpowered).
+    arm_state: the same choice for the six arm joints; "feedback" also takes the gripper from feedback.
     """
 
     def __init__(
@@ -92,11 +97,23 @@ class GripperRecordBuffer(RosRecordBuffer):
         node: Any,
         cfg: dict[str, Any],
         *,
+        arm_state: str = "feedback",
         gripper_state: str = "feedback",
         calibration: str | None = None,
     ) -> None:
+        if arm_state not in ("feedback", "action"):
+            raise ValueError(f"arm_state must be 'feedback' or 'action', got {arm_state!r}")
         if gripper_state not in ("feedback", "action"):
             raise ValueError(f"gripper_state must be 'feedback' or 'action', got {gripper_state!r}")
+        self._arm_feedback = None
+        if arm_state == "feedback":
+            if gripper_state != "feedback":
+                raise ValueError("arm_state feedback reads the gripper from feedback too: use --gripper_state feedback")
+            # The CAN tools are scripts rather than a package (as in deploy/real_arm.py).
+            sys.path.insert(0, str(_SRC / "interfacing" / "can" / "scripts"))
+            from arm_feedback import ArmFeedbackState
+
+            self._arm_feedback = ArmFeedbackState(find_calibration(calibration))
         self._gripper_state = gripper_state
         self._grip_lock = threading.Lock()
         self._grip_feedback: float | None = None
@@ -112,6 +129,8 @@ class GripperRecordBuffer(RosRecordBuffer):
         super().__init__(node, cfg)
         if gripper_state == "feedback":
             self._subscribe_feedback(node)
+        if self._arm_feedback is not None:
+            logger.info("Arm state: measured, from %s", FEEDBACK_TOPIC)
 
     def _subscribe_feedback(self, node: Any) -> None:
         from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy
@@ -126,6 +145,8 @@ class GripperRecordBuffer(RosRecordBuffer):
         logger.info("Subscribed gripper state: %s (motor id %d)", FEEDBACK_TOPIC, GRIPPER_CAN_ID)
 
     def _on_feedback(self, msg) -> None:
+        if self._arm_feedback is not None:
+            self._arm_feedback.on_feedback(msg)
         if int(msg.motor_id) != GRIPPER_CAN_ID:
             return
         closure = motor_deg_to_closure(self._calib, float(msg.position))
@@ -173,6 +194,17 @@ class GripperRecordBuffer(RosRecordBuffer):
 
     def snapshot(self) -> ObservationSnapshot:
         snap = super().snapshot()
+        if self._arm_feedback is not None:
+            measured = self._arm_feedback.snapshot()
+            if measured is None:
+                # No state -> build_lerobot_frame raises ValueError -> the record loop skips the frame.
+                now = time.monotonic()
+                if now - self._last_warn_t > WARN_PERIOD_S:
+                    self._last_warn_t = now
+                    logger.warning("skipping frames: no fresh feedback from %s. To record with a motor "
+                                   "unpowered, use --arm_state action.", ", ".join(self._arm_feedback.missing()))
+                return ObservationSnapshot(state=None, action=snap.action, images=snap.images)
+            return ObservationSnapshot(state=measured[0], action=snap.action, images=snap.images)
         if snap.state is None or self._gripper_state == "action":
             return snap  # state[6] already mirrors the commanded closure (state_topic is null)
         grip = self._fresh_feedback()

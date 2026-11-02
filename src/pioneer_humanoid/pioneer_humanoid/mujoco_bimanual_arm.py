@@ -6,6 +6,7 @@ CPU only; needs ``pip install mujoco``.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from pathlib import Path
 
 import mujoco
@@ -30,11 +31,16 @@ FINGER_BODIES = ("link7", "link8", "link7l", "link8l")
 ARM_ARMATURE = 0.01
 
 
-def arm_spec(cameras: dict[str, tuple[int, int]] | None = None) -> mujoco.MjSpec:
+def arm_spec(cameras: dict[str, tuple[int, int]] | None = None,
+             torque_joints: Iterable[str] = ()) -> mujoco.MjSpec:
     """MjSpec of the arm: base_link fixed at the origin, one position actuator per joint (named after it).
 
     ``cameras``: {name: (height, width)} from arm_params.CAMERAS, added as MuJoCo cameras of that name.
+    ``torque_joints``: these joints get a plain torque motor instead (ctrl = N.m, or N on a finger), for
+    a caller that runs its own control law at the physics rate (src/interfacing/arm_emulator). Fingers
+    given here are also tied together, as the real linkage does.
     """
+    torque_joints = set(torque_joints)
     urdf = Path(URDF_PATH).read_text()
     urdf = re.sub(r'filename="package://[^"]*/meshes/', 'filename="', urdf)
     urdf = urdf.replace(
@@ -59,11 +65,19 @@ def arm_spec(cameras: dict[str, tuple[int, int]] | None = None) -> mujoco.MjSpec
             act.name = name
             act.target = name
             act.trntype = mujoco.mjtTrn.mjTRN_JOINT
-            act.set_to_position(kp=group["stiffness"], kv=group["damping"])
-            act.forcelimited = mujoco.mjtLimited.mjLIMITED_TRUE
-            act.forcerange = [-group["effort_limit"], group["effort_limit"]]
+            if name in torque_joints:
+                act.set_to_motor()
+            else:
+                act.set_to_position(kp=group["stiffness"], kv=group["damping"])
+                act.forcelimited = mujoco.mjtLimited.mjLIMITED_TRUE
+                act.forcerange = [-group["effort_limit"], group["effort_limit"]]
             if "gripper" not in group_name:
                 spec.joint(name).armature = ARM_ARMATURE
+
+    for first, second in (("joint7l", "joint8l"), ("joint7", "joint8")):
+        if {first, second} <= torque_joints:
+            spec.add_equality(type=mujoco.mjtEq.mjEQ_JOINT, objtype=mujoco.mjtObj.mjOBJ_JOINT,
+                              name1=first, name2=second, data=[0.0, -1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
     _box_fingers(spec)
     for name, (height, width) in (cameras or {}).items():

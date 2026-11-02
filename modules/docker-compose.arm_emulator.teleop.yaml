@@ -1,0 +1,19 @@
+# Add to docker-compose.arm_emulator.yaml for leader-arm teleop: the MuJoCo window and only the leader's USB port.
+# LEADER_PORT is the leader board's /dev/serial/by-id/... path, never /dev/ttyACM*: the CANable shows up there too.
+#
+#   xhost +local:
+#   USER_UID=$(id -u) USER_GID=$(id -g) LEADER_PORT=/dev/serial/by-id/... MONO_DIR=$PWD docker compose \
+#     -f modules/docker-compose.arm_emulator.yaml -f modules/docker-compose.arm_emulator.teleop.yaml up -d --build
+services:
+  arm_emulator:
+    environment:
+      - DISPLAY=${DISPLAY}
+      - XAUTHORITY=/tmp/.Xauthority
+      - MUJOCO_GL=glfw
+    devices:
+      - ${LEADER_PORT:?set LEADER_PORT to the leader board's /dev/serial/by-id path}
+    group_add:
+      - dialout
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${XAUTHORITY:-${HOME}/.Xauthority}:/tmp/.Xauthority:ro

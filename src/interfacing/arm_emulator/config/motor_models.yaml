@@ -1,0 +1,54 @@
+# What the emulated drives need beyond the repo's arm configs. Everything marked ASSUMED is a
+# placeholder until a datasheet or bench log replaces it; run_emulator prints this list at startup.
+# Limits here model the motor, on purpose independent of arm_actuators.yaml, so a too-high value
+# there cannot hide a problem.
+models:
+  AK10-9:
+    gear_ratio: 9
+    rated_torque: 18.0        # N.m, arm_actuators.yaml
+    peak_torque: 48.0         # N.m, arm_actuators.yaml "datasheet peak" (arm_params.py says 53: bench-check)
+    no_load_speed: 28.0       # rad/s, ASSUMED: mit_profiles.yaml's velocity range
+    pole_pairs: 21            # ASSUMED: only scales the reported ERPM
+    armature: 0.01            # kg m^2 reflected, ASSUMED: mujoco_bimanual_arm.ARM_ARMATURE
+    damping: 0.05             # N.m.s/rad, ASSUMED: fit from arm_roundtrip.py logs
+    frictionloss: 0.1         # N.m, ASSUMED: fit from arm_roundtrip.py logs
+    thermal_rise_at_rated: 60.0  # deg C above ambient, ASSUMED
+    thermal_tau: 300.0        # s, ASSUMED
+  AK80-9:
+    gear_ratio: 9
+    rated_torque: 9.0         # N.m, arm_actuators.yaml
+    peak_torque: 22.0         # N.m, arm_actuators.yaml elbow blocks
+    no_load_speed: 50.0       # rad/s, ASSUMED: below mit_profiles.yaml's +-65 range
+    pole_pairs: 21            # ASSUMED: only scales the reported ERPM
+    armature: 0.01            # ASSUMED, as above
+    damping: 0.03             # ASSUMED, as above
+    frictionloss: 0.05        # ASSUMED, as above
+    thermal_rise_at_rated: 60.0  # ASSUMED
+    thermal_tau: 300.0        # ASSUMED
+  GL40-KV70:
+    gear_ratio: 1
+    rated_torque: 0.25        # N.m, arm_params.py
+    peak_torque: 0.73         # N.m, arm_params.py
+    no_load_speed: 200.0      # ASSUMED: mit_profiles.yaml's velocity range
+    pole_pairs: 7             # ASSUMED: not reported (GL II reports r/s)
+    armature: 0.01            # ASSUMED, as above
+    damping: 0.002            # ASSUMED, as above
+    frictionloss: 0.005       # ASSUMED, as above
+    thermal_rise_at_rated: 40.0  # ASSUMED
+    thermal_tau: 120.0        # ASSUMED
+
+ambient_temperature: 25.0     # deg C
+
+# ASSUMED: an AK with no command for this long stops producing torque (joint_command_node.cpp: "a
+# silent AK trips its CAN timeout and drops the arm"). The real value is a drive setting: check it.
+ak_can_timeout_s: 0.5
+
+# Real gripper: GL40 -> linkage -> two fingers. MuJoCo: two sliding fingers. ASSUMED linear until the
+# real travel and force are measured: arm_calibration.yaml's full travel closes finger_travel_m per finger.
+gripper:
+  finger_travel_m: 0.05       # arm_params.LEFT_GRIPPER_CLOSED
+  force_scale: 1.0            # ASSUMED: linkage force advantage over the linear mapping
+
+# Fails a run (status topic) when exceeded. The motors above set the torque and speed limits.
+load_limits:
+  contact_force: 150.0        # N, arm against the table, ASSUMED until screw/bracket ratings exist

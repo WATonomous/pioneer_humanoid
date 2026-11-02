@@ -616,7 +616,36 @@ def matcha_plan(op, model, data, notes) -> None:
     _finish(op, rest=start + rng.normal(0, 0.02, 3))
 
 
+# ----------------------------------------------------------------------------- rubiks_cube
+def rubiks_plan(op, model, data, notes) -> None:
+    """Grasp the cube from above, jaws square to its faces, and lift it."""
+    from humanoid_mujoco_scenes.rubiks_cube.scene import CUBE_SIZE, LIFT_HEIGHT
+
+    start = op.follower_tcp()
+    for attempt in range(3):
+        p = op.see("rubiks_cube")
+        R = op.down(op.see_yaw("rubiks_cube"))
+        rest_z = p[2]
+        op.arc(p + (0.0, 0.0, 0.07), clear_z=p[2] + 0.1, R=R, grip=0.0, tol=0.006)
+        op.settle()
+        p = op.see("rubiks_cube")                            # a closer look before going down
+        op.move(p + (0.0, 0.0, JAW_HALF - CUBE_SIZE / 2 + 0.006), R=R, tol=0.004)
+        op.settle()
+        op.set_grip(1.0)
+        op.pause(0.3, 0.6)
+        op.move(p + (0.0, 0.0, JAW_HALF + LIFT_HEIGHT + 0.03), R=R, tol=0.01, speed=0.6)
+        op.settle()
+        if data.xpos[model.body("rubiks_cube").id][2] > rest_z + LIFT_HEIGHT:
+            op.pause(0.4, 0.8)
+            return
+        notes.append(f"grasp {attempt + 1} missed")
+        op.set_grip(0.0)
+        op.move(start, tol=0.03, corrections=0)
+    raise TaskFailed("grasp")
+
+
 TASKS: dict[str, Task] = {
+    "rubiks_cube": Task(rubiks_plan, "pick up the cube"),
     "drawer_stow": Task(drawer_plan, "put the blocks in the drawer"),
     "peg_insert": Task(peg_plan, "insert the peg into the hole"),
     "zip_tie": Task(zip_plan, "pull the zip tie tight"),

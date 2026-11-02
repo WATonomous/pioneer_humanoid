@@ -135,10 +135,11 @@ def add_floor(spec: mujoco.MjSpec, light: bool = True) -> None:
         spec.worldbody.add_light(pos=[0.5, 0, 3.0], dir=[0, 0, -1], diffuse=[0.8, 0.8, 0.8], castshadow=True)
 
 
-def make_model(name: str, cameras: dict[str, tuple[int, int]] | None = None) -> mujoco.MjModel:
+def make_model(name: str, cameras: dict[str, tuple[int, int]] | None = None, torque_joints=()) -> mujoco.MjModel:
     """Compile scene ``name`` with the arm attached; joint/actuator names are the URDF joint names.
 
     ``cameras``: robot cameras to mount, {name: (height, width)} (pioneer_humanoid.arm_params.CAMERAS).
+    ``torque_joints``: joints driven by torque instead of position (mujoco_bimanual_arm.arm_spec).
     """
     from pioneer_humanoid.mujoco_bimanual_arm import arm_spec
 
@@ -157,7 +158,7 @@ def make_model(name: str, cameras: dict[str, tuple[int, int]] | None = None) -> 
     spec.visual.global_.offheight = 960
     entry.build(spec)
     frame = spec.worldbody.add_frame(pos=list(entry.robot_pos))
-    frame.attach_body(arm_spec(cameras).body("base_link"), "", "")
+    frame.attach_body(arm_spec(cameras, torque_joints).body("base_link"), "", "")
     for geom in spec.geoms:
         # Stiffer than MuJoCo's default contact (0.02 s, 0.9-0.95), which lets a 50 g peg sink mm
         # into the fingers and eats a 1 mm insertion clearance. Geoms a scene tuned are left alone.

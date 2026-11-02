@@ -1,0 +1,13 @@
+# Add to docker-compose.arm_emulator.yaml to render the cameras on an NVIDIA GPU, headless (WATcloud).
+services:
+  arm_emulator:
+    environment:
+      - MUJOCO_GL=egl
+      - NVIDIA_DRIVER_CAPABILITIES=all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

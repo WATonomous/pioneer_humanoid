@@ -1,0 +1,48 @@
+# The arm emulator's recordings (src/interfacing/arm_emulator): same data contract as
+# pioneer_humanoid_dataset_schema.yaml, with the ego camera on a sim topic and its own output folder,
+# so they are never mixed into real-arm or plain-sim demos.
+robot_id: pioneer_v1
+repo_id: humanoid/pioneer_v1
+fps: 25
+state_unit: rad  # arm joints; the grippers are 0-1 closure fractions
+
+arms:
+  left:
+    - left_shoulder_pitch   # joint1L
+    - left_shoulder_roll    # joint2l
+    - left_shoulder_yaw     # joint3l
+    - left_elbow_pitch      # joint4l
+    - left_elbow_roll       # joint5l
+    - left_wrist_pitch      # joint6l
+    - left_gripper          # joint7l/joint8l: 0 = open, 1 = closed
+  right:  # listed because the schema format needs both; the emulator and its recorder use the left arm
+    - right_shoulder_pitch
+    - right_shoulder_roll
+    - right_shoulder_yaw
+    - right_elbow_pitch
+    - right_elbow_roll
+    - right_wrist_pitch
+    - right_gripper
+
+images:
+  ego:
+    height: 480
+    width: 640
+    enabled: true
+    topic: /sim/ego/image_raw  # sim only: the real arm has no ego camera yet
+  wrist_left:
+    height: 480
+    width: 640
+    enabled: true
+    topic: /wrist_cam/image_rect
+
+ros:
+  action_topic: /arm/left/joint_targets
+  arm_pose_unit: deg
+
+record:
+  root: datasets/pioneer_v1
+  subdir: sim_low_level
+  use_videos: true
+  image_writer_threads: 4
+  image_writer_processes: 0
