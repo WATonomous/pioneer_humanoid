@@ -49,6 +49,7 @@ SETTINGS = dict(
     depth_gate=9.,        # (difference / expected spread)^2 above which a depth reading is ignored
     max_misses=5,         # frames without a match (while in view) before the track is dropped
     max_coast=1.,         # s to keep predicting a shuttle that has left the camera's view
+    max_gap=0.5,          # s between frames above which the track is dropped (camera stall or restart)
     show_misses=1,        # coasted frames still reported as visible
 )
 PIXEL_SETTINGS = ('pixel_sigma', 'start_tol', 'min_step', 'max_step', 'hit_radius', 'static_radius')
@@ -99,6 +100,8 @@ class ShuttleEKF:
         depth_at(u, v): depth sensor reading in m at that pixel, or None if invalid (optional).
         Returns 'none', 'tracking' or 'coasting'. The estimate is in self.x and self.P."""
         dt = 1. / self.fps if self.time is None else time - self.time
+        if not 0 < dt <= self.s['max_gap']:
+            dt, self.x = 1. / self.fps, None                      # time went back or jumped: start over
         self.frame, self.time = self.frame + 1, time
         hotspots = [h for h in hotspots if h[2] >= self.s['min_score']]
         self.spots.append([h[:2] for h in hotspots])

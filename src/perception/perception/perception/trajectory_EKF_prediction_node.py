@@ -7,7 +7,8 @@ Subscribes  /shuttle/hotspots                        (vision_msgs/Detection2DArr
             /camera/aligned_depth_to_color/image_raw (sensor_msgs/Image: depth, pixel-aligned with the
                                                       colour image; optional, used when available)
 Publishes   /shuttle/state     (nav_msgs/Odometry) position (m) and velocity (m/s) in the camera frame
-                               (x right, y down, z forward), with covariance; only while tracked
+                               (x right, y down, z forward), with covariance; while a track
+                               exists (including up to 1 s of coasting after the shuttle leaves view)
             /shuttle/impact    (common_msgs/PerceptionImpactEstimation) when the shuttle is predicted
                                to come within impact_radius of the camera
 
@@ -28,39 +29,12 @@ from nav_msgs.msg import Odometry
 from sensor_msgs.msg import CameraInfo, Image
 from vision_msgs.msg import Detection2DArray
 
+from perception.depth_reader import depth_reader
 from perception.shuttle_ekf import Camera, ShuttleEKF
 
 
 def seconds(stamp):
     return stamp.sec + stamp.nanosec * 1e-9
-
-
-def patch_depths(depth_img, u, v):
-    """Valid readings (m) in the 5x5 patch around (u, v)."""
-    to_m = 0.001 if depth_img.dtype == np.uint16 else 1.  # RealSense: uint16 mm; simulators: float m
-    ui, vi = int(round(u)), int(round(v))
-    patch = depth_img[max(vi - 2, 0):vi + 3, max(ui - 2, 0):ui + 3].astype(float)
-    return patch[(patch > 0) & np.isfinite(patch)] * to_m
-
-
-def depth_reader(depth_img, earlier_imgs, margin=0.3):
-    """depth_at(u, v) for ShuttleEKF.
-
-    A shuttle covers only a few pixels of the 5x5 patch, and TrackNet's pixel can be a few pixels off,
-    so most of the patch shows what is behind it: take the closest reading, not the median. The camera
-    is fixed, so the usual depth at that pixel (median over earlier images) is the background; the
-    closest reading counts as the shuttle only if it is at least margin (m) in front of it. Otherwise
-    the sensor missed the shuttle and saw the wall or floor: no reading."""
-    def depth_at(u, v):
-        now = patch_depths(depth_img, u, v)
-        if not now.size:
-            return None
-        behind = [np.median(d) for d in (patch_depths(img, u, v) for img in earlier_imgs) if d.size]
-        closest = float(now.min())
-        if behind and closest > np.median(behind) - margin:
-            return None
-        return closest
-    return depth_at
 
 
 class EKFPredictionNode(Node):
@@ -107,8 +81,9 @@ class EKFPredictionNode(Node):
             if abs(t - time) <= 0.5 / self.fps:
                 depth_at = depth_reader(img, [d for _, d in self.depths if d is not img])
 
-        self.ekf.update(time, hotspots, depth_at)
-        if not self.ekf.visible():
+        # Publish while a track exists, also while it coasts on physics after leaving the view: those
+        # last predictions are the ones the robot needs most. The covariance shows how much to trust them.
+        if self.ekf.update(time, hotspots, depth_at) == 'none':
             return
 
         x, P = self.ekf.x, self.ekf.P
