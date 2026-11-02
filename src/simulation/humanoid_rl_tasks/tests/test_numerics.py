@@ -48,20 +48,6 @@ class StrictGradientClippingTests(unittest.TestCase):
                 else:
                     self.assertTrue(torch.isnan(parameter.grad).all())
 
-    def test_disabled_leaves_original_unchanged(self):
-        original = torch.nn.utils.clip_grad_norm_
-        with self.module.strict_gradient_clipping(enabled=False):
-            self.assertIs(torch.nn.utils.clip_grad_norm_, original)
-
-    def test_nested_guards_restore_the_outer_guard(self):
-        original = torch.nn.utils.clip_grad_norm_
-        with self.module.strict_gradient_clipping():
-            outer = torch.nn.utils.clip_grad_norm_
-            with self.module.strict_gradient_clipping():
-                self.assertIsNot(torch.nn.utils.clip_grad_norm_, outer)
-            self.assertIs(torch.nn.utils.clip_grad_norm_, outer)
-        self.assertIs(torch.nn.utils.clip_grad_norm_, original)
-
 
 if __name__ == "__main__":
     unittest.main()

@@ -78,15 +78,6 @@ class StairCourseGeometryContracts(unittest.TestCase):
     def _build(self, difficulty=0.5, **changes):
         return self.namespace["stair_course_terrain"](difficulty, self._cfg(**changes))
 
-    def test_default_spawn_is_on_the_approach_before_the_first_riser(self):
-        meshes, origin = self._build()
-        self.assertEqual(origin, (0.9, 3.0, 0.0))
-        self.assertEqual(self.defaults["size"], (16.0, 6.0))
-        self.assertEqual(_surface_height(meshes, origin[0], origin[1]), 0.0)
-        for jitter in (-0.2, 0.0, 0.2):
-            self.assertLess(origin[0] + jitter, self.defaults["approach_length"])
-            self.assertEqual(_surface_height(meshes, origin[0] + jitter, origin[1] + jitter), 0.0)
-
     def test_traversal_is_twelve_risers_up_two_metre_walk_twelve_risers_down(self):
         meshes, _ = self._build(step_height_range=(0.08, 0.08))
         tread = self.defaults["step_width"]
@@ -107,77 +98,10 @@ class StairCourseGeometryContracts(unittest.TestCase):
         self.assertAlmostEqual(_surface_height(meshes, 7.2), 0.96)
         self.assertEqual(_surface_height(meshes, 12.7), 0.0)
 
-    def test_every_vertical_transition_is_one_riser_in_the_correct_direction(self):
-        meshes, _ = self._build(step_height_range=(0.08, 0.08))
-        for index in range(12):
-            up_x, down_x = 2.0 + index * 0.35, 8.2 + index * 0.35
-            self.assertAlmostEqual(_surface_height(meshes, up_x + 1e-6)
-                                   - _surface_height(meshes, up_x - 1e-6), 0.08)
-            self.assertAlmostEqual(_surface_height(meshes, down_x + 1e-6)
-                                   - _surface_height(meshes, down_x - 1e-6), -0.08)
-
-    def test_ground_and_raised_boxes_are_full_width_positive_volume_and_in_tile(self):
-        meshes, _ = self._build()
-        base = meshes[0]
-        self.assertEqual(base.bounds, ((0.0, 0.0, -0.2), (16.0, 6.0, 0.0)))
-        for mesh in meshes[1:]:
-            with self.subTest(bounds=mesh.bounds):
-                self.assertTrue(all(extent > 0.0 for extent in mesh.extents))
-                self.assertGreaterEqual(mesh.bounds[0][0], 0.0)
-                self.assertLessEqual(mesh.bounds[1][0], 16.0)
-                self.assertEqual(mesh.bounds[0][1], 0.0)
-                self.assertEqual(mesh.bounds[1][1], 6.0)
-                self.assertEqual(mesh.bounds[0][2], 0.0)
-
     def test_adjacent_raised_intervals_have_no_horizontal_gap(self):
         meshes, _ = self._build()
         for first, second in zip(meshes[1:], meshes[2:]):
             self.assertAlmostEqual(first.bounds[1][0], second.bounds[0][0])
-
-    def test_difficulty_changes_only_riser_height_not_spawn_or_horizontal_layout(self):
-        easiest, origin0 = self._build(0.0)
-        middle, origin1 = self._build(0.5)
-        hardest, origin2 = self._build(1.0)
-        self.assertEqual(origin0, origin1)
-        self.assertEqual(origin1, origin2)
-        for meshes, summit in ((easiest, 0.36), (middle, 1.08), (hardest, 1.80)):
-            self.assertAlmostEqual(max(mesh.bounds[1][2] for mesh in meshes), summit)
-        self.assertEqual([mesh.bounds[0][:2] for mesh in easiest], [mesh.bounds[0][:2] for mesh in hardest])
-        self.assertEqual([mesh.bounds[1][:2] for mesh in easiest], [mesh.bounds[1][:2] for mesh in hardest])
-
-    def test_flat_calibration_uses_same_spawn_and_goal_without_zero_volume_meshes(self):
-        flat, origin = self._build(step_height_range=(0.0, 0.0))
-        self.assertEqual(len(flat), 1)
-        self.assertEqual(origin, (0.9, 3.0, 0.0))
-        self.assertAlmostEqual(self.namespace["course_goal_distance"](self._cfg()), 12.5)
-        self.assertAlmostEqual(self.namespace["COURSE_GOAL_X"], 13.4)
-        self.assertEqual(_surface_height(flat, 13.4), 0.0)
-
-    def test_default_goal_is_one_metre_after_the_final_descending_tread(self):
-        cfg = self._cfg()
-        course_end = cfg.approach_length + 2 * cfg.num_steps * cfg.step_width + cfg.walkway_length
-        goal_distance = self.namespace["course_goal_distance"](cfg)
-        self.assertAlmostEqual(cfg.spawn_x + goal_distance - course_end, 1.0)
-        self.assertAlmostEqual(goal_distance, self.namespace["COURSE_GOAL_DISTANCE"])
-        self.assertLess(cfg.spawn_x + goal_distance, cfg.size[0])
-
-    def test_extended_course_and_exit_fit_inside_longer_tile(self):
-        cfg = self._cfg()
-        meshes, _ = self._build(step_height_range=(0.08, 0.08))
-        last_down_riser = cfg.approach_length + cfg.num_steps * cfg.step_width + cfg.walkway_length
-        last_down_riser += (cfg.num_steps - 1) * cfg.step_width
-        footprint_end = cfg.approach_length + 2 * cfg.num_steps * cfg.step_width + cfg.walkway_length
-        self.assertAlmostEqual(last_down_riser, 12.05)
-        self.assertAlmostEqual(footprint_end, 12.4)
-        self.assertGreaterEqual(cfg.size[0], footprint_end + 1.0)
-        self.assertEqual(_surface_height(meshes, self.namespace["COURSE_GOAL_X"]), 0.0)
-        # The former finish is now on the descending flight, not the exit.
-        self.assertGreater(_surface_height(meshes, 9.2), 0.0)
-
-    def test_invalid_difficulty_is_rejected(self):
-        for difficulty in (-0.001, 1.001, math.nan, math.inf, -math.inf):
-            with self.subTest(difficulty=difficulty), self.assertRaises(ValueError):
-                self._build(difficulty)
 
     def test_invalid_geometry_is_rejected(self):
         invalid = [

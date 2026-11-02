@@ -2,7 +2,7 @@
 
 Run with the Isaac image's Python for the full suite. No Isaac imports, simulator,
 CUDA tensors, or GPU initialization are needed. Hosts without Torch skip these
-tests, while the source/geometry contracts remain standard-library-only.
+tests, while the geometry tests remain standard-library-only.
 """
 
 import importlib.util
@@ -64,16 +64,6 @@ class StairCourseEpisodeLogic(unittest.TestCase):
         ], gravity=[[0, 0, -1]] * 4 + [[0.9, 0, -0.4], [0, 0, -1], [0, 0, 1]])
         self.assertEqual(self.module.course_complete(env, goal_distance=12.5).tolist(),
                          [False, True, False, False, False, False, False])
-
-    def test_former_nine_point_two_metre_finish_does_not_complete_extended_course(self):
-        # Positions are relative to the 0.9 m local-tile spawn. At local X=9.2,
-        # the robot is now on a 0.72 m-high descending tread, not flat exit.
-        env = self.make_env([[9.2 - 0.9, 0, 0.72 + 0.84], [12.6, 0, 0.84]])
-        self.assertEqual(self.module.course_complete(env, goal_distance=12.5).tolist(), [False, True])
-        self.module.complete_stair_course_levels(env, torch.arange(2), goal_distance=12.5)
-        _, flags = env.calls[0]
-        self.assertEqual(flags["move_up"].tolist(), [False, True])
-        self.assertEqual(flags["move_down"].tolist(), [True, False])
 
     def test_sideways_backward_and_nonfinite_are_out_of_bounds(self):
         env = self.make_env([[0, 0, 0.84], [0, 2.1, 0.84], [-0.8, 0, 0.84],

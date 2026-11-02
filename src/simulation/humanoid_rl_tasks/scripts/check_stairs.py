@@ -3,7 +3,7 @@
 
 This starts Isaac Sim even without --runtime. Run ONLY when no training/viewer
 owns the GPU. It never trains, loads checkpoints, or changes source assets.
-The separate tests/test_stairs_contract.py suite is safe during training.
+The separate CPU unit tests under tests/ are safe during training.
 """
 
 import argparse

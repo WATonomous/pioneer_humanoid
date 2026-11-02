@@ -101,26 +101,26 @@ one terrain or reward setting at a time, and record the recipe and seed.
 
 ## Validation and first run
 
-Run the CPU-only tests from the repository root. They do not
-launch Isaac Sim or use the GPU. The standard-library tests exercise configuration statements
-and the course-generating function with lightweight test doubles, including
-recorded box dimensions and surface profiles. They are not real Isaac API, mesh
-integration, or physics tests:
+Run the CPU-only tests from the repository root. The lean suite has 23 tests
+across five files: nine knee-reward, five terrain-contact, four course-logic,
+three geometry, and two gradient-guard checks. They exercise project behavior
+using lightweight Isaac/PhysX substitutes, without launching Isaac Sim or using
+the GPU. They are not real Isaac API, mesh-integration, or physics tests:
 
 ```bash
 python3 -m unittest discover \
   -s src/simulation/humanoid_rl_tasks/tests \
-  -p 'test_stair*.py' -v
+  -p 'test_*.py' -v
 ```
 
-Hosts without Torch run 29 source/geometry tests and skip five episode-logic
-tests. To run all 34 on CPU, use the provided image's Python inside the container
+Hosts without Torch run three geometry tests and skip the other 20 tests.
+To run all 23 on CPU, use the provided image's Python inside the container
 (this does not start Isaac, so it is safe while a training job runs):
 
 ```bash
 cd "$HUMANOID_ROOT"
-CUDA_VISIBLE_DEVICES="" "$PYTHON" -m unittest discover \
-  -s src/simulation/humanoid_rl_tasks/tests -p 'test_stair*.py' -v
+CUDA_VISIBLE_DEVICES="" "$ISAACLAB/isaaclab.sh" -p -m unittest discover \
+  -s src/simulation/humanoid_rl_tasks/tests -p 'test_*.py' -v
 ```
 
 The Isaac validator starts `AppLauncher` even without `--runtime`, so
@@ -288,7 +288,8 @@ Generated-asset cleanup (2026-11-01): removed the baseline's checked-in USD cach
 and pointed the base configuration at the same ignored runtime conversion cache
 already used by selective self-collision. The URDF, meshes, robot settings, and
 walking recipe are retained. The historical USD marker/layer checks above no
-longer apply; `test_baseline_assets.py` checks the retained URDF and mesh sources.
+longer apply; at that stage, `test_baseline_assets.py` checked the retained URDF
+and mesh sources (that file was subsequently removed in the lean-suite cleanup).
 All 96 retained CPU tests passed in the provided container with CUDA hidden and
 no Isaac application launched. A fresh-cache real Isaac check also passed: the
 old local cache was moved aside, the URDF was converted into ignored outputs,
@@ -298,3 +299,17 @@ run verified registration, configuration round-trip, normalization, 19 nonzero
 rewards, and actual stair mesh profiles. It exited successfully despite the
 local WSL graphics initialization and CUDA shutdown errors. This validates
 conversion and wiring, not GUI rendering, stair walking, or training stability.
+
+Lean-suite cleanup (2026-11-01): reduced the unit suite from 96 to 23 tests across
+five files, removing 73 tests and unused fixtures. Kept knee mapping/symmetry and
+reward gating, terrain-only contact timing/history/resets, course completion and
+curriculum, stair profiles/gaps/invalid geometry, and the gradient guard. Removed
+the broad asset-hash, configuration-fingerprint and source-layout suites rather
+than combining their checks under fewer test names. This intentionally gives up
+exact historical snapshot enforcement and exhaustive edge-case coverage.
+All 23 retained tests passed in the team container with CUDA hidden and no
+simulator launched; a Torch-less host passed three geometry tests and skipped 20.
+Robot definitions, rewards, PPO and terrain code are unchanged. The separate
+real-Isaac `check_stairs.py` remains; its only edit was updating a documentation
+reference, so the fresh-cache integration result above still applies. No new
+physics run or training was performed for this test-only cleanup.
