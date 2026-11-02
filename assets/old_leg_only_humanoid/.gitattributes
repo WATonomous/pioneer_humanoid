@@ -1,0 +1,2 @@
+# Keep the frozen URDF bytes stable on Windows as well as Linux.
+rl_baseline_v1.urdf -text whitespace=-blank-at-eol
