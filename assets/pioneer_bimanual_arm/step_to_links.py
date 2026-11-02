@@ -16,6 +16,7 @@ URDF is Z up, front +X, right arm at -Y (m). The links below joint5 are:
     link8  the inner finger
 Masses are volume x 1 g/cm^3, the density the rest of this URDF was exported with.
 """
+import functools
 import os
 import re
 import sys
@@ -41,7 +42,6 @@ R = np.array([[0.0, 0.0, -1.0], [-1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
 OFFSET_MM = np.array([21.8, 0.0, -1179.65])
 FINGER_TRAVEL = 0.041                 # m each: the STEP is fully open (82.1 mm between the fingers' inner faces)
 JOINT5_ZERO_TURN = {"right": -90.0, "left": 90.0}   # deg about joint5 (base +Z), STEP pose -> the arm's zero
-JOINT5_AXIS_XY = {"right": (0.0148, -0.2816), "left": (0.0148, 0.2816)}   # m, where the joint5 axes are
 JOINT6_AXIS_STEP = {"right": (0.0, -1.0, 0.0), "left": (0.0, 1.0, 0.0)}   # joint6 in the STEP pose (the old axis)
 RAIL_STEP = (1.0, 0.0, 0.0)           # the fingers' travel in the STEP pose, base frame
 
@@ -75,10 +75,16 @@ def turn(side):
     return np.array([[np.cos(a), -np.sin(a), 0.0], [np.sin(a), np.cos(a), 0.0], [0.0, 0.0, 1.0]])
 
 
+@functools.lru_cache(maxsize=None)
+def joint5_xy(side):
+    """where the joint5 axis is (m, base X / Y), from this URDF"""
+    return link_frames()["link5" if side == "right" else "link5l"][:2]
+
+
 def to_urdf(p_mm, side):
     """STEP points (mm) -> base_link (m), turned about joint5 to the arm's zero"""
     p = (np.asarray(p_mm) @ R.T + OFFSET_MM) / 1000.0
-    c = np.array([*JOINT5_AXIS_XY[side], 0.0])
+    c = np.array([*joint5_xy(side), 0.0])
     return (p - c) @ turn(side).T + c
 
 
@@ -200,7 +206,7 @@ def main(step):
             fingers[name] = (lo + hi) / 2
             origin = fingers[name]
         elif k == "6":
-            origin = wrist[side] = np.array([*JOINT5_AXIS_XY[side], frames[name][2]])   # on the joint5 axis
+            origin = wrist[side] = np.array([*joint5_xy(side), frames[name][2]])   # on the joint5 axis
         else:
             origin = frames[name]
         V, F, m_tot, mc, props = [], [], 0.0, np.zeros(3), []
