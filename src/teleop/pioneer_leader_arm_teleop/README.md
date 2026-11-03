@@ -80,8 +80,8 @@ python pioneer_leader_arm_teleop.py --target mujoco --scene peg_insert   # macOS
 
 Scenes: `bare`, `peg_insert`, `zip_tie`, `drawer_stow`, `matcha`, `duplo`, or any scene in `humanoid_mujoco_scenes` (see `src/simulation/mujoco_scenes/`).
 
-- **Home:** the arm starts at home (elbow bent 90°, forearm forward, gripper open) and follows the leader only once every leader joint is within 3° of home and the gripper is open. The status line lists the joints still off.
-- **Directions:** move one leader joint at a time. If a sim joint goes the wrong way, re-run `calibrate_leader.py` for that side with that entry flipped in `--signs` (order A..G, left default `1,1,-1,1,1,-1,1`).
+- **Home:** the arm starts at home (elbow bent 90°, forearm forward, gripper open) and follows the leader only once every leader joint is within 15° of home and the gripper is open. The status line lists the joints still off.
+- **Directions:** move one leader joint at a time. If a sim joint goes the wrong way, re-run `calibrate_leader.py` for that side with that entry flipped in `--signs` (order A..G; the defaults are `SIDE_SIGNS` in `leader_mapping.py`).
 - **Keys** (all teleops side by side: [teleop README → Keyboard controls](../README.md#keyboard-controls)):
 
   | Key | Isaac | MuJoCo |
@@ -94,7 +94,8 @@ Scenes: `bare`, `peg_insert`, `zip_tie`, `drawer_stow`, `matcha`, `duplo`, or an
 
   MuJoCo uses digits because every letter, 0-5 and Esc are viewer shortcuts (Esc stays the viewer's free camera).
   Its window's top-left corner shows whether you are recording (and for how long), the key to press next, and
-  `SAVED` / `take discarded` for 3 s after 8 / 9.
+  `SAVED` / `take discarded` for 3 s after 8 / 9. Until the arm follows (with or without `--record`) it also lists each
+  joint's offset from home (the gripper as % open) under `bring to position`, `<` marking the ones still out of range.
 - **Arm:** the right arm by default (`--arms right`): the leader's left arm doesn't register its servos. `--arms left` once it does.
 - **`--record`** → `<repo>/datasets/pioneer_v1_right_arm/sim/` · cameras `ego` + the driven arm's wrist (`--cameras` to change, `none` for none).
 - **Multi-step scenes** (`drawer_stow`, `matcha`, `duplo`): the terminal prints `[TASK] step k/n: <instruction>` as each step is done and

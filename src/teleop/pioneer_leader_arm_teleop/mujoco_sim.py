@@ -34,6 +34,9 @@ from humanoid_robot_learning.sim.sim_teleop_record import (  # noqa: E402
 
 from leader_mapping import (  # noqa: E402
     CONTROL_DT,
+    ENGAGE_GRIP_TOL,
+    ENGAGE_TOL_DEG,
+    GRIPPER_SERVO,
     WRIST_DAMPING,
     LeaderBoard,
     LeaderInput,
@@ -77,7 +80,6 @@ class RecordStatus:
         self.flags = flags  # the recorder's EpisodeFlags
         self._was = dict(start=False, remove=False)
         self._event, self._event_t = "", -math.inf
-        self._shown = None
 
     def event(self, text: str) -> None:
         print(f"\n[RECORD] {text}", flush=True)
@@ -96,7 +98,9 @@ class RecordStatus:
             self.event("take discarded, recording again")
         self._was = dict(start=flags.start, remove=flags.remove)
 
-    def _lines(self, started: bool, recording: bool) -> tuple[str, str]:
+    def lines(self, started: bool) -> tuple[str, str]:
+        """(left, right) overlay columns: what the recorder is doing, and the key to press next."""
+        recording = self.flags.start
         if recording and not started:
             head, keys = "REC armed", "bring the leader to home to start"
         elif recording:
@@ -107,13 +111,31 @@ class RecordStatus:
             head, keys = f"{self._event}\n{head}", f"\n{keys}"
         return head, keys
 
-    def show(self, viewer: Any, started: bool) -> None:
-        import mujoco
 
-        text = self._lines(started, self.flags.start)
-        if text != self._shown:  # set_texts only on change: the seconds count ticks at 10 Hz
-            viewer.set_texts((mujoco.mjtFontScale.mjFONTSCALE_200, mujoco.mjtGridPos.mjGRID_TOPLEFT, *text))
-            self._shown = text
+def home_offsets(arms: list[Arm]) -> tuple[str, str]:
+    """(left, right) overlay columns: each arm not yet following, its joints' offsets from home; < = still out of range."""
+    labels, values = [], []
+    for arm in arms:
+        if arm.mapping.engaged or not arm.mapping.home_errors:
+            continue
+        labels.append(f"bring {arm.side} to position" if len(arms) > 1 else "bring to position")
+        values.append(f"within {ENGAGE_TOL_DEG:g} deg")
+        for label, err in arm.mapping.home_errors:
+            grip = label == GRIPPER_SERVO
+            out = abs(err) > (ENGAGE_GRIP_TOL if grip else ENGAGE_TOL_DEG)
+            labels.append(f"  {label}")
+            # The gripper's error is its closure (0 open); shown as how open it is, since "0.00 closed" reads as closed.
+            values.append((f"{1 - err:4.0%} open" if grip else f"{err:+6.1f} deg") + ("  <" if out else ""))
+    return "\n".join(labels), "\n".join(values)
+
+
+def show_overlay(viewer: Any, columns: tuple[str, str], shown: tuple[str, str] | None) -> tuple[str, str]:
+    """Top-left text, set only when it changes (the seconds count and offsets tick at 10 Hz). Returns what is shown."""
+    import mujoco
+
+    if columns != shown:
+        viewer.set_texts((mujoco.mjtFontScale.mjFONTSCALE_200, mujoco.mjtGridPos.mjGRID_TOPLEFT, *columns))
+    return columns
 
 
 def print_camera(cam: Any, scene_name: str) -> None:
@@ -238,6 +260,7 @@ def run() -> None:
         with mujoco.viewer.launch_passive(model, data, key_callback=on_key) as viewer:
             for key, value in (scene_camera(args.scene) or {}).items():
                 setattr(viewer.cam, key, value)
+            shown = None  # the overlay text now in the window
             while viewer.is_running():
                 if recorder is not None and recorder.is_complete:
                     print("\n[RECORD] Session complete.")
@@ -289,8 +312,11 @@ def run() -> None:
                         shown_step = (index, instruction)
                         msg = "all steps done -- 8 to save" if index >= total else f"step {index + 1}/{total}: {instruction}"
                         print(f"\n[TASK] {msg}", flush=True)
+                columns = home_offsets(arms)
                 if status is not None:
-                    status.show(viewer, all(arm.mapping.engaged for arm in arms))
+                    record = status.lines(all(arm.mapping.engaged for arm in arms))
+                    columns = tuple(f"{r}\n\n{c}" for r, c in zip(record, columns)) if columns[0] else record
+                shown = show_overlay(viewer, columns, shown)
                 viewer.sync()
 
                 for arm in arms:
