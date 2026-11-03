@@ -22,7 +22,8 @@ from arm_limits import gripper_fraction, limited_target
 from servo_leader import ARM_SERVOS, GRIPPER_SERVO, SERVO_IDS, ServoLeader, calibration_zeros, parse_signs
 
 # Per-servo direction of each board, A..F then G, found by moving one joint at a time: what calibrate_leader.py writes
-# without --signs. Right is not the left's mirror on this unit: all but F (wrist) match the left.
+# without --signs. Right is not the left's mirror on this unit: all but F (wrist) match the left, because of the way the
+# leader's strap is mounted on the operator's arm, not the servos themselves.
 SIDE_SIGNS = {"left": "1,1,-1,-1,1,-1,1", "right": "1,1,-1,-1,1,1,1"}
 DEFAULT_SIGNS = SIDE_SIGNS["left"]
 # The leader unit's two boards (one per arm): port, USB serial, signs and zeros, written by

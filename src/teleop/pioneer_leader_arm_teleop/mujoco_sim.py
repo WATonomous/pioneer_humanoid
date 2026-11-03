@@ -1,4 +1,4 @@
-"""MuJoCo leader teleop: one leader per arm, left arm by default (--arms left, right or bimanual).
+"""MuJoCo leader teleop: one leader per arm, right arm by default (--arms right, left or bimanual).
 
 Same leader mapping as the Isaac backend (leader_mapping.py). Scenes: humanoid_mujoco_scenes.
 
@@ -131,11 +131,15 @@ def print_camera(cam: Any, scene_name: str) -> None:
 def run() -> None:
     parser = argparse.ArgumentParser(description="Pioneer MuJoCo leader teleoperation, one leader per arm.")
     add_leader_args(parser, scene_help="scene registered in humanoid_mujoco_scenes (an unknown name lists them)")
-    parser.add_argument("--arms", choices=tuple(ARM_SETS), default="left",
+    # Right by default: the leader unit's left arm does not register its servos (leader_arm.json has left disabled).
+    parser.add_argument("--arms", choices=tuple(ARM_SETS), default="right",
                         help="arms to drive and record, one leader board each (leader_arm.json)")
     add_record_args(parser, task_description="sim leader teleop demonstration")
     args = parser.parse_args()
     sides = list(ARM_SETS[args.arms])  # in ARM_ORDER: a recorded frame is the left arm's values, then the right's
+    if args.record and args.cameras is None:
+        # The schema enables only wrist_left; record the wrist of each arm being driven instead.
+        args.cameras = ",".join(["ego"] + [f"wrist_{side}" for side in sides])
     boards = check_leader_args(parser, args, sides)
     record = load_record_schema(parser, args, arms=sides)
 

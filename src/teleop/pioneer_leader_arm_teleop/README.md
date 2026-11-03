@@ -94,14 +94,14 @@ Scenes: `bare`, `peg_insert`, `zip_tie`, `drawer_stow`, `matcha`, `duplo`, or an
   MuJoCo uses digits because every letter, 0-5 and Esc are viewer shortcuts (Esc stays the viewer's free camera).
   Its window's top-left corner shows whether you are recording (and for how long), the key to press next, and
   `SAVED` / `take discarded` for 3 s after 8 / 9.
-- **`--record`** → `<repo>/datasets/pioneer_v1_left_arm/sim/` · `--cameras ego,wrist_left` / `none`.
+- **Arm:** the right arm by default (`--arms right`): the leader's left arm doesn't register its servos. `--arms left` once it does.
+- **`--record`** → `<repo>/datasets/pioneer_v1_right_arm/sim/` · cameras `ego` + the driven arm's wrist (`--cameras` to change, `none` for none).
 - **Multi-step scenes** (`drawer_stow`, `matcha`, `duplo`): the terminal prints `[TASK] step k/n: <instruction>` as each step is done and
   `all steps done -- 8 to save` at the end. Recorded frames carry the current step's instruction as their `task` and a
   `subtask_index`, so a take is labelled step by step with no hand annotation.
-- **Both arms (MuJoCo):** `--arms bimanual` (or `right` for the right arm alone), once the right board is calibrated (`calibrate_leader.py --side right`).
+- **Both arms (MuJoCo):** `--arms bimanual`, once both boards are calibrated (`calibrate_leader.py --side left` / `right`).
   Recording waits for every leader at home; frames are the left arm's 7 values then the right's, into
-  `<repo>/datasets/pioneer_v1_bimanual/sim/` (`pioneer_v1_right_arm` for the right arm alone).
-  The right wrist camera is off in the schema: add it with `--cameras ego,wrist_left,wrist_right`.
+  `<repo>/datasets/pioneer_v1_bimanual/sim/` (`pioneer_v1_left_arm` for the left arm alone), with both wrist cameras.
 - Other flags: `--baud`, `--leader-arm` (default `leader_arm.json` here), `--filter-alpha` (target smoothing, default 0.35).
 
 Targets are clamped to the arm's URDF limits. Wrist damping is lowered to 2.5 in this teleop only, so the sim wrist keeps up with the leader.
