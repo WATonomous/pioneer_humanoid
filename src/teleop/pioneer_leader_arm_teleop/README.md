@@ -175,9 +175,16 @@ the calibrations before any live teleop.
 ./watod -t simulation_mj
 cd /workspace/humanoid/src/teleop/pioneer_leader_arm_teleop
 python3 pioneer_leader_arm_teleop.py --target real          # left board from leader_arm.json
+python3 pioneer_leader_arm_teleop.py --target real --arms right            # right board -> right arm
+python3 pioneer_leader_arm_teleop.py --target real --arms bimanual         # both boards, both arms
 python3 pioneer_leader_arm_teleop.py --target real --live   # needs joint_command running
 python3 pioneer_leader_arm_teleop.py --target real --self-test           # angle math only, no ROS / leader
 ```
+
+- `--arms left` (default), `right` or `bimanual`: each arm is driven by its own leader board, so the right board
+  must be calibrated first (`calibrate_leader.py --side right`). Its signs have no default: find them with this
+  dry run. A flipped sign on a joint whose home is 0° passes the gate, so sweep every joint.
+  With `bimanual` the screen shows a table per arm.
 
 - Leader: `sign × leader`, clamped to the `arm_calibration.yaml` limits `joint_command` enforces (the URDF
   limits for a joint without `limit_range`; the sim backends keep the URDF limits).
@@ -186,20 +193,22 @@ python3 pioneer_leader_arm_teleop.py --target real --self-test           # angle
   Fix the leader's signs (`calibrate_leader.py --signs`) or the real arm's `direction` / calibration (`calibrate_arm.py`) until it does.
 - Warnings (end of each row): `>10` (disagreement), `NO FEEDBACK` (none for 0.5 s), `limit-clamp` (the leader was cut to those
   limits), `real outside hw [lo,hi]` (the real arm is outside `arm_calibration.yaml`'s limits: stale calibration).
-- Gripper: compared as position (0 open .. 1 closed), leader vs the real GL40 (id 21); `>0.1` and
-  `real outside hw` warn.
+- Gripper: compared as position (0 open .. 1 closed), leader vs the real GL40 (`gripper.open_close` in
+  `arm_calibration.yaml`: id 21 left, 36 right); `>0.1` and `real outside hw` warn.
 
 `--live`:
-0. Optionally homes the real elbow.pitch first. Once every active joint has feedback, it asks `[y/N]`.
-   On `y` it ramps elbow.pitch from its measured angle to home (−90°) at `--home-rate` deg/s (default 5,
-   at most its `velocity_max`), holding the other joints where they are. It then keeps publishing that
-   pose until the leader takes over. It refuses if elbow.pitch is not `active` or home is outside its
+0. Optionally homes each arm's real elbow.pitch first. Once every active joint has feedback, it asks `[y/N]`.
+   On `y` it ramps elbow.pitch from its measured angle to home (−90° left, +90° right) at `--home-rate` deg/s
+   (default 5, at most its `velocity_max`), holding the other joints where they are. It then keeps publishing
+   that pose until the leader takes over. It refuses if elbow.pitch is not `active` or home is outside its
    `arm_calibration.yaml` limits (re-run `calibrate_arm.py` sweeping past home).
 1. Shows the dry run until the gate passes: on every joint `active` in `arm_actuators.yaml`, the real arm is
    inside its `arm_calibration.yaml` limits and the leader is within 3° of home and within 10° of the real
-   arm; the gripper (if active) is inside its limits and within 0.1. The screen lists what fails.
+   arm; the gripper (if active) is inside its limits and within 0.1. The screen lists what fails. With
+   `bimanual` both arms must pass.
 2. Asks you to press Enter (anything else quits), re-checks the gate, then publishes `ArmPose` on
-   `/arm/left/joint_targets` at 50 Hz, gripper included. `joint_command` clamps, rate-limits and runs the watchdog.
+   `/arm/<side>/joint_targets` at 50 Hz, gripper included; with `bimanual` one Enter starts both arms.
+   `joint_command` clamps, rate-limits and runs the watchdog.
 3. Ctrl-C stops publishing. `joint_command` holds the last pose for `command_timeout_sec` (10 s), then
    sets kp = 0 and the arm sinks: support it.
 
@@ -209,7 +218,7 @@ python3 pioneer_leader_arm_teleop.py --target real --self-test           # angle
 |------|------|
 | `pioneer_leader_arm_teleop.py` | entry; `--target isaac\|mujoco\|real` picks the backend before any simulator import |
 | `isaac_sim.py` / `mujoco_sim.py` | sim backends |
-| `real_arm.py` | real-arm backend: dry run (leader vs `/interfacing/motorFeedback`), `--live` publishes `/arm/left/joint_targets` |
+| `real_arm.py` | real-arm backend (`--arms left\|right\|bimanual`): dry run (leader vs `/interfacing/motorFeedback`), `--live` publishes `/arm/<side>/joint_targets` |
 | `leader_mapping.py` | shared: 1:1 mapping, home check, filter, gripper closure, leader read, wall-clock pacing |
 | `servo_leader.py` / `arm_limits.py` | servo bus reader / clamp + gripper fraction |
 | `calibrate_leader.py` | stores a board's hanging-pose zero, signs and USB serial in `leader_arm.json` |

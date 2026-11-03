@@ -152,46 +152,68 @@ safety:
   right:
     shoulder:
       pitch:   # AK10-9
-        active: false
+        active: true
         control_type: 0
         mit_family: ak
-        mit_kp: 2.0
+        mit_kp: 12.0
         mit_kd: 0.3
         mit_max_torque: 18
         mit_fault_kd: 5.0
       roll:    # AK80-9
-        active: false
+        active: true
         control_type: 0
         mit_family: ak
-        mit_kp: 2.0
+        mit_kp: 12.0
         mit_kd: 0.3
         mit_max_torque: 9.0
         mit_fault_kd: 1.0
       yaw:     # AK10-9
-        active: false
+        active: true
+        delta_max: 2.0
         control_type: 0
         mit_family: ak
-        mit_kp: 2.0
-        mit_kd: 0.3
-        mit_max_torque: 18.0
+        mit_kp: 60.0
+        mit_kd: 0.4
+        mit_max_torque: 18.0   # gravity max 1.24 N.m
+        mit_peak_torque: 48.0      # AK10-9 datasheet peak; bench-check before enabling
         mit_fault_kd: 5.0
+        mit_max_track_err: 15.0
+        gravity_ff_max_torque: 12.5    # model max 1.2 N.m
+        gravity_ff_scale: 0.0
     elbow:
       pitch:   # AK80-9
-        active: false
+        active: true
+        delta_max: 1.6
         control_type: 0
         mit_family: ak
-        mit_kp: 2.0
-        mit_kd: 0.3
+        mit_kp: 60.0                  # stall 6.7 N.m + 3.59 ff
+        mit_kd: 0.4
         mit_max_torque: 9.0
+        mit_peak_torque: 22.0      # AK80-9: its MIT torque reading saturates at 18
         mit_fault_kd: 5.0
+        gravity_ff_max_torque: 3.59
+        gravity_ff_scale: 0.0
       roll:    # AK80-9
-        active: false
+        active: true
         control_type: 0
         mit_family: ak
-        mit_kp: 2.0
+        mit_kp: 30.0
         mit_kd: 0.3
         mit_max_torque: 9.0
         mit_fault_kd: 0.5
+
+        # active: true
+        # # velocity_max: 120
+        # delta_max: 2
+        # control_type: 0
+        # mit_family: ak
+        # mit_kp: 30.0
+        # mit_kd: 0.4
+        # mit_max_torque: 9.0
+        # mit_peak_torque: 22.0      # AK80-9: its MIT torque reading saturates at 18
+        # mit_fault_kd: 0.5
+        # gravity_ff_max_torque: 0.18    # model max 0.18 N.m
+        # gravity_ff_scale: 0.0
     wrist:
       pitch:   # GL40
         active: false

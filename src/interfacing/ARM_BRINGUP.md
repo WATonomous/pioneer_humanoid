@@ -44,8 +44,7 @@ their single-turn absolute encoders don't reliably survive a power cycle; should
 Per joint: confirm motor id → home zero → one end Enter → other end Enter → writes `zero_offset`/limits/`can_id`.
 ```bash
 source /opt/watonomous/setup.bash
-ros2 run can calibrate_arm.py \
-  --arm-side left --write-mapping
+ros2 run can calibrate_arm.py --write-mapping
 ```
 Prompt: **Enter**=yes · id=correct id · **s**=skip · **q**=quit.
 
@@ -107,7 +106,9 @@ python3 calibrate_leader.py --port /dev/ttyACM1 --side left # Set the leader arm
 
 3. vRun the teleop script through a dry run, verifying that leader arm direction is aligned with real-arm:
 ```bash
+
 python3 pioneer_leader_arm_teleop.py --target real 
+python3 pioneer_leader_arm_teleop.py --target real --arms right      # right arm (calibrate_leader.py --side right first); --arms bimanual for both
 ```
 
 4. Run live script. Ensure the `joint_command` node is running
