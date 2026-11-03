@@ -585,10 +585,75 @@ def matcha_plan(op, model, data, notes) -> None:
     _finish(op, rest=start + rng.normal(0, 0.02, 3))
 
 
+# ----------------------------------------------------------------------------- wall switches
+# The gripper points forward at a wall (closed, like a person using a fingertip). The plate's origin is the centre of its
+# front face, so every offset below is from there: x < 0 is toward the robot.
+def _tilted(op, deg: float):
+    """Gripper pointing forward, pitched down ``deg`` degrees about world Y."""
+    from scipy.spatial.transform import Rotation
+    return Rotation.from_euler("y", deg, degrees=True).as_matrix() @ op.R_home
+
+
+def toggle_plan(op, model, data, notes) -> None:
+    """Flip the toggle lever up: fingers under the lever tip, then lift."""
+    import humanoid_mujoco_scenes.toggle_switch.scene as S
+
+    rng = op.rng
+    R = _tilted(op, rng.uniform(-3, 3))
+    clear = rng.uniform(0.13, 0.16)                     # how far out from the wall the hand waits
+
+    op.pause(0.3, 0.8)
+    for attempt in range(3):
+        p = op.see("plate")
+        op.move((p[0] - clear, p[1], p[2] - 0.06), R=R, grip=1.0, tol=0.012, via=True)           # out in front, below the lever
+        tip = p[0] - S.LEVER_LENGTH + 0.005
+        op.move((tip - 0.02, p[1], p[2] - 0.06), tol=0.006, axes=(1, 1, 1))                      # close to the wall
+        op.move((tip - 0.01, p[1], p[2] - 0.035), tol=0.006)                                      # under the lever tip
+        op.move((tip - 0.01, p[1], p[2] + 0.035), tol=0.012, corrections=0, axes=(0, 0, 1), speed=0.9)   # lift: flips it
+        op.settle()
+        if S.is_on(model, data):
+            break
+        notes.append("lever did not flip: again")
+    else:
+        raise TaskFailed("lever did not flip")
+    op.move((p[0] - clear, p[1], p[2] + 0.02), tol=0.03, corrections=0)                           # hand back off the wall
+    op.pause(0.3, 0.8)
+
+
+def rocker_plan(op, model, data, notes) -> None:
+    """Press the top half of the rocker in. A forward gripper's fingers are taller (88 mm) than the paddle and press
+    it flat, so the hand is pitched down ~25 degrees and the edge of a finger presses the upper half."""
+    import humanoid_mujoco_scenes.rocker_switch.scene as S
+
+    rng = op.rng
+    R = _tilted(op, rng.uniform(20, 30))
+    clear = rng.uniform(0.14, 0.17)
+    dz = 0.022 + rng.uniform(-0.006, 0.006)             # tool point above the paddle's middle
+
+    op.pause(0.3, 0.8)
+    for attempt in range(3):
+        p = op.see("plate")
+        z = p[2] + dz + 0.008 * attempt                  # a miss: aim a little higher next time
+        op.move((p[0] - clear, p[1], z), R=R, grip=1.0, tol=0.012, via=True)
+        op.move((p[0] - 0.07, p[1], z), tol=0.005)                                                # in front of the paddle
+        op.move((p[0] - 0.02, p[1], z), tol=0.01, corrections=0, axes=(0, 0, 0), speed=0.5)    # press
+        op.settle()
+        if S.is_on(model, data):
+            break
+        notes.append("rocker did not tip: again")
+        op.move((p[0] - clear, p[1], z), tol=0.03, corrections=0)
+    else:
+        raise TaskFailed("rocker did not tip")
+    op.move((p[0] - clear, p[1], z), tol=0.03, corrections=0)                                     # hand back off the wall
+    op.pause(0.3, 0.8)
+
+
 TASKS: dict[str, Task] = {
     "drawer_stow": Task(drawer_plan, "put the blocks in the drawer", grasp_pitch_deg_8dof=30.0),
     "peg_insert": Task(peg_plan, "insert the peg into the hole", limit_avoid_8dof=0.0),   # null space hurt the insert
     "zip_tie": Task(zip_plan, "pull the zip tie tight"),
     "duplo": Task(duplo_plan, "stack the duplo bricks", grasp_pitch_deg_8dof=30.0, limit_avoid_8dof=0.02),
     "matcha": Task(matcha_plan, "make the matcha and serve it on the tray"),
+    "toggle_switch": Task(toggle_plan, "flip the light switch up to turn the light on"),
+    "rocker_switch": Task(rocker_plan, "press the top of the rocker to turn the light on"),
 }
