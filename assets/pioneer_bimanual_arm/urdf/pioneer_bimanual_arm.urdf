@@ -1,23 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
-     Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
-     For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
-<!-- MANUAL FIXES below, not from the exporter. urdf_joint_limits.py parses the limit tags and
-     writes them onto the spawned USD prims, so these are live. -->
-<!-- joint5/joint5l origins: joint5's frame had a 4.5mm Y drift; joint5l/joint6l a +/-0.001264 X
-     zigzag. Both rotate about Z so only X/Y matters. link5/link5l visual+collision+inertial
-     origins compensate, so no geometry moved. Same export batch as pioneer_badminton_arm and
-     pioneer_boxing_arm: check those. -->
-<!-- joint4/joint4l limits: swapped so each elbow's larger travel budget (+/-132.5 deg) is on its
-     flexion side. The +/-75 deg rest pose and the teleop volume both bend the elbows toward +X;
-     the exporter had the budgets on the hyperextension side. -->
-<!-- Every link's meshes are from the arm's CAD (ArmV2_NewForearms_NewWristGrippers), in colour: a visual
-     mesh a colour (<link>_<colour>.STL) and one collision mesh (<link>.STL). link5..link8 are the new forearm
-     and wrist gripper. The arm links' masses and inertias (link1..link8, both arms) are the whole-body gripper
-     model's, the same arm: motors at their datasheet weights (AK10 940 g, AK80 490 g, GL40 107 g), PLA prints
-     at 0.65 g/cm^3 (about 30 % infill), steel parts 7.85 g/cm^3; 4.22 kg an arm. At joint5 = 0 the forearm
-     and gripper are turned 90 deg about joint5 from the CAD (-90 right, +90 left): the fingers close side to side along the MGN9 rail (base Y, 41 mm each, 0 = open),
-     and joint6's axis is base -X through the joint5 axis. Joints 1-5 unchanged. -->
+<!-- Joints from the SolidWorks to URDF Exporter (wiki.ros.org/sw_urdf_exporter), fixed by hand:
+     joint4/joint4l limits swapped so each elbow's 132.5 deg is on its flexion side; joint5/joint5l
+     origins corrected for exporter drift. urdf_joint_limits.py writes these limits onto the USD. -->
+<!-- Meshes from the arm CAD (ArmV2_NewForearms_NewWristGrippers): a visual mesh a colour, one collision
+     mesh a link. Arm masses as the whole-body gripper model's: datasheet motors, PLA prints 0.65 g/cm^3,
+     steel; 4.22 kg an arm. At joint5 = 0 the gripper is turned 90 deg from the CAD, so the fingers close
+     side to side (base Y, 41 mm each, 0 = open). -->
 <robot
   name="armv2URDF">
   <link
