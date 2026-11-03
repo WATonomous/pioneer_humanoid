@@ -63,7 +63,7 @@ ros2 run can can_node --ros-args --params-file $(ros2 pkg prefix can)/share/can/
 ## MIT mode
 
 `config/mit_profiles.yaml` sets each motor's `family`:
-- **gl2**: GL40 wrist (22) / gripper (21) on a GL II drive. Standard frame on the node id,
+- **gl2**: GL40 wrist (left 35, right 22) / gripper (left 36, right 21) on a GL II drive. Standard frame on the node id,
   `MIT_ENTER` before commands, feedback on the master id (`mit_master_id`, default `0x000`)
   ([manual §5](https://www.cubemars.com/images/file/20241231/1735633965678815.pdf)).
 - **ak**: AK10-9 / AK80-9 on V3.0 firmware. Extended frame on `0x800 | id`, KP-first payload, no
