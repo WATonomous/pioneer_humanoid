@@ -39,8 +39,13 @@ def assert_uniform_grid(positions: list[float], bin_size: float, tol: float = 1e
             )
 
 
-def write_profile(path: str, data: dict, per_line: tuple[str, ...] = ()) -> None:
-    """Write ``data`` as JSON with one item per line for ``per_line`` keys.
+def write_profile(
+    path: str,
+    data: dict,
+    per_line: tuple[str, ...] = (),
+    per_physical_line: int = 1,
+) -> None:
+    """Write ``data`` as JSON with ``per_physical_line`` items per line for ``per_line`` keys.
 
     Keys not in ``per_line`` are written inline, so short lists such as a
     centre or marker stay on the metadata line.
@@ -52,9 +57,15 @@ def write_profile(path: str, data: dict, per_line: tuple[str, ...] = ()) -> None
         comma = "," if entry_index + 1 < len(entries) else ""
         if key in selected and isinstance(value, list):
             lines.append(f"  {json.dumps(key)}: [")
-            for item_index, item in enumerate(value):
-                item_comma = "," if item_index + 1 < len(value) else ""
-                lines.append(f"    {json.dumps(item, separators=(',', ':'))}{item_comma}")
+            # Group items into lines of `per_physical_line` elements each.
+            for group_start in range(0, len(value), per_physical_line):
+                group = value[group_start : group_start + per_physical_line]
+                is_last_group = group_start + per_physical_line >= len(value)
+                items_str = ", ".join(
+                    json.dumps(item, separators=(',', ':')) for item in group
+                )
+                group_comma = "," if not is_last_group else ""
+                lines.append(f"    {items_str}{group_comma}")
             lines.append(f"  ]{comma}")
         else:
             lines.append(f"  {json.dumps(key)}: {json.dumps(value, separators=(',', ':'))}{comma}")

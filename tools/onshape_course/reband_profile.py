@@ -63,7 +63,7 @@ out["lookahead"] = args_cli.lookahead
 out["margin"] = args_cli.margin
 out["samples"] = samples
 
-write_profile(args_cli.profile, out, per_line=("samples",))
+write_profile(args_cli.profile, out, per_line=("samples",), per_physical_line=4)
 
 values = [row[1] for row in samples]
 print(f"[REBAND] {args_cli.profile}: lookahead={args_cli.lookahead} margin={args_cli.margin} "

@@ -197,7 +197,7 @@ def main() -> None:
                 [round(float(h), 4), round(float(b), 4)] for h, b in zip(h_walk, band)
             ],
         }
-        write_profile(args_cli.out, out, per_line=("samples",))
+        write_profile(args_cli.out, out, per_line=("samples",), per_physical_line=4)
         log(f"[PROFILE] wrote {args_cli.out} ({n_bins} samples)")
     except Exception:
         import traceback
