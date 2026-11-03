@@ -24,13 +24,15 @@ The leader unit has one board per arm, each on its own USB serial port (not the 
 
 ```bash
 python calibrate_leader.py --side left --port /dev/ttyACM0     # hang the leader straight down, gripper open, rotation joints on their marks; Enter
-python calibrate_leader.py --side right --port /dev/ttyACM1 --signs=<A..G>   # only for two arms; right has no default signs (keep the =: they may start with -)
+python calibrate_leader.py --side right --port /dev/ttyACM1   # only for two arms
+python calibrate_leader.py --side right --port /dev/ttyACM1 --signs=<A..G>   # other directions than SIDE_SIGNS (keep the =: they may start with -)
 python calibrate_leader.py --side left --port /dev/ttyACM0 --from leader_calibration.json   # convert the old file, no re-hanging
 ```
 
-Writes that board into `leader_arm.json` here and enables it: zero encoder counts per servo, the signs (left
-default `1,1,-1,1,1,-1,1`) and the board's USB serial number. The teleop finds each board by that serial, so
-plugging the boards in the other order can't swap the arms; two boards with the same serial (or none) are refused.
+Writes that board into `leader_arm.json` here and enables it: zero encoder counts per servo, the signs (`--signs`,
+default the side's `SIDE_SIGNS` in `leader_mapping.py`) and the board's USB serial number. The teleop finds each board
+by that serial, so plugging the boards in the other order can't swap the arms; two boards with the same serial (or none)
+are refused.
 The right board stays disabled until it is calibrated. Teleop refuses to start without the file.
 **Commit `leader_arm.json`:** it describes the team's one leader unit, so nobody else has to calibrate; a different
 unit is refused by its USB serial. Recalibrate and commit again after re-mounting a servo.
@@ -79,7 +81,7 @@ python pioneer_leader_arm_teleop.py --target mujoco --scene peg_insert   # macOS
 Scenes: `bare`, `peg_insert`, `zip_tie`, `drawer_stow`, `matcha`, `duplo`, or any scene in `humanoid_mujoco_scenes` (see `src/simulation/mujoco_scenes/`).
 
 - **Home:** the arm starts at home (elbow bent 90°, forearm forward, gripper open) and follows the leader only once every leader joint is within 15° of home and the gripper is open. The status line lists the joints still off.
-- **Directions:** move one leader joint at a time. If a sim joint goes the wrong way, re-run `calibrate_leader.py` for that side with that entry flipped in `--signs` (order A..G, left default `1,1,-1,1,1,-1,1`).
+- **Directions:** move one leader joint at a time. If a sim joint goes the wrong way, re-run `calibrate_leader.py` for that side with that entry flipped in `--signs` (order A..G; the defaults are `SIDE_SIGNS` in `leader_mapping.py`).
 - **Keys** (all teleops side by side: [teleop README → Keyboard controls](../README.md#keyboard-controls)):
 
   | Key | Isaac | MuJoCo |
@@ -94,14 +96,14 @@ Scenes: `bare`, `peg_insert`, `zip_tie`, `drawer_stow`, `matcha`, `duplo`, or an
   Its window's top-left corner shows whether you are recording (and for how long), the key to press next, and
   `SAVED` / `take discarded` for 3 s after 8 / 9. Until the arm follows (with or without `--record`) it also lists each
   joint's offset from home (the gripper as % open) under `bring to position`, `<` marking the ones still out of range.
-- **`--record`** → `<repo>/datasets/pioneer_v1_left_arm/sim/` · `--cameras ego,wrist_left` / `none`.
+- **Arm:** the right arm by default (`--arms right`): the leader's left arm doesn't register its servos. `--arms left` once it does.
+- **`--record`** → `<repo>/datasets/pioneer_v1_right_arm/sim/` · cameras `ego` + the driven arm's wrist (`--cameras` to change, `none` for none).
 - **Multi-step scenes** (`drawer_stow`, `matcha`, `duplo`): the terminal prints `[TASK] step k/n: <instruction>` as each step is done and
   `all steps done -- 8 to save` at the end. Recorded frames carry the current step's instruction as their `task` and a
   `subtask_index`, so a take is labelled step by step with no hand annotation.
-- **Both arms (MuJoCo):** `--arms bimanual` (or `right` for the right arm alone), once the right board is calibrated (`calibrate_leader.py --side right`).
+- **Both arms (MuJoCo):** `--arms bimanual`, once both boards are calibrated (`calibrate_leader.py --side left` / `right`).
   Recording waits for every leader at home; frames are the left arm's 7 values then the right's, into
-  `<repo>/datasets/pioneer_v1_bimanual/sim/` (`pioneer_v1_right_arm` for the right arm alone).
-  The right wrist camera is off in the schema: add it with `--cameras ego,wrist_left,wrist_right`.
+  `<repo>/datasets/pioneer_v1_bimanual/sim/` (`pioneer_v1_left_arm` for the left arm alone), with both wrist cameras.
 - Other flags: `--baud`, `--leader-arm` (default `leader_arm.json` here), `--filter-alpha` (target smoothing, default 0.35).
 
 Targets are clamped to the arm's URDF limits. Wrist damping is lowered to 2.5 in this teleop only, so the sim wrist keeps up with the leader.
@@ -183,7 +185,7 @@ python3 pioneer_leader_arm_teleop.py --target real --self-test           # angle
 ```
 
 - `--arms left` (default), `right` or `bimanual`: each arm is driven by its own leader board, so the right board
-  must be calibrated first (`calibrate_leader.py --side right`). Its signs have no default: find them with this
+  must be calibrated first (`calibrate_leader.py --side right`). Check its signs (`SIDE_SIGNS`) with this
   dry run. A flipped sign on a joint whose home is 0° passes the gate, so sweep every joint.
   With `bimanual` the screen shows a table per arm.
 
