@@ -73,7 +73,18 @@ def _load_course_band() -> list:
     """
     try:
         with open(_ONSHAPE_COURSE_PROFILE) as handle:
-            return [[float(entry[0]), float(entry[1])] for entry in json.load(handle)["band"]]
+            profile = json.load(handle)
+        if "samples" in profile:
+            # Modern layout: y is implicit (y0 + index * bin), each row is
+            # [terrain height, required clearance band].
+            y0 = float(profile["y0"])
+            bin_size = float(profile["bin"])
+            return [
+                [y0 + index * bin_size, float(row[1])]
+                for index, row in enumerate(profile["samples"])
+            ]
+        # Legacy layout: explicit [y, band] rows.
+        return [[float(entry[0]), float(entry[1])] for entry in profile["band"]]
     except (OSError, KeyError, ValueError) as err:  # pragma: no cover - container path
         print(f"[ONSHAPE] course profile unavailable ({err}); falling back to the scalar band")
         return []

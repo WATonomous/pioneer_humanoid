@@ -5,13 +5,14 @@ the walking line is a *constant* of the task, not something the policy has to
 rediscover. This script reads it straight off the merged USD and writes a
 lookup table that the reward can interpolate:
 
-    <stem>_profile.json  ->  {"heights": [[y, z], ...], "band": [[y, band], ...]}
+    <stem>_profile.json  ->  {"y0": ..., "bin": ..., "samples": [[z, band], ...]}
 
-``heights`` is the terrain height (the top surface at the walking line) and
-``band`` is the *required* swing-foot clearance at that y: the height the next
-step has to clear, i.e. the tallest tread within ``--lookahead`` metres minus
-the tread the robot stands on, plus the term's own margin, clamped into
-[band_min, band_max].
+Each sample is ``[height, band]``; the y coordinate is implicit
+(``y = y0 + index * bin``). ``height`` is the terrain height (the top surface
+at the walking line) and ``band`` is the *required* swing-foot clearance at
+that y: the height the next step has to clear, i.e. the tallest tread within
+``--lookahead`` metres minus the tread the robot stands on, plus the term's
+own margin, clamped into [band_min, band_max].
 
 Why it matters: ``foot_swing_clearance`` used a single global band, so the
 policy was paid the full band (a high knee) even on the flat approach, while
@@ -35,7 +36,7 @@ from __future__ import annotations
 import argparse
 import os
 
-from profile_json import write_profile
+from profile_json import assert_uniform_grid, write_profile
 
 parser = argparse.ArgumentParser(description="Extract the Onshape course height profile and clearance band.")
 parser.add_argument(
@@ -184,16 +185,19 @@ def main() -> None:
                 bar = "#" * max(1, int(round(h_walk[k] / max(h_walk.max(), 1e-6) * 40)))
                 log(f"[PROFILE]   y={centres[k]:7.2f} z={h_walk[k]:5.3f} band={band[k]:5.3f} {bar}")
 
+        assert_uniform_grid([float(c) for c in centres], args_cli.bin)
         out = {
             "usd": os.path.basename(args_cli.usd),
             "walk_x": args_cli.walk_x,
+            "y0": float(centres[0]),
             "bin": args_cli.bin,
             "lookahead": args_cli.lookahead,
             "margin": args_cli.margin,
-            "heights": [[round(float(c), 4), round(float(h), 4)] for c, h in zip(centres, h_walk)],
-            "band": [[round(float(c), 4), round(float(b), 4)] for c, b in zip(centres, band)],
+            "samples": [
+                [round(float(h), 4), round(float(b), 4)] for h, b in zip(h_walk, band)
+            ],
         }
-        write_profile(args_cli.out, out, per_line=("heights", "band"))
+        write_profile(args_cli.out, out, per_line=("samples",))
         log(f"[PROFILE] wrote {args_cli.out} ({n_bins} samples)")
     except Exception:
         import traceback

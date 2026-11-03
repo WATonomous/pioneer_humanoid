@@ -3,26 +3,40 @@
 ``json.dump(..., indent=1)`` puts each number on its own line: the straight
 course profile was 4,330 lines for 540 samples. A single compact line is worse
 to review. This writer keeps the scalar metadata inline and emits each item of
-the long arrays (``heights``/``band`` pairs, tread angles, ...) on one line, so
-the file stays readable and diffable:
+the long arrays (profile samples, tread angles, ...) on one line, so the file
+stays readable and diffable:
 
     {
       "usd": "straight_stairs_terrain.usd",
+      "y0": -3.975,
       "bin": 0.05,
-      "heights": [
-        [-3.975,0.0],
-        [-3.925,0.0]
-      ],
-      "band": [
-        [-3.975,0.06]
+      "samples": [
+        [0.0,0.06],
+        [0.0,0.06],
+        ...
       ]
     }
+
+The straight profile stores only ``[height, band]`` per sample. The y
+coordinate is implicit: ``y = y0 + index * bin``. :func:`assert_uniform_grid`
+guards the conversion from an explicit y column.
 """
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
+
+
+def assert_uniform_grid(positions: list[float], bin_size: float, tol: float = 1e-6) -> None:
+    """Raise ``ValueError`` unless ``positions`` is a uniform ``bin_size`` grid."""
+    for index in range(1, len(positions)):
+        delta = float(positions[index]) - float(positions[index - 1])
+        if abs(delta - float(bin_size)) > tol:
+            raise ValueError(
+                f"profile positions are not on a uniform {bin_size} m grid: "
+                f"index {index - 1}->{index} is {delta:.9f} m"
+            )
 
 
 def write_profile(path: str, data: dict, per_line: tuple[str, ...] = ()) -> None:
