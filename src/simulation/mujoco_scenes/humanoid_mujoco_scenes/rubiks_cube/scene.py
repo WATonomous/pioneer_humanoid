@@ -1,6 +1,6 @@
-"""Rubik's cube: one 5.6 cm cube on the table, straight in front of the LEFT arm. The only object.
+"""Rubik's cube: one 5.6 cm cube on the table, straight in front of the RIGHT arm. The only object.
 
-The cube sits in line with the left gripper's home pose (elbow bent 90 deg, forearm forward): centred
+The cube sits in line with the right gripper's home pose (elbow bent 90 deg, forearm forward): centred
 between the open jaws (~9.5 cm apart there) and just past their tips, so reaching it is lowering the
 forearm ~15 cm and reaching ~5 cm further. One collision box (a solved cube; the layers don't turn); the 54 stickers are visual only.
 
@@ -16,7 +16,7 @@ from humanoid_mujoco_scenes import TABLE_TOP_Z, add_workcell, scene
 
 CUBE_SIZE = 0.056               # m, a standard 3x3
 CUBE_MASS = 0.09                # kg, a speed cube is 70-100 g
-CUBE_POS = (0.45, 0.29)         # xy on the table: in line with the left jaws at home (x 0.36-0.45, centred y 0.289)
+CUBE_POS = (0.45, -0.29)        # xy on the table: in line with the right jaws at home (x 0.36-0.45, centred y -0.289)
 REST_Z = TABLE_TOP_Z + CUBE_SIZE / 2    # m, cube centre resting on the table (any face down)
 LIFT_MIN = 0.05                 # m above REST_Z, the lift that counts as picked up (pushes and tips stay under 3 cm)
 REST_TOL = 0.005                # m, cube centre within this of REST_Z counts as back on the table
@@ -76,7 +76,7 @@ def placed(model: mujoco.MjModel, data: mujoco.MjData) -> bool:
     return bool(data.userdata[0] >= LIFT_MIN and abs(cube_height(model, data)) < REST_TOL and not touches_robot(model, data))
 
 
-@scene("rubiks_cube", camera=dict(lookat=[0.38, 0.29, TABLE_TOP_Z + 0.08], distance=0.5, azimuth=180, elevation=-40),
+@scene("rubiks_cube", camera=dict(lookat=[0.38, -0.29, TABLE_TOP_Z + 0.08], distance=0.5, azimuth=180, elevation=-40),
        step=step, success=placed)
 def build(spec: mujoco.MjSpec) -> None:
     spec.nuserdata = 1                  # [highest lift so far, m]
