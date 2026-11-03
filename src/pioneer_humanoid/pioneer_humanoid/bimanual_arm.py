@@ -15,7 +15,7 @@ Notes on the values below:
   - _DEFAULT_JOINT_POS is this URDF's zero pose plus elbow flex (see below), a
     correct-by-construction rest pose -- not a hand-tuned one.
   - LEFT_/RIGHT_FINGER_DISTAL_TIP_LOCAL are measured against this asset's mesh,
-    along its joint7/8 travel axis (Y, step_to_links.py).
+    along its joint7/8 travel axis (Y).
   - _WRIST_ORIENT_OFFSET_* in run_quest_bimanual_teleop.py are identity and need
     live in-headset retuning for this asset's joint6 axis.
   - actuator gains are motor-derived but not independently verified; the +/-0.041 m
@@ -85,7 +85,7 @@ LEFT_FINGER_TIP_BODIES = ("link7l", "link8l")
 RIGHT_FINGER_TIP_BODIES = ("link7", "link8")
 # Distal mesh point of each finger, in that link's OWN object-space frame: the outward extreme along
 # the travel axis (Y: outward for link7, the outer finger, inward for link8) with X/Z at the bbox
-# centre, measured on the new wrist gripper's meshes (step_to_links.py puts each finger's origin at its
+# centre, measured on the new wrist gripper's meshes (each finger's origin is at its
 # bbox centre). Same "outward extreme along the travel axis" methodology as before.
 #
 # LINK-LOCAL, so they do not survive a re-export that moves the link origins; re-measure the same

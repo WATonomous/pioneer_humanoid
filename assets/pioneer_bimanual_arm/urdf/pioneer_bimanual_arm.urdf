@@ -11,11 +11,12 @@
 <!-- joint4/joint4l limits: swapped so each elbow's larger travel budget (+/-132.5 deg) is on its
      flexion side. The +/-75 deg rest pose and the teleop volume both bend the elbows toward +X;
      the exporter had the budgets on the hyperextension side. -->
-<!-- link5..link8 (and the l links): the new forearm and wrist gripper (ArmV2_NewForearms_NewWristGrippers),
-     written by step_to_links.py: meshes, inertias (1 g/cm^3 as the rest), joint6 and joint7/joint8. At
-     joint5 = 0 the forearm and gripper are turned 90 deg about joint5 from the CAD (-90 right, +90 left):
-     the fingers close side to side along the new MGN9 rail (base Y, 41 mm each, 0 = open), and joint6's
-     axis is base -X through the joint5 axis. Joints 1-5 unchanged; check_new_gripper.py. -->
+<!-- Every link's meshes are from the arm's CAD (ArmV2_NewForearms_NewWristGrippers), in colour: a visual
+     mesh a colour (<link>_<colour>.STL) and one collision mesh (<link>.STL). base_link..link4 are the same
+     parts as before and keep their inertias. link5..link8 are the new forearm and wrist gripper (inertias at
+     1 g/cm^3 as the rest). At joint5 = 0 the forearm and gripper are turned 90 deg about joint5 from the CAD
+     (-90 right, +90 left): the fingers close side to side along the MGN9 rail (base Y, 41 mm each, 0 = open),
+     and joint6's axis is base -X through the joint5 axis. Joints 1-5 unchanged. -->
 <robot
   name="armv2URDF">
   <link
