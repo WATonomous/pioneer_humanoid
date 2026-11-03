@@ -3,25 +3,26 @@
 import numpy as np
 from slam_core.types.pose import is_pose
 
-   
+
 def read_imu(path):
 
     imu = np.loadtxt(path)
 
-    if imu.ndim !=2 or imu.shape[1]!=7:
+    if imu.ndim != 2 or imu.shape[1] != 7:
         raise ValueError(f"{path}: Wrong number of columns")
-    
-    stamp = imu[:,0]
-    gyro = imu[:,1:4]
-    accel = imu[:,4:7]
 
-    if not (np.all(np.diff(stamp)>0)):
+    stamp = imu[:, 0]
+    gyro = imu[:, 1:4]
+    accel = imu[:, 4:7]
+
+    if not (np.all(np.diff(stamp) > 0)):
         raise ValueError(f"{path}: IMU stamps are not strictly increasing")
-
 
     return stamp, gyro, accel
 
 # Returns the IMU samples covering the time from two keyframe times
+
+
 def imu_between(stamp, gyro, accel, t0, t1):
 
     # Guard clause: the IMU has to cover the whole interval, or we'd be missing motion
@@ -36,16 +37,16 @@ def imu_between(stamp, gyro, accel, t0, t1):
 
     # When each used sample's reading starts counting: its own stamp...
     starts = stamp[i0:i1+1].copy()
-    starts[0] = t0 
+    starts[0] = t0
 
     # When each reading stops counting: the NEXT sample's stamp...
     ends = stamp[i0+1:i1+2].copy()
-    ends[-1] = t1 
+    ends[-1] = t1
 
     dt = ends - starts
 
-    gyro_seg = gyro[i0:i1+1,:]
-    accel_seg = accel[i0:i1+1,:]
+    gyro_seg = gyro[i0:i1+1, :]
+    accel_seg = accel[i0:i1+1, :]
 
     return gyro_seg, accel_seg, dt
 
@@ -59,31 +60,29 @@ def read_extrinsics(path):
     return extrinsics
 
 
-
 if __name__ == "__main__":
     stamps, gyro, accel = read_imu("data/run1/imu.txt")
-    T_cam_imu = read_extrinsics ("data/run1/imu_extrinsics.txt")
+    T_cam_imu = read_extrinsics("data/run1/imu_extrinsics.txt")
     print(stamps.shape, gyro.shape, accel.shape)
     print(gyro[0], accel[0])
     print(T_cam_imu)
 
     # Load Key frame timestamps
-    kf_stamps = np.loadtxt("data/run1/keyframes.txt")[:,2]
-    sample_count =[]
+    kf_stamps = np.loadtxt("data/run1/keyframes.txt")[:, 2]
+    sample_count = []
     timing_error = []
-    min_dt=[]
+    min_dt = []
 
-
-    for k in range (len(kf_stamps)-1):
+    for k in range(len(kf_stamps)-1):
         t0 = kf_stamps[k]
         t1 = kf_stamps[k+1]
-        dt = imu_between(stamps,gyro,accel,t0,t1)[2]
+        dt = imu_between(stamps, gyro, accel, t0, t1)[2]
 
         sample_count.append(len(dt))
         timing_error.append(abs(dt.sum()-(t1-t0)))
         min_dt.append(dt.min())
 
-    print(np.median(sample_count),min(sample_count),max(sample_count))
+    print(np.median(sample_count), min(sample_count), max(sample_count))
     print(max(timing_error))
     print(min(min_dt))
     print(len(sample_count))
@@ -96,5 +95,3 @@ if __name__ == "__main__":
     print(imu_between(toy, g, a, 7, 23)[2])    # expect [3. 5. 5. 3.]
     print(imu_between(toy, g, a, 10, 25)[2])   # expect [5. 5. 5.]
     print(gs.shape, acs.shape, dts.shape)      # expect (4, 3) (4, 3) (4,)
-
-
