@@ -43,4 +43,4 @@ problem. No new locomotion or hardware result is implied by cache relocation.
 Training and handoff notes:
 
 - [Rough-no-stairs recipe](../../src/simulation/humanoid_rl_tasks/humanoid_rl_tasks/locomotion/locomotion.md#rough-no-stairs-source-only-recipe)
-- [Stairs scaffold](../../src/simulation/humanoid_rl_tasks/humanoid_rl_tasks/locomotion/STAIRS.md)
+- [Onshape stair courses](../../src/simulation/humanoid_rl_tasks/humanoid_rl_tasks/locomotion/locomotion.md)

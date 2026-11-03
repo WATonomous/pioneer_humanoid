@@ -14,6 +14,7 @@ assets/
 ├── pioneer_whole_body_humanoid/  # the full robot from CAD (head, arms, hands, legs; 69 joints), and a gripper version (the bimanual arm's joints; 31) — urdf, MuJoCo xml, meshes
 ├── pioneer_leg_only_humanoid/    # the same robot without arms, for walking first (12 leg joints; shares the whole-body meshes)
 ├── props/                 # block.usd, box.usd, table.usd, lightbox.usd — scene props owned by no robot
+├── staircase_onshape/     # merged stair-course terrain USDs + profile/geometry JSONs (STEP sources not committed)
 └── lerobot/               # SO101 arm + vial-task USDs + HDRIs — synced from an external repo
 ```
 
