@@ -23,10 +23,10 @@ That is the URDF zero, the real arm's calibrated zero, and the leader's (`calibr
 The leader unit has one board per arm, each on its own USB serial port (not the CANable's).
 
 ```bash
-python calibrate_leader.py --side left --port <your-port>     # hang the leader straight down, gripper open, rotation joints on their marks; Enter
-python calibrate_leader.py --side right --port <your-port>   # only for two arms
-python calibrate_leader.py --side right --port <your-port> --signs=<A..G>   # other directions than SIDE_SIGNS (keep the =: they may start with -)
-python calibrate_leader.py --side left --port <your-port> --from leader_calibration.json   # convert the old file, no re-hanging
+python calibrate_leader.py --side left --port /dev/ttyACM0     # hang the leader straight down, gripper open, rotation joints on their marks; Enter
+python calibrate_leader.py --side right --port /dev/ttyACM1   # only for two arms
+python calibrate_leader.py --side right --port /dev/ttyACM1 --signs=<A..G>   # other directions than SIDE_SIGNS (keep the =: they may start with -)
+python calibrate_leader.py --side left --port /dev/ttyACM0 --from leader_calibration.json   # convert the old file, no re-hanging
 ```
 
 Writes that board into `leader_arm.json` here and enables it: zero encoder counts per servo, the signs (`--signs`,
@@ -50,7 +50,7 @@ The leader plugs in over USB (`/dev/ttyACM0`); the `simulation_isaac` container 
 # inside the container
 cd /workspace/humanoid/src/teleop/pioneer_leader_arm_teleop
 $PYTHON encoder_test.py                   # first time: all 7 servos respond? (--ids 2,3 --raw for a subset)
-$PYTHON calibrate_leader.py --side left --port <your-port>   # first time: store the hanging-pose zero
+$PYTHON calibrate_leader.py --side left --port /dev/ttyACM0   # first time: store the hanging-pose zero
 
 /workspace/isaaclab/isaaclab.sh -p pioneer_leader_arm_teleop.py --scene push
 /workspace/isaaclab/isaaclab.sh -p pioneer_leader_arm_teleop.py --scene vial_rack --record
@@ -185,7 +185,7 @@ python3 pioneer_leader_arm_teleop.py --target real --self-test           # angle
 ```
 
 - `--arms left` (default), `right` or `bimanual`: each arm is driven by its own leader board, so the right board
-  must be calibrated first (`calibrate_leader.py --side right`). Check its signs (`SIDE_SIGNS`) with this
+  must be calibrated first (`calibrate_leader.py --side right`). Its signs have no default: find them with this
   dry run. A flipped sign on a joint whose home is 0° passes the gate, so sweep every joint.
   With `bimanual` the screen shows a table per arm.
 
