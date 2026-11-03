@@ -182,7 +182,7 @@ safety:
         gravity_ff_scale: 0.0
     elbow:
       pitch:   # AK80-9
-        active: true
+        active: false
         delta_max: 1.6
         control_type: 0
         mit_family: ak
@@ -194,7 +194,7 @@ safety:
         gravity_ff_max_torque: 3.59
         gravity_ff_scale: 0.0
       roll:    # AK80-9
-        active: true
+        active: false
         control_type: 0
         mit_family: ak
         mit_kp: 30.0
