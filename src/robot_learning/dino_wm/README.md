@@ -8,7 +8,15 @@ future matches goal images. Sim only; nothing here runs on the real arm.
 **Status: not working yet.** The model predicts how the arm moves well, but the planner never picked the peg up
 (0 of 20 layouts). This is a record of what was tried and measured, so the next attempt can start from here.
 
+![A new random-motion episode in the sim (left) and the world model imagining it from the first 2 frames and the same actions (right)](media/imagine_seed40002.gif)
+
+Left: a random-motion episode the model never trained on (seed 40002). Right: the world model imagining the same 12 s
+from the first two frames and the same actions, decoded to pixels (`imagine.py`). The arm follows the real one; the
+peg is blurry and not tracked well.
+
 ![Planner run, seed 9001: robot camera (left) and the goal image it is steering towards (right)](media/plan_pick_seed9001.gif)
+
+The planner on one held-out layout: it reaches the peg but never lifts it.
 
 ## What was run
 
@@ -19,6 +27,7 @@ future matches goal images. Sim only; nothing here runs on the real arm.
 | 3. Random-motion data | `collect_random.py` | 800 episodes of 12 s from each take's first frame (seeds 30000-30799) |
 | 4. Train | `train.py` | 30k iterations, batch 48, about 25 passes over the data; 2 h (16x16) or 35 min (8x8) on an RTX 5070 Ti |
 | 5. Plan | `plan_pick.py` | 20 held-out layouts (seeds 9001-9020) |
+| Video | `imagine.py` | one new random-motion episode, imagined from its first 2 frames |
 
 The random-motion data drives the gripper with random moves and random open/close, and in half the episodes pulls it
 towards the peg. The peg moved in 478 of 800 episodes and was knocked off the table in 453.
@@ -98,6 +107,7 @@ python encode.py /data/peg_insert_320 peg16.pt --tok 16
 MUJOCO_GL=egl python collect_random.py random16.pt --tok 16 --first-seed 30000 --episodes 800
 python train.py peg16.pt random16.pt wm16 --iters 30000 --latents-on-cpu
 MUJOCO_GL=egl python plan_pick.py wm16/wm.pt pick16 --seeds 9001-9020
+MUJOCO_GL=egl python imagine.py wm16/wm.pt imagine.mp4 --seed 40002
 ```
 
 `action_bounds.json` holds the planner's action limits: the range of each joint and the largest change per 0.2 s in
