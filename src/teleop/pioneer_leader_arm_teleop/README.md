@@ -185,7 +185,7 @@ python3 pioneer_leader_arm_teleop.py --target real --self-test           # angle
 ```
 
 - `--arms left` (default), `right` or `bimanual`: each arm is driven by its own leader board, so the right board
-  must be calibrated first (`calibrate_leader.py --side right`). Its signs have no default: find them with this
+  must be calibrated first (`calibrate_leader.py --side right`). Check its signs (`SIDE_SIGNS`) with this
   dry run. A flipped sign on a joint whose home is 0° passes the gate, so sweep every joint.
   With `bimanual` the screen shows a table per arm.
 
