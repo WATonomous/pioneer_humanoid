@@ -194,7 +194,7 @@ python3 pioneer_leader_arm_teleop.py --target real --self-test           # angle
 - Warnings (end of each row): `>10` (disagreement), `NO FEEDBACK` (none for 0.5 s), `limit-clamp` (the leader was cut to those
   limits), `real outside hw [lo,hi]` (the real arm is outside `arm_calibration.yaml`'s limits: stale calibration).
 - Gripper: compared as position (0 open .. 1 closed), leader vs the real GL40 (`gripper.open_close` in
-  `arm_calibration.yaml`: id 21 left, 36 right); `>0.1` and `real outside hw` warn.
+  `arm_calibration.yaml`: id 36 left, 21 right); `>0.1` and `real outside hw` warn.
 
 `--live`:
 0. Optionally homes each arm's real elbow.pitch first. Once every active joint has feedback, it asks `[y/N]`.
