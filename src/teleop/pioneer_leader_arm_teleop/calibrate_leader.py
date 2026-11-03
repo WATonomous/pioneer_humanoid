@@ -6,8 +6,10 @@ one-to-one. Run once per board, or after a servo is re-mounted; it updates that 
 leader_arm.json (here; commit it: it describes the team's leader unit) and enables it:
 
     python calibrate_leader.py --side left --port /dev/ttyACM0
-    python calibrate_leader.py --side right --port /dev/ttyACM1 --signs=<A..G>   # = because signs may start with -
+    python calibrate_leader.py --side right --port /dev/ttyACM1
     python calibrate_leader.py --side left --port /dev/ttyACM0 --from leader_calibration.json  # convert
+
+Without --signs the servo directions (A..G) are the side's SIDE_SIGNS in leader_mapping.py.
 
 The board's USB serial number is stored too: the teleop finds each board by it, so plugging the two
 boards in the other order can't swap the arms. Rotation joints (shoulder rotation, forearm
@@ -19,7 +21,7 @@ import json
 import sys
 from pathlib import Path
 
-from leader_mapping import DEFAULT_LEADER_ARM, DEFAULT_SIGNS, SIDES, usb_serial
+from leader_mapping import DEFAULT_LEADER_ARM, SIDE_SIGNS, SIDES, usb_serial
 from servo_leader import SERVO_IDS, ServoLeader, calibration_entry, load_calibration, parse_signs
 
 
@@ -27,16 +29,15 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--side", choices=SIDES, required=True, help="which arm this board drives")
     parser.add_argument("--port", required=True, help="the board's serial port now (it is found by USB serial later)")
-    parser.add_argument("--signs", help=f"direction per servo A..G (left default: {DEFAULT_SIGNS}; required for right)")
+    parser.add_argument("--signs", help=f"direction per servo A..G (default: left {SIDE_SIGNS['left']}, "
+                                        f"right {SIDE_SIGNS['right']})")
     parser.add_argument("--from", dest="old", type=Path,
                         help="take the zeros from an old leader_calibration.json instead of reading the leader")
     parser.add_argument("--baud", type=int, default=1_000_000, help="serial baud rate")
     parser.add_argument("--out", type=Path, default=DEFAULT_LEADER_ARM)
     args = parser.parse_args()
 
-    signs = args.signs or (DEFAULT_SIGNS if args.side == "left" else None)
-    if signs is None:
-        parser.error("--side right needs --signs (its servos are mirrored; no default)")
+    signs = args.signs or SIDE_SIGNS[args.side]
     try:
         parse_signs(signs)
         serial_number = usb_serial(args.port)

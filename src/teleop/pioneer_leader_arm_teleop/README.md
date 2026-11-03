@@ -24,13 +24,14 @@ The leader unit has one board per arm, each on its own USB serial port (not the 
 
 ```bash
 python calibrate_leader.py --side left --port /dev/ttyACM0     # hang the leader straight down, gripper open, rotation joints on their marks; Enter
-python calibrate_leader.py --side right --port /dev/ttyACM1 --signs=<A..G>   # only for two arms; right has no default signs (keep the =: they may start with -)
+python calibrate_leader.py --side right --port /dev/ttyACM1   # only for two arms
 python calibrate_leader.py --side left --port /dev/ttyACM0 --from leader_calibration.json   # convert the old file, no re-hanging
 ```
 
-Writes that board into `leader_arm.json` here and enables it: zero encoder counts per servo, the signs (left
-default `1,1,-1,1,1,-1,1`) and the board's USB serial number. The teleop finds each board by that serial, so
-plugging the boards in the other order can't swap the arms; two boards with the same serial (or none) are refused.
+Writes that board into `leader_arm.json` here and enables it: zero encoder counts per servo, the signs (`--signs`,
+default the side's `SIDE_SIGNS` in `leader_mapping.py`) and the board's USB serial number. The teleop finds each board
+by that serial, so plugging the boards in the other order can't swap the arms; two boards with the same serial (or none)
+are refused.
 The right board stays disabled until it is calibrated. Teleop refuses to start without the file.
 **Commit `leader_arm.json`:** it describes the team's one leader unit, so nobody else has to calibrate; a different
 unit is refused by its USB serial. Recalibrate and commit again after re-mounting a servo.
@@ -79,7 +80,7 @@ python pioneer_leader_arm_teleop.py --target mujoco --scene peg_insert   # macOS
 Scenes: `bare`, `peg_insert`, `zip_tie`, `drawer_stow`, `matcha`, `duplo`, or any scene in `humanoid_mujoco_scenes` (see `src/simulation/mujoco_scenes/`).
 
 - **Home:** the arm starts at home (elbow bent 90°, forearm forward, gripper open) and follows the leader only once every leader joint is within 3° of home and the gripper is open. The status line lists the joints still off.
-- **Directions:** move one leader joint at a time. If a sim joint goes the wrong way, re-run `calibrate_leader.py` for that side with that entry flipped in `--signs` (order A..G, left default `1,1,-1,1,1,-1,1`).
+- **Directions:** move one leader joint at a time. If a sim joint goes the wrong way, re-run `calibrate_leader.py` for that side with that entry flipped in `--signs` (order A..G; the defaults are `SIDE_SIGNS` in `leader_mapping.py`).
 - **Keys** (all teleops side by side: [teleop README → Keyboard controls](../README.md#keyboard-controls)):
 
   | Key | Isaac | MuJoCo |
