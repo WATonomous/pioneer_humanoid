@@ -23,10 +23,8 @@ def _deg(degrees: float) -> float:
 # picks an elbow-bend direction at random. Flexing the elbows raises manipulability ~10,000x
 # and starts the arm in the flexion branch.
 #
-# Signs are OPPOSITE (joint4/joint4l axes are (0,-1,0)/(0,1,0)); both put the forearm forward
-# toward +X. Opposite-and-equal is what makes the pose mirror-symmetric. 90 holds the forearm
-# level (fingertip ~10cm higher than the previous 75); don't go below ~60 (tip nears the table).
-# Both inside the URDF limits (42.5 deg margin to joint4l's 132.5).
+# Signs are opposite (joint4/joint4l axes are (0,-1,0)/(0,1,0)): both put the forearm forward,
+# mirror-symmetric. 90 holds the forearm level; don't go below ~60 (the tip nears the table).
 DEFAULT_JOINT_POS = {
     "joint1": 0.0,
     "joint2": 0.0,

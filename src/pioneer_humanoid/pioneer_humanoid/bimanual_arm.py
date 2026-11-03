@@ -1,21 +1,12 @@
 """
 Canonical articulation config for the pioneer_bimanual_arm.
 
-Robot model: assets/pioneer_bimanual_arm (pioneer_bimanual_arm.usd),
-formerly wato_arm_v2/armWithStand.usd. This replaces the old bimanual_arm_cfg.py,
-which used a reversed L/R convention, inverted gripper dicts, X-axis fingertip
-geometry (wrong for this asset), and a rest pose tuned for a superseded CAD
-export.
+Robot model: assets/pioneer_bimanual_arm (pioneer_bimanual_arm.usd).
 
-Naming: LEFT_* = the L-suffixed chain (joint1L..joint6l) = physical LEFT arm,
-matching the CAD. RIGHT_* = unsuffixed (joint1..joint6). An earlier revision
-had these reversed; don't reintroduce that.
+Naming: LEFT_* = the L-suffixed chain (joint1L..joint6l) = physical LEFT arm.
+RIGHT_* = unsuffixed (joint1..joint6).
 
-Notes on the values below:
-  - _DEFAULT_JOINT_POS is this URDF's zero pose plus elbow flex (see below), a
-    correct-by-construction rest pose -- not a hand-tuned one.
-  - LEFT_/RIGHT_FINGER_DISTAL_TIP_LOCAL are measured against this asset's mesh,
-    along its joint7/8 travel axis (Y).
+Notes:
   - _WRIST_ORIENT_OFFSET_* in run_quest_bimanual_teleop.py are identity and need
     live in-headset retuning for this asset's joint6 axis.
   - actuator gains are motor-derived but not independently verified.
@@ -65,10 +56,8 @@ _ARM_USD_PATH = str(Path(_ARM_ROOT) / "usd" / "pioneer_bimanual_arm.usd")
 
 
 # --- Joint limits -----------------------------------------------------------
-# Re-exported from urdf_joint_limits (parses the URDF) so `from pioneer_humanoid.bimanual_arm import
-# JOINT_POS_LIMITS` call sites keep working. apply_joint_limits() and
-# patch_joint_pos_limits_on_prim() below write it onto the spawned prims, so this is what the
-# joints actually enforce at runtime. Replaced an unverified +/-2pi (no-limit) placeholder.
+# From the URDF (urdf_joint_limits). apply_joint_limits() and patch_joint_pos_limits_on_prim()
+# below write it onto the spawned prims: this is what the joints enforce at runtime.
 
 # --- Default (spawn) pose, joint names, gripper endpoints and actuator gains: arm_params.py
 # (simulator-neutral, shared with mujoco_bimanual_arm.py).
