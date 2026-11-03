@@ -26,20 +26,21 @@ alone say nothing about the surface in between.
 Run inside the container (needs the Isaac Sim USD bindings):
 
     isaaclab.sh -p tools/onshape_course/course_profile.py \\
-        --usd assets/staircase_onshape/course_easy_terrain.usd \\
-        --out assets/staircase_onshape/course_easy_profile.json
+        --usd assets/staircase_onshape/straight_stairs_terrain.usd \\
+        --out assets/staircase_onshape/straight_stairs_profile.json
 """
 
 from __future__ import annotations
 
 import argparse
-import json
 import os
+
+from profile_json import write_profile
 
 parser = argparse.ArgumentParser(description="Extract the Onshape course height profile and clearance band.")
 parser.add_argument(
     "--usd",
-    default="/workspace/humanoid/assets/staircase_onshape/course_easy_terrain.usd",
+    default="/workspace/humanoid/assets/staircase_onshape/straight_stairs_terrain.usd",
     help="Merged course USD (the /course/mesh prim).",
 )
 parser.add_argument("--walk-x", type=float, default=4.163, help="Walking line (world x).")
@@ -53,7 +54,7 @@ parser.add_argument("--y-min", type=float, default=-4.0, help="First sample (the
 parser.add_argument("--y-max", type=float, default=23.0, help="Last sample (past the last part).")
 parser.add_argument(
     "--out",
-    default="/workspace/humanoid/assets/staircase_onshape/course_easy_profile.json",
+    default="/workspace/humanoid/assets/staircase_onshape/straight_stairs_profile.json",
     help="Output JSON.",
 )
 parser.add_argument("--probe-x", type=float, nargs="*", default=[3.5, 4.163], help="Extra x lines to print for checking.")
@@ -192,8 +193,7 @@ def main() -> None:
             "heights": [[round(float(c), 4), round(float(h), 4)] for c, h in zip(centres, h_walk)],
             "band": [[round(float(c), 4), round(float(b), 4)] for c, b in zip(centres, band)],
         }
-        with open(args_cli.out, "w") as handle:
-            json.dump(out, handle, indent=1)
+        write_profile(args_cli.out, out, per_line=("heights", "band"))
         log(f"[PROFILE] wrote {args_cli.out} ({n_bins} samples)")
     except Exception:
         import traceback

@@ -9,7 +9,8 @@ Unlike the procedural stair_course generator, the terrain here is the merged
 single-mesh USD (straight_stairs_terrain.usd: the 6 stair parts plus the Part Studio's
 own ground, metres, triangle-soup collision baked). The RayCaster height scanner
 reads that one mesh, so policy observations stay 235-dim and stairs checkpoints
-load. Rebuild it from the STEP export with:
+load. The STEP export is not committed; place it in assets/staircase_onshape/
+and rebuild the terrain with:
 
     isaaclab.sh -p tools/onshape_course/build_course.py \\
         --step assets/staircase_onshape/straight_stairs.step
@@ -29,10 +30,10 @@ ramp, so the geometry itself is the curriculum. Risers measured off the STEP
     part 5  14.5 cm                    peak 1.085 m
     part 6  up to 16 cm                peak 1.540 m
 
-The previous course (``course.step`` -> ``course_terrain.usd``) ramped 10.0 -> 21 cm
-with a 1.89 m summit; it is kept on disk as the harder fallback. The first riser
-here is 5 cm, against the ~8.6 cm foot lift the 2026-10-19 policy already
-achieves, so the entrance no longer blocks the gait.
+The previous, harder course ramped 10.0 -> 21 cm with a 1.89 m summit; it is
+now only in git history. The first riser here is 5 cm, against the ~8.6 cm foot
+lift the 2026-10-19 policy already achieves, so the entrance no longer blocks
+the gait.
 """
 
 import json
@@ -145,7 +146,7 @@ class PioneerHumanoidOnshapeCourseRewards(PioneerHumanoidRoughNoStairsSelectiveK
 
 
 # Course runs +Y as modeled (forward is +Y). Spawn directly on the marker
-# sliver (metres, from course_easy_bounds.json: centre 4.1628, -1.5486),
+# sliver (metres, from the marker part's bounds: centre 4.1628, -1.5486),
 # facing +Y; course rewards/terminations take axis=1 / target=pi/2 below.
 _SPAWN_X = 4.163
 _SPAWN_Y = -1.549
@@ -240,7 +241,7 @@ class PioneerHumanoidOnshapeCourseEnvCfg(PioneerHumanoidRoughNoStairsSelectiveKn
         # itself allows -1.134 rad (65 deg). Forward kinematics on this URDF
         # (hip height 0.788 m, thigh 0.262 m, shank 0.394 m) gives a maximum
         # sagittal foot lift of ~0.155 m with a 0.95 rad tuck, but ~0.217 m at
-        # the hardware limit -- and the risers measured from course.step are
+        # the hardware limit -- and the risers measured from the course CAD are
         # 0.100-0.115 m on part 1 rising to ~0.21 m on parts 5-6. Under -0.95
         # the tall risers are outside the sagittal reach, which is why the
         # pre-fix walker cleared them by abducting the hip sideways -- exactly

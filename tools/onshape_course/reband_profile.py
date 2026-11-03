@@ -5,7 +5,7 @@ the band table needs -- so the band can be re-derived (different lookahead,
 different clamp) without booting Isaac Sim again.
 
     python3 tools/onshape_course/reband_profile.py \\
-        --profile assets/staircase_onshape/course_easy_profile.json \\
+        --profile assets/staircase_onshape/straight_stairs_profile.json \\
         --lookahead 0.30 --band-min 0.06 --band-max 0.16
 """
 
@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import argparse
 import json
+
+from profile_json import write_profile
 
 parser = argparse.ArgumentParser(description="Recompute the required-clearance band table.")
 parser.add_argument("--profile", required=True, help="Course profile JSON (from course_profile.py).")
@@ -39,8 +41,7 @@ profile["band"] = band
 profile["lookahead"] = args_cli.lookahead
 profile["margin"] = args_cli.margin
 
-with open(args_cli.profile, "w") as handle:
-    json.dump(profile, handle, indent=1)
+write_profile(args_cli.profile, profile, per_line=("heights", "band"))
 
 values = [b for _, b in band]
 print(f"[REBAND] {args_cli.profile}: lookahead={args_cli.lookahead} margin={args_cli.margin} "

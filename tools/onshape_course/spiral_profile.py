@@ -31,9 +31,10 @@ angle wildly).
 from __future__ import annotations
 
 import argparse
-import json
 import math
 import os
+
+from profile_json import write_profile
 
 parser = argparse.ArgumentParser(description="Extract a spiral staircase's geometry from its USD.")
 parser.add_argument("--usd", required=True, help="Merged terrain USD (the /course/mesh prim).")
@@ -251,8 +252,7 @@ def main() -> None:
             "tread_heights": [float(v) for v in level_z],
             "band": band,
         }
-        with open(args_cli.out, "w") as handle:
-            json.dump(geometry, handle, indent=1)
+        write_profile(args_cli.out, geometry, per_line=("tread_angles", "tread_heights", "band"))
         log(f"[SPIRAL] wrote {args_cli.out}")
     except Exception:
         import traceback

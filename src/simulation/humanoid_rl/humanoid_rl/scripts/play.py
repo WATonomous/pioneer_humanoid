@@ -14,9 +14,9 @@ from isaaclab.app import AppLauncher
 import cli_args  # isort: skip
 
 # add argparse arguments
-parser = argparse.ArgumentParser(description="Train an RL agent with RSL-RL.")
+parser = argparse.ArgumentParser(description="Play an RSL-RL checkpoint.")
 parser.add_argument("--video", action="store_true", default=False,
-                    help="Record videos during training.")
+                    help="Record a video during playback.")
 parser.add_argument("--video_length", type=int, default=200,
                     help="Length of the recorded video (in steps).")
 parser.add_argument(
@@ -32,6 +32,14 @@ parser.add_argument(
 )
 parser.add_argument("--real-time", action="store_true", default=False,
                     help="Run in real-time, if possible.")
+parser.add_argument(
+    "--diagnostics",
+    action="store_true",
+    default=False,
+    help="Print the gait/camera/reward probe ([PLAYARC], [PLAYLEAD], [PLAYDBG], ...). "
+         "Also enables the PLAY_INIT_OVERRIDE, PLAY_SPAWN_DY, PLAY_MARKER and "
+         "PLAY_FOLLOW_ROBOT/PLAY_REAR_CAM environment variables.",
+)
 # append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
 # append AppLauncher cli args
@@ -70,6 +78,13 @@ from isaaclab_rl.utils.pretrained_checkpoint import get_published_pretrained_che
 
 import humanoid_rl_tasks  # noqa: F401  (registers every RL task)
 from isaaclab_tasks.utils import get_checkpoint_path, parse_env_cfg
+from play_diagnostics import (
+    PlayDiagnostics,
+    add_spawn_marker,
+    apply_init_override,
+    apply_spawn_offsets,
+    pin_course_camera,
+)
 
 installed_rsl_rl_version = metadata.version("rsl-rl-lib")
 
@@ -84,6 +99,8 @@ def main():
         args_cli.task, device=args_cli.device, num_envs=args_cli.num_envs, use_fabric=not args_cli.disable_fabric
     )
     agent_cfg: RslRlOnPolicyRunnerCfg = cli_args.parse_rsl_rl_cfg(args_cli.task, args_cli)
+    if args_cli.diagnostics:
+        apply_init_override(env_cfg)
 
     # specify directory for logging experiments
     _out_root = os.environ.get("HUMANOID_ROOT") or os.getcwd()
@@ -103,8 +120,20 @@ def main():
     log_dir = os.path.dirname(resume_path)
     env_cfg.log_dir = log_dir
 
+    # Where a recording lands. PLAY_VIDEO_DIR / PLAY_VIDEO_PREFIX let a second
+    # angle be recorded next to the first instead of overwriting it.
+    video_dir = os.environ.get("PLAY_VIDEO_DIR") or os.path.join(log_dir, "videos", "play")
+    video_prefix = os.environ.get("PLAY_VIDEO_PREFIX", "rl-video")
+    if args_cli.video:
+        print(f"[PLAY] video -> {video_dir} (prefix {video_prefix})", flush=True)
+
     # create isaac environment
     env = gym.make(args_cli.task, cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None)
+
+    if args_cli.diagnostics:
+        # Spawn/camera setup that makes an Onshape probe reproducible.
+        apply_spawn_offsets(env)
+        pin_course_camera(env)
 
     # convert to single-agent instance if required by the RL algorithm
     if isinstance(env.unwrapped, DirectMARLEnv):
@@ -113,17 +142,22 @@ def main():
     # wrap for video recording
     if args_cli.video:
         video_kwargs = {
-            "video_folder": os.path.join(log_dir, "videos", "play"),
+            "video_folder": video_dir,
+            "name_prefix": video_prefix,
             "step_trigger": lambda step: step == 0,
             "video_length": args_cli.video_length,
             "disable_logger": True,
         }
-        print("[INFO] Recording videos during training.")
+        print("[INFO] Recording a video during playback.")
         print_dict(video_kwargs, nesting=4)
         env = gym.wrappers.RecordVideo(env, **video_kwargs)
 
+    if args_cli.diagnostics:
+        add_spawn_marker(env)
+
     # wrap around environment for rsl-rl
     env = RslRlVecEnvWrapper(env)
+    diagnostics = PlayDiagnostics(env) if args_cli.diagnostics else None
 
     print(f"[INFO]: Loading model checkpoint from: {resume_path}")
     # load previously trained model
@@ -160,6 +194,10 @@ def main():
     # reset environment
     obs = env.get_observations()
     timestep = 0
+    step_index = 0
+    # Hard step cap for headless probes (PLAY_MAX_STEPS=N): exits cleanly
+    # without the --video recorder (which is otherwise the only bound on the loop).
+    max_steps = int(os.environ.get("PLAY_MAX_STEPS", "0") or 0)
     # simulate environment
     while simulation_app.is_running():
         start_time = time.time()
@@ -169,6 +207,9 @@ def main():
             actions = policy(obs)
             # env stepping
             obs, _, dones, _ = env.step(actions)
+            step_index += 1
+            if diagnostics is not None:
+                diagnostics.on_step(actions, dones, step_index)
             if version.parse(installed_rsl_rl_version) >= version.parse("4.0.0"):
                 policy.reset(dones)
             elif policy_nn is not None:
@@ -178,6 +219,9 @@ def main():
             # Exit the play loop after recording one video
             if timestep == args_cli.video_length:
                 break
+        if max_steps and step_index >= max_steps:
+            print(f"[PLAY] step cap reached ({max_steps}) -- exiting", flush=True)
+            break
 
         # time delay for real-time evaluation
         sleep_time = dt - (time.time() - start_time)

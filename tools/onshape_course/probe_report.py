@@ -2,9 +2,9 @@
 
     python3 tools/onshape_course/probe_report.py /tmp/probe599.log
 
-The probe (play_onshape.py) prints one [PLAYARC] line per swing, per foot, at
-touchdown, with the joints sampled at peak lift. This turns those into the
-numbers that matter for the gait review:
+The probe (``play.py --diagnostics``) prints one [PLAYARC] line per swing, per
+foot, at touchdown, with the joints sampled at peak lift. This turns those
+into the numbers that matter for the gait review:
 
   * knee_z  -- the knee's height above the root at peak lift (the "raises the
                knee too high" complaint; ~0 m is a straight stance leg, ~0.25 m

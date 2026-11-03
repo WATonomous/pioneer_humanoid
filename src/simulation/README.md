@@ -62,7 +62,7 @@ Per-task notes: `humanoid_rl_tasks/humanoid_rl_tasks/<task>/*.md`. Full walkthro
 `docker/simulation/isaac_lab/README.md`.
 
 Pioneer humanoid walking: [source-only rough-no-stairs training and playback recipe](humanoid_rl_tasks/humanoid_rl_tasks/locomotion/locomotion.md#rough-no-stairs-source-only-recipe).
-Onshape stair courses: [straight and spiral STEP-derived USD courses](humanoid_rl_tasks/humanoid_rl_tasks/locomotion/locomotion.md).
+Onshape stair courses: [committed merged terrain USD courses](humanoid_rl_tasks/humanoid_rl_tasks/locomotion/locomotion.md).
 These research tasks use an [isolated frozen robot baseline](../../assets/old_leg_only_humanoid/RL_BASELINE.md);
 the upstream robot definition and legacy Flat/Rough configuration are not changed.
 Its USD is generated from the baseline URDF on first launch into ignored

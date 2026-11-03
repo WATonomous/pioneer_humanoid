@@ -147,9 +147,28 @@ Evaluate learned stepping symmetry, foot paths, falls, turning, and sustained
 walking rather than relying on total reward or a short demonstration. Source
 and wiring tests do not establish locomotion or hardware robustness.
 
-The Onshape stair courses inherit this 19-reward recipe and use the STEP-derived
-USD meshes in `assets/staircase_onshape/`. They are training scaffolds; no
-trained Onshape policy is supplied.
+The Onshape stair courses inherit this 19-reward recipe and use the committed
+merged terrain USDs in `assets/staircase_onshape/`. The STEP exports and raw
+conversion intermediates are intentionally not in the repo; only
+`*_terrain.usd` and the profile/geometry JSONs are needed at runtime. They are
+training scaffolds; no trained Onshape policy is supplied.
+
+**Gait probe**
+
+Add `--diagnostics` to `play.py` for the per-swing, lead-foot, camera and
+reward instrumentation (`[PLAYARC]`, `[PLAYLEAD]`, `[PLAYDBG]`, ...). The
+`PLAY_INIT_OVERRIDE`, `PLAY_SPAWN_DY`, `PLAY_MARKER`,
+`PLAY_FOLLOW_ROBOT`/`PLAY_REAR_CAM` and `PLAY_MAX_STEPS` environment variables
+are read in that mode:
+
+```bash
+$ISAACLAB/isaaclab.sh -p $RL_RUNNERS/play.py \
+  --task=Isaac-Locomotion-OnshapeCourse-PioneerHumanoid-Play-v0 \
+  --checkpoint <model.pt> --diagnostics --headless
+```
+
+Pipe the output through `python3 tools/onshape_course/probe_report.py <log>`
+for the symmetry and clearance summary.
 
 **Spawn / joint smoke checks**
 

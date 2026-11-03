@@ -25,13 +25,18 @@ Mesh under its prim path, so the multi-part HOOPS output is unusable as terrain
 directly. The merged output also carries the model's own ground plane (the
 ``ground`` part of the Part Studio), so the task needs no added collision floor.
 
+The STEP export is not committed (it comes from the team Onshape account), and
+neither are the raw conversion or bounds files; only ``<stem>_terrain.usd`` is
+kept. Place the export in ``assets/staircase_onshape/``, run the builder once, and
+commit the terrain USD.
+
 Usage:
     isaaclab.sh -p tools/onshape_course/build_course.py \\
-        --step assets/staircase_onshape/course.step
+        --step assets/staircase_onshape/straight_stairs.step
 
     # reuse an existing conversion (skip step 1):
     isaaclab.sh -p tools/onshape_course/build_course.py \\
-        --step assets/staircase_onshape/course.step --skip-convert
+        --step assets/staircase_onshape/straight_stairs.step --skip-convert
 """
 
 from __future__ import annotations
