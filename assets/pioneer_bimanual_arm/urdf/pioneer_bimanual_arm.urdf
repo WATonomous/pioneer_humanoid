@@ -40,12 +40,68 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://armv2URDF/meshes/base_link.STL" />
+          filename="package://armv2URDF/meshes/base_link_motor.STL" />
       </geometry>
       <material
-        name="">
+        name="motor">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.169 0.176 0.192 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/base_link_steel.STL" />
+      </geometry>
+      <material
+        name="steel">
+        <color
+          rgba="0.604 0.620 0.643 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/base_link_aluminium.STL" />
+      </geometry>
+      <material
+        name="aluminium">
+        <color
+          rgba="0.725 0.741 0.761 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/base_link_camera.STL" />
+      </geometry>
+      <material
+        name="camera">
+        <color
+          rgba="0.063 0.071 0.078 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/base_link_print.STL" />
+      </geometry>
+      <material
+        name="print">
+        <color
+          rgba="0.925 0.929 0.937 1" />
       </material>
     </visual>
     <collision>
@@ -80,12 +136,26 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://armv2URDF/meshes/link1.STL" />
+          filename="package://armv2URDF/meshes/link1_motor.STL" />
       </geometry>
       <material
-        name="">
+        name="motor">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.169 0.176 0.192 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/link1_print.STL" />
+      </geometry>
+      <material
+        name="print">
+        <color
+          rgba="0.925 0.929 0.937 1" />
       </material>
     </visual>
     <collision>
@@ -138,12 +208,26 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://armv2URDF/meshes/link2.STL" />
+          filename="package://armv2URDF/meshes/link2_motor.STL" />
       </geometry>
       <material
-        name="">
+        name="motor">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.169 0.176 0.192 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/link2_print.STL" />
+      </geometry>
+      <material
+        name="print">
+        <color
+          rgba="0.925 0.929 0.937 1" />
       </material>
     </visual>
     <collision>
@@ -196,12 +280,26 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://armv2URDF/meshes/link3.STL" />
+          filename="package://armv2URDF/meshes/link3_motor.STL" />
       </geometry>
       <material
-        name="">
+        name="motor">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.169 0.176 0.192 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/link3_print.STL" />
+      </geometry>
+      <material
+        name="print">
+        <color
+          rgba="0.925 0.929 0.937 1" />
       </material>
     </visual>
     <collision>
@@ -254,12 +352,26 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://armv2URDF/meshes/link4.STL" />
+          filename="package://armv2URDF/meshes/link4_motor.STL" />
       </geometry>
       <material
-        name="">
+        name="motor">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.169 0.176 0.192 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/link4_print.STL" />
+      </geometry>
+      <material
+        name="print">
+        <color
+          rgba="0.925 0.929 0.937 1" />
       </material>
     </visual>
     <collision>
@@ -312,12 +424,26 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://armv2URDF/meshes/link5.STL" />
+          filename="package://armv2URDF/meshes/link5_gl40.STL" />
       </geometry>
       <material
-        name="">
+        name="gl40">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.227 0.235 0.251 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/link5_print.STL" />
+      </geometry>
+      <material
+        name="print">
+        <color
+          rgba="0.925 0.929 0.937 1" />
       </material>
     </visual>
     <collision>
@@ -370,12 +496,40 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://armv2URDF/meshes/link6.STL" />
+          filename="package://armv2URDF/meshes/link6_gl40.STL" />
       </geometry>
       <material
-        name="">
+        name="gl40">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.227 0.235 0.251 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/link6_steel.STL" />
+      </geometry>
+      <material
+        name="steel">
+        <color
+          rgba="0.604 0.620 0.643 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/link6_print.STL" />
+      </geometry>
+      <material
+        name="print">
+        <color
+          rgba="0.925 0.929 0.937 1" />
       </material>
     </visual>
     <collision>
@@ -428,12 +582,26 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://armv2URDF/meshes/link7.STL" />
+          filename="package://armv2URDF/meshes/link7_finger.STL" />
       </geometry>
       <material
-        name="">
+        name="finger">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.910 0.455 0.173 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/link7_steel.STL" />
+      </geometry>
+      <material
+        name="steel">
+        <color
+          rgba="0.604 0.620 0.643 1" />
       </material>
     </visual>
     <collision>
@@ -486,12 +654,26 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://armv2URDF/meshes/link8.STL" />
+          filename="package://armv2URDF/meshes/link8_finger.STL" />
       </geometry>
       <material
-        name="">
+        name="finger">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.910 0.455 0.173 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/link8_steel.STL" />
+      </geometry>
+      <material
+        name="steel">
+        <color
+          rgba="0.604 0.620 0.643 1" />
       </material>
     </visual>
     <collision>
@@ -544,12 +726,26 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://armv2URDF/meshes/link1L.STL" />
+          filename="package://armv2URDF/meshes/link1L_motor.STL" />
       </geometry>
       <material
-        name="">
+        name="motor">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.169 0.176 0.192 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/link1L_print.STL" />
+      </geometry>
+      <material
+        name="print">
+        <color
+          rgba="0.925 0.929 0.937 1" />
       </material>
     </visual>
     <collision>
@@ -602,12 +798,26 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://armv2URDF/meshes/link2l.STL" />
+          filename="package://armv2URDF/meshes/link2l_motor.STL" />
       </geometry>
       <material
-        name="">
+        name="motor">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.169 0.176 0.192 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/link2l_print.STL" />
+      </geometry>
+      <material
+        name="print">
+        <color
+          rgba="0.925 0.929 0.937 1" />
       </material>
     </visual>
     <collision>
@@ -660,12 +870,26 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://armv2URDF/meshes/link3l.STL" />
+          filename="package://armv2URDF/meshes/link3l_motor.STL" />
       </geometry>
       <material
-        name="">
+        name="motor">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.169 0.176 0.192 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/link3l_print.STL" />
+      </geometry>
+      <material
+        name="print">
+        <color
+          rgba="0.925 0.929 0.937 1" />
       </material>
     </visual>
     <collision>
@@ -718,12 +942,26 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://armv2URDF/meshes/link4l.STL" />
+          filename="package://armv2URDF/meshes/link4l_motor.STL" />
       </geometry>
       <material
-        name="">
+        name="motor">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.169 0.176 0.192 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/link4l_print.STL" />
+      </geometry>
+      <material
+        name="print">
+        <color
+          rgba="0.925 0.929 0.937 1" />
       </material>
     </visual>
     <collision>
@@ -776,12 +1014,26 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://armv2URDF/meshes/link5l.STL" />
+          filename="package://armv2URDF/meshes/link5l_gl40.STL" />
       </geometry>
       <material
-        name="">
+        name="gl40">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.227 0.235 0.251 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/link5l_print.STL" />
+      </geometry>
+      <material
+        name="print">
+        <color
+          rgba="0.925 0.929 0.937 1" />
       </material>
     </visual>
     <collision>
@@ -834,12 +1086,40 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://armv2URDF/meshes/link6l.STL" />
+          filename="package://armv2URDF/meshes/link6l_gl40.STL" />
       </geometry>
       <material
-        name="">
+        name="gl40">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.227 0.235 0.251 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/link6l_steel.STL" />
+      </geometry>
+      <material
+        name="steel">
+        <color
+          rgba="0.604 0.620 0.643 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/link6l_print.STL" />
+      </geometry>
+      <material
+        name="print">
+        <color
+          rgba="0.925 0.929 0.937 1" />
       </material>
     </visual>
     <collision>
@@ -892,12 +1172,26 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://armv2URDF/meshes/link7l.STL" />
+          filename="package://armv2URDF/meshes/link7l_finger.STL" />
       </geometry>
       <material
-        name="">
+        name="finger">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.910 0.455 0.173 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/link7l_steel.STL" />
+      </geometry>
+      <material
+        name="steel">
+        <color
+          rgba="0.604 0.620 0.643 1" />
       </material>
     </visual>
     <collision>
@@ -950,12 +1244,26 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://armv2URDF/meshes/link8l.STL" />
+          filename="package://armv2URDF/meshes/link8l_finger.STL" />
       </geometry>
       <material
-        name="">
+        name="finger">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.910 0.455 0.173 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/link8l_steel.STL" />
+      </geometry>
+      <material
+        name="steel">
+        <color
+          rgba="0.604 0.620 0.643 1" />
       </material>
     </visual>
     <collision>

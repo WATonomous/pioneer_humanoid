@@ -155,51 +155,51 @@
       <body name="r_arm_link1" pos="-0.1633 0.0001 0.378" gravcomp="1">
         <inertial pos="-0.09612 0.002027 1e-06" quat="0.537124 0.537065 0.459912 0.459934" mass="1.3298" diaginertia="0.00371123 0.00331212 0.0016377"/>
         <joint name="joint1" range="-2.3038 1.7802" actuatorfrcrange="-53 53" armature="0.01" damping="0.1" axis="1 0 0"/>
-        <geom pos="0.1633 -0.0001 -1.275" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="r_arm_link1_0"/>
-        <geom pos="0.1633 -0.0001 -1.275" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="r_arm_link1_1"/>
+        <geom pos="0.163325 -0.000127 -1.27498" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="r_arm_link1_0"/>
+        <geom pos="0.163325 -0.000127 -1.27498" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="r_arm_link1_1"/>
         <geom size="0.086 0.0680785 0.0680785" pos="-0.085025 -0.0001 0" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
         <body name="r_arm_link2" pos="-0.116 0.0428 -0.0002" gravcomp="1">
           <inertial pos="3e-06 -0.030136 -0.074856" quat="0.693956 -0.14269 0.140721 0.691565" mass="0.789" diaginertia="0.00200397 0.00195111 0.00109176"/>
           <joint name="joint2" range="-1.5708 0.3491" actuatorfrcrange="-53 53" armature="0.01" damping="0.1" axis="0 -1 0"/>
-          <geom pos="0.2793 -0.0429 -1.2748" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="r_arm_link2_0"/>
-          <geom pos="0.2793 -0.0429 -1.2748" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="r_arm_link2_1"/>
+          <geom pos="0.279325 -0.042947 -1.2748" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="r_arm_link2_0"/>
+          <geom pos="0.279325 -0.042947 -1.2748" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="r_arm_link2_1"/>
           <geom size="0.0581985 0.0599995 0.0856165" pos="-2.5e-05 -0.035879 -0.030483" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
           <body name="r_arm_link3" pos="0 -0.036 -0.1163" gravcomp="1">
             <inertial pos="-0.001853 0.002899 -0.144" quat="0.999723 -0.0180362 0.0093703 -0.0118424" mass="0.8487" diaginertia="0.00427688 0.00403524 0.000855728"/>
             <joint name="joint3" range="-1.3963 3.7263" actuatorfrcrange="-22 22" armature="0.01" damping="0.1" axis="0 0 -1"/>
-            <geom pos="0.2793 -0.0069 -1.1585" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="r_arm_link3_0"/>
-            <geom pos="0.2793 -0.0069 -1.1585" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="r_arm_link3_1"/>
+            <geom pos="0.279325 -0.006947 -1.1585" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="r_arm_link3_0"/>
+            <geom pos="0.279325 -0.006947 -1.1585" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="r_arm_link3_1"/>
             <geom size="0.049969 0.0500005 0.1173" pos="-1.9e-05 0.000121 -0.1171" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
             <body name="r_arm_link4" pos="-0.0253 0 -0.1846" gravcomp="1">
               <inertial pos="0.0232 -8.3e-05 -0.079476" quat="0.535675 0.465113 0.454559 0.538607" mass="0.6014" diaginertia="0.000778942 0.000708339 0.000690382"/>
               <joint name="joint4" range="-1.7453 2.3126" actuatorfrcrange="-22 22" armature="0.01" damping="0.1" axis="-1 0 0"/>
-              <geom pos="0.3046 -0.0069 -0.9739" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="r_arm_link4_0"/>
-              <geom pos="0.3046 -0.0069 -0.9739" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="r_arm_link4_1"/>
+              <geom pos="0.304575 -0.006947 -0.973901" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="r_arm_link4_0"/>
+              <geom pos="0.304575 -0.006947 -0.973901" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="r_arm_link4_1"/>
               <geom size="0.049 0.049 0.065" pos="0.023025 0.000121 -0.0423" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
               <body name="r_arm_link5" pos="0.023 0 -0.1075" gravcomp="1">
                 <inertial pos="6.8e-05 0.004519 -0.083449" quat="0.706532 0.0290359 -0.0288644 0.706496" mass="0.213" diaginertia="0.000680661 0.000669147 0.000179266"/>
                 <joint name="joint5" range="-4.3284 1.316" actuatorfrcrange="-22 22" armature="0.01" damping="0.1"/>
-                <geom pos="0.281575 -0.006947 -0.866401" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="r_arm_link5_0"/>
-                <geom pos="0.281575 -0.006947 -0.866401" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.227 0.235 0.251 1" density="0" material="cad18" mesh="r_arm_link5_1"/>
+                <geom pos="0.281575 -0.006947 -0.866401" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.227 0.235 0.251 1" density="0" material="cad18" mesh="r_arm_link5_0"/>
+                <geom pos="0.281575 -0.006947 -0.866401" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="r_arm_link5_1"/>
                 <geom size="0.0475 0.0458295 0.08025" pos="-2.6e-05 0.001671 -0.080201" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                 <body name="r_arm_link6" pos="0 0 -0.128" gravcomp="1">
                   <inertial pos="0.000115 0.008002 -0.071606" quat="0.710036 -0.0502243 0.0492141 0.700646" mass="0.3086" diaginertia="0.000702507 0.000548334 0.000332635"/>
                   <joint name="joint6" range="-6.2832 6.2832" actuatorfrcrange="-0.73 0.73" armature="0.01" damping="0.1" axis="0 1 0"/>
-                  <geom pos="0.281575 -0.006947 -0.738401" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="r_arm_link6_0"/>
-                  <geom pos="0.281575 -0.006947 -0.738401" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.227 0.235 0.251 1" density="0" material="cad18" mesh="r_arm_link6_1"/>
-                  <geom pos="0.281575 -0.006947 -0.738401" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.604 0.62 0.643 1" density="0" material="cad19" mesh="r_arm_link6_2"/>
-                  <geom size="0.086125 0.0604015 0.0711555" pos="-2.6e-05 -0.014902 -0.044107" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
+                  <geom pos="0.281575 -0.006947 -0.738401" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.227 0.235 0.251 1" density="0" material="cad18" mesh="r_arm_link6_0"/>
+                  <geom pos="0.281575 -0.006947 -0.738401" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.604 0.62 0.643 1" density="0" material="cad19" mesh="r_arm_link6_1"/>
+                  <geom pos="0.281575 -0.006947 -0.738401" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="r_arm_link6_2"/>
+                  <geom size="0.086125 0.0604015 0.0711455" pos="-2.6e-05 -0.014902 -0.044117" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                   <body name="r_arm_link7" pos="-0.061073 0.013525 -0.178213" gravcomp="1">
                     <inertial pos="0.001198 -0.006433 0.036908" quat="0.698519 -0.0295338 -0.0259064 0.714513" mass="0.0634" diaginertia="7.70179e-05 7.4388e-05 1.05428e-05"/>
                     <joint name="joint7" type="slide" range="-0.041 0" actuatorfrcrange="-30 30" armature="0.01" damping="0.1" axis="-1 0 0"/>
-                    <geom pos="0.342648 -0.020472 -0.560188" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="r_arm_link7_0"/>
+                    <geom pos="0.342648 -0.020472 -0.560188" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.91 0.455 0.173 1" density="0" material="cad6" mesh="r_arm_link7_0"/>
                     <geom pos="0.342648 -0.020472 -0.560188" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.604 0.62 0.643 1" density="0" material="cad19" mesh="r_arm_link7_1"/>
                     <geom size="0.0200005 0.0217195 0.0679505" pos="0 -4e-06 0" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                   </body>
                   <body name="r_arm_link8" pos="0.061023 0.000479 -0.178213" gravcomp="1">
                     <inertial pos="-0.001202 0.006319 0.036922" quat="0.698284 0.0288413 0.0265753 0.714746" mass="0.0635" diaginertia="7.70359e-05 7.44223e-05 1.05645e-05"/>
                     <joint name="joint8" type="slide" range="0 0.041" actuatorfrcrange="-30 30" armature="0.01" damping="0.1" axis="-1 0 0"/>
-                    <geom pos="0.220552 -0.007426 -0.560188" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="r_arm_link8_0"/>
+                    <geom pos="0.220552 -0.007426 -0.560188" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.91 0.455 0.173 1" density="0" material="cad6" mesh="r_arm_link8_0"/>
                     <geom pos="0.220552 -0.007426 -0.560188" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.604 0.62 0.643 1" density="0" material="cad19" mesh="r_arm_link8_1"/>
                     <geom size="0.0200015 0.0217145 0.0679505" pos="0 9e-06 0" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                   </body>
@@ -212,51 +212,51 @@
       <body name="l_arm_link1" pos="0.1633 0.0001 0.378" gravcomp="1">
         <inertial pos="0.096121 0.002027 1e-06" quat="0.459907 0.459938 0.537121 0.537069" mass="1.3298" diaginertia="0.00371117 0.00331206 0.00163767"/>
         <joint name="joint1L" range="-2.3038 1.7802" actuatorfrcrange="-53 53" armature="0.01" damping="0.1" axis="-1 0 0"/>
-        <geom pos="-0.1633 -0.0001 -1.275" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="l_arm_link1_0"/>
-        <geom pos="-0.1633 -0.0001 -1.275" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="l_arm_link1_1"/>
+        <geom pos="-0.163325 -0.000127 -1.27498" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="l_arm_link1_0"/>
+        <geom pos="-0.163325 -0.000127 -1.27498" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="l_arm_link1_1"/>
         <geom size="0.086 0.0680785 0.0680785" pos="0.085025 -0.0001 0" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
         <body name="l_arm_link2" pos="0.116 0.0088 -0.0002" gravcomp="1">
           <inertial pos="-6.3e-05 0.003858 -0.071808" quat="0.694214 -0.139775 0.141216 0.6918" mass="0.789" diaginertia="0.00179619 0.00174947 0.000915966"/>
           <joint name="joint2l" range="-0.3491 1.5708" actuatorfrcrange="-53 53" armature="0.01" damping="0.1" axis="0 -1 0"/>
-          <geom pos="-0.2793 -0.0089 -1.2748" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="l_arm_link2_0"/>
-          <geom pos="-0.2793 -0.0089 -1.2748" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="l_arm_link2_1"/>
+          <geom pos="-0.279325 -0.008947 -1.2748" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="l_arm_link2_0"/>
+          <geom pos="-0.279325 -0.008947 -1.2748" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="l_arm_link2_1"/>
           <geom size="0.0581985 0.0599995 0.0856165" pos="2.5e-05 -0.001879 -0.030483" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
           <body name="l_arm_link3" pos="0 -0.002 -0.1173" gravcomp="1">
             <inertial pos="0.001853 0.002892 -0.142983" quat="0.999719 -0.0181202 -0.00933294 0.0120693" mass="0.8487" diaginertia="0.00427569 0.00403436 0.000855448"/>
             <joint name="joint3l" range="-3.7263 1.3963" actuatorfrcrange="-22 22" armature="0.01" damping="0.1" axis="0 0 -1"/>
-            <geom pos="-0.2793 -0.0069 -1.1575" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="l_arm_link3_0"/>
-            <geom pos="-0.2793 -0.0069 -1.1575" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="l_arm_link3_1"/>
+            <geom pos="-0.279325 -0.006947 -1.1575" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="l_arm_link3_0"/>
+            <geom pos="-0.279325 -0.006947 -1.1575" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="l_arm_link3_1"/>
             <geom size="0.049969 0.0500005 0.1173" pos="1.9e-05 0.000121 -0.1161" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
             <body name="l_arm_link4" pos="0.0253 0 -0.1836" gravcomp="1">
               <inertial pos="-0.023224 -9.3e-05 -0.079475" quat="0.45462 0.540098 0.535125 0.463956" mass="0.6014" diaginertia="0.000779214 0.000708342 0.000690074"/>
               <joint name="joint4l" range="-2.3126 1.7453" actuatorfrcrange="-22 22" armature="0.01" damping="0.1" axis="1 0 0"/>
-              <geom pos="-0.3046 -0.0069 -0.9739" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="l_arm_link4_0"/>
-              <geom pos="-0.3046 -0.0069 -0.9739" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="l_arm_link4_1"/>
+              <geom pos="-0.304575 -0.006947 -0.973901" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.169 0.176 0.192 1" density="0" material="cad2" mesh="l_arm_link4_0"/>
+              <geom pos="-0.304575 -0.006947 -0.973901" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="l_arm_link4_1"/>
               <geom size="0.049 0.049 0.065" pos="-0.023025 0.000121 -0.0423" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
               <body name="l_arm_link5" pos="-0.023 0 -0.1692" gravcomp="1">
                 <inertial pos="-6.5e-05 0.004556 -0.02174" quat="0.70641 0.0288799 -0.0290585 0.706616" mass="0.2131" diaginertia="0.000680988 0.000669463 0.000179292"/>
                 <joint name="joint5l" range="-1.316 4.3284" actuatorfrcrange="-22 22" armature="0.01" damping="0.1"/>
-                <geom pos="-0.28155 -0.006947 -0.804658" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="l_arm_link5_0"/>
-                <geom pos="-0.28155 -0.006947 -0.804658" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.227 0.235 0.251 1" density="0" material="cad18" mesh="l_arm_link5_1"/>
+                <geom pos="-0.28155 -0.006947 -0.804658" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.227 0.235 0.251 1" density="0" material="cad18" mesh="l_arm_link5_0"/>
+                <geom pos="-0.28155 -0.006947 -0.804658" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="l_arm_link5_1"/>
                 <geom size="0.0475 0.0458295 0.08025" pos="2.6e-05 0.001696 -0.018458" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                 <body name="l_arm_link6" pos="0 0 -0.066257" gravcomp="1">
                   <inertial pos="-0.000115 0.00803 -0.071642" quat="0.700631 -0.0494093 0.0503927 0.710025" mass="0.3084" diaginertia="0.000701752 0.000547571 0.000332638"/>
                   <joint name="joint6l" range="-6.2832 6.2832" actuatorfrcrange="-0.73 0.73" armature="0.01" damping="0.1" axis="0 1 0"/>
-                  <geom pos="-0.28155 -0.006947 -0.738401" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="l_arm_link6_0"/>
-                  <geom pos="-0.28155 -0.006947 -0.738401" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.227 0.235 0.251 1" density="0" material="cad18" mesh="l_arm_link6_1"/>
-                  <geom pos="-0.28155 -0.006947 -0.738401" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.604 0.62 0.643 1" density="0" material="cad19" mesh="l_arm_link6_2"/>
-                  <geom size="0.086125 0.0604015 0.0711555" pos="2.6e-05 -0.014877 -0.044107" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
+                  <geom pos="-0.28155 -0.006947 -0.738401" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.227 0.235 0.251 1" density="0" material="cad18" mesh="l_arm_link6_0"/>
+                  <geom pos="-0.28155 -0.006947 -0.738401" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.604 0.62 0.643 1" density="0" material="cad19" mesh="l_arm_link6_1"/>
+                  <geom pos="-0.28155 -0.006947 -0.738401" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="l_arm_link6_2"/>
+                  <geom size="0.086125 0.0604015 0.0711455" pos="2.6e-05 -0.014877 -0.044117" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                   <body name="l_arm_link7" pos="0.061073 0.01355 -0.178213" gravcomp="1">
                     <inertial pos="-0.001198 -0.006433 0.036908" quat="0.714513 0.0259064 0.0295338 0.698519" mass="0.0634" diaginertia="7.70179e-05 7.4388e-05 1.05428e-05"/>
                     <joint name="joint7l" type="slide" range="-0.041 0" actuatorfrcrange="-30 30" armature="0.01" damping="0.1" axis="1 0 0"/>
-                    <geom pos="-0.342623 -0.020497 -0.560188" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="l_arm_link7_0"/>
+                    <geom pos="-0.342623 -0.020497 -0.560188" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.91 0.455 0.173 1" density="0" material="cad6" mesh="l_arm_link7_0"/>
                     <geom pos="-0.342623 -0.020497 -0.560188" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.604 0.62 0.643 1" density="0" material="cad19" mesh="l_arm_link7_1"/>
                     <geom size="0.0200005 0.0217195 0.0679505" pos="0 -4e-06 0" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                   </body>
                   <body name="l_arm_link8" pos="-0.061023 0.000504 -0.178213" gravcomp="1">
                     <inertial pos="0.001202 0.006319 0.036922" quat="0.714746 -0.0265753 -0.0288413 0.698284" mass="0.0635" diaginertia="7.70359e-05 7.44223e-05 1.05645e-05"/>
                     <joint name="joint8l" type="slide" range="0 0.041" actuatorfrcrange="-30 30" armature="0.01" damping="0.1" axis="1 0 0"/>
-                    <geom pos="-0.220527 -0.007451 -0.560188" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.925 0.929 0.937 1" density="0" material="cad0" mesh="l_arm_link8_0"/>
+                    <geom pos="-0.220527 -0.007451 -0.560188" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.91 0.455 0.173 1" density="0" material="cad6" mesh="l_arm_link8_0"/>
                     <geom pos="-0.220527 -0.007451 -0.560188" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.604 0.62 0.643 1" density="0" material="cad19" mesh="l_arm_link8_1"/>
                     <geom size="0.0200015 0.0217145 0.0679505" pos="0 9e-06 0" type="box" group="3" rgba="0.9 0.3 0.3 0.3"/>
                   </body>

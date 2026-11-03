@@ -42,99 +42,99 @@
   </link>
   <link name="r_arm_link1">
     <inertial><origin xyz="-0.096120 0.002027 0.000001"/><mass value="1.3298"/><inertia ixx="0.0016868" ixy="0.000315279" ixz="-1.38856e-07" iyy="0.00366213" iyz="9.59003e-09" izz="0.00331212"/></inertial>
-    <visual><origin xyz="0.163300 -0.000100 -1.275000"/><geometry><mesh filename="meshes/r_arm_link1_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
-    <visual><origin xyz="0.163300 -0.000100 -1.275000"/><geometry><mesh filename="meshes/r_arm_link1_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <visual><origin xyz="0.163325 -0.000127 -1.274982"/><geometry><mesh filename="meshes/r_arm_link1_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
+    <visual><origin xyz="0.163325 -0.000127 -1.274982"/><geometry><mesh filename="meshes/r_arm_link1_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
     <collision><origin xyz="-0.085025 -0.000100 0.000000"/><geometry><box size="0.172000 0.136157 0.136157"/></geometry></collision>
   </link>
   <link name="r_arm_link2">
     <inertial><origin xyz="0.000003 -0.030136 -0.074856"/><mass value="0.7890"/><inertia ixx="0.00195111" ixy="8.79883e-07" ixz="1.53965e-06" iyy="0.00186331" iyz="-0.00032943" izz="0.00123242"/></inertial>
-    <visual><origin xyz="0.279300 -0.042900 -1.274800"/><geometry><mesh filename="meshes/r_arm_link2_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
-    <visual><origin xyz="0.279300 -0.042900 -1.274800"/><geometry><mesh filename="meshes/r_arm_link2_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <visual><origin xyz="0.279325 -0.042947 -1.274801"/><geometry><mesh filename="meshes/r_arm_link2_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
+    <visual><origin xyz="0.279325 -0.042947 -1.274801"/><geometry><mesh filename="meshes/r_arm_link2_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
     <collision><origin xyz="-0.000025 -0.035879 -0.030483"/><geometry><box size="0.116397 0.119999 0.171233"/></geometry></collision>
   </link>
   <link name="r_arm_link3">
     <inertial><origin xyz="-0.001853 0.002899 -0.144000"/><mass value="0.8487"/><inertia ixx="0.00427549" ixy="-7.98416e-06" ixz="-6.52993e-05" iyy="0.0040313" iyz="-0.000113755" izz="0.000861061"/></inertial>
-    <visual><origin xyz="0.279300 -0.006900 -1.158500"/><geometry><mesh filename="meshes/r_arm_link3_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
-    <visual><origin xyz="0.279300 -0.006900 -1.158500"/><geometry><mesh filename="meshes/r_arm_link3_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <visual><origin xyz="0.279325 -0.006947 -1.158501"/><geometry><mesh filename="meshes/r_arm_link3_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
+    <visual><origin xyz="0.279325 -0.006947 -1.158501"/><geometry><mesh filename="meshes/r_arm_link3_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
     <collision><origin xyz="-0.000019 0.000121 -0.117100"/><geometry><box size="0.099938 0.100001 0.234600"/></geometry></collision>
   </link>
   <link name="r_arm_link4">
     <inertial><origin xyz="0.023200 -0.000083 -0.079476"/><mass value="0.6014"/><inertia ixx="0.000690813" ixy="6.16185e-07" ixz="-2.7274e-06" iyy="0.000778924" iyz="1.01459e-06" izz="0.000707927"/></inertial>
-    <visual><origin xyz="0.304600 -0.006900 -0.973900"/><geometry><mesh filename="meshes/r_arm_link4_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
-    <visual><origin xyz="0.304600 -0.006900 -0.973900"/><geometry><mesh filename="meshes/r_arm_link4_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <visual><origin xyz="0.304575 -0.006947 -0.973901"/><geometry><mesh filename="meshes/r_arm_link4_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
+    <visual><origin xyz="0.304575 -0.006947 -0.973901"/><geometry><mesh filename="meshes/r_arm_link4_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
     <collision><origin xyz="0.023025 0.000121 -0.042300"/><geometry><box size="0.098000 0.098000 0.130000"/></geometry></collision>
   </link>
   <link name="r_arm_link5">
     <inertial><origin xyz="0.000068 0.004519 -0.083449"/><mass value="0.2130"/><inertia ixx="0.000669147" ixy="1.03349e-08" ixz="-1.17282e-07" iyy="0.000677305" iyz="4.0884e-05" izz="0.000182622"/></inertial>
-    <visual><origin xyz="0.281575 -0.006947 -0.866401"/><geometry><mesh filename="meshes/r_arm_link5_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
-    <visual><origin xyz="0.281575 -0.006947 -0.866401"/><geometry><mesh filename="meshes/r_arm_link5_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c18"><color rgba="0.227 0.235 0.251 1"/></material></visual>
+    <visual><origin xyz="0.281575 -0.006947 -0.866401"/><geometry><mesh filename="meshes/r_arm_link5_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c18"><color rgba="0.227 0.235 0.251 1"/></material></visual>
+    <visual><origin xyz="0.281575 -0.006947 -0.866401"/><geometry><mesh filename="meshes/r_arm_link5_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
     <collision><origin xyz="-0.000026 0.001671 -0.080201"/><geometry><box size="0.095000 0.091659 0.160500"/></geometry></collision>
   </link>
   <link name="r_arm_link6">
     <inertial><origin xyz="0.000115 0.008002 -0.071606"/><mass value="0.3086"/><inertia ixx="0.000548361" ixy="2.05219e-06" ixz="-1.83727e-07" iyy="0.000695201" iyz="-5.13697e-05" izz="0.000339913"/></inertial>
-    <visual><origin xyz="0.281575 -0.006947 -0.738401"/><geometry><mesh filename="meshes/r_arm_link6_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
-    <visual><origin xyz="0.281575 -0.006947 -0.738401"/><geometry><mesh filename="meshes/r_arm_link6_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c18"><color rgba="0.227 0.235 0.251 1"/></material></visual>
-    <visual><origin xyz="0.281575 -0.006947 -0.738401"/><geometry><mesh filename="meshes/r_arm_link6_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c19"><color rgba="0.604 0.620 0.643 1"/></material></visual>
-    <collision><origin xyz="-0.000026 -0.014902 -0.044107"/><geometry><box size="0.172250 0.120803 0.142311"/></geometry></collision>
+    <visual><origin xyz="0.281575 -0.006947 -0.738401"/><geometry><mesh filename="meshes/r_arm_link6_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c18"><color rgba="0.227 0.235 0.251 1"/></material></visual>
+    <visual><origin xyz="0.281575 -0.006947 -0.738401"/><geometry><mesh filename="meshes/r_arm_link6_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c19"><color rgba="0.604 0.620 0.643 1"/></material></visual>
+    <visual><origin xyz="0.281575 -0.006947 -0.738401"/><geometry><mesh filename="meshes/r_arm_link6_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <collision><origin xyz="-0.000026 -0.014902 -0.044117"/><geometry><box size="0.172250 0.120803 0.142291"/></geometry></collision>
   </link>
   <link name="r_arm_link7">
     <inertial><origin xyz="0.001198 -0.006433 0.036908"/><mass value="0.0634"/><inertia ixx="7.39969e-05" ixy="-3.76735e-08" ixz="4.99016e-06" iyy="7.70153e-05" iyz="-2.85613e-07" izz="1.09364e-05"/></inertial>
-    <visual><origin xyz="0.342648 -0.020472 -0.560188"/><geometry><mesh filename="meshes/r_arm_link7_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <visual><origin xyz="0.342648 -0.020472 -0.560188"/><geometry><mesh filename="meshes/r_arm_link7_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c6"><color rgba="0.910 0.455 0.173 1"/></material></visual>
     <visual><origin xyz="0.342648 -0.020472 -0.560188"/><geometry><mesh filename="meshes/r_arm_link7_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c19"><color rgba="0.604 0.620 0.643 1"/></material></visual>
     <collision><origin xyz="0.000000 -0.000004 0.000000"/><geometry><box size="0.040001 0.043439 0.135901"/></geometry></collision>
   </link>
   <link name="r_arm_link8">
     <inertial><origin xyz="-0.001202 0.006319 0.036922"/><mass value="0.0635"/><inertia ixx="7.40318e-05" ixy="-4.89962e-08" ixz="-4.98765e-06" iyy="7.70341e-05" iyz="1.56518e-07" izz="1.09568e-05"/></inertial>
-    <visual><origin xyz="0.220552 -0.007426 -0.560188"/><geometry><mesh filename="meshes/r_arm_link8_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <visual><origin xyz="0.220552 -0.007426 -0.560188"/><geometry><mesh filename="meshes/r_arm_link8_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c6"><color rgba="0.910 0.455 0.173 1"/></material></visual>
     <visual><origin xyz="0.220552 -0.007426 -0.560188"/><geometry><mesh filename="meshes/r_arm_link8_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c19"><color rgba="0.604 0.620 0.643 1"/></material></visual>
     <collision><origin xyz="-0.000000 0.000009 0.000000"/><geometry><box size="0.040003 0.043429 0.135901"/></geometry></collision>
   </link>
   <link name="l_arm_link1">
     <inertial><origin xyz="0.096121 0.002027 0.000001"/><mass value="1.3298"/><inertia ixx="0.00168677" ixy="-0.000315279" ixz="1.40561e-07" iyy="0.00366207" iyz="1.61051e-08" izz="0.00331206"/></inertial>
-    <visual><origin xyz="-0.163300 -0.000100 -1.275000"/><geometry><mesh filename="meshes/l_arm_link1_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
-    <visual><origin xyz="-0.163300 -0.000100 -1.275000"/><geometry><mesh filename="meshes/l_arm_link1_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <visual><origin xyz="-0.163325 -0.000127 -1.274982"/><geometry><mesh filename="meshes/l_arm_link1_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
+    <visual><origin xyz="-0.163325 -0.000127 -1.274982"/><geometry><mesh filename="meshes/l_arm_link1_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
     <collision><origin xyz="0.085025 -0.000100 0.000000"/><geometry><box size="0.172000 0.136157 0.136157"/></geometry></collision>
   </link>
   <link name="l_arm_link2">
     <inertial><origin xyz="-0.000063 0.003858 -0.071808"/><mass value="0.7890"/><inertia ixx="0.00174946" ixy="-7.41974e-07" ixz="-2.1076e-06" iyy="0.00166268" iyz="-0.000315739" izz="0.00104948"/></inertial>
-    <visual><origin xyz="-0.279300 -0.008900 -1.274800"/><geometry><mesh filename="meshes/l_arm_link2_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
-    <visual><origin xyz="-0.279300 -0.008900 -1.274800"/><geometry><mesh filename="meshes/l_arm_link2_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <visual><origin xyz="-0.279325 -0.008947 -1.274801"/><geometry><mesh filename="meshes/l_arm_link2_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
+    <visual><origin xyz="-0.279325 -0.008947 -1.274801"/><geometry><mesh filename="meshes/l_arm_link2_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
     <collision><origin xyz="0.000025 -0.001879 -0.030483"/><geometry><box size="0.116397 0.119999 0.171233"/></geometry></collision>
   </link>
   <link name="l_arm_link3">
     <inertial><origin xyz="0.001853 0.002892 -0.142983"/><mass value="0.8487"/><inertia ixx="0.00427431" ixy="8.0887e-06" ixz="6.50564e-05" iyy="0.00403038" iyz="-0.000114254" izz="0.000860809"/></inertial>
-    <visual><origin xyz="-0.279300 -0.006900 -1.157500"/><geometry><mesh filename="meshes/l_arm_link3_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
-    <visual><origin xyz="-0.279300 -0.006900 -1.157500"/><geometry><mesh filename="meshes/l_arm_link3_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <visual><origin xyz="-0.279325 -0.006947 -1.157501"/><geometry><mesh filename="meshes/l_arm_link3_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
+    <visual><origin xyz="-0.279325 -0.006947 -1.157501"/><geometry><mesh filename="meshes/l_arm_link3_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
     <collision><origin xyz="0.000019 0.000121 -0.116100"/><geometry><box size="0.099938 0.100001 0.234600"/></geometry></collision>
   </link>
   <link name="l_arm_link4">
     <inertial><origin xyz="-0.023224 -0.000093 -0.079475"/><mass value="0.6014"/><inertia ixx="0.000690521" ixy="-3.27486e-07" ixz="2.8138e-06" iyy="0.000779198" iyz="1.05061e-06" izz="0.000707912"/></inertial>
-    <visual><origin xyz="-0.304600 -0.006900 -0.973900"/><geometry><mesh filename="meshes/l_arm_link4_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
-    <visual><origin xyz="-0.304600 -0.006900 -0.973900"/><geometry><mesh filename="meshes/l_arm_link4_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <visual><origin xyz="-0.304575 -0.006947 -0.973901"/><geometry><mesh filename="meshes/l_arm_link4_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c2"><color rgba="0.169 0.176 0.192 1"/></material></visual>
+    <visual><origin xyz="-0.304575 -0.006947 -0.973901"/><geometry><mesh filename="meshes/l_arm_link4_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
     <collision><origin xyz="-0.023025 0.000121 -0.042300"/><geometry><box size="0.098000 0.098000 0.130000"/></geometry></collision>
   </link>
   <link name="l_arm_link5">
     <inertial><origin xyz="-0.000065 0.004556 -0.021740"/><mass value="0.2131"/><inertia ixx="0.000669463" ixy="-1.31076e-08" ixz="1.17154e-07" iyy="0.000677625" iyz="4.09352e-05" izz="0.000182655"/></inertial>
-    <visual><origin xyz="-0.281550 -0.006947 -0.804658"/><geometry><mesh filename="meshes/l_arm_link5_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
-    <visual><origin xyz="-0.281550 -0.006947 -0.804658"/><geometry><mesh filename="meshes/l_arm_link5_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c18"><color rgba="0.227 0.235 0.251 1"/></material></visual>
+    <visual><origin xyz="-0.281550 -0.006947 -0.804658"/><geometry><mesh filename="meshes/l_arm_link5_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c18"><color rgba="0.227 0.235 0.251 1"/></material></visual>
+    <visual><origin xyz="-0.281550 -0.006947 -0.804658"/><geometry><mesh filename="meshes/l_arm_link5_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
     <collision><origin xyz="0.000026 0.001696 -0.018458"/><geometry><box size="0.095000 0.091659 0.160500"/></geometry></collision>
   </link>
   <link name="l_arm_link6">
     <inertial><origin xyz="-0.000115 0.008030 -0.071642"/><mass value="0.3084"/><inertia ixx="0.000547598" ixy="-2.05116e-06" ixz="1.94044e-07" iyy="0.000694408" iyz="-5.14472e-05" izz="0.000339954"/></inertial>
-    <visual><origin xyz="-0.281550 -0.006947 -0.738401"/><geometry><mesh filename="meshes/l_arm_link6_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
-    <visual><origin xyz="-0.281550 -0.006947 -0.738401"/><geometry><mesh filename="meshes/l_arm_link6_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c18"><color rgba="0.227 0.235 0.251 1"/></material></visual>
-    <visual><origin xyz="-0.281550 -0.006947 -0.738401"/><geometry><mesh filename="meshes/l_arm_link6_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c19"><color rgba="0.604 0.620 0.643 1"/></material></visual>
-    <collision><origin xyz="0.000026 -0.014877 -0.044107"/><geometry><box size="0.172250 0.120803 0.142311"/></geometry></collision>
+    <visual><origin xyz="-0.281550 -0.006947 -0.738401"/><geometry><mesh filename="meshes/l_arm_link6_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c18"><color rgba="0.227 0.235 0.251 1"/></material></visual>
+    <visual><origin xyz="-0.281550 -0.006947 -0.738401"/><geometry><mesh filename="meshes/l_arm_link6_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c19"><color rgba="0.604 0.620 0.643 1"/></material></visual>
+    <visual><origin xyz="-0.281550 -0.006947 -0.738401"/><geometry><mesh filename="meshes/l_arm_link6_2.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <collision><origin xyz="0.000026 -0.014877 -0.044117"/><geometry><box size="0.172250 0.120803 0.142291"/></geometry></collision>
   </link>
   <link name="l_arm_link7">
     <inertial><origin xyz="-0.001198 -0.006433 0.036908"/><mass value="0.0634"/><inertia ixx="7.39969e-05" ixy="3.76735e-08" ixz="-4.99016e-06" iyy="7.70153e-05" iyz="-2.85613e-07" izz="1.09364e-05"/></inertial>
-    <visual><origin xyz="-0.342623 -0.020497 -0.560188"/><geometry><mesh filename="meshes/l_arm_link7_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <visual><origin xyz="-0.342623 -0.020497 -0.560188"/><geometry><mesh filename="meshes/l_arm_link7_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c6"><color rgba="0.910 0.455 0.173 1"/></material></visual>
     <visual><origin xyz="-0.342623 -0.020497 -0.560188"/><geometry><mesh filename="meshes/l_arm_link7_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c19"><color rgba="0.604 0.620 0.643 1"/></material></visual>
     <collision><origin xyz="-0.000000 -0.000004 0.000000"/><geometry><box size="0.040001 0.043439 0.135901"/></geometry></collision>
   </link>
   <link name="l_arm_link8">
     <inertial><origin xyz="0.001202 0.006319 0.036922"/><mass value="0.0635"/><inertia ixx="7.40318e-05" ixy="4.89962e-08" ixz="4.98765e-06" iyy="7.70341e-05" iyz="1.56518e-07" izz="1.09568e-05"/></inertial>
-    <visual><origin xyz="-0.220527 -0.007451 -0.560188"/><geometry><mesh filename="meshes/l_arm_link8_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c0"><color rgba="0.925 0.929 0.937 1"/></material></visual>
+    <visual><origin xyz="-0.220527 -0.007451 -0.560188"/><geometry><mesh filename="meshes/l_arm_link8_0.stl" scale="0.001 0.001 0.001"/></geometry><material name="c6"><color rgba="0.910 0.455 0.173 1"/></material></visual>
     <visual><origin xyz="-0.220527 -0.007451 -0.560188"/><geometry><mesh filename="meshes/l_arm_link8_1.stl" scale="0.001 0.001 0.001"/></geometry><material name="c19"><color rgba="0.604 0.620 0.643 1"/></material></visual>
     <collision><origin xyz="0.000000 0.000009 0.000000"/><geometry><box size="0.040003 0.043429 0.135901"/></geometry></collision>
   </link>

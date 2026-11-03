@@ -1,6 +1,7 @@
 """Checks the new forearm + wrist gripper (step_to_links.py) left the arm working as before:
 
-  1. joints 1-5 and links base..link4 are exactly as before the swap (the URDF at REF); joint6 is the old axis
+  1. joints 1-5 and the inertias of links base..link4 are exactly as before the swap (the URDF at REF), and their
+     meshes (now from the CAD, in colour) lie on the old ones; joint6 is the old axis
      turned 90 deg about joint5 with the new zero, through the joint5 axis;
   2. MuJoCo loads the URDF;
   3. the zero pose and the default pose (arm_params.DEFAULT_JOINT_POS) are inside every limit and close the
@@ -92,12 +93,16 @@ def fk(joints, q):
     return out
 
 
-def meshes(text):
+def meshes(text, meshdir=os.path.join(HERE, "meshes"), only=None):
+    """each link's collision mesh in its frame"""
     out = {}
     for name, b in blocks(text, "link").items():
-        f = re.search(r"filename=\"[^\"]*/meshes/([^\"]+)\"", b).group(1)
-        o = np.array([float(v) for v in re.search(r"<visual>\s*<origin\s+xyz=\"([^\"]+)\"", b).group(1).split()])
-        m = trimesh.load(os.path.join(HERE, "meshes", f), force="mesh")
+        if only and name not in only:
+            continue
+        c = re.search(r"<collision>[\s\S]*?</collision>", b).group(0)
+        f = re.search(r"filename=\"[^\"]*/meshes/([^\"]+)\"", c).group(1)
+        o = np.array([float(v) for v in re.search(r"<origin\s+xyz=\"([^\"]+)\"", c).group(1).split()])
+        m = trimesh.load(os.path.join(meshdir, f), force="mesh")
         m.apply_translation(o)
         out[name] = m
     return out
@@ -138,8 +143,29 @@ def main(ref="5244df7"):
         check(np.allclose(a6, want), f"{j6} axis {a6} = the old {old_a6} turned {turn:+.0f} deg about {j5}")
         check(np.allclose(p6[:2], p5[:2], atol=1e-4) and abs(np.dot(a5, a6)) < 1e-9,
               f"{j6} crosses the {j5} axis at right angles")
-    for link in ["base_link", "link1", "link2", "link3", "link4", "link1L", "link2l", "link3l", "link4l"]:
-        check(blocks(old, "link")[link] == blocks(text, "link")[link], f"{link} identical")
+    # base_link..link4: their meshes are rebuilt from the CAD (in colour), the same parts: inertias unchanged, and
+    # the old mesh's surface on the new one
+    import tempfile
+    oldlinks = ["base_link", "link1", "link2", "link3", "link4", "link1L", "link2l", "link3l", "link4l"]
+    with tempfile.TemporaryDirectory() as tmp:
+        for link in oldlinks:
+            f = re.search(r"filename=\"[^\"]*/meshes/([^\"]+)\"", blocks(old, "link")[link]).group(1)
+            data = subprocess.run(["git", "show", f"{ref}:assets/pioneer_bimanual_arm/meshes/{f}"], cwd=REPO,
+                                  capture_output=True, check=True).stdout
+            open(os.path.join(tmp, f), "wb").write(data)
+        old_mesh = meshes(old, tmp, oldlinks)
+    new_mesh = {}                                                # the detailed (visual) meshes, all colours
+    for link in oldlinks:
+        fs = re.findall(r"<visual>[\s\S]*?filename=\"[^\"]*/meshes/([^\"]+)\"", blocks(text, "link")[link])
+        new_mesh[link] = trimesh.util.concatenate([trimesh.load(os.path.join(HERE, "meshes", f), force="mesh") for f in fs])
+    for link in oldlinks:
+        inert = re.compile(r"<inertial>[\s\S]*?</inertial>")
+        check(inert.search(blocks(old, "link")[link]).group(0) == inert.search(blocks(text, "link")[link]).group(0),
+              f"{link} inertia identical")
+        p, _ = trimesh.sample.sample_surface(old_mesh[link], 2000, seed=0)
+        d = np.abs(trimesh.proximity.ProximityQuery(new_mesh[link]).signed_distance(p)) * 1000
+        check(np.percentile(d, 95) < 1.5, f"{link} old surface on the new mesh: median {np.median(d):.2f}, "
+                                          f"95% {np.percentile(d, 95):.2f} mm")
 
     print("2. MuJoCo loads it (mujoco_bimanual_arm.arm_spec, as the sim does)")
     try:
