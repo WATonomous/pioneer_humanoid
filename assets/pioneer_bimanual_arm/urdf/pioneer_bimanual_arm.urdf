@@ -1,11 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Joints from the SolidWorks to URDF Exporter (wiki.ros.org/sw_urdf_exporter), fixed by hand:
-     joint4/joint4l limits swapped so each elbow's 132.5 deg is on its flexion side; joint5/joint5l
-     origins corrected for exporter drift. urdf_joint_limits.py writes these limits onto the USD. -->
-<!-- Meshes from the arm CAD (ArmV2_NewForearms_NewWristGrippers): a visual mesh a colour, one collision
-     mesh a link. Arm masses as the whole-body gripper model's: datasheet motors, PLA prints 0.65 g/cm^3,
-     steel; 4.22 kg an arm. At joint5 = 0 the gripper is turned 90 deg from the CAD, so the fingers close
-     side to side (base Y, 41 mm each, 0 = open). -->
+<!-- Limits are live: urdf_joint_limits.py writes them onto the USD prims.
+     Gripper: joint7/joint8 along base Y, 0 = open, 41 mm each to closed.
+     Masses: motors at datasheet weights, PLA prints 0.65 g/cm^3. -->
 <robot
   name="armv2URDF">
   <link
