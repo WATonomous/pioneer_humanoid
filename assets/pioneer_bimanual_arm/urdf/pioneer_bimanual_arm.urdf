@@ -11,6 +11,12 @@
 <!-- joint4/joint4l limits: swapped so each elbow's larger travel budget (+/-132.5 deg) is on its
      flexion side. The +/-75 deg rest pose and the teleop volume both bend the elbows toward +X;
      the exporter had the budgets on the hyperextension side. -->
+<!-- Every link's meshes are from the arm's CAD (ArmV2_NewForearms_NewWristGrippers), in colour: a visual
+     mesh a colour (<link>_<colour>.STL) and one collision mesh (<link>.STL). base_link..link4 are the same
+     parts as before and keep their inertias. link5..link8 are the new forearm and wrist gripper (inertias at
+     1 g/cm^3 as the rest). At joint5 = 0 the forearm and gripper are turned 90 deg about joint5 from the CAD
+     (-90 right, +90 left): the fingers close side to side along the MGN9 rail (base Y, 41 mm each, 0 = open),
+     and joint6's axis is base -X through the joint5 axis. Joints 1-5 unchanged. -->
 <robot
   name="armv2URDF">
   <link
@@ -35,12 +41,68 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://armv2URDF/meshes/base_link.STL" />
+          filename="package://armv2URDF/meshes/base_link_motor.STL" />
       </geometry>
       <material
-        name="">
+        name="motor">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.169 0.176 0.192 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/base_link_steel.STL" />
+      </geometry>
+      <material
+        name="steel">
+        <color
+          rgba="0.604 0.620 0.643 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/base_link_aluminium.STL" />
+      </geometry>
+      <material
+        name="aluminium">
+        <color
+          rgba="0.725 0.741 0.761 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/base_link_camera.STL" />
+      </geometry>
+      <material
+        name="camera">
+        <color
+          rgba="0.063 0.071 0.078 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/base_link_print.STL" />
+      </geometry>
+      <material
+        name="print">
+        <color
+          rgba="0.925 0.929 0.937 1" />
       </material>
     </visual>
     <collision>
@@ -75,12 +137,26 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://armv2URDF/meshes/link1.STL" />
+          filename="package://armv2URDF/meshes/link1_motor.STL" />
       </geometry>
       <material
-        name="">
+        name="motor">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.169 0.176 0.192 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/link1_print.STL" />
+      </geometry>
+      <material
+        name="print">
+        <color
+          rgba="0.925 0.929 0.937 1" />
       </material>
     </visual>
     <collision>
@@ -133,12 +209,26 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://armv2URDF/meshes/link2.STL" />
+          filename="package://armv2URDF/meshes/link2_motor.STL" />
       </geometry>
       <material
-        name="">
+        name="motor">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.169 0.176 0.192 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/link2_print.STL" />
+      </geometry>
+      <material
+        name="print">
+        <color
+          rgba="0.925 0.929 0.937 1" />
       </material>
     </visual>
     <collision>
@@ -191,12 +281,26 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://armv2URDF/meshes/link3.STL" />
+          filename="package://armv2URDF/meshes/link3_motor.STL" />
       </geometry>
       <material
-        name="">
+        name="motor">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.169 0.176 0.192 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/link3_print.STL" />
+      </geometry>
+      <material
+        name="print">
+        <color
+          rgba="0.925 0.929 0.937 1" />
       </material>
     </visual>
     <collision>
@@ -249,12 +353,26 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://armv2URDF/meshes/link4.STL" />
+          filename="package://armv2URDF/meshes/link4_motor.STL" />
       </geometry>
       <material
-        name="">
+        name="motor">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.169 0.176 0.192 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/link4_print.STL" />
+      </geometry>
+      <material
+        name="print">
+        <color
+          rgba="0.925 0.929 0.937 1" />
       </material>
     </visual>
     <collision>
@@ -289,35 +407,49 @@
     name="link5">
     <inertial>
       <origin
-        xyz="-6.76878805183408e-05 0.00116160947345817 -0.0713160016983475"
+        xyz="-0.00032522378661963 5.099385750219959e-05 -0.06654115533840814"
         rpy="0 0 0" />
       <mass
-        value="0.260193841211252" />
+        value="0.2382846289836244" />
       <inertia
-        ixx="0.000711350956353437"
-        ixy="1.09800020734735E-07"
-        ixz="5.84637911833503E-07"
-        iyy="0.000776554866617874"
-        iyz="3.4828989222377E-05"
-        izz="0.000207422334507734" />
+        ixx="0.0007671817481579829"
+        ixy="-3.0077179807369014e-08"
+        ixz="-1.5001131150231254e-06"
+        iyy="0.0007459954538800045"
+        iyz="-4.1770711705580065e-07"
+        izz="0.00024601876541822866" />
     </inertial>
     <visual>
       <origin
-        xyz="0 0.0045 0"
+        xyz="0 0 0"
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://armv2URDF/meshes/link5.STL" />
+          filename="package://armv2URDF/meshes/link5_gl40.STL" />
       </geometry>
       <material
-        name="">
+        name="gl40">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.227 0.235 0.251 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/link5_print.STL" />
+      </geometry>
+      <material
+        name="print">
+        <color
+          rgba="0.925 0.929 0.937 1" />
       </material>
     </visual>
     <collision>
       <origin
-        xyz="0 0.0045 0"
+        xyz="0 0 0"
         rpy="0 0 0" />
       <geometry>
         <mesh
@@ -347,17 +479,17 @@
     name="link6">
     <inertial>
       <origin
-        xyz="0.0024081538841275 -0.0499383130809352 -0.0643219245330953"
+        xyz="-0.005645453437852678 6.226110828301967e-05 -0.06852613341013966"
         rpy="0 0 0" />
       <mass
-        value="0.120420205315175" />
+        value="0.22750147333066395" />
       <inertia
-        ixx="0.000106661288483188"
-        ixy="-4.69677316197868E-06"
-        ixz="4.16171284294177E-06"
-        iyy="7.61032549163886E-05"
-        iyz="1.75230255432293E-05"
-        izz="9.69195737112299E-05" />
+        ixx="0.0004816380596763907"
+        ixy="-3.5463638787129736e-06"
+        ixz="2.0945974899826178e-05"
+        iyy="0.00040181134396794215"
+        iyz="-2.3354486238046657e-08"
+        izz="0.00031111257327780543" />
     </inertial>
     <visual>
       <origin
@@ -365,12 +497,40 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://armv2URDF/meshes/link6.STL" />
+          filename="package://armv2URDF/meshes/link6_gl40.STL" />
       </geometry>
       <material
-        name="">
+        name="gl40">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.227 0.235 0.251 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/link6_steel.STL" />
+      </geometry>
+      <material
+        name="steel">
+        <color
+          rgba="0.604 0.620 0.643 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/link6_print.STL" />
+      </geometry>
+      <material
+        name="print">
+        <color
+          rgba="0.925 0.929 0.937 1" />
       </material>
     </visual>
     <collision>
@@ -387,14 +547,14 @@
     name="joint6"
     type="revolute">
     <origin
-      xyz="0 0.037 -0.128000000000001"
+      xyz="0.0 0.0 -0.128000000000001"
       rpy="0 0 0" />
     <parent
       link="link5" />
     <child
       link="link6" />
     <axis
-      xyz="0 -1 0" />
+      xyz="-1 0 0" />
     <limit
       lower="-6.283185"
       upper="6.283185"
@@ -405,17 +565,17 @@
     name="link7">
     <inertial>
       <origin
-        xyz="-0.00206129891851869 -0.134651480799952 -0.0277675675986927"
+        xyz="0.006378686117484274 0.0015742601761490377 0.021508220078919442"
         rpy="0 0 0" />
       <mass
-        value="0.0372930675250569" />
+        value="0.061771816836664904" />
       <inertia
-        ixx="1.51529276256957E-05"
-        ixy="6.69248606569175E-09"
-        ixz="-4.79077371666837E-07"
-        iyy="1.98339939367373E-05"
-        iyz="2.61463007882642E-06"
-        izz="9.05266779219802E-06" />
+        ixx="7.585953895815643e-05"
+        ixy="5.454076766464948e-08"
+        ixz="5.794465462338718e-07"
+        iyy="7.222267246906599e-05"
+        iyz="6.702622840728165e-06"
+        izz="1.2775130215520748e-05" />
     </inertial>
     <visual>
       <origin
@@ -423,12 +583,26 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://armv2URDF/meshes/link7.STL" />
+          filename="package://armv2URDF/meshes/link7_finger.STL" />
       </geometry>
       <material
-        name="">
+        name="finger">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.910 0.455 0.173 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/link7_steel.STL" />
+      </geometry>
+      <material
+        name="steel">
+        <color
+          rgba="0.604 0.620 0.643 1" />
       </material>
     </visual>
     <collision>
@@ -445,7 +619,7 @@
     name="joint7"
     type="prismatic">
     <origin
-      xyz="0 0.0261579738681254 -0.11101425916694"
+      xyz="-0.013525174870049169 -0.06107338626507103 -0.178213274623094"
       rpy="0 0 0" />
     <parent
       link="link6" />
@@ -454,8 +628,8 @@
     <axis
       xyz="0 -1 0" />
     <limit
-      lower="-0.0532"
-      upper="0.0168"
+      lower="-0.041"
+      upper="0.0"
       effort="0"
       velocity="0" />
   </joint>
@@ -463,17 +637,17 @@
     name="link8">
     <inertial>
       <origin
-        xyz="0.00206129891873962 0.0976514848914404 -0.0222233093304134"
+        xyz="-0.0062022856237939905 -0.0015798872657556725 0.021548537589479094"
         rpy="0 0 0" />
       <mass
-        value="0.0372930675242417" />
+        value="0.06184488664570384" />
       <inertia
-        ixx="1.51529276255245E-05"
-        ixy="6.69248520177956E-09"
-        ixz="4.79077372021657E-07"
-        iyy="1.98339939364651E-05"
-        iyz="-2.61463007873344E-06"
-        izz="9.05266779209683E-06" />
+        ixx="7.594752558294106e-05"
+        ixy="6.794336988726383e-08"
+        ixz="-5.430668230616614e-07"
+        iyy="7.233403229859852e-05"
+        iyz="-6.692921681081275e-06"
+        izz="1.2804429908681677e-05" />
     </inertial>
     <visual>
       <origin
@@ -481,12 +655,26 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://armv2URDF/meshes/link8.STL" />
+          filename="package://armv2URDF/meshes/link8_finger.STL" />
       </geometry>
       <material
-        name="">
+        name="finger">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.910 0.455 0.173 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/link8_steel.STL" />
+      </geometry>
+      <material
+        name="steel">
+        <color
+          rgba="0.604 0.620 0.643 1" />
       </material>
     </visual>
     <collision>
@@ -503,7 +691,7 @@
     name="joint8"
     type="prismatic">
     <origin
-      xyz="0 -0.0771579775183292 -0.116558517434743"
+      xyz="-0.00047906812212942206 0.06102300560538873 -0.17821327462311443"
       rpy="0 0 0" />
     <parent
       link="link6" />
@@ -512,8 +700,8 @@
     <axis
       xyz="0 -1 0" />
     <limit
-      lower="-0.0132"
-      upper="0.0468"
+      lower="0.0"
+      upper="0.041"
       effort="0"
       velocity="0" />
   </joint>
@@ -539,12 +727,26 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://armv2URDF/meshes/link1L.STL" />
+          filename="package://armv2URDF/meshes/link1L_motor.STL" />
       </geometry>
       <material
-        name="">
+        name="motor">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.169 0.176 0.192 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/link1L_print.STL" />
+      </geometry>
+      <material
+        name="print">
+        <color
+          rgba="0.925 0.929 0.937 1" />
       </material>
     </visual>
     <collision>
@@ -597,12 +799,26 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://armv2URDF/meshes/link2l.STL" />
+          filename="package://armv2URDF/meshes/link2l_motor.STL" />
       </geometry>
       <material
-        name="">
+        name="motor">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.169 0.176 0.192 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/link2l_print.STL" />
+      </geometry>
+      <material
+        name="print">
+        <color
+          rgba="0.925 0.929 0.937 1" />
       </material>
     </visual>
     <collision>
@@ -655,12 +871,26 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://armv2URDF/meshes/link3l.STL" />
+          filename="package://armv2URDF/meshes/link3l_motor.STL" />
       </geometry>
       <material
-        name="">
+        name="motor">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.169 0.176 0.192 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/link3l_print.STL" />
+      </geometry>
+      <material
+        name="print">
+        <color
+          rgba="0.925 0.929 0.937 1" />
       </material>
     </visual>
     <collision>
@@ -713,12 +943,26 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://armv2URDF/meshes/link4l.STL" />
+          filename="package://armv2URDF/meshes/link4l_motor.STL" />
       </geometry>
       <material
-        name="">
+        name="motor">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.169 0.176 0.192 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/link4l_print.STL" />
+      </geometry>
+      <material
+        name="print">
+        <color
+          rgba="0.925 0.929 0.937 1" />
       </material>
     </visual>
     <collision>
@@ -753,35 +997,49 @@
     name="link5l">
     <inertial>
       <origin
-        xyz="-6.72355478005099e-05 -0.00113652812958864 -0.0095727746678782"
+        xyz="-0.00035512312621697935 -4.777653978810328e-05 -0.0047990689405316075"
         rpy="0 0 0" />
       <mass
-        value="0.260192598192353" />
+        value="0.2382615658859055" />
       <inertia
-        ixx="0.00071135436630229"
-        ixy="-1.12212189009507E-07"
-        ixz="5.85193634163708E-07"
-        iyy="0.000776552473650236"
-        iyz="-3.48288772748281E-05"
-        izz="0.000207426469120271" />
+        ixx="0.0007671579248190644"
+        ixy="3.753492708597358e-08"
+        ixz="-1.4869772665995187e-06"
+        iyy="0.0007459636958862454"
+        iyz="4.3092028577312876e-07"
+        izz="0.0002460004332380905" />
     </inertial>
     <visual>
       <origin
-        xyz="0.00126373662642563 0 0"
+        xyz="0 0 0"
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://armv2URDF/meshes/link5l.STL" />
+          filename="package://armv2URDF/meshes/link5l_gl40.STL" />
       </geometry>
       <material
-        name="">
+        name="gl40">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.227 0.235 0.251 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/link5l_print.STL" />
+      </geometry>
+      <material
+        name="print">
+        <color
+          rgba="0.925 0.929 0.937 1" />
       </material>
     </visual>
     <collision>
       <origin
-        xyz="0.00126373662642563 0 0"
+        xyz="0 0 0"
         rpy="0 0 0" />
       <geometry>
         <mesh
@@ -811,17 +1069,17 @@
     name="link6l">
     <inertial>
       <origin
-        xyz="0.00240830632223063 0.0589383046669046 -0.0643217893301219"
+        xyz="-0.005669730134582818 -6.288923364034531e-05 -0.06854347988247275"
         rpy="0 0 0" />
       <mass
-        value="0.120420993331066" />
+        value="0.22744225747979702" />
       <inertia
-        ixx="0.000106661652543348"
-        ixy="4.69673996084141E-06"
-        ixz="4.16161598080972E-06"
-        iyy="7.61035835146052E-05"
-        iyz="-1.75230970551461E-05"
-        izz="9.69200277534609E-05" />
+        ixx="0.000481349419560827"
+        ixy="3.5451633209530754e-06"
+        ixz="2.093233282874321e-05"
+        iyy="0.00040153153732690904"
+        iyz="2.32244123641515e-08"
+        izz="0.0003111081720443585" />
     </inertial>
     <visual>
       <origin
@@ -829,12 +1087,40 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://armv2URDF/meshes/link6l.STL" />
+          filename="package://armv2URDF/meshes/link6l_gl40.STL" />
       </geometry>
       <material
-        name="">
+        name="gl40">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.227 0.235 0.251 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/link6l_steel.STL" />
+      </geometry>
+      <material
+        name="steel">
+        <color
+          rgba="0.604 0.620 0.643 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/link6l_print.STL" />
+      </geometry>
+      <material
+        name="print">
+        <color
+          rgba="0.925 0.929 0.937 1" />
       </material>
     </visual>
     <collision>
@@ -851,14 +1137,14 @@
     name="joint6l"
     type="revolute">
     <origin
-      xyz="-2.28300451460273e-14 -0.0459750016055988 -0.0662568973579128"
+      xyz="0.0 0.0 -0.06625689735791279"
       rpy="0 0 0" />
     <parent
       link="link5l" />
     <child
       link="link6l" />
     <axis
-      xyz="0 1 0" />
+      xyz="-1 0 0" />
     <limit
       lower="-6.283185"
       upper="6.283185"
@@ -869,17 +1155,17 @@
     name="link7l">
     <inertial>
       <origin
-        xyz="-0.00206129179860708 0.134651326858929 -0.0277679742359116"
+        xyz="0.0063786861282935665 -0.001574260187728352 0.021508220063523157"
         rpy="0 0 0" />
       <mass
-        value="0.0372932549660758" />
+        value="0.061771816779942076" />
       <inertia
-        ixx="1.51535820699273E-05"
-        ixy="-6.69769932715019E-09"
-        ixz="-4.79102693134403E-07"
-        iyy="1.98346130416929E-05"
-        iyz="-2.61481896083983E-06"
-        izz="9.05271732114926E-06" />
+        ixx="7.58595389272132e-05"
+        ixy="-5.454078462848223e-08"
+        ixz="5.794465342872576e-07"
+        iyy="7.222267243797923e-05"
+        iyz="-6.7026228286754065e-06"
+        izz="1.2775130197870233e-05" />
     </inertial>
     <visual>
       <origin
@@ -887,12 +1173,26 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://armv2URDF/meshes/link7l.STL" />
+          filename="package://armv2URDF/meshes/link7l_finger.STL" />
       </geometry>
       <material
-        name="">
+        name="finger">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.910 0.455 0.173 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/link7l_steel.STL" />
+      </geometry>
+      <material
+        name="steel">
+        <color
+          rgba="0.604 0.620 0.643 1" />
       </material>
     </visual>
     <collision>
@@ -909,7 +1209,7 @@
     name="joint7l"
     type="prismatic">
     <origin
-      xyz="0 -0.0171579738681266 -0.11101425916694"
+      xyz="-0.013550173264430391 0.061073386265072305 -0.1782132746231087"
       rpy="0 0 0" />
     <parent
       link="link6l" />
@@ -918,8 +1218,8 @@
     <axis
       xyz="0 1 0" />
     <limit
-      lower="-0.0532"
-      upper="0.0168"
+      lower="-0.041"
+      upper="0.0"
       effort="0"
       velocity="0" />
   </joint>
@@ -927,17 +1227,17 @@
     name="link8l">
     <inertial>
       <origin
-        xyz="0.00206129180571482 -0.0976513309287601 -0.0222237160043666"
+        xyz="-0.006202285623176104 0.001579887264411267 0.021548537590812496"
         rpy="0 0 0" />
       <mass
-        value="0.0372932549731019" />
+        value="0.06184488665283555" />
       <inertia
-        ixx="1.51535821749886E-05"
-        ixy="-6.6976891020365E-09"
-        ixz="4.79102688945327E-07"
-        iyy="1.98346131283457E-05"
-        iyz="2.61481899664886E-06"
-        izz="9.05271732005666E-06" />
+        ixx="7.594752558582937e-05"
+        ixy="-6.794336144238907e-08"
+        ixz="-5.430668245576774e-07"
+        iyy="7.233403230207771e-05"
+        iyz="6.6929216817452925e-06"
+        izz="1.2804429911052167e-05" />
     </inertial>
     <visual>
       <origin
@@ -945,12 +1245,26 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://armv2URDF/meshes/link8l.STL" />
+          filename="package://armv2URDF/meshes/link8l_finger.STL" />
       </geometry>
       <material
-        name="">
+        name="finger">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.910 0.455 0.173 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://armv2URDF/meshes/link8l_steel.STL" />
+      </geometry>
+      <material
+        name="steel">
+        <color
+          rgba="0.604 0.620 0.643 1" />
       </material>
     </visual>
     <collision>
@@ -967,7 +1281,7 @@
     name="joint8l"
     type="prismatic">
     <origin
-      xyz="0 0.0861579775183273 -0.116558517434743"
+      xyz="-0.0005040665164798303 -0.061023005605389286 -0.1782132746231136"
       rpy="0 0 0" />
     <parent
       link="link6l" />
@@ -976,8 +1290,8 @@
     <axis
       xyz="0 1 0" />
     <limit
-      lower="-0.0132"
-      upper="0.0468"
+      lower="0.0"
+      upper="0.041"
       effort="0"
       velocity="0" />
   </joint>

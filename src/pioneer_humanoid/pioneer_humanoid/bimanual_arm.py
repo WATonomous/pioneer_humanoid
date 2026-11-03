@@ -15,11 +15,11 @@ Notes on the values below:
   - _DEFAULT_JOINT_POS is this URDF's zero pose plus elbow flex (see below), a
     correct-by-construction rest pose -- not a hand-tuned one.
   - LEFT_/RIGHT_FINGER_DISTAL_TIP_LOCAL are measured against this asset's mesh,
-    along its joint7/8 travel axis (Y for this export).
+    along its joint7/8 travel axis (Y).
   - _WRIST_ORIENT_OFFSET_* in run_quest_bimanual_teleop.py are identity and need
     live in-headset retuning for this asset's joint6 axis.
-  - actuator gains and the +/-0.05 m gripper stroke are motor/mechanism-derived
-    but not independently verified.
+  - actuator gains are motor-derived but not independently verified; the +/-0.041 m
+    gripper stroke is the new gripper's CAD travel.
 
 Motor specs: https://watonomous.github.io/humanoid-docs/mechanical/index.html
   Shoulder joints 1-2  AK10-9 V3.0  18 Nm rated / 53 Nm peak
@@ -83,22 +83,21 @@ LEFT_EE_BODY = "link6l"
 RIGHT_EE_BODY = "link6"
 LEFT_FINGER_TIP_BODIES = ("link7l", "link8l")
 RIGHT_FINGER_TIP_BODIES = ("link7", "link8")
-# Distal mesh point of each finger, in that link's OWN object-space frame: the outward-Y extreme
-# (larger-magnitude Y bbox bound) with X/Z at the bbox centre, measured via
-# UsdGeom.BBoxCache.ComputeRelativeBound against this asset's mesh. Same "outward extreme along
-# the travel axis" methodology bimanual_arm_cfg.py used, but along Y -- bimanual's joint7/8 axis
-# is X, so its numbers are wrong here (see module docstring).
+# Distal mesh point of each finger, in that link's OWN object-space frame: the outward extreme along
+# the travel axis (Y: outward for link7, the outer finger, inward for link8) with X/Z at the bbox
+# centre, measured on the new wrist gripper's meshes (each finger's origin is at its
+# bbox centre). Same "outward extreme along the travel axis" methodology as before.
 #
 # LINK-LOCAL, so they do not survive a re-export that moves the link origins; re-measure the same
 # way if the arm asset changes. Sanity check: composed with the joint7/8 origins these give a
-# 0.1625m open fingertip gap on both grippers, matching the empirically measured 0.161m below.
+# 0.162m open fingertip gap on both grippers (the old gripper: 0.1625m).
 LEFT_FINGER_DISTAL_TIP_LOCAL = {
-    "link7l": (0.0, 0.151416, -0.045369),
-    "link8l": (0.0, -0.114416, -0.039825),
+    "link7l": (0.0, 0.02, 0.0),
+    "link8l": (0.0, -0.02, 0.0),
 }
 RIGHT_FINGER_DISTAL_TIP_LOCAL = {
-    "link7": (0.0, -0.151416, -0.045369),
-    "link8": (0.0, 0.114416, -0.039825),
+    "link7": (0.0, -0.02, 0.0),
+    "link8": (0.0, 0.02, 0.0),
 }
 
 

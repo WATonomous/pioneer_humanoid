@@ -52,12 +52,12 @@ RIGHT_ARM_JOINTS = ["joint1", "joint2", "joint3", "joint4", "joint5", "joint6"]
 LEFT_GRIPPER_JOINTS = ["joint7l", "joint8l"]
 RIGHT_GRIPPER_JOINTS = ["joint7", "joint8"]
 
-# Gripper finger targets, verified empirically in headless Isaac sim: fingertip gap 0.074m
-# closed / ~0.16m open at these endpoints. This asset's joint7/8 axis is Y.
+# Gripper finger targets: the new wrist gripper's full travel (URDF limits, from the CAD): 82 mm between the
+# fingers open, touching closed. This asset's joint7/8 axis is Y, as before.
 LEFT_GRIPPER_OPEN = {"joint7l": 0.0, "joint8l": 0.0}
-LEFT_GRIPPER_CLOSED = {"joint7l": -0.05, "joint8l": 0.05}
+LEFT_GRIPPER_CLOSED = {"joint7l": -0.041, "joint8l": 0.041}
 RIGHT_GRIPPER_OPEN = {"joint7": 0.0, "joint8": 0.0}
-RIGHT_GRIPPER_CLOSED = {"joint7": -0.05, "joint8": 0.05}
+RIGHT_GRIPPER_CLOSED = {"joint7": -0.041, "joint8": 0.041}
 
 # Prismatic gripper PD — tuned for hold during arm motion (not from motor datasheet).
 # If fingers bounce when the shoulder moves, raise stiffness; if jittery, raise damping.
