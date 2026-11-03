@@ -77,8 +77,8 @@ def test_make_floor_is_centered_where_asked(make_floor):
 def test_add_box_raises_only_its_footprint(make_floor, add_box):
     floor = make_floor()
     scene = add_box(floor, center=(0.5, 0.0), size=(0.2, 0.2), height=0.1)
-    raised = scene[:, 2] > 0.05
+    raised = scene[:, 2] > FLOOR_Z + 0.05
     assert raised.any()
     assert np.all(np.abs(scene[raised, 0] - 0.5) < 0.1)
     assert np.all(np.abs(scene[raised, 1]) < 0.1)
-    assert np.allclose(floor[:, 2], 0.0)
+    assert np.allclose(floor[:, 2], FLOOR_Z)

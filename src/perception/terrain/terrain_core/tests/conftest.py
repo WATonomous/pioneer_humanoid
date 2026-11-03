@@ -56,7 +56,7 @@ def ramp():
 
 @pytest.fixture
 def make_floor():
-    def _make(z=0.0, half_size=2.0, center=(0.0, 0.0)):
+    def _make(z=FLOOR_Z, half_size=2.0, center=(0.0, 0.0)):
         return _floor_grid(z=z, half_size=half_size, center=center)
 
     return _make
