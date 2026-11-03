@@ -1,8 +1,10 @@
 import os
 
 import isaaclab.sim as sim_utils
-from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets.articulation import ArticulationCfg
+
+from .delayed_dc_motor_cfg import DelayedDCMotorCfg
+from .leg_params import JOINT_MOTOR, check_gains
 
 _ASSET_DIR = os.path.join(
     os.path.dirname(__file__), "..", "..", "..", "assets", "whole_body_humanoid"
@@ -12,6 +14,44 @@ _USD_DIR = os.path.join(_ASSET_DIR, "usd")
 
 # Mild crouch; keep feet near ground after bend.
 _SPAWN_HEIGHT = 0.75
+
+# PhysX hard speed clamp = this x datasheet no-load speed (D15). Safety net only: the DCMotor
+# torque-speed clip does the realistic limiting, and its braking torque is already at -peak
+# below this speed.
+_VELOCITY_LIMIT_SIM_MARGIN = 1.5
+
+# Command delay in whole physics steps (5 ms each, D6), drawn per env at reset.
+_MIN_DELAY = 0
+_MAX_DELAY = 2
+
+
+def _leg_actuator(joints: list[str], kp: float, kd: float) -> DelayedDCMotorCfg:
+    """DelayedDCMotorCfg for leg joints that share one motor model, with limits from leg_params.
+
+    joints: names without the _L/_R suffix, e.g. ["Ankle_P", "Ankle_R"].
+    kp, kd: joint-side gains, checked against the motor's MIT range (r = 1 for now, D10).
+    """
+    names = [f"{joint}_{side}" for joint in joints for side in ("L", "R")]
+    motors = {JOINT_MOTOR[name] for name in names}
+    if len(motors) != 1:
+        raise ValueError(f"{joints} use different motors: {sorted(m.name for m in motors)}")
+    motor = motors.pop()
+    for name in names:
+        check_gains(name, kp, kd)
+    return DelayedDCMotorCfg(
+        joint_names_expr=[f"{joint}_.*" for joint in joints],
+        stiffness=kp,
+        damping=kd,
+        effort_limit=motor.peak_torque,  # flat cap at peak (D13; x r at the ankle, r = 1)
+        saturation_effort=motor.saturation_effort,  # chart line extended to zero speed (D14)
+        velocity_limit=motor.torque_speed_limit,  # where the chart line reaches 0 Nm (D14)
+        velocity_limit_sim=_VELOCITY_LIMIT_SIM_MARGIN * motor.no_load_speed,  # D15
+        # effort_limit_sim left unset: explicit actuators default to 1e9 (no PhysX cap); the clip above caps.
+        armature=motor.armature,  # rotor inertia x gear_ratio^2
+        friction=motor.backdrive_torque,  # Nm on Isaac Sim 5.x; first guess until Task 11
+        min_delay=_MIN_DELAY,
+        max_delay=_MAX_DELAY,
+    )
 
 
 WHOLE_BODY_HUMANOID_CFG = ArticulationCfg(
@@ -62,42 +102,13 @@ WHOLE_BODY_HUMANOID_CFG = ArticulationCfg(
             "Ankle_R_R": 0.0,
         },
     ),
+    # Gain set A (D5): kp unchanged, kd capped at the MIT max of 5 (D4).
     actuators={
-        "hip_flexion": ImplicitActuatorCfg(
-            joint_names_expr=["Hip_F_.*"],
-            effort_limit_sim=222.0,
-            velocity_limit_sim=3.6652,
-            stiffness=100.0,
-            damping=8.0,
-        ),
-        "hip_abduction": ImplicitActuatorCfg(
-            joint_names_expr=["Hip_A_.*"],
-            effort_limit_sim=120.0,
-            velocity_limit_sim=20.944,
-            stiffness=80.0,
-            damping=5.0,
-        ),
-        "hip_rotation": ImplicitActuatorCfg(
-            joint_names_expr=["Hip_R_.*"],
-            effort_limit_sim=60.0,
-            velocity_limit_sim=20.42,
-            stiffness=60.0,
-            damping=4.0,
-        ),
-        "knee": ImplicitActuatorCfg(
-            joint_names_expr=["Knee_.*"],
-            effort_limit_sim=222.0,
-            velocity_limit_sim=3.6652,
-            stiffness=100.0,
-            damping=8.0,
-        ),
-        "ankle": ImplicitActuatorCfg(
-            joint_names_expr=["Ankle_.*"],
-            effort_limit_sim=60.0,
-            velocity_limit_sim=20.42,
-            stiffness=80.0,
-            damping=6.0,
-        ),
+        "hip_flexion": _leg_actuator(["Hip_F"], kp=100.0, kd=5.0),  # kd was 8
+        "hip_abduction": _leg_actuator(["Hip_A"], kp=80.0, kd=5.0),
+        "hip_rotation": _leg_actuator(["Hip_R"], kp=60.0, kd=4.0),
+        "knee": _leg_actuator(["Knee"], kp=100.0, kd=5.0),  # kd was 8
+        "ankle": _leg_actuator(["Ankle_P", "Ankle_R"], kp=80.0, kd=5.0),  # kd was 6
     },
     soft_joint_pos_limit_factor=0.95,
 )

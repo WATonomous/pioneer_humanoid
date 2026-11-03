@@ -22,6 +22,9 @@ class MotorSpec:
     no_load_speed_rpm: float  # rpm
     rotor_inertia_gcm2: float  # g*cm^2, rotor only (motor side of the gearbox)
     backdrive_torque: float  # Nm; first guess for friction until Task 11 measures it
+    # Torque-speed line read by eye from the CubeMars 48 V chart (D14), until Task 11 measures it.
+    chart_speed_zero_torque_rpm: float  # rpm at 0 Nm
+    chart_speed_at_peak_rpm: float  # rpm at peak_torque
     # MIT frame encoding ranges (symmetric: min = -max). These set the scale of the packed
     # integer fields, NOT what the motor can physically do (e.g. AKH70-48 t_max 280 > peak 222).
     p_max: float  # rad
@@ -32,8 +35,23 @@ class MotorSpec:
 
     @property
     def no_load_speed(self) -> float:
-        """rad/s."""
+        """rad/s. Fastest the motor can be driven (datasheet); base for the sim speed clamp (D15)."""
         return self.no_load_speed_rpm * _RPM_TO_RAD_S
+
+    @property
+    def torque_speed_limit(self) -> float:
+        """rad/s where the chart's torque-speed line reaches 0 Nm (DCMotor velocity_limit, D14)."""
+        return self.chart_speed_zero_torque_rpm * _RPM_TO_RAD_S
+
+    @property
+    def saturation_effort(self) -> float:
+        """Nm at zero speed on the chart's line, extended past peak (DCMotor saturation_effort, D14).
+
+        The line goes through (0 Nm, chart_speed_zero_torque) and (peak, chart_speed_at_peak), so at
+        zero speed it reaches peak * v0 / (v0 - v_peak). Units cancel, so rpm is fine here.
+        """
+        v0, v_peak = self.chart_speed_zero_torque_rpm, self.chart_speed_at_peak_rpm
+        return self.peak_torque * v0 / (v0 - v_peak)
 
     @property
     def rotor_inertia(self) -> float:
@@ -48,19 +66,25 @@ class MotorSpec:
 
 
 # Values from the plan's motor fact sheet (manuals: AK V3.2.0 §4.2, AK driver V1.0.18 §5.3).
+# Charts (48 VDC torque-speed): AKH70-48 and AK60-39 from their cubemars.com product pages,
+# AK80-64 from the 2023 CubeMars catalogue p. 11 (current product page has no chart).
 AKH70_48 = MotorSpec(
     name="AKH70-48", gear_ratio=48, peak_torque=222.0, rated_torque=74.0,
     no_load_speed_rpm=35.0, rotor_inertia_gcm2=1170.0, backdrive_torque=2.22,
+    chart_speed_zero_torque_rpm=34.4, chart_speed_at_peak_rpm=19.1,
     p_max=12.56, v_max=5.0, t_max=280.0,
 )
 AK80_64 = MotorSpec(  # hip yaw (D1); AK 2.0 protocol
     name="AK80-64 KV80", gear_ratio=64, peak_torque=120.0, rated_torque=48.0,
-    no_load_speed_rpm=75.0, rotor_inertia_gcm2=564.5, backdrive_torque=4.7,
+    # Datasheet lists 75 rpm, but Kv 80 rpm/V * 48 V / 64 = 60 rpm is the 48 V back-EMF ceiling (D15).
+    no_load_speed_rpm=60.0, rotor_inertia_gcm2=564.5, backdrive_torque=4.7,
+    chart_speed_zero_torque_rpm=54.1, chart_speed_at_peak_rpm=39.5,
     p_max=12.5, v_max=8.0, t_max=144.0,
 )
 AK60_39 = MotorSpec(  # ankle, via linkage (D10)
     name="AK60-39 V3.0 KV80", gear_ratio=39, peak_torque=72.0, rated_torque=24.0,
     no_load_speed_rpm=98.0, rotor_inertia_gcm2=305.0, backdrive_torque=1.4,
+    chart_speed_zero_torque_rpm=84.0, chart_speed_at_peak_rpm=45.3,
     p_max=12.56, v_max=10.0, t_max=80.0,
 )
 

@@ -10,13 +10,16 @@ from isaaclab.app import AppLauncher
 
 simulation_app = AppLauncher(headless=True).app  # headless = no window
 
+import re  # noqa: E402
 from dataclasses import MISSING  # noqa: E402
 
 import pytest  # noqa: E402
 import torch  # noqa: E402
 from isaaclab.utils.types import ArticulationActions  # noqa: E402  (targets: positions / velocities / efforts)
 
-from pioneer_humanoid.delayed_dc_motor_cfg import DelayedDCMotorCfg  # noqa: E402  (doesn't exist yet: red first)
+from pioneer_humanoid.delayed_dc_motor_cfg import DelayedDCMotorCfg  # noqa: E402
+from pioneer_humanoid.leg_params import JOINT_MOTOR  # noqa: E402
+from pioneer_humanoid.whole_body import WHOLE_BODY_HUMANOID_CFG  # noqa: E402
 
 # Test-only sizes. The class uses whatever num_envs/device it is given, so training
 # (cuda:0, 4096 envs) runs the same code.
@@ -190,3 +193,34 @@ def test_torque_speed_clip(vel, tau_cmd, expected):
     act.compute(action, joint_pos=full(0.0), joint_vel=full(vel))
     torch.testing.assert_close(act.computed_effort, full(tau_cmd))  # before the clip: untouched
     torch.testing.assert_close(act.applied_effort, full(expected))  # after the clip
+
+
+# --- Task 4: leg actuator config in whole_body.py (no robot spawn) ----------------------------
+LEG_ACTUATORS = WHOLE_BODY_HUMANOID_CFG.actuators
+
+
+def _groups_matching(joint):
+    """Names of actuator groups whose joint_names_expr matches `joint` (Isaac uses full regex matches)."""
+    return [name for name, cfg in LEG_ACTUATORS.items() if any(re.fullmatch(expr, joint) for expr in cfg.joint_names_expr)]
+
+
+@pytest.mark.parametrize("joint", sorted(JOINT_MOTOR))
+def test_every_leg_joint_in_exactly_one_group(joint):
+    # A pattern typo only gives a spawn-time warning in Isaac ("Not all actuators are configured!").
+    assert len(_groups_matching(joint)) == 1, _groups_matching(joint)
+
+
+@pytest.mark.parametrize("group", sorted(LEG_ACTUATORS))
+def test_group_values_come_from_its_motor(group):
+    cfg = LEG_ACTUATORS[group]
+    joints = [j for j in JOINT_MOTOR if group in _groups_matching(j)]
+    motor = JOINT_MOTOR[joints[0]]
+    assert isinstance(cfg, DelayedDCMotorCfg)
+    assert cfg.effort_limit == pytest.approx(motor.peak_torque)  # D13
+    assert cfg.saturation_effort == pytest.approx(motor.saturation_effort)  # D14
+    assert cfg.velocity_limit == pytest.approx(motor.torque_speed_limit)  # D14
+    assert cfg.velocity_limit_sim == pytest.approx(1.5 * motor.no_load_speed)  # D15
+    assert cfg.armature == pytest.approx(motor.armature)
+    assert cfg.friction == pytest.approx(motor.backdrive_torque)
+    assert cfg.damping <= motor.kd_max  # D4
+    assert (cfg.min_delay, cfg.max_delay) == (0, 2)
