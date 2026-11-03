@@ -39,12 +39,12 @@ from .rough_env_cfg import FOOT_BODIES
 from ...mdp.spiral_command import SpiralVelocityCommandCfg
 from .onshape_env_cfg import PioneerHumanoidOnshapeCourseEnvCfg
 
-_SPIRAL_USD = "/workspace/humanoid/assets/staircase_onshape/spiral_terrain.usd"
+_SPIRAL_USD = "assets/staircase_onshape/spiral_terrain.usd"
 # A nudge of the spawn away from the marker (metres, world frame). The marker
 # is the user's own placement in Onshape, so this is zero by default.
 _SPAWN_OFFSET_X = 0.25
 _SPAWN_OFFSET_Y = 0.0
-_SPIRAL_GEOMETRY = "/workspace/humanoid/assets/staircase_onshape/spiral_geometry.json"
+_SPIRAL_GEOMETRY = "assets/staircase_onshape/spiral_geometry.json"
 
 # The spawn: the user's marker sliver, on the flat floor at the foot of the
 # staircase. The robot faces +Y (the world's +Y) as the task requires; the

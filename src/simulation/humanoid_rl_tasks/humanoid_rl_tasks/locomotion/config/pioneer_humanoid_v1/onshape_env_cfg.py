@@ -47,20 +47,31 @@ from isaaclab.managers import EventTermCfg as EventTerm
 from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
+from isaaclab.sensors import ContactSensorCfg
 from isaaclab.utils import configclass
 
 from ...mdp import push_by_setting_velocity
 from ...mdp import shove as shove_mdp
 from ...mdp import stair_course as course_mdp
+from ...mdp.terrain_contact import (
+    TerrainContactSensor,
+    feet_air_time_positive_biped_terrain,
+    feet_slide_terrain,
+)
 from .rough_env_cfg import (
-    FOOT_BODIES,
     LEG_JOINTS,
     PioneerHumanoidRoughNoStairsSelectiveKneeShapeRewards,
     PioneerHumanoidRoughNoStairsSelectiveKneeShapeEnvCfg,
 )
 
-_ONSHAPE_COURSE_USD = "/workspace/humanoid/assets/staircase_onshape/straight_stairs_terrain.usd"
-_ONSHAPE_COURSE_PROFILE = "/workspace/humanoid/assets/staircase_onshape/straight_stairs_profile.json"
+from pioneer_humanoid.leg_only import LEG_ONLY_HUMANOID_CFG
+
+# Body names for the new Pioneer leg-only model (different from old_leg_only)
+ONSHAPE_FOOT_BODIES = ["l_foot", "r_foot"]
+
+
+_ONSHAPE_COURSE_USD = "assets/staircase_onshape/straight_stairs_terrain.usd"
+_ONSHAPE_COURSE_PROFILE = "assets/staircase_onshape/straight_stairs_profile.json"
 
 
 def _load_course_band() -> list:
@@ -119,7 +130,7 @@ class PioneerHumanoidOnshapeCourseRewards(PioneerHumanoidRoughNoStairsSelectiveK
         params={
             "left_sensor_cfg": SceneEntityCfg("left_foot_terrain_contact"),
             "right_sensor_cfg": SceneEntityCfg("right_foot_terrain_contact"),
-            "feet_cfg": SceneEntityCfg("robot", body_names=FOOT_BODIES, preserve_order=True),
+            "feet_cfg": SceneEntityCfg("robot", body_names=ONSHAPE_FOOT_BODIES, preserve_order=True),
             "command_name": "base_velocity",
             "forward_axis": 1,
             "max_clearance": 0.45,
@@ -137,7 +148,7 @@ class PioneerHumanoidOnshapeCourseRewards(PioneerHumanoidRoughNoStairsSelectiveK
         params={
             "left_sensor_cfg": SceneEntityCfg("left_foot_terrain_contact"),
             "right_sensor_cfg": SceneEntityCfg("right_foot_terrain_contact"),
-            "feet_cfg": SceneEntityCfg("robot", body_names=FOOT_BODIES, preserve_order=True),
+            "feet_cfg": SceneEntityCfg("robot", body_names=ONSHAPE_FOOT_BODIES, preserve_order=True),
             "forward_axis": 1,
             "deadband": 0.25,
         },
@@ -149,13 +160,11 @@ class PioneerHumanoidOnshapeCourseRewards(PioneerHumanoidRoughNoStairsSelectiveK
         params={
             "left_sensor_cfg": SceneEntityCfg("left_foot_terrain_contact"),
             "right_sensor_cfg": SceneEntityCfg("right_foot_terrain_contact"),
-            "feet_cfg": SceneEntityCfg("robot", body_names=FOOT_BODIES, preserve_order=True),
+            "feet_cfg": SceneEntityCfg("robot", body_names=ONSHAPE_FOOT_BODIES, preserve_order=True),
             "deadband": 0.23,
             "landing_window": 0.15,
         },
     )
-
-
 # Course runs +Y as modeled (forward is +Y). Spawn directly on the marker
 # sliver (metres, from the marker part's bounds: centre 4.1628, -1.5486),
 # facing +Y; course rewards/terminations take axis=1 / target=pi/2 below.
@@ -190,10 +199,23 @@ class PioneerHumanoidOnshapeCourseEnvCfg(PioneerHumanoidRoughNoStairsSelectiveKn
     origin ~0 (spacing 0); scatter comes from the pose ranges.
     """
 
-    rewards: PioneerHumanoidOnshapeCourseRewards = PioneerHumanoidOnshapeCourseRewards()
+    # Create rewards instance with overridden feet_crossing_penalty for pioneer_leg_only
+    rewards = PioneerHumanoidOnshapeCourseRewards()
+    rewards.feet_crossing_penalty = RewTerm(
+        func=course_mdp.feet_crossing_l2,
+        weight=-40.0,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=ONSHAPE_FOOT_BODIES, preserve_order=True),
+            "margin": 0.08,
+        },
+    )
 
     def __post_init__(self):
         super().__post_init__()
+
+        # Use the new Pioneer leg-only model (not the legacy old_leg_only)
+        self.scene.robot = LEG_ONLY_HUMANOID_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+
 
         self.scene.terrain.terrain_type = "usd"
         self.scene.terrain.terrain_generator = None
@@ -247,6 +269,38 @@ class PioneerHumanoidOnshapeCourseEnvCfg(PioneerHumanoidRoughNoStairsSelectiveKn
         self.commands.base_velocity.ranges.lin_vel_x = (0.3, 0.5)
         self.commands.base_velocity.ranges.heading = (_YAW_90, _YAW_90)
         self.commands.base_velocity.rel_standing_envs = 0.0
+
+        # Override contact sensors for pioneer_leg_only model (uses l_foot/r_foot)
+        terrain_filter = f"{self.scene.terrain.prim_path}/terrain/mesh"
+        for side, foot in (("left", "l_foot"), ("right", "r_foot")):
+            setattr(
+                self.scene,
+                f"{side}_foot_terrain_contact",
+                ContactSensorCfg(
+                    class_type=TerrainContactSensor,
+                    prim_path=f"{{ENV_REGEX_NS}}/Robot/{foot}",
+                    filter_prim_paths_expr=[terrain_filter],
+                    update_period=self.sim.dt,
+                    history_length=3,
+                    track_air_time=True,
+                ),
+            )
+        # Update reward sensor params to use the new contact sensors
+        sensor_params = {
+            "left_sensor_cfg": SceneEntityCfg("left_foot_terrain_contact"),
+            "right_sensor_cfg": SceneEntityCfg("right_foot_terrain_contact"),
+        }
+        self.rewards.feet_air_time.func = feet_air_time_positive_biped_terrain
+        self.rewards.feet_air_time.params = {
+            **sensor_params,
+            "command_name": "base_velocity",
+            "threshold": self.rewards.feet_air_time.params["threshold"],
+        }
+        self.rewards.feet_slide.func = feet_slide_terrain
+        self.rewards.feet_slide.params = {
+            **sensor_params,
+            "asset_cfg": SceneEntityCfg("robot", body_names=ONSHAPE_FOOT_BODIES, preserve_order=True),
+        }
         # --- Knee range: give the stair task the robot's real knee travel -----
         # The shared recipe clips the knee *target* to -0.95 rad while the joint
         # itself allows -1.134 rad (65 deg). Forward kinematics on this URDF
@@ -292,7 +346,7 @@ class PioneerHumanoidOnshapeCourseEnvCfg(PioneerHumanoidRoughNoStairsSelectiveKn
             params={
                 "left_sensor_cfg": SceneEntityCfg("left_foot_terrain_contact"),
                 "right_sensor_cfg": SceneEntityCfg("right_foot_terrain_contact"),
-                "feet_cfg": SceneEntityCfg("robot", body_names=FOOT_BODIES, preserve_order=True),
+                "feet_cfg": SceneEntityCfg("robot", body_names=ONSHAPE_FOOT_BODIES, preserve_order=True),
             },
         )
 
@@ -329,7 +383,7 @@ class PioneerHumanoidOnshapeCourseEnvCfg(PioneerHumanoidRoughNoStairsSelectiveKn
             params={
                 "left_sensor_cfg": SceneEntityCfg("left_foot_terrain_contact"),
                 "right_sensor_cfg": SceneEntityCfg("right_foot_terrain_contact"),
-                "feet_cfg": SceneEntityCfg("robot", body_names=FOOT_BODIES, preserve_order=True),
+                "feet_cfg": SceneEntityCfg("robot", body_names=ONSHAPE_FOOT_BODIES, preserve_order=True),
                 "deadband": 0.23,
                 "landing_window": 0.15,
             },
@@ -399,85 +453,9 @@ class PioneerHumanoidOnshapeCourseEnvCfg(PioneerHumanoidRoughNoStairsSelectiveKn
         # the excess it charges is smaller (0.23 rad vs 0.09).
         # MODEL-FIX ERA: reverted. The right leg's roll was a consequence of the
         # broken hip-abduction axis, not a policy preference.
-        self.rewards.hip_roll_splay = RewTerm(
-            func=course_mdp.hip_roll_splay_l2,
-            weight=0.0,
-            params={
-                "asset_cfg": SceneEntityCfg(
-                    "robot", joint_names=["Hip_R_L", "Hip_R_R"], preserve_order=True
-                ),
-                "deadband": 0.15,
-            },
-        )
-        # The same defect, priced where it actually lives. The two hip terms
-        # above are joint-space proxies, and measurement showed they don't track
-        # the foot: the right hip came down to +0.39 ab / -0.38 roll and the foot
-        # *still* swung 0.64 m sideways (left: 0.03 m). Every term that could see
-        # the lateral excursion was blind to it -- foot_swing_clearance gates on
-        # the fore/aft phase, knee_swing_flexion is a sagittal angle, and
-        # feet_crossing only fires when the feet come together, so an *outward*
-        # splay never triggers anything. This prices the foot's lateral offset
-        # from the root directly, airborne-gated, the way foot_backswing_cost
-        # prices the fore/aft one, so the proxy can relax and the defect still
-        # pays. Deadband calibrated to the leg that swings correctly: re-measured
-        # on model 1999 over 21 strides per foot (the PLAYARC dx_max channel), the
-        # left foot's per-swing peak lateral excursion is 0.04-0.15 m (mean 0.08),
-        # so 0.20 m leaves it free with margin while the right foot's 0.47-0.69 m
-        # (mean 0.57) is charged every airborne frame.
-        #
-        # Shape, after the weight sweep stalled: at -6.0 and -12.0 the squared
-        # version lands on the *same* right-foot excursion (dx_max 0.431 vs
-        # 0.425 m, left ~0.09 both times), i.e. the gait parks just past the
-        # deadband where a square's gradient is ~0 -- an equilibrium, not a
-        # gradient fight. power=1.0 prices the *linear* excess instead: same
-        # deadband, but a constant gradient from the moment the foot goes past
-        # 0.20 m, so the cost keeps pulling instead of flattening out. The
-        # quadratic's large-but-gradient-free bill is why more weight alone did
-        # nothing (-0.0013 vs -0.0026/step logged); max_excess caps the excess
-        # at 0.40 m so a fallen, flailing swing can't accumulate the runaway
-        # return that blew the value function up to 8.8e5 on the -12.0 resume.
-        # MODEL-FIX ERA: reverted. The right foot's lateral swing was the broken
         # hip-abduction axis showing through, not a policy preference.
-        self.rewards.foot_lateral_splay = RewTerm(
-            func=course_mdp.foot_lateral_splay_l2,
-            weight=0.0,
-            params={
-                "left_sensor_cfg": SceneEntityCfg("left_foot_terrain_contact"),
-                "right_sensor_cfg": SceneEntityCfg("right_foot_terrain_contact"),
-                "feet_cfg": SceneEntityCfg("robot", body_names=FOOT_BODIES, preserve_order=True),
-                "deadband": 0.20,
-                "power": 1.0,
-                "max_excess": 0.40,
-            },
-        )
-        # The residual the per-foot term cannot reach: the pelvis rides ~0.10 m
-        # to the left of the midpoint of its feet (spawn feet sit at -0.116 /
-        # +0.173 m, planted feet at -0.003 / +0.198 m), which is what makes the
-        # right leg read as "splayed". Pricing the support centre with the
-        # default gating (any foot planted) demands the pelvis sit over the
-        # stance foot during single support, and that is fatal -- tried at -30.0
-        # and -8.0 (`onshape_train34`/`34b`), both wrecked the gait
-        # (`course_complete` 0.83 -> 0.57/0.60, `base_tilt` doubled) even at
-        # -8.0 where its own bill was only -0.003. Restricted to *double*
-        # support (``min_planted: 2``) the same quantity is priced only when both
-        # feet are down, so the pelvis is re-centred over a real base of support
-        # rather than over a single loaded foot.
-        # MODEL-FIX ERA: reverted. Re-centring the pelvis over the support base was
         # chasing the same one-sided splay; it costs ~0.003/step even when correct
         # and its own notes record that it regressed an existing gait.
-        self.rewards.body_over_support = RewTerm(
-            func=course_mdp.body_over_support_l2,
-            weight=0.0,
-            params={
-                "left_sensor_cfg": SceneEntityCfg("left_foot_terrain_contact"),
-                "right_sensor_cfg": SceneEntityCfg("right_foot_terrain_contact"),
-                "feet_cfg": SceneEntityCfg("robot", body_names=FOOT_BODIES, preserve_order=True),
-                "deadband": 0.08,
-                "power": 1.0,
-                "max_excess": 0.40,
-                "min_planted": 2,
-            },
-        )
         # Restore a real knee tuck (the inherited 0.35 was relaxed to 0.22 while
         # fixing the rear "butt-kick"). A bent swing knee is what clears a riser
         # *under* the body; with the tuck relaxed the right leg kept the knee
