@@ -21,9 +21,10 @@ from pathlib import Path
 from arm_limits import gripper_fraction, limited_target
 from servo_leader import ARM_SERVOS, GRIPPER_SERVO, SERVO_IDS, ServoLeader, calibration_zeros, parse_signs
 
-# Per-servo direction of the left board, A..F then G (calibrate_leader.py --signs to change).
-DEFAULT_SIGNS = "1,1,-1,1,1,-1,1"
-DEFAULT_SIGNS = "1,1,-1,-1,1,-1,1"
+# Per-servo direction of each board, A..F then G, found by moving one joint at a time: what calibrate_leader.py writes
+# without --signs.
+SIDE_SIGNS = {"left": "1,1,-1,-1,1,-1,1", "right": "1,1,-1,-1,1,1,1"}
+DEFAULT_SIGNS = SIDE_SIGNS["left"]
 # The leader unit's two boards (one per arm): port, USB serial, signs and zeros, written by
 # calibrate_leader.py and committed: the numbers belong to the unit, which is found by USB serial.
 DEFAULT_LEADER_ARM = Path(__file__).resolve().parent / "leader_arm.json"
@@ -31,7 +32,7 @@ DEFAULT_LEADER_ARM = Path(__file__).resolve().parent / "leader_arm.json"
 OLD_CALIBRATION = Path(__file__).resolve().parent / "leader_calibration.json"
 SIDES = ("left", "right")
 # Follow the leader only once every arm joint is this close to home ...
-ENGAGE_TOL_DEG = 3.0
+ENGAGE_TOL_DEG = 15.0  # wide enough to reach by eye; the filter then ramps the arm onto the leader in ~0.1 s
 # ... and the gripper this close to open (closure fraction, 0 = open).
 ENGAGE_GRIP_TOL = 0.1
 # Stock wrist damping (18) caps joint6l near 2 deg/s at the GL40's 0.73 Nm, so the sim wrist
@@ -233,7 +234,7 @@ class LeaderInput:
                 + f" grip={mapping.grip:.2f}"
             )
         else:
-            line = "move leader to home (elbow 90, gripper open): " + " ".join(
+            line = f"move leader within {ENGAGE_TOL_DEG:g} deg of home (elbow 90, gripper open): " + " ".join(
                 f"{label} {err:+6.1f}deg" if label != GRIPPER_SERVO else f"{label} {err:4.2f}"
                 for label, err in mapping.home_errors
             )

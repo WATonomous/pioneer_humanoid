@@ -103,7 +103,7 @@ def same_yaml(a: Path, b: Path) -> bool:
 
 
 def load_joint_map(path: Path, arm_side: str) -> Dict[int, dict]:
-    """-> {motor_id: {"name", "direction", "zero_offset", "lower", "upper", "slot"}}"""
+    """-> {motor_id: {"name", "side", "direction", "zero_offset", "lower", "upper", "slot"}}"""
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
     if arm_side not in data:
         raise SystemExit(f"arm side '{arm_side}' not in {path} (have {list(data)})")
@@ -116,6 +116,7 @@ def load_joint_map(path: Path, arm_side: str) -> Dict[int, dict]:
         if "can_id" in node:
             out[int(node["can_id"])] = {
                 "name": prefix,
+                "side": arm_side,
                 "direction": float(node.get("direction", 1)) or 1.0,
                 "zero_offset": float(node.get("zero_offset", 0.0)),
                 "lower": float(node.get("lower_limit", float("-inf"))),

@@ -45,7 +45,7 @@ MIT_STATUS = {
 
 class TelemetryRecorder(Node):
     def __init__(self, joint_map: Dict[int, dict], log: RunFolder, motors: Optional[List[int]],
-                 rate_hz: float, arm_side: str):
+                 rate_hz: float, arm_sides: List[str]):
         super().__init__("telemetry_recorder")
         self.joint_map = joint_map
         self.log = log
@@ -63,20 +63,22 @@ class TelemetryRecorder(Node):
 
         qos = QoSProfile(reliability=ReliabilityPolicy.BEST_EFFORT,
                          history=HistoryPolicy.KEEP_LAST, depth=50)
-        self.create_subscription(ArmPose, arm_pose_topic(arm_side), self._on_pose, qos)
+        for side in arm_sides:
+            self.create_subscription(ArmPose, arm_pose_topic(side),
+                                     lambda msg, side=side: self._on_pose(msg, side), qos)
         self.create_subscription(MotorCmd, "/interfacing/motorCMD", self._on_cmd, qos)
         self.create_subscription(MotorFeedback, "/interfacing/motorFeedback", self._on_feedback,
                                  qos)
         self.create_timer(1.0 / rate_hz, self._sample)
 
-    def _on_pose(self, msg: ArmPose) -> None:
+    def _on_pose(self, msg: ArmPose, side: str) -> None:
         if self.first_pose_time is None:
             self.first_pose_time = time.monotonic()
         slots = list(msg.shoulder.position[:3]) + list(msg.elbow.position[:2]) + \
             list(msg.wrist.position[:1])
         for motor_id, info in self.joint_map.items():
             slot = info["slot"]
-            if slot is not None and slot < len(slots):
+            if info["side"] == side and slot is not None and slot < len(slots):
                 self.requested[motor_id] = float(slots[slot])
 
     def _on_cmd(self, msg: MotorCmd) -> None:
@@ -188,7 +190,7 @@ def main(argv=None) -> int:
     print(log.describe())
 
     rclpy.init()
-    node = TelemetryRecorder(joint_map, log, motors, args.rate, args.arm_side)
+    node = TelemetryRecorder(joint_map, log, motors, args.rate, [args.arm_side])
     stop_at = time.monotonic() + args.duration if args.duration > 0 else None
     stopping = {"now": False}
 

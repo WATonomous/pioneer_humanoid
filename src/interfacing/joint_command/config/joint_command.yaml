@@ -3,7 +3,7 @@ joint_command_node:
     # Every arm this node drives: its key in arm_calibration.yaml and arm_actuators.yaml. Each
     # listens on /arm/<side>/joint_targets; arm_actuators.yaml `active` picks what moves this run.
     # Motor ids must be unique across arms (the node refuses to start otherwise).
-    arms: ["left"]
+    arms: ["left", "right"]
     control_rate_hz: 50.0
     motor_cmd_topic: "/interfacing/motorCMD"
-    control_type: 0  # POSITION_LOOP
+    control_type: 0  # MIT_CONTROL

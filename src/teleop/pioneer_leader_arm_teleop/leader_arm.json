@@ -1,41 +1,74 @@
 {
   "left": {
-    "enabled": true,
-    "port": "/dev/ttyACM1",
+    "enabled": false,
+    "port": "/dev/cu.usbmodem59700731361",
     "usb_serial": "5970073136",
     "signs": "1,1,-1,-1,1,-1,1",
     "servos": {
       "A": {
         "id": 2,
-        "zero": 636
+        "zero": 2609
       },
       "B": {
         "id": 3,
-        "zero": 926
+        "zero": 2918
       },
       "C": {
         "id": 1,
-        "zero": 3756
+        "zero": 1558
       },
       "D": {
         "id": 5,
-        "zero": 725
+        "zero": 548
       },
       "E": {
         "id": 4,
-        "zero": 3069
+        "zero": 3005
       },
       "F": {
         "id": 7,
-        "zero": 2034
+        "zero": 2189
       },
       "G": {
         "id": 6,
-        "zero": 3131
+        "zero": 2263
       }
     }
   },
   "right": {
-    "enabled": false
+    "enabled": true,
+    "port": "/dev/cu.usbmodem59700731361",
+    "usb_serial": "5970073136",
+    "signs": "1,1,-1,-1,1,1,1",
+    "servos": {
+      "A": {
+        "id": 2,
+        "zero": 2785
+      },
+      "B": {
+        "id": 3,
+        "zero": 2911
+      },
+      "C": {
+        "id": 1,
+        "zero": 1660
+      },
+      "D": {
+        "id": 5,
+        "zero": 556
+      },
+      "E": {
+        "id": 4,
+        "zero": 879
+      },
+      "F": {
+        "id": 7,
+        "zero": 2396
+      },
+      "G": {
+        "id": 6,
+        "zero": 3370
+      }
+    }
   }
 }

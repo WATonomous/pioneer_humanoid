@@ -1,17 +1,19 @@
-"""MuJoCo leader teleop: one leader per arm, left arm by default (--arms left, right or bimanual).
+"""MuJoCo leader teleop: one leader per arm, right arm by default (--arms right, left or bimanual).
 
 Same leader mapping as the Isaac backend (leader_mapping.py). Scenes: humanoid_mujoco_scenes.
 
-  R   reset the arm and every object in the scene; bring the leader back to home to resume
+  6   reset the arm and every object in the scene; bring the leader back to home to resume
 
-Recording (--record): same schema, keys and features as the Isaac backend (S start, N save then
-auto-reset, D discard); output under <repo>/datasets/<schema record.root>/sim. Needs a display for
+Recording (--record): same schema and features as the Isaac backend (7 start, 8 save then
+auto-reset, 9 discard); output under <repo>/datasets/<schema record.root>/sim. Needs a display for
 the MuJoCo viewer (on macOS run with ``mjpython``).
 """
 from __future__ import annotations
 
 import argparse
+import math
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -32,6 +34,9 @@ from humanoid_robot_learning.sim.sim_teleop_record import (  # noqa: E402
 
 from leader_mapping import (  # noqa: E402
     CONTROL_DT,
+    ENGAGE_GRIP_TOL,
+    ENGAGE_TOL_DEG,
+    GRIPPER_SERVO,
     WRIST_DAMPING,
     LeaderBoard,
     LeaderInput,
@@ -62,14 +67,101 @@ class Arm:
     grip_closed: Any  # np.ndarray, finger positions at closure 1
 
 
+class RecordStatus:
+    """What the recorder is doing and the key to press next, in the MuJoCo window's corner, where you are looking.
+
+    The record keys (7/8/9) set `flags` from the recorder's keyboard thread; poll() turns their changes into messages.
+    """
+
+    EVENT_S = 3.0  # how long a "saved" / "discarded" message stays up
+
+    def __init__(self, recorder: Any, flags: Any):
+        self.recorder = recorder
+        self.flags = flags  # the recorder's EpisodeFlags
+        self._was = dict(start=False, remove=False)
+        self._event, self._event_t = "", -math.inf
+
+    def event(self, text: str) -> None:
+        print(f"\n[RECORD] {text}", flush=True)
+        self._event, self._event_t = text, time.monotonic()
+
+    def poll(self, started: bool) -> None:
+        """Once per loop, before tick(): announce 7 and 9, and drop an 8 / 9 pressed with nothing recorded."""
+        flags = self.flags
+        if (flags.success or flags.remove) and self.recorder.num_buffered_frames == 0:
+            # Left queued, a stale 8 / 9 would fire on the next take's first frame and throw that take away.
+            flags.success = flags.remove = False
+            self.event("nothing recorded yet" + ("" if flags.start else ": press 7 first"))
+        if flags.start and not self._was["start"]:
+            self.event("recording started" if started else "recording armed: it starts once the leader is at home")
+        if flags.remove and not self._was["remove"]:
+            self.event("take discarded, recording again")
+        self._was = dict(start=flags.start, remove=flags.remove)
+
+    def lines(self, started: bool) -> tuple[str, str]:
+        """(left, right) overlay columns: what the recorder is doing, and the key to press next."""
+        recording = self.flags.start
+        if recording and not started:
+            head, keys = "REC armed", "bring the leader to home to start"
+        elif recording:
+            head, keys = f"RECORDING {self.recorder.num_buffered_frames / self.recorder.fps:.1f} s", "8 save   9 discard"
+        else:
+            head, keys = f"not recording ({self.recorder.num_recorded_episodes} saved)", "7 record"
+        if time.monotonic() - self._event_t < self.EVENT_S:
+            head, keys = f"{self._event}\n{head}", f"\n{keys}"
+        return head, keys
+
+
+def home_offsets(arms: list[Arm]) -> tuple[str, str]:
+    """(left, right) overlay columns: each arm not yet following, its joints' offsets from home; < = still out of range."""
+    labels, values = [], []
+    for arm in arms:
+        if arm.mapping.engaged or not arm.mapping.home_errors:
+            continue
+        labels.append(f"bring {arm.side} to position" if len(arms) > 1 else "bring to position")
+        values.append(f"within {ENGAGE_TOL_DEG:g} deg")
+        for label, err in arm.mapping.home_errors:
+            grip = label == GRIPPER_SERVO
+            out = abs(err) > (ENGAGE_GRIP_TOL if grip else ENGAGE_TOL_DEG)
+            labels.append(f"  {label}")
+            # The gripper's error is its closure (0 open); shown as how open it is, since "0.00 closed" reads as closed.
+            values.append((f"{1 - err:4.0%} open" if grip else f"{err:+6.1f} deg") + ("  <" if out else ""))
+    return "\n".join(labels), "\n".join(values)
+
+
+def show_overlay(viewer: Any, columns: tuple[str, str], shown: tuple[str, str] | None) -> tuple[str, str]:
+    """Top-left text, set only when it changes (the seconds count and offsets tick at 10 Hz). Returns what is shown."""
+    import mujoco
+
+    if columns != shown:
+        viewer.set_texts((mujoco.mjtFontScale.mjFONTSCALE_200, mujoco.mjtGridPos.mjGRID_TOPLEFT, *columns))
+    return columns
+
+
+def print_camera(cam: Any, scene_name: str) -> None:
+    """Print the free camera the window closed on, as the @scene(camera=...) that opens the scene there next time."""
+    import mujoco
+
+    if cam.type != mujoco.mjtCamera.mjCAMERA_FREE:
+        print("\n[CAMERA] The window closed on a fixed camera; switch back to the free camera to capture a view.")
+        return
+    view = dict(lookat=[round(float(v), 3) for v in cam.lookat], distance=round(float(cam.distance), 3),
+                azimuth=round(float(cam.azimuth), 1), elevation=round(float(cam.elevation), 1))
+    print(f"\n[CAMERA] To open {scene_name} on this view, use in its @scene(...): camera={view}")
+
+
 def run() -> None:
     parser = argparse.ArgumentParser(description="Pioneer MuJoCo leader teleoperation, one leader per arm.")
     add_leader_args(parser, scene_help="scene registered in humanoid_mujoco_scenes (an unknown name lists them)")
-    parser.add_argument("--arms", choices=tuple(ARM_SETS), default="left",
+    # Right by default: the leader unit's left arm does not register its servos (leader_arm.json has left disabled).
+    parser.add_argument("--arms", choices=tuple(ARM_SETS), default="right",
                         help="arms to drive and record, one leader board each (leader_arm.json)")
     add_record_args(parser, task_description="sim leader teleop demonstration")
     args = parser.parse_args()
     sides = list(ARM_SETS[args.arms])  # in ARM_ORDER: a recorded frame is the left arm's values, then the right's
+    if args.record and args.cameras is None:
+        # The schema enables only wrist_left; record the wrist of each arm being driven instead.
+        args.cameras = ",".join(["ego"] + [f"wrist_{side}" for side in sides])
     boards = check_leader_args(parser, args, sides)
     record = load_record_schema(parser, args, arms=sides)
 
@@ -136,6 +228,8 @@ def run() -> None:
     if recorder is not None:
         print("[RECORD] Keys: 7=start, 8=save episode (then reset), 9=discard, 6=reset")
         recorder.start_keyboard(**RECORD_KEYS)
+    # The Quest teleop reads the recorder's flags the same way; SimLeRobotRecorder has no public accessor.
+    status = RecordStatus(recorder, recorder._flags) if recorder is not None else None
     renderers = {name: mujoco.Renderer(model, h, w) for name, (h, w) in cameras.items()}
 
     # Called by tick() only on recorded frames.
@@ -166,6 +260,7 @@ def run() -> None:
         with mujoco.viewer.launch_passive(model, data, key_callback=on_key) as viewer:
             for key, value in (scene_camera(args.scene) or {}).items():
                 setattr(viewer.cam, key, value)
+            shown = None  # the overlay text now in the window
             while viewer.is_running():
                 if recorder is not None and recorder.is_complete:
                     print("\n[RECORD] Session complete.")
@@ -175,9 +270,11 @@ def run() -> None:
                     if recorder is not None and recorder.num_buffered_frames > 0:
                         # Frames either side of a reset are not one demo: drop the take, keep recording.
                         recorder.cancel_recording()
-                        print("\n[RECORD] Reset mid-episode: take discarded, recording restarts from home.")
+                        status.event("reset mid-take: take discarded, recording again once started")
                     reset_all()
                     print("\n[LEADER] Arm and scene reset; bring the leader back to home.", flush=True)
+                if status is not None:
+                    status.poll(all(arm.mapping.engaged for arm in arms))
 
                 actions = []
                 for arm in arms:
@@ -198,11 +295,12 @@ def run() -> None:
                     if scene_steps is not None:
                         index, _, task = scene_steps(model, data)
                         extras = {"subtask_index": np.array([index], dtype=np.float32)}
+                    seconds = recorder.num_buffered_frames / recorder.fps
                     with viewer.lock():
                         saved = recorder.tick(action, state, read_images, task=task, extras=extras)
                     if saved:
                         reset_all()
-                        print("\n[RECORD] Episode saved; arm and scene reset.", flush=True)
+                        status.event(f"SAVED {seconds:.1f} s take; arm and scene reset, 7 to record the next")
 
                 if scene_hook is not None:
                     scene_hook(model, data)
@@ -214,6 +312,11 @@ def run() -> None:
                         shown_step = (index, instruction)
                         msg = "all steps done -- 8 to save" if index >= total else f"step {index + 1}/{total}: {instruction}"
                         print(f"\n[TASK] {msg}", flush=True)
+                columns = home_offsets(arms)
+                if status is not None:
+                    record = status.lines(all(arm.mapping.engaged for arm in arms))
+                    columns = tuple(f"{r}\n\n{c}" for r, c in zip(record, columns)) if columns[0] else record
+                shown = show_overlay(viewer, columns, shown)
                 viewer.sync()
 
                 for arm in arms:
@@ -223,6 +326,7 @@ def run() -> None:
                         # Two leaders: a line each while homing (a shared \r status line would be overwritten).
                         arm.leader.report(arm.mapping, end="\n")
                 clock.wait()
+            print_camera(viewer.cam, args.scene)
     finally:
         for arm in arms:
             if arm.leader is not None:
