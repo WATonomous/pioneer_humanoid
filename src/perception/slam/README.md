@@ -101,10 +101,11 @@ Layout: `slam_ros/foxglove/slam_layout.json`. In Foxglove: Layouts → Import fr
 
 | Panel | Topic |
 |-------|-------|
-| Image | `/camera/rgb/image_color` (camera view) |
+| Image | `/camera/camera/infra1/image_rect_raw` (D455 left IR) |
+| Image | `/camera/camera/depth/image_rect_raw` (D455 depth) |
 | Image | `/vo/debug_image` (tracked features) |
-| 3D | TF, `/vo/odom` (pose and trajectory) |
+| 3D | TF, `/vo/odom` (pose and trajectory), following `camera_link` |
 | Raw Messages | `/vo/stats` (tracking health) |
 | Plot | empty until `TrackingStats` in `slam_msgs` has fields |
 
-The `/vo/*` panels stay empty until the frontend publishes them. Built against the TUM RGB-D `freiburg1_xyz` bag; change the camera topic to the D455's once our bags are recorded.
+The `/vo/*` panels stay empty until the frontend publishes them. Camera topics are the `realsense2_camera` defaults (`rs_launch.py`, namespace and name `camera`).

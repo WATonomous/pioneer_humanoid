@@ -42,8 +42,54 @@
       },
       "synchronize": false,
       "imageMode": {
-        "imageTopic": "/camera/rgb/image_color",
-        "calibrationTopic": "/camera/rgb/camera_info"
+        "imageTopic": "/camera/camera/infra1/image_rect_raw",
+        "calibrationTopic": "/camera/camera/infra1/camera_info"
+      }
+    },
+    "Image!d455depth": {
+      "cameraState": {
+        "distance": 20,
+        "perspective": true,
+        "phi": 60,
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "targetOffset": [
+          0,
+          0,
+          0
+        ],
+        "targetOrientation": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "thetaOffset": 60,
+        "fovy": 45,
+        "near": 0.5,
+        "far": 5000
+      },
+      "followMode": "follow-pose",
+      "scene": {},
+      "transforms": {},
+      "topics": {},
+      "layers": {},
+      "publish": {
+        "type": "point",
+        "poseTopic": "/move_base_simple/goal",
+        "pointTopic": "/clicked_point",
+        "poseEstimateTopic": "/initialpose",
+        "poseEstimateXDeviation": 0.5,
+        "poseEstimateYDeviation": 0.5,
+        "poseEstimateThetaDeviation": 0.26179939
+      },
+      "synchronize": false,
+      "imageMode": {
+        "imageTopic": "/camera/camera/depth/image_rect_raw",
+        "calibrationTopic": "/camera/camera/depth/camera_info"
       }
     },
     "3D!4hkzawh": {
@@ -72,13 +118,11 @@
         "near": 0.5,
         "far": 5000
       },
+      "followTf": "camera_link",
       "followMode": "follow-pose",
       "scene": {},
       "transforms": {},
       "topics": {
-        "/cortex_marker_array": {
-          "visible": true
-        },
         "/vo/odom": {
           "visible": true
         }
@@ -175,7 +219,11 @@
   },
   "layout": {
     "first": {
-      "first": "Image!itgl9x",
+      "first": {
+        "first": "Image!itgl9x",
+        "second": "Image!d455depth",
+        "direction": "row"
+      },
       "second": {
         "first": "3D!4hkzawh",
         "second": {
