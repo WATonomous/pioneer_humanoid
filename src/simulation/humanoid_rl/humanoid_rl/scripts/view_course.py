@@ -11,7 +11,7 @@ No checkpoint, no training, no recording.
 
 Example:
     isaaclab.sh -p view_course.py \\
-        --task Isaac-Velocity-OnshapeCourse-PioneerHumanoid-Play-v0
+        --task Isaac-Velocity-StairsStraight-PioneerHumanoid-Play-v0
 """
 
 """Launch Isaac Sim Simulator first."""
@@ -24,7 +24,7 @@ from isaaclab.app import AppLauncher
 import cli_args  # isort: skip
 
 parser = argparse.ArgumentParser(description="View the Onshape stair course in the GUI.")
-parser.add_argument("--task", type=str, default="Isaac-Velocity-OnshapeCourse-PioneerHumanoid-Play-v0",
+parser.add_argument("--task", type=str, default="Isaac-Velocity-StairsStraight-PioneerHumanoid-Play-v0",
                     help="Name of the Onshape *-Play task.")
 cli_args.add_rsl_rl_args(parser)
 AppLauncher.add_app_launcher_args(parser)

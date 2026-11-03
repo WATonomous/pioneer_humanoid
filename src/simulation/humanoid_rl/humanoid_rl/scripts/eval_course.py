@@ -12,7 +12,7 @@ acceptance gate for each stair-curriculum stage: curves and completion counters
 from training are not trusted on their own.
 
 Example:
-    isaaclab.sh -p eval_course.py --task Isaac-Velocity-OnshapeCourse-PioneerHumanoid-Play-v0 \\
+    isaaclab.sh -p eval_course.py --task Isaac-Velocity-StairsStraight-PioneerHumanoid-Play-v0 \\
         --checkpoint <model.pt> --num_envs 32 --steps 1500 --seed 123
 """
 

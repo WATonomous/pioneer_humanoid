@@ -18,10 +18,10 @@ use a separate, frozen research baseline; see
 | `Isaac-Locomotion-Rough-PioneerHumanoid-Play-v0` | Procedural rough | Play |
 | `Isaac-Locomotion-RoughNoStairsSelectiveKneeShape-PioneerHumanoid-v0` | Rough without stairs, corrected knees and selective self-collision | Train |
 | `Isaac-Locomotion-RoughNoStairsSelectiveKneeShape-PioneerHumanoid-Play-v0` | Matching rough-no-stairs recipe | Play |
-| `Isaac-Locomotion-OnshapeCourse-PioneerHumanoid-v0` | Onshape straight staircase USD course | Train scaffold |
-| `Isaac-Locomotion-OnshapeCourse-PioneerHumanoid-Play-v0` | Fixed Onshape straight course inspection | Play scaffold |
-| `Isaac-Locomotion-OnshapeSpiral-PioneerHumanoid-v0` | Onshape spiral staircase USD course | Train scaffold |
-| `Isaac-Locomotion-OnshapeSpiral-PioneerHumanoid-Play-v0` | Fixed Onshape spiral course inspection | Play scaffold |
+| `Isaac-Locomotion-StairsStraight-PioneerHumanoid-v0` | Onshape straight staircase USD course | Train scaffold |
+| `Isaac-Locomotion-StairsStraight-PioneerHumanoid-Play-v0` | Fixed Onshape straight course inspection | Play scaffold |
+| `Isaac-Locomotion-StairsSpiral-PioneerHumanoid-v0` | Onshape spiral staircase USD course | Train scaffold |
+| `Isaac-Locomotion-StairsSpiral-PioneerHumanoid-Play-v0` | Fixed Onshape spiral course inspection | Play scaffold |
 
 Legacy aliases `Isaac-Velocity-*` register the same configs.
 
@@ -163,7 +163,7 @@ are read in that mode:
 
 ```bash
 $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/play.py \
-  --task=Isaac-Locomotion-OnshapeCourse-PioneerHumanoid-Play-v0 \
+  --task=Isaac-Locomotion-StairsStraight-PioneerHumanoid-Play-v0 \
   --checkpoint <model.pt> --diagnostics --headless
 ```
 

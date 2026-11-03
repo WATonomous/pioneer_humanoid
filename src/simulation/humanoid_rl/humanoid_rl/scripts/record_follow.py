@@ -12,7 +12,7 @@ after ``video_length`` steps.
 
 Example:
     isaaclab.sh -p record_follow.py \\
-        --task Isaac-Velocity-OnshapeCourse-PioneerHumanoid-Play-v0 \\
+        --task Isaac-Velocity-StairsStraight-PioneerHumanoid-Play-v0 \\
         --checkpoint <model.pt> --video_length 3000 --enable_cameras
 """
 

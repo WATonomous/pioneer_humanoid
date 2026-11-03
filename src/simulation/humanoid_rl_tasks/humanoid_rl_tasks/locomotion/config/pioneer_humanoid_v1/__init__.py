@@ -35,7 +35,7 @@ for _terrain, _env_cfg, _agent_cfg, _suffix in _ENVS:
             kwargs=_kwargs,
         )
 
-# Onshape staircase course (user STEP mesh as terrain). PLAY first for visual
+# Straight staircase course (user STEP mesh as terrain). PLAY first for visual
 # verification; training follows on the same terrain.
 for _suffix, _env_class in (
     ("", "PioneerHumanoidOnshapeCourseEnvCfg"),
@@ -43,7 +43,7 @@ for _suffix, _env_class in (
 ):
     for _prefix in ("Isaac-Locomotion", "Isaac-Velocity"):
         gym.register(
-            id=f"{_prefix}-OnshapeCourse-PioneerHumanoid{_suffix}-v0",
+            id=f"{_prefix}-StairsStraight-PioneerHumanoid{_suffix}-v0",
             entry_point="isaaclab.envs:ManagerBasedRLEnv",
             disable_env_checker=True,
             kwargs={
@@ -60,7 +60,7 @@ for _suffix, _env_class in (
 ):
     for _prefix in ("Isaac-Locomotion", "Isaac-Velocity"):
         gym.register(
-            id=f"{_prefix}-OnshapeSpiral-PioneerHumanoid{_suffix}-v0",
+            id=f"{_prefix}-StairsSpiral-PioneerHumanoid{_suffix}-v0",
             entry_point="isaaclab.envs:ManagerBasedRLEnv",
             disable_env_checker=True,
             kwargs={
