@@ -5,10 +5,10 @@ leader, the real arm (calibrated the same way) and the sim (URDF zero), so leade
 one-to-one. Run once per board, or after a servo is re-mounted; it updates that side's entry in
 leader_arm.json (here; commit it: it describes the team's leader unit) and enables it:
 
-    python calibrate_leader.py --side left --port /dev/ttyACM0
-    python calibrate_leader.py --side right --port /dev/ttyACM1
-    python calibrate_leader.py --side right --port /dev/ttyACM1 --signs=<A..G>   # = because signs may start with -
-    python calibrate_leader.py --side left --port /dev/ttyACM0 --from leader_calibration.json  # convert
+    python calibrate_leader.py --side left --port <your-port>
+    python calibrate_leader.py --side right --port <your-port>
+    python calibrate_leader.py --side right --port <your-port> --signs=<A..G>   # = because signs may start with -
+    python calibrate_leader.py --side left --port <your-port> --from leader_calibration.json  # convert
 
 Without --signs the servo directions (A..G) are the side's SIDE_SIGNS in leader_mapping.py.
 
