@@ -25,6 +25,7 @@ The leader unit has one board per arm, each on its own USB serial port (not the 
 ```bash
 python calibrate_leader.py --side left --port /dev/ttyACM0     # hang the leader straight down, gripper open, rotation joints on their marks; Enter
 python calibrate_leader.py --side right --port /dev/ttyACM1   # only for two arms
+python calibrate_leader.py --side right --port /dev/ttyACM1 --signs=<A..G>   # other directions than SIDE_SIGNS (keep the =: they may start with -)
 python calibrate_leader.py --side left --port /dev/ttyACM0 --from leader_calibration.json   # convert the old file, no re-hanging
 ```
 

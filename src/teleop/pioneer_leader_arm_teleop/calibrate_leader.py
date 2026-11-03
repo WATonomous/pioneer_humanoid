@@ -7,6 +7,7 @@ leader_arm.json (here; commit it: it describes the team's leader unit) and enabl
 
     python calibrate_leader.py --side left --port /dev/ttyACM0
     python calibrate_leader.py --side right --port /dev/ttyACM1
+    python calibrate_leader.py --side right --port /dev/ttyACM1 --signs=<A..G>   # = because signs may start with -
     python calibrate_leader.py --side left --port /dev/ttyACM0 --from leader_calibration.json  # convert
 
 Without --signs the servo directions (A..G) are the side's SIDE_SIGNS in leader_mapping.py.
