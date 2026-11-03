@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Limits are live: urdf_joint_limits.py writes them onto the USD prims.
-     Gripper: joint7/joint8 along base Y, 0 = open, 41 mm each to closed.
      Masses: motors at datasheet weights, PLA prints 0.65 g/cm^3. -->
 <robot
   name="armv2URDF">
