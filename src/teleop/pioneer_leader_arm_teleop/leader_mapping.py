@@ -80,7 +80,7 @@ class LeaderBoard:
     """One board of the leader unit, as calibrated: where it is and how its servos map."""
 
     side: str
-    port: str  # found from usb_serial when it has one
+    port: str  # found from usb_serial on this machine; stored in leader_arm.json only for a board without one
     usb_serial: str | None
     signs: tuple[float, ...]
     zeros: dict[int, int]  # raw zero count per servo ID
@@ -108,8 +108,18 @@ def port_of(serial_number: str) -> str:
     return ports[0]
 
 
+def connected_port() -> str:
+    """The port of the one USB serial board plugged in, for calibrate_leader.py without --port."""
+    from serial.tools import list_ports
+
+    ports = [info.device for info in list_ports.comports() if info.vid is not None]  # USB only: skips Bluetooth, debug consoles
+    if len(ports) != 1:
+        raise ValueError(f"expected one USB serial board plugged in, found {ports or 'none'}: pass --port")
+    return ports[0]
+
+
 def calibrate_hint(side: str) -> str:
-    return f"python calibrate_leader.py --side {side} --port <port>"
+    return f"python calibrate_leader.py --side {side}"
 
 
 def load_leader_boards(path: Path, sides: list[str]) -> dict[str, LeaderBoard]:
