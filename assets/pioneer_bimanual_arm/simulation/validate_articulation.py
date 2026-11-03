@@ -6,7 +6,8 @@ from articulated_arm import build, set_controls, ROOT, linkage, LIMITS
 
 model, data = build()
 assert model.njnt == 22
-assert model.nmesh == 474
+manifest = json.loads((ROOT/'build_manifest.json').read_text())
+assert model.nmesh == len(manifest['visuals'])
 baseline = {model.body(i).name: data.xpos[i].copy() for i in range(model.nbody)}
 checks = []
 worst = 0.
@@ -38,7 +39,8 @@ for angle in np.linspace(-10, 90, 201):
     assert residual < 2e-6
 set_controls(model, data, np.zeros(14))
 report = {'status': 'passed', 'moving_joints': model.njnt, 'independent_keyboard_controls': 14,
-          'source_visual_meshes_preserved': model.nmesh, 'per_control_motion_checks': checks,
+          'source_components_preserved': len(manifest['components']), 'visual_meshes': model.nmesh,
+          'per_control_motion_checks': checks,
           'gripper_sweep_samples': 201, 'maximum_closed_loop_residual_m': worst,
           'mode': 'kinematic preview; user-configurable motion ranges, not hardware stop certification'}
 (ROOT/'simulation'/'articulation_validation.json').write_text(json.dumps(report, indent=2), encoding='utf-8')

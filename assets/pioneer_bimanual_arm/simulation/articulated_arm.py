@@ -12,7 +12,6 @@ import numpy as np
 import mujoco
 
 ROOT = Path(__file__).resolve().parents[1]
-PKG = ROOT/'arm_v2_updated_description'
 PKG = ROOT
 # Preserve the repository's forward-X, left-Y, shoulder-height base frame.
 Q = np.array([[0., 0., -1.], [-1., 0., 0.], [0., 1., 0.]])
@@ -93,26 +92,6 @@ def groups_and_joints():
     return groups, joints
 
 
-def assign(c):
-    if c['role'] == 'retained':
-        group = c['source_hierarchy'][1]
-        match = re.match(r'(Mirror)?link([1-6])\b', group)
-        return ('left' if match[1] else 'right')+'_link'+match[2] if match else 'stand'
-    side = c['name'].split('_')[0]
-    if c['role'] in ['new_forearm', 'new_cover']:
-        return side+'_link5'
-    index = int(re.search(r'_wrist_(\d+)', c['name'])[1])
-    if index in (1, 2):
-        return side+f'_bar{index-1}'
-    if index == 3:
-        return side+'_crank'
-    if index in (4, 5, 6):
-        return side+'_jaw0'
-    if index in (15, 16, 17):
-        return side+'_jaw1'
-    return side+'_link6'
-
-
 def compat_name(name):
     if name == 'stand':
         return 'base_link'
@@ -152,8 +131,11 @@ def build(write_assets=False):
     links = {key: ET.SubElement(root, 'link', name=key) for key in groups}
     counts = {key: 0 for key in groups}
     for c in manifest['components']:
-        key = assign(c)
-        counts[key] += 1
+        counts[c['group']] += 1
+    # CAD components rigidly attached to the same link and using the same
+    # material share one mesh. This preserves every triangle and all 22 joints.
+    for c in manifest['visuals']:
+        key = c['group']
         vis = ET.SubElement(links[key], 'visual', name=c['name'])
         ET.SubElement(vis, 'origin', xyz=fmt(BASE_OFFSET-groups[key]), rpy=fmt([math.pi/2, 0, -math.pi/2]))
         geom = ET.SubElement(vis, 'geometry')
@@ -227,7 +209,8 @@ def build(write_assets=False):
     if write_assets:
         ET.ElementTree(scene).write(ROOT/'simulation'/'articulated_arm_scene.xml', encoding='utf-8', xml_declaration=True)
     metadata = {'independent_controls': 14, 'movable_joints': 22, 'rigid_links': len(groups),
-                'visual_components': 474, 'group_component_counts': counts,
+                'visual_components': len(manifest['components']), 'visual_meshes': len(manifest['visuals']),
+                'group_component_counts': counts,
                 'pivot_source': 'cylindrical motor/bearing surfaces measured from original Arm V2 CAD',
                 'gripper_source': '30 mm crank and 30 mm linkage geometry from dated wrist STEP',
                 'limits': 'configurable preview ranges; hardware hard stops not supplied',

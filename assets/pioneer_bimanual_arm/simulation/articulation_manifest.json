@@ -3,6 +3,7 @@
   "movable_joints": 22,
   "rigid_links": 23,
   "visual_components": 474,
+  "visual_meshes": 33,
   "group_component_counts": {
     "stand": 83,
     "right_link1": 5,

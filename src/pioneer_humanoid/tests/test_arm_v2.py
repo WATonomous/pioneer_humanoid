@@ -1,5 +1,8 @@
 """Run: python -m unittest discover -s src/pioneer_humanoid/tests -v."""
 import math
+import hashlib
+import json
+import struct
 import unittest
 import xml.etree.ElementTree as ET
 import numpy as np
@@ -16,7 +19,9 @@ class ArmV2Tests(unittest.TestCase):
         names = {j.get('name') for j in root.findall('joint')}
         self.assertTrue(set(DEFAULT_JOINT_POS) <= names)
         self.assertEqual(len(names), 22)
-        self.assertEqual(len(root.findall('.//mesh')), 474)
+        manifest = json.loads((ASSET_ROOT/'build_manifest.json').read_text())
+        self.assertEqual(len(root.findall('.//mesh')), len(manifest['visuals']))
+        self.assertEqual(len(manifest['components']), 474)
         for name, value in {**DEFAULT_JOINT_POS, **LEFT_GRIPPER_CLOSED, **RIGHT_GRIPPER_CLOSED}.items():
             lo, hi = JOINT_POS_LIMITS[name]
             self.assertLessEqual(lo, value)
@@ -59,7 +64,25 @@ class ArmV2Tests(unittest.TestCase):
 
     def test_saved_mjcf_is_portable(self):
         model = mujoco.MjModel.from_xml_path(str(ASSET_ROOT/'simulation'/'articulated_arm_scene.xml'))
-        self.assertEqual((model.njnt, model.nmesh, model.neq), (22, 474, 4))
+        manifest = json.loads((ASSET_ROOT/'build_manifest.json').read_text())
+        self.assertEqual((model.njnt, model.nmesh, model.neq), (22, len(manifest['visuals']), 4))
+
+    def test_component_triangle_ranges_cover_grouped_meshes(self):
+        manifest = json.loads((ASSET_ROOT/'build_manifest.json').read_text())
+        for visual in manifest['visuals']:
+            content = (ASSET_ROOT/'meshes'/visual['mesh']).read_bytes()
+            count, = struct.unpack_from('<I', content, 80)
+            self.assertEqual(len(content), 84+50*count)
+            self.assertEqual(count, visual['triangle_count'])
+            self.assertEqual(hashlib.sha256(content[84:]).hexdigest(), visual['triangle_sha256'])
+            offset = 0
+            for component in manifest['components']:
+                if component['mesh'] == visual['mesh']:
+                    self.assertEqual(component['group'], visual['group'])
+                    self.assertEqual(component['role'], visual['role'])
+                    self.assertEqual(component['triangle_start'], offset)
+                    offset += component['triangle_count']
+            self.assertEqual(offset, count)
 
 
 if __name__ == '__main__':

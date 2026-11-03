@@ -2,14 +2,15 @@
   "status": "passed",
   "moving_joints": 22,
   "independent_keyboard_controls": 14,
-  "source_visual_meshes_preserved": 474,
+  "source_components_preserved": 474,
+  "visual_meshes": 33,
   "per_control_motion_checks": [
     {
       "channel": 0,
       "side": "right",
       "label": 1,
       "moved_body_count": 10,
-      "loop_closure_residual_m": 5.551115123125783e-17
+      "loop_closure_residual_m": 2.7755575615628914e-17
     },
     {
       "channel": 1,
@@ -79,7 +80,7 @@
       "side": "left",
       "label": 4,
       "moved_body_count": 7,
-      "loop_closure_residual_m": 4.163336342344337e-17
+      "loop_closure_residual_m": 0.0
     },
     {
       "channel": 11,
