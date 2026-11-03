@@ -81,7 +81,7 @@ python pioneer_leader_arm_teleop.py --target mujoco --scene peg_insert   # macOS
 Scenes: `bare`, `peg_insert`, `zip_tie`, `drawer_stow`, `matcha`, `duplo`, or any scene in `humanoid_mujoco_scenes` (see `src/simulation/mujoco_scenes/`).
 
 - **Home:** the arm starts at home (elbow bent 90°, forearm forward, gripper open) and follows the leader only once every leader joint is within 3° of home and the gripper is open. The status line lists the joints still off.
-- **Directions:** move one leader joint at a time. If a sim joint goes the wrong way, re-run `calibrate_leader.py` for that side with that entry flipped in `--signs` (order A..G; the defaults are `SIDE_SIGNS` in `leader_mapping.py`).
+- **Directions:** move one leader joint at a time. If a sim joint goes the wrong way, re-run `calibrate_leader.py` for that side with that entry flipped in `--signs` (order A..G, left default `1,1,-1,1,1,-1,1`).
 - **Keys** (all teleops side by side: [teleop README → Keyboard controls](../README.md#keyboard-controls)):
 
   | Key | Isaac | MuJoCo |
