@@ -20,9 +20,7 @@ URDF_PATH = os.path.join(_REPO_ROOT, "assets", "pioneer_bimanual_arm", "urdf", "
 # "continuous" joint has no limits by definition and "fixed" has no DOF.
 _LIMITED_JOINT_TYPES = ("revolute", "prismatic")
 
-# Gripper travel is pinned here as well as in the URDF: GRIPPER_OPEN/CLOSED in arm_params.py are
-# built around this exact stroke (the new wrist gripper's 41 mm a finger, 0 = open), and the
-# pre-converted USD still carries the old gripper's limits until it is regenerated.
+# Gripper stroke pinned to match GRIPPER_OPEN/CLOSED in arm_params.py (the USD may lag the URDF).
 GRIPPER_LIMIT_OVERRIDES = {
     "joint7": (-0.041, 0.0),
     "joint8": (0.0, 0.041),

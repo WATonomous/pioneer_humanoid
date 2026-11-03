@@ -24,9 +24,8 @@ ARM_CONAFFINITY = 1
 FINGER_BODIES = ("link7", "link8", "link7l", "link8l")
 
 # Reflected motor inertia (kg m^2) on every revolute arm joint; the URDF has none. Without it the
-# light distal links (forearm roll ~7e-4 kg m^2 against kp 1550) form a mode too fast for the
-# 1-2 ms step: grasp contacts excite it, the fingers chatter, and a held object spins out of the
-# jaws. Any geared motor has far more than this. Isaac's implicit PD drives don't need it.
+# light distal links form a mode too fast for the 1-2 ms step: the fingers chatter and a held
+# object spins out of the jaws. Isaac's implicit PD drives don't need it.
 ARM_ARMATURE = 0.01
 
 

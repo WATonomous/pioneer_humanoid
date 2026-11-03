@@ -1,25 +1,15 @@
 """
 Canonical articulation config for the pioneer_bimanual_arm.
 
-Robot model: assets/pioneer_bimanual_arm (pioneer_bimanual_arm.usd),
-formerly wato_arm_v2/armWithStand.usd. This replaces the old bimanual_arm_cfg.py,
-which used a reversed L/R convention, inverted gripper dicts, X-axis fingertip
-geometry (wrong for this asset), and a rest pose tuned for a superseded CAD
-export.
+Robot model: assets/pioneer_bimanual_arm (pioneer_bimanual_arm.usd).
 
-Naming: LEFT_* = the L-suffixed chain (joint1L..joint6l) = physical LEFT arm,
-matching the CAD. RIGHT_* = unsuffixed (joint1..joint6). An earlier revision
-had these reversed; don't reintroduce that.
+Naming: LEFT_* = the L-suffixed chain (joint1L..joint6l) = physical LEFT arm.
+RIGHT_* = unsuffixed (joint1..joint6).
 
-Notes on the values below:
-  - _DEFAULT_JOINT_POS is this URDF's zero pose plus elbow flex (see below), a
-    correct-by-construction rest pose -- not a hand-tuned one.
-  - LEFT_/RIGHT_FINGER_DISTAL_TIP_LOCAL are measured against this asset's mesh,
-    along its joint7/8 travel axis (Y).
+Notes:
   - _WRIST_ORIENT_OFFSET_* in run_quest_bimanual_teleop.py are identity and need
     live in-headset retuning for this asset's joint6 axis.
-  - actuator gains are motor-derived but not independently verified; the +/-0.041 m
-    gripper stroke is the new gripper's CAD travel.
+  - actuator gains are motor-derived but not independently verified.
 
 Motor specs: https://watonomous.github.io/humanoid-docs/mechanical/index.html
   Shoulder joints 1-2  AK10-9 V3.0  18 Nm rated / 53 Nm peak
@@ -66,10 +56,8 @@ _ARM_USD_PATH = str(Path(_ARM_ROOT) / "usd" / "pioneer_bimanual_arm.usd")
 
 
 # --- Joint limits -----------------------------------------------------------
-# Re-exported from urdf_joint_limits (parses the URDF) so `from pioneer_humanoid.bimanual_arm import
-# JOINT_POS_LIMITS` call sites keep working. apply_joint_limits() and
-# patch_joint_pos_limits_on_prim() below write it onto the spawned prims, so this is what the
-# joints actually enforce at runtime. Replaced an unverified +/-2pi (no-limit) placeholder.
+# From the URDF (urdf_joint_limits). apply_joint_limits() and patch_joint_pos_limits_on_prim()
+# below write it onto the spawned prims: this is what the joints enforce at runtime.
 
 # --- Default (spawn) pose, joint names, gripper endpoints and actuator gains: arm_params.py
 # (simulator-neutral, shared with mujoco_bimanual_arm.py).
@@ -83,14 +71,8 @@ LEFT_EE_BODY = "link6l"
 RIGHT_EE_BODY = "link6"
 LEFT_FINGER_TIP_BODIES = ("link7l", "link8l")
 RIGHT_FINGER_TIP_BODIES = ("link7", "link8")
-# Distal mesh point of each finger, in that link's OWN object-space frame: the outward extreme along
-# the travel axis (Y: outward for link7, the outer finger, inward for link8) with X/Z at the bbox
-# centre, measured on the new wrist gripper's meshes (each finger's origin is at its
-# bbox centre). Same "outward extreme along the travel axis" methodology as before.
-#
-# LINK-LOCAL, so they do not survive a re-export that moves the link origins; re-measure the same
-# way if the arm asset changes. Sanity check: composed with the joint7/8 origins these give a
-# 0.162m open fingertip gap on both grippers (the old gripper: 0.1625m).
+# Distal point of each finger in its link frame: the outward extreme along the travel axis (Y), X/Z at
+# the bbox centre. Link-local: re-measure if the finger meshes or link origins change.
 LEFT_FINGER_DISTAL_TIP_LOCAL = {
     "link7l": (0.0, 0.02, 0.0),
     "link8l": (0.0, -0.02, 0.0),
