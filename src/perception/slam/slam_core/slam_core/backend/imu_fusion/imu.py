@@ -1,6 +1,8 @@
 # Reads imu.txt into stamps (N,), gyro (N,3) rad/s, accel (N,3) m/s^2, in the camera optical frame.
 
 import numpy as np
+from slam_core.types.pose import is_pose
+
    
 def read_imu(path):
 
@@ -48,10 +50,22 @@ def imu_between(stamp, gyro, accel, t0, t1):
     return gyro_seg, accel_seg, dt
 
 
+def read_extrinsics(path):
+    extrinsics = np.loadtxt(path)
+
+    if not is_pose(extrinsics):
+        raise ValueError(f"{path}: Matrix is not a valid pose")
+
+    return extrinsics
+
+
+
 if __name__ == "__main__":
     stamps, gyro, accel = read_imu("data/run1/imu.txt")
+    T_cam_imu = read_extrinsics ("data/run1/imu_extrinsics.txt")
     print(stamps.shape, gyro.shape, accel.shape)
     print(gyro[0], accel[0])
+    print(T_cam_imu)
 
     # Load Key frame timestamps
     kf_stamps = np.loadtxt("data/run1/keyframes.txt")[:,2]
