@@ -38,6 +38,39 @@ Bring-up (connect, verify, calibrate) is in [../ARM_BRINGUP.md](../ARM_BRINGUP.m
   5. If motor calibration tests failed: Disassemble the motor so that it is completely outside of its enclosure. Then run "Motor Idenficiation" and "Encoder Identification" in the left "Basic configuration" Panel. These calibrate the motor encoder (important for FoC drive — commutation sequence that makes motor spin as expected). Click "Write" after both calibration sequences. 
 
 
+## Cubemars Can ID configuration
+0. Download required software. If you are using an AK motor, download AK Series V3.23 Upper computer (found here: https://www.cubemars.com/product/ak80-9-v3-0-robotic-actuator.html). If you are using GL40 motor, download the GL II Upper Computer V1.0 (found here: https://www.cubemars.com/product/gl40-II-kv82-5-gimbal-motor.html)
+
+    Detatch the motor from the humanoid body. 
+    >Tip: Be careful not to disassemble too much. You just need the motor USART socket to be in reach of your computer. Call a mechanical team member to help disassemble.
+
+    Find the 3-wire USART to the R-LinkV3.0. Plug the end with the white connector into the Cubemars motor. For the other end:
+    - If AK motor: Connect 3 Dupont jumper wires from USART header to R-Link headers. 
+      - AK GND -> R-Link GND
+      - AK TX -> R-Link RX
+      - AK RX -> R-Link TX
+
+    - If GL II Motor:
+      - GL GND -> R-Link GND
+      - GL TX -> R-Link TX
+      - GL RX -> R-Link RX
+
+    Find an XT-30(2+2) header that has a XT60 connector attached. Connect to CubeMars motor. Connect appropriate voltage supply to XT60
+    - 51.2V supply for AK motors
+    - 16V bench supply for GL's
+
+  1. Open Cubemars Upper computer software. If you cannot read Chinese, You will need to toggle language to English. 
+  > The UI is buggy, and will crop out UI config buttons. Using an external monitor is highly recommended. 
+
+  2. Find COM Port that R-Link is connected to. Set baud rate to 921600. Connect. Motor should start streaming real-time data.
+  3. On the "Basic Configuration" Panel on the left, find the Can ID. You will need to find the section below "Application configuration" section, but above the "Realtime Status" panel. Set Can ID to desired ID, then click write button. Then at the right most panel, verify that changes were saved by disconnect the serial port, reconnecting, and waiting a few seconds. Can ID should be the value you set.
+  4. Test the motor encoder calibration. On the top-right "Control" panel, switch to MIT control. Click the set origin button to set current motor position to 0. Then set position and kp value to a small amount (ex. p=1rad, kp=1). Keep your hand on the E-stop. Test failing conditions (if motor does not fail these, then motor calibration is ok):
+  - Motor does not move at all
+  - Motor spins out of control
+  > It is okay if the motor doesn't move to the specified position. This is due to friction, and it can easily be overcome through setting higher k_p values in the interfacing backend.
+  5. If motor calibration tests failed: Disassemble the motor so that it is completely outside of its enclosure. Then run "Motor Idenficiation" and "Encoder Identification" in the left "Basic configuration" Panel. These calibrate the motor encoder (important for FoC drive — commutation sequence that makes motor spin as expected). Click "Write" after both calibration sequences. 
+
+
 ## Two encodings: servo mode vs MIT
 
 `MotorCmd.control_type` picks how `can_node` builds the CAN frame:
