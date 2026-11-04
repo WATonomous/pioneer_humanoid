@@ -250,7 +250,32 @@ def _spawn_bimanual_arm_from_usd(prim_path, cfg, translation=None, orientation=N
 
     prim = _spawn_from_usd_file(prim_path, cfg.usd_path, cfg, translation, orientation)
     patch_joint_pos_limits_on_prim(prim_path)
+    _bind_finger_material(prim_path)
     return prim
+
+
+# TPU fingers: estimates, not measured (as mujoco_bimanual_arm's FINGER_FRICTION). "max" so the TPU's
+# friction holds against any object, not its average with the object's (PhysX default 0.5).
+FINGER_MATERIAL = sim_utils.RigidBodyMaterialCfg(
+    static_friction=1.0, dynamic_friction=1.0, friction_combine_mode="max"
+)
+
+
+def _bind_finger_material(prim_path: str) -> None:
+    """Bind FINGER_MATERIAL to the finger links; their colliders (inside instanced meshes) inherit it."""
+    from pxr import UsdShade
+
+    from isaaclab.sim.utils import get_current_stage
+
+    stage = get_current_stage()
+    material_path = f"{prim_path}/finger_material"
+    FINGER_MATERIAL.func(material_path, FINGER_MATERIAL)
+    material = UsdShade.Material(stage.GetPrimAtPath(material_path))
+    for link in ("link7", "link8", "link7l", "link8l"):
+        link_prim = stage.GetPrimAtPath(f"{prim_path}/{link}")
+        UsdShade.MaterialBindingAPI.Apply(link_prim).Bind(
+            material, UsdShade.Tokens.strongerThanDescendants, "physics"
+        )
 
 
 from isaaclab.sim.utils import clone  # noqa: E402
