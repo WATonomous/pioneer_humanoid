@@ -6,10 +6,20 @@ Robot model: assets/pioneer_bimanual_arm (pioneer_bimanual_arm.usd).
 Naming: LEFT_* = the L-suffixed chain (joint1L..joint6l) = physical LEFT arm.
 RIGHT_* = unsuffixed (joint1..joint6).
 
+<<<<<<< HEAD
 Notes:
   - _WRIST_ORIENT_OFFSET_* in run_quest_bimanual_teleop.py are identity and need
     live in-headset retuning for this asset's joint6 axis.
   - actuator gains are motor-derived but not independently verified.
+=======
+Notes on the values below:
+  - _DEFAULT_JOINT_POS is this URDF's zero pose plus elbow flex (see below), a
+    correct-by-construction rest pose -- not a hand-tuned one.
+  - LEFT_/RIGHT_FINGER_DISTAL_TIP_LOCAL are measured against this asset's mesh,
+    along its joint7/8 travel axis (Y for this export).
+  - actuator gains and the +/-0.05 m gripper stroke are motor/mechanism-derived
+    but not independently verified.
+>>>>>>> 99c390e6 (Implement Quest controller teleoperation and cloth folding scene)
 
 Motor specs: https://watonomous.github.io/humanoid-docs/mechanical/index.html
   Shoulder joints 1-2  AK10-9 V3.0  18 Nm rated / 53 Nm peak

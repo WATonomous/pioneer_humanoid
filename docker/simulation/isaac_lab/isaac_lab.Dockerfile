@@ -158,7 +158,7 @@ ENV PYTHONPYCACHEPREFIX=/tmp/pycache
 # ── ROS 2 Humble (pre-built for Python 3.11 in ros2_builder stage) ───────────
 COPY --from=ros2_builder /opt/ros/humble /opt/ros/humble
 
-# Build tools for custom packages (common_msgs, quest_teleop).
+# Build tools for custom packages (common_msgs).
 # We install deadsnakes Python 3.11 here — the same version used in ros2_builder —
 # so that cmake export paths baked into std_msgs/geometry_msgs resolve correctly.
 # Those .cmake files bake in the numpy include path from the ros2_builder stage:
@@ -212,11 +212,11 @@ EOF
 RUN cat >> /root/.bashrc <<'EOF'
 if [ -f /opt/ros/humble/setup.bash ]; then
   source /opt/ros/humble/setup.bash
-  # Build common_msgs and quest_teleop using deadsnakes Python 3.11.
+  # Build common_msgs using deadsnakes Python 3.11.
   # We use /usr/bin/python3.11 (not Isaac Sim's Python) because cmake export files
   # for std_msgs/geometry_msgs reference numpy headers at the deadsnakes pip path.
   # The cpython-311 ABI tag is identical so .so files load in Isaac Sim's Python.
-  cd /root/ament_ws && colcon build --packages-select common_msgs quest_teleop \
+  cd /root/ament_ws && colcon build --packages-select common_msgs \
       --cmake-args \
           "-DPython3_EXECUTABLE=/usr/bin/python3.11" \
           "-DPYTHON_EXECUTABLE=/usr/bin/python3.11" \

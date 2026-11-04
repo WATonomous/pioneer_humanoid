@@ -1,0 +1,26 @@
+# Same left-arm observation/action layout as the original VR recorder, with
+# a separate dataset identity and output directory for the cloth scene.
+robot_id: wato_arm_v2_cloth_folding_sim_v1
+repo_id: humanoid/wato_arm_v2_cloth_folding
+robot_type: wato_arm_v2
+fps: 18  # Runtime uses its actual render cadence.
+joint_names:
+  - joint1L
+  - joint2l
+  - joint3l
+  - joint4l
+  - joint5l
+  - joint6l
+  - joint7l
+images:
+  ego:
+    height: 480
+    width: 640
+    enabled: true
+  wrist:
+    height: 480
+    width: 640
+    enabled: true
+record:
+  root: datasets/record_wato_arm_v2_cloth_folding
+  use_videos: true

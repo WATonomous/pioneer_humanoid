@@ -60,7 +60,7 @@ Tasks and runners: [`src/simulation/README.md`](../../../src/simulation/README.m
 
 ### B. Quest teleop
 
-See [`src/teleop/quest_teleop/README.md`](../../../src/teleop/quest_teleop/README.md).
+See [`src/teleop/quest_controller_teleop/README.md`](../../../src/teleop/quest_controller_teleop/README.md).
 
 ### C. SO101 imitation learning — ACT train, sim eval, record demos, GR00T eval
 

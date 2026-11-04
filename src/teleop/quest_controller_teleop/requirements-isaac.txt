@@ -1,0 +1,4 @@
+# numpy and Pillow are already provided by the existing Isaac camera stack.
+# The URDF-based controller IK does not need MuJoCo inside Isaac.
+aiohttp>=3.9,<4
+omegaconf>=2.3,<3

@@ -21,7 +21,6 @@ set(msg_files
     msg/GripperPose.msg
     msg/MotorCmd.msg
     msg/MotorFeedback.msg
-    msg/QuestHandPose.msg
     msg/PerceptionImpactEstimation.msg
     )
 
