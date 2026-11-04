@@ -1,3 +1,4 @@
+import math
 import os
 
 import isaaclab.sim as sim_utils
@@ -58,6 +59,33 @@ def _leg_actuator(joints: list[str], kp: float, kd: float) -> DelayedDCMotorCfg:
     )
 
 
+# Gain set A (D5): group -> (joints without _L/_R, kp, kd). kp unchanged from the hand-tuned values, kd capped at
+# the MIT max of 5 (D4).
+_GAINS_A = {
+    "hip_flexion": (["Hip_F"], 100.0, 5.0),  # kd was 8
+    "hip_abduction": (["Hip_A"], 80.0, 5.0),
+    "hip_rotation": (["Hip_R"], 60.0, 4.0),
+    "knee": (["Knee"], 100.0, 5.0),  # kd was 8
+    "ankle": (["Ankle_P", "Ankle_R"], 80.0, 5.0),  # kd was 6
+}
+
+# Gain set B (D5): damping ratio zeta = kd / (2 sqrt(kp J)) with J = armature only (rotor inertia x ratio^2, no link
+# inertia: the URDF masses are unsettled, Task 4).
+_ZETA_B = 0.7
+
+
+def _gains_b(joint: str, kp_a: float) -> tuple[float, float]:
+    """Keep gain set A's kp and set kd for zeta = _ZETA_B. If that kd is above the MIT max (D4), use kd = max and
+    lower kp until zeta = _ZETA_B again."""
+    motor = JOINT_MOTOR[f"{joint}_L"]
+    J = motor.armature
+    kd = 2.0 * _ZETA_B * math.sqrt(kp_a * J)
+    if kd <= motor.kd_max:
+        return kp_a, kd
+    kd = motor.kd_max
+    return (kd / (2.0 * _ZETA_B)) ** 2 / J, kd
+
+
 WHOLE_BODY_HUMANOID_CFG = ArticulationCfg(
     spawn=sim_utils.UrdfFileCfg(
         asset_path=_URDF_PATH,
@@ -106,13 +134,12 @@ WHOLE_BODY_HUMANOID_CFG = ArticulationCfg(
             "Ankle_R_R": 0.0,
         },
     ),
-    # Gain set A (D5): kp unchanged, kd capped at the MIT max of 5 (D4).
-    actuators={
-        "hip_flexion": _leg_actuator(["Hip_F"], kp=100.0, kd=5.0),  # kd was 8
-        "hip_abduction": _leg_actuator(["Hip_A"], kp=80.0, kd=5.0),
-        "hip_rotation": _leg_actuator(["Hip_R"], kp=60.0, kd=4.0),
-        "knee": _leg_actuator(["Knee"], kp=100.0, kd=5.0),  # kd was 8
-        "ankle": _leg_actuator(["Ankle_P", "Ankle_R"], kp=80.0, kd=5.0),  # kd was 6
-    },
+    actuators={group: _leg_actuator(joints, kp, kd) for group, (joints, kp, kd) in _GAINS_A.items()},
     soft_joint_pos_limit_factor=0.95,
+)
+
+# Same robot with gain set B. Resulting values (rounded): Hip_F/Knee kp 47.3 kd 5, Hip_A/Hip_R kp 55.2 kd 5,
+# Ankle kp 80 kd 2.70.
+WHOLE_BODY_HUMANOID_GAINS_B_CFG = WHOLE_BODY_HUMANOID_CFG.replace(
+    actuators={group: _leg_actuator(joints, *_gains_b(joints[0], kp)) for group, (joints, kp, _) in _GAINS_A.items()},
 )

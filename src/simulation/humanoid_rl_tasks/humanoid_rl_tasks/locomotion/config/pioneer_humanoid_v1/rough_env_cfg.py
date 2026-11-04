@@ -8,7 +8,7 @@ from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.utils import configclass
 
 from pioneer_humanoid.leg_params import JOINT_MOTOR
-from pioneer_humanoid.whole_body import WHOLE_BODY_HUMANOID_CFG
+from pioneer_humanoid.whole_body import WHOLE_BODY_HUMANOID_CFG, WHOLE_BODY_HUMANOID_GAINS_B_CFG
 
 from ... import mdp
 from ...locomotion_env_cfg import LocomotionVelocityRoughEnvCfg, RewardsCfg, TerminationsCfg
@@ -53,6 +53,17 @@ def actuator_gain_events(robot: ArticulationCfg) -> dict[str, EventTerm]:
             },
         )
     return events
+
+
+def use_robot(env_cfg: "PioneerHumanoidRoughEnvCfg", robot: ArticulationCfg) -> None:
+    """Put `robot` in the scene and (re)build its gain randomization terms from its gains.
+
+    Both happen together so the kd randomization bounds always match the robot's kd (gain set A vs B, #335 Task 6).
+    Calling it again overwrites the terms, since the group names are the same.
+    """
+    env_cfg.scene.robot = robot.replace(prim_path="{ENV_REGEX_NS}/Robot")
+    for name, term in actuator_gain_events(env_cfg.scene.robot).items():
+        setattr(env_cfg.events, name, term)
 
 
 @configclass
@@ -162,7 +173,8 @@ class PioneerHumanoidRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
     def __post_init__(self):
         super().__post_init__()
 
-        self.scene.robot = WHOLE_BODY_HUMANOID_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        # Gain set A robot + its reset-mode gain randomization (#335 Task 5). Gain set B subclasses call use_robot again.
+        use_robot(self, WHOLE_BODY_HUMANOID_CFG)
         self.scene.height_scanner.prim_path = f"{{ENV_REGEX_NS}}/Robot/{BASE_BODY}"
 
         # Ported from flat_env_cfg.py: G1 never customizes per-joint action scale (it
@@ -180,11 +192,10 @@ class PioneerHumanoidRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
             "Ankle_P_.*": 0.12,
         }
 
-        # #335 Task 5: actuator randomization. Gains: new draw per env at every reset (explicit actuators, GPU only).
-        # Armature + joint friction: one draw per env at startup (written to PhysX through CPU tensors). Friction
-        # scales static, dynamic and viscous with separate draws, then clamps dynamic <= static (events.py).
-        for name, term in actuator_gain_events(self.scene.robot).items():
-            setattr(self.events, name, term)
+        # #335 Task 5: actuator randomization. Gains (set up in use_robot above): new draw per env at every reset
+        # (explicit actuators, GPU only). Armature + joint friction: one draw per env at startup (written to PhysX
+        # through CPU tensors). Friction scales static, dynamic and viscous with separate draws, then clamps
+        # dynamic <= static (events.py).
         self.events.randomize_joint_parameters = EventTerm(
             func=mdp.randomize_joint_parameters,
             mode="startup",
@@ -326,3 +337,19 @@ class PioneerHumanoidRoughEnvCfg_PLAY(PioneerHumanoidRoughEnvCfg):
         self.observations.policy.enable_corruption = False
         self.events.base_external_force_torque = None
         self.events.push_robot = None
+
+
+# #335 gain set B (D5, zeta 0.7 from armature, whole_body.py). Same env, only the robot's gains (and with them the
+# kd randomization bounds) differ.
+@configclass
+class PioneerHumanoidRoughGainsBEnvCfg(PioneerHumanoidRoughEnvCfg):
+    def __post_init__(self):
+        super().__post_init__()
+        use_robot(self, WHOLE_BODY_HUMANOID_GAINS_B_CFG)
+
+
+@configclass
+class PioneerHumanoidRoughGainsBEnvCfg_PLAY(PioneerHumanoidRoughEnvCfg_PLAY):
+    def __post_init__(self):
+        super().__post_init__()
+        use_robot(self, WHOLE_BODY_HUMANOID_GAINS_B_CFG)

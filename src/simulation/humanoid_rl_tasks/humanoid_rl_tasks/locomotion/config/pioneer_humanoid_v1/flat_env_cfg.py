@@ -3,9 +3,11 @@ from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.utils import configclass
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
+from pioneer_humanoid.whole_body import WHOLE_BODY_HUMANOID_GAINS_B_CFG
+
 from ... import mdp
 from ...locomotion_env_cfg import TerminationsCfg
-from .rough_env_cfg import LEG_JOINTS, PioneerHumanoidRewards, PioneerHumanoidRoughEnvCfg
+from .rough_env_cfg import LEG_JOINTS, PioneerHumanoidRewards, PioneerHumanoidRoughEnvCfg, use_robot
 
 
 @configclass
@@ -154,3 +156,18 @@ class PioneerHumanoidFlatEnvCfg_PLAY(PioneerHumanoidFlatEnvCfg):
         self.observations.policy.enable_corruption = False
         self.events.base_external_force_torque = None
         self.events.push_robot = None
+
+
+# #335 gain set B (D5): see rough_env_cfg.py.
+@configclass
+class PioneerHumanoidFlatGainsBEnvCfg(PioneerHumanoidFlatEnvCfg):
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        use_robot(self, WHOLE_BODY_HUMANOID_GAINS_B_CFG)
+
+
+@configclass
+class PioneerHumanoidFlatGainsBEnvCfg_PLAY(PioneerHumanoidFlatEnvCfg_PLAY):
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        use_robot(self, WHOLE_BODY_HUMANOID_GAINS_B_CFG)

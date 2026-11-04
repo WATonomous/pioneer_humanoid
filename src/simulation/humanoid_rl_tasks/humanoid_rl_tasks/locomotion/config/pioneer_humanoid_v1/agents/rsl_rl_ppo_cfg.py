@@ -104,3 +104,17 @@ class PioneerHumanoidFlatPPORunnerCfg(PioneerHumanoidRoughPPORunnerCfg):
         # function regression targets over a ~40x longer horizon likely blew up --
         # this was previously False, which is unusual and risky for long-horizon tasks.
         self.empirical_normalization = True
+
+
+# #335 gain set B (D5): same PPO settings, own log folder. play.py loads the latest run of experiment_name, so a
+# shared folder could load a gain set A checkpoint into a gain set B env (or the other way round).
+@configclass
+class PioneerHumanoidRoughGainsBPPORunnerCfg(PioneerHumanoidRoughPPORunnerCfg):
+    experiment_name = "pioneer_humanoid_rough_gains_b"
+
+
+@configclass
+class PioneerHumanoidFlatGainsBPPORunnerCfg(PioneerHumanoidFlatPPORunnerCfg):
+    def __post_init__(self):
+        super().__post_init__()  # sets experiment_name = "pioneer_humanoid_flat"; override after it
+        self.experiment_name = "pioneer_humanoid_flat_gains_b"

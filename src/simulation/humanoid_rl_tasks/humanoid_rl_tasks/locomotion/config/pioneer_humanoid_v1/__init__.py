@@ -7,6 +7,11 @@ _ENVS = (
     ("Rough", "rough_env_cfg:PioneerHumanoidRoughEnvCfg_PLAY", "PioneerHumanoidRoughPPORunnerCfg", "-Play"),
     ("Flat", "flat_env_cfg:PioneerHumanoidFlatEnvCfg", "PioneerHumanoidFlatPPORunnerCfg", ""),
     ("Flat", "flat_env_cfg:PioneerHumanoidFlatEnvCfg_PLAY", "PioneerHumanoidFlatPPORunnerCfg", "-Play"),
+    # #335 gain set B (D5); the IDs above use gain set A.
+    ("Rough", "rough_env_cfg:PioneerHumanoidRoughGainsBEnvCfg", "PioneerHumanoidRoughGainsBPPORunnerCfg", "-GainsB"),
+    ("Rough", "rough_env_cfg:PioneerHumanoidRoughGainsBEnvCfg_PLAY", "PioneerHumanoidRoughGainsBPPORunnerCfg", "-GainsB-Play"),
+    ("Flat", "flat_env_cfg:PioneerHumanoidFlatGainsBEnvCfg", "PioneerHumanoidFlatGainsBPPORunnerCfg", "-GainsB"),
+    ("Flat", "flat_env_cfg:PioneerHumanoidFlatGainsBEnvCfg_PLAY", "PioneerHumanoidFlatGainsBPPORunnerCfg", "-GainsB-Play"),
 )
 
 for _terrain, _env_cfg, _agent_cfg, _suffix in _ENVS:
