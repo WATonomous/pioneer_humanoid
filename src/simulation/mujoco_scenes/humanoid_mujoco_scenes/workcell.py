@@ -52,8 +52,9 @@ TUBE_DIFFUSE = 0.12              # each; ~0.85 total
 
 
 def add_workcell(spec: mujoco.MjSpec) -> None:
-    """Floor, the lightbox (visual CAD), its tube light and the table top's collision box."""
+    """Dim room, the lightbox (visual CAD) with its glossy floor boards and light tube, and the table top's collision box."""
     add_floor(spec, light=False)   # the lightbox's top panel would shade the table from an overhead light
+    _darken_room(spec)
     world = spec.worldbody
     colors = json.loads((MESH_DIR / "colors.json").read_text())
     for part, rgb in colors.items():
@@ -68,7 +69,29 @@ def add_workcell(spec: mujoco.MjSpec) -> None:
     (x0, x1), (cx, cy) = TABLE_X, TABLE_CENTER
     world.add_geom(name="table", type=mujoco.mjtGeom.mjGEOM_BOX, size=[(x1 - x0) / 2, TABLE_HALF_Y, TABLE_TOP_Z / 2],
                    pos=[cx, cy, TABLE_TOP_Z / 2], rgba=[0, 0, 0, 0], group=3)
+    _add_floor_boards(spec)
     _add_tube_light(spec)
+
+
+def _darken_room(spec: mujoco.MjSpec) -> None:
+    """The lab around the box is dim: dark sky and floor instead of add_floor's blue."""
+    sky, grid = spec.texture("sky"), spec.texture("grid")
+    sky.rgb1, sky.rgb2 = [0.16, 0.17, 0.18], [0.05, 0.05, 0.06]
+    grid.rgb1, grid.rgb2 = [0.12, 0.12, 0.13], [0.09, 0.09, 0.1]
+
+
+def _add_floor_boards(spec: mujoco.MjSpec) -> None:
+    """Two glossy white boards on the bottom panel (visual only), meeting at a seam."""
+    spec.add_material(name="board", rgba=[0.97, 0.97, 0.97, 1], specular=0.6, shininess=0.8, reflectance=0.12)
+    spec.add_material(name="seam", rgba=[0.55, 0.55, 0.55, 1])
+    (x0, x1), seam_y, half_y = TABLE_X, -0.01, 0.745
+    cx, hx = (x0 + x1) / 2, (x1 - x0) / 2 - 0.004
+    for y0, y1 in ((-half_y, seam_y - 0.0008), (seam_y + 0.0008, half_y)):
+        spec.worldbody.add_geom(type=mujoco.mjtGeom.mjGEOM_BOX, size=[hx, (y1 - y0) / 2, 0.0004],
+                                pos=[cx, (y0 + y1) / 2, TABLE_TOP_Z - 0.0003], material="board",
+                                contype=0, conaffinity=0, group=1)
+    spec.worldbody.add_geom(type=mujoco.mjtGeom.mjGEOM_BOX, size=[hx, 0.0008, 0.0003],
+                            pos=[cx, seam_y, TABLE_TOP_Z - 0.0004], material="seam", contype=0, conaffinity=0, group=1)
 
 
 def _add_tube_light(spec: mujoco.MjSpec) -> None:
