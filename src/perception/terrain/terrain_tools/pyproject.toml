@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "terrain_tools"
+version = "0.0.0"
+description = "Offline tools for terrain mapping: read MCAP bags, run the mapper, evaluate"
+requires-python = ">=3.10"
+# Also needs slam_core (pose helpers), which is not on PyPI:
+#   pip install -e src/perception/slam/slam_core
+dependencies = ["numpy<2", "mcap", "mcap-ros2-support"]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.setuptools.packages.find]
+include = ["terrain_tools*"]
