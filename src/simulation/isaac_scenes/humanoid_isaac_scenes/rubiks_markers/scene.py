@@ -30,18 +30,23 @@ FACE_RGB = {
 MARKER_LEN, MARKER_R = 0.135, 0.009
 
 
+def _linear(rgb) -> tuple:
+    """sRGB colour (as MuJoCo's) -> the linear colour PreviewSurface takes."""
+    return tuple(((c + 0.055) / 1.055) ** 2.4 if c > 0.04045 else c / 12.92 for c in rgb)
+
+
 def _yaw(rad: float) -> tuple:
     return (math.cos(rad / 2), 0.0, 0.0, math.sin(rad / 2))
 
 
 def _visual_box(path: str, size, pos, rgb) -> None:
-    cfg = sim_utils.CuboidCfg(size=size, visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=rgb, roughness=0.3))
+    cfg = sim_utils.CuboidCfg(size=size, visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=_linear(rgb), roughness=0.3))
     cfg.func(path, cfg, translation=pos)
 
 
 def _visual_cylinder(path: str, radius: float, length: float, x: float, rgb) -> None:
     cfg = sim_utils.CylinderCfg(radius=radius, height=length, axis="X",
-                                visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=rgb, roughness=0.4))
+                                visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=_linear(rgb), roughness=0.4))
     cfg.func(path, cfg, translation=(x, 0.0, 0.0))
 
 
@@ -89,7 +94,7 @@ def _marker(name: str, xy, yaw_deg: float, rgb) -> RigidObjectCfg:
             mass_props=sim_utils.MassPropertiesCfg(mass=0.017),
             collision_props=sim_utils.CollisionPropertiesCfg(),
             physics_material=sim_utils.RigidBodyMaterialCfg(static_friction=0.6, dynamic_friction=0.6),
-            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.96, 0.96, 0.95), roughness=0.4),
+            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=_linear((0.96, 0.96, 0.95)), roughness=0.4),
         ),
     )
 
@@ -108,7 +113,7 @@ class RubiksMarkersSceneCfg(LightboxWorkcellCfg):
             mass_props=sim_utils.MassPropertiesCfg(mass=0.09),
             collision_props=sim_utils.CollisionPropertiesCfg(),
             physics_material=sim_utils.RigidBodyMaterialCfg(static_friction=0.8, dynamic_friction=0.8),
-            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.03, 0.03, 0.03), roughness=0.5),
+            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=_linear((0.03, 0.03, 0.03)), roughness=0.5),
         ),
     )
     marker_orange = _marker("MarkerOrange", (ROBOT_BASE_X + 0.565, -0.17), -120, (1.0, 0.38, 0.02))
