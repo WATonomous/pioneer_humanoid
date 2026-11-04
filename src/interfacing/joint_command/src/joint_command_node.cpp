@@ -12,6 +12,8 @@
 
 JointCommandNode::JointCommandNode() : Node("joint_command_node") {
   this->declare_parameter("arms", std::vector<std::string>{"left"});
+  // Off by default: with no legs listed, the arms run exactly as before.
+  this->declare_parameter("legs", std::vector<std::string>{});
   this->declare_parameter("control_rate_hz", 50.0);
   this->declare_parameter("motor_cmd_topic", "/interfacing/motorCMD");
   this->declare_parameter("control_type", common_msgs::msg::MotorCmd::POSITION_LOOP);
@@ -20,6 +22,12 @@ JointCommandNode::JointCommandNode() : Node("joint_command_node") {
   this->declare_parameter("mit_shutdown_damp_sec", 2.0);
 
   const std::vector<std::string> arms = this->get_parameter("arms").as_string_array();
+  const std::vector<std::string> legs = this->get_parameter("legs").as_string_array();
+  if (!legs.empty()) {
+    // TODO(legs): load each leg from leg_calibration.yaml / leg_actuators.yaml as the arms are
+    // loaded below (is_leg = true), and include them in findDuplicateMotorIds. Until then, refuse.
+    throw std::runtime_error("`legs` is set but leg support is not implemented yet");
+  }
   control_rate_hz_ = this->get_parameter("control_rate_hz").as_double();
   const std::string motor_cmd_topic = this->get_parameter("motor_cmd_topic").as_string();
   control_type_ = static_cast<int8_t>(this->get_parameter("control_type").as_int());
@@ -82,6 +90,15 @@ JointCommandNode::JointCommandNode() : Node("joint_command_node") {
 
   // limbs_ is final here, so the index each callback captures stays valid.
   for (size_t i = 0; i < limbs_.size(); ++i) {
+    if (limbs_[i].is_leg) {
+      const std::string topic = "/leg/" + limbs_[i].side + "/joint_targets";
+      limbs_[i].leg_pose_sub = this->create_subscription<common_msgs::msg::LegPose>(
+          topic, rclcpp::QoS(10),
+          [this, i](const common_msgs::msg::LegPose::SharedPtr msg) { legPoseCallback(i, msg); });
+      RCLCPP_INFO(this->get_logger(), "[%s leg] listening on %s", limbs_[i].side.c_str(),
+                  topic.c_str());
+      continue;
+    }
     const std::string topic = "/arm/" + limbs_[i].side + "/joint_targets";
     limbs_[i].arm_pose_sub = this->create_subscription<common_msgs::msg::ArmPose>(
         topic, rclcpp::QoS(10),
@@ -156,6 +173,21 @@ void JointCommandNode::armPoseCallback(size_t limb_index,
     return;
   }
   limb.latest_pose = *msg;
+  limb.have_latest_pose = true;
+  limb.last_armpose_time = this->get_clock()->now();
+  limb.have_armpose_time = true;
+}
+
+void JointCommandNode::legPoseCallback(size_t limb_index,
+                                       const common_msgs::msg::LegPose::SharedPtr msg) {
+  Limb& limb = limbs_[limb_index];
+  // As armPoseCallback: only cache the pose; the control tick moderates and publishes.
+  if (msg->is_left != (limb.side == "left")) {
+    // TODO(legs): log like armPoseCallback.
+    return;
+  }
+  // TODO(legs): reject non-finite angles, as armPoseCallback does.
+  limb.latest_leg_pose = *msg;
   limb.have_latest_pose = true;
   limb.last_armpose_time = this->get_clock()->now();
   limb.have_armpose_time = true;
@@ -391,7 +423,13 @@ void JointCommandNode::controlTimerCallback() {
 
   for (Limb* limb : ready) {
     try {
-      publishMotorCommands(*limb, limb->core.armPoseToMotorCmds(limb->latest_pose, control_type_));
+      if (limb->is_leg) {
+        publishMotorCommands(*limb,
+                             limb->core.legPoseToMotorCmds(limb->latest_leg_pose, control_type_));
+      } else {
+        publishMotorCommands(*limb,
+                             limb->core.armPoseToMotorCmds(limb->latest_pose, control_type_));
+      }
     } catch (const std::exception& e) {
       RCLCPP_ERROR_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
                             "[%s] Failed to process ArmPose: %s", limb->side.c_str(), e.what());

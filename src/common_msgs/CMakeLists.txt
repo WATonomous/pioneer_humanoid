@@ -18,6 +18,7 @@ set(msg_files
     msg/ArmPose.msg
     msg/HandPose.msg
     msg/JointState.msg
+    msg/LegPose.msg
     msg/GripperPose.msg
     msg/MotorCmd.msg
     msg/MotorFeedback.msg
