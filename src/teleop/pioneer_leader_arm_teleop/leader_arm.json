@@ -1,7 +1,6 @@
 {
   "left": {
     "enabled": false,
-    "port": "/dev/cu.usbmodem59700731361",
     "usb_serial": "5970073136",
     "signs": "1,1,-1,-1,1,-1,1",
     "servos": {
@@ -37,7 +36,6 @@
   },
   "right": {
     "enabled": true,
-    "port": "/dev/cu.usbmodem59700731361",
     "usb_serial": "5970073136",
     "signs": "1,1,-1,-1,1,1,1",
     "servos": {
