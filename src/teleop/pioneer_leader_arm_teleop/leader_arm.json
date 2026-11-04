@@ -39,7 +39,7 @@
     "enabled": true,
     "port": "/dev/ttyACM0",
     "usb_serial": "5970073136",
-    "signs": "1,1,-1,-1,1,1,1",
+    "signs": "1,1,-1,1,1,1,1",
     "servos": {
       "A": {
         "id": 2,
