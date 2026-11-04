@@ -1,9 +1,7 @@
-"""Lightbox as photographed: one Ulanzi UA20 tube light, a Rubik's cube and two whiteboard markers.
+"""Lightbox as photographed: a Rubik's cube and two whiteboard markers on the glossy floor boards.
 
-The real workcell is lit by a single ~1 m Ulanzi UA20 tube hung under the top front rail, its diffuser
-facing down; the white foam-board walls bounce the rest. MuJoCo has no area lights, so the tube is a row
-of wide spotlights along its length (soft, overlapping shadows) plus raised ambient for the bounce.
-The two white floor boards are glossy, with a seam between them.
+The workcell (and its Ulanzi tube light) is ``add_workcell``; this scene adds the two white floor boards
+with their seam, darkens the room around the box like the lab, and puts the props where they were.
 
 Render the photo view, without the arm (as in the photo):
 
@@ -18,13 +16,6 @@ from humanoid_mujoco_scenes import TABLE_TOP_Z, add_workcell, scene
 
 T = TABLE_TOP_Z
 BOX_X = (0.235, 0.845)          # lightbox front (open, robot side) and back, world x
-BOX_TOP_Z = 1.456
-
-# Ulanzi UA20 tube: hung just under the top front rail, slightly right of centre seen from the front.
-TUBE_X, TUBE_Y, TUBE_Z = 0.30, -0.06, 1.385
-TUBE_HALF_LEN, TUBE_R = 0.48, 0.03
-TUBE_LIGHTS = 7                  # spotlights along the tube
-TUBE_DIFFUSE = 0.12              # each; ~0.85 total
 
 CUBE = 0.057                     # 3x3 Rubik's cube edge
 CUBE_POS = (0.53, 0.06)
@@ -36,34 +27,6 @@ FACE_RGB = {
     "+y": [0.0, 0.6, 0.25], "-y": [0.05, 0.25, 0.85],
 }
 MARKER_LEN, MARKER_R = 0.135, 0.009
-
-
-def _add_tube_light(spec: mujoco.MjSpec) -> None:
-    world = spec.worldbody
-    spec.add_material(name="tube_housing", rgba=[0.04, 0.04, 0.045, 1], specular=0.3, shininess=0.4)
-    spec.add_material(name="tube_diffuser", rgba=[1, 1, 1, 1], emission=1.0)
-    rail = BOX_TOP_Z - 0.02
-    # housing (along y), diffuser strip on its underside, and two hanger clips up to the rail
-    world.add_geom(name="tube_housing", type=mujoco.mjtGeom.mjGEOM_CAPSULE, size=[TUBE_R, TUBE_HALF_LEN, 0],
-                   pos=[TUBE_X, TUBE_Y, TUBE_Z], quat=[0.70710678, 0.70710678, 0, 0], material="tube_housing",
-                   contype=0, conaffinity=0, group=1)
-    world.add_geom(name="tube_diffuser", type=mujoco.mjtGeom.mjGEOM_BOX, size=[0.022, TUBE_HALF_LEN, 0.006],
-                   pos=[TUBE_X + 0.004, TUBE_Y, TUBE_Z - TUBE_R + 0.003], material="tube_diffuser",
-                   contype=0, conaffinity=0, group=1)
-    for dy in (-0.33, 0.33):
-        world.add_geom(type=mujoco.mjtGeom.mjGEOM_BOX, size=[0.012, 0.03, (rail - TUBE_Z - TUBE_R) / 2 + 0.002],
-                       pos=[TUBE_X, TUBE_Y + dy, (rail + TUBE_Z + TUBE_R) / 2], material="tube_housing",
-                       contype=0, conaffinity=0, group=1)
-    # the light itself: spots along the tube, down and a little toward the back wall
-    for i, y in enumerate(np.linspace(-TUBE_HALF_LEN, TUBE_HALF_LEN, TUBE_LIGHTS)):
-        world.add_light(name=f"tube_light{i}", pos=[TUBE_X + 0.01, TUBE_Y + y, TUBE_Z - TUBE_R - 0.01],
-                        dir=[0.6, 0, -1], cutoff=88, exponent=0, attenuation=[1, 0, 0],
-                        diffuse=[TUBE_DIFFUSE] * 3, specular=[0.05] * 3, castshadow=i % 2 == 1)
-    # white-wall bounce: ambient, and the free camera's headlight kept faint
-    spec.visual.headlight.ambient = [0.38, 0.38, 0.38]
-    spec.visual.headlight.diffuse = [0.08, 0.08, 0.08]
-    spec.visual.headlight.specular = [0.0, 0.0, 0.0]
-    spec.visual.quality.shadowsize = 8192
 
 
 def _darken_room(spec: mujoco.MjSpec) -> None:
@@ -136,9 +99,8 @@ PHOTO_CAMERA = dict(lookat=[0.6, -0.03, 1.07], distance=1.95, azimuth=0, elevati
 
 @scene("lightbox_photo", camera=dict(lookat=[0.5, 0.0, T], distance=1.9, azimuth=20, elevation=-30))
 def build(spec: mujoco.MjSpec) -> None:
-    add_workcell(spec, fill_lights=False)
+    add_workcell(spec)
     _darken_room(spec)
-    _add_tube_light(spec)
     _add_floor_boards(spec)
     _add_rubiks_cube(spec)
     _add_marker(spec, "marker_orange", (0.565, -0.17), np.radians(-120), [1.0, 0.38, 0.02])

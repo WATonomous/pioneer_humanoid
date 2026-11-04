@@ -17,6 +17,7 @@ import json
 from pathlib import Path
 
 import mujoco
+import numpy as np
 
 from ._register import add_floor
 
@@ -38,16 +39,20 @@ TABLE_HALF_Y = 30 * 0.0254
 LIGHTBOX_POS = (*TABLE_CENTER, TABLE_HEIGHT)
 LIGHTBOX_QUAT = (0.0, 0.70710678, -0.70710678, 0.0)   # wxyz
 LIGHTBOX_SCALE = (1.0, 1.0, 30.5 / 30.0)              # CAD table is 30 in; the real one is 30.5 in
-# The two 90 cm fill lights under the top panel (CAD x = +-0.42 m, 0.605 m above the table top).
-FILL_LIGHT_Y = 0.42
-FILL_LIGHT_Z = TABLE_HEIGHT + 0.605 * LIGHTBOX_SCALE[2]
+LIGHTBOX_TOP_Z = 1.456   # top of the lightbox frame (world z)
+
+# The real box is lit by one Ulanzi UA20 tube (~1 m) hung under the top front rail, slightly right of
+# centre seen from the front, diffuser facing down; the white foam-board walls bounce the rest. MuJoCo has
+# no area lights, so the tube is a row of wide spotlights along it (soft, overlapping shadows) plus raised
+# ambient for the bounce. The CAD's two round fill-light housings in the top corners are not lit.
+TUBE_X, TUBE_Y, TUBE_Z = 0.30, -0.06, 1.385
+TUBE_HALF_LEN, TUBE_R = 0.48, 0.03
+TUBE_LIGHTS = 7                  # spotlights along the tube (with the headlight, OpenGL's 8)
+TUBE_DIFFUSE = 0.12              # each; ~0.85 total
 
 
-def add_workcell(spec: mujoco.MjSpec, fill_lights: bool = True) -> None:
-    """Floor, the lightbox (visual CAD, its two fill lights) and the table top's collision box.
-
-    ``fill_lights=False`` leaves the lights out, for a scene that lights the box itself (``lightbox_photo``).
-    """
+def add_workcell(spec: mujoco.MjSpec) -> None:
+    """Floor, the lightbox (visual CAD), its tube light and the table top's collision box."""
     add_floor(spec, light=False)   # the lightbox's top panel would shade the table from an overhead light
     world = spec.worldbody
     colors = json.loads((MESH_DIR / "colors.json").read_text())
@@ -63,10 +68,32 @@ def add_workcell(spec: mujoco.MjSpec, fill_lights: bool = True) -> None:
     (x0, x1), (cx, cy) = TABLE_X, TABLE_CENTER
     world.add_geom(name="table", type=mujoco.mjtGeom.mjGEOM_BOX, size=[(x1 - x0) / 2, TABLE_HALF_Y, TABLE_TOP_Z / 2],
                    pos=[cx, cy, TABLE_TOP_Z / 2], rgba=[0, 0, 0, 0], group=3)
+    _add_tube_light(spec)
 
-    if not fill_lights:
-        return
-    for y in (-FILL_LIGHT_Y, FILL_LIGHT_Y):
-        world.add_light(name=f"fill_light{'_l' if y > 0 else '_r'}", pos=[cx, cy + y, FILL_LIGHT_Z - 0.02],
-                        dir=[0, 0, -1], cutoff=75, exponent=1, diffuse=[0.45, 0.45, 0.45], specular=[0.1, 0.1, 0.1],
-                        castshadow=True)
+
+def _add_tube_light(spec: mujoco.MjSpec) -> None:
+    world = spec.worldbody
+    spec.add_material(name="tube_housing", rgba=[0.04, 0.04, 0.045, 1], specular=0.3, shininess=0.4)
+    spec.add_material(name="tube_diffuser", rgba=[1, 1, 1, 1], emission=1.0)
+    rail = LIGHTBOX_TOP_Z - 0.02
+    # housing (along y), diffuser strip on its underside, and two hanger clips up to the rail
+    world.add_geom(name="tube_housing", type=mujoco.mjtGeom.mjGEOM_CAPSULE, size=[TUBE_R, TUBE_HALF_LEN, 0],
+                   pos=[TUBE_X, TUBE_Y, TUBE_Z], quat=[0.70710678, 0.70710678, 0, 0], material="tube_housing",
+                   contype=0, conaffinity=0, group=1)
+    world.add_geom(name="tube_diffuser", type=mujoco.mjtGeom.mjGEOM_BOX, size=[0.022, TUBE_HALF_LEN, 0.006],
+                   pos=[TUBE_X + 0.004, TUBE_Y, TUBE_Z - TUBE_R + 0.003], material="tube_diffuser",
+                   contype=0, conaffinity=0, group=1)
+    for dy in (-0.33, 0.33):
+        world.add_geom(type=mujoco.mjtGeom.mjGEOM_BOX, size=[0.012, 0.03, (rail - TUBE_Z - TUBE_R) / 2 + 0.002],
+                       pos=[TUBE_X, TUBE_Y + dy, (rail + TUBE_Z + TUBE_R) / 2], material="tube_housing",
+                       contype=0, conaffinity=0, group=1)
+    # the light itself: spots along the tube, down and a little toward the back wall
+    for i, y in enumerate(np.linspace(-TUBE_HALF_LEN, TUBE_HALF_LEN, TUBE_LIGHTS)):
+        world.add_light(name=f"tube_light{i}", pos=[TUBE_X + 0.01, TUBE_Y + y, TUBE_Z - TUBE_R - 0.01],
+                        dir=[0.6, 0, -1], cutoff=88, exponent=0, attenuation=[1, 0, 0],
+                        diffuse=[TUBE_DIFFUSE] * 3, specular=[0.05] * 3, castshadow=i % 2 == 1)
+    # white-wall bounce: ambient, and the free camera's headlight kept faint
+    spec.visual.headlight.ambient = [0.38, 0.38, 0.38]
+    spec.visual.headlight.diffuse = [0.08, 0.08, 0.08]
+    spec.visual.headlight.specular = [0.0, 0.0, 0.0]
+    spec.visual.quality.shadowsize = 8192
