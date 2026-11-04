@@ -57,6 +57,7 @@ def arm_spec(cameras: dict[str, tuple[int, int]] | None = None) -> mujoco.MjSpec
         if geom.contype or geom.conaffinity:  # collision geoms; the URDF's visual copies stay 0/0
             geom.contype = ARM_CONTYPE
             geom.conaffinity = ARM_CONAFFINITY
+            geom.group = 3  # hidden: drawn over the coloured visual meshes, they z-fight and grey them out
 
     for group_name, group in ACTUATOR_GROUPS.items():
         for name in group["joints"]:
