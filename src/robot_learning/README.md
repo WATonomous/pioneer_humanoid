@@ -86,11 +86,25 @@ Not runnable yet. The plan is the same leader arm and the same schema, saved und
 - [#327](https://github.com/WATonomous/pioneer_humanoid/issues/327) — `pioneer_leader_arm_teleop.py --target real`: dry-run by default, `--live` to command the arm; adds the gripper command path.
 - [#328](https://github.com/WATonomous/pioneer_humanoid/issues/328) — real demo recording (cameras, state from motor feedback). Still open there: a separate `humanoid-record` process, or `--target real --record`.
 
-`humanoid-record` (ROS 2, `humanoid_robot_learning/recording/record.py`) exists today but stops at startup until the gripper has a ROS source and each recorded camera has a `topic` in the schema. Its write path can be tested with no robot:
+`humanoid-record` (ROS 2, `humanoid_robot_learning/recording/record.py`) records from `/arm/joint_targets`, the gripper motor feedback and the camera topics in the schema (`--cameras wrist_left` for now: `ego` has no real topic yet). Its write path can be tested with no robot:
 
 ```bash
 pip install -e "src/robot_learning[record]"
 humanoid-record --dry_run --sink lerobot,hdf5 --num_episodes 2 --episode_time_s 3
+```
+
+| Key | Effect |
+|-----|--------|
+| S | Start a take |
+| N | Stop and save the take, then wait for S |
+| D | Delete the last saved take (again to go further back; ignored while recording) |
+| ESC | Quit (a take still recording is dropped) |
+
+Each take is its own LeRobot dataset, `real/<session NNN>/take_NNN/`, so D deletes one folder. Combine takes (from one or more sessions) into one dataset before training; `--push_to_hub` also uploads it:
+
+```bash
+humanoid-merge-takes datasets/pioneer_v1_left_arm/real/001 datasets/pioneer_v1_left_arm/real/002 \
+  --output datasets/pioneer_v1_left_arm/real_merged [--push_to_hub <hf-user>/pioneer_v1_left_arm]
 ```
 
 `--sink` (`lerobot`, `hdf5`, or both) exists only on `humanoid-record` and the Quest teleop; the sim leader and keyboard teleop always write LeRobot.
