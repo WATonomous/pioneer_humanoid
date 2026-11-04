@@ -222,5 +222,6 @@ def test_group_values_come_from_its_motor(group):
     assert cfg.velocity_limit_sim == pytest.approx(1.5 * motor.no_load_speed)  # D15
     assert cfg.armature == pytest.approx(motor.armature)
     assert cfg.friction == pytest.approx(motor.backdrive_torque)
+    assert cfg.dynamic_friction == pytest.approx(motor.backdrive_torque)  # moving joints feel friction too
     assert cfg.damping <= motor.kd_max  # D4
     assert (cfg.min_delay, cfg.max_delay) == (0, 2)

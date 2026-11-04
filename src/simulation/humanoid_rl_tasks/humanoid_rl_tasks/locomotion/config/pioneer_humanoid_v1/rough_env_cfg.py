@@ -1,8 +1,13 @@
+import re
+
+from isaaclab.assets import ArticulationCfg
+from isaaclab.managers import EventTermCfg as EventTerm
 from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.utils import configclass
 
+from pioneer_humanoid.leg_params import JOINT_MOTOR
 from pioneer_humanoid.whole_body import WHOLE_BODY_HUMANOID_CFG
 
 from ... import mdp
@@ -13,6 +18,41 @@ BASE_BODY = "base"
 FOOT_BODIES = ["Foot_L", "Foot_R"]
 LEG_JOINTS = ["Hip_.*", "Knee_.*", "Ankle_.*"]
 ANKLE_JOINTS = ["Ankle_R_.*", "Ankle_P_.*"]
+
+# Joint-side rated torque (Nm) per leg joint, for the Task 5 metric and penalty. Ankle: x r once the linkage
+# ratio is known (D10, r = 1 for now).
+RATED_TORQUE = {joint: motor.rated_torque for joint, motor in JOINT_MOTOR.items()}
+
+# Actuator randomization ranges (#335 Task 5), as scale factors on the leg_params / whole_body.py values.
+GAIN_SCALE = (0.8, 1.2)
+ARMATURE_SCALE = (0.8, 1.2)
+FRICTION_SCALE = (0.5, 1.5)
+
+
+def actuator_gain_events(robot: ArticulationCfg) -> dict[str, EventTerm]:
+    """One reset-mode randomize_actuator_gains term per actuator group.
+
+    kp is scaled by GAIN_SCALE. kd is scaled by GAIN_SCALE too, but the upper bound is cut so kd never exceeds the
+    motor's MIT kd max (D4): kd 5 groups get 0.8-1.0, Hip_R (kd 4) gets 0.8-1.2 (max 4.8). Ranges come from the
+    group's cfg, so build these after the robot's final gains are set.
+    """
+    events = {}
+    for group, act in robot.actuators.items():
+        motors = {m for j, m in JOINT_MOTOR.items() if any(re.fullmatch(p, j) for p in act.joint_names_expr)}
+        kd_max = min(m.kd_max for m in motors)  # joint-side = motor kd_max x r^2, r = 1 (D10)
+        kd_hi = min(GAIN_SCALE[1], kd_max / act.damping)
+        events[f"randomize_gains_{group}"] = EventTerm(
+            func=mdp.randomize_actuator_gains,
+            mode="reset",
+            params={
+                "asset_cfg": SceneEntityCfg("robot", joint_names=act.joint_names_expr),
+                "stiffness_distribution_params": GAIN_SCALE,
+                "damping_distribution_params": (GAIN_SCALE[0], kd_hi),
+                "operation": "scale",
+                "distribution": "uniform",
+            },
+        )
+    return events
 
 
 @configclass
@@ -90,6 +130,13 @@ class PioneerHumanoidRewards(RewardsCfg):
         weight=-5.0,
         params={"target_height": 0.75, "sensor_cfg": SceneEntityCfg("height_scanner")},
     )
+    # #335 Task 5: linear excess above rated torque. Weight 0 = off (the reward manager skips it); tuned in Task 17.
+    # The time-above-rated metric is logged separately by commands.torque_rating.
+    torque_above_rated = RewTerm(
+        func=mdp.torque_above_rated_l1,
+        weight=0.0,
+        params={"rated_torque": RATED_TORQUE},
+    )
 
 
 @configclass
@@ -132,6 +179,25 @@ class PioneerHumanoidRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
             "Ankle_R_.*": 0.08,
             "Ankle_P_.*": 0.12,
         }
+
+        # #335 Task 5: actuator randomization. Gains: new draw per env at every reset (explicit actuators, GPU only).
+        # Armature + joint friction: one draw per env at startup (written to PhysX through CPU tensors). Friction
+        # scales static, dynamic and viscous with separate draws, then clamps dynamic <= static (events.py).
+        for name, term in actuator_gain_events(self.scene.robot).items():
+            setattr(self.events, name, term)
+        self.events.randomize_joint_parameters = EventTerm(
+            func=mdp.randomize_joint_parameters,
+            mode="startup",
+            params={
+                "asset_cfg": SceneEntityCfg("robot", joint_names=LEG_JOINTS),
+                "armature_distribution_params": ARMATURE_SCALE,
+                "friction_distribution_params": FRICTION_SCALE,
+                "operation": "scale",
+                "distribution": "uniform",
+            },
+        )
+        # #335 Task 5: per-joint fraction of steps above rated torque -> Metrics/torque_rating/frac_above_rated_*.
+        self.commands.torque_rating = mdp.TorqueRatingCommandCfg(rated_torque=RATED_TORQUE)
 
         self.events.push_robot = None
         self.events.add_base_mass = None

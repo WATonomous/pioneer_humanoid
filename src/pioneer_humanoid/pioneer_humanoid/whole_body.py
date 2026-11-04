@@ -48,7 +48,11 @@ def _leg_actuator(joints: list[str], kp: float, kd: float) -> DelayedDCMotorCfg:
         velocity_limit_sim=_VELOCITY_LIMIT_SIM_MARGIN * motor.no_load_speed,  # D15
         # effort_limit_sim left unset: explicit actuators default to 1e9 (no PhysX cap); the clip above caps.
         armature=motor.armature,  # rotor inertia x gear_ratio^2
-        friction=motor.backdrive_torque,  # Nm on Isaac Sim 5.x; first guess until Task 11
+        # Joint friction in Nm (Isaac Sim 5.x). PhysX applies static friction only while the joint is still and
+        # dynamic (Coulomb) friction while it moves, so both are set. Back-drive torque for both is a first guess
+        # until Task 11 measures breakaway (static) and sliding (dynamic) friction separately.
+        friction=motor.backdrive_torque,
+        dynamic_friction=motor.backdrive_torque,
         min_delay=_MIN_DELAY,
         max_delay=_MAX_DELAY,
     )
