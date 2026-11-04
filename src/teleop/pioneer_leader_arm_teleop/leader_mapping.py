@@ -139,6 +139,9 @@ def load_leader_boards(path: Path, sides: list[str]) -> dict[str, LeaderBoard]:
         if not entry.get("enabled"):
             raise ValueError(f"the {side} leader board is not enabled in {path}; calibrate it with\n"
                              f"  {calibrate_hint(side)}")
+        if entry.get("usb_serial") is None:
+            raise ValueError(f"the {side} board in {path} has no USB serial, so it can't be found; recalibrate it with\n"
+                             f"  {calibrate_hint(side)}")
         boards[side] = LeaderBoard(
             side=side,
             port=port_of(entry["usb_serial"]),
