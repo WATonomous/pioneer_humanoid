@@ -48,7 +48,7 @@ LIGHTBOX_TOP_Z = 1.456   # top of the lightbox frame (world z)
 TUBE_X, TUBE_Y, TUBE_Z = 0.30, -0.06, 1.385
 TUBE_HALF_LEN, TUBE_R = 0.48, 0.03
 TUBE_LIGHTS = 7                  # spotlights along the tube (with the headlight, OpenGL's 8)
-TUBE_DIFFUSE = 0.08              # each; ~0.55 total
+TUBE_DIFFUSE = 0.10              # each; ~0.7 total
 
 
 def add_workcell(spec: mujoco.MjSpec) -> None:
@@ -117,7 +117,7 @@ def _add_tube_light(spec: mujoco.MjSpec) -> None:
                         diffuse=[TUBE_DIFFUSE] * 3, specular=[0.05] * 3, castshadow=i % 2 == 1)
     # white-wall bounce: ambient; the headlight stands in for the room's light on the arm (outside the box, it
     # faces the camera with its unlit side)
-    spec.visual.headlight.ambient = [0.28, 0.28, 0.28]
+    spec.visual.headlight.ambient = [0.33, 0.33, 0.33]
     spec.visual.headlight.diffuse = [0.45, 0.45, 0.45]
     spec.visual.headlight.specular = [0.0, 0.0, 0.0]
     spec.visual.quality.shadowsize = 8192
