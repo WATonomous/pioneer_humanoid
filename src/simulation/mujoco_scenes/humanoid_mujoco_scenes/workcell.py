@@ -41,8 +41,8 @@ LIGHTBOX_QUAT = (0.0, 0.70710678, -0.70710678, 0.0)   # wxyz
 LIGHTBOX_SCALE = (1.0, 1.0, 30.5 / 30.0)              # CAD table is 30 in; the real one is 30.5 in
 LIGHTBOX_TOP_Z = 1.456   # top of the lightbox frame (world z)
 
-# The real box is lit by one Ulanzi UA20 tube (~1 m) hung under the top front rail, slightly right of
-# centre seen from the front, diffuser facing down; the white foam-board walls bounce the rest. MuJoCo has
+# The box is lit by one light tube (~1 m) hung under the top front rail, slightly right of centre seen
+# from the front, diffuser facing down; the white foam-board walls bounce the rest. MuJoCo has
 # no area lights, so the tube is a row of wide spotlights along it (soft, overlapping shadows) plus raised
 # ambient for the bounce. The CAD's two round fill-light housings in the top corners are not lit.
 TUBE_X, TUBE_Y, TUBE_Z = 0.30, -0.06, 1.385

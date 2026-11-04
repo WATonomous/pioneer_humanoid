@@ -1,6 +1,6 @@
 """Lightbox as photographed: a Rubik's cube and two whiteboard markers on the glossy floor boards.
 
-The workcell (and its Ulanzi tube light) is ``add_workcell``; this scene adds the two white floor boards
+The workcell (and its light tube) is ``add_workcell``; this scene adds the two white floor boards
 with their seam, darkens the room around the box like the lab, and puts the props where they were.
 
 Render the photo view, without the arm (as in the photo):
