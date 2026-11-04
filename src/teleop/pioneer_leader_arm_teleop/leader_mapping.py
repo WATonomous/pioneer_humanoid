@@ -14,6 +14,7 @@ import argparse
 import json
 import math
 import os
+import shutil
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -248,7 +249,9 @@ class LeaderInput:
         if end:
             print(f"[LEADER{self.label}] {line}", end=end, flush=True)
         else:
-            print(f"\r[LEADER{self.label}] {line:<100}", end="", flush=True)
+            # Clip to the terminal width: a wrapped line makes \r return only to its last row, so it scrolls.
+            width = shutil.get_terminal_size().columns - 1
+            print("\r" + f"[LEADER{self.label}] {line}"[:width].ljust(width), end="", flush=True)
 
     def close(self) -> None:
         self.leader.close()

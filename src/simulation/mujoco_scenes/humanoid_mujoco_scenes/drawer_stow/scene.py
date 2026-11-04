@@ -1,6 +1,6 @@
 """Drawer stow (long horizon): open the drawer, put three blocks in it one by one, close it.
 
-A cabinet stands on the table in front of the LEFT arm; its drawer slides out toward the robot. A tab
+A cabinet stands on the table in front of the LEFT arm (``drawer_stow_right``: mirrored, the RIGHT arm); its drawer slides out toward the robot. A tab
 on top of the drawer front is the handle (pinch it from above or from the front, pull). Three 4 cm
 blocks (red, green, blue) stand in a strip beside the cabinet. Every reset shuffles the blocks'
 places and the order they must go in.
@@ -11,6 +11,8 @@ Steps, each checked automatically and latched in order (``progress``):
   5. close the drawer                 drawer in, all three blocks inside
 """
 from __future__ import annotations
+
+from functools import partial
 
 import mujoco
 import numpy as np
@@ -61,10 +63,15 @@ def step(model: mujoco.MjModel, data: mujoco.MjData) -> None:
         data.userdata[0] = k + 1
 
 
-def reset(model: mujoco.MjModel, data: mujoco.MjData, rng: np.random.Generator) -> None:
+def _y(span: tuple[float, float], s: int) -> tuple[float, float]:
+    """A Y range on the left arm's side (s=1) or mirrored to the right arm's (s=-1)."""
+    return tuple(sorted(s * v for v in span))
+
+
+def reset(model: mujoco.MjModel, data: mujoco.MjData, rng: np.random.Generator, s: int = 1) -> None:
     """New episode: shuffle where the blocks stand and the order they go in. Call after mj_resetData."""
     data.userdata[1:1 + len(COLOURS)] = rng.permutation(len(COLOURS))
-    (x0, x1), (y0, y1) = BLOCK_AREA
+    (x0, x1), (y0, y1) = BLOCK_AREA[0], _y(BLOCK_AREA[1], s)
     while True:
         xy = np.column_stack([rng.uniform(x0, x1, len(COLOURS)), rng.uniform(y0, y1, len(COLOURS))])
         if min(np.linalg.norm(a - b) for i, a in enumerate(xy) for b in xy[i + 1:]) >= BLOCK_SPACING:
@@ -82,9 +89,8 @@ def progress(model: mujoco.MjModel, data: mujoco.MjData) -> tuple[int, int, str]
     return k, STEPS_TOTAL, _step_text(data, min(k, STEPS_TOTAL - 1))
 
 
-@scene("drawer_stow", camera=dict(lookat=[0.34, 0.31, T + 0.055], distance=0.6, azimuth=210, elevation=-40),
-       step=step, reset=reset, progress=progress)
-def build(spec: mujoco.MjSpec) -> None:
+def build(spec: mujoco.MjSpec, s: int = 1) -> None:
+    """s=1: cabinet in front of the left arm (drawer_stow); s=-1: mirrored, in front of the right (drawer_stow_right)."""
     add_workcell(spec)
     spec.nuserdata = 1 + len(COLOURS)   # [latched step, block order...]
     world = spec.worldbody
@@ -92,7 +98,7 @@ def build(spec: mujoco.MjSpec) -> None:
     # Cabinet: bottom, top, sides, back (world geoms).
     wood = [0.82, 0.78, 0.7, 1]
     cx0, cx1 = CAB_X, CAB_X + CAB_DEPTH
-    (cy0, cy1), z1 = CAB_Y, T + CAB_HEIGHT
+    (cy0, cy1), z1 = _y(CAB_Y, s), T + CAB_HEIGHT
     _box(world, "cab_bottom", [cx0, cy0, T], [cx1, cy1, T + WALL], wood)
     _box(world, "cab_top", [cx0, cy0, z1 - WALL], [cx1, cy1, z1], wood)
     _box(world, "cab_side_l", [cx0, cy1 - WALL, T + WALL], [cx1, cy1, z1 - WALL], wood)
@@ -120,12 +126,18 @@ def build(spec: mujoco.MjSpec) -> None:
     spec.add_exclude(bodyname1="world", bodyname2="drawer")   # runs on its joint, not on the cabinet
 
     # Blocks, in a default row (reset() shuffles them).
-    (bx0, bx1), (by0, by1) = BLOCK_AREA
+    (bx0, bx1), (by0, by1) = BLOCK_AREA[0], _y(BLOCK_AREA[1], s)
     for i, (name, rgba) in enumerate(COLOURS.items()):
         b = world.add_body(name=f"block_{name}", pos=[bx0 + i * (bx1 - bx0) / 2, (by0 + by1) / 2, T + BLOCK / 2])
         b.add_freejoint(name=f"block_{name}")
         b.add_geom(type=mujoco.mjtGeom.mjGEOM_BOX, size=[BLOCK / 2] * 3, mass=BLOCK_MASS, rgba=rgba,
                    friction=[1.0, 0.02, 0.001], condim=4)
+
+
+# The right-arm copy mirrors Y, so its camera mirrors too (lookat y and azimuth negate).
+for _name, _s in (("drawer_stow", 1), ("drawer_stow_right", -1)):
+    scene(_name, camera=dict(lookat=[0.34, _s * 0.31, T + 0.055], distance=0.6, azimuth=_s * 210 % 360, elevation=-40),
+          step=step, reset=partial(reset, s=_s), progress=progress)(partial(build, s=_s))
 
 
 def drawer_travel(model: mujoco.MjModel, data: mujoco.MjData) -> float:

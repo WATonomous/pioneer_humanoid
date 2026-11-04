@@ -51,6 +51,7 @@ from leader_mapping import (  # noqa: E402
 # way WRIST_DAMPING's comment says Isaac does) overshoots 19 deg, one swing, 30 deg in 0.185 s.
 # Measured: 12 -> 34 deg / 0.156 s; 25 -> 1 deg / 0.303 s; 35 -> 0 deg / 0.392 s. Tune here.
 MUJOCO_WRIST_DAMPING = 18.0
+WRIST_LIMIT = math.radians(120)  # #468: the new gripper turns ~120 deg either way before meeting the forearm
 
 # Every letter, 0-5, Esc and the F1-F5 keys are MuJoCo viewer shortcuts; 6-9 are free.
 _KEY_RESET = ord("6")  # GLFW key code
@@ -207,7 +208,9 @@ def run() -> None:
         arm_acts = [model.actuator(j).id for j in joints]
         mapping = LeaderMapping(
             boards[side].signs, args.filter_alpha, home_rad=[data.ctrl[a] for a in arm_acts],
-            limits_rad=[tuple(model.joint(j).range) for j in joints],
+            # The wrist (last joint) allows +/-360 deg, but the new gripper (#468) meets the forearm past
+            # ~120 deg and the arm doesn't collide with itself, so it would pass through: clamp the target.
+            limits_rad=[tuple(model.joint(j).range) for j in joints[:-1]] + [(-WRIST_LIMIT, WRIST_LIMIT)],
         )
         arms.append(Arm(
             side=side, leader=None, board=boards[side], mapping=mapping, arm_acts=arm_acts,
