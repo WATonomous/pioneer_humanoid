@@ -126,9 +126,24 @@ def generate_launch_description():
         ),
         Node(
             package='perception',
+            executable='shuttlecock_localizer_node',
+            name='shuttlecock_localizer_node',
+            output='screen',
+        ),
+        Node(
+            package='perception',
+            executable='pose_estimation_node',
+            name='pose_estimation_node',
+            output='screen',
+        ),
+        Node(
+            package='perception',
             executable='trajectory_EKF_prediction_node',
             name='trajectory_EKF_prediction_node',
             output='screen',
+            remappings=[
+                ('/shuttle_states', '/perception/shuttlecock/detections_3d'),
+            ]
         ),
         Node(
             package='perception',
