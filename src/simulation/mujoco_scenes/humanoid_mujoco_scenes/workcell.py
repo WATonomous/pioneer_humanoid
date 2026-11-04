@@ -43,8 +43,11 @@ FILL_LIGHT_Y = 0.42
 FILL_LIGHT_Z = TABLE_HEIGHT + 0.605 * LIGHTBOX_SCALE[2]
 
 
-def add_workcell(spec: mujoco.MjSpec) -> None:
-    """Floor, the lightbox (visual CAD, its two fill lights) and the table top's collision box."""
+def add_workcell(spec: mujoco.MjSpec, fill_lights: bool = True) -> None:
+    """Floor, the lightbox (visual CAD, its two fill lights) and the table top's collision box.
+
+    ``fill_lights=False`` leaves the lights out, for a scene that lights the box itself (``lightbox_photo``).
+    """
     add_floor(spec, light=False)   # the lightbox's top panel would shade the table from an overhead light
     world = spec.worldbody
     colors = json.loads((MESH_DIR / "colors.json").read_text())
@@ -61,6 +64,8 @@ def add_workcell(spec: mujoco.MjSpec) -> None:
     world.add_geom(name="table", type=mujoco.mjtGeom.mjGEOM_BOX, size=[(x1 - x0) / 2, TABLE_HALF_Y, TABLE_TOP_Z / 2],
                    pos=[cx, cy, TABLE_TOP_Z / 2], rgba=[0, 0, 0, 0], group=3)
 
+    if not fill_lights:
+        return
     for y in (-FILL_LIGHT_Y, FILL_LIGHT_Y):
         world.add_light(name=f"fill_light{'_l' if y > 0 else '_r'}", pos=[cx, cy + y, FILL_LIGHT_Z - 0.02],
                         dir=[0, 0, -1], cutoff=75, exponent=1, diffuse=[0.45, 0.45, 0.45], specular=[0.1, 0.1, 0.1],
