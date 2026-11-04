@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import queue
+import shutil
 import subprocess
 import threading
 import time
@@ -86,9 +87,15 @@ def _install_subprocess_video_encoder() -> None:
     Covers both the sequential path and the per-camera worker processes
     (which resolve the same module attribute after fork).
     """
+    import os
+
     import lerobot.datasets.lerobot_dataset as lerobot_dataset
 
     lerobot_dataset.encode_video_frames = _encode_video_frames_subprocess
+    # Windows spawns (not forks) lerobot's per-camera encode workers, so they re-import lerobot without the
+    # patch above and encode in-process; SVT-AV1 then prints its banner from every worker at once, garbling
+    # the teleop status line. Workers inherit the environment: errors only.
+    os.environ.setdefault("SVT_LOG", "1")
 
 
 class SimLeRobotRecorder:
@@ -281,6 +288,11 @@ class SimLeRobotRecorder:
         if self._free_slots.empty():
             self._allocate_cpu_slots()
         root = self.dataset_root
+        # A run that ended before saving an episode leaves only meta/info.json, which LeRobotDataset can't
+        # re-open: nothing was recorded, so start fresh. Any other file (a saved episode) keeps the error below.
+        if root.exists() and [p.relative_to(root).as_posix() for p in root.rglob("*") if p.is_file()] in ([], ["meta/info.json"]):
+            shutil.rmtree(root)
+            print(f"[INFO]: Removed {root}: a previous run saved no episodes there")
         if root.exists():
             try:
                 self.dataset = _open_for_append(self.repo_id, root)
