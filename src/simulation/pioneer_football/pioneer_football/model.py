@@ -30,6 +30,15 @@ PARAMS = {
 }
 REST = {j: PARAMS[j.rsplit("_", 1)[0]][5] for j in JOINTS}
 SCALES = {j: PARAMS[j.rsplit("_", 1)[0]][4] for j in JOINTS}
+# Scripted arms use source effort/speed limits and provisional simulation PD gains.
+ARM_PARAMS = {
+    "l_shoulder_pitch": (60.0, 6.0, 53.0, 6.0),
+    "r_shoulder_pitch": (60.0, 6.0, 53.0, 6.0),
+    "l_elbow": (30.0, 3.0, 22.0, 6.0),
+    "r_elbow": (30.0, 3.0, 22.0, 6.0),
+}
+ARM_JOINTS = tuple(ARM_PARAMS)
+ARM_REST = {name: -0.25 if "elbow" in name else 0.0 for name in ARM_JOINTS}
 
 
 def audit_source():
@@ -56,7 +65,7 @@ def audit_source():
     return total
 
 
-def robot_spec(visuals=True):
+def robot_spec(visuals=True, arm_swing=False):
     audit_source()
     root = ET.parse(URDF).getroot()
     pelvis_z = float(
@@ -64,10 +73,11 @@ def robot_spec(visuals=True):
     )
     # Shift only root-local quantities; all child-local frames stay unchanged.
     origins = list(root.findall("link[@name='base_link']/*/origin"))
+    movable = JOINTS + ARM_JOINTS if arm_swing else JOINTS
     for joint in root.findall("joint"):
         if joint.find("parent").get("link") == "base_link":
             origins.append(joint.find("origin"))
-        if joint.get("name") not in JOINTS:
+        if joint.get("name") not in movable:
             # Slight shoulder abduction clears the hands from the thighs.
             if joint.get("name") in ("l_shoulder_roll", "r_shoulder_roll"):
                 axis = np.fromstring(joint.find("axis").get("xyz"), sep=" ")
@@ -132,6 +142,17 @@ def robot_spec(visuals=True):
         a.set_to_position(kp=4 * kp, kv=2 * kd)
         a.ctrllimited, a.ctrlrange = True, list(joint.range)
         a.forcelimited, a.forcerange = True, [-effort, effort]
+    # Add real shoulder/elbow servos only for the optional arm-swing model.
+    if arm_swing:
+        for name, (kp, kd, effort, _) in ARM_PARAMS.items():
+            joint = spec.joint(name)
+            joint.armature = 0.01
+            actuator = spec.add_actuator(
+                name=name, target=name, trntype=mujoco.mjtTrn.mjTRN_JOINT
+            )
+            actuator.set_to_position(kp=kp, kv=kd)
+            actuator.ctrllimited, actuator.ctrlrange = True, list(joint.range)
+            actuator.forcelimited, actuator.forcerange = True, [-effort, effort]
     return spec
 
 
@@ -140,6 +161,11 @@ def rest_data(model, ground_clearance=0.002):
     for name, pos in REST.items():
         data.qpos[model.joint(name).qposadr[0]] = pos
         data.ctrl[model.actuator(name).id] = pos
+    # Initialize optional arms at the same rest pose used by the gait controller.
+    for name, pos in ARM_REST.items():
+        if mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, name) >= 0:
+            data.qpos[model.joint(name).qposadr[0]] = pos
+            data.ctrl[model.actuator(name).id] = pos
     mujoco.mj_forward(model, data)
     feet = [
         g
@@ -161,8 +187,8 @@ def spawn_height():
     return float(rest_data(model).qpos[2])
 
 
-def ground_spec(timestep=0.002, visuals=False):
-    spec = robot_spec(visuals=visuals)
+def ground_spec(timestep=0.002, visuals=False, arm_swing=False):
+    spec = robot_spec(visuals=visuals, arm_swing=arm_swing)
     spec.option.integrator = mujoco.mjtIntegrator.mjINT_IMPLICITFAST
     spec.option.timestep = timestep
     spec.worldbody.add_geom(

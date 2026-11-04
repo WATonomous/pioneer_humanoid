@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "pioneer-football"
 version = "0.1.0"
-description = "Astronaut whole-body locomotion baseline for Pioneer football"
+description = "Learned-skill humanoid soccer demo for Pioneer"
 requires-python = ">=3.12,<3.13"
 dependencies = ["mjlab==1.6.0", "torch==2.10.0", "torchvision==0.25.0", "wandb>=0.22.3,<0.29"]
 
@@ -14,13 +14,13 @@ cpu = ["torch==2.10.0", "torchvision==0.25.0"]
 cu128 = ["torch==2.10.0", "torchvision==0.25.0"]
 
 [project.scripts]
-pioneer-train = "pioneer_football.cli:train"
-pioneer-play = "pioneer_football.cli:play"
-pioneer-validate = "pioneer_football.validate:main"
-pioneer-evaluate = "pioneer_football.evaluate:main"
+pioneer-demo = "pioneer_football.demo:main"
 
 [tool.setuptools.packages.find]
 include = ["pioneer_football*"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["pioneer_football"]
 
 [tool.uv]
 conflicts = [[{extra = "cpu"}, {extra = "cu128"}]]

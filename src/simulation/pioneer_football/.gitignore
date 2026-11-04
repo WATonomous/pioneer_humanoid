@@ -2,3 +2,6 @@
 logs/
 outputs/
 MUJOCO_LOG.TXT
+.pytest_cache/
+.ruff_cache/
+demo/*.pt

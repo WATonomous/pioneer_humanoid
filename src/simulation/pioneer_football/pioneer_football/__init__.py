@@ -1,1 +1,1 @@
-"""Pioneer football: model validation and whole-body locomotion."""
+"""Pioneer humanoid soccer: frozen-policy demo, physics, navigation and gait rewards."""
