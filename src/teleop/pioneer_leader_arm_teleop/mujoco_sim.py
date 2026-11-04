@@ -37,7 +37,6 @@ from leader_mapping import (  # noqa: E402
     ENGAGE_GRIP_TOL,
     ENGAGE_TOL_DEG,
     GRIPPER_SERVO,
-    WRIST_DAMPING,
     LeaderBoard,
     LeaderInput,
     LeaderMapping,
@@ -45,6 +44,13 @@ from leader_mapping import (  # noqa: E402
     add_leader_args,
     check_leader_args,
 )
+
+# The GL40 wrist saturates its 0.73 N.m cap at ~0.1 deg of error (kp 341), so it can only brake once
+# damping outweighs kp*error. With #468's 0.31 kg gripper, WRIST_DAMPING (2.5) overshoots a fast 60 deg
+# flick by 60 deg and swings 11 times; 18 (the arm's stock value; in MuJoCo it does not cap the speed the
+# way WRIST_DAMPING's comment says Isaac does) overshoots 19 deg, one swing, 30 deg in 0.185 s.
+# Measured: 12 -> 34 deg / 0.156 s; 25 -> 1 deg / 0.303 s; 35 -> 0 deg / 0.392 s. Tune here.
+MUJOCO_WRIST_DAMPING = 18.0
 
 # Every letter, 0-5, Esc and the F1-F5 keys are MuJoCo viewer shortcuts; 6-9 are free.
 _KEY_RESET = ord("6")  # GLFW key code
@@ -211,7 +217,7 @@ def run() -> None:
             grip_open=np.array([grip_open[j] for j in fingers]),
             grip_closed=np.array([grip_closed[j] for j in fingers]),
         ))
-        model.actuator_biasprm[model.actuator(joints[-1]).id, 2] = -WRIST_DAMPING
+        model.actuator_biasprm[model.actuator(joints[-1]).id, 2] = -MUJOCO_WRIST_DAMPING
         print(f"[{side.upper()}] " * (len(sides) > 1) + mapping.describe(joints), flush=True)
 
     reset_requested = [False]
