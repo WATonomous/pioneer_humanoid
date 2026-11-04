@@ -44,8 +44,8 @@ humanoid_mujoco_scenes/my_scene/
 ```
 
 Every scene builds on the **lightbox workcell** (`workcell.py`), the same rig as Isaac's
-`humanoid_rl_tasks.workcell.LightboxWorkcellCfg`: floor, the CAD lightbox (visual only, lit by its two fill
-lights) and the 30.5-inch table, whose top collides as a box. `add_workcell(spec)` adds it; put your objects on
+`humanoid_rl_tasks.workcell.LightboxWorkcellCfg`: floor, the CAD lightbox (visual only, lit like the real one by a
+single light tube under its top front rail, two glossy white floor boards, the room around it dim) and the 30.5-inch table, whose top collides as a box. `add_workcell(spec)` adds it; put your objects on
 `TABLE_TOP_Z` (0.780 m: the lightbox's bottom panel on the 30.5-inch table), inside `TABLE_X` (0.235–0.845 m in front of the arm base) and `TABLE_HALF_Y`.
 
 ```python
@@ -78,6 +78,7 @@ def build(spec: mujoco.MjSpec) -> None:
 | name | notes |
 |------|-------|
 | `bare` | Empty lightbox workcell + arm. |
+| `rubiks_markers` | A Rubik's cube and two whiteboard markers (orange, red) on the floor boards, all free bodies. |
 | `bimanual_sorting` | Sort four 4 cm blocks (two red, two blue) into matching trays on opposite sides of the table. Blocks start outside the trays, on the side opposite their destination. Every reset shifts and rotates the blocks. Success: all four blocks fully inside their matching trays, released from the robot and settled for 0.3 s. Blocks may rest on the tray floor or be stacked on another placed block of the same colour. |
 | `drawer_stow` | Long horizon, 5 steps: open the drawer (pinch the tab on its front, pull), put the red, green and blue 4 cm blocks in it in the order announced, close it. Every reset shuffles the blocks' places (a strip beside the cabinet) and the order. Each step is checked and latched in order; `progress` gives the current step and its instruction. Laid out for the gripper pointing down: the jaws are 61 mm long and ~16 cm across fully open, so half-close it before reaching for a block. |
 | `matcha` | Long horizon, 4 steps: spoon the matcha into the cup, pour the water in, whisk it, serve the cup on the tray. Matcha and water are 5 mm balls (green in a pre-filled ladle, blue in a pitcher). Tools have chunky 25 mm square handles sticking up, for the gripper pointing down; the ladle and pitcher handles are posts on the side away from the cup, so held at the top and tipped toward the cup (wrist pitch) they empty over the far lip. Checks: ≥5/8 matcha and ≥12/24 water in the cup, whisk tines moved 20 cm inside the cup (circles or zig-zag), cup upright on the tray with most of the drink. Reset shifts the cup and pitcher. ~0.35 s physics per simulated second (32 balls; the slowest scene). |
