@@ -80,8 +80,8 @@ TUBE_HALF_LEN, TUBE_R = 0.48, 0.03
 WORKCELL_CAMERA = ([1.6, -1.2, 1.5], [0.55, 0.0, TABLE_TOP_Z])
 
 
-DOME_INTENSITY = 300.0
-TUBE_INTENSITY = 110000.0
+DOME_INTENSITY = 400.0
+TUBE_INTENSITY = 140000.0
 _BOARD = sim_utils.PreviewSurfaceCfg(diffuse_color=(0.97, 0.97, 0.97), roughness=0.15)
 _HOUSING = sim_utils.PreviewSurfaceCfg(diffuse_color=(0.04, 0.04, 0.045), roughness=0.5)
 _SEAM_Y, _BOARD_HALF_Y = -0.01, 0.745
