@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<!-- converted by convert.py from Prometheus' make_urdf.py output: rerun convert.py, don't edit -->
+<!-- written by convert.py -->
 <robot name="pioneer_whole_body_humanoid">
   <mujoco><compiler meshdir="." balanceinertia="true" discardvisual="false"/></mujoco>
   <link name="base_link">
