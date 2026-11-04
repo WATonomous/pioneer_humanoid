@@ -46,9 +46,11 @@ def main() -> int:
         serial_number = usb_serial(port)
     except ValueError as exc:
         parser.error(str(exc))
+    if serial_number is None:
+        parser.error(f"the board on {port} reports no USB serial number, so the teleop could not find it again")
     data = json.loads(args.out.read_text()) if args.out.is_file() else {}
     other = next(side for side in SIDES if side != args.side)
-    if (data.get(other) or {}).get("enabled") and (serial_number is None or data[other]["usb_serial"] == serial_number):
+    if (data.get(other) or {}).get("enabled") and data[other]["usb_serial"] == serial_number:
         parser.error(f"this board's USB serial is {serial_number!r}; the {other} board in {args.out} has "
                      f"{data[other]['usb_serial']!r}. Two boards need different USB serials to be told apart.")
 
@@ -73,9 +75,7 @@ def main() -> int:
         finally:
             leader.close()
 
-    # The port is machine-specific; keep it only for a board the teleop can't find by USB serial.
-    entry = {"enabled": True} | ({"port": port} if serial_number is None else {})
-    data[args.side] = entry | {"usb_serial": serial_number, "signs": signs, "servos": calibration_entry(positions)}
+    data[args.side] = {"enabled": True, "usb_serial": serial_number, "signs": signs, "servos": calibration_entry(positions)}
     data.setdefault(other, {"enabled": False})
     args.out.write_text(json.dumps({side: data[side] for side in SIDES}, indent=2) + "\n")
     print(f"Saved {args.side} board (port {port}, USB serial {serial_number}, signs {signs}) to {args.out}: "

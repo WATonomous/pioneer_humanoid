@@ -31,8 +31,8 @@ python calibrate_leader.py --side left --from leader_calibration.json   # conver
 
 Writes that board into `leader_arm.json` here and enables it: zero encoder counts per servo, the signs (`--signs`,
 default the side's `SIDE_SIGNS` in `leader_mapping.py`) and the board's USB serial number. The teleop finds each board
-by that serial on whatever port it gets on your machine, so no port is stored (only for a board with no USB serial) and
-plugging the boards in the other order can't swap the arms; two boards with the same serial (or none) are refused.
+by that serial on whatever port it gets on your machine, so no port is stored and plugging the boards in the other order
+can't swap the arms; a board without a USB serial, or two with the same one, are refused.
 The right board stays disabled until it is calibrated. Teleop refuses to start without the file.
 **Commit `leader_arm.json`:** it describes the team's one leader unit, so nobody else has to calibrate; a different
 unit is refused by its USB serial. Recalibrate and commit again after re-mounting a servo.
