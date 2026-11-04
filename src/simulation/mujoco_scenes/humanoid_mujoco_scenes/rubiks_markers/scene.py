@@ -2,10 +2,6 @@
 
 A 57 mm 3x3 cube (yellow on top) left of centre and an orange and a red whiteboard marker lying on their
 sides to its right, all free bodies on the workcell's floor boards.
-
-Render the front view, without the arm:
-
-    MUJOCO_GL=egl python -m humanoid_mujoco_scenes.rubiks_markers.scene --png rubiks_markers.png
 """
 from __future__ import annotations
 
@@ -71,41 +67,9 @@ def _add_marker(spec: mujoco.MjSpec, name: str, pos, yaw: float, rgb) -> None:
                   quat=along, rgba=[*rgb, 1], contype=0, conaffinity=0, mass=0, group=1)
 
 
-# camera standing in front of the open face (no arm in the way: see __main__)
-PHOTO_CAMERA = dict(lookat=[0.6, -0.03, 1.07], distance=1.95, azimuth=0, elevation=-14)
-
-
 @scene("rubiks_markers", camera=dict(lookat=[0.5, 0.0, T], distance=1.9, azimuth=20, elevation=-30))
 def build(spec: mujoco.MjSpec) -> None:
     add_workcell(spec)
     _add_rubiks_cube(spec)
     _add_marker(spec, "marker_orange", (0.565, -0.17), np.radians(-120), [1.0, 0.38, 0.02])
     _add_marker(spec, "marker_red", (0.485, -0.165), np.radians(-140), [0.88, 0.06, 0.08])
-
-
-def _render_photo(png: str, width: int = 2000, height: int = 1500) -> None:
-    """The scene alone (no arm), from in front of the open face."""
-    from PIL import Image
-
-    spec = mujoco.MjSpec()
-    spec.visual.global_.offwidth, spec.visual.global_.offheight = width, height
-    build(spec)
-    model = spec.compile()
-    data = mujoco.MjData(model)
-    mujoco.mj_step(model, data, nstep=300)
-    cam = mujoco.MjvCamera()
-    for k, v in PHOTO_CAMERA.items():
-        setattr(cam, k, v)
-    opt = mujoco.MjvOption()
-    with mujoco.Renderer(model, height, width) as r:
-        r.update_scene(data, cam, opt)
-        Image.fromarray(r.render()).save(png)
-    print(f"wrote {png}")
-
-
-if __name__ == "__main__":
-    import argparse
-
-    p = argparse.ArgumentParser()
-    p.add_argument("--png", default="rubiks_markers.png")
-    _render_photo(p.parse_args().png)
