@@ -80,8 +80,8 @@ class LeaderBoard:
     """One board of the leader unit, as calibrated: where it is and how its servos map."""
 
     side: str
-    port: str  # found from usb_serial when it has one
-    usb_serial: str | None
+    port: str  # where the board is on this machine: found from its usb_serial at load
+    usb_serial: str
     signs: tuple[float, ...]
     zeros: dict[int, int]  # raw zero count per servo ID
 
@@ -108,8 +108,18 @@ def port_of(serial_number: str) -> str:
     return ports[0]
 
 
+def connected_port() -> str:
+    """The port of the one USB serial board plugged in, for calibrate_leader.py without --port."""
+    from serial.tools import list_ports
+
+    ports = [info.device for info in list_ports.comports() if info.vid is not None]  # USB only: skips Bluetooth, debug consoles
+    if len(ports) != 1:
+        raise ValueError(f"expected one USB serial board plugged in, found {ports or 'none'}: pass --port")
+    return ports[0]
+
+
 def calibrate_hint(side: str) -> str:
-    return f"python calibrate_leader.py --side {side} --port <port>"
+    return f"python calibrate_leader.py --side {side}"
 
 
 def load_leader_boards(path: Path, sides: list[str]) -> dict[str, LeaderBoard]:
@@ -129,22 +139,19 @@ def load_leader_boards(path: Path, sides: list[str]) -> dict[str, LeaderBoard]:
         if not entry.get("enabled"):
             raise ValueError(f"the {side} leader board is not enabled in {path}; calibrate it with\n"
                              f"  {calibrate_hint(side)}")
-        serial_number = entry["usb_serial"]
-        if serial_number is None and len(sides) > 1:
-            raise ValueError(f"the {side} board in {path} has no USB serial, so the two boards can't be told "
-                             "apart; keep to one leader board")
+        if entry.get("usb_serial") is None:
+            raise ValueError(f"the {side} board in {path} has no USB serial, so it can't be found; recalibrate it with\n"
+                             f"  {calibrate_hint(side)}")
         boards[side] = LeaderBoard(
             side=side,
-            port=entry["port"] if serial_number is None else port_of(serial_number),
-            usb_serial=serial_number,
+            port=port_of(entry["usb_serial"]),
+            usb_serial=entry["usb_serial"],
             signs=parse_signs(entry["signs"]),
             zeros=calibration_zeros(entry["servos"], f"{path} {side}"),
         )
-    if len(boards) > 1:
-        serials = [board.usb_serial for board in boards.values()]
-        ports = [os.path.realpath(board.port) for board in boards.values()]
-        if len(set(serials)) < len(serials) or len(set(ports)) < len(ports):
-            raise ValueError(f"the leader boards in {path} resolve to the same board: {dict(zip(boards, ports))}")
+    serials = [board.usb_serial for board in boards.values()]
+    if len(set(serials)) < len(serials):
+        raise ValueError(f"the leader boards in {path} are the same board (USB serial {serials[0]})")
     return boards
 
 

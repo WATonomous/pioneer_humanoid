@@ -23,16 +23,16 @@ That is the URDF zero, the real arm's calibrated zero, and the leader's (`calibr
 The leader unit has one board per arm, each on its own USB serial port (not the CANable's).
 
 ```bash
-python calibrate_leader.py --side left --port /dev/ttyACM0     # hang the leader straight down, gripper open, rotation joints on their marks; Enter
-python calibrate_leader.py --side right --port /dev/ttyACM1   # only for two arms
-python calibrate_leader.py --side right --port /dev/ttyACM1 --signs=<A..G>   # other directions than SIDE_SIGNS (keep the =: they may start with -)
-python calibrate_leader.py --side left --port /dev/ttyACM0 --from leader_calibration.json   # convert the old file, no re-hanging
+python calibrate_leader.py --side left     # hang the leader straight down, gripper open, rotation joints on their marks; Enter
+python calibrate_leader.py --side right --port <your-port>   # --port only when more than one board is plugged in
+python calibrate_leader.py --side right --signs=<A..G>   # other directions than SIDE_SIGNS (keep the =: they may start with -)
+python calibrate_leader.py --side left --from leader_calibration.json   # convert the old file, no re-hanging
 ```
 
 Writes that board into `leader_arm.json` here and enables it: zero encoder counts per servo, the signs (`--signs`,
 default the side's `SIDE_SIGNS` in `leader_mapping.py`) and the board's USB serial number. The teleop finds each board
-by that serial, so plugging the boards in the other order can't swap the arms; two boards with the same serial (or none)
-are refused.
+by that serial on whatever port it gets on your machine, so no port is stored and plugging the boards in the other order
+can't swap the arms; a board without a USB serial, or two with the same one, are refused.
 The right board stays disabled until it is calibrated. Teleop refuses to start without the file.
 **Commit `leader_arm.json`:** it describes the team's one leader unit, so nobody else has to calibrate; a different
 unit is refused by its USB serial. Recalibrate and commit again after re-mounting a servo.
@@ -50,7 +50,7 @@ The leader plugs in over USB (`/dev/ttyACM0`); the `simulation_isaac` container 
 # inside the container
 cd /workspace/humanoid/src/teleop/pioneer_leader_arm_teleop
 $PYTHON encoder_test.py                   # first time: all 7 servos respond? (--ids 2,3 --raw for a subset)
-$PYTHON calibrate_leader.py --side left --port /dev/ttyACM0   # first time: store the hanging-pose zero
+$PYTHON calibrate_leader.py --side left   # first time: store the hanging-pose zero
 
 /workspace/isaaclab/isaaclab.sh -p pioneer_leader_arm_teleop.py --scene push
 /workspace/isaaclab/isaaclab.sh -p pioneer_leader_arm_teleop.py --scene vial_rack --record
