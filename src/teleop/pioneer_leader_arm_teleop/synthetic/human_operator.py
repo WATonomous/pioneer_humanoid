@@ -142,10 +142,17 @@ class HumanOperator:
         self.q_home = self.q.copy()
         self.kin.qpos[self.qadr] = self.q
         mujoco.mj_kinematics(model, self.kin)
-        jaws = [next(g for g in range(model.ngeom) if model.geom_bodyid[g] == model.body(b).id and model.geom_contype[g])
-                for b in fingers]
+        # Finger centre: the middle of the box enclosing the finger's collision geoms (one box, or the many slices of
+        # a finger-shaped one), in the finger link's frame, then to the world.
+        centres = []
+        for b in fingers:
+            bid = model.body(b).id
+            gs = [g for g in range(model.ngeom) if model.geom_bodyid[g] == bid and model.geom_contype[g]]
+            lo = np.min([model.geom_pos[g] - model.geom_size[g] for g in gs], axis=0)
+            hi = np.max([model.geom_pos[g] + model.geom_size[g] for g in gs], axis=0)
+            centres.append(self.kin.xpos[bid] + self.kin.xmat[bid].reshape(3, 3) @ ((lo + hi) / 2))
         R = self.kin.xmat[self.hand].reshape(3, 3).copy()
-        self.tcp_off = R.T @ (self.kin.geom_xpos[jaws].mean(0) - self.kin.xpos[self.hand])
+        self.tcp_off = R.T @ (np.mean(centres, axis=0) - self.kin.xpos[self.hand])
         self.R_home = R
         self.R_down = R_DOWN_FROM_HOME @ R
         self.t = 0.0

@@ -625,6 +625,12 @@ def _tilted(op, deg: float):
     return Rotation.from_euler("y", deg, degrees=True).as_matrix() @ op.R_home
 
 
+import os as _os
+TOG_DX = float(_os.environ.get('TOG_DX', '0.0'))
+TOG_DZ0 = float(_os.environ.get('TOG_DZ0', '-0.03'))
+TOG_DZ1 = float(_os.environ.get('TOG_DZ1', '0.05'))
+
+
 def toggle_plan(op, model, data, notes) -> None:
     """Flip the toggle lever up: fingers under the lever tip, then lift."""
     import humanoid_mujoco_scenes.toggle_switch.scene as S
@@ -639,8 +645,8 @@ def toggle_plan(op, model, data, notes) -> None:
         op.move((p[0] - clear, p[1], p[2] - 0.06), R=R, grip=1.0, tol=0.012, via=True)           # out in front, below the lever
         tip = p[0] - S.LEVER_LENGTH + 0.005
         op.move((tip - 0.02, p[1], p[2] - 0.06), tol=0.006, axes=(1, 1, 1))                      # close to the wall
-        op.move((tip - 0.01, p[1], p[2] - 0.035), tol=0.006)                                      # under the lever tip
-        op.move((tip - 0.01, p[1], p[2] + 0.035), tol=0.012, corrections=0, axes=(0, 0, 1), speed=0.9)   # lift: flips it
+        op.move((tip + TOG_DX, p[1], p[2] + TOG_DZ0), tol=0.006)                                      # under the lever tip
+        op.move((tip + TOG_DX, p[1], p[2] + TOG_DZ1), tol=0.012, corrections=0, axes=(0, 0, 1), speed=0.9)   # lift: flips it
         op.settle()
         if S.is_on(model, data):
             break
