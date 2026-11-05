@@ -37,8 +37,13 @@ FITTS_A = 0.25
 FITTS_B = 0.25
 # rad/s: fastest a hand turns a leader joint (a brisk human reach peaks around 2 rad/s at the elbow).
 LEADER_MAX_SPEED = 3.0
-# The leader's down-facing gripper, from its home orientation: fingers toward -Z, jaws closing along Y.
-R_DOWN_FROM_HOME = np.array([[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [-1.0, 0.0, 0.0]])
+# The gripper as it takes things, as near its home pose as a grasp gets: fingers forward, tipped GRASP_PITCH down,
+# jaws closing across the table (pointing the fingers straight down would need a forearm roll first).
+# The operator aims a point between the jaws this far up the fingers from their tips (where a grip holds).
+TCP_ABOVE_TIPS = 0.025
+GRASP_PITCH = math.radians(20)
+GRASP_FINGERS = np.array([math.cos(GRASP_PITCH), 0.0, -math.sin(GRASP_PITCH)])
+GRASP_JAWS = np.array([0.0, -1.0, 0.0])
 
 
 def minimum_jerk(s):
@@ -64,7 +69,7 @@ class Style:
     @classmethod
     def sample(cls, rng: np.random.Generator, pace: float = 1.0) -> "Style":
         """A practised operator at ``pace`` 1; 0.5 is a slow, careful beginner, 1.5 brisk."""
-        speed = rng.uniform(0.65, 1.0) / pace
+        speed = rng.uniform(0.5, 0.8) / pace
         return cls(
             speed=speed,
             aim=min(0.1, rng.uniform(0.03, 0.06) * 0.8 / speed),   # speed-accuracy trade-off: hurried people aim worse
@@ -142,12 +147,22 @@ class HumanOperator:
         self.q_home = self.q.copy()
         self.kin.qpos[self.qadr] = self.q
         mujoco.mj_kinematics(model, self.kin)
-        jaws = [next(g for g in range(model.ngeom) if model.geom_bodyid[g] == model.body(b).id and model.geom_contype[g])
-                for b in fingers]
+        jaws = [g for g in range(model.ngeom) if model.geom_contype[g] and model.geom_bodyid[g] in [model.body(b).id for b in fingers]]
         R = self.kin.xmat[self.hand].reshape(3, 3).copy()
-        self.tcp_off = R.T @ (self.kin.geom_xpos[jaws].mean(0) - self.kin.xpos[self.hand])
+        centre = R.T @ (self.kin.geom_xpos[jaws].mean(0) - self.kin.xpos[self.hand])
+        f = centre / np.linalg.norm(centre)              # along the fingers, hand frame
+        # the tool point is TCP_ABOVE_TIPS up the fingers from their tips, between the jaws
+        tips = max(float((R.T @ (self.kin.geom_xpos[g] - self.kin.xpos[self.hand]) + np.abs(
+            R.T @ self.kin.geom_xmat[g].reshape(3, 3)) @ model.geom_size[g]) @ f) for g in jaws)
+        self.tcp_off = centre + (tips - TCP_ABOVE_TIPS - centre @ f) * f
         self.R_home = R
-        self.R_down = R_DOWN_FROM_HOME @ R
+        # hand frame -> world for the grasp pose: map the fingers' and the jaws' closing directions (hand frame) onto it
+        side = [self.kin.geom_xpos[[g for g in jaws if model.geom_bodyid[g] == model.body(b).id]].mean(0) for b in fingers]
+        a = R.T @ (side[1] - side[0])
+        a = a - (a @ f) * f
+        a /= np.linalg.norm(a)
+        self.R_down = (np.column_stack([GRASP_FINGERS, GRASP_JAWS, np.cross(GRASP_FINGERS, GRASP_JAWS)])
+                       @ np.column_stack([f, a, np.cross(f, a)]).T)
         self.t = 0.0
         self.pos = _Channel(self._tcp(self.kin))
         self.rot = _Channel(np.zeros(3))                 # rotation vector, world frame, applied to R_home
@@ -156,6 +171,7 @@ class HumanOperator:
         self.pos_noise = _Noise(rng, 3, s.tremor, s.drift, tau=1.5)
         self.rot_noise = _Noise(rng, 3, math.radians(0.02), math.radians(s.wobble_deg), tau=2.0)
         self.grip_noise = _Noise(rng, 1, 0.001, 0.005, tau=1.0)
+        self._pn, self._rn, self._gn = np.zeros(3), np.zeros(3), 0.0   # the noise as the hand last left it
         self.bends: list[tuple[float, float, np.ndarray]] = []   # (start, duration, path offsets at s = 0..1)
         self.trace: list[str] = []                       # one line per move, for debugging plans
 
@@ -186,7 +202,7 @@ class HumanOperator:
         return yaw + math.radians(self.rng.normal(0.0, 2.0))
 
     def down(self, yaw: float = 0.0, tilt_y_deg: float = 0.0) -> np.ndarray:
-        """Gripper pointing down, turned ``yaw`` about Z and tilted about world Y."""
+        """The grasp pose, turned ``yaw`` about Z and tilted about world Y."""
         return (Rotation.from_euler("z", yaw).as_matrix() @ Rotation.from_euler("y", tilt_y_deg, degrees=True).as_matrix()
                 @ self.R_down)
 
@@ -212,7 +228,9 @@ class HumanOperator:
             ang = np.linalg.norm(self._rotvec(R) - self.rot.goal())
             dur = max(dur, self.style.speed * (0.4 + 0.6 * ang / (math.pi / 4)))
         if dist > 1e-3:
-            self._reach(self.t, dur, start, self._aim(start, target, axes), bow, R)
+            aim = self._aim(start, target, axes)
+            dur = max(dur, self._joint_time(start, aim, R))
+            self._reach(self.t, dur, start, aim, bow, R)
         if R is not None:
             self.rot.add(self.t + 0.05 * dur, 0.9 * dur, self._rotvec(R) - self.rot.goal())
         if grip is not None:
@@ -235,7 +253,8 @@ class HumanOperator:
         down = target[2] - max(clear_z, start[2])          # negative: lowering at the end
         flat = np.array([target[0] - start[0], target[1] - start[1], 0.0])
         t_up = self.fitts(up, 0.02) / speed if up > 0.005 else 0.0
-        t_across = self.fitts(float(np.linalg.norm(flat)), tol) / speed
+        t_across = max(self.fitts(float(np.linalg.norm(flat)), tol) / speed,
+                       self._joint_time(start + (0.0, 0.0, up), np.array([target[0], target[1], start[2] + up]), R))
         t_down = self.fitts(abs(down), tol) / speed if abs(down) > 0.005 else 0.0
         if R is not None:
             ang = np.linalg.norm(self._rotvec(R) - self.rot.goal())
@@ -263,6 +282,18 @@ class HumanOperator:
             return float(np.linalg.norm(target - self.follower_tcp()))
         self.run(end - self.t)
         return self._correct(target, tol, corrections, axes, end - t0)
+
+    def _joint_time(self, start, aim, R=None) -> float:
+        """Shortest stroke (s) that keeps the leader's fastest joint under the speed cap (a minimum-jerk stroke peaks
+        at 1.875 x its mean speed): a person slows a big swing down instead of hitting a hard speed limit."""
+        if R is None:
+            R = Rotation.from_rotvec(self.rot.goal()).as_matrix() @ self.R_home
+        q0, e0 = self._solve(self.q, np.asarray(start, float), R, 40)
+        q1, e1 = self._solve(q0, np.asarray(aim, float), R, 40)
+        self.kin.qpos[self.qadr] = self.q
+        if max(e0, e1) > 5e-3:
+            return 0.0
+        return 1.875 * float(np.abs(q1 - q0).max()) / (0.8 * LEADER_MAX_SPEED)
 
     def _aim(self, start, target, axes) -> np.ndarray:
         """Where a first stroke actually goes: a little short, scattered ~aim x distance (only along ``axes``)."""
@@ -398,11 +429,19 @@ class HumanOperator:
     def run(self, sec: float) -> None:
         for _ in range(max(1, int(round(sec / self.dt)))):
             self.t += self.dt
-            p = self.pos.at(self.t) + self._bend_at(self.t) + self.pos_noise(self.t, self.dt)
-            rv = self.rot.at(self.t) + self.rot_noise(self.t, self.dt)
+            if self._moving():   # a let-go leader stays put: drift and tremor only while the hand moves it
+                self._pn, self._rn = self.pos_noise(self.t, self.dt), self.rot_noise(self.t, self.dt)
+            if self.t < self.grip.end_time() + 0.15:   # a held trigger sits still (human leader data: flat between squeezes)
+                self._gn = self.grip_noise(self.t, self.dt)[0]
+            p = self.pos.at(self.t) + self._bend_at(self.t) + self._pn
+            rv = self.rot.at(self.t) + self._rn
             R = Rotation.from_rotvec(rv).as_matrix() @ self.R_home
-            g = float(np.clip(self.grip.at(self.t)[0] + self.grip_noise(self.t, self.dt)[0], 0.0, 1.0))
+            g = float(np.clip(self.grip.at(self.t)[0] + self._gn, 0.0, 1.0))
             self._tick(self._ik(p, R), g)
+
+    def _moving(self) -> bool:
+        """The hand is on the leader: a stroke is under way or just ended."""
+        return self.t < max(self.pos.end_time(), self.rot.end_time(), self.grip.end_time()) + 0.15
 
     # ------------------------------------------------------------------ leader kinematics
     def _rotvec(self, R) -> np.ndarray:
