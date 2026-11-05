@@ -105,6 +105,7 @@ Scenes: `bare`, `peg_insert`, `zip_tie`, `drawer_stow`, `matcha`, `duplo`, or an
   Recording waits for every leader at home; frames are the left arm's 7 values then the right's, into
   `<repo>/datasets/pioneer_v1_bimanual/sim/` (`pioneer_v1_left_arm` for the left arm alone), with both wrist cameras.
 - Other flags: `--baud`, `--leader-arm` (default `leader_arm.json` here), `--filter-alpha` (target smoothing, default 0.35).
+  MuJoCo only: `--lock-wrist` holds the wrist (F) at home with its stock damping and ignores the leader's wrist.
 
 Targets are clamped to the arm's URDF limits. Wrist damping is lowered to 2.5 in this teleop only, so the sim wrist keeps up with the leader.
 

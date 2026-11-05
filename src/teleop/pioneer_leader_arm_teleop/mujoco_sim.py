@@ -156,6 +156,8 @@ def run() -> None:
     # Right by default: the leader unit's left arm does not register its servos (leader_arm.json has left disabled).
     parser.add_argument("--arms", choices=tuple(ARM_SETS), default="right",
                         help="arms to drive and record, one leader board each (leader_arm.json)")
+    parser.add_argument("--lock-wrist", action="store_true",
+                        help="hold the wrist (F) at home with stock damping and ignore the leader's wrist")
     add_record_args(parser, task_description="sim leader teleop demonstration")
     args = parser.parse_args()
     sides = list(ARM_SETS[args.arms])  # in ARM_ORDER: a recorded frame is the left arm's values, then the right's
@@ -202,6 +204,7 @@ def run() -> None:
         mapping = LeaderMapping(
             boards[side].signs, args.filter_alpha, home_rad=[data.ctrl[a] for a in arm_acts],
             limits_rad=[tuple(model.joint(j).range) for j in joints],
+            locked=("F",) if args.lock_wrist else (),
         )
         arms.append(Arm(
             side=side, leader=None, board=boards[side], mapping=mapping, arm_acts=arm_acts,
@@ -211,7 +214,8 @@ def run() -> None:
             grip_open=np.array([grip_open[j] for j in fingers]),
             grip_closed=np.array([grip_closed[j] for j in fingers]),
         ))
-        model.actuator_biasprm[model.actuator(joints[-1]).id, 2] = -WRIST_DAMPING
+        if not args.lock_wrist:  # a held wrist keeps stock damping, so it doesn't swing
+            model.actuator_biasprm[model.actuator(joints[-1]).id, 2] = -WRIST_DAMPING
         print(f"[{side.upper()}] " * (len(sides) > 1) + mapping.describe(joints), flush=True)
 
     reset_requested = [False]
