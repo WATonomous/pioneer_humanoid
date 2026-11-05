@@ -179,3 +179,102 @@ uv run --with matplotlib --with numpy tools/gl40_telemetry_plot.py outputs/gl40_
 `config/params.yaml` defaults: `can_interface=can0` `device_path=/dev/canable` `bustype=slcan` `bitrate=1000000`
 
 DBC: `src/interfacing/dbc/humanoid.dbc` · Debug: `candump can0`
+
+## Windows + WSL2 with a USB SLCAN adapter
+
+This is a workaround for running the CAN container from Ubuntu 24.04 on WSL2 when Docker
+Desktop's engine cannot create or share the SocketCAN interface with the container. It uses
+Ubuntu's own Docker Engine inside WSL, with the container on WSL's host network. It does not
+require native Linux, but it is not a substitute for checking the CAN bus and motor feedback.
+
+The tested adapter was a DSD TECH SH-C31G (CANable 2.0 Pro firmware), forwarded into WSL as
+`/dev/ttyACM0`. Windows USB forwarding and the basic WSL/Docker installations are prerequisites;
+this section covers the WSL-specific setup and run steps.
+
+### 1. Confirm the forwarded device
+
+In Ubuntu WSL, check that the adapter is present and that the path expected by the CAN container
+resolves to it:
+
+```bash
+ls -l /dev/ttyACM0 /dev/canable
+```
+
+In this setup `/dev/canable` was a symlink to `/dev/ttyACM0`. If it is missing, create it after
+confirming the current device name:
+
+```bash
+sudo ln -s /dev/ttyACM0 /dev/canable
+```
+
+USB device names can change after detach/reboot; check the device before recreating the symlink.
+If you previously ran `slcand` manually in WSL to test the adapter, stop that process before
+starting the container so it does not contend for the serial adapter.
+
+### 2. Start the Docker Engine inside WSL
+
+In **terminal 1**, start a separate daemon with its own socket and data directory, using the `vfs`
+storage driver:
+
+```bash
+sudo dockerd \
+  --host=unix:///run/docker-wsl.sock \
+  --data-root=/var/lib/docker-wsl-vfs \
+  --exec-root=/run/docker-wsl-vfs \
+  --pidfile=/run/docker-wsl-vfs.pid \
+  --storage-driver=vfs
+```
+
+Leave this terminal running while using this engine. `vfs` was needed in the tested setup because
+the initial `overlayfs` daemon could not start containers; it is slower and less storage-efficient.
+The custom socket and data root keep this daemon separate from Docker Desktop. Commands below
+explicitly select it with `DOCKER_HOST`; omitting that prefix may use a different Docker Engine.
+
+### 3. Build and start only the CAN service
+
+In **terminal 2**, from the repository root, build and start `interfacing` using the WSL daemon:
+
+```bash
+DOCKER_HOST=unix:///run/docker-wsl.sock ./watod build interfacing
+DOCKER_HOST=unix:///run/docker-wsl.sock ./watod up -d interfacing
+DOCKER_HOST=unix:///run/docker-wsl.sock ./watod logs --tail=30 interfacing
+```
+
+The successful run logged the setup script starting `slcand -o -c -s8`, bringing up `can0`, and
+initializing the CAN core. `-s8` selects the adapter's 1 Mbps SLCAN rate. The initial image build
+took about 14 minutes on the test machine.
+
+### 4. Verify from inside the container
+
+Open a shell in the running container:
+
+```bash
+DOCKER_HOST=unix:///run/docker-wsl.sock ./watod exec interfacing /bin/bash
+```
+
+At the container prompt, source the ROS environment before using ROS commands:
+
+```bash
+source /opt/watonomous/setup.bash
+ros2 node list
+ros2 topic list
+ip -s -details link show can0
+```
+
+The tested setup showed `/can_node`, `/interfacing/motorCMD`, and
+`/interfacing/motorFeedback`; `can0` was `UP`. `docker compose exec` does not run the container
+entrypoint, so ROS may not be on `PATH` until `setup.bash` is sourced in the shell.
+
+### What this verifies—and what it does not
+
+This verifies that the WSL-local Docker Engine can run the CAN container, create `can0`, and
+start the ROS CAN node. A feedback topic publisher only means the ROS publisher exists. In the
+test, CAN RX/TX counters remained zero and `ros2 topic echo --once /interfacing/motorFeedback`
+received no message. Therefore, actual bus wiring, motor communication, and feedback were **not**
+verified. `can state ERROR-ACTIVE` and an `UP` interface do not prove that motors are connected;
+SLCAN may also report `bitrate 0` in `ip link` even though the setup log shows `-s8`.
+
+Do not start `joint_command`, enable motor power, or send joint targets based only on these checks.
+Follow [../ARM_BRINGUP.md](../ARM_BRINGUP.md) and the team's approved bench procedure to verify
+wiring, termination, calibration, feedback, and the actuator configuration before any powered
+test. Keep the arm secured and the hardware E-stop within reach for every powered test.
