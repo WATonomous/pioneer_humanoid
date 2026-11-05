@@ -1,3 +1,8 @@
+"""Show one TUM depth image and the 3D points it turns into.
+
+Run from src/perception/terrain:  python prototype/view_tum_frame.py [--data path/to/tum/sequence]
+"""
+import argparse
 import sys
 from pathlib import Path
 
@@ -8,10 +13,14 @@ from terrain_core.preprocess.depth import depth_to_points
 # tum.py lives in terrain_tools/, not next to this script, so add that folder
 # to the places Python looks for imports (parents[1] = the terrain/ folder).
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "terrain_tools"))
-from tum import load_tum_frame  # noqa: E402
+from tum import DEFAULT_PATH, TumDataset  # noqa: E402
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--data", default=DEFAULT_PATH, help="TUM sequence folder (default: %(default)s)")
+data = TumDataset(parser.parse_args().data)
 
 
-frame = load_tum_frame(450)
+frame = data.frame(450)
 points = depth_to_points(frame.depth, frame.K)
 print("image size:", frame.width, "x", frame.height, "=", frame.width * frame.height, "pixels")
 print("points:", len(points))

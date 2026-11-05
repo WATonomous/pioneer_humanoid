@@ -9,7 +9,9 @@ from terrain_core.preprocess.pipeline import PreprocessConfig, preprocess
 # tum.py lives in terrain_tools/, not next to this script, so add that folder
 # to the places Python looks for imports (parents[1] = the terrain/ folder).
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "terrain_tools"))
-from tum import camera_pose_at, load_tum_frame  # noqa: E402
+from tum import DEFAULT_PATH, TumDataset  # noqa: E402
+
+data = TumDataset(DEFAULT_PATH)
 
 
 CONFIG = PreprocessConfig.from_yaml(Path(__file__).resolve().parents[1] / "config" / "terrain.yaml")
@@ -17,9 +19,9 @@ CONFIG = PreprocessConfig.from_yaml(Path(__file__).resolve().parents[1] / "confi
 
 def cloud_in_world(index, pose_stamp=None):
     """preprocess() on one TUM image. pose_stamp: use the pose at a different time (to test mistakes)."""
-    frame = load_tum_frame(index)
+    frame = data.frame(index)
     stamp = frame.stamp if pose_stamp is None else pose_stamp
-    return preprocess(frame, camera_pose_at(stamp, max_gap=1.0), CONFIG).points
+    return preprocess(frame, data.pose_at(stamp, max_gap=1.0), CONFIG).points
 
 
 def alignment(a, b, max_dist=0.03):
@@ -32,10 +34,10 @@ def alignment(a, b, max_dist=0.03):
 
 
 a = cloud_in_world(0)
-stamp_0 = load_tum_frame(0).stamp
+stamp_0 = data.frame(0).stamp
 
 for j in [5, 10, 20]:
-    stamp_j = load_tum_frame(j).stamp
+    stamp_j = data.frame(j).stamp
     tests = {
         "right pose": cloud_in_world(j),
         "pose 50 ms late": cloud_in_world(j, pose_stamp=stamp_j + 0.05),

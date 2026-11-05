@@ -1,3 +1,8 @@
+"""Voxel-downsample one TUM frame at a few cube sizes.
+
+Run from src/perception/terrain:  python prototype/try_downsample.py [--data path/to/tum/sequence]
+"""
+import argparse
 import sys
 from pathlib import Path
 
@@ -10,9 +15,13 @@ from terrain_core.preprocess.downsample import voxel_downsample
 # tum.py lives in terrain_tools/, not next to this script, so add that folder
 # to the places Python looks for imports (parents[1] = the terrain/ folder).
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "terrain_tools"))
-from tum import load_tum_frame  # noqa: E402
+from tum import DEFAULT_PATH, TumDataset  # noqa: E402
 
-frame = load_tum_frame(450)
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--data", default=DEFAULT_PATH, help="TUM sequence folder (default: %(default)s)")
+data = TumDataset(parser.parse_args().data)
+
+frame = data.frame(450)
 points = depth_to_points(frame.depth, frame.K)
 points = points[in_depth_range(points, z_min=0.3, z_max=3.0)]
 
