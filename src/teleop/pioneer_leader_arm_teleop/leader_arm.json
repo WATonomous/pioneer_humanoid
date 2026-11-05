@@ -3,6 +3,7 @@
     "enabled": false,
     "usb_serial": "5970073136",
     "signs": "1,1,-1,-1,1,-1,1",
+    "lock_wrist": true,
     "servos": {
       "A": {
         "id": 2,
@@ -38,6 +39,7 @@
     "enabled": true,
     "usb_serial": "5970073136",
     "signs": "1,1,-1,1,1,1,1",
+    "lock_wrist": true,
     "servos": {
       "A": {
         "id": 2,

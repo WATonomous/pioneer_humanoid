@@ -75,7 +75,9 @@ def main() -> int:
         finally:
             leader.close()
 
-    data[args.side] = {"enabled": True, "usb_serial": serial_number, "signs": signs, "servos": calibration_entry(positions)}
+    lock_wrist = (data.get(args.side) or {}).get("lock_wrist", False)  # a setting, not calibration: keep it
+    data[args.side] = {"enabled": True, "usb_serial": serial_number, "signs": signs, "lock_wrist": lock_wrist,
+                       "servos": calibration_entry(positions)}
     data.setdefault(other, {"enabled": False})
     args.out.write_text(json.dumps({side: data[side] for side in SIDES}, indent=2) + "\n")
     print(f"Saved {args.side} board (port {port}, USB serial {serial_number}, signs {signs}) to {args.out}: "

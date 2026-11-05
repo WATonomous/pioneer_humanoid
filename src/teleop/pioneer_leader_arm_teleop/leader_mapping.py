@@ -84,6 +84,7 @@ class LeaderBoard:
     usb_serial: str
     signs: tuple[float, ...]
     zeros: dict[int, int]  # raw zero count per servo ID
+    lock_wrist: bool = False  # MuJoCo teleop: freeze this arm's wrist (F) at home instead of following the leader
 
 
 def usb_serial(port: str) -> str | None:
@@ -139,6 +140,9 @@ def load_leader_boards(path: Path, sides: list[str]) -> dict[str, LeaderBoard]:
         if not entry.get("enabled"):
             raise ValueError(f"the {side} leader board is not enabled in {path}; calibrate it with\n"
                              f"  {calibrate_hint(side)}")
+        lock_wrist = entry.get("lock_wrist", False)
+        if not isinstance(lock_wrist, bool):
+            raise ValueError(f"the {side} board in {path}: lock_wrist must be true or false, got {lock_wrist!r}")
         if entry.get("usb_serial") is None:
             raise ValueError(f"the {side} board in {path} has no USB serial, so it can't be found; recalibrate it with\n"
                              f"  {calibrate_hint(side)}")
@@ -148,6 +152,7 @@ def load_leader_boards(path: Path, sides: list[str]) -> dict[str, LeaderBoard]:
             usb_serial=entry["usb_serial"],
             signs=parse_signs(entry["signs"]),
             zeros=calibration_zeros(entry["servos"], f"{path} {side}"),
+            lock_wrist=lock_wrist,
         )
     serials = [board.usb_serial for board in boards.values()]
     if len(set(serials)) < len(serials):
