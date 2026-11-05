@@ -65,6 +65,8 @@ class Arm:
     grip_qpos: list[int]
     grip_open: Any  # np.ndarray, finger positions at closure 0
     grip_closed: Any  # np.ndarray, finger positions at closure 1
+    lead: Any = None  # np.ndarray, kv/kp (s) per arm joint: how far its position servo trails a moving target
+    last_target: Any = None  # previous control step's target, for the feedforward velocity (None after a reset)
 
 
 class RecordStatus:
@@ -212,6 +214,9 @@ def run() -> None:
             grip_closed=np.array([grip_closed[j] for j in fingers]),
         ))
         model.actuator_biasprm[model.actuator(joints[-1]).id, 2] = -WRIST_DAMPING
+        # A position servo (kp, kv) trails a target moving at v by kv/kp * v (~80 ms here): send that much ahead.
+        arms[-1].lead = np.array([-model.actuator_biasprm[a, 2] / model.actuator_gainprm[a, 0]
+                                  if model.actuator_gainprm[a, 0] else 0.0 for a in arm_acts])
         print(f"[{side.upper()}] " * (len(sides) > 1) + mapping.describe(joints), flush=True)
 
     reset_requested = [False]
@@ -237,6 +242,10 @@ def run() -> None:
         images = {}
         for name, renderer in renderers.items():
             renderer.update_scene(data, name)
+            # The lightbox's shadow maps (~60 ms a frame) and floor-board reflection (~10 ms) barely show in these
+            # views; without them recording keeps up with real time. The viewer window still draws both.
+            renderer.scene.flags[mujoco.mjtRndFlag.mjRND_SHADOW] = 0
+            renderer.scene.flags[mujoco.mjtRndFlag.mjRND_REFLECTION] = 0
             images[name] = renderer.render()
         return images
 
@@ -249,8 +258,10 @@ def run() -> None:
         mujoco.mj_forward(model, data)
         for arm in arms:
             arm.mapping.reset()
+            arm.last_target = None
 
-    clock = WallClock(control_dt)
+    # Catch up after the slow step that renders the recorded cameras (every record_every steps).
+    clock = WallClock(control_dt, catch_up=0.1)
     step = 0
     shown_step = None  # last task step announced
     print("[INFO] Leader calibrated (hanging = 0). Move it to home: elbow bent 90 deg, forearm forward, gripper open. 6 = reset.", flush=True)
@@ -279,9 +290,15 @@ def run() -> None:
                 actions = []
                 for arm in arms:
                     target, grip = arm.mapping.update(arm.leader.read())
-                    data.ctrl[arm.arm_acts] = target
+                    # Velocity feedforward: the servo's lag cancels, so the sim arm keeps up with the leader.
+                    velocity = 0.0 if arm.last_target is None else (np.asarray(target) - arm.last_target) / control_dt
+                    arm.last_target = np.asarray(target)
+                    command = target + arm.lead * velocity
+                    data.ctrl[arm.arm_acts] = command
                     data.ctrl[arm.grip_acts] = arm.grip_open + grip * (arm.grip_closed - arm.grip_open)
-                    actions.extend([*target, grip])
+                    # Record what the servos were sent, feedforward included: a policy replaying it on the
+                    # plain position servos (sim.evaluate) moves the arm the way the demo did.
+                    actions.extend([*command, grip])
 
                 # Record one synchronized frame only once every active leader is at home.
                 if recorder is not None and all(arm.mapping.engaged for arm in arms) and step % record_every == 0:
