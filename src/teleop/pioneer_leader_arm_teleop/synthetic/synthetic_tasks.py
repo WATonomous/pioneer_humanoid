@@ -175,11 +175,11 @@ def peg_plan(op, model, data, notes, resume: bool = False) -> None:
         for attempt in range(3):
             p = op.see("peg")
             op.arc((p[0], p[1], base + S.PEG_HEIGHT + JAW_HALF + 0.015), max(high, base + S.PEG_HEIGHT + JAW_HALF + 0.03),
-                   R=op.down(jaw_yaw), grip=rng.uniform(0.0, 0.08), tol=0.004, axes=(1, 1, 0))
+                   R=op.down(jaw_yaw), grip=rng.uniform(0.0, 0.08), tol=0.004, axes=(1, 1, 0), via=True)   # on down, no stop above it
             op.move((p[0], p[1], base + grip_z), tol=0.003)
             op.set_grip(1.0)
-            op.move((p[0], p[1], base + grip_z + 0.03), tol=0.01, corrections=0, axes=(0, 0, 1))   # up off the table
-            if peg_bottom() > base + 0.015:
+            op.move((p[0], p[1], base + grip_z + 0.04), tol=0.01, via=True)   # up off the table, on into the carry
+            if peg_bottom() > base + 0.01:
                 return
             notes.append("regrasp peg")
             op.set_grip(0.4)
@@ -248,7 +248,7 @@ def peg_plan(op, model, data, notes, resume: bool = False) -> None:
             h = op.see("hole_block")
             off = op.follower_tcp() - op.see("peg")
             op.arc((h[0] + off[0], h[1] + off[1], block_top + 0.012 + S.PEG_HEIGHT / 2 + off[2]), high, tol=0.003,
-                   speed=0.8, land=0.7)                                             # carried over the block's edge
+                   speed=0.8, land=0.7, via=True)                                   # over the block's edge, on down
             align()
             lower_peg_to(block_top + 0.004, 0.6)     # just above the hole: look again
         align(tries=4)
