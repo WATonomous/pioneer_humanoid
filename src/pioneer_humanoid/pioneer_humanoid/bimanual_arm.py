@@ -14,13 +14,13 @@ Notes:
 Motor specs: https://watonomous.github.io/humanoid-docs/mechanical/index.html
   Shoulder joints 1-2  AK10-9 V3.0  18 Nm rated / 53 Nm peak
   Elbow joints 3-5     AK80-9 V3.0   9 Nm rated / 22 Nm peak
-  Wrist joint 6        GL40 KV70     0.25 Nm rated / 0.73 Nm peak
-  Gripper              GL40 KV70     one rotary motor -> linkage -> two prismatic
+  Wrist joint 6        AK40-10       1.3 Nm rated / 4.1 Nm peak
+  Gripper              AK40-10       one rotary motor -> linkage -> two prismatic
                        finger joints (joint7+joint8). We drive the pair with
                        synchronized targets and high stiffness/damping so the
                        fingers stay locked during arm motion. effort_limit_sim on
-                       a prismatic DOF is a force cap (N), not torque -- tune by
-                       grasp behaviour, not the 0.25 Nm rating.
+                       a prismatic DOF is a force cap (N): the 4.1 Nm peak through
+                       the linkage.
 
 Actuator groups were tuned for holding a static pose -- recheck stiffness/damping
 if an arm feels sluggish tracking a moving IK target.
