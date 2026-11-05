@@ -23,7 +23,7 @@ from servo_leader import ARM_SERVOS, GRIPPER_SERVO, SERVO_IDS, ServoLeader, cali
 
 # Per-servo direction of each board, A..F then G, found by moving one joint at a time: what calibrate_leader.py writes
 # without --signs.
-SIDE_SIGNS = {"left": "1,1,-1,-1,1,-1,1", "right": "1,1,-1,1,1,1,1"}
+SIDE_SIGNS = {"left": "1,1,-1,-1,1,-1,1", "right": "1,-1,-1,1,1,1,1"}
 DEFAULT_SIGNS = SIDE_SIGNS["left"]
 # The leader unit's two boards (one per arm): port, USB serial, signs and zeros, written by
 # calibrate_leader.py and committed: the numbers belong to the unit, which is found by USB serial.
