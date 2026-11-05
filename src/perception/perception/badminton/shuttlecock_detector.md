@@ -6,6 +6,10 @@ Starter scripts for building a YOLO26n shuttlecock detector (issue #123). They r
 video clips -> extract_frames -> auto_label -> split_dataset -> train -> (export_trt -> benchmark_latency)
 ```
 
+For Ticket 3, use the manual evaluation workflow below instead of
+`auto_label.py`. Keep all footage, sampled images, manifests, and metric
+outputs outside the repository.
+
 **Status: untested.** Treat these as reference code. Read each script, run it on a small sample, and rewrite whatever you need. See "Known issues" below before trusting any output.
 
 ## Setup
@@ -17,6 +21,56 @@ video clips -> extract_frames -> auto_label -> split_dataset -> train -> (export
   - `data/frames/`: extracted frames
   - `data/labeled/`: labels from auto-labeling
   - `data/dataset/`: final train/val dataset
+
+The `data/` names above are historical examples only. A recommended external
+layout is `/path/to/badminton_eval/` with `images/`, `manifest.jsonl`, and
+`metrics/` underneath it.
+
+### Ticket 3: manual eval set and baseline
+
+The Ticket 3 tools are `prepare_eval.py`, `annotate_eval.py`, and
+`eval_metrics.py`. They use center points as ground truth and never call the
+automatic Grounding DINO labeler.
+
+First sample one or two videos. This example creates roughly 240 frames from
+the first two clips and writes them under `/tmp` only as an example; use a
+durable external directory for real work:
+
+```
+python prepare_eval.py \
+  --input_dir /home/matthewyang/datasets/badminton_eval/raw_videos \
+  --output_dir /path/to/badminton_eval \
+  --video "PAC 1.MP4" --video "PAC 2.MP4" \
+  --every_seconds 0.5
+```
+
+Annotate the generated manifest interactively:
+
+```
+python annotate_eval.py /path/to/badminton_eval/manifest.jsonl
+```
+
+Left-click the shuttle center for a positive frame. Press `n` for a frame with
+no shuttle. Press `b` and/or `o` to tag a positive frame as blurred and/or
+occluded. The annotation is saved as JSONL with pixel coordinates in the
+original 1920x1080 image. A completely out-of-frame shuttle is negative.
+
+Run the baseline or a trained checkpoint:
+
+```
+python eval_metrics.py \
+  --weights yolo26n.pt \
+  --manifest /path/to/badminton_eval/manifest.jsonl \
+  --output /path/to/badminton_eval/metrics/stock_yolo26n.json \
+  --imgsz 960 --confidence 0.25 --match_radius 50
+```
+
+The script writes a JSON summary and a per-frame CSV. It reports recall,
+false-positive rate on negative frames, and mean/median/p90 pixel error for
+matched positive detections, both overall and by tag. For a fine-tuned
+single-class checkpoint, class 0 is inferred automatically. For stock
+multi-class weights, it selects `shuttlecock`, `birdie`, or `bird`; pass
+`--class_id` or `--class_name` when that is not the desired class.
 
 ## The scripts
 
