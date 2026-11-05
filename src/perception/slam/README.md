@@ -94,3 +94,18 @@ slam/
 ├── docs/                architecture, failure cases, benchmarks
 └── data/                datasets and bags (gitignored, local only)
 ```
+
+## Foxglove
+
+Layout: `slam_ros/foxglove/slam_layout.json`. In Foxglove: Layouts → Import from file, then open a bag or connect to `foxglove_bridge`.
+
+| Panel | Topic |
+|-------|-------|
+| Image | `/camera/camera/infra1/image_rect_raw` (D455 left IR) |
+| Image | `/camera/camera/depth/image_rect_raw` (D455 depth) |
+| Image | `/vo/debug_image` (tracked features) |
+| 3D | TF, `/vo/odom` (pose and trajectory), following `camera_link` |
+| Raw Messages | `/vo/stats` (tracking health) |
+| Plot | empty until `TrackingStats` in `slam_msgs` has fields |
+
+The `/vo/*` panels stay empty until the frontend publishes them. Camera topics are the `realsense2_camera` defaults (`rs_launch.py`, namespace and name `camera`).

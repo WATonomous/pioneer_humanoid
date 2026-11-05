@@ -6,3 +6,4 @@ scene/workspace_W.npz
 scene/assets/arm_patched.urdf
 uv.lock
 scene/assets/*.obj
+logs/

@@ -1,34 +1,44 @@
 """mjlab (MuJoCo Warp) training tasks for the badminton receive env.
 
-Importing this package registers two tasks:
+Importing this package registers four tasks. One single-arm policy drives
+either arm in that arm's frame, and the critic picks the arm at deployment
+(humanoid_badminton/shared.py):
 
-  Mjlab-Badminton-Receive-Teacher   PPO on privileged observations (true
-                                    shuttle state + true trajectory prior)
-  Mjlab-Badminton-Receive-Student   distills the trained teacher into the
-                                    student observation set (EKF-tracked
-                                    shuttle + noisy trajectory prior)
+  Mjlab-Badminton-Shared-Teacher          PPO on privileged observations
+                                          (true shuttle state + true
+                                          trajectory prior)
+  Mjlab-Badminton-Shared-Student          distills the trained teacher into
+                                          the student observation set
+                                          (EKF-tracked shuttle + noisy
+                                          trajectory prior)
+  Mjlab-Badminton-Shared-Student-PPO      PPO fine-tune of the student, critic
+                                          on student obs (the arm chooser)
+  Mjlab-Badminton-Shared-Student-PPO-Priv the same with the privileged
+                                          critic (the deployed policy)
 
-Run from the stationary/ directory (the package imports aero/launcher/
+Run from src/simulation/badminton (the package imports aero/launcher/
 perception_torch from there):
 
-  uv run scripts/train_rl.py Mjlab-Badminton-Receive-Teacher \
+  uv run scripts/train_rl.py Mjlab-Badminton-Shared-Teacher \
       --env.scene.num-envs 4096
-  uv run scripts/play_rl.py Mjlab-Badminton-Receive-Teacher --viewer viser
+  uv run scripts/play_rl.py Mjlab-Badminton-Shared-Teacher --viewer viser
 """
 
 import os
 import sys
 
-# aero/launcher/perception_torch live in stationary/, one level up.
-_STATIONARY = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if _STATIONARY not in sys.path:
-    sys.path.insert(0, _STATIONARY)
+# aero/launcher/perception_torch live one level up.
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
 
 from mjlab.tasks.registry import register_mjlab_task  # noqa: E402
 from rsl_rl.runners import DistillationRunner  # noqa: E402
 
 from humanoid_badminton.env_cfg import make_env_cfg  # noqa: E402
-from humanoid_badminton.rl_cfg import (make_distill_cfg, make_student_ppo_cfg,  # noqa: E402
+from humanoid_badminton.rl_cfg import (make_distill_cfg,  # noqa: E402
+                                       make_student_ppo_cfg,
+                                       make_student_ppo_priv_cfg,
                                        make_teacher_ppo_cfg)
 
 
@@ -54,23 +64,30 @@ class BadmintonDistillationRunner(DistillationRunner):
 
 
 register_mjlab_task(
-    "Mjlab-Badminton-Receive-Teacher",
+    "Mjlab-Badminton-Shared-Teacher",
     env_cfg=make_env_cfg(),
-    play_env_cfg=make_env_cfg(play=True),
+    play_env_cfg=make_env_cfg(play=True, chooser=True),
     rl_cfg=make_teacher_ppo_cfg(),
 )
 
 register_mjlab_task(
-    "Mjlab-Badminton-Receive-Student",
+    "Mjlab-Badminton-Shared-Student",
     env_cfg=make_env_cfg(),
-    play_env_cfg=make_env_cfg(play=True),
+    play_env_cfg=make_env_cfg(play=True, chooser=True),
     rl_cfg=make_distill_cfg(),
     runner_cls=BadmintonDistillationRunner,
 )
 
 register_mjlab_task(
-    "Mjlab-Badminton-Receive-Student-PPO",
+    "Mjlab-Badminton-Shared-Student-PPO",
     env_cfg=make_env_cfg(),
-    play_env_cfg=make_env_cfg(play=True),
+    play_env_cfg=make_env_cfg(play=True, chooser=True),
     rl_cfg=make_student_ppo_cfg(),
+)
+
+register_mjlab_task(
+    "Mjlab-Badminton-Shared-Student-PPO-Priv",
+    env_cfg=make_env_cfg(),
+    play_env_cfg=make_env_cfg(play=True, chooser=True),
+    rl_cfg=make_student_ppo_priv_cfg(),
 )

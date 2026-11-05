@@ -6,11 +6,13 @@ import math
 
 import isaaclab.sim as sim_utils
 from isaaclab.sensors import CameraCfg
+from pioneer_humanoid.arm_params import WRIST_FOCAL_MM
 from pioneer_humanoid.bimanual_arm import make_camera_cfg
 
-# VR wrist-camera lens. The ego camera uses the shared Pioneer lens.
+# VR wrist-camera lens: the real wrist camera (arm_params.WRIST_FOCAL_MM, OV3660, 110 deg diagonal
+# at 640x480). The ego camera uses the shared Pioneer lens.
 DATA_CAM_LENS = sim_utils.PinholeCameraCfg(
-    focal_length=7.336, horizontal_aperture=20.955, vertical_aperture=15.2908,
+    focal_length=WRIST_FOCAL_MM, horizontal_aperture=20.955, vertical_aperture=20.955 * 480 / 640,
     clipping_range=(0.01, 100.0),
 )
 
@@ -21,7 +23,7 @@ WRIST_CAM_PITCH_DEG = 30.0   # angles the camera down toward the gripper
 # wrist_cam mount, relative to link6l's origin. Gripper-relative: +X up, +Y left, -Z forward
 # (follows from the roll/pitch above). It sits inside the wrist housing, so large moves bury it
 # in the mesh; the Quest script's _SHOW_WRIST_CAM_MARKER flag draws a sphere here to check.
-WRIST_CAM_POS = (0.06168, 0.053, -0.06995)
+WRIST_CAM_POS = (0.06168, 0.060, -0.07895)
 
 
 def _quat_mul_wxyz(a: tuple, b: tuple) -> tuple:

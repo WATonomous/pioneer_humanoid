@@ -1,36 +1,26 @@
 """
 Canonical articulation config for the pioneer_bimanual_arm.
 
-Robot model: assets/pioneer_bimanual_arm (pioneer_bimanual_arm.usd),
-formerly wato_arm_v2/armWithStand.usd. This replaces the old bimanual_arm_cfg.py,
-which used a reversed L/R convention, inverted gripper dicts, X-axis fingertip
-geometry (wrong for this asset), and a rest pose tuned for a superseded CAD
-export.
+Robot model: assets/pioneer_bimanual_arm (pioneer_bimanual_arm.usd).
 
-Naming: LEFT_* = the L-suffixed chain (joint1L..joint6l) = physical LEFT arm,
-matching the CAD. RIGHT_* = unsuffixed (joint1..joint6). An earlier revision
-had these reversed; don't reintroduce that.
+Naming: LEFT_* = the L-suffixed chain (joint1L..joint6l) = physical LEFT arm.
+RIGHT_* = unsuffixed (joint1..joint6).
 
-Notes on the values below:
-  - _DEFAULT_JOINT_POS is this URDF's zero pose plus elbow flex (see below), a
-    correct-by-construction rest pose -- not a hand-tuned one.
-  - LEFT_/RIGHT_FINGER_DISTAL_TIP_LOCAL are measured against this asset's mesh,
-    along its joint7/8 travel axis (Y for this export).
+Notes:
   - _WRIST_ORIENT_OFFSET_* in run_quest_bimanual_teleop.py are identity and need
     live in-headset retuning for this asset's joint6 axis.
-  - actuator gains and the +/-0.05 m gripper stroke are motor/mechanism-derived
-    but not independently verified.
+  - actuator gains are motor-derived but not independently verified.
 
 Motor specs: https://watonomous.github.io/humanoid-docs/mechanical/index.html
   Shoulder joints 1-2  AK10-9 V3.0  18 Nm rated / 53 Nm peak
   Elbow joints 3-5     AK80-9 V3.0   9 Nm rated / 22 Nm peak
-  Wrist joint 6        GL40 KV70     0.25 Nm rated / 0.73 Nm peak
-  Gripper              GL40 KV70     one rotary motor -> linkage -> two prismatic
+  Wrist joint 6        AK40-10       1.3 Nm rated / 4.1 Nm peak
+  Gripper              AK40-10       one rotary motor -> linkage -> two prismatic
                        finger joints (joint7+joint8). We drive the pair with
                        synchronized targets and high stiffness/damping so the
                        fingers stay locked during arm motion. effort_limit_sim on
-                       a prismatic DOF is a force cap (N), not torque -- tune by
-                       grasp behaviour, not the 0.25 Nm rating.
+                       a prismatic DOF is a force cap (N): the 4.1 Nm peak through
+                       the linkage.
 
 Actuator groups were tuned for holding a static pose -- recheck stiffness/damping
 if an arm feels sluggish tracking a moving IK target.
@@ -66,10 +56,8 @@ _ARM_USD_PATH = str(Path(_ARM_ROOT) / "usd" / "pioneer_bimanual_arm.usd")
 
 
 # --- Joint limits -----------------------------------------------------------
-# Re-exported from urdf_joint_limits (parses the URDF) so `from pioneer_humanoid.bimanual_arm import
-# JOINT_POS_LIMITS` call sites keep working. apply_joint_limits() and
-# patch_joint_pos_limits_on_prim() below write it onto the spawned prims, so this is what the
-# joints actually enforce at runtime. Replaced an unverified +/-2pi (no-limit) placeholder.
+# From the URDF (urdf_joint_limits). apply_joint_limits() and patch_joint_pos_limits_on_prim()
+# below write it onto the spawned prims: this is what the joints enforce at runtime.
 
 # --- Default (spawn) pose, joint names, gripper endpoints and actuator gains: arm_params.py
 # (simulator-neutral, shared with mujoco_bimanual_arm.py).
@@ -83,22 +71,15 @@ LEFT_EE_BODY = "link6l"
 RIGHT_EE_BODY = "link6"
 LEFT_FINGER_TIP_BODIES = ("link7l", "link8l")
 RIGHT_FINGER_TIP_BODIES = ("link7", "link8")
-# Distal mesh point of each finger, in that link's OWN object-space frame: the outward-Y extreme
-# (larger-magnitude Y bbox bound) with X/Z at the bbox centre, measured via
-# UsdGeom.BBoxCache.ComputeRelativeBound against this asset's mesh. Same "outward extreme along
-# the travel axis" methodology bimanual_arm_cfg.py used, but along Y -- bimanual's joint7/8 axis
-# is X, so its numbers are wrong here (see module docstring).
-#
-# LINK-LOCAL, so they do not survive a re-export that moves the link origins; re-measure the same
-# way if the arm asset changes. Sanity check: composed with the joint7/8 origins these give a
-# 0.1625m open fingertip gap on both grippers, matching the empirically measured 0.161m below.
+# Distal point of each finger in its link frame: the outward extreme along the travel axis (Y), X/Z at
+# the bbox centre. Link-local: re-measure if the finger meshes or link origins change.
 LEFT_FINGER_DISTAL_TIP_LOCAL = {
-    "link7l": (0.0, 0.151416, -0.045369),
-    "link8l": (0.0, -0.114416, -0.039825),
+    "link7l": (0.0, 0.02, 0.0),
+    "link8l": (0.0, -0.02, 0.0),
 }
 RIGHT_FINGER_DISTAL_TIP_LOCAL = {
-    "link7": (0.0, -0.151416, -0.045369),
-    "link8": (0.0, 0.114416, -0.039825),
+    "link7": (0.0, -0.02, 0.0),
+    "link8": (0.0, 0.02, 0.0),
 }
 
 
@@ -269,7 +250,32 @@ def _spawn_bimanual_arm_from_usd(prim_path, cfg, translation=None, orientation=N
 
     prim = _spawn_from_usd_file(prim_path, cfg.usd_path, cfg, translation, orientation)
     patch_joint_pos_limits_on_prim(prim_path)
+    _bind_finger_material(prim_path)
     return prim
+
+
+# TPU fingers: estimates, not measured (as mujoco_bimanual_arm's FINGER_FRICTION). "max" so the TPU's
+# friction holds against any object, not its average with the object's (PhysX default 0.5).
+FINGER_MATERIAL = sim_utils.RigidBodyMaterialCfg(
+    static_friction=1.0, dynamic_friction=1.0, friction_combine_mode="max"
+)
+
+
+def _bind_finger_material(prim_path: str) -> None:
+    """Bind FINGER_MATERIAL to the finger links; their colliders (inside instanced meshes) inherit it."""
+    from pxr import UsdShade
+
+    from isaaclab.sim.utils import get_current_stage
+
+    stage = get_current_stage()
+    material_path = f"{prim_path}/finger_material"
+    FINGER_MATERIAL.func(material_path, FINGER_MATERIAL)
+    material = UsdShade.Material(stage.GetPrimAtPath(material_path))
+    for link in ("link7", "link8", "link7l", "link8l"):
+        link_prim = stage.GetPrimAtPath(f"{prim_path}/{link}")
+        UsdShade.MaterialBindingAPI.Apply(link_prim).Bind(
+            material, UsdShade.Tokens.strongerThanDescendants, "physics"
+        )
 
 
 from isaaclab.sim.utils import clone  # noqa: E402

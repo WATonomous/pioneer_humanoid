@@ -1,54 +1,108 @@
-left:
+right:
   shoulder:
     pitch:
       can_id: 14
-      lower_limit: -77.00000381469727
-      upper_limit: 85.79999923706055
+      lower_limit: -82.19999694824219
+      upper_limit: 62.80000114440918
       direction: 1
-      zero_offset: 34.29999923706055
+      zero_offset: 36.79999923706055
       limit_range: true
     roll:
       can_id: 13
       direction: -1
-      zero_offset: 113.5999984741211
-      lower_limit: -77.50000762939453
-      upper_limit: 100.79999828338623
+      zero_offset: -150.3000030517578
+      lower_limit: -77.70000457763672
+      upper_limit: 80.5
       limit_range: true
     yaw:
       can_id: 12
-      lower_limit: -155.6999969482422
-      upper_limit: 5.8000030517578125
       direction: 1
-      zero_offset: -160.1999969482422
+      lower_limit: -89.79999542236328
+      upper_limit: 5.3000030517578125
+      zero_offset: -159.5
       limit_range: true
   elbow:
     pitch:
       can_id: 11
-      direction: 1
-      zero_offset: 101.80000305175781
-      lower_limit: -75.09999084472656
-      upper_limit: 84.50000286102295
+      direction: -1
+      zero_offset: 4.300000190734863
+      lower_limit: -100.20000171661377
+      upper_limit: 73.0999984741211
       limit_range: true
     roll:
       can_id: 104
-      lower_limit: -143.8000030517578
-      upper_limit: 117.99998474121094
+      lower_limit: -57.399993896484375
+      upper_limit: 139.90000915527344
       direction: 1
-      zero_offset: 150.8000030517578
+      zero_offset: -58.5
       limit_range: true
   wrist:
     pitch:
       can_id: 22
-      lower_limit: -93.62410736083984
-      upper_limit: 97.66764450073242
-      direction: 1
-      zero_offset: -40.4899787902832
+      lower_limit: -80.31322860717773
+      upper_limit: 83.83219909667969
+      direction: -1
+      zero_offset: -40.030982971191406
       limit_range: true
   gripper:
     open_close:
       can_id: 21
-      lower_limit: 0
-      upper_limit: 100
+      lower_limit: -0.33887481689453125
+      upper_limit: 38.12933921813965
+      direction: -1
+      zero_offset: 93.55862426757812
+      limit_range: true
+left:
+  shoulder:
+    pitch:
+      can_id: 30
+      lower_limit: -154.5
+      upper_limit: 159.3000030517578
       direction: 1
-      zero_offset: 0
+      zero_offset: 4.099999904632568
+      limit_range: true
+    roll:
+      can_id: 32
+      direction: -1
+      zero_offset: 147.1999969482422
+      lower_limit: -71.00000190734863
+      upper_limit: 43.599998474121094
+      limit_range: true
+    yaw:
+      can_id: 31
+      direction: -1
+      lower_limit: -143.10000610351562
+      upper_limit: 3.9000000953674316
+      zero_offset: 2.700000047683716
+      limit_range: true
+  elbow:
+    pitch:
+      can_id: 33
+      direction: -1
+      zero_offset: 108.9000015258789
+      lower_limit: -71.80000305175781
+      upper_limit: 85.29999923706055
+      limit_range: true
+    roll:
+      can_id: 34
+      lower_limit: -93.5999984741211
+      upper_limit: 54.79999828338623
+      direction: 1
+      zero_offset: 70.5999984741211
+      limit_range: true
+  wrist:
+    pitch:
+      can_id: 35
+      lower_limit: -80.31322860717773
+      upper_limit: 83.83219909667969
+      direction: -1
+      zero_offset: -40.030982971191406
+      limit_range: true
+  gripper:
+    open_close:
+      can_id: 36
+      lower_limit: -0.33887481689453125
+      upper_limit: 38.12933921813965
+      direction: -1
+      zero_offset: 93.55862426757812
       limit_range: true

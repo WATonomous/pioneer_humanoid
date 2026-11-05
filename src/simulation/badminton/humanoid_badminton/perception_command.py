@@ -9,6 +9,12 @@ blocks each control tick, both laid out as [p(3), v(3), traj(n_traj*3)]:
   teacher_features  the same layout computed from the true state (the
                     privileged trajectory prior)
 
+The critic picks the arm (shared.ChooserPolicy). This term writes the
+reference rule's side to env._badminton["rule_side"] each tick, for logging
+only: the arm on the side (x relative to the stand centre) where the true
+flight crosses the strike plane y = control.assign_strike_y. Metrics
+compare the policy's locked choice with the rule at the lock tick.
+
 The command lifecycle fits exactly: _resample_command fires on episode reset
 (after the shuttle reset event wrote the new true state) and re-initializes
 the filter rows; _update_command runs once per control tick after
@@ -75,6 +81,35 @@ class PerceptionCommand(CommandTerm):
         self._dist_at_tstar = torch.zeros(n, device=dev)
         self._tstar_seen = torch.zeros(n, dtype=torch.bool, device=dev)
 
+        self._strike_y = params["control"]["assign_strike_y"]
+        self._center_x = params["arm"].get("base_x", 0.0)
+
+    def _strike_x(self, p: torch.Tensor, v: torch.Tensor,
+                  sub_dt: float = 0.05, max_steps: int = 40) -> torch.Tensor:
+        """x where the drag-model flight from (p, v) crosses the strike
+        plane; the current x if it does not cross within the horizon (the
+        fresh EKF has v = 0)."""
+        x = p[:, 0].clone()
+        done = p[:, 1] <= self._strike_y
+        for _ in range(max_steps):
+            if bool(done.all()):
+                break
+            p_next, v_next = pt.rk4_step(p, v, self._k, sub_dt, self._g)
+            cross = (~done) & (p_next[:, 1] <= self._strike_y)
+            if bool(cross.any()):
+                t = ((p[cross, 1] - self._strike_y)
+                     / (p[cross, 1] - p_next[cross, 1]).clamp_min(1e-9))
+                x[cross] = p[cross, 0] + t * (p_next[cross, 0] - p[cross, 0])
+            done |= cross
+            p, v = p_next, v_next
+        return x
+
+    def _update_rule_side(self, p_true, v_true) -> None:
+        from humanoid_badminton import mdp  # lazy: mdp imports this module
+        store = mdp._state(self._env)
+        store["rule_side"] = (self._strike_x(p_true, v_true)
+                              <= self._center_x).long()
+
     @property
     def command(self) -> torch.Tensor:
         return self.student_features
@@ -127,6 +162,7 @@ class PerceptionCommand(CommandTerm):
         self.teacher_features[:] = pt.feature_layout(
             p_true, v_true, self._k, self._n_traj,
             self._traj_dt, self._sub_dt, self._g)
+        self._update_rule_side(p_true, v_true)
 
     def _update_metrics(self) -> None:
         p_true, v_true = self._true_state()
@@ -138,13 +174,26 @@ class PerceptionCommand(CommandTerm):
         store = getattr(self._env, "_badminton", None)
         if store is None:
             return
+        # arm choice, logged at episode reset (last value): locked at all,
+        # agreed with the reference rule at the lock, lock time, right arm
+        # chosen. The last three are 0 for episodes without a lock, so their
+        # per-locked-episode means are the logged means divided by
+        # arm_committed.
+        done = store["committed"].float()
+        self.metrics["arm_committed"] = done
+        self.metrics["arm_agree_rule"] = (
+            (store["assign"] == store["commit_rule"]).float() * done)
+        self.metrics["arm_commit_time"] = store["commit_t"] * done
+        self.metrics["arm_right"] = (store["assign"] == 0).float() * done
         if self._face_cfg is None:
             from mjlab.managers.scene_entity_config import SceneEntityCfg
-            cfg = SceneEntityCfg("robot", site_names=("face_center",))
+            from humanoid_badminton.assets import FACE_SITES
+            cfg = SceneEntityCfg("robot", site_names=FACE_SITES,
+                                 preserve_order=True)
             cfg.resolve(self._env.scene)
             self._face_cfg = cfg
-        face, _ = mdp._face_pose(self._env, self._face_cfg)
-        dist = (face - store["p_star"]).norm(dim=-1)
+        dist = mdp.nearest_face_dist(self._env, self._face_cfg,
+                                     store["p_star"])
         self._min_dist = torch.minimum(self._min_dist, dist)
         t_now = self._env.episode_length_buf.float() * self._env.step_dt
         at_tstar = (t_now >= store["t_star"]) & ~self._tstar_seen

@@ -23,10 +23,8 @@ def _deg(degrees: float) -> float:
 # picks an elbow-bend direction at random. Flexing the elbows raises manipulability ~10,000x
 # and starts the arm in the flexion branch.
 #
-# Signs are OPPOSITE (joint4/joint4l axes are (0,-1,0)/(0,1,0)); both put the forearm forward
-# toward +X. Opposite-and-equal is what makes the pose mirror-symmetric. 90 holds the forearm
-# level (fingertip ~10cm higher than the previous 75); don't go below ~60 (tip nears the table).
-# Both inside the URDF limits (42.5 deg margin to joint4l's 132.5).
+# Signs are opposite (joint4/joint4l axes are (0,-1,0)/(0,1,0)): both put the forearm forward,
+# mirror-symmetric. 90 holds the forearm level; don't go below ~60 (the tip nears the table).
 DEFAULT_JOINT_POS = {
     "joint1": 0.0,
     "joint2": 0.0,
@@ -52,16 +50,17 @@ RIGHT_ARM_JOINTS = ["joint1", "joint2", "joint3", "joint4", "joint5", "joint6"]
 LEFT_GRIPPER_JOINTS = ["joint7l", "joint8l"]
 RIGHT_GRIPPER_JOINTS = ["joint7", "joint8"]
 
-# Gripper finger targets, verified empirically in headless Isaac sim: fingertip gap 0.074m
-# closed / ~0.16m open at these endpoints. This asset's joint7/8 axis is Y.
+# Gripper finger targets: open, and closed with the fingers touching (the URDF limits).
 LEFT_GRIPPER_OPEN = {"joint7l": 0.0, "joint8l": 0.0}
-LEFT_GRIPPER_CLOSED = {"joint7l": -0.05, "joint8l": 0.05}
+LEFT_GRIPPER_CLOSED = {"joint7l": -0.041, "joint8l": 0.041}
 RIGHT_GRIPPER_OPEN = {"joint7": 0.0, "joint8": 0.0}
-RIGHT_GRIPPER_CLOSED = {"joint7": -0.05, "joint8": 0.05}
+RIGHT_GRIPPER_CLOSED = {"joint7": -0.041, "joint8": 0.041}
 
 # Prismatic gripper PD — tuned for hold during arm motion (not from motor datasheet).
 # If fingers bounce when the shoulder moves, raise stiffness; if jittery, raise damping.
-_GRIPPER = dict(stiffness=400.0, damping=40.0, effort_limit=30.0, velocity_limit=0.2)  # N, m/s
+# effort_limit: the AK40-10's 4.1 Nm peak through the linkage (~38.5 deg of motor travel per 41 mm of finger travel,
+# arm_calibration.yaml), shared by the two fingers.
+_GRIPPER = dict(stiffness=400.0, damping=40.0, effort_limit=34.0, velocity_limit=0.2)  # N, m/s
 
 # Joint PD groups: stiffness (Nm/rad or N/m), damping, effort_limit (Nm or N), velocity_limit.
 # effort_limit is a sim-only cap at the motor's PEAK torque (rated saturates against gravity
@@ -74,16 +73,14 @@ ACTUATOR_GROUPS = {
     "left_shoulder": dict(joints=["joint1L", "joint2l"], stiffness=2270.0, damping=180.0, effort_limit=53.0, velocity_limit=6.0),
     # AK80-9 V3.0 — elbow joints 3-5 (9 rated / 22 peak); raised with the shoulder for "forearm too slow".
     "left_elbow": dict(joints=["joint3l", "joint4l", "joint5l"], stiffness=1550.0, damping=110.0, effort_limit=22.0, velocity_limit=6.0),
-    # GL40 KV70 — wrist joint 6 (0.25 rated / 0.73 peak). Rated saturated instantly in Isaac;
-    # don't exceed 0.73 -- raise stiffness instead.
-    "left_wrist": dict(joints=["joint6l"], stiffness=341.0, damping=18.0, effort_limit=0.73, velocity_limit=6.0),
-    # GL40 KV70 rotary -> linkage -> two prismatic fingers, driven with synchronized targets.
-    # effort_limit on a prismatic DOF is a force cap (N) -- tune by grasp, not the motor rating.
+    # AK40-10 — wrist joint 6 (1.3 rated / 4.1 peak).
+    "left_wrist": dict(joints=["joint6l"], stiffness=341.0, damping=18.0, effort_limit=4.1, velocity_limit=6.0),
+    # AK40-10 rotary -> linkage -> two prismatic fingers, driven with synchronized targets.
     "left_gripper": dict(joints=["joint7l", "joint8l"], **_GRIPPER),
     # Right arm (unsuffixed) mirrors the left: both arms are teleoperated and need equal headroom.
     "right_shoulder": dict(joints=["joint1", "joint2"], stiffness=2270.0, damping=180.0, effort_limit=53.0, velocity_limit=6.0),
     "right_elbow": dict(joints=["joint3", "joint4", "joint5"], stiffness=1550.0, damping=110.0, effort_limit=22.0, velocity_limit=6.0),
-    "right_wrist": dict(joints=["joint6"], stiffness=341.0, damping=18.0, effort_limit=0.73, velocity_limit=6.0),
+    "right_wrist": dict(joints=["joint6"], stiffness=341.0, damping=18.0, effort_limit=4.1, velocity_limit=6.0),
     "right_gripper": dict(joints=["joint7", "joint8"], **_GRIPPER),
 }
 
@@ -106,8 +103,11 @@ class CameraMount(NamedTuple):
 
 # ego          RealSense D455 colour at 640x480 (4:3), 50 deg down. ESTIMATE ~80 x 65 deg: native
 #              1280x800 lens with the sides cropped to 4:3. Replace with the real camera_info.
-# wrist_left   between the fingers, ~60 deg hFOV, real camera not chosen yet
+# wrist_left   between the fingers. OV3660 USB module, 110 deg (listed, taken as diagonal: ~97.6 x 81.2 deg
+#              at 4:3), as a distortion-free pinhole; the real lens is barrel-distorted. 4:3.
 # wrist_right  mirror of wrist_left
+WRIST_DIAG_FOV_DEG = 110.0
+WRIST_FOCAL_MM = (20.955 * 5 / 4) / 2 / math.tan(math.radians(WRIST_DIAG_FOV_DEG) / 2)   # 4:3 diagonal = 5/4 x width
 CAMERAS = {
     "ego": CameraMount(
         "base_link", "cam_ego",
@@ -116,13 +116,13 @@ CAMERAS = {
     ),
     "wrist_left": CameraMount(
         "link6l", "cam_wrist_left",
-        (0.06179, 0.05297, -0.07077), (0.696364, -0.122788, 0.122788, -0.696364),
-        18.147562, 20.955, (0.05, 5.0), None,
+        (0.06179, 0.05997, -0.07977), (0.696364, -0.122788, 0.122788, -0.696364),
+        WRIST_FOCAL_MM, 20.955, (0.05, 5.0), 4 / 3,
     ),
     "wrist_right": CameraMount(
         "link6", "cam_wrist_right",
-        (0.06179, -0.04397, -0.07077), (0.696364, -0.122788, 0.122788, -0.696364),
-        18.147562, 20.955, (0.05, 5.0), None,
+        (0.06179, -0.05097, -0.07977), (0.696364, -0.122788, 0.122788, -0.696364),
+        WRIST_FOCAL_MM, 20.955, (0.05, 5.0), 4 / 3,
     ),
 }
 CAMERA_NAMES = tuple(CAMERAS)

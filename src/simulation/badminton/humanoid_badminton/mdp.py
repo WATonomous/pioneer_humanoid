@@ -52,8 +52,20 @@ def _state(env: "ManagerBasedRlEnv") -> dict:
             "t_star": torch.zeros(n, device=dev),
             "hit": torch.zeros(n, dtype=torch.bool, device=dev),
             "first": torch.zeros(n, dtype=torch.bool, device=dev),
+            # active arm for the shot (0 right, 1 left) and whether it is
+            # locked (shared.SharedArmAction in training, ChooserPolicy at
+            # deployment)
+            "assign": torch.zeros(n, dtype=torch.long, device=dev),
+            "committed": torch.zeros(n, dtype=torch.bool, device=dev),
+            # logged only: tick time of the lock, and the reference rule's
+            # side (true flight's strike-plane crossing; PerceptionCommand
+            # writes rule_side each tick) at the lock
+            "commit_t": torch.zeros(n, device=dev),
+            "rule_side": torch.zeros(n, dtype=torch.long, device=dev),
+            "commit_rule": torch.zeros(n, dtype=torch.long, device=dev),
             "p0_xy": torch.zeros(n, 2, device=dev),
-            "tau_rated": t(aero.load_params()["arm"]["torque_rated"]),
+            # per actuated joint, right arm then left (same motors)
+            "tau_rated": t(aero.load_params()["arm"]["torque_rated"] * 2),
         }
         env._badminton = store
     return store
@@ -109,22 +121,24 @@ def _shuttle_state(env: "ManagerBasedRlEnv") -> tuple[torch.Tensor, torch.Tensor
 
 def _face_pose(env: "ManagerBasedRlEnv",
                asset_cfg: SceneEntityCfg) -> tuple[torch.Tensor, torch.Tensor]:
-    """Face center position and outward normal (site z-axis), world frame."""
+    """Face center positions and outward normals (site z-axes), world
+    frame, shape (num_envs, S, 3) for the S sites in asset_cfg (right
+    face first, then left)."""
     robot = env.scene[asset_cfg.name]
-    pos = robot.data.site_pos_w[:, asset_cfg.site_ids].squeeze(1)
+    pos = robot.data.site_pos_w[:, asset_cfg.site_ids]
     mat = robot.data.data.site_xmat[:, robot.data.indexing.site_ids]
-    mat = mat[:, asset_cfg.site_ids].squeeze(1).reshape(-1, 3, 3)
-    return pos, mat[:, :, 2]
+    mat = mat[:, asset_cfg.site_ids].reshape(env.num_envs, -1, 3, 3)
+    return pos, mat[..., 2]
+
+
+def nearest_face_dist(env: "ManagerBasedRlEnv", asset_cfg: SceneEntityCfg,
+                      target: torch.Tensor) -> torch.Tensor:
+    """(num_envs,) distance from target (num_envs, 3) to the closer face."""
+    pos, _ = _face_pose(env, asset_cfg)
+    return (pos - target.unsqueeze(1)).norm(dim=-1).min(dim=-1).values
 
 
 # -- observations ---------------------------------------------------------
-
-def student_perception(env: "ManagerBasedRlEnv",
-                       command_name: str) -> torch.Tensor:
-    term = env.command_manager.get_term(command_name)
-    assert isinstance(term, PerceptionCommand)
-    return term.student_features
-
 
 def student_uncertainty(env: "ManagerBasedRlEnv",
                         command_name: str) -> torch.Tensor:
@@ -133,25 +147,12 @@ def student_uncertainty(env: "ManagerBasedRlEnv",
     return term.student_uncertainty
 
 
-def teacher_perception(env: "ManagerBasedRlEnv",
-                       command_name: str) -> torch.Tensor:
-    term = env.command_manager.get_term(command_name)
-    assert isinstance(term, PerceptionCommand)
-    return term.teacher_features
-
-
 def intercept_target(env: "ManagerBasedRlEnv") -> torch.Tensor:
     """Privileged: p* and remaining time to t*. Shape (num_envs, 4)."""
     store = _state(env)
     t_now = env.episode_length_buf.float() * env.step_dt
     return torch.cat(
         [store["p_star"], (store["t_star"] - t_now).unsqueeze(-1)], dim=-1)
-
-
-def face_state(env: "ManagerBasedRlEnv",
-               asset_cfg: SceneEntityCfg) -> torch.Tensor:
-    pos, normal = _face_pose(env, asset_cfg)
-    return torch.cat([pos, normal], dim=-1)
 
 
 # -- rewards --------------------------------------------------------------
@@ -165,17 +166,6 @@ def face_contact(env: "ManagerBasedRlEnv", sensor_name: str) -> torch.Tensor:
     store["hit"] |= hit_now
     store["first"] = first          # this tick only; return_landing reads it
     return first.float()
-
-
-def approach_intercept(env: "ManagerBasedRlEnv", std: float,
-                       asset_cfg: SceneEntityCfg) -> torch.Tensor:
-    """Dense shaping before the intercept: pull the face toward p*."""
-    store = _state(env)
-    pos, _ = _face_pose(env, asset_cfg)
-    d2 = ((pos - store["p_star"]) ** 2).sum(dim=-1)
-    t_now = env.episode_length_buf.float() * env.step_dt
-    pending = (~store["hit"]) & (t_now < store["t_star"] + 0.1)
-    return torch.exp(-d2 / std**2) * pending.float()
 
 
 def return_flight(env: "ManagerBasedRlEnv", v_scale: float = 6.0) -> torch.Tensor:
@@ -263,6 +253,16 @@ def torque_over_rated(env: "ManagerBasedRlEnv",
     idx = robot.data.indexing.joint_v_adr
     tau = robot.data.data.qfrc_actuator[:, idx].abs()
     return (tau / store["tau_rated"] - 1.0).clamp_min(0.0).sum(dim=-1)
+
+
+def arm_clash(env: "ManagerBasedRlEnv",
+              sensor_names: tuple[str, ...]) -> torch.Tensor:
+    """(num_envs,) bool: the two arms (rackets, forearms) touched this tick.
+    Used as a penalty and as a termination."""
+    hit = torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)
+    for name in sensor_names:
+        hit |= _sensor_hit(env, name)
+    return hit
 
 
 # -- terminations ---------------------------------------------------------

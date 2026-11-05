@@ -22,22 +22,20 @@ import math
 import mujoco
 import numpy as np
 
-from humanoid_mujoco_scenes import add_floor, scene
+from humanoid_mujoco_scenes import TABLE_TOP_Z, add_workcell, scene
 
-T = TABLE_TOP_Z = 0.705
-TABLE_X = (0.15, 0.85)
-TABLE_HALF_Y = 0.6
+T = TABLE_TOP_Z
 
-CUP_POS = (0.30, 0.34)
+CUP_POS = (0.34, 0.34)
 CUP = dict(r=0.030, h=0.065, wall=0.003, n=14, mass=0.2)    # ceramic: heavy enough not to topple at a brush
-LADLE_POS = (0.235, 0.435)                      # ladle (already holding the matcha) stands in its holder
+LADLE_POS = (0.275, 0.435)                      # ladle (already holding the matcha) stands in its holder
 # Scooping a handful of 5 mm balls out of a jar isn't reliable with one arm in this space (tipped steeply
 # enough to scoop, the ladle's hand end hits its neighbours), so the ladle starts filled: carry it level, tip it.
-PITCHER_POS = (0.385, 0.43)
+PITCHER_POS = (0.425, 0.43)
 PITCHER = dict(r=0.030, h=0.06, wall=0.003, n=14, mass=0.05)
 PITCHER_HANDLE = 0.07                          # post above the rim (jaws, 44 mm half-length, clear the rim)
-WHISK_POS = (0.24, 0.265)
-TRAY = ((0.355, 0.455), (0.215, 0.29))         # x, y extent on the table
+WHISK_POS = (0.28, 0.265)
+TRAY = ((0.395, 0.495), (0.215, 0.29))         # x, y extent on the table
 RANDOM_SHIFT = 0.012                           # cup and pitcher placed within +-this per episode
 
 # 40 balls of 5 mm: physics ~0.3 s per simulated second (84 balls of 4 mm took 3 s: they touch each other).
@@ -86,16 +84,13 @@ def progress(model: mujoco.MjModel, data: mujoco.MjData) -> tuple[int, int, str]
 
 
 # ----------------------------------------------------------------------------- scene
-@scene("matcha", camera=dict(lookat=[0.31, 0.35, 0.76], distance=0.7, azimuth=200, elevation=-40),
+@scene("matcha", camera=dict(lookat=[0.35, 0.35, T + 0.055], distance=0.6, azimuth=200, elevation=-40),
        step=step, reset=reset, progress=progress)
 def build(spec: mujoco.MjSpec) -> None:
-    add_floor(spec)
+    add_workcell(spec)
     spec.nuserdata = 5
     world = spec.worldbody
     box = mujoco.mjtGeom.mjGEOM_BOX
-    x0, x1 = TABLE_X
-    world.add_geom(name="table", type=box, size=[(x1 - x0) / 2, TABLE_HALF_Y, T / 2], pos=[(x0 + x1) / 2, 0, T / 2],
-                   rgba=[0.55, 0.42, 0.3, 1])
     (tx0, tx1), (ty0, ty1) = TRAY
     world.add_geom(name="tray", type=box, size=[(tx1 - tx0) / 2, (ty1 - ty0) / 2, 0.003],
                    pos=[(tx0 + tx1) / 2, (ty0 + ty1) / 2, T + 0.003], rgba=[0.15, 0.15, 0.17, 1])

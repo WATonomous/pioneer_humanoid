@@ -5,9 +5,11 @@ workspace with time to react: sample the intercept (p*, t*, v*) first, then
 back-integrate the drag ODE to get the launch state (p0, v0), then filter for
 plausibility (far-court band, inbound net clearance).
 
-W is a function of arm + mount only; it is computed once (sample joint configs,
-reject self-collisions, FK to the face center, require the face normal within
-±40° of net-facing) and cached in scene/workspace_W.npz.
+W is a function of arms + mount only; it is computed once (sample joint configs
+of each arm, reject self-collisions, FK to that arm's face center, require the
+face normal within face_normal_max_deg of net-facing) and cached in
+scene/workspace_W.npz. W is the union of the right- and left-arm clouds, so
+a sampled p* is reachable by at least one racket.
 """
 
 from __future__ import annotations
@@ -60,15 +62,32 @@ def collision_model(scene_path: str | None = None) -> mujoco.MjModel:
     return spec.compile()
 
 
+def _geom_sides(m: mujoco.MjModel) -> np.ndarray:
+    """Per geom: 0 if it rides on the right arm (incl. its racket), 1 on the
+    left arm, -1 otherwise (stand, world)."""
+    roots = {m.body("arm_link1").id: 0, m.body("arm_link1L").id: 1}
+    side = np.full(m.ngeom, -1, dtype=int)
+    for g in range(m.ngeom):
+        b = m.geom_bodyid[g]
+        while b > 0 and b not in roots:
+            b = m.body_parentid[b]
+        side[g] = roots.get(b, -1)
+    return side
+
+
 def build_workspace(n_samples: int | None = None, seed: int = 0,
                     save_path: str = W_PATH, verbose: bool = True) -> dict:
     """Sample joint configs, reject self-collisions, FK the face center.
 
-    Keeps configs whose face normal is within face_normal_max_deg of the
-    net-facing direction (+y, either face side counts) AND that look like a
-    receive posture: racket face in front of the chest plane, elbow not
-    behind the back. Saves the point cloud, its configs, and a conservative
-    shrunk box to save_path.
+    Each arm is sampled for n_samples configs while the other arm stays at
+    its zero pose; contacts involving the idle arm are ignored (it overlaps
+    the stand's convex hull in every hanging pose, and the policy can move
+    it out of the way; arm-arm clashes are contact pairs at runtime). Keeps configs whose face normal is within
+    face_normal_max_deg of the net-facing direction (+y, either face side
+    counts) AND that look like a receive posture: racket face in front of
+    the chest plane, elbow not behind the back. Saves the point cloud, its
+    configs, the arm that reached each point (side: 0 right, 1 left), and a
+    conservative shrunk box to save_path.
     """
     p = aero.load_params()
     wp = p["workspace"]
@@ -81,46 +100,57 @@ def build_workspace(n_samples: int | None = None, seed: int = 0,
     # a throwaway Sim wrapper for the ids (same layout as the runtime scene)
     sim = mjsim.Sim(model=m, data=d, params=p)
 
-    lo = m.jnt_range[sim.arm_jids, 0]
-    hi = m.jnt_range[sim.arm_jids, 1]
     cos_max = np.cos(np.radians(wp["face_normal_max_deg"]))
     depth = wp["self_collision_depth"]
-    elbow_bid = m.body("arm_link4").id
     # natural-receive posture: racket in front of the chest plane, elbow not
     # behind the back (the net is at +y; the base sits at base_y)
     front_y = p["arm"]["base_y"] + wp["face_front_margin"]
     elbow_y_min = p["arm"]["base_y"] - wp["elbow_back_margin"]
 
-    points, configs, normals = [], [], []
+    points, configs, normals, sides = [], [], [], []
     n_selfcol = n_orient = n_posture = 0
-    for i in range(n):
-        q = rng.uniform(lo, hi)
-        d.qpos[sim.arm_qadr] = q
-        mujoco.mj_kinematics(m, d)
-        face = d.site_xpos[sim.face_sid]
-        if face[2] < wp["min_face_z"]:
-            continue
-        if face[1] < front_y or d.xpos[elbow_bid][1] < elbow_y_min:
-            n_posture += 1
-            continue
-        normal = d.site_xmat[sim.face_sid].reshape(3, 3)[:, 2]
-        if abs(normal[1]) < cos_max:      # either face side may face the net
-            n_orient += 1
-            continue
-        mujoco.mj_collision(m, d)
-        col = any(d.contact[c].dist < -depth for c in range(d.ncon))
-        if col:
-            n_selfcol += 1
-            continue
-        points.append(face.copy())
-        configs.append(q.copy())
-        normals.append(normal.copy())
-        if verbose and (i + 1) % 20000 == 0:
-            print(f"  {i+1}/{n} sampled, {len(points)} kept")
+    arms = [(sim.arm_jids, sim.arm_qadr, sim.face_sid, "arm_link4"),
+            (sim.arm_l_jids, sim.arm_l_qadr, sim.face_l_sid, "arm_link4l")]
+    geom_side = _geom_sides(m)
+    for side, (jids, qadr, face_sid, elbow) in enumerate(arms):
+        idle = 1 - side
+        lo = m.jnt_range[jids, 0]
+        hi = m.jnt_range[jids, 1]
+        elbow_bid = m.body(elbow).id
+        d.qpos[:] = m.qpos0      # idle arm at zero, shuttle parked
+        for i in range(n):
+            q = rng.uniform(lo, hi)
+            d.qpos[qadr] = q
+            mujoco.mj_kinematics(m, d)
+            face = d.site_xpos[face_sid]
+            if face[2] < wp["min_face_z"]:
+                continue
+            if face[1] < front_y or d.xpos[elbow_bid][1] < elbow_y_min:
+                n_posture += 1
+                continue
+            normal = d.site_xmat[face_sid].reshape(3, 3)[:, 2]
+            if abs(normal[1]) < cos_max:      # either face side may face the net
+                n_orient += 1
+                continue
+            mujoco.mj_collision(m, d)
+            col = any(d.contact[c].dist < -depth
+                      and geom_side[d.contact[c].geom1] != idle
+                      and geom_side[d.contact[c].geom2] != idle
+                      for c in range(d.ncon))
+            if col:
+                n_selfcol += 1
+                continue
+            points.append(face.copy())
+            configs.append(q.copy())
+            normals.append(normal.copy())
+            sides.append(side)
+            if verbose and (i + 1) % 20000 == 0:
+                print(f"  side {side}: {i+1}/{n} sampled, {len(points)} kept")
 
     points = np.array(points)
     configs = np.array(configs)
     normals = np.array(normals)
+    sides = np.array(sides, dtype=np.int8)
     margin = wp["margin"]
     box_lo = np.quantile(points, 0.02, axis=0) + margin
     box_hi = np.quantile(points, 0.98, axis=0) - margin
@@ -128,12 +158,14 @@ def build_workspace(n_samples: int | None = None, seed: int = 0,
         "points": points,
         "configs": configs,
         "normals": normals,
+        "sides": sides,
         "box_lo": box_lo,
         "box_hi": box_hi,
     }
     np.savez_compressed(save_path, **out)
     if verbose:
-        print(f"W: kept {len(points)}/{n} "
+        print(f"W: kept {len(points)}/{2 * n} "
+              f"(right {int((sides == 0).sum())}, left {int((sides == 1).sum())}) "
               f"(self-collision {n_selfcol}, orientation {n_orient}, "
               f"posture {n_posture})")
         print(f"   box {np.round(box_lo, 2)} .. {np.round(box_hi, 2)}")
@@ -149,15 +181,19 @@ class Workspace:
         self.points = data["points"]
         self.configs = data["configs"]
         self.normals = data["normals"]
+        self.sides = data["sides"]
         self.box_lo = data["box_lo"]
         self.box_hi = data["box_hi"]
         self.tree = cKDTree(self.points)
+        self._side_trees: dict = {}
         params = aero.load_params()
         self.radius = params["workspace"]["kdtree_radius"]
 
-    def nearest_configs(self, point, k: int = 5, normal=None) -> np.ndarray:
+    def nearest_configs(self, point, k: int = 5, normal=None,
+                        side: int = 0) -> np.ndarray:
         """The stored joint configs of the k cloud points nearest to point,
-        nearest first. Every one is collision-free and net-facing by
+        nearest first, among the points reached by arm `side` (0 right, the
+        arm the scripted baseline drives; 1 left). Every one is collision-free and net-facing by
         construction: use them as IK seeds/attractors to stay on a natural
         branch.
 
@@ -166,17 +202,24 @@ class Workspace:
         first, then distance — an IK descent can close a small position gap
         but rarely escapes a wrong-orientation branch."""
         point = np.asarray(point, dtype=float)
+        tree, keep = self._side_tree(side)
         if normal is None:
-            _, idx = self.tree.query(point, k=k)
-            return self.configs[np.atleast_1d(idx)]
+            _, idx = tree.query(point, k=k)
+            return self.configs[keep[np.atleast_1d(idx)]]
         n_des = np.asarray(normal, dtype=float)
         n_des = n_des / np.linalg.norm(n_des)
-        dist, idx = self.tree.query(point, k=min(8 * k, len(self.points)))
-        idx = np.atleast_1d(idx)
+        dist, idx = tree.query(point, k=min(8 * k, len(keep)))
+        idx = keep[np.atleast_1d(idx)]
         dist = np.atleast_1d(dist)
         align = np.abs(self.normals[idx] @ n_des)
         order = np.lexsort((dist, -np.round(align, 1)))
         return self.configs[idx[order[:k]]]
+
+    def _side_tree(self, side: int) -> tuple[cKDTree, np.ndarray]:
+        if side not in self._side_trees:
+            keep = np.nonzero(self.sides == side)[0]
+            self._side_trees[side] = (cKDTree(self.points[keep]), keep)
+        return self._side_trees[side]
 
     def contains(self, p) -> bool:
         p = np.asarray(p, dtype=float)
@@ -227,9 +270,9 @@ def _sweet_weights(w: Workspace, lp: dict, params: dict) -> np.ndarray:
     the workspace is reachable only in contorted poses (the racket unfolds
     late and whiffs; found by watching worst episodes)."""
     sweet = np.array(lp["sweet_point"])
-    sigma = lp["sweet_sigma"]
-    d2 = ((w.points - sweet) ** 2).sum(axis=1)
-    weights = np.exp(-0.5 * d2 / sigma**2)
+    sigma = np.broadcast_to(np.asarray(lp["sweet_sigma"], dtype=float), (3,))
+    d2 = (((w.points - sweet) / sigma) ** 2).sum(axis=1)
+    weights = np.exp(-0.5 * d2)
     inside = np.all((w.points >= w.box_lo) & (w.points <= w.box_hi), axis=1)
     u_out, _, _ = aero.solve_u_out(sweet, params["control"]["landing_target"],
                                    params)

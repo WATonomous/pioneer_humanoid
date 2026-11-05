@@ -11,18 +11,28 @@ Plain Python: no simulator imports. The leader is an input device with torque al
 from __future__ import annotations
 
 import argparse
+import json
 import math
+import os
 import time
+from dataclasses import dataclass
 from pathlib import Path
 
 from arm_limits import gripper_fraction, limited_target
-from servo_leader import ARM_SERVOS, GRIPPER_SERVO, SERVO_IDS, ServoLeader, load_calibration, parse_signs
+from servo_leader import ARM_SERVOS, GRIPPER_SERVO, SERVO_IDS, ServoLeader, calibration_zeros, parse_signs
 
-# Per-servo direction, A..F then G. Flip one with --signs if a joint moves the wrong way.
-DEFAULT_SIGNS = "1,-1,-1,1,1,-1,1"
-DEFAULT_CALIBRATION = Path(__file__).resolve().parent / "leader_calibration.json"
+# Per-servo direction of each board, A..F then G, found by moving one joint at a time: what calibrate_leader.py writes
+# without --signs.
+SIDE_SIGNS = {"left": "1,1,-1,-1,1,-1,1", "right": "1,1,-1,1,1,1,1"}
+DEFAULT_SIGNS = SIDE_SIGNS["left"]
+# The leader unit's two boards (one per arm): port, USB serial, signs and zeros, written by
+# calibrate_leader.py and committed: the numbers belong to the unit, which is found by USB serial.
+DEFAULT_LEADER_ARM = Path(__file__).resolve().parent / "leader_arm.json"
+# Before leader_arm.json: the left board's zeros alone (calibrate_leader.py --from converts it).
+OLD_CALIBRATION = Path(__file__).resolve().parent / "leader_calibration.json"
+SIDES = ("left", "right")
 # Follow the leader only once every arm joint is this close to home ...
-ENGAGE_TOL_DEG = 3.0
+ENGAGE_TOL_DEG = 15.0  # wide enough to reach by eye; the filter then ramps the arm onto the leader in ~0.1 s
 # ... and the gripper this close to open (closure fraction, 0 = open).
 ENGAGE_GRIP_TOL = 0.1
 # Stock wrist damping (18) caps joint6l near 2 deg/s at the GL40's 0.73 Nm, so the sim wrist
@@ -40,15 +50,13 @@ def add_leader_args(parser: argparse.ArgumentParser, *, scene_help: str) -> None
         help="what the leader drives (real: dry run, read-only)",
     )
     parser.add_argument("--scene", type=str, default="bare", help=scene_help)
-    parser.add_argument("--port", default="/dev/ttyACM0", help="leader serial port")
     parser.add_argument("--baud", type=int, default=1_000_000, help="leader serial baud rate")
     parser.add_argument(
-        "--calibration",
+        "--leader-arm",
         type=Path,
-        default=DEFAULT_CALIBRATION,
-        help="leader zero file from calibrate_leader.py (default: leader_calibration.json here)",
+        default=DEFAULT_LEADER_ARM,
+        help="leader boards file from calibrate_leader.py (default: leader_arm.json here)",
     )
-    parser.add_argument("--signs", default=DEFAULT_SIGNS, help=f"direction per servo A..G (default: {DEFAULT_SIGNS})")
     parser.add_argument(
         "--filter-alpha",
         type=float,
@@ -57,25 +65,115 @@ def add_leader_args(parser: argparse.ArgumentParser, *, scene_help: str) -> None
     )
 
 
-def check_leader_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
+def check_leader_args(parser: argparse.ArgumentParser, args: argparse.Namespace, sides: list[str]) -> dict[str, LeaderBoard]:
+    """Validate the leader flags and load the boards that drive `sides`."""
     if not 0.0 < args.filter_alpha <= 1.0:
         parser.error("--filter-alpha must be in (0, 1]")
     try:
-        parse_signs(args.signs)
+        return load_leader_boards(args.leader_arm, sides)
     except ValueError as exc:
-        parser.error(f"--signs: {exc}")
-    if not args.calibration.is_file():
-        parser.error(f"no leader calibration at {args.calibration}; run calibrate_leader.py first")
+        parser.error(str(exc))
+
+
+@dataclass(frozen=True)
+class LeaderBoard:
+    """One board of the leader unit, as calibrated: where it is and how its servos map."""
+
+    side: str
+    port: str  # where the board is on this machine: found from its usb_serial at load
+    usb_serial: str
+    signs: tuple[float, ...]
+    zeros: dict[int, int]  # raw zero count per servo ID
+    lock_wrist: bool = False  # MuJoCo teleop: freeze this arm's wrist (F) at home instead of following the leader
+
+
+def usb_serial(port: str) -> str | None:
+    """USB serial number of the board on `port` (None: its chip reports none)."""
+    from serial.tools import list_ports
+
+    for info in list_ports.comports():
+        if os.path.realpath(info.device) == os.path.realpath(port):
+            return info.serial_number
+    raise ValueError(f"no serial device at {port}; is the leader plugged in? ports: "
+                     f"{[info.device for info in list_ports.comports()]}")
+
+
+def port_of(serial_number: str) -> str:
+    """The one port whose board reports `serial_number`."""
+    from serial.tools import list_ports
+
+    ports = [info.device for info in list_ports.comports() if info.serial_number == serial_number]
+    if len(ports) != 1:
+        raise ValueError(f"expected one board with USB serial {serial_number}, found {ports or 'none'}: "
+                         "is the leader plugged in?")
+    return ports[0]
+
+
+def connected_port() -> str:
+    """The port of the one USB serial board plugged in, for calibrate_leader.py without --port."""
+    from serial.tools import list_ports
+
+    ports = [info.device for info in list_ports.comports() if info.vid is not None]  # USB only: skips Bluetooth, debug consoles
+    if len(ports) != 1:
+        raise ValueError(f"expected one USB serial board plugged in, found {ports or 'none'}: pass --port")
+    return ports[0]
+
+
+def calibrate_hint(side: str) -> str:
+    return f"python calibrate_leader.py --side {side}"
+
+
+def load_leader_boards(path: Path, sides: list[str]) -> dict[str, LeaderBoard]:
+    """The boards driving `sides` from leader_arm.json, each found on its port by its USB serial.
+
+    Two boards must have different USB serials, so a swapped plug order can't swap the arms.
+    """
+    if not path.is_file():
+        if path == DEFAULT_LEADER_ARM and OLD_CALIBRATION.is_file():
+            raise ValueError(f"no {path.name}: convert {OLD_CALIBRATION.name} (no re-hanging needed) with\n"
+                             f"  {calibrate_hint('left')} --from {OLD_CALIBRATION.name}")
+        raise ValueError(f"no {path}: calibrate the leader first with\n  {calibrate_hint(sides[0])}")
+    data = json.loads(path.read_text())
+    boards = {}
+    for side in sides:
+        entry = data.get(side) or {}
+        if not entry.get("enabled"):
+            raise ValueError(f"the {side} leader board is not enabled in {path}; calibrate it with\n"
+                             f"  {calibrate_hint(side)}")
+        lock_wrist = entry.get("lock_wrist", False)
+        if not isinstance(lock_wrist, bool):
+            raise ValueError(f"the {side} board in {path}: lock_wrist must be true or false, got {lock_wrist!r}")
+        if entry.get("usb_serial") is None:
+            raise ValueError(f"the {side} board in {path} has no USB serial, so it can't be found; recalibrate it with\n"
+                             f"  {calibrate_hint(side)}")
+        boards[side] = LeaderBoard(
+            side=side,
+            port=port_of(entry["usb_serial"]),
+            usb_serial=entry["usb_serial"],
+            signs=parse_signs(entry["signs"]),
+            zeros=calibration_zeros(entry["servos"], f"{path} {side}"),
+            lock_wrist=lock_wrist,
+        )
+    serials = [board.usb_serial for board in boards.values()]
+    if len(set(serials)) < len(serials):
+        raise ValueError(f"the leader boards in {path} are the same board (USB serial {serials[0]})")
+    return boards
 
 
 class LeaderMapping:
     """Filtered, URDF-clamped arm targets (rad) and gripper closure (0 open .. 1 closed)."""
 
-    def __init__(self, args: argparse.Namespace, home_rad: list[float], limits_rad: list[tuple[float, float]]):
+    def __init__(self, signs: tuple[float, ...], filter_alpha: float, home_rad: list[float],
+                 limits_rad: list[tuple[float, float]], locked: tuple[str, ...] = ()):
         if len(home_rad) != len(ARM_SERVOS):
             raise ValueError(f"leader drives {len(ARM_SERVOS)} joints but the arm has {len(home_rad)}")
-        self.signs = parse_signs(args.signs)
-        self.alpha = args.filter_alpha
+        unknown = set(locked) - set(ARM_SERVOS)
+        if unknown:
+            raise ValueError(f"can't lock {sorted(unknown)}: arm servos are {list(ARM_SERVOS)}")
+        self.signs = tuple(signs)
+        # Locked joints hold home and ignore the leader (so they never block engaging either).
+        self.locked = tuple(locked)
+        self.alpha = filter_alpha
         self.home = list(home_rad)
         self.limits_deg = [(math.degrees(lo), math.degrees(hi)) for lo, hi in limits_rad]
         self.gripper_axis = tuple(SERVO_IDS).index(GRIPPER_SERVO)
@@ -86,23 +184,25 @@ class LeaderMapping:
         self.engaged = False
         self.target = list(self.home)
         self.grip = 0.0
-        self.off_home: list[tuple[str, float]] = []
+        self.home_errors: list[tuple[str, float]] = []
 
     def update(self, angles: tuple[float, ...]) -> tuple[list[float], float]:
         desired = [
-            limited_target(angles[i], self.signs[i], 1.0, self.limits_deg[i])
-            for i in range(len(ARM_SERVOS))
+            self.home[i] if label in self.locked
+            else limited_target(angles[i], self.signs[i], 1.0, self.limits_deg[i])
+            for i, label in enumerate(ARM_SERVOS)
         ]
         grip = gripper_fraction(angles[self.gripper_axis], self.signs[self.gripper_axis])
         if not self.engaged:
-            self.off_home = [
+            self.home_errors = [
                 (label, math.degrees(d - h))
                 for label, d, h in zip(ARM_SERVOS, desired, self.home)
-                if abs(math.degrees(d - h)) > ENGAGE_TOL_DEG
             ]
-            if grip > ENGAGE_GRIP_TOL:
-                self.off_home.append((GRIPPER_SERVO, grip))
-            if self.off_home:
+            self.home_errors.append((GRIPPER_SERVO, grip))
+            if any(
+                abs(err) > (ENGAGE_GRIP_TOL if label == GRIPPER_SERVO else ENGAGE_TOL_DEG)
+                for label, err in self.home_errors
+            ):
                 return self.target, self.grip
             self.engaged = True
         self.target = [t + self.alpha * (d - t) for t, d in zip(self.target, desired)]
@@ -113,7 +213,7 @@ class LeaderMapping:
         return (
             "[LEADER] Mapping (1:1 from hanging zero): "
             + " | ".join(
-                f"{label}(ID{SERVO_IDS[label]}) {sign:+.0f} -> {joint}"
+                f"{label}(ID{SERVO_IDS[label]}) " + ("locked" if label in self.locked else f"{sign:+.0f}") + f" -> {joint}"
                 for label, joint, sign in zip(ARM_SERVOS, joints, self.signs)
             )
             + f" | {GRIPPER_SERVO}(ID{SERVO_IDS[GRIPPER_SERVO]}) {self.signs[self.gripper_axis]:+.0f} -> gripper"
@@ -123,8 +223,9 @@ class LeaderMapping:
 class LeaderInput:
     """Calibrated ServoLeader that holds the last reading on a dropped serial frame instead of stopping the sim."""
 
-    def __init__(self, args: argparse.Namespace):
-        self.leader = ServoLeader(args.port, args.baud, zeros=load_calibration(args.calibration))
+    def __init__(self, board: LeaderBoard, baud: int, label: str = ""):
+        self.leader = ServoLeader(board.port, baud, zeros=board.zeros)
+        self.label = f" {label}" if label else ""  # which leader, when there are two
         self.angles = (0.0,) * len(SERVO_IDS)
         self._last_warning = 0.0
         self._last_report = time.monotonic()
@@ -135,11 +236,12 @@ class LeaderInput:
         except RuntimeError as exc:
             now = time.monotonic()
             if now - self._last_warning >= 1.0:
-                print(f"[WARN] {exc}; holding last leader target", flush=True)
+                print(f"[WARN]{self.label} {exc}; holding last leader target", flush=True)
                 self._last_warning = now
         return self.angles
 
-    def report(self, mapping: LeaderMapping) -> None:
+    def report(self, mapping: LeaderMapping, end: str = "") -> None:
+        """Status every 0.5 s: rewrites one terminal line, or (end="\n") prints a line per report."""
         now = time.monotonic()
         if now - self._last_report < 0.5:
             return
@@ -150,21 +252,29 @@ class LeaderInput:
                 + f" grip={mapping.grip:.2f}"
             )
         else:
-            line = "move leader to home (elbow 90, gripper open): " + " ".join(
-                f"{label} {err:+.0f}deg" if label != GRIPPER_SERVO else f"{label} {err:.2f}"
-                for label, err in mapping.off_home
+            line = f"move leader within {ENGAGE_TOL_DEG:g} deg of home (elbow 90, gripper open): " + " ".join(
+                f"{label} {err:+6.1f}deg" if label != GRIPPER_SERVO else f"{label} {err:4.2f}"
+                for label, err in mapping.home_errors
             )
-        print(f"\r[LEADER] {line:<100}", end="", flush=True)
+        if end:
+            print(f"[LEADER{self.label}] {line}", end=end, flush=True)
+        else:
+            print(f"\r[LEADER{self.label}] {line:<100}", end="", flush=True)
 
     def close(self) -> None:
         self.leader.close()
 
 
 class WallClock:
-    """Keep sim time at or behind wall time, so motion (and recordings) have real-world timing."""
+    """Keep sim time at or behind wall time, so motion (and recordings) have real-world timing.
 
-    def __init__(self, dt: float):
+    catch_up (s): after a slow step, run the next steps without sleeping until sim time is back on wall
+    time, as long as it is at most this far behind (0: never, drop the lost time).
+    """
+
+    def __init__(self, dt: float, catch_up: float = 0.0):
         self.dt = dt
+        self.catch_up = catch_up
         self._next = time.monotonic()
 
     def wait(self) -> None:
@@ -172,5 +282,5 @@ class WallClock:
         delay = self._next - time.monotonic()
         if delay > 0:
             time.sleep(delay)
-        else:
+        elif delay < -self.catch_up:
             self._next = time.monotonic()

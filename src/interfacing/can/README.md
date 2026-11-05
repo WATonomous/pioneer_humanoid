@@ -3,7 +3,73 @@
 ROS 2 bridge: `/interfacing/motorCMD` ↔ CAN ↔ `/interfacing/motorFeedback`.
 [Electrical docs](https://watonomous.github.io/humanoid-docs/electrical/index.html) · [Interfacing docs](https://watonomous.github.io/humanoid-docs/interfacing/index.html)
 
-Bring-up (connect, verify, calibrate) is in [../README.md](../README.md).
+Bring-up (connect, verify, calibrate) is in [../ARM_BRINGUP.md](../ARM_BRINGUP.md).
+
+## Cubemars Can ID configuration
+0. Download required software. If you are using an AK motor, download AK Series V3.23 Upper computer (found here: https://www.cubemars.com/product/ak80-9-v3-0-robotic-actuator.html). If you are using GL40 motor, download the GL II Upper Computer V1.0 (found here: https://www.cubemars.com/product/gl40-II-kv82-5-gimbal-motor.html)
+
+    Detatch the motor from the humanoid body. 
+    >Tip: Be careful not to disassemble too much. You just need the motor USART socket to be in reach of your computer. Call a mechanical team member to help disassemble.
+
+    Find the 3-wire USART to the R-LinkV3.0. Plug the end with the white connector into the Cubemars motor. For the other end:
+    - If AK motor: Connect 3 Dupont jumper wires from USART header to R-Link headers. 
+      - AK GND -> R-Link GND
+      - AK TX -> R-Link RX
+      - AK RX -> R-Link TX
+
+    - If GL II Motor:
+      - GL GND -> R-Link GND
+      - GL TX -> R-Link TX
+      - GL RX -> R-Link RX
+
+    Find an XT-30(2+2) header that has a XT60 connector attached. Connect to CubeMars motor. Connect appropriate voltage supply to XT60
+    - 51.2V supply for AK motors
+    - 16V bench supply for GL's
+
+  1. Open Cubemars Upper computer software. If you cannot read Chinese, You will need to toggle language to English. 
+  > The UI is buggy, and will crop out UI config buttons. Using an external monitor is highly recommended. 
+
+  2. Find COM Port that R-Link is connected to. Set baud rate to 921600. Connect. Motor should start streaming real-time data.
+  3. On the "Basic Configuration" Panel on the left, find the Can ID. You will need to find the section below "Application configuration" section, but above the "Realtime Status" panel. Set Can ID to desired ID, then click write button. Then at the right most panel, verify that changes were saved by disconnect the serial port, reconnecting, and waiting a few seconds. Can ID should be the value you set.
+  4. Test the motor encoder calibration. On the top-right "Control" panel, switch to MIT control. Click the set origin button to set current motor position to 0. Then set position and kp value to a small amount (ex. p=1rad, kp=1). Keep your hand on the E-stop. Test failing conditions (if motor does not fail these, then motor calibration is ok):
+  - Motor does not move at all
+  - Motor spins out of control
+  > It is okay if the motor doesn't move to the specified position. This is due to friction, and it can easily be overcome through setting higher k_p values in the interfacing backend.
+  5. If motor calibration tests failed: Disassemble the motor so that it is completely outside of its enclosure. Then run "Motor Idenficiation" and "Encoder Identification" in the left "Basic configuration" Panel. These calibrate the motor encoder (important for FoC drive — commutation sequence that makes motor spin as expected). Click "Write" after both calibration sequences. 
+
+
+## Cubemars Can ID configuration
+0. Download required software. If you are using an AK motor, download AK Series V3.23 Upper computer (found here: https://www.cubemars.com/product/ak80-9-v3-0-robotic-actuator.html). If you are using GL40 motor, download the GL II Upper Computer V1.0 (found here: https://www.cubemars.com/product/gl40-II-kv82-5-gimbal-motor.html)
+
+    Detatch the motor from the humanoid body. 
+    >Tip: Be careful not to disassemble too much. You just need the motor USART socket to be in reach of your computer. Call a mechanical team member to help disassemble.
+
+    Find the 3-wire USART to the R-LinkV3.0. Plug the end with the white connector into the Cubemars motor. For the other end:
+    - If AK motor: Connect 3 Dupont jumper wires from USART header to R-Link headers. 
+      - AK GND -> R-Link GND
+      - AK TX -> R-Link RX
+      - AK RX -> R-Link TX
+
+    - If GL II Motor:
+      - GL GND -> R-Link GND
+      - GL TX -> R-Link TX
+      - GL RX -> R-Link RX
+
+    Find an XT-30(2+2) header that has a XT60 connector attached. Connect to CubeMars motor. Connect appropriate voltage supply to XT60
+    - 51.2V supply for AK motors
+    - 16V bench supply for GL's
+
+  1. Open Cubemars Upper computer software. If you cannot read Chinese, You will need to toggle language to English. 
+  > The UI is buggy, and will crop out UI config buttons. Using an external monitor is highly recommended. 
+
+  2. Find COM Port that R-Link is connected to. Set baud rate to 921600. Connect. Motor should start streaming real-time data.
+  3. On the "Basic Configuration" Panel on the left, find the Can ID. You will need to find the section below "Application configuration" section, but above the "Realtime Status" panel. Set Can ID to desired ID, then click write button. Then at the right most panel, verify that changes were saved by disconnect the serial port, reconnecting, and waiting a few seconds. Can ID should be the value you set.
+  4. Test the motor encoder calibration. On the top-right "Control" panel, switch to MIT control. Click the set origin button to set current motor position to 0. Then set position and kp value to a small amount (ex. p=1rad, kp=1). Keep your hand on the E-stop. Test failing conditions (if motor does not fail these, then motor calibration is ok):
+  - Motor does not move at all
+  - Motor spins out of control
+  > It is okay if the motor doesn't move to the specified position. This is due to friction, and it can easily be overcome through setting higher k_p values in the interfacing backend.
+  5. If motor calibration tests failed: Disassemble the motor so that it is completely outside of its enclosure. Then run "Motor Idenficiation" and "Encoder Identification" in the left "Basic configuration" Panel. These calibrate the motor encoder (important for FoC drive — commutation sequence that makes motor spin as expected). Click "Write" after both calibration sequences. 
+
 
 ## Two encodings: servo mode vs MIT
 
@@ -38,9 +104,23 @@ ros2 run can can_node --ros-args --params-file $(ros2 pkg prefix can)/share/can/
   `torque = current × kt`.
 
 Per-joint gains live in `joint_command/config/arm_actuators.yaml`; `joint_command` refuses to
-start if `quantised kp × mit_max_track_err (+ feed-forward) > mit_max_torque`. Gains are snapped
+start if `quantised kp × mit_max_track_err (+ feed-forward) > mit_peak_torque` (`mit_max_torque`
+when no peak is set). Gains are snapped
 to the nearest 12-bit code. The gripper is driven from `ArmPose.gripper_position`
 ([joint_command/README.md](../joint_command/README.md#gripper)).
+
+## Both arms on one bus
+
+Both arms' harnesses join at the one adapter, so they are one bus (`can0`) and one `can_node`.
+That only works with:
+- **Wiring:** one line, left end → adapter → right end, a 120 Ω terminator at each far end and the
+  adapter's own off. Unpowered, CAN_H to CAN_L reads ≈ 60 Ω (≈ 40 Ω: three terminators; ≈ 120 Ω:
+  one end unterminated).
+- **Ids:** every motor's id unique and ≤ 127 (`motor_id` is `int8`). The GL40s all reply on master
+  id 0 with only their id's last hex digit, so every GL40 needs a different last hex digit, and no
+  AK may end in the same hex digit as a GL40 (`can_node` drops that AK's profile). Set the GL40
+  master id to 0 and keep the drives' MIT ranges as in `mit_profiles.yaml`.
+- Every motor listed in `config/mit_profiles.yaml`.
 
 **AK bring-up, per joint** (arm supported, hardware E-stop in reach):
 1. `candump can0`: extended frames on `0000080<id>`, KP first, no `FF..FC` to the AK.
@@ -50,6 +130,15 @@ to the nearest 12-bit code. The gripper is driven from `ArmPose.gripper_position
    no CAN timeout).
 5. Hold 30 s, then ±5°: `tools/arm_roundtrip.sh --joints shoulder.pitch --offset "5,0,0,0,0,0"`.
 
+## Live joint angles (`arm_angles.py`)
+
+Read-only readout of every joint in the command frame (degrees, from `arm_calibration.yaml`), like
+the leader's `encoder_test.py`. It publishes nothing, so it is safe next to anything else:
+
+```bash
+python3 /opt/humanoid_scripts/arm_angles.py [--ids 14,11] [--raw]   # in the joint_command container
+```
+
 ## Angle benchmarks (`arm_roundtrip.py`)
 
 `tools/arm_roundtrip.sh` runs `scripts/arm_roundtrip.py` in the `joint_command` container. It
@@ -58,10 +147,15 @@ publishes `ArmPose` like teleop, so the clamp, `velocity_max` and MIT watchdog a
 ```bash
 tools/arm_roundtrip.sh --joints elbow.roll --offset "0,0,0,0,5,0"    # one joint, +5 deg
 tools/arm_roundtrip.sh --offset "3,1.5,5,5,5,10" --dwell 5            # all six at once
+tools/arm_roundtrip.sh --arm-side both --joints left.elbow.roll,right.elbow.roll \
+  --offset "0,0,0,0,5,0,0,0,0,0,5,0"                                  # both arms, one run
 ```
 
 It holds at the origin, ramps out (cosine, ≤ `--vel` and `velocity_max`), dwells, returns and
-rests. It refuses to start if something else publishes `/arm/joint_targets`, a moving joint is
+rests. `--arm-side` (default `left`) picks the arm and its topic, `/arm/<side>/joint_targets`.
+`--arm-side both` drives both arms together: joints are prefixed `left.`/`right.` and
+`--offset`/`--pose` take twelve values, the left arm's six then the right's.
+It refuses to start if something else publishes that topic, a moving joint is
 silent or near a limit, a move exceeds `--max-delta`, or `joint_command`'s installed configs
 differ from the repo's (rebuild after every calibration or limits edit). Ctrl-C ramps back, a
 second Ctrl-C stops streaming, and lost feedback freezes in place. `--exercise-limits` sends an

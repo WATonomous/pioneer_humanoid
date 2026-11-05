@@ -1,103 +1,43 @@
+"""Isaac Lab configs of the Pioneer whole-body humanoid (assets/pioneer_whole_body_humanoid), for learning to walk."""
 import os
 
-import isaaclab.sim as sim_utils
 from isaaclab.actuators import ImplicitActuatorCfg
-from isaaclab.assets.articulation import ArticulationCfg
 
-_ASSET_DIR = os.path.join(
-    os.path.dirname(__file__), "..", "..", "..", "assets", "whole_body_humanoid"
+from .leg_only import _OUT_DIR, LEG_ONLY_HUMANOID_CFG, _isaac_urdf
+
+# a closed fist: knuckles, middle and tip joints curled, the thumb folded across (all curl positive)
+FIST = {
+    f"{side}_{finger}{joint}": angle
+    for side in ("l", "r")
+    for finger in ("", "i_", "r_", "l_")
+    for joint, angle in (("mcp", 1.4), ("pip", 1.5), ("dip", 1.2))
+} | {f"{side}_th_{joint}": angle for side in ("l", "r") for joint, angle in (("c", 0.6), ("f", 0.9), ("mcp", 0.8), ("ip", 0.9))}
+
+
+# The whole-body humanoid (arms and hands, 44.7 kg) walking on the same 12 leg joints, everything above the hips held rigid.
+WHOLE_BODY_WALKER_CFG = LEG_ONLY_HUMANOID_CFG.replace(
+    spawn=LEG_ONLY_HUMANOID_CFG.spawn.replace(
+        asset_path=_isaac_urdf("pioneer_whole_body_humanoid", "pioneer_whole_body_humanoid.urdf", legs_only=True),
+        usd_dir=os.path.join(_OUT_DIR, "..", "pioneer_whole_body_humanoid", "usd"),
+    )
 )
-_URDF_PATH = os.path.join(_ASSET_DIR, "whole_body_humanoid.urdf")
-_USD_DIR = os.path.join(_ASSET_DIR, "usd")
 
-# Mild crouch; keep feet near ground after bend.
-_SPAWN_HEIGHT = 0.75
-
-
-WHOLE_BODY_HUMANOID_CFG = ArticulationCfg(
-    spawn=sim_utils.UrdfFileCfg(
-        asset_path=_URDF_PATH,
-        usd_dir=_USD_DIR,
-        usd_file_name="whole_body_humanoid.usd",
-        force_usd_conversion=False,
-        make_instanceable=True,
-        fix_base=False,
-        merge_fixed_joints=True,
-        root_link_name="base",
-        self_collision=False,
-        collider_type="convex_hull",
-        joint_drive=sim_utils.UrdfConverterCfg.JointDriveCfg(
-            gains=sim_utils.UrdfConverterCfg.JointDriveCfg.PDGainsCfg(
-                stiffness=100.0,
-                damping=5.0,
-            )
-        ),
-        rigid_props=sim_utils.RigidBodyPropertiesCfg(
-            disable_gravity=False,
-            max_depenetration_velocity=2.5,
-        ),
-        activate_contact_sensors=True,
-        articulation_props=sim_utils.ArticulationRootPropertiesCfg(
-            enabled_self_collisions=False,
-            solver_position_iteration_count=4,
-            solver_velocity_iteration_count=4,
-            fix_root_link=False,
-        ),
-    ),
-    init_state=ArticulationCfg.InitialStateCfg(
-        pos=(0.0, 0.0, _SPAWN_HEIGHT),
-        rot=(1.0, 0.0, 0.0, 0.0),
-        joint_pos={
-            "Hip_F_L": 0.12,
-            "Hip_A_L": 0.04,
-            "Hip_R_L": 0.0,
-            "Knee_L": -0.22,
-            "Ankle_P_L": 0.10,
-            "Ankle_R_L": 0.0,
-            "Hip_F_R": 0.12,
-            "Hip_A_R": 0.04,
-            "Hip_R_R": 0.0,
-            "Knee_R": -0.22,
-            "Ankle_P_R": 0.10,
-            "Ankle_R_R": 0.0,
-        },
+# The same with shoulder pitch and elbows free, for a scripted arm swing (humanoid_rl_tasks ... config/pioneer/arm_swing.py).
+ARM_SWING_JOINTS = ("l_shoulder_pitch", "r_shoulder_pitch", "l_elbow", "r_elbow")
+WHOLE_BODY_ARM_SWING_CFG = WHOLE_BODY_WALKER_CFG.replace(
+    spawn=WHOLE_BODY_WALKER_CFG.spawn.replace(
+        asset_path=_isaac_urdf("pioneer_whole_body_humanoid", "pioneer_whole_body_humanoid.urdf", legs_only=True, keep=ARM_SWING_JOINTS,
+                               name="pioneer_whole_body_humanoid_arm_swing", pose=FIST),
+        usd_dir=os.path.join(_OUT_DIR, "..", "pioneer_whole_body_humanoid", "usd_arm_swing"),
     ),
     actuators={
-        "hip_flexion": ImplicitActuatorCfg(
-            joint_names_expr=["Hip_F_.*"],
-            effort_limit_sim=222.0,
-            velocity_limit_sim=3.6652,
-            stiffness=100.0,
-            damping=8.0,
-        ),
-        "hip_abduction": ImplicitActuatorCfg(
-            joint_names_expr=["Hip_A_.*"],
-            effort_limit_sim=120.0,
-            velocity_limit_sim=20.944,
-            stiffness=80.0,
-            damping=5.0,
-        ),
-        "hip_rotation": ImplicitActuatorCfg(
-            joint_names_expr=["Hip_R_.*"],
-            effort_limit_sim=60.0,
-            velocity_limit_sim=20.42,
-            stiffness=60.0,
-            damping=4.0,
-        ),
-        "knee": ImplicitActuatorCfg(
-            joint_names_expr=["Knee_.*"],
-            effort_limit_sim=222.0,
-            velocity_limit_sim=3.6652,
-            stiffness=100.0,
-            damping=8.0,
-        ),
-        "ankle": ImplicitActuatorCfg(
-            joint_names_expr=["Ankle_.*"],
-            effort_limit_sim=60.0,
-            velocity_limit_sim=20.42,
-            stiffness=80.0,
-            damping=6.0,
+        **WHOLE_BODY_WALKER_CFG.actuators,
+        "arms": ImplicitActuatorCfg(
+            joint_names_expr=list(ARM_SWING_JOINTS),
+            effort_limit_sim={".*_shoulder_pitch": 53.0, ".*_elbow": 22.0},
+            stiffness=40.0,
+            damping=2.0,
+            armature=0.01,
         ),
     },
-    soft_joint_pos_limit_factor=0.95,
 )

@@ -4,7 +4,7 @@
 Writes a run folder (telemetry.csv + run.json) for tools/gl40_telemetry_plot.py::
 
     /interfacing/motorCMD      MotorCmd, MOTOR frame       -> sp_deg (what was really sent)
-    /arm/joint_targets         ArmPose, command frame, deg -> sp_raw_deg (what was asked for)
+    /arm/<side>/joint_targets  ArmPose, command frame, deg -> sp_raw_deg (what was asked for)
     /interfacing/motorFeedback MotorFeedback, MOTOR frame  -> pos_deg (converted below)
 
 Both setpoints are recorded: their difference is the clamp and velocity limiter at work.
@@ -32,7 +32,8 @@ from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy
 
 from common_msgs.msg import ArmPose, MotorCmd, MotorFeedback
 
-from joint_config import find_calibration, load_joint_map, load_actuator_limits, max_torque_by_joint
+from joint_config import (arm_pose_topic, find_calibration, load_joint_map, load_actuator_limits,
+                          max_torque_by_joint)
 from telemetry import RunFolder
 
 # GL II status nibble (MIT feedback). Servo feedback uses the DBC's own error codes.
@@ -44,7 +45,7 @@ MIT_STATUS = {
 
 class TelemetryRecorder(Node):
     def __init__(self, joint_map: Dict[int, dict], log: RunFolder, motors: Optional[List[int]],
-                 rate_hz: float):
+                 rate_hz: float, arm_sides: List[str]):
         super().__init__("telemetry_recorder")
         self.joint_map = joint_map
         self.log = log
@@ -62,20 +63,22 @@ class TelemetryRecorder(Node):
 
         qos = QoSProfile(reliability=ReliabilityPolicy.BEST_EFFORT,
                          history=HistoryPolicy.KEEP_LAST, depth=50)
-        self.create_subscription(ArmPose, "/arm/joint_targets", self._on_pose, qos)
+        for side in arm_sides:
+            self.create_subscription(ArmPose, arm_pose_topic(side),
+                                     lambda msg, side=side: self._on_pose(msg, side), qos)
         self.create_subscription(MotorCmd, "/interfacing/motorCMD", self._on_cmd, qos)
         self.create_subscription(MotorFeedback, "/interfacing/motorFeedback", self._on_feedback,
                                  qos)
         self.create_timer(1.0 / rate_hz, self._sample)
 
-    def _on_pose(self, msg: ArmPose) -> None:
+    def _on_pose(self, msg: ArmPose, side: str) -> None:
         if self.first_pose_time is None:
             self.first_pose_time = time.monotonic()
         slots = list(msg.shoulder.position[:3]) + list(msg.elbow.position[:2]) + \
             list(msg.wrist.position[:1])
         for motor_id, info in self.joint_map.items():
             slot = info["slot"]
-            if slot is not None and slot < len(slots):
+            if info["side"] == side and slot is not None and slot < len(slots):
                 self.requested[motor_id] = float(slots[slot])
 
     def _on_cmd(self, msg: MotorCmd) -> None:
@@ -151,7 +154,7 @@ def main(argv=None) -> int:
 
     mapping_path = find_calibration(args.mapping)
     joint_map = load_joint_map(mapping_path, args.arm_side)
-    velocity_max, mit_limits = load_actuator_limits(args.actuators)
+    velocity_max, mit_limits = load_actuator_limits(args.actuators, args.arm_side)
     motors = [int(x) for x in args.motors.split(",")] if args.motors else None
 
     log = RunFolder(
@@ -176,7 +179,7 @@ def main(argv=None) -> int:
                 "mit": mit_limits,
                 "max_torque_nm": min((v["max_torque_nm"] for v in mit_limits.values()
                                       if v.get("max_torque_nm") is not None), default=None),
-                "max_torque_nm_by_joint": max_torque_by_joint(args.actuators),
+                "max_torque_nm_by_joint": max_torque_by_joint(args.actuators, args.arm_side),
                 "max_track_err_deg": min((v["max_track_err_deg"] for v in mit_limits.values()
                                           if v.get("max_track_err_deg") is not None),
                                          default=None),
@@ -187,7 +190,7 @@ def main(argv=None) -> int:
     print(log.describe())
 
     rclpy.init()
-    node = TelemetryRecorder(joint_map, log, motors, args.rate)
+    node = TelemetryRecorder(joint_map, log, motors, args.rate, [args.arm_side])
     stop_at = time.monotonic() + args.duration if args.duration > 0 else None
     stopping = {"now": False}
 
