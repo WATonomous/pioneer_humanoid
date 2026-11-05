@@ -15,6 +15,8 @@ from typing import Callable
 
 import numpy as np
 
+from human_operator import GRASP_PITCH, TCP_ABOVE_TIPS
+
 
 class TaskFailed(RuntimeError):
     """A plan gave up (e.g. too many failed grasps): the take is discarded."""
@@ -26,8 +28,10 @@ class Task:
     instruction: str        # dataset task text (multi-step scenes label each frame with its step instead)
 
 
-# Gripper pointing down: the tool point (finger-box centre) is this far above the jaws' lower ends.
-JAW_HALF = 0.044
+# The tool point is this far above the fingers' lowest point (their tips, tipped GRASP_PITCH down, plus the jaw's own depth).
+JAW_HALF = TCP_ABOVE_TIPS * math.sin(GRASP_PITCH) + 0.018
+# peg_insert: tool point this far above the peg's bottom when held
+GRIP_Z = 0.08
 
 
 def _finish(op, rest=None) -> None:
@@ -149,9 +153,9 @@ def peg_plan(op, model, data, notes, resume: bool = False) -> None:
 
     rng, T = op.rng, S.TABLE_TOP_Z
     peg = model.body("peg").id
-    # Tool point above the peg's bottom when held: the jaws (88 mm long) reach down to ~2 cm above its bottom, so most of
-    # the grip is below its middle and pushing on it doesn't twist it in the jaws.
-    grip_z = 0.064 + rng.uniform(-0.003, 0.003)
+    # Tool point above the peg's bottom when held: near its top, so the fingertips pass over the block, not into it.
+    grip_z = GRIP_Z + rng.uniform(-0.003, 0.003)
+    jaw_yaw = rng.normal(0.0, 0.03)
     block_top = T + S.BLOCK_HEIGHT
     high = block_top + grip_z + 0.05
 
@@ -171,7 +175,7 @@ def peg_plan(op, model, data, notes, resume: bool = False) -> None:
         for attempt in range(3):
             p = op.see("peg")
             op.arc((p[0], p[1], base + S.PEG_HEIGHT + JAW_HALF + 0.015), max(high, base + S.PEG_HEIGHT + JAW_HALF + 0.03),
-                   R=op.down(), grip=rng.uniform(0.3, 0.45), tol=0.004, axes=(1, 1, 0))
+                   R=op.down(jaw_yaw), grip=rng.uniform(0.0, 0.08), tol=0.004, axes=(1, 1, 0))
             op.move((p[0], p[1], base + grip_z), tol=0.003)
             op.set_grip(1.0)
             op.move((p[0], p[1], base + grip_z + 0.03), tol=0.01, corrections=0, axes=(0, 0, 1))   # up off the table
@@ -221,7 +225,7 @@ def peg_plan(op, model, data, notes, resume: bool = False) -> None:
             if tilt_deg() > 25:
                 raise TaskFailed("peg fallen over")
             tcp = op.follower_tcp()
-            op.move((tcp[0], tcp[1], max(high, tcp[2])), R=op.down(), grip=rng.uniform(0.3, 0.45), tol=0.02, via=True)
+            op.move((tcp[0], tcp[1], max(high, tcp[2])), R=op.down(jaw_yaw), grip=rng.uniform(0.3, 0.45), tol=0.02, via=True)
             op.settle()
             if tilt_deg() > 25:
                 raise TaskFailed("peg fallen over")

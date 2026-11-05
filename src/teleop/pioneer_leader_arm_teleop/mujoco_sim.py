@@ -158,6 +158,9 @@ def run() -> None:
     # Right by default: the leader unit's left arm does not register its servos (leader_arm.json has left disabled).
     parser.add_argument("--arms", choices=tuple(ARM_SETS), default="right",
                         help="arms to drive and record, one leader board each (leader_arm.json)")
+    parser.add_argument("--lock-wrist", action=argparse.BooleanOptionalAction, default=None,
+                        help="freeze the wrist (F) rigidly at home: no motor, no physics, leader's wrist ignored "
+                             "(default: each arm's lock_wrist in leader_arm.json)")
     add_record_args(parser, task_description="sim leader teleop demonstration")
     args = parser.parse_args()
     sides = list(ARM_SETS[args.arms])  # in ARM_ORDER: a recorded frame is the left arm's values, then the right's
@@ -198,12 +201,15 @@ def run() -> None:
                   arm_params.RIGHT_GRIPPER_OPEN, arm_params.RIGHT_GRIPPER_CLOSED),
     }
     arms: list[Arm] = []
+    frozen: list[tuple[int, int, float]] = []  # --lock-wrist: (qpos index, dof index, home angle) per wrist
     for side in sides:
         joints, fingers, grip_open, grip_closed = side_joints[side]
+        lock_wrist = boards[side].lock_wrist if args.lock_wrist is None else args.lock_wrist
         arm_acts = [model.actuator(j).id for j in joints]
         mapping = LeaderMapping(
             boards[side].signs, args.filter_alpha, home_rad=[data.ctrl[a] for a in arm_acts],
             limits_rad=[tuple(model.joint(j).range) for j in joints],
+            locked=("F",) if lock_wrist else (),
         )
         arms.append(Arm(
             side=side, leader=None, board=boards[side], mapping=mapping, arm_acts=arm_acts,
@@ -213,7 +219,15 @@ def run() -> None:
             grip_open=np.array([grip_open[j] for j in fingers]),
             grip_closed=np.array([grip_closed[j] for j in fingers]),
         ))
-        model.actuator_biasprm[model.actuator(joints[-1]).id, 2] = -WRIST_DAMPING
+        if lock_wrist:
+            # Frozen wrist: its motor is off and the joint is pinned at home after every physics step.
+            wrist_act = model.actuator(joints[-1]).id
+            model.actuator_gainprm[wrist_act, :] = 0
+            model.actuator_biasprm[wrist_act, :] = 0
+            wrist = model.joint(joints[-1])
+            frozen.append((wrist.qposadr[0], wrist.dofadr[0], data.qpos[wrist.qposadr[0]]))
+        else:
+            model.actuator_biasprm[model.actuator(joints[-1]).id, 2] = -WRIST_DAMPING
         # A position servo (kp, kv) trails a target moving at v by kv/kp * v (~80 ms here): send that much ahead.
         arms[-1].lead = np.array([-model.actuator_biasprm[a, 2] / model.actuator_gainprm[a, 0]
                                   if model.actuator_gainprm[a, 0] else 0.0 for a in arm_acts])
@@ -321,7 +335,14 @@ def run() -> None:
 
                 if scene_hook is not None:
                     scene_hook(model, data)
-                mujoco.mj_step(model, data, nstep=substeps)
+                if frozen:
+                    for _ in range(substeps):
+                        mujoco.mj_step(model, data)
+                        for qadr, dadr, home in frozen:
+                            data.qpos[qadr] = home
+                            data.qvel[dadr] = 0.0
+                else:
+                    mujoco.mj_step(model, data, nstep=substeps)
                 step += 1
                 if scene_steps is not None:
                     index, total, instruction = scene_steps(model, data)

@@ -3,6 +3,7 @@
     "enabled": false,
     "usb_serial": "5970073136",
     "signs": "1,1,-1,-1,1,-1,1",
+    "lock_wrist": true,
     "servos": {
       "A": {
         "id": 2,
@@ -38,34 +39,35 @@
     "enabled": true,
     "usb_serial": "5970073136",
     "signs": "1,1,-1,1,1,1,1",
+    "lock_wrist": true,
     "servos": {
       "A": {
         "id": 2,
-        "zero": 591
+        "zero": 2678
       },
       "B": {
         "id": 3,
-        "zero": 908
+        "zero": 2927
       },
       "C": {
         "id": 1,
-        "zero": 1498
+        "zero": 3494
       },
       "D": {
         "id": 5,
-        "zero": 613
+        "zero": 564
       },
       "E": {
         "id": 4,
-        "zero": 3016
+        "zero": 3001
       },
       "F": {
         "id": 7,
-        "zero": 2238
+        "zero": 2207
       },
       "G": {
         "id": 6,
-        "zero": 764
+        "zero": 2299
       }
     }
   }

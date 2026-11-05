@@ -217,7 +217,7 @@ def self_test() -> None:
 
     sim = TeleopSim("bare", 0)
     op = HumanOperator(sim.model, lambda: sim.data, sim.tick, sim.joints, sim.home, sim.control_dt, np.random.default_rng(0))
-    goal = op.follower_tcp() + (-0.05, 0.05, -0.05)
+    goal = op.follower_tcp() + (0.05, -0.05, 0.0)
     err = op.move(goal, tol=0.005)
     assert err < 0.01, f"reach missed by {err * 1000:.1f} mm"
     print(f"self-test ok (reach error {err * 1000:.1f} mm in {sim.data.time:.1f} s)")
