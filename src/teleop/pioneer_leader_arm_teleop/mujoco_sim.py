@@ -157,7 +157,7 @@ def run() -> None:
     parser.add_argument("--arms", choices=tuple(ARM_SETS), default="right",
                         help="arms to drive and record, one leader board each (leader_arm.json)")
     parser.add_argument("--lock-wrist", action="store_true",
-                        help="hold the wrist (F) at home with stock damping and ignore the leader's wrist")
+                        help="freeze the wrist (F) rigidly at home: no motor, no physics, leader's wrist ignored")
     add_record_args(parser, task_description="sim leader teleop demonstration")
     args = parser.parse_args()
     sides = list(ARM_SETS[args.arms])  # in ARM_ORDER: a recorded frame is the left arm's values, then the right's
@@ -198,6 +198,7 @@ def run() -> None:
                   arm_params.RIGHT_GRIPPER_OPEN, arm_params.RIGHT_GRIPPER_CLOSED),
     }
     arms: list[Arm] = []
+    frozen: list[tuple[int, int, float]] = []  # --lock-wrist: (qpos index, dof index, home angle) per wrist
     for side in sides:
         joints, fingers, grip_open, grip_closed = side_joints[side]
         arm_acts = [model.actuator(j).id for j in joints]
@@ -214,7 +215,14 @@ def run() -> None:
             grip_open=np.array([grip_open[j] for j in fingers]),
             grip_closed=np.array([grip_closed[j] for j in fingers]),
         ))
-        if not args.lock_wrist:  # a held wrist keeps stock damping, so it doesn't swing
+        if args.lock_wrist:
+            # Frozen wrist: its motor is off and the joint is pinned at home after every physics step.
+            wrist_act = model.actuator(joints[-1]).id
+            model.actuator_gainprm[wrist_act, :] = 0
+            model.actuator_biasprm[wrist_act, :] = 0
+            wrist = model.joint(joints[-1])
+            frozen.append((wrist.qposadr[0], wrist.dofadr[0], data.qpos[wrist.qposadr[0]]))
+        else:
             model.actuator_biasprm[model.actuator(joints[-1]).id, 2] = -WRIST_DAMPING
         print(f"[{side.upper()}] " * (len(sides) > 1) + mapping.describe(joints), flush=True)
 
@@ -308,7 +316,14 @@ def run() -> None:
 
                 if scene_hook is not None:
                     scene_hook(model, data)
-                mujoco.mj_step(model, data, nstep=substeps)
+                if frozen:
+                    for _ in range(substeps):
+                        mujoco.mj_step(model, data)
+                        for qadr, dadr, home in frozen:
+                            data.qpos[qadr] = home
+                            data.qvel[dadr] = 0.0
+                else:
+                    mujoco.mj_step(model, data, nstep=substeps)
                 step += 1
                 if scene_steps is not None:
                     index, total, instruction = scene_steps(model, data)
