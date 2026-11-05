@@ -17,4 +17,3 @@ class LoopClosure:
     def __post_init__(self):
         self.T_old_new = np.asarray(self.T_old_new, dtype=np.float64)
         self.covariance = np.asarray(self.covariance, dtype=np.float64)
-
