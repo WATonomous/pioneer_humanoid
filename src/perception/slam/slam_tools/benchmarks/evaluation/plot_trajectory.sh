@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ $# -ne 2 ]]; then
-  echo "Usage: $0 GROUND_TRUTH.txt ESTIMATED_TRAJECTORY.txt" >&2
+if [[ $# -lt 2 || $# -gt 3 ]]; then
+  echo "Usage: $0 GROUND_TRUTH.txt ESTIMATED_TRAJECTORY.txt [OUTPUT_DIR]" >&2
   exit 1
 fi
 
@@ -25,7 +25,7 @@ TEMP_GT="$(mktemp)"
 trap 'rm -f "$TEMP_GT"' EXIT
 awk '/^#/ {print; next} !seen[$1]++' "$GROUND_TRUTH" > "$TEMP_GT"
 
-PLOT_DIR="$(dirname "$GROUND_TRUTH")/trajectory_plots"
+PLOT_DIR="${3:-$(dirname "$GROUND_TRUTH")/trajectory_plots}"
 mkdir -p "$PLOT_DIR"
 "$EVO_TRAJ" tum "$TEMP_GT" "$ESTIMATED_TRAJECTORY" \
   --ref "$TEMP_GT" --sync -a --plot_mode=xyz \

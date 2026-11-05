@@ -2,14 +2,22 @@
 
 set -euo pipefail
 
-# checks if number of args is not 1
-if [[ $# -ne 1 ]]; then
-  echo "Usage: $0 ESTIMATED_TRAJECTORY.txt" >&2
+# checks if number of args is not 1 or 2
+if [[ $# -lt 1 || $# -gt 2 ]]; then
+  echo "Usage: $0 ESTIMATED_TRAJECTORY.txt [--csv]" >&2
   exit 1
 fi
 
 # Sets file
 ESTIMATED_TRAJECTORY="$1"
+CSV_OUTPUT=0
+if [[ $# -eq 2 ]]; then
+  if [[ "$2" != "--csv" ]]; then
+    echo "Error: optional second argument must be --csv." >&2
+    exit 1
+  fi
+  CSV_OUTPUT=1
+fi
 
 # Checks if file exist/non-zero
 if [[ ! -s "$ESTIMATED_TRAJECTORY" ]]; then
@@ -18,7 +26,7 @@ if [[ ! -s "$ESTIMATED_TRAJECTORY" ]]; then
 fi
 
 # Python script/file or wtv
-python3 - "$ESTIMATED_TRAJECTORY" <<'PY'
+python3 - "$ESTIMATED_TRAJECTORY" "$CSV_OUTPUT" <<'PY'
 import math
 import sys
 
@@ -34,6 +42,11 @@ if len(poses) < 2:
 
 start, end = poses[0], poses[-1]
 translation_error = math.sqrt(sum((end[i] - start[i]) ** 2 for i in range(1, 4)))
+path_length = sum(
+    math.sqrt(sum((poses[index][axis] - poses[index - 1][axis]) ** 2 for axis in range(1, 4)))
+    for index in range(1, len(poses))
+)
+drift_percent = (translation_error / path_length * 100.0) if path_length > 0.0 else 0.0
 
 def multiply(a, b):
     return [
@@ -49,6 +62,11 @@ q_relative = multiply(q_end, [-q_start[0], -q_start[1], -q_start[2], q_start[3]]
 norm = math.sqrt(sum(value * value for value in q_relative))
 rotation_error = math.degrees(2 * math.atan2(math.sqrt(sum(value * value for value in q_relative[:3])) / norm, abs(q_relative[3]) / norm))
 
-print(f"Loop translation error: {translation_error:.6f} m")
-print(f"Loop rotation error: {rotation_error:.6f} deg")
+if sys.argv[2] == "1":
+    print(f"{translation_error:.6f},{rotation_error:.6f},{path_length:.6f},{drift_percent:.6f}")
+else:
+    print(f"Loop translation error: {translation_error:.6f} m")
+    print(f"Loop rotation error: {rotation_error:.6f} deg")
+    print(f"Trajectory path length: {path_length:.6f} m")
+    print(f"Translation drift: {drift_percent:.6f} %")
 PY
