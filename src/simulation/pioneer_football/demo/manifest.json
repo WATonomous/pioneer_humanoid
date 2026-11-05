@@ -1,0 +1,77 @@
+{
+  "status": "runtime_refactor_validated",
+  "roles": {
+    "gait": {
+      "path": "gait.pt",
+      "sha256": "97d0fbe86f09601e5e0bfeba4bb7828ad3be8d1f235ebee2bc09e01ee64c0352"
+    },
+    "dribble": {
+      "path": "dribble.pt",
+      "sha256": "afa60f986f9132e25560497c632b10c98e5809d328f9f22557717cb956202096"
+    },
+    "strike": {
+      "path": "strike.pt",
+      "sha256": "0e5297a45fbc657c1e30deaf45656f33d2565bce2c54c80e3e130953fdcdd03c"
+    },
+    "patrol": {
+      "path": "patrol.pt",
+      "sha256": "7f4bee985664c95baf3755fcf939ff5e0e6de07758731fd251bd56197f5d9edd"
+    },
+    "turn": {
+      "path": "turn.pt",
+      "sha256": "064bedf7f1170f507ac8af203404f5dabede35fb73b1b21aa0670eeb0e93a418"
+    }
+  },
+  "execution": {
+    "canonical_heading": false,
+    "defender_mode": "orbit",
+    "dribble_speed": 0.7,
+    "shot_speed": 2.4,
+    "shot_distance": 1.8,
+    "handoff_quiet_limit": 1.0,
+    "skill_blend_time": 0.08,
+    "strike_blend_time": null,
+    "instant_strike_command": false,
+    "shot_preparation_distance": null,
+    "shot_preparation_speed": 0.35,
+    "shot_alignment_limit": 0.8,
+    "anticipatory_strike": false,
+    "direct_goal_command": true,
+    "stable_shot_setup": true,
+    "unreleased_retries": 0,
+    "opponent_speed": 0.7
+  },
+  "controller_source_sha256": "e675094ed491f732db6dfcd5bd230118c721106be696634e3260607c843aa588",
+  "controller_dependencies": {
+    "twist_navigation.py": "505008bb211c826fd0aee40138677cddb91c620999da519086d39642579095aa",
+    "navigation_frame.py": "66cdc9a0eff60fc25c4d901876c9e61a3f649176bc257159774e7a8579fdffd1",
+    "twist_control.py": "4419127cf200759216cdb4fddeb5dc5672967dbcd8f99394f9b16164d6abb381",
+    "navigation.py": "55eaa4e577dc4a360a679db78c7dd15de12ff1a431e4740a6415cad5a4b1ba6d",
+    "approach.py": "4103b23e7c7485c406ddc2a1d8c22b1539b635a05ed92fc677b4def2d0fa445c",
+    "strike_history.py": "62ba2ec08c866ccb98cc4dbf504797bbebf936068bd371698685e285e427ced9",
+    "runtime.py": "6e97e8688533353a7162296ed8818a55618846d14070f875aec118673540bfc3",
+    "model.py": "a35d5b48c1a01753c4062ed39f967238779ee7a8d18fa400f13ecac098edbc78",
+    "ball.py": "d0fd1d1aaeb74ca803e78f29cb81f7a36b9689cbe4837798d0fa02337e6b4c1e",
+    "pitch_scene.py": "31bb51b85ce7298e8cabd50b02b705751ad9a4042dd72e00cf555eedefc2620f",
+    "match_rules.py": "41b1805c59b64dd274ed10ede059680c7b59a985576e08d6ab08fc818b15d67f",
+    "match_audit.py": "f77e76bf065a204855aedf9092089bc4652e07045391c380bf42a54e61e213f4"
+  },
+  "validation_summary": {
+    "configuration_field_differences": 0,
+    "gait_reward_differences": 0,
+    "compiled_robot_arrays_identical": 482,
+    "cpu_rollout_worlds": 2,
+    "cpu_rollout_steps_per_world": 30,
+    "cpu_rollout_max_error": 0.0,
+    "policy_output_max_error": 0.0,
+    "policy_probe_states_per_role": 64,
+    "unit_tests_passed": 80,
+    "gpu_solo_goals": 6,
+    "gpu_solo_trials": 6,
+    "gpu_mirrored_restarts_passed": 2,
+    "gpu_mirrored_restart_trials": 2,
+    "gpu_falls": 0,
+    "gpu_hidden_resets": 0,
+    "full_matches_rerun_after_refactor": false
+  }
+}
