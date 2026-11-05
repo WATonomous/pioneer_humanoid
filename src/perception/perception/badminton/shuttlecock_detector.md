@@ -50,10 +50,11 @@ Annotate the generated manifest interactively:
 python annotate_eval.py /path/to/badminton_eval/manifest.jsonl
 ```
 
-Left-click the shuttle center for a positive frame. Press `n` for a frame with
-no shuttle. Press `b` and/or `o` to tag a positive frame as blurred and/or
-occluded. The annotation is saved as JSONL with pixel coordinates in the
-original 1920x1080 image. A completely out-of-frame shuttle is negative.
+Click-drag a bounding box around the shuttle for a positive frame. The tool
+derives and stores the box center for pixel-error metrics. Press `n` for a
+frame with no shuttle. The annotation is saved as JSONL with pixel coordinates
+in the original 1920x1080 image. A completely out-of-frame shuttle is
+negative.
 
 Run the baseline or a trained checkpoint:
 
@@ -67,10 +68,14 @@ python eval_metrics.py \
 
 The script writes a JSON summary and a per-frame CSV. It reports recall,
 false-positive rate on negative frames, and mean/median/p90 pixel error for
-matched positive detections, both overall and by tag. For a fine-tuned
+matched positive detections. For a fine-tuned
 single-class checkpoint, class 0 is inferred automatically. For stock
 multi-class weights, it selects `shuttlecock`, `birdie`, or `bird`; pass
 `--class_id` or `--class_name` when that is not the desired class.
+
+For the downloaded stock `yolo26n.pt` COCO weights, an empirical scan of the
+hand-labeled frames found that class 32 (`sports ball`) bounds the shuttlecock
+far better than class 14 (`bird`). Use `--class_id 32` for that stock baseline.
 
 ## The scripts
 

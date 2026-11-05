@@ -10,7 +10,6 @@ import argparse
 import csv
 import json
 import math
-from collections import defaultdict
 from pathlib import Path
 
 from ultralytics import YOLO
@@ -72,22 +71,16 @@ def prediction_center(result, class_id: int):
 def metric_summary(rows: list[dict], predictions: list[dict], match_radius: float) -> dict:
     counts = {"positive": 0, "negative": 0, "tp": 0, "fn": 0, "fp": 0}
     errors = []
-    per_tag = defaultdict(lambda: {"positive": 0, "negative": 0, "tp": 0, "fn": 0, "fp": 0, "errors": []})
 
     for row, prediction in zip(rows, predictions):
         label = row.get("label")
         if label not in {"positive", "negative"}:
             raise ValueError(f"Every row must have label=positive or negative: {row}")
-        tags = row.get("tags", []) or []
-        for tag in ["overall", *tags]:
-            bucket = per_tag[tag]
-            bucket[label] += 1
 
         if label == "negative":
+            counts["negative"] += 1
             is_fp = prediction is not None
             counts["fp"] += int(is_fp)
-            for tag in ["overall", *tags]:
-                per_tag[tag]["fp"] += int(is_fp)
             continue
 
         counts["positive"] += 1
@@ -99,11 +92,6 @@ def metric_summary(rows: list[dict], predictions: list[dict], match_radius: floa
         counts["fn"] += int(not hit)
         if hit:
             errors.append(error)
-        for tag in ["overall", *tags]:
-            per_tag[tag]["tp"] += int(hit)
-            per_tag[tag]["fn"] += int(not hit)
-            if hit:
-                per_tag[tag]["errors"].append(error)
 
     def finalize(bucket: dict) -> dict:
         positive = bucket["positive"]
@@ -127,7 +115,6 @@ def metric_summary(rows: list[dict], predictions: list[dict], match_radius: floa
     return {
         "match_radius_pixels": match_radius,
         "overall": finalize({**counts, "errors": errors}),
-        "by_tag": {tag: finalize(bucket) for tag, bucket in sorted(per_tag.items()) if tag != "overall"},
     }
 
 
@@ -140,7 +127,7 @@ def evaluate(model_path: Path, manifest_path: Path, output_path: Path, imgsz: in
     output_path.parent.mkdir(parents=True, exist_ok=True)
     details_path = output_path.with_name(output_path.stem + "_frames.csv")
     with details_path.open("w", newline="", encoding="utf-8") as details_file:
-        writer = csv.DictWriter(details_file, fieldnames=["image", "label", "tags", "confidence", "pred_x", "pred_y", "pixel_error"])
+        writer = csv.DictWriter(details_file, fieldnames=["image", "label", "confidence", "pred_x", "pred_y", "pixel_error"])
         writer.writeheader()
         for row in rows:
             result = model.predict(row["image"], imgsz=imgsz, conf=confidence, device=device, verbose=False)[0]
@@ -152,7 +139,6 @@ def evaluate(model_path: Path, manifest_path: Path, output_path: Path, imgsz: in
             writer.writerow({
                 "image": row["image"],
                 "label": row["label"],
-                "tags": ",".join(row.get("tags", []) or []),
                 "confidence": prediction["confidence"] if prediction else None,
                 "pred_x": prediction["x"] if prediction else None,
                 "pred_y": prediction["y"] if prediction else None,

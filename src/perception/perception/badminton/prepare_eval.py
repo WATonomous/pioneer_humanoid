@@ -40,9 +40,9 @@ def sample_video(video_path: Path, output_dir: Path, every_seconds: float) -> li
                 "video": video_path.name,
                 "frame_index": frame_index,
                 "label": None,
+                "bbox": None,
                 "center_x": None,
                 "center_y": None,
-                "tags": [],
             }
         )
 
