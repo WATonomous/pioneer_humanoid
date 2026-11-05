@@ -14,9 +14,7 @@ import os
 import xml.etree.ElementTree as ET
 
 _REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-# PIONEER_ARM_WRIST=pitch: the pitch-wrist arm (tools/build_pitch_wrist.py), same joints and limits.
-_URDF_NAME = {"yaw": "pioneer_bimanual_arm.urdf", "pitch": "pioneer_bimanual_arm_pitch_wrist.urdf"}[os.environ.get("PIONEER_ARM_WRIST", "yaw")]
-URDF_PATH = os.path.join(_REPO_ROOT, "assets", "pioneer_bimanual_arm", "urdf", _URDF_NAME)
+URDF_PATH = os.path.join(_REPO_ROOT, "assets", "pioneer_bimanual_arm", "urdf", "pioneer_bimanual_arm.urdf")
 
 # Joint types whose <limit lower/upper> describe a real position range. A
 # "continuous" joint has no limits by definition and "fixed" has no DOF.
