@@ -2,7 +2,7 @@ import argparse
 from ultralytics import YOLO
 
 
-def train(data_yaml, epochs, imgsz, batch, model_variant):
+def train(data_yaml, epochs, imgsz, batch, model_variant, project, name):
     model = YOLO(
         model_variant
     )
@@ -14,8 +14,8 @@ def train(data_yaml, epochs, imgsz, batch, model_variant):
         batch=batch,
         close_mosaic=10,
         patience=30,  # early stopping if val mAP plateaus
-        project="runs/shuttlecock",
-        name="yolo26n_v1",
+        project=project,
+        name=name,
         exist_ok=True,
     )
 
@@ -31,13 +31,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", default="data/dataset/shuttlecock.yaml")
     parser.add_argument("--epochs", type=int, default=150)
-    parser.add_argument("--imgsz", type=int, default=640)
+    parser.add_argument("--imgsz", type=int, default=960)
     parser.add_argument("--batch", type=int, default=16)
     parser.add_argument(
         "--model",
         default="yolo26n.pt",
         help="yolo26n.pt for nano; bump to yolo26s.pt if accuracy is short and latency budget allows",
     )
+    parser.add_argument("--project", default="runs/shuttlecock")
+    parser.add_argument("--name", default="yolo26n_v1")
     args = parser.parse_args()
 
-    train(args.data, args.epochs, args.imgsz, args.batch, args.model)
+    train(args.data, args.epochs, args.imgsz, args.batch, args.model, args.project, args.name)

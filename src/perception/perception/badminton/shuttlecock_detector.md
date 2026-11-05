@@ -1,9 +1,10 @@
 # Shuttlecock detector tools
 
-Starter scripts for building a YOLO26n shuttlecock detector (issue #123). They run in this order:
+Starter scripts for building a YOLO26n shuttlecock detector (issue #123). The
+manual-label training workflow runs in this order:
 
 ```
-video clips -> extract_frames -> auto_label -> split_dataset -> train -> (export_trt -> benchmark_latency)
+videos -> prepare_eval -> annotate_eval -> build_yolo_dataset -> augment_yolo_dataset -> train -> eval_metrics
 ```
 
 For Ticket 3, use the manual evaluation workflow below instead of
@@ -77,6 +78,79 @@ For the downloaded stock `yolo26n.pt` COCO weights, an empirical scan of the
 hand-labeled frames found that class 32 (`sports ball`) bounds the shuttlecock
 far better than class 14 (`bird`). Use `--class_id 32` for that stock baseline.
 
+### Ticket 4: train from manual boxes
+
+Keep the Ticket 3 videos completely out of training. In the current external
+dataset, use `PAC 1.MP4` and `PAC 6.MP4` for held-out evaluation, and use
+`PAC 2.MP4` through `PAC 5.MP4` for training. Reserve one training video for
+validation so no source video appears in both splits.
+
+Create and annotate training frames:
+
+```
+python prepare_eval.py \
+  --input_dir /home/matthewyang/datasets/badminton_eval/raw_videos \
+  --output_dir /home/matthewyang/datasets/badminton_train \
+  --video "PAC 2.MP4" --video "PAC 3.MP4" \
+  --video "PAC 4.MP4" --video "PAC 5.MP4" \
+  --every_seconds 0.5
+
+python annotate_eval.py \
+  /home/matthewyang/datasets/badminton_train/manifest.jsonl \
+  --max_width 1000 --max_height 650
+```
+
+Build the YOLO directory and split by source video. This example uses `PAC
+5.MP4` for validation and `PAC 2` through `PAC 4` for training:
+
+```
+python build_yolo_dataset.py \
+  --manifest /home/matthewyang/datasets/badminton_train/manifest.jsonl \
+  --output_dir /home/matthewyang/datasets/badminton_train/dataset \
+  --val_video "PAC 5.MP4" --clean
+```
+
+The converter derives YOLO class-0 boxes from the hand-labeled pixel boxes.
+Negative frames receive empty label files. It also writes a split manifest and
+fails if a requested validation video is not present.
+
+Create mild offline augmentations for training only:
+
+```
+python augment_yolo_dataset.py \
+  --dataset_dir /home/matthewyang/datasets/badminton_train/dataset \
+  --copies 1 --seed 42
+```
+
+This applies horizontal flips and modest color changes. Do not augment the
+validation split or the Ticket 3 evaluation images: those must remain clean so
+the reported metrics represent real footage. Ultralytics also applies its own
+training-time augmentations during `train.py`.
+
+Train at the required 960 image size, keeping the run outside the repository:
+
+```
+python train.py \
+  --data /home/matthewyang/datasets/badminton_train/dataset/shuttlecock.yaml \
+  --epochs 150 --imgsz 960 --batch 16 --model yolo26n.pt \
+  --project /home/matthewyang/datasets/badminton_train/runs \
+  --name yolo26n_v1
+```
+
+Evaluate the resulting one-class checkpoint on the untouched Ticket 3 set:
+
+```
+python eval_metrics.py \
+  --weights /home/matthewyang/datasets/badminton_train/runs/yolo26n_v1/weights/best.pt \
+  --manifest /home/matthewyang/datasets/badminton_eval/manifest.jsonl \
+  --output /home/matthewyang/datasets/badminton_eval/metrics/yolo26n_v1.json \
+  --imgsz 960 --confidence 0.25 --match_radius 50 --class_id 0
+```
+
+Use the same Ticket 3 manifest and threshold when comparing against the stock
+class-32 baseline. Promote the final weights to team-shared storage only after
+recording the source-video split, training command, commit, and metrics.
+
 ## The scripts
 
 ### 1. `extract_frames.py`
@@ -107,7 +181,9 @@ python auto_label.py --frames_dir data/frames --output_dir data/labeled \
 
 ### 3. `split_dataset.py`
 
-Splits the labeled frames into train and validation sets, copies them into the folder layout Ultralytics expects, and writes `shuttlecock.yaml`.
+Legacy helper for auto-generated `.txt` labels. It splits randomly by frame and
+must not be used for the manual-label Ticket 4 workflow. Use
+`build_yolo_dataset.py`, which splits by source video, instead.
 
 ```
 python split_dataset.py --labeled_dir data/labeled --frames_dir data/frames --out_dir data/dataset --val_frac 0.15
