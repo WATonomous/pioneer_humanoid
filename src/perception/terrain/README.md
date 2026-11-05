@@ -18,11 +18,11 @@ project plan (tickets TR-1 to TR-18). Same layout as the SLAM stack: a ROS-free 
 terrain/
 ├── config/terrain.yaml     settings (preprocess: crop range, voxel size)
 ├── terrain_core/           pip-installable library, no ROS imports
-│   └── terrain_core/
-│       ├── preprocess/     depth.py, crop.py, downsample.py, transform.py, pipeline.py
-│       └── tests/          python -m pytest terrain_core
-├── terrain_tools/          tum.py: loads TUM RGB-D frames as slam_core Frames
-├── prototype/              demo and check scripts (plots, alignment numbers)
+│   ├── terrain_core/
+│   │   └── preprocess/     depth.py, crop.py, downsample.py, transform.py, pipeline.py
+│   └── tests/              python -m pytest terrain_core (no dataset needed, except one TUM test)
+├── terrain_tools/          tum.py: TumDataset loads a TUM RGB-D sequence as slam_core Frames
+├── prototype/              demo scripts with plots (take --data path/to/sequence)
 └── data/                   datasets and bags (gitignored)
 ```
 
@@ -57,7 +57,7 @@ Practice data until our D455 course bags exist (TR-10): depth images with ground
 - **Size:** 2 cm voxels turn about 200k points into about 11k.
 - **Alignment:** frames 0 and 5, both in the world frame: median distance between them 1.6 cm with
   the right poses, 3.7 cm with a pose 50 ms late, 4.7 cm with a stale pose
-  (`prototype/check_alignment.py`).
+  (`tests/test_tum.py`; `tests/test_alignment.py` does the same check on a made-up scene, for CI).
 
 To try it, download the sequence into `data/`:
 
@@ -65,8 +65,11 @@ To try it, download the sequence into `data/`:
 mkdir -p data && cd data
 curl -L -O https://cvg.cit.tum.de/rgbd/dataset/freiburg1/rgbd_dataset_freiburg1_desk.tgz
 tar -xzf rgbd_dataset_freiburg1_desk.tgz && cd ..
-python prototype/try_world.py
+python prototype/try_world.py                   # or: --data /somewhere/else/rgbd_dataset_freiburg1_desk
 ```
+
+The TUM test in `tests/test_tum.py` runs when the sequence is in `data/` (or `TUM_DATA=/path` is set),
+and is skipped otherwise.
 
 ## Not done yet
 
