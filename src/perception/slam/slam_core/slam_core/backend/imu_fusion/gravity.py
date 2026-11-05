@@ -4,7 +4,7 @@ import numpy as np
 import gtsam
 from slam_core.types.pose import from_tum, rotation_angle
 from .imu import read_imu, imu_between, read_extrinsics
-from .preintegration import preintegrate, make_params, GRAVITY
+from .preintegration import preintegrate, make_params
 
 
 # Chains keyframes.txt rows (each T_prev_kf) into T_kf0_kfk for every keyframe, like pose_graph.py
