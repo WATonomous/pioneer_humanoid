@@ -84,6 +84,7 @@ class LeaderBoard:
     usb_serial: str
     signs: tuple[float, ...]
     zeros: dict[int, int]  # raw zero count per servo ID
+    lock_wrist: bool = False  # MuJoCo teleop: freeze this arm's wrist (F) at home instead of following the leader
 
 
 def usb_serial(port: str) -> str | None:
@@ -139,6 +140,9 @@ def load_leader_boards(path: Path, sides: list[str]) -> dict[str, LeaderBoard]:
         if not entry.get("enabled"):
             raise ValueError(f"the {side} leader board is not enabled in {path}; calibrate it with\n"
                              f"  {calibrate_hint(side)}")
+        lock_wrist = entry.get("lock_wrist", False)
+        if not isinstance(lock_wrist, bool):
+            raise ValueError(f"the {side} board in {path}: lock_wrist must be true or false, got {lock_wrist!r}")
         if entry.get("usb_serial") is None:
             raise ValueError(f"the {side} board in {path} has no USB serial, so it can't be found; recalibrate it with\n"
                              f"  {calibrate_hint(side)}")
@@ -148,6 +152,7 @@ def load_leader_boards(path: Path, sides: list[str]) -> dict[str, LeaderBoard]:
             usb_serial=entry["usb_serial"],
             signs=parse_signs(entry["signs"]),
             zeros=calibration_zeros(entry["servos"], f"{path} {side}"),
+            lock_wrist=lock_wrist,
         )
     serials = [board.usb_serial for board in boards.values()]
     if len(set(serials)) < len(serials):
@@ -159,10 +164,15 @@ class LeaderMapping:
     """Filtered, URDF-clamped arm targets (rad) and gripper closure (0 open .. 1 closed)."""
 
     def __init__(self, signs: tuple[float, ...], filter_alpha: float, home_rad: list[float],
-                 limits_rad: list[tuple[float, float]]):
+                 limits_rad: list[tuple[float, float]], locked: tuple[str, ...] = ()):
         if len(home_rad) != len(ARM_SERVOS):
             raise ValueError(f"leader drives {len(ARM_SERVOS)} joints but the arm has {len(home_rad)}")
+        unknown = set(locked) - set(ARM_SERVOS)
+        if unknown:
+            raise ValueError(f"can't lock {sorted(unknown)}: arm servos are {list(ARM_SERVOS)}")
         self.signs = tuple(signs)
+        # Locked joints hold home and ignore the leader (so they never block engaging either).
+        self.locked = tuple(locked)
         self.alpha = filter_alpha
         self.home = list(home_rad)
         self.limits_deg = [(math.degrees(lo), math.degrees(hi)) for lo, hi in limits_rad]
@@ -178,8 +188,9 @@ class LeaderMapping:
 
     def update(self, angles: tuple[float, ...]) -> tuple[list[float], float]:
         desired = [
-            limited_target(angles[i], self.signs[i], 1.0, self.limits_deg[i])
-            for i in range(len(ARM_SERVOS))
+            self.home[i] if label in self.locked
+            else limited_target(angles[i], self.signs[i], 1.0, self.limits_deg[i])
+            for i, label in enumerate(ARM_SERVOS)
         ]
         grip = gripper_fraction(angles[self.gripper_axis], self.signs[self.gripper_axis])
         if not self.engaged:
@@ -202,7 +213,7 @@ class LeaderMapping:
         return (
             "[LEADER] Mapping (1:1 from hanging zero): "
             + " | ".join(
-                f"{label}(ID{SERVO_IDS[label]}) {sign:+.0f} -> {joint}"
+                f"{label}(ID{SERVO_IDS[label]}) " + ("locked" if label in self.locked else f"{sign:+.0f}") + f" -> {joint}"
                 for label, joint, sign in zip(ARM_SERVOS, joints, self.signs)
             )
             + f" | {GRIPPER_SERVO}(ID{SERVO_IDS[GRIPPER_SERVO]}) {self.signs[self.gripper_axis]:+.0f} -> gripper"
