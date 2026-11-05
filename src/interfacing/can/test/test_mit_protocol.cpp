@@ -29,7 +29,7 @@ MitProfile gl40Profile() {
   return p;
 }
 
-// AK80-9 as configured in config/mit_profiles.yaml (ids 11, 13, 104).
+// AK80-9 as configured in config/mit_profiles.yaml (ids 11, 12, 104).
 MitProfile ak809Profile() {
   MitProfile p;
   p.p_min = -12.56;
@@ -120,7 +120,7 @@ TEST(MitDecode, DecodesAkLayoutFromTheManual) {
   const uint32_t vel_i = packMitValue(-0.5, p.v_min, p.v_max, 12);
   const uint32_t t_i = packMitValue(3.0, p.t_min, p.t_max, 12);
   const uint8_t data[8] = {
-      13,
+      12,
       static_cast<uint8_t>(pos_i >> 8),
       static_cast<uint8_t>(pos_i & 0xFF),
       static_cast<uint8_t>(vel_i >> 4),
@@ -130,7 +130,7 @@ TEST(MitDecode, DecodesAkLayoutFromTheManual) {
       0,
   };
   const auto fb = decodeAkFeedback(data, p);
-  EXPECT_EQ(fb.motor_id, 13);
+  EXPECT_EQ(fb.motor_id, 12);
   EXPECT_NEAR(fb.position, 1.25, 25.12 / 65535.0);
   EXPECT_NEAR(fb.velocity, -0.5, 130.0 / 4095.0);
   EXPECT_NEAR(fb.torque, 3.0, 36.0 / 4095.0);
