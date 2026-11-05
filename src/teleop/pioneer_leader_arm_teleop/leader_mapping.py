@@ -266,10 +266,15 @@ class LeaderInput:
 
 
 class WallClock:
-    """Keep sim time at or behind wall time, so motion (and recordings) have real-world timing."""
+    """Keep sim time at or behind wall time, so motion (and recordings) have real-world timing.
 
-    def __init__(self, dt: float):
+    catch_up (s): after a slow step, run the next steps without sleeping until sim time is back on wall
+    time, as long as it is at most this far behind (0: never, drop the lost time).
+    """
+
+    def __init__(self, dt: float, catch_up: float = 0.0):
         self.dt = dt
+        self.catch_up = catch_up
         self._next = time.monotonic()
 
     def wait(self) -> None:
@@ -277,5 +282,5 @@ class WallClock:
         delay = self._next - time.monotonic()
         if delay > 0:
             time.sleep(delay)
-        else:
+        elif delay < -self.catch_up:
             self._next = time.monotonic()

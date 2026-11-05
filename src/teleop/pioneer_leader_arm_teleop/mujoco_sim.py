@@ -251,6 +251,10 @@ def run() -> None:
         images = {}
         for name, renderer in renderers.items():
             renderer.update_scene(data, name)
+            # The lightbox's shadow maps (~60 ms a frame) and floor-board reflection (~10 ms) barely show in these
+            # views; without them recording keeps up with real time. The viewer window still draws both.
+            renderer.scene.flags[mujoco.mjtRndFlag.mjRND_SHADOW] = 0
+            renderer.scene.flags[mujoco.mjtRndFlag.mjRND_REFLECTION] = 0
             images[name] = renderer.render()
         return images
 
@@ -264,7 +268,8 @@ def run() -> None:
         for arm in arms:
             arm.mapping.reset()
 
-    clock = WallClock(control_dt)
+    # Catch up after the slow step that renders the recorded cameras (every record_every steps).
+    clock = WallClock(control_dt, catch_up=0.1)
     step = 0
     shown_step = None  # last task step announced
     print("[INFO] Leader calibrated (hanging = 0). Move it to home: elbow bent 90 deg, forearm forward, gripper open. 6 = reset.", flush=True)
