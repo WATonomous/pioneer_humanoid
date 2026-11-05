@@ -35,6 +35,10 @@ pip install -e "terrain_core[dev]" -e ../slam/slam_core
 python -m pytest terrain_core
 ```
 
+`terrain_core` depends on `slam_core` (for `Frame`), which is not on PyPI, so always install
+the two in the same `pip install` command as above: pip then takes `slam_core` from this repo.
+`[dev]` adds what the tests and prototypes need (pytest, scipy, matplotlib, pillow).
+
 ## Using preprocessing
 
 ```python
