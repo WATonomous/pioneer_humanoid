@@ -24,3 +24,23 @@ perception_node:
     # Debug parameters
     debug_mode: false
     save_debug_images: false
+
+shuttlecock_detector_node:
+  ros__parameters:
+    image_topic: "/camera/camera/color/image_raw"
+    point_topic: "/perception/shuttlecock/detections_2d"
+    visible_topic: "/perception/shuttlecock/visible"
+    weights: "/data/weights/yolo26n.pt"   # change once ticket 4 is complete
+    device: "cpu"
+    imgsz: 960
+    conf_threshold: 0.25
+    class_ids: [32]    # change once ticket 4 is complete
+
+shuttlecock_localizer_node:
+  ros__parameters:
+    point_topic: "/perception/shuttlecock/detections_2d"
+    depth_topic: "/camera/camera/aligned_depth_to_color/image_raw"
+    camera_info_topic: "/camera/camera/aligned_depth_to_color/camera_info"
+    output_topic: "/perception/shuttlecock/detections_3d"
+    sync_slop: 0.015
+    sync_queue_size: 60   # 2 s of depth at 30 Hz

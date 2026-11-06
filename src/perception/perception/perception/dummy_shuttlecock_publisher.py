@@ -13,6 +13,11 @@ class DummyShuttlecockPublisher(Node):
     def __init__(self):
         super().__init__("synthetic_shuttlecock_publisher")
 
+        self.declare_parameter('camera_info_topic', '/camera/camera/aligned_depth_to_color/camera_info')
+        self.declare_parameter('point_topic', '/perception/shuttlecock/detections_2d')
+        self.declare_parameter('depth_topic', '/camera/camera/aligned_depth_to_color/image_raw')
+        self.declare_parameter('visible_topic', '/perception/shuttlecock/visible')
+
         self.fx = self.fy = 500.0
         self.cx, self.cy = 320.0, 240.0
         self.u, self.v = 370.0, 290.0
@@ -20,21 +25,24 @@ class DummyShuttlecockPublisher(Node):
         self.depth_mm = 2000
         self.bridge = CvBridge()
         self.info_pub = self.create_publisher(
-            CameraInfo, "/camera/depth/camera_info", 10
+            CameraInfo, self._param('camera_info_topic'), 10
         )
         self.det_pub = self.create_publisher(
-            PointStamped, "/tracknetv3/shuttle_point", 10
+            PointStamped, self._param('point_topic'), 10
         )
         self.depth_pub = self.create_publisher(
-            Image, "/camera/depth/image_raw", 10)
+            Image, self._param('depth_topic'), 10)
 
         self.timer = self.create_timer(
             0.5, self._publish_all
         )  # 2Hz is plenty for a test
 
         self.visible_pub = self.create_publisher(
-            Bool, "/tracknetv3/shuttle_visible", 10
+            Bool, self._param('visible_topic'), 10
         )
+
+    def _param(self, name):
+        return self.get_parameter(name).value
 
     def _publish_all(self):
         stamp = self.get_clock().now().to_msg()

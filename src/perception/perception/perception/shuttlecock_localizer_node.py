@@ -10,7 +10,6 @@ from cv_bridge import CvBridge
 from message_filters import ApproximateTimeSynchronizer
 import numpy as np
 from geometry_msgs.msg import PointStamped, Point
-from std_msgs.msg import Bool
 
 
 class ShuttlecockLocalizer(Node):
@@ -20,44 +19,47 @@ class ShuttlecockLocalizer(Node):
         # holding (fx, fy, cx, cy) until CameraInfo arrives
         self.intrinsics = None
 
+        self.declare_parameter('point_topic', '/perception/shuttlecock/detections_2d')
+        self.declare_parameter('depth_topic', '/camera/camera/aligned_depth_to_color/image_raw')
+        self.declare_parameter('camera_info_topic', '/camera/camera/aligned_depth_to_color/camera_info')
+        self.declare_parameter('output_topic', '/perception/shuttlecock/detections_3d')
+        self.declare_parameter('sync_slop', 0.015)
+        self.declare_parameter('sync_queue_size', 60)
+
         self.create_subscription(
             CameraInfo,
-            '/camera/depth/camera_info',
+            self._param('camera_info_topic'),
             self._store_intrinsics,
             qos_profile_sensor_data,
         )
 
         self.pub = self.create_publisher(
             PointStamped,
-            '/perception/shuttlecock/detections_3d',
+            self._param('output_topic'),
             10
-        )
-        visible_sub = message_filters.Subscriber(
-            self,
-            Bool,
-            "/tracknetv3/shuttle_visible"
         )
 
         det_sub = message_filters.Subscriber(
             self,
             PointStamped,
-            '/tracknetv3/shuttle_point'
+            self._param('point_topic')
         )
         depth_sub = message_filters.Subscriber(
             self,
             Image,
-            '/camera/depth/image_raw',
+            self._param('depth_topic'),
             qos_profile=qos_profile_sensor_data
         )
 
         self.ts = ApproximateTimeSynchronizer(
-            [det_sub, visible_sub, depth_sub],
-            queue_size=10,
-            slop=0.015,
-            allow_headerless=True,
+            [det_sub, depth_sub],
+            queue_size=self._param('sync_queue_size'),
+            slop=self._param('sync_slop'),
         )
-
         self.ts.registerCallback(self._synchronized_callback)
+
+    def _param(self, name):
+        return self.get_parameter(name).value
 
     def _store_intrinsics(self, msg: CameraInfo):
         # 3x3 intrinsic matrix
@@ -71,16 +73,12 @@ class ShuttlecockLocalizer(Node):
     def _synchronized_callback(
             self,
             det_msg: PointStamped,
-            visible_msg: Bool,
             depth_msg: Image):
         # Checking if intrinsics have been calculated first
         if self.intrinsics is None:
             self.get_logger().warn(
                 "Waiting for camera intrinsics...",
                 throttle_duration_sec=2.0)
-            return
-
-        if not visible_msg.data:
             return
 
         # extract 2d coordinates
@@ -96,7 +94,7 @@ class ShuttlecockLocalizer(Node):
             return
 
         # sample depth array around u,v patch
-        z_cam = self._sample_depth(depth_img, u, v)
+        z_cam = self._sample_depth(depth_img, u, v, depth_msg.encoding)
 
         # bail if depth sample returns none (invalid patch)
         if z_cam is None:
@@ -114,7 +112,7 @@ class ShuttlecockLocalizer(Node):
 
         point_msg = PointStamped()
         point_msg.header.stamp = det_msg.header.stamp
-        point_msg.header.frame_id = "camera_link"
+        point_msg.header.frame_id = depth_msg.header.frame_id
         point_msg.point = Point(x=x_cam, y=y_cam, z=z_cam)
         self.pub.publish(point_msg)
 
@@ -127,7 +125,7 @@ class ShuttlecockLocalizer(Node):
             f"Y={y_cam:.3f}m, Z={z_cam:.3f}m"
         )
 
-    def _sample_depth(self, depth_img, u: float, v: float):
+    def _sample_depth(self, depth_img, u: float, v: float, encoding: str):
         # median-sample around a small patch around (u.v). Returns depth in
         # meters or none if the patch is invalid
         r = 2  # patch radius
@@ -155,9 +153,9 @@ class ShuttlecockLocalizer(Node):
             return None
 
         # take the median and convert from mm to m
-        median_depth_mm = np.median(valid_values)
+        median = float(np.median(valid_values))
 
-        return float(median_depth_mm / 1000)
+        return median if encoding == '32FC1' else median / 1000.0
 
 
 def main(args=None):
