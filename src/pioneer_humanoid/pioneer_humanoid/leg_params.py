@@ -25,6 +25,11 @@ class MotorSpec:
     # Torque-speed line read by eye from the CubeMars 48 V chart (D14), until Task 11 measures it.
     chart_speed_zero_torque_rpm: float  # rpm at 0 Nm
     chart_speed_at_peak_rpm: float  # rpm at peak_torque
+    # CAN protocol (Task 7, tools/actuator_sysid): "ak3" = AK 3.0 (manual V3.2.0 §4.2, extended
+    # frames, feedback in ERPM and amps), "ak2" = AK 2.0 (driver manual V1.0.18 §5.3, standard frames).
+    protocol: str
+    pole_pairs: int  # ERPM (electrical rpm) = rotor rpm * pole_pairs
+    torque_constant: float | None  # Nm/A at the output (Kt, manual table); None = drive reports Nm
     # MIT frame encoding ranges (symmetric: min = -max). These set the scale of the packed
     # integer fields, NOT what the motor can physically do (e.g. AKH70-48 t_max 280 > peak 222).
     p_max: float  # rad
@@ -72,6 +77,7 @@ AKH70_48 = MotorSpec(
     name="AKH70-48", gear_ratio=48, peak_torque=222.0, rated_torque=74.0,
     no_load_speed_rpm=35.0, rotor_inertia_gcm2=1170.0, backdrive_torque=2.22,
     chart_speed_zero_torque_rpm=34.4, chart_speed_at_peak_rpm=19.1,
+    protocol="ak3", pole_pairs=21, torque_constant=8.8123,
     p_max=12.56, v_max=5.0, t_max=280.0,
 )
 AK80_64 = MotorSpec(  # hip yaw (D1); AK 2.0 protocol
@@ -79,12 +85,14 @@ AK80_64 = MotorSpec(  # hip yaw (D1); AK 2.0 protocol
     # Datasheet lists 75 rpm, but Kv 80 rpm/V * 48 V / 64 = 60 rpm is the 48 V back-EMF ceiling (D15).
     no_load_speed_rpm=60.0, rotor_inertia_gcm2=564.5, backdrive_torque=4.7,
     chart_speed_zero_torque_rpm=54.1, chart_speed_at_peak_rpm=39.5,
+    protocol="ak2", pole_pairs=21, torque_constant=None,  # AK 2.0 MIT feedback is already Nm
     p_max=12.5, v_max=8.0, t_max=144.0,
 )
 AK60_39 = MotorSpec(  # ankle, via linkage (D10)
     name="AK60-39 V3.0 KV80", gear_ratio=39, peak_torque=72.0, rated_torque=24.0,
     no_load_speed_rpm=98.0, rotor_inertia_gcm2=305.0, backdrive_torque=1.4,
     chart_speed_zero_torque_rpm=84.0, chart_speed_at_peak_rpm=45.3,
+    protocol="ak3", pole_pairs=14, torque_constant=3.4616,
     p_max=12.56, v_max=10.0, t_max=80.0,
 )
 

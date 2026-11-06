@@ -26,7 +26,8 @@ def _fake_motor(**overrides) -> MotorSpec:
     fields = dict(
         name="fake", gear_ratio=10, peak_torque=1.0, rated_torque=1.0, no_load_speed_rpm=60.0,
         rotor_inertia_gcm2=1e7, backdrive_torque=0.0, chart_speed_zero_torque_rpm=60.0,
-        chart_speed_at_peak_rpm=30.0, p_max=1.0, v_max=1.0, t_max=1.0,
+        chart_speed_at_peak_rpm=30.0, protocol="ak3", pole_pairs=1, torque_constant=1.0,
+        p_max=1.0, v_max=1.0, t_max=1.0,
     )
     fields.update(overrides)
     return MotorSpec(**fields)
