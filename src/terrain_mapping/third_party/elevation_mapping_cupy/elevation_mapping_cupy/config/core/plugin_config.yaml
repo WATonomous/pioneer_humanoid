@@ -1,0 +1,84 @@
+# min_filter fills in minimum value around the invalid cell.
+min_filter:                                   
+  enable: True                                # weather to load this plugin
+  fill_nan: False                             # Fill nans to invalid cells of elevation layer.
+  is_height_layer: True                       # If this is a height layer (such as elevation) or not (such as traversability)
+  layer_name: "min_filter"                    # The layer name.
+  extra_params:                               # This params are passed to the plugin class on initialization.
+    dilation_size: 1                         # The patch size to apply
+    iteration_n: 30                           # The number of iterations
+# Apply smoothing.
+smooth_filter:
+  enable: True
+  fill_nan: False
+  is_height_layer: True
+  layer_name: "smooth"
+  extra_params:
+    input_layer_name: "min_filter"
+# Reject close-range above-base returns before despiking. This is meant for
+# BASE-centered digging maps where weather/dust can create floating points that
+# block later ground observations.
+near_base_height_filter:
+  enable: True
+  fill_nan: False
+  is_height_layer: True
+  layer_name: "near_base_filtered"
+  extra_params:
+    input_layer_name: "elevation"
+    radius_m: 4.0
+    max_allowed_height_m: 0.5
+# Remove isolated positive spikes before inpainting. This is intentionally
+# asymmetric: upward one/few-cell towers are clipped, trench drops are kept.
+positive_spike_filter:
+  enable: True
+  fill_nan: False
+  is_height_layer: True
+  layer_name: "despiked_coarse"
+  extra_params:
+    input_layer_name: "near_base_filtered"
+    median_filter_size: 5
+    spike_height_diff_m: 0.35
+    support_height_tolerance_m: 0.12
+    max_support_neighbor_count: 1
+    max_component_cells: 4
+# A second narrower cleanup pass catches the smaller shovel-local residual bumps
+# that survive the coarse tower filter while still preserving supported walls.
+positive_spike_filter_cleanup:
+  type: "positive_spike_filter"
+  enable: True
+  fill_nan: False
+  is_height_layer: True
+  layer_name: "despiked"
+  extra_params:
+    input_layer_name: "despiked_coarse"
+    median_filter_size: 3
+    spike_height_diff_m: 0.08
+    support_height_tolerance_m: 0.02
+    max_support_neighbor_count: 1
+    max_component_cells: 2
+    edge_invalid_neighbor_count_min: 3
+    edge_peak_diff_m: 0.12
+    edge_similarity_tolerance_m: 0.05
+    edge_max_similar_neighbor_count: 1
+# Inpaint the cleaned surface so downstream digging keeps hole filling without
+# reintroducing the rejected spikes.
+inpainting:
+  enable: True
+  fill_nan: False
+  is_height_layer: True
+  layer_name: "inpaint"
+  extra_params:
+    method: "telea"                           # telea or ns
+    input_layer_name: "despiked"
+    max_hole_area: 25                         # 5x5 cells at 0.1m resolution
+    fill_border_holes: False                  # boundary-connected invalid regions stay unknown
+erosion:
+  enable: True
+  fill_nan: False
+  is_height_layer: False
+  layer_name: "erosion"
+  extra_params:
+    input_layer_name: "traversability"
+    dilation_size: 3
+    iteration_n: 20
+    reverse: True

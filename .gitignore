@@ -21,6 +21,9 @@ log/
 datasets/
 outputs/
 
+# Recorded RealSense bags for terrain_mapping (GBs; mounted read-only into the container)
+Terrain Mapping Bags/
+
 src/simulation/humanoid_rl/datasets/
 # pi0.5 training outputs: checkpoints + train_log.csv, and pioneer_eval_offline.py's plots
 src/robot_learning/pi05/checkpoint/
