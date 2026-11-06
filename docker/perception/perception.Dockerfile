@@ -79,12 +79,12 @@ RUN python3 -m pip install --no-cache-dir \
       cv_bridge \
       numpy==1.26.4 \
       fire \
-      opencv-python \
-      ultralytics
+      opencv-python
 
 # Install PyTorch CPU
 RUN pip install torch==2.1.0 torchvision==0.16.0 \
     --index-url https://download.pytorch.org/whl/cpu
+RUN pip install --no-cache-dir "ultralytics>=8.4"
 
 # Install mmcv built for torch2.1.0
 RUN pip install mmcv==2.1.0 \
