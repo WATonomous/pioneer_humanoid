@@ -25,6 +25,9 @@ outputs outside the repository.
   - `data/frames/`: extracted frames
   - `data/labeled/`: labels from auto-labeling
   - `data/dataset/`: final train/val dataset
+- The trained v2 checkpoint is included as [`yolo26n_v2.pt`](./yolo26n_v2.pt).
+  It expects inference at `imgsz 1280`; use confidence `0.60` for the
+  threshold selected on the PAC 5 validation split.
 
 The `data/` names above are historical examples only. A recommended external
 layout is `/path/to/badminton_eval/` with `images/`, `manifest.jsonl`, and
@@ -171,7 +174,7 @@ python eval_metrics.py \
   --weights .../runs/yolo26n_v2/weights/best.pt \
   --manifest /home/matthewyang/datasets/badminton_eval/manifest.jsonl \
   --output /home/matthewyang/datasets/badminton_eval/metrics/yolo26n_v2.json \
-  --imgsz 1280 --confidence 0.25 --match_radius 50 --class_id 0
+  --imgsz 1280 --confidence 0.60 --match_radius 50 --class_id 0
 ```
 
 Optional final model: once settings are fixed, rebuild with
@@ -191,6 +194,7 @@ recording the source-video split, training command, commit, and metrics.
 | stock yolo26n, class 14 | 960 | 0.25 | 0.0% | 0.0% | COCO `bird` |
 | yolo26n_v1 | 960 | 0.25 | 89.9% | 0.0% | median center error 0.66 px |
 | yolo26n_v1 | 1280 | 0.25 | 94.0% | 2.1% | same weights, larger inference size |
+| yolo26n_v2 | 1280 | 0.60 | 89.3% | 0.0% | included `yolo26n_v2.pt`; threshold selected on PAC 5 |
 
 Most remaining misses are shuttles held in a hand, lying on the floor at the
 bottom edge of the frame, or about 10 px wide. On PAC 5, most false positives
@@ -204,10 +208,10 @@ manifest also show the hand-labeled box and a TP/FN/FP/TN badge:
 
 ```
 python visualize_predictions.py \
-  --weights .../weights/best.pt \
+  --weights yolo26n_v2.pt --imgsz 1280 --confidence 0.60 \
   --video ".../raw_videos/PAC 1.MP4" --video ".../raw_videos/PAC 6.MP4" \
   --manifest .../badminton_eval/manifest.jsonl \
-  --output_dir .../badminton_eval/videos/yolo26n_v1 --imgsz 960
+  --output_dir .../badminton_eval/videos/yolo26n_v2
 ```
 
 Without `--video`, it renders only the labeled frames as a 2 FPS slideshow per
