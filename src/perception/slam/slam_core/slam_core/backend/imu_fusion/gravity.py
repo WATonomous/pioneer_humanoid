@@ -16,12 +16,16 @@ def chain_vo(keyframes):
 
 
 def estimate_gravity(stamp, gyro, accel, keyframes, params):
-    poses = chain_vo(keyframes)
-    kf_stamps = keyframes[:, 2]
+    return gravity_in_frame(stamp, gyro, accel, keyframes[:, 2], chain_vo(keyframes), params)
+
+
+# Gravity in the frame the keyframe poses (4x4, T_frame_kf) are expressed in, averaged over these
+# keyframes. In a level odom frame it's [0, ~9.81, 0]; any tilt means the poses aren't level.
+def gravity_in_frame(stamp, gyro, accel, kf_stamps, poses, params):
     bias = gtsam.imuBias.ConstantBias()   # gyro/accel bias assumed 0 here; the graph estimates it
 
     dv_sum = np.zeros(3)
-    for k in range(len(keyframes) - 1):
+    for k in range(len(kf_stamps) - 1):
         gyro_seg, accel_seg, dt = imu_between(stamp, gyro, accel, kf_stamps[k], kf_stamps[k + 1])
         pim = preintegrate(gyro_seg, accel_seg, dt, params, bias)
         dv_sum += poses[k][:3, :3] @ pim.deltaVij()
