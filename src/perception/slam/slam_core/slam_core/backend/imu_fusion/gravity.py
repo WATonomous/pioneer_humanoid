@@ -1,4 +1,4 @@
-# Gravity alignment without a still period: finds which way is down in the first keyframe's
+# Gravity alignment without a still period: finds which way is down in the first keyframe
 
 import numpy as np
 import gtsam

@@ -31,7 +31,6 @@ def bias_sigmas(accel, gyro):
     return gtsam.noiseModel.Diagonal.Sigmas(np.array([accel] * 3 + [gyro] * 3))
 
 
-
 # Returns the graph, the initial guess, and {id: T_odom_kf} before (leveled VO) and after solving.
 def solve_vio(kfs, loops, imu, params, R_odom_kf0, loop_rot=0.02, loop_trans=0.03):
     stamp, gyro, accel = imu
