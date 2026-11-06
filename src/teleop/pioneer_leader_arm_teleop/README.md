@@ -215,6 +215,28 @@ python3 pioneer_leader_arm_teleop.py --target real --self-test           # angle
 3. Ctrl-C stops publishing. `joint_command` holds the last pose for `command_timeout_sec` (10 s), then
    sets kp = 0 and the arm sinks: support it.
 
+## Real arm without homing: `real_arm_teleop.py`
+
+The leader can start anywhere; the real arm comes to it, slowly. Enter advances, `q` + Enter quits.
+
+```bash
+python3 real_arm_teleop.py --arms right [--slow-rate 15] [--skip-zero]   # needs interfacing + joint_command up
+python3 real_arm_teleop.py --self-test                      # logic only, no ROS / leader
+```
+
+0. **ZERO** (read-only): hang the leader and the real arm straight down (leader gripper open), Enter: the
+   leader's reading becomes its zero for this run. Refuses if an active real joint reads more than 5° from 0
+   (recalibrate with `calibrate_arm.py`); the real arm's zero is never changed here. `--skip-zero` skips it.
+1. **CHECK** (read-only, publishes nothing): leader / real per joint. Enter starts SLOW once every
+   `active` joint has feedback and is inside its `arm_calibration.yaml` limits.
+2. **SLOW**: starts from the real arm's measured pose and moves each joint toward the leader at most
+   `--slow-rate` deg/s (default 15, at most each joint's `velocity_max`), then keeps following at that
+   speed: test the joints. Enter starts LIVE once every target is within 2° of the leader.
+3. **LIVE**: full teleop; `joint_command`'s `velocity_max` still applies. Enter drops back to SLOW.
+
+Lost feedback on an active joint holds the last target (still published) and falls back to SLOW.
+Ctrl-C stops publishing: `joint_command` holds for `command_timeout_sec`, then kp = 0 and the arm sinks.
+
 ## Files
 
 | file | role |
@@ -222,6 +244,7 @@ python3 pioneer_leader_arm_teleop.py --target real --self-test           # angle
 | `pioneer_leader_arm_teleop.py` | entry; `--target isaac\|mujoco\|real` picks the backend before any simulator import |
 | `isaac_sim.py` / `mujoco_sim.py` | sim backends |
 | `real_arm.py` | real-arm backend (`--arms left\|right\|bimanual`): dry run (leader vs `/interfacing/motorFeedback`), `--live` publishes `/arm/<side>/joint_targets` |
+| `real_arm_teleop.py` | real arm, no homing: ZERO (leader) -> CHECK -> SLOW (arm moves to the leader at `--slow-rate`) -> LIVE, Enter to advance |
 | `leader_mapping.py` | shared: 1:1 mapping, home check, filter, gripper closure, leader read, wall-clock pacing |
 | `servo_leader.py` / `arm_limits.py` | servo bus reader / clamp + gripper fraction |
 | `calibrate_leader.py` | stores a board's hanging-pose zero, signs and USB serial in `leader_arm.json` |
