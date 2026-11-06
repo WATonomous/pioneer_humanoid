@@ -1,0 +1,100 @@
+# Leg joints, laid out like arm_calibration.yaml (#477). NOT CALIBRATED: nothing here has been
+# checked on the legs.
+#   can_id:   PLANNED, not yet set on the drives (#478). Update this file if the drives differ.
+#   direction, zero_offset: null ON PURPOSE. A made-up value would load and drive the joint the
+#     wrong way or from the wrong zero, while null makes joint_command refuse to start. Set
+#     direction by hand to match the URDF; the calibration script writes zero_offset and limits.
+#   lower_limit, upper_limit: degrees, the URDF range (assets/pioneer_leg_only_humanoid), until
+#     calibration replaces them with the measured range.
+left:
+  hip:
+    pitch:  # AKH70-48, URDF Hip_F_L
+      can_id: 40
+      lower_limit: -20.0
+      upper_limit: 90.0
+      direction: null
+      zero_offset: null
+      limit_range: true
+    roll:  # AK80-64, URDF Hip_A_L
+      can_id: 41
+      lower_limit: -10.0
+      upper_limit: 60.0
+      direction: null
+      zero_offset: null
+      limit_range: true
+    yaw:  # AK60-39, URDF Hip_R_L
+      can_id: 42
+      lower_limit: -30.0
+      upper_limit: 90.0
+      direction: null
+      zero_offset: null
+      limit_range: true
+  knee:
+    pitch:  # AKH70-48, URDF Knee_L
+      can_id: 43
+      lower_limit: -140.0
+      upper_limit: 0.0
+      direction: null
+      zero_offset: null
+      limit_range: true
+  ankle:
+    pitch:  # AK60-39, URDF Ankle_P_L
+      can_id: 44
+      lower_limit: -30.0
+      upper_limit: 50.0
+      direction: null
+      zero_offset: null
+      limit_range: true
+    roll:  # AK60-39, URDF Ankle_R_L
+      can_id: 45
+      lower_limit: -15.0
+      upper_limit: 15.0
+      direction: null
+      zero_offset: null
+      limit_range: true
+right:
+  hip:
+    pitch:  # AKH70-48, URDF Hip_F_R
+      can_id: 56
+      lower_limit: -20.0
+      upper_limit: 90.0
+      direction: null
+      zero_offset: null
+      limit_range: true
+    roll:  # AK80-64, URDF Hip_A_R
+      can_id: 57
+      lower_limit: -10.0
+      upper_limit: 60.0
+      direction: null
+      zero_offset: null
+      limit_range: true
+    yaw:  # AK60-39, URDF Hip_R_R
+      can_id: 58
+      lower_limit: -30.0
+      upper_limit: 90.0
+      direction: null
+      zero_offset: null
+      limit_range: true
+  knee:
+    pitch:  # AKH70-48, URDF Knee_R
+      can_id: 59
+      lower_limit: -140.0
+      upper_limit: 0.0
+      direction: null
+      zero_offset: null
+      limit_range: true
+  ankle:
+    pitch:  # AK60-39, URDF Ankle_P_R
+      can_id: 60
+      lower_limit: -30.0
+      upper_limit: 50.0
+      direction: null
+      zero_offset: null
+      limit_range: true
+    roll:  # AK60-39, URDF Ankle_R_R
+      can_id: 61
+      lower_limit: -15.0
+      upper_limit: 15.0
+      direction: null
+      zero_offset: null
+      limit_range: true
