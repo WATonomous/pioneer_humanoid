@@ -201,35 +201,41 @@ python3 pioneer_leader_arm_teleop.py --target real --self-test           # angle
   `arm_calibration.yaml`: id 21 left, 36 right); `>0.1` and `real outside hw` warn.
 
 `--live`:
-0. Optionally homes each arm's real elbow.pitch first. Once every active joint has feedback, it asks `[y/N]`.
-   On `y` it ramps elbow.pitch from its measured angle to home (−90° left, +90° right) at `--home-rate` deg/s
-   (default 5, at most its `velocity_max`), holding the other joints where they are. It then keeps publishing
-   that pose until the leader takes over. It refuses if elbow.pitch is not `active` or home is outside its
-   `arm_calibration.yaml` limits (re-run `calibrate_arm.py` sweeping past home).
+0. Asks **start at home? `[y/N]`** (one question for both arms with `bimanual`).
+   - `y`: every `active` joint ramps from its measured angle to home (shoulders 0°, elbow.pitch −90° left /
+     +90° right) at `--home-rate` deg/s (default 5, at most every active joint's `velocity_max`), then holds
+     there. Put the leader at home by hand. Refused, nothing moves, if an active joint's home is outside its
+     `arm_calibration.yaml` limits (re-run `calibrate_arm.py` sweeping past home); it then carries on as `n`.
+   - `n`: no homing; start from wherever the arm is.
 1. Shows the dry run until the gate passes: on every joint `active` in `arm_actuators.yaml`, the real arm is
-   inside its `arm_calibration.yaml` limits and the leader is within 3° of home and within 10° of the real
-   arm; the gripper (if active) is inside its limits and within 0.1. The screen lists what fails. With
-   `bimanual` both arms must pass.
+   inside its `arm_calibration.yaml` limits and the leader is within 15° of the real arm (and within 15° of
+   home after `y`); the gripper (if active) is inside its limits and within 0.1. The screen lists what fails.
+   With `bimanual` both arms must pass.
 2. Asks you to press Enter (anything else quits), re-checks the gate, then publishes `ArmPose` on
    `/arm/<side>/joint_targets` at 50 Hz, gripper included; with `bimanual` one Enter starts both arms.
    `joint_command` clamps, rate-limits and runs the watchdog.
 3. Ctrl-C stops publishing. `joint_command` holds the last pose for `command_timeout_sec` (10 s), then
    sets kp = 0 and the arm sinks: support it.
 
-## Real arm without homing: `real_arm_teleop.py`
+## Real arm, phased start: `real_arm_teleop.py`
 
 The leader can start anywhere; the real arm comes to it, slowly. Enter advances, `q` + Enter quits.
+At start it asks **start at home? `[y/N]`**: `y` adds the HOME step below, `n` skips it.
 
 ```bash
-python3 real_arm_teleop.py --arms right [--slow-rate 15] [--skip-zero]   # needs interfacing + joint_command up
+python3 real_arm_teleop.py --arms right [--slow-rate 15] [--home-rate 5] [--skip-zero]   # needs interfacing + joint_command up
 python3 real_arm_teleop.py --self-test                      # logic only, no ROS / leader
 ```
 
 0. **ZERO** (read-only): hang the leader and the real arm straight down (leader gripper open), Enter: the
    leader's reading becomes its zero for this run. Refuses if an active real joint reads more than 5° from 0
    (recalibrate with `calibrate_arm.py`); the real arm's zero is never changed here. `--skip-zero` skips it.
-1. **CHECK** (read-only, publishes nothing): leader / real per joint. Enter starts SLOW once every
-   `active` joint has feedback and is inside its `arm_calibration.yaml` limits.
+1. **CHECK** (read-only, publishes nothing): leader / real per joint. Enter starts HOME (`y`) or SLOW
+   (`n`) once every `active` joint has feedback and is inside its `arm_calibration.yaml` limits.
+   - **HOME** (`y` only): every `active` joint ramps from its measured angle to home at `--home-rate` deg/s
+     (default 5) and holds; put the leader at home by hand. Enter starts SLOW once the ramp is done and every
+     active leader joint is within 15° of home. Refused at the question if an active joint's home is outside
+     its calibrated limits (it then runs as `n`).
 2. **SLOW**: starts from the real arm's measured pose and moves each joint toward the leader at most
    `--slow-rate` deg/s (default 15, at most each joint's `velocity_max`), then keeps following at that
    speed: test the joints. Enter starts LIVE once every target is within 2° of the leader.
@@ -245,7 +251,7 @@ Ctrl-C stops publishing: `joint_command` holds for `command_timeout_sec`, then k
 | `pioneer_leader_arm_teleop.py` | entry; `--target isaac\|mujoco\|real` picks the backend before any simulator import |
 | `isaac_sim.py` / `mujoco_sim.py` | sim backends |
 | `real_arm.py` | real-arm backend (`--arms left\|right\|bimanual`): dry run (leader vs `/interfacing/motorFeedback`), `--live` publishes `/arm/<side>/joint_targets` |
-| `real_arm_teleop.py` | real arm, no homing: ZERO (leader) -> CHECK -> SLOW (arm moves to the leader at `--slow-rate`) -> LIVE, Enter to advance |
+| `real_arm_teleop.py` | real arm, phased start: ZERO (leader) -> CHECK -> [HOME if `y`] -> SLOW (arm moves to the leader at `--slow-rate`) -> LIVE, Enter to advance |
 | `leader_mapping.py` | shared: 1:1 mapping, home check, filter, gripper closure, leader read, wall-clock pacing |
 | `servo_leader.py` / `arm_limits.py` | servo bus reader / clamp + gripper fraction |
 | `calibrate_leader.py` | stores a board's hanging-pose zero, signs and USB serial in `leader_arm.json` |

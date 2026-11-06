@@ -1,6 +1,8 @@
-"""Leader arm -> real arm(s) teleop with a three-phase start: no need to put the leader at home.
+"""Leader arm -> real arm(s) teleop with a phased start: no need to put the leader at home.
 
-    python3 real_arm_teleop.py [--arms right|bimanual] [--slow-rate 15] [--skip-zero]
+    python3 real_arm_teleop.py [--arms right|bimanual] [--slow-rate 15] [--home-rate 5] [--skip-zero]
+
+At start it asks "start at home? [y/N]". y adds the HOME phase between CHECK and SLOW; n skips it.
 
   ZERO   read-only. Hang the leader AND the real arm (each --arms arm) straight down, leader gripper
          open, then Enter: the leader's current reading becomes its zero (this run only, not saved).
@@ -8,7 +10,12 @@
          is stale, re-run calibrate_arm.py. The real arm's zero is never changed here (joint_command
          loads it from arm_calibration.yaml). --skip-zero keeps leader_arm.json's zeros.
   CHECK  read-only. Leader vs real arm, side by side. Nothing is published.
-         Enter starts SLOW once every active joint reports feedback and is inside its calibrated limits.
+         Enter starts HOME (y) or SLOW (n) once every active joint reports feedback and is inside its
+         calibrated limits.
+  HOME   (y only) every active real joint ramps from its MEASURED angle to home at --home-rate deg/s and
+         holds there; put the leader at home by hand. Enter starts SLOW once the ramp is done and every
+         active leader joint is within HOME_TOL_DEG of home. Refused at the question (nothing moves) if
+         an active joint's home is outside its calibrated limits.
   SLOW   the real arm moves to wherever the leader is, starting from its MEASURED pose, each joint at
          most --slow-rate deg/s, then keeps following at that speed: test the joints here.
          Enter starts LIVE once the target has caught up with the leader.
@@ -33,8 +40,9 @@ import time
 from pathlib import Path
 
 # real_arm puts joint_config, pioneer_humanoid and humanoid_robot_learning on sys.path.
-from real_arm import (AGREE_TOL_DEG, GRIPPER_JOINT, PRINT_PERIOD_S, READ_PERIOD_S, STALE_AFTER_S,  # noqa: E402
-                      RealArm, arm_pose, compare, load_arm)
+from real_arm import (AGREE_TOL_DEG, GRIPPER_JOINT, HOME_RATE_DEG_S, HOME_TOL_DEG,  # noqa: E402
+                      PRINT_PERIOD_S, READ_PERIOD_S, STALE_AFTER_S, RealArm, arm_pose, compare,
+                      home_rate_error, home_refusals, load_arm)
 from humanoid_robot_learning.recording.schema import ARM_SETS  # noqa: E402
 from joint_config import (arm_pose_topic, find_actuators, find_calibration, gripper_position,  # noqa: E402
                           joint_safety, motor_to_cmd_deg)
@@ -56,7 +64,7 @@ MAX_DT_S = 0.1
 # ZERO: every active real joint must read within this of 0 (hanging) for the leader re-zero.
 ZERO_TOL_DEG = 5.0
 
-ZERO, CHECK, SLOW, LIVE = "ZERO", "CHECK", "SLOW", "LIVE"
+ZERO, CHECK, HOME, SLOW, LIVE = "ZERO", "CHECK", "HOME", "SLOW", "LIVE"
 
 
 def zero_failures(rows: list[dict], arm: RealArm) -> list[str]:
@@ -110,6 +118,16 @@ def lagging(rows: list[dict], target: list[float], grip: float, grip_target: flo
            if row["joint"]["name"] in arm.active and abs(row["leader"] - t) > CAUGHT_UP_DEG]
     if arm.grip_active and abs(grip - grip_target) > GRIP_CAUGHT_UP:
         out.append(f"gripper {grip - grip_target:+.2f}")
+    return out
+
+
+def not_home(rows: list[dict], target: list[float], arm: RealArm) -> list[str]:
+    """HOME: active joints whose ramp target has not reached home yet, then active leader joints more
+    than HOME_TOL_DEG from home. Empty: SLOW may start."""
+    out = [f"{row['joint']['name']} ramping" for row, t, h in zip(rows, target, arm.home)
+           if row["joint"]["name"] in arm.active and t != math.degrees(h)]
+    out += [f"{row['joint']['name']} leader {row['home_err']:+.1f} from home" for row in rows
+            if row["joint"]["name"] in arm.active and abs(row["home_err"]) > HOME_TOL_DEG]
     return out
 
 
@@ -182,6 +200,12 @@ def self_test() -> None:
     assert "not ~0" in zero_failures(rows, arm)[0]
     rows = compare(arm.joints, (0.0, 0.0), [1.0, 1.0], {}, arm.home)
     assert zero_failures(rows, arm) == ["shoulder.pitch: no feedback"]
+
+    # HOME: SLOW waits for the ramp to reach home and for the leader near home (active joints only).
+    rows = compare(arm.joints, (math.radians(30.0), math.radians(60.0)), [1.0, 1.0], {1: 2.0}, arm.home)
+    assert not_home(rows, [2.0, 0.0], arm) == ["shoulder.pitch ramping", "shoulder.pitch leader +30.0 from home"]
+    rows = compare(arm.joints, (math.radians(10.0), math.radians(60.0)), [1.0, 1.0], {1: 0.0}, arm.home)
+    assert not_home(rows, [0.0, 0.0], arm) == [], "home reached, leader within HOME_TOL_DEG; inactive elbow ignored"
     print("self-test ok")
 
 
@@ -196,6 +220,8 @@ def run() -> None:
                         help="the real arm's arm_calibration.yaml (default: auto, as joint_command)")
     parser.add_argument("--slow-rate", type=float, default=SLOW_RATE_DEG_S,
                         help=f"SLOW phase: max deg/s per joint (default {SLOW_RATE_DEG_S:g})")
+    parser.add_argument("--home-rate", type=float, default=HOME_RATE_DEG_S,
+                        help=f"HOME phase (if you answer y): deg/s per joint (default {HOME_RATE_DEG_S:g})")
     parser.add_argument("--skip-zero", action="store_true",
                         help="skip ZERO: keep the leader zeros from leader_arm.json")
     parser.add_argument("--self-test", action="store_true", help="check the logic and exit (no ROS, no leader)")
@@ -220,6 +246,9 @@ def run() -> None:
                 vmax = float(joint_safety(actuators, arm.side, j["name"]).get("velocity_max") or 0.0)
                 if not 0.0 < args.slow_rate <= vmax:
                     parser.error(f"--slow-rate must be in (0, {vmax:g}], the {arm.side} {j['name']}'s velocity_max")
+    rate_error = home_rate_error(args.home_rate, arms, actuators)
+    if rate_error:
+        parser.error(rate_error)
 
     by_id: dict[int, dict] = {}
     for arm in arms:
@@ -289,6 +318,19 @@ def run() -> None:
     try:
         for arm in arms:
             arm.leader = LeaderInput(arm.board, args.baud, label=arm.side.upper() if bimanual else "")
+        # Asked before the key reader starts; nothing moves until HOME (after CHECK + Enter).
+        answer = input("\nStart at home? y: after CHECK the real arm ramps to home and holds there, then you put "
+                       "the leader at home. n: the real arm moves to wherever the leader is. [y/N]: ")
+        start_home = answer.strip().lower() == "y"
+        if start_home:
+            refusals = [f"{arm.side} {r}" if bimanual else r
+                        for arm in arms for r in home_refusals(arm.joints, arm.home, arm.active)]
+            if refusals:
+                start_home = False
+                print("[INFO] Not homing: " + "; ".join(refusals) + " (joint_command would clamp it; re-run "
+                      "calibrate_arm.py sweeping past home). Continuing without HOME.", flush=True)
+                time.sleep(3.0)
+        home_deg = {arm.side: [math.degrees(h) for h in arm.home] for arm in arms}
         if sys.stdin.isatty():
             termios.tcflush(sys.stdin, termios.TCIFLUSH)  # nothing typed before the start counts
         threading.Thread(target=read_keys, daemon=True).start()
@@ -341,6 +383,16 @@ def run() -> None:
                                              for row in rows]
                         grip_targets[arm.side] = real_grip if real_grip is not None else grip
                         pubs[arm.side] = node.create_publisher(ArmPose, arm_pose_topic(arm.side), 10)
+                    if start_home:
+                        phase, message = HOME, f"HOME: ramping to home at {args.home_rate:g} deg/s."
+                    else:
+                        phase, message = SLOW, f"SLOW: moving to the leader at {args.slow_rate:g} deg/s."
+            elif phase == HOME and key == "":
+                waiting = [f"{arm.side} {w}" if bimanual else w
+                           for arm, (rows, _, _) in zip(arms, snaps) for w in not_home(rows, targets[arm.side], arm)]
+                if waiting:
+                    message = "Not starting SLOW: " + "; ".join(waiting)
+                else:
                     phase, message = SLOW, f"SLOW: moving to the leader at {args.slow_rate:g} deg/s."
             elif phase == SLOW and key == "":
                 behind = [f"{arm.side} {b}" if bimanual else b
@@ -355,9 +407,9 @@ def run() -> None:
             elif key:
                 message = f"Ignored '{key}': press Enter (or q + Enter to quit)."
 
-            if phase in (SLOW, LIVE):
+            if phase in (HOME, SLOW, LIVE):
                 # Lost feedback on an active joint: hold the last target (still published, so
-                # joint_command does not time out and drop the arm) and fall back to SLOW.
+                # joint_command does not time out and drop the arm) and fall back to SLOW (HOME stays HOME).
                 stale = [f for f in failures if "no feedback" in f]
                 for arm, (rows, grip, _) in zip(arms, snaps):
                     target = targets[arm.side]
@@ -366,11 +418,14 @@ def run() -> None:
                             target[i] = row["leader"]  # joint_command ignores it; any finite value
                         elif stale:
                             pass
+                        elif phase == HOME:
+                            target[i] = step_toward(target[i], home_deg[arm.side][i], args.home_rate * dt)
                         elif phase == LIVE:
                             target[i] = row["leader"]
                         else:
                             target[i] = step_toward(target[i], row["leader"], args.slow_rate * dt)
-                    if arm.grip_active and not stale:
+                    # HOME holds the gripper where it was measured.
+                    if arm.grip_active and not stale and phase != HOME:
                         grip_targets[arm.side] = (grip if phase == LIVE else
                                                   step_toward(grip_targets[arm.side], grip, SLOW_GRIP_RATE * dt))
                     msg = arm_pose(ArmPose, arm.side, target, grip_targets[arm.side], arm.grip_active)
@@ -398,8 +453,17 @@ def run() -> None:
                 elif phase == CHECK:
                     lines.append("CHECK (read-only, nothing published). "
                                  + ("Ready: " if not failures else "Waiting: " + "; ".join(failures) + ". ")
-                                 + "Hand on the E-stop, then Enter: the arm moves to the leader at "
-                                 f"{args.slow_rate:g} deg/s.")
+                                 + "Hand on the E-stop, then Enter: the arm moves to "
+                                 + (f"home at {args.home_rate:g} deg/s." if start_home
+                                    else f"the leader at {args.slow_rate:g} deg/s."))
+                elif phase == HOME:
+                    waiting = [w for arm, (rows, _, _) in zip(arms, snaps) for w in not_home(rows, targets[arm.side], arm)]
+                    ramping = any(w.endswith("ramping") for w in waiting)
+                    lines.append(f"HOME ({args.home_rate:g} deg/s): "
+                                 + ("ramping the real arm to home." if ramping else
+                                    "real arm at home. Put the leader at home by hand (upper arm down, forearm "
+                                    "forward), then Enter for SLOW. ")
+                                 + ("" if ramping or not waiting else "Waiting: " + "; ".join(waiting)))
                 elif phase == SLOW:
                     behind = [b for arm, (rows, grip, _) in zip(arms, snaps)
                               for b in lagging(rows, targets[arm.side], grip, grip_targets[arm.side], arm)]
