@@ -2,8 +2,9 @@
 # checked on the legs.
 #   can_id:   PLANNED, not yet set on the drives (#478). Update this file if the drives differ.
 #   direction, zero_offset: null ON PURPOSE. A made-up value would load and drive the joint the
-#     wrong way or from the wrong zero, while null makes joint_command refuse to start. Set
-#     direction by hand to match the URDF; the calibration script writes zero_offset and limits.
+#     wrong way or from the wrong zero. No code reads this file yet: the arm loader fails on a
+#     null, and the leg loader must do the same (add a test). Set direction by hand to match the
+#     URDF; the calibration script writes zero_offset and limits.
 #   lower_limit, upper_limit: degrees, the URDF range (assets/pioneer_leg_only_humanoid), until
 #     calibration replaces them with the measured range.
 left:

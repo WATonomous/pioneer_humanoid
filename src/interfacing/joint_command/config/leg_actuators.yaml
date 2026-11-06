@@ -8,9 +8,10 @@ safety:
   # Same layers as the arm. velocity_max and delta_max are lower than the arm's for first bring-up
   # (30 deg/s at 50 Hz = 0.6 deg per tick); raise them only with bench data.
   #
-  # mit_kp / mit_kd stay 0 until #483 sets them per joint. joint_command validates every listed
-  # limb, active or not, and refuses an MIT joint with zero gains, so these legs cannot be driven
-  # until that is done. mit_max_torque is the arm's fallback, also for #483 to set per joint.
+  # mit_kp / mit_kd stay 0 until #483 sets them per joint. No code reads this file yet: for the
+  # arms, joint_command validates every listed limb, active or not, and refuses an MIT joint with
+  # zero gains. The leg loader must do the same (add a test). mit_max_torque is the arm's fallback,
+  # also for #483 to set per joint.
   global:
     enable_position_clamp: true
     enable_velocity_limit: true
