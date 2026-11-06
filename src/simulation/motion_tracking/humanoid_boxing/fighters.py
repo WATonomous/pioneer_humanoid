@@ -31,6 +31,8 @@ Team = Literal["red", "blue"]
 
 TEAM_BIT = {"red": 2, "blue": 4}
 ROPE_BIT = 8
+# False: both fighters keep the robot model's own colours (demos); True: tint them red / blue
+TEAM_COLOURS = False
 TEAM_RGBA = {"red": (0.80, 0.30, 0.28, 1.0), "blue": (0.30, 0.40, 0.80, 1.0)}
 GLOVE_RGBA = {"red": (0.65, 0.05, 0.05, 1.0), "blue": (0.05, 0.12, 0.60, 1.0)}
 
@@ -38,6 +40,9 @@ GLOVE_RADIUS = 0.07  # round the glove prop's centre (the fist is 12.6 x 13.4 x 
 HEAD_RADIUS = 0.11
 ARM_RADIUS = 0.045
 LEG_RADIUS = 0.06
+# The shank capsule stops this far above the ankle: the ankle is only ~6 cm off the floor, so a capsule
+# down to it clears the floor by 2 mm in stance and any ankle flex reads as a knockdown.
+ANKLE_GAP = 0.08
 
 WRISTS = {"l": "l_hand_H", "r": "r_hand_H"}  # the hands, closed into fists (humanoid_tracking/robot.py)
 HEAD_BODY = "head"
@@ -142,7 +147,7 @@ def _body_quat_of_world_axes(data: mujoco.MjData, model: mujoco.MjModel, body: s
 
 def add_hitboxes(spec: mujoco.MjSpec, team: Team) -> None:
   """Recolour the robot and add gloves + hitboxes for `team`."""
-  for geom in spec.geoms:
+  for geom in spec.geoms if TEAM_COLOURS else ():
     if geom.type == mujoco.mjtGeom.mjGEOM_MESH and geom.group != HIDDEN_GROUP:
       geom.rgba = TEAM_RGBA[team]
     elif geom.name.endswith(("_glove", "_glove_cuff")):
@@ -197,6 +202,8 @@ def add_hitboxes(spec: mujoco.MjSpec, team: Team) -> None:
     r = ARM_RADIUS if kind == "arm" else LEG_RADIUS
     for parent, child in chain:
       end = np.array(spec.body(child).pos)
+      if child.endswith("_ankle_cross"):
+        end *= 1 - ANKLE_GAP / np.linalg.norm(end)
       add(parent, f"{kind}_{parent}", type=mujoco.mjtGeom.mjGEOM_CAPSULE, size=(r, 0, 0), fromto=(0, 0, 0, *end))
 
 

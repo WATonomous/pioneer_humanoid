@@ -4,3 +4,11 @@ logs/
 wandb/
 videos/
 videos_reference/
+
+# run litter from training jobs (Ultron, nohup): logs, pid / job-id files
+*.log
+*.pid
+*.jobid
+cur_run.txt
+train_exit.txt
+logs_*.txt
