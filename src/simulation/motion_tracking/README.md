@@ -228,6 +228,12 @@ MUJOCO_GL=egl uv run scripts/play.py Mjlab-Boxing-Fight-Pioneer-SelfPlay --num-e
 uv run scripts/fight_teleop.py --opponent ai --viewer viser --checkpoint-file <ckpt>   # box against it
 ```
 
+`fight_teleop.py` plays a 5-minute match (`--match-minutes`) with a live scoreboard at the top
+of the viser panel. A clean punch scores where it lands (head 10, torso 5) x the punch (jab 1,
+cross 1.2, lead hook 1.3, rear hook 1.4, lead uppercut 1.4, rear uppercut 1.5) x its power
+(peak glove force / 100 N, 0.5-1.5); punches on the arms or gloves are blocked (0). Highest
+score at full time wins; `n` starts a new match.
+
 **Scoring** (`humanoid_boxing/impact.py`): a clean punch (a punch move's glove on
 the head or torso at >= 0.4 m/s, once per punch) is worth 15 x where it lands
 (head 3.5; torso 1.5-2.5, rising towards the head) x mix-up (from the last 4 clean
