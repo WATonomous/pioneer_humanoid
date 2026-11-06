@@ -119,6 +119,69 @@ Results on an RTX 5070 Laptop GPU:
 | Floor patch | 0.29 m² at -0.65 m, spread 1.4 cm | 0.29 m² at -0.20 m (likely a desk top, not floor) |
 | Highest cell above highest camera | 0.29 m | 0.28 m |
 
+## Record a bag for terrain mapping
+
+Bags 001 and 002 miss most of the floor. The camera was handheld about 0.65 m up, looked nearly level, and turned in place.
+Record new bags this way so the map can be checked against the floor and against objects of known height.
+These steps follow RealSense ROS driver 4.58.4, the version in the perception image. Nobody has run them end to end with a camera yet.
+
+### Set up the camera and the scene
+
+- Mount the D455 rigidly at the robot's planned head height, about 1.4 to 1.5 m above the floor. Use a pole, a tripod, or a helmet mount. A handheld camera moved up and down by 0.2 to 0.5 m in the current bags.
+- Tilt the camera down about 30°. At 1.45 m, the floor is then in view from about 0.9 m out, and the image center meets the floor about 2.5 m ahead.
+- Measure the camera's height above the floor with a tape. The floor should map at minus that height.
+- Include an open stretch of floor, and place two or three boxes of measured height (for example 0.1 m and 0.2 m). A step, a curb, or a stair is better still.
+
+### Start the camera
+
+Start a one-off perception container with a shell. Its normal launch, `perception.launch.py`, holds the camera with different settings (no IMU, 640x480 depth, other topic names).
+Put `perception` in `ACTIVE_MODULES`, stop a running perception container, and run:
+
+```bash
+mkdir -p ~/terrain_bags
+./watod run --rm -v $HOME/terrain_bags:/bags_out perception bash
+```
+
+In that shell, start the driver:
+
+```bash
+ros2 launch realsense2_camera rs_launch.py \
+	depth_module.depth_profile:=848x480x30 \
+	rgb_camera.color_profile:=848x480x30 \
+	align_depth.enable:=true \
+	enable_gyro:=true enable_accel:=true unite_imu_method:=2
+```
+
+Before you record, make sure the IR projector is on for every frame. In a second shell, run:
+
+```bash
+ros2 param get /camera/camera depth_module.emitter_enabled   # expect 1 (laser on)
+ros2 param get /camera/camera depth_module.emitter_on_off    # expect False or 0
+```
+
+Do not record these bags with `src/perception/slam/config/d455.yaml`. Its `emitter: on_off` setting turns the projector off on every other frame. That helps visual SLAM, but it halves the usable depth frames.
+
+### Record
+
+Record only the topics the pipeline reads. They add up to about 85 MB/s, or about 5 GB per minute.
+
+```bash
+cd /bags_out
+ros2 bag record -o '003-D455(scene_name)' \
+	/tf_static /camera/camera/imu \
+	/camera/camera/depth/image_rect_raw /camera/camera/depth/camera_info \
+	/camera/camera/color/image_raw /camera/camera/color/camera_info \
+	/camera/camera/aligned_depth_to_color/image_raw /camera/camera/aligned_depth_to_color/camera_info
+```
+
+1. Hold the camera still for 3 s. The launch file computes the starting tilt from the first 0.25 s of IMU data.
+2. Walk slowly (about 0.3 m/s) across the floor and past the boxes. Turn slowly, at under about 45° per second.
+3. Stop at the starting point, facing the starting direction. The true end-to-start distance is then 0, so `check_map.py` measures the odometry drift directly.
+4. Stop recording after 30 to 90 s.
+
+Move the bag folder from `~/terrain_bags` into `Terrain Mapping Bags/`. Beside it, add a `notes.md` with the camera height, the box heights, and where the boxes stood.
+Then run it with `bag:='/bags/003-D455(scene_name)'`.
+
 ## Pipeline
 
 ```
