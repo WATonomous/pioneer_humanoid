@@ -2,10 +2,15 @@
 
 Only the training split is augmented. Validation and the separate Ticket 3
 manifest must remain untouched for an honest comparison.
+
+Ultralytics already applies random flips and HSV jitter during training, so
+these copies add no new information; they mostly double the epoch time. They
+are kept for reproducing yolo26n_v1. Use --remove to delete them.
 """
 
 import argparse
 import random
+import re
 from pathlib import Path
 
 import cv2
@@ -81,12 +86,30 @@ def augment_training_split(dataset_dir: Path, copies: int, seed: int) -> None:
     print("Validation and Ticket 3 evaluation data were not modified.")
 
 
+def remove_augmented(dataset_dir: Path) -> None:
+    """Delete *_augNN images/labels and the Ultralytics label cache."""
+    removed = 0
+    for folder in (dataset_dir / "images" / "train", dataset_dir / "labels" / "train"):
+        for path in folder.iterdir():
+            if re.search(r"_aug\d+$", path.stem):
+                path.unlink()
+                removed += 1
+    cache = dataset_dir / "labels" / "train.cache"
+    if cache.exists():
+        cache.unlink()
+    print(f"Removed {removed} augmented files from {dataset_dir}")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset_dir", type=Path, required=True)
     parser.add_argument("--copies", type=int, default=1)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--remove", action="store_true", help="Delete previously generated copies instead.")
     args = parser.parse_args()
-    if args.copies < 1:
-        parser.error("--copies must be at least 1")
-    augment_training_split(args.dataset_dir.resolve(), args.copies, args.seed)
+    if args.remove:
+        remove_augmented(args.dataset_dir.resolve())
+    else:
+        if args.copies < 1:
+            parser.error("--copies must be at least 1")
+        augment_training_split(args.dataset_dir.resolve(), args.copies, args.seed)
