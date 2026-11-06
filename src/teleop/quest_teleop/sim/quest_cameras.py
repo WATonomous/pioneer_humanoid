@@ -23,7 +23,7 @@ WRIST_CAM_PITCH_DEG = 30.0   # angles the camera down toward the gripper
 # wrist_cam mount, relative to link6l's origin. Gripper-relative: +X up, +Y left, -Z forward
 # (follows from the roll/pitch above). It sits inside the wrist housing, so large moves bury it
 # in the mesh; the Quest script's _SHOW_WRIST_CAM_MARKER flag draws a sphere here to check.
-WRIST_CAM_POS = (0.06168, 0.053, -0.06995)
+WRIST_CAM_POS = (0.06168, 0.060, -0.07895)
 
 
 def _quat_mul_wxyz(a: tuple, b: tuple) -> tuple:

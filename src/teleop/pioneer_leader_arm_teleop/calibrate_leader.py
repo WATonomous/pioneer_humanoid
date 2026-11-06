@@ -5,10 +5,10 @@ leader, the real arm (calibrated the same way) and the sim (URDF zero), so leade
 one-to-one. Run once per board, or after a servo is re-mounted; it updates that side's entry in
 leader_arm.json (here; commit it: it describes the team's leader unit) and enables it:
 
-    python calibrate_leader.py --side left --port /dev/ttyACM0
-    python calibrate_leader.py --side right --port /dev/ttyACM1
-    python calibrate_leader.py --side right --port /dev/ttyACM1 --signs=<A..G>   # = because signs may start with -
-    python calibrate_leader.py --side left --port /dev/ttyACM0 --from leader_calibration.json  # convert
+    python calibrate_leader.py --side left                            # the one USB serial board plugged in
+    python calibrate_leader.py --side right --port <your-port>        # several plugged in: say which
+    python calibrate_leader.py --side right --signs=<A..G>            # = because signs may start with -
+    python calibrate_leader.py --side left --from leader_calibration.json  # convert
 
 Without --signs the servo directions (A..G) are the side's SIDE_SIGNS in leader_mapping.py.
 
@@ -22,14 +22,15 @@ import json
 import sys
 from pathlib import Path
 
-from leader_mapping import DEFAULT_LEADER_ARM, SIDE_SIGNS, SIDES, usb_serial
+from leader_mapping import DEFAULT_LEADER_ARM, SIDE_SIGNS, SIDES, connected_port, usb_serial
 from servo_leader import SERVO_IDS, ServoLeader, calibration_entry, load_calibration, parse_signs
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--side", choices=SIDES, required=True, help="which arm this board drives")
-    parser.add_argument("--port", required=True, help="the board's serial port now (it is found by USB serial later)")
+    parser.add_argument("--port", help="the board's serial port now (default: the one USB serial board plugged in); "
+                                       "not stored: the teleop finds the board by its USB serial")
     parser.add_argument("--signs", help=f"direction per servo A..G (default: left {SIDE_SIGNS['left']}, "
                                         f"right {SIDE_SIGNS['right']})")
     parser.add_argument("--from", dest="old", type=Path,
@@ -41,12 +42,15 @@ def main() -> int:
     signs = args.signs or SIDE_SIGNS[args.side]
     try:
         parse_signs(signs)
-        serial_number = usb_serial(args.port)
+        port = args.port or connected_port()
+        serial_number = usb_serial(port)
     except ValueError as exc:
         parser.error(str(exc))
+    if serial_number is None:
+        parser.error(f"the board on {port} reports no USB serial number, so the teleop could not find it again")
     data = json.loads(args.out.read_text()) if args.out.is_file() else {}
     other = next(side for side in SIDES if side != args.side)
-    if (data.get(other) or {}).get("enabled") and (serial_number is None or data[other]["usb_serial"] == serial_number):
+    if (data.get(other) or {}).get("enabled") and data[other]["usb_serial"] == serial_number:
         parser.error(f"this board's USB serial is {serial_number!r}; the {other} board in {args.out} has "
                      f"{data[other]['usb_serial']!r}. Two boards need different USB serials to be told apart.")
 
@@ -54,7 +58,7 @@ def main() -> int:
         positions = load_calibration(args.old)
     else:
         try:
-            leader = ServoLeader(args.port, args.baud)
+            leader = ServoLeader(port, args.baud)
         except (RuntimeError, FileNotFoundError) as exc:
             print(f"ERROR: {exc}")
             return 1
@@ -71,11 +75,12 @@ def main() -> int:
         finally:
             leader.close()
 
-    data[args.side] = {"enabled": True, "port": args.port, "usb_serial": serial_number, "signs": signs,
+    lock_wrist = (data.get(args.side) or {}).get("lock_wrist", False)  # a setting, not calibration: keep it
+    data[args.side] = {"enabled": True, "usb_serial": serial_number, "signs": signs, "lock_wrist": lock_wrist,
                        "servos": calibration_entry(positions)}
     data.setdefault(other, {"enabled": False})
     args.out.write_text(json.dumps({side: data[side] for side in SIDES}, indent=2) + "\n")
-    print(f"Saved {args.side} board (port {args.port}, USB serial {serial_number}, signs {signs}) to {args.out}: "
+    print(f"Saved {args.side} board (port {port}, USB serial {serial_number}, signs {signs}) to {args.out}: "
           + ", ".join(f"{label}={positions[sid]}" for label, sid in SERVO_IDS.items()))
     return 0
 

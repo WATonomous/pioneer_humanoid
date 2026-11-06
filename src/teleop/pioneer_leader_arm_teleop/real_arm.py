@@ -324,7 +324,7 @@ def self_test() -> None:
     actuators = find_actuators(None)
     ids = {}
     for side, urdf_joints in (("left", LEFT_ARM_JOINTS), ("right", RIGHT_ARM_JOINTS)):
-        board = LeaderBoard(side=side, port="", usb_serial=None, signs=(1.0,) * len(SERVO_IDS), zeros={})
+        board = LeaderBoard(side=side, port="", usb_serial="", signs=(1.0,) * len(SERVO_IDS), zeros={})
         arm = load_arm(side, board, mapping, actuators)
         assert [j["urdf_joint"] for j in arm.joints] == urdf_joints
         assert [j["name"] for j in arm.joints] == ["shoulder.pitch", "shoulder.yaw", "shoulder.roll",

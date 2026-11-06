@@ -14,13 +14,13 @@ Notes:
 Motor specs: https://watonomous.github.io/humanoid-docs/mechanical/index.html
   Shoulder joints 1-2  AK10-9 V3.0  18 Nm rated / 53 Nm peak
   Elbow joints 3-5     AK80-9 V3.0   9 Nm rated / 22 Nm peak
-  Wrist joint 6        GL40 KV70     0.25 Nm rated / 0.73 Nm peak
-  Gripper              GL40 KV70     one rotary motor -> linkage -> two prismatic
+  Wrist joint 6        AK40-10       1.3 Nm rated / 4.1 Nm peak
+  Gripper              AK40-10       one rotary motor -> linkage -> two prismatic
                        finger joints (joint7+joint8). We drive the pair with
                        synchronized targets and high stiffness/damping so the
                        fingers stay locked during arm motion. effort_limit_sim on
-                       a prismatic DOF is a force cap (N), not torque -- tune by
-                       grasp behaviour, not the 0.25 Nm rating.
+                       a prismatic DOF is a force cap (N): the 4.1 Nm peak through
+                       the linkage.
 
 Actuator groups were tuned for holding a static pose -- recheck stiffness/damping
 if an arm feels sluggish tracking a moving IK target.
@@ -250,7 +250,32 @@ def _spawn_bimanual_arm_from_usd(prim_path, cfg, translation=None, orientation=N
 
     prim = _spawn_from_usd_file(prim_path, cfg.usd_path, cfg, translation, orientation)
     patch_joint_pos_limits_on_prim(prim_path)
+    _bind_finger_material(prim_path)
     return prim
+
+
+# TPU fingers: estimates, not measured (as mujoco_bimanual_arm's FINGER_FRICTION). "max" so the TPU's
+# friction holds against any object, not its average with the object's (PhysX default 0.5).
+FINGER_MATERIAL = sim_utils.RigidBodyMaterialCfg(
+    static_friction=1.0, dynamic_friction=1.0, friction_combine_mode="max"
+)
+
+
+def _bind_finger_material(prim_path: str) -> None:
+    """Bind FINGER_MATERIAL to the finger links; their colliders (inside instanced meshes) inherit it."""
+    from pxr import UsdShade
+
+    from isaaclab.sim.utils import get_current_stage
+
+    stage = get_current_stage()
+    material_path = f"{prim_path}/finger_material"
+    FINGER_MATERIAL.func(material_path, FINGER_MATERIAL)
+    material = UsdShade.Material(stage.GetPrimAtPath(material_path))
+    for link in ("link7", "link8", "link7l", "link8l"):
+        link_prim = stage.GetPrimAtPath(f"{prim_path}/{link}")
+        UsdShade.MaterialBindingAPI.Apply(link_prim).Bind(
+            material, UsdShade.Tokens.strongerThanDescendants, "physics"
+        )
 
 
 from isaaclab.sim.utils import clone  # noqa: E402

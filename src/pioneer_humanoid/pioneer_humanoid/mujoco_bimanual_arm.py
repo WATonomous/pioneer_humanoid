@@ -22,6 +22,12 @@ ARM_CONTYPE = 2
 ARM_CONAFFINITY = 1
 
 FINGER_BODIES = ("link7", "link8", "link7l", "link8l")
+FINGER_SLABS = 16  # collision boxes per finger, 8.5 mm each along the 136 mm finger
+# TPU fingers: estimates, not measured. Rubber-like sliding friction, and contact twice as soft
+# as the scenes' stiff default (humanoid_mujoco_scenes CONTACT_SOLREF 0.004 s).
+FINGER_FRICTION = [1.0, 0.005, 0.0001]
+FINGER_SOLREF = [0.008, 1.0]
+FINGER_SOLIMP = [0.95, 0.99, 0.001, 0.5, 2.0]
 
 # Reflected motor inertia (kg m^2) on every revolute arm joint; the URDF has none. Without it the
 # light distal links form a mode too fast for the 1-2 ms step: the fingers chatter and a held
@@ -51,6 +57,7 @@ def arm_spec(cameras: dict[str, tuple[int, int]] | None = None) -> mujoco.MjSpec
         if geom.contype or geom.conaffinity:  # collision geoms; the URDF's visual copies stay 0/0
             geom.contype = ARM_CONTYPE
             geom.conaffinity = ARM_CONAFFINITY
+            geom.group = 3  # hidden: drawn over the coloured visual meshes, they z-fight and grey them out
 
     for group_name, group in ACTUATOR_GROUPS.items():
         for name in group["joints"]:
@@ -78,11 +85,14 @@ def arm_spec(cameras: dict[str, tuple[int, int]] | None = None) -> mujoco.MjSpec
 
 
 def _box_fingers(spec: mujoco.MjSpec) -> None:
-    """Replace each finger's collision mesh with its bounding box in the finger link's frame.
+    """Replace each finger's collision mesh with boxes: its bounding box in each of FINGER_SLABS
+    slices along the finger, in the finger link's frame.
 
     MuJoCo collides meshes as convex hulls; the finger hulls are rounded, so a held object
-    rests on one curved point and slips out when the arm moves. A box aligned with the link
-    frame (fingers travel along its Y) gives flat, parallel jaw faces.
+    rests on one curved point and slips out when the arm moves. Boxes aligned with the link
+    frame (fingers travel along its Y) give flat, parallel jaw faces, and slicing follows the
+    fin-ray wedge (thin at the tip) instead of one box filling it out to the wrist's width.
+    TPU contact: FINGER_FRICTION and the softer FINGER_SOLREF.
     """
     model = spec.compile()
     for body in FINGER_BODIES:
@@ -92,20 +102,35 @@ def _box_fingers(spec: mujoco.MjSpec) -> None:
         )
         mesh = model.geom_dataid[geom_id]
         verts = model.mesh_vert[model.mesh_vertadr[mesh]:model.mesh_vertadr[mesh] + model.mesh_vertnum[mesh]]
+        faces = model.mesh_face[model.mesh_faceadr[mesh]:model.mesh_faceadr[mesh] + model.mesh_facenum[mesh]]
         rot = np.zeros(9)
         mujoco.mju_quat2Mat(rot, model.geom_quat[geom_id])
         verts = verts @ rot.reshape(3, 3).T + model.geom_pos[geom_id]  # mesh frame -> link frame
-        lo, hi = verts.min(axis=0), verts.max(axis=0)
+        edges = np.concatenate([faces[:, [0, 1]], faces[:, [1, 2]], faces[:, [2, 0]]])
+        a, b = verts[edges[:, 0]], verts[edges[:, 1]]
+        cuts = np.linspace(verts[:, 2].min(), verts[:, 2].max(), FINGER_SLABS + 1)
         spec.delete(next(g for g in spec.body(body).geoms if g.contype))
-        spec.body(body).add_geom(
-            type=mujoco.mjtGeom.mjGEOM_BOX,
-            size=(hi - lo) / 2,
-            pos=(hi + lo) / 2,
-            contype=ARM_CONTYPE,
-            conaffinity=ARM_CONAFFINITY,
-            group=3,
-            density=0,
-        )
+        for z0, z1 in zip(cuts[:-1], cuts[1:]):
+            # the slice's exact extent: its vertices plus where mesh edges cross its two planes
+            pts = [verts[(verts[:, 2] >= z0) & (verts[:, 2] <= z1)]]
+            for z in (z0, z1):
+                cross = (a[:, 2] - z) * (b[:, 2] - z) < 0
+                t = (z - a[cross, 2]) / (b[cross, 2] - a[cross, 2])
+                pts.append(a[cross] + t[:, None] * (b[cross] - a[cross]))
+            pts = np.concatenate(pts)
+            lo, hi = pts.min(axis=0), pts.max(axis=0)
+            spec.body(body).add_geom(
+                type=mujoco.mjtGeom.mjGEOM_BOX,
+                size=(hi - lo) / 2,
+                pos=(hi + lo) / 2,
+                contype=ARM_CONTYPE,
+                conaffinity=ARM_CONAFFINITY,
+                group=3,
+                density=0,
+                friction=FINGER_FRICTION,
+                solref=FINGER_SOLREF,
+                solimp=FINGER_SOLIMP,
+            )
 
 
 def set_home(model: mujoco.MjModel, data: mujoco.MjData, prefix: str = "") -> None:
