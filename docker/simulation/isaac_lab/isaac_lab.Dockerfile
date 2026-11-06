@@ -116,7 +116,10 @@ RUN $PYTHON -m pip install -c /tmp/constraints.txt \
     "transformers @ git+https://github.com/huggingface/transformers.git@dcddb970176382c0fcf4521b0c0e6fc15894dfe0" \
     "scipy>=1.11,<1.16"
 
-RUN curl --proto "=https" --tlsv1.2 -sSf -L -o /tmp/ffmpeg.tar.xz \
+# FFmpeg 7.1 (torchcodec<0.6 supports FFmpeg <=7). Pinned to a dated build: BtbN's "latest"
+# release dropped 7.1 (only 8.x+ now). Retries because large GitHub downloads can drop mid-build.
+RUN curl --proto "=https" --tlsv1.2 -sSf -L --http1.1 --retry 5 --retry-delay 5 --retry-all-errors \
+    -o /tmp/ffmpeg.tar.xz \
     https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-05-31-13-22/ffmpeg-n7.1.4-7-gadcf20da26-linux64-lgpl-shared-7.1.tar.xz && \
     tar -xf /tmp/ffmpeg.tar.xz -C /usr/local --strip-components=1 && \
     ldconfig && \
