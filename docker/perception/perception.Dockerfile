@@ -79,7 +79,8 @@ RUN python3 -m pip install --no-cache-dir \
       cv_bridge \
       numpy==1.26.4 \
       fire \
-      opencv-python
+      opencv-python \
+      ultralytics
 
 # Install PyTorch CPU
 RUN pip install torch==2.1.0 torchvision==0.16.0 \
