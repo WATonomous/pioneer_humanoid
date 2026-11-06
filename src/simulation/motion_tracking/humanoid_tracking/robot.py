@@ -178,13 +178,13 @@ def _reroot(spec: mujoco.MjSpec, base: mujoco.MjsBody) -> None:
 # URDF's ranges.
 USE_DESIGN_RANGES = True
 DESIGN_RANGES = {
-  "Knee_.": (-110.0, 0.0),  # URDF -65..0
+  "Knee_.": (-110.0, 0.0),  # URDF -140..0; the skills were trained with -110
   "Hip_F_.": (-20.0, 115.0),  # URDF -20..90
   "Hip_R_.": (-50.0, 90.0),  # URDF -30..90
   "Ankle_P_.": (-50.0, 50.0),  # URDF -30..50
   "Ankle_R_.": (-30.0, 30.0),  # URDF -15..15 (it was -30..30 before #403)
   "Hip_A_.": (-25.0, 60.0),  # URDF -10..60 (the pivots swing the lead leg in)
-  "[lr]_elbow": (-135.0, 0.0),  # URDF -90..0 (a tight guard folds the arm past 90 deg)
+  "[lr]_elbow": (-135.0, 0.0),  # URDF -125..90 (a tight guard folds the arm past 90 deg; no hyperextension)
 }
 
 
