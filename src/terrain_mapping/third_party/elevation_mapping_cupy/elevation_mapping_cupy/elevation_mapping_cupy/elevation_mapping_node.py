@@ -767,7 +767,7 @@ class ElevationMappingNode(Node):
     def _make_topic_metadata(self, topic: str) -> rosbag2_py.TopicMetadata:
         msg_type = "grid_map_msgs/msg/GridMap"
         serialization_format = "cdr"
-        return rosbag2_py.TopicMetadata(0, topic, msg_type, serialization_format)
+        return rosbag2_py.TopicMetadata(name=topic, type=msg_type, serialization_format=serialization_format)
 
     def _write_grid_map_bag(self, path: Path, topic: str, grid_map_msg: GridMap) -> None:
         writer = rosbag2_py.SequentialWriter()

@@ -27,7 +27,6 @@
     <depend>ros2_numpy</depend>
     <depend>ament_index_python</depend>
     <depend>tf_transformations</depend>
-    <exec_depend>semantic_sensor</exec_depend>
 
 
     <!-- Additional dependencies -->

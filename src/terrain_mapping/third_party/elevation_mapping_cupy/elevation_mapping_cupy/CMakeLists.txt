@@ -123,11 +123,6 @@ if(BUILD_TESTING)
     TIMEOUT 120
     ENV PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
   )
-  ament_add_pytest_test(test_semantic_launch_descriptions
-    ${CMAKE_CURRENT_SOURCE_DIR}/test/test_semantic_launch_descriptions.py
-    TIMEOUT 120
-    ENV PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
-  )
 
   # Define isolated launch test function for unique ROS_DOMAIN_ID per test
   # See: https://docs.ros.org/en/jazzy/Tutorials/Intermediate/Testing/Integration.html
