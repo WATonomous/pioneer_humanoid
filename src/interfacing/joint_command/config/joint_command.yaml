@@ -4,6 +4,10 @@ joint_command_node:
     # listens on /arm/<side>/joint_targets; arm_actuators.yaml `active` picks what moves this run.
     # Motor ids must be unique across arms (the node refuses to start otherwise).
     arms: ["left", "right"]
+    # Legs: off while this stays commented out. Each leg would listen on /leg/<side>/joint_targets,
+    # configured by leg_calibration.yaml and leg_actuators.yaml. Don't write `legs: []`: ROS 2
+    # param files can reject empty lists, which could stop this node from starting.
+    # legs: ["left", "right"]
     control_rate_hz: 50.0
     motor_cmd_topic: "/interfacing/motorCMD"
     control_type: 0  # MIT_CONTROL
