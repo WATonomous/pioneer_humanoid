@@ -15,7 +15,6 @@ import cv2
 import yaml
 
 
-
 def load_rows(manifest_path: Path) -> list[dict]:
     with manifest_path.open(encoding="utf-8") as manifest:
         rows = [json.loads(line) for line in manifest if line.strip()]

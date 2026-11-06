@@ -196,8 +196,8 @@ def render_video(model, class_id, video_path: Path, labels: dict, args, renderer
             tally[outcome] = tally.get(outcome, 0) + 1
         log.writerow([
             frame_index, f"{frame_index / fps:.3f}", len(candidates),
-            *( [f"{top['confidence']:.4f}", f"{top['x']:.1f}", f"{top['y']:.1f}", *(f"{v:.1f}" for v in top["box"])]
-               if top else [""] * 7 ),
+            *([f"{top['confidence']:.4f}", f"{top['x']:.1f}", f"{top['y']:.1f}", *(f"{v:.1f}" for v in top["box"])]
+              if top else [""] * 7),
             f"{model_ms[-1]:.2f}",
         ])
         if writer is not None:
