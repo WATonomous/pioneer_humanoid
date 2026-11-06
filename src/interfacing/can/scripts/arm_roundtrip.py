@@ -101,6 +101,7 @@ class RoundTripNode(TelemetryRecorder):
 class Stop(Exception):
     pass
 
+
 def parse_pose(text: str, flag: str, names: List[str]) -> List[float]:
     parts = [p.strip() for p in text.split(",")]
     if len(parts) != len(names):

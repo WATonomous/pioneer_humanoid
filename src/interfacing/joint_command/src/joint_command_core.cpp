@@ -324,8 +324,7 @@ bool JointCommandCore::validateMitGains() {
     // stall rule below (kp x track_err + gravity_ff_max_torque <= cap).
     if (s.gravity_ff_scale < 0.0 || s.gravity_ff_scale > kMaxGravityFfScale) {
       errors << "\n  " << name << ": gravity_ff_scale must be in [0, " << kMaxGravityFfScale
-             << "] (got " << s.gravity_ff_scale
-             << ")";
+             << "] (got " << s.gravity_ff_scale << ")";
     }
     if (s.gravity_ff_scale > 0.0) {
       if (!isMitJoint(i)) {
@@ -562,8 +561,8 @@ JointCommandCore::gravityTorqueMotor(const std::vector<double>& cmd_targets_deg)
     }
     q_urdf[i] = q_cmd * kDegToRad; // the command frame is the URDF frame
   }
-  const std::array<double, 6> tau = arm_side_ == "right" ? rightArmGravityHoldTorque(q_urdf)
-                                                          : leftArmGravityHoldTorque(q_urdf);
+  const std::array<double, 6> tau =
+      arm_side_ == "right" ? rightArmGravityHoldTorque(q_urdf) : leftArmGravityHoldTorque(q_urdf);
   for (size_t i = 0; i < q_urdf.size(); ++i) {
     // Torque follows the angle's sign mapping: urdf (= cmd) -> motor.
     const double dir = joints_[i].direction == 0 ? 1.0 : joints_[i].direction;

@@ -822,7 +822,8 @@ TEST_F(ShippedConfig, UnsafeGravityFeedForwardConfigIsRefused) {
   EXPECT_FALSE(core.loadSafetyFromYaml(configWithShoulderPitchFf(1.0, 0.0), kRateHz));
 
   // The scale may reach 5x the model (the clamp still caps the torque), not more.
-  EXPECT_TRUE(core.loadSafetyFromYaml(configWithShoulderPitchFf(5.0, 0.5), kRateHz)) << core.lastError();
+  EXPECT_TRUE(core.loadSafetyFromYaml(configWithShoulderPitchFf(5.0, 0.5), kRateHz))
+      << core.lastError();
   EXPECT_FALSE(core.loadSafetyFromYaml(configWithShoulderPitchFf(5.1, 0.5), kRateHz));
   EXPECT_NE(core.lastError().find("gravity_ff_scale must be in [0, 5]"), std::string::npos)
       << core.lastError();
@@ -848,7 +849,8 @@ TEST_F(ShippedConfig, RightArmFeedForwardUsesTheRightArmModel) {
   }
   const double right = rightArmGravityHoldTorque(degToRad({30, 0, 0, 0, 0, 0}))[kShoulderPitch];
   const double left = leftArmGravityHoldTorque(degToRad({30, 0, 0, 0, 0, 0}))[kShoulderPitch];
-  ASSERT_GT(std::abs(right - left), 0.5) << "the two models must differ for this test to mean anything";
+  ASSERT_GT(std::abs(right - left), 0.5)
+      << "the two models must differ for this test to mean anything";
   EXPECT_NEAR(core.lastGravityTorqueMotor()[kShoulderPitch],
               core.joint(kShoulderPitch).direction * right, 0.01);
 }
