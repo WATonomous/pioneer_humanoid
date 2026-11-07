@@ -5,7 +5,9 @@ Run next to bag_pipeline.launch.py. When the bag's /clock stops, it prints a JSO
 writes a top-down PNG plus the raw height grid (.npy) of the last map.
 
 Checks:
-  map       floor flat where seen, obstacles raised above it, nothing above camera + max_height_range
+  map       floor: the largest near-level plane at least 0.5 m under the camera, with its tilt
+            and flatness; objects: blobs 4 to 60 cm above that plane (step, box, ramp) with their
+            height and edge smear; nothing above camera + max_height_range
   odometry  a turn in place: yaw near 360 deg, small end-to-start distance
   gravity   angle between measured gravity and the odom z axis; the same angle in camera_link is
             the control (what odom would read without the IMU alignment)
@@ -27,11 +29,17 @@ from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import Imu
 from tf2_ros import Buffer, TransformListener
 
-FLOOR_MIN_AREA = 0.25       # [m^2] smallest connected flat patch accepted as the floor
-FLOOR_BAND = 0.03           # [m] half-height of the band a flat patch must fit in
-FLOOR_STEP = 0.02           # [m] step when scanning bands upward from the lowest cell
-RAISED = 0.3                # [m] above the floor counts as an obstacle
-IMU_EVERY = 20              # sample one IMU message in this many (~10 Hz at 200 Hz)
+FLOOR_INLIER_M = 0.05
+FLOOR_FLAT_M = 0.02
+FLOOR_MAX_TILT_DEG = 10.0
+RANSAC_ITERS = 300
+FLOOR_BELOW_CAMERA_M = 0.5    # max_height_range clips wall tops into flat planes above the camera
+OBJECT_MIN_M = 0.04
+OBJECT_MAX_M = 0.6
+OBJECT_MIN_AREA_M2 = 0.04
+IMU_HZ = 200
+IMU_EVERY = 20              # sample one IMU message in this many
+IMU_SAMPLES_PER_S = IMU_HZ // IMU_EVERY
 
 
 def grid_layer(msg: GridMap, layer: str) -> np.ndarray:
@@ -41,11 +49,59 @@ def grid_layer(msg: GridMap, layer: str) -> np.ndarray:
     return np.asarray(data.data, dtype=np.float32).reshape(cols, rows).T
 
 
-def flat_patches(heights: np.ndarray, z: float):
-    """Connected cells within FLOOR_BAND of height z: (labels, areas in cells, excluding background)."""
-    band = (np.abs(heights - z) <= FLOOR_BAND).astype(np.uint8)
-    _, labels, stats, _ = cv2.connectedComponentsWithStats(band, connectivity=8)
-    return labels, stats[1:, cv2.CC_STAT_AREA]
+def fit_floor(heights: np.ndarray, resolution: float, camera_z: float):
+    rows, cols = np.nonzero(np.isfinite(heights))
+    if rows.size < 3:
+        return None
+    centre = (np.array(heights.shape) - 1) / 2.0
+    design = np.column_stack([(rows - centre[0]) * resolution, (cols - centre[1]) * resolution, np.ones(rows.size)])
+    z = heights[rows, cols].astype(np.float64)
+    max_slope = math.tan(math.radians(FLOOR_MAX_TILT_DEG))
+    rng = np.random.default_rng(0)
+    best_count, best = 0, None
+    for _ in range(RANSAC_ITERS):
+        pick = rng.choice(z.size, 3, replace=False)
+        try:
+            coef = np.linalg.solve(design[pick], z[pick])
+        except np.linalg.LinAlgError:
+            continue
+        if math.hypot(coef[0], coef[1]) > max_slope or coef[2] > camera_z - FLOOR_BELOW_CAMERA_M:
+            continue
+        inliers = np.abs(design @ coef - z) <= FLOOR_INLIER_M
+        if inliers.sum() > best_count:
+            best_count, best = int(inliers.sum()), inliers
+    if best is None:
+        return None
+    for _ in range(3):
+        coef = np.linalg.lstsq(design[best], z[best], rcond=None)[0]
+        best = np.abs(design @ coef - z) <= FLOOR_INLIER_M
+    plane = np.fromfunction(
+        lambda r, c: coef[0] * (r - centre[0]) * resolution + coef[1] * (c - centre[1]) * resolution + coef[2],
+        heights.shape)
+    return coef, plane, design[best] @ coef - z[best]
+
+
+def objects_above(above: np.ndarray, resolution: float) -> list:
+    mask = ((above > OBJECT_MIN_M) & (above < OBJECT_MAX_M)).astype(np.uint8)
+    count, labels, stats, centroids = cv2.connectedComponentsWithStats(mask, connectivity=8)
+    centre = (np.array(above.shape) - 1) / 2.0
+    objects = []
+    for i in range(1, count):
+        if stats[i, cv2.CC_STAT_AREA] * resolution ** 2 < OBJECT_MIN_AREA_M2:
+            continue
+        blob = labels == i
+        h = above[blob]
+        top = float(np.percentile(h, 75))
+        boundary = blob & ~cv2.erode(blob.astype(np.uint8), np.ones((3, 3), np.uint8)).astype(bool)
+        smeared = int(((h > 0.2 * top) & (h < 0.8 * top)).sum())
+        row, col = centroids[i][1], centroids[i][0]
+        objects.append({
+            'height': round(top, 3),
+            'area_m2': round(int(blob.sum()) * resolution ** 2, 2),
+            'edge_smear': round(smeared / max(int(boundary.sum()), 1), 2),
+            'centre_m': [round((row - centre[0]) * resolution, 2), round((col - centre[1]) * resolution, 2)],
+        })
+    return sorted(objects, key=lambda o: -o['area_m2'])
 
 
 def analyze(heights: np.ndarray, resolution: float, camera_z: float, camera_z_max: float) -> dict:
@@ -57,35 +113,23 @@ def analyze(heights: np.ndarray, resolution: float, camera_z: float, camera_z_ma
     valid = heights[np.isfinite(heights)]
     if valid.size == 0:
         return {'coverage': 0.0}
-    cell_area = resolution * resolution
     report = {
         'coverage': round(valid.size / heights.size, 3),
         'max_above_highest_camera': round(float(valid.max() - camera_z_max), 3),
+        'floor': None,
+        'objects': [],
     }
-    largest = (0, None)
-    for z in np.arange(valid.min(), valid.max(), FLOOR_STEP):
-        labels, areas = flat_patches(heights, z)
-        if areas.size and areas.max() > largest[0]:
-            largest = (int(areas.max()), float(z))
-        if areas.size and areas.max() * cell_area >= FLOOR_MIN_AREA:
-            floor = heights[labels == 1 + int(np.argmax(areas))]
-            floor_z = float(np.median(floor))
-            raised = valid[valid > floor_z + RAISED]
-            report['floor'] = {
-                'z': round(floor_z, 3),
-                'below_camera': round(camera_z - floor_z, 3),
-                'patch_area_m2': round(floor.size * cell_area, 2),
-                'std': round(float(floor.std()), 4),
-                'raised_share': round(raised.size / valid.size, 3),
-                'raised_median_above_floor': round(float(np.median(raised) - floor_z), 3) if raised.size else None,
-            }
-            break
-    else:
-        report['floor'] = None
-    report['largest_flat_patch'] = {
-        'area_m2': round(largest[0] * cell_area, 2),
-        'z': round(largest[1], 2) if largest[1] is not None else None,
+    fit = fit_floor(heights, resolution, camera_z)
+    if fit is None:
+        return report
+    coef, plane, residuals = fit
+    report['floor'] = {
+        'below_camera': round(camera_z - float(coef[2]), 3),
+        'area_m2': round(residuals.size * resolution ** 2, 2),
+        'tilt_deg': round(math.degrees(math.atan(math.hypot(coef[0], coef[1]))), 2),
+        'within_2cm': round(float(np.mean(np.abs(residuals) <= FLOOR_FLAT_M)), 3),
     }
+    report['objects'] = objects_above(heights - plane, resolution)
     return report
 
 
@@ -165,6 +209,8 @@ class MapChecker(Node):
                 'samples': len(errors),
                 'median_deg': round(float(np.median(errors)), 2),
                 'p95_deg': round(float(np.percentile(errors, 95)), 2),
+                'first_s_median_deg': round(float(np.median(errors[:IMU_SAMPLES_PER_S])), 2),
+                'last_s_median_deg': round(float(np.median(errors[-IMU_SAMPLES_PER_S:])), 2),
             } if errors else {'samples': 0, 'imu_seen': len(self.imu_samples)}
         return report
 
