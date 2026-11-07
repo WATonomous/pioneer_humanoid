@@ -73,13 +73,12 @@ RUN apt-get update && \
 RUN python3 -m pip install --upgrade pip
 
 RUN python3 -m pip install --no-cache-dir \
-      pccm>=0.4.16 \
-      ccimport>=0.4.4 \
-      pybind11>=2.6.0 \
-      cv_bridge \
+      "pccm>=0.4.16" \
+      "ccimport>=0.4.4" \
+      "pybind11>=2.6.0" \
       numpy==1.26.4 \
       fire \
-      opencv-python
+      "opencv-python<4.12"
 
 # Install PyTorch CPU
 RUN pip install torch==2.1.0 torchvision==0.16.0 \
