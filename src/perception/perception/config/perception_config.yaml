@@ -29,7 +29,7 @@ shuttlecock_detector_node:
   ros__parameters:
     image_topic: "/camera/camera/color/image_raw"
     point_topic: "/perception/shuttlecock/detections_2d"
-    visible_topic: "/perception/shuttlecock/visible"
+    visible_topic: "/perception/shuttlecock/detection_visible"
     weights: "/data/weights/yolo26n.pt"   # change once ticket 4 is complete
     device: "cpu"
     imgsz: 960

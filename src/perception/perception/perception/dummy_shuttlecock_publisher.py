@@ -16,7 +16,7 @@ class DummyShuttlecockPublisher(Node):
         self.declare_parameter('camera_info_topic', '/camera/camera/aligned_depth_to_color/camera_info')
         self.declare_parameter('point_topic', '/perception/shuttlecock/detections_2d')
         self.declare_parameter('depth_topic', '/camera/camera/aligned_depth_to_color/image_raw')
-        self.declare_parameter('visible_topic', '/perception/shuttlecock/visible')
+        self.declare_parameter('visible_topic', '/perception/shuttlecock/detection_visible')
 
         self.fx = self.fy = 500.0
         self.cx, self.cy = 320.0, 240.0
