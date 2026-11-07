@@ -85,6 +85,12 @@ Bag 001 (16.4 s):
 ros2 launch terrain_mapping_bringup bag_pipeline.launch.py bag:='/bags/001-D455(360_turn_v1)'
 ```
 
+The Nov 6 hallway bags (step, box, ramp; see the results under Score a run) are in `Terrain Mapping Bags/Nov6_rosbags/`. `2026-11-06_02-09-28` is the longest complete one:
+
+```bash
+ros2 launch terrain_mapping_bringup bag_pipeline.launch.py bag:=/bags/Nov6_rosbags/2026-11-06_02-09-28
+```
+
 Launch arguments are `bag`, `rate` (playback speed, default `1.0`), and `rviz` (default `true`).
 The launch file starts every node on the bag's clock (`use_sim_time`) and plays the bag with `--clock` after 5 s.
 
@@ -102,22 +108,37 @@ It stops when the bag's clock stops, then prints a JSON report and writes `eleva
 
 | Field | Meaning |
 |---|---|
-| `map.floor` | Lowest connected flat patch of at least 0.25 m² (height spread under ±3 cm), or `null`. Gives its height, size, spread, and how many cells stand more than 0.3 m above it. |
+| `map.floor` | The largest near-level plane (under 10° tilt) at least 0.5 m below the camera, fitted to the cells within ±5 cm of it. Gives `below_camera` (the camera's height above it), `area_m2`, `tilt_deg`, and `within_2cm` (the share of those cells within 2 cm of the plane). |
+| `map.objects` | Blobs 4 to 60 cm above the floor plane and at least 0.04 m², largest first. `height` is the blob's 75th percentile (its top surface). `edge_smear` counts cells between 20 and 80 % of that height per boundary cell: near 0 for a sharp box, higher for a smeared edge, and high for a ramp by design. `centre_m` is the offset from the camera. |
 | `map.max_above_highest_camera` | Highest cell minus the highest camera position. `max_height_range` keeps this at or below 0.3 m. |
 | `odometry` | Yaw turned, end-to-start distance, and camera height range from TF `odom -> camera_link`. |
-| `gravity_error` | Angle between measured gravity and the z axis of `odom`. The same angle in `camera_link` is the control, the value `odom` would show with no gravity alignment. |
+| `gravity_error` | Angle between measured gravity and the z axis of `odom`. The same angle in `camera_link` is the control, the value `odom` would show with no gravity alignment. `first_s_median_deg` and `last_s_median_deg` cover the first and last second: a high first value means a wrong starting tilt, a rise means drift. The accelerometer also reads hand acceleration, so the error reads high while the camera moves. |
 
-Results on an RTX 5070 Laptop GPU:
+Results on an RTX 5070 Laptop GPU with `MAX_DEPTH` at 2.5 m. Each value is the median of 3 runs; repeat runs agree to within 0.3° and 1 cm.
+Object errors are against tape measurements: step 14 cm, box 39 cm, ramp 0.90 x 0.81 m at about 9° (high end about 13 to 14 cm).
 
-| | Bag 002 | Bag 001 |
+| Nov 6 bag | Floor below camera | Floor tilt (no depth cap) | Floor cells within 2 cm (no cap) | Floor area | Step error | Box error | Ramp top (75th pct) |
+|---|---|---|---|---|---|---|---|
+| 02-02-46 | 1.54 m | 2.5° (3.1°) | 76 % (73 %) | 7.9 m² | +1.6 cm | | |
+| 02-03-37 | 1.68 m | 0.7° (1.5°) | 74 % (63 %) | 5.1 m² | +0.7 cm | | |
+| 02-04-00 | 1.58 m | 0.2° (0.2°) | 77 % (79 %) | 5.5 m² | +3.8 cm | +3.1 cm | 14.1 cm |
+| 02-04-18 | 1.58 m | 1.5° (1.8°) | 73 % (73 %) | 5.8 m² | +1.2 cm | -0.7 cm | 12.0 cm |
+| 02-04-34 | 1.52 m | 1.8° (2.2°) | 77 % (77 %) | 5.0 m² | | +3.2 cm | 11.9 cm |
+| 02-06-11 | 1.43 m | 2.9° (2.5°) | 78 % (70 %) | 15.8 m² | -0.8 cm | | |
+| 02-09-28 | 1.66 m | 2.2° (2.5°) | 84 % (61 %) | 22.0 m² | | +3.7 cm | 11.3 cm |
+
+The camera was handheld at about 1.65 m, which matches the floor heights.
+The floor still tilts 0.2 to 2.9°, against a 1° target. The tilt is already present in the first, still depth frame of each bag (0.7 to 1.3°) and matches the gravity error in `odom` (1.4 to 3.8°), so it most likely comes from the D455's accelerometer calibration, not from the map settings.
+
+| Old bag | 002 | 001 |
 |---|---|---|
 | Point cloud, odometry, map rate | 30 Hz, 27 to 29 Hz, 5 Hz | 91 Hz, 29 Hz, 5 Hz |
-| Yaw turned (gyro integral) | -354° (-350°) | -357° (-350°) |
-| End-to-start distance | 0.16 m | 0.06 m (RTAB-Map reference: 0.11 m) |
-| Camera height range | 0.19 m | 0.57 m (reference: 0.56 m) |
-| Gravity error in `odom` (control) | 1.9° median (5.1°) | 3.0° median (9.7°) |
-| Floor patch | 0.29 m² at -0.65 m, spread 1.4 cm | 0.29 m² at -0.20 m (likely a desk top, not floor) |
-| Highest cell above highest camera | 0.29 m | 0.28 m |
+| Yaw turned (gyro integral) | -354° (-350°) | -354° (-350°) |
+| End-to-start distance | 0.14 m | 0.06 m (RTAB-Map reference: 0.11 m) |
+| Camera height range | 0.20 m | 0.56 m (reference: 0.56 m) |
+| Gravity error in `odom` (control) | 2.1° median (5.1°) | 2.9° median (9.7°) |
+| Floor | 1.5 m² of floor under 2.5 m depth; plane tilt not stable between runs | none within 2.5 m depth (the camera sees desks, not floor) |
+| Highest cell above highest camera | 0.30 m | 0.29 m |
 
 ## Record a bag for terrain mapping
 
@@ -127,10 +148,11 @@ These steps follow RealSense ROS driver 4.58.4, the version in the perception im
 
 ### Set up the camera and the scene
 
-- Mount the D455 rigidly at the robot's planned head height, about 1.4 to 1.5 m above the floor. Use a pole, a tripod, or a helmet mount. A handheld camera moved up and down by 0.2 to 0.5 m in the current bags.
+- Mount the D455 rigidly at the humanoid's real camera height and angle, about 1.4 to 1.5 m above the floor. Use a pole, a tripod, or a helmet mount. Bags 001 and 002 were handheld and moved up and down by 0.2 to 0.5 m. The Nov 6 bags were handheld at about 1.65 m, above the robot's head.
 - Tilt the camera down about 30°. At 1.45 m, the floor is then in view from about 0.9 m out, and the image center meets the floor about 2.5 m ahead.
 - Measure the camera's height above the floor with a tape. The floor should map at minus that height.
 - Include an open stretch of floor, and place two or three boxes of measured height (for example 0.1 m and 0.2 m). A step, a curb, or a stair is better still.
+- Avoid glass walls and whiteboards close to the path. They reflect the IR projector, and the reflections land in the map as phantom floor below the real one.
 
 ### Start the camera
 
@@ -179,24 +201,33 @@ ros2 bag record -o '003-D455(scene_name)' \
 3. Stop at the starting point, facing the starting direction. The true end-to-start distance is then 0, so `check_map.py` measures the odometry drift directly.
 4. Stop recording after 30 to 90 s.
 
-Move the bag folder from `~/terrain_bags` into `Terrain Mapping Bags/`. Beside it, add a `notes.md` with the camera height, the box heights, and where the boxes stood.
+Move the bag folder from `~/terrain_bags` into `Terrain Mapping Bags/`. Check that each bag folder holds a `.db3` file next to `metadata.yaml`. Two Nov 6 bags reached the shared drive with only `metadata.yaml`.
+Beside the bags, add a `notes.md` with tape-measured values:
+
+```markdown
+Camera: 1.45 m above the floor (lens centre), tilted 30° down, on a pole
+Step: 0.14 m high, 0.73 x 0.28 m, about 2 m ahead of the start
+Box: 0.39 m high, 0.39 x 0.36 m top
+Bags: 003 = walk past the step and box and back; 004 = ...
+```
 Then run it with `bag:='/bags/003-D455(scene_name)'`.
 
 ## Pipeline
 
 ```
-/camera/camera/depth/image_rect_raw ─> depth_image_proc ─> /camera/depth/points ─> elevation_mapping_cupy ─> /elevation_mapping_node/elevation_map_{raw,filter}
+/camera/camera/depth/image_rect_raw ─> rtabmap_util point_cloud_xyz (depth ≤ MAX_DEPTH) ─> /camera/depth/points ─> elevation_mapping_cupy ─> /elevation_mapping_node/elevation_map_{raw,filter}
 /camera/camera/color/image_raw ──────┐
 /camera/camera/aligned_depth_to_color ┼─> rtabmap rgbd_odometry ─> TF odom -> camera_link
 /camera/camera/imu ─> Madgwick filter ┘
 ```
 
-Four details are easy to break:
+Five details are easy to break:
 
 - **Gravity alignment comes from `initial_pose`.** `rgbd_odometry` (rtabmap 0.23.13) only aligns `odom` with gravity from IMU samples older than its first frame. A frame reaches ROS about 38 ms after capture and an IMU sample about 1 ms after, so the first frame always predates the IMU and `odom` keeps the camera's starting tilt (5.6° on bag 002). The launch file takes the median of the bag's first 0.25 s of accelerometer data (the camera is still then), computes the camera's roll and pitch, and passes them as `initial_pose`. The median ignores two glitched samples at the start of bag 001. Upstream rtabmap master handles this case. Drop the workaround once a fixed release reaches Humble.
 - **Madgwick gives the IMU an orientation.** The D455 IMU publishes angular velocity and acceleration only. `rgbd_odometry` ignores an IMU without orientation. With it, odometry uses the IMU to predict motion.
 - **Large messages go over shared memory.** With Fast DDS's default transports, 2.7 MB color frames arrived at under 1 Hz instead of 30 Hz. They do not fit the 512 KB default shared-memory segment, so they fall back to UDP, and the host's `net.core.rmem_max` (208 KB) drops fragments. `docker/terrain_mapping/fastdds_shm.xml` gives every node in the container a shared-memory transport with 32 MB segments, and the compose file sets `shm_size: 1gb`. `ROS_LOCALHOST_ONLY=1` also adds a 127.0.0.1-only UDP transport. Same-host traffic still uses shared memory.
-- **`depth_image_proc` needs an explicit `camera_info` remap.** On Humble it derives the info topic from the unremapped image name (`/camera_info`), so the launch file remaps it too.
+- **Depth stops at `MAX_DEPTH` (in the launch file).** Far D455 depth bends the floor, and glass walls reflect it into phantom points below the floor. A map built from the raw points of the Nov 6 bags has a 2.4 to 3.0° floor tilt with all depth and 0.4 to 1.0° with depth up to 2 m. `elevation_mapping_cupy` has `min_valid_distance` but no maximum, so `rtabmap_util`'s `point_cloud_xyz` cuts the depth with `max_depth` before the map sees it. It replaces `depth_image_proc`, whose Humble version also needed an explicit `camera_info` remap.
+- **Some bags start with a stale image stamp.** In 6 of the 10 Nov 6 bags, the first color or aligned-depth message carries a stamp 4 to 189 s older than the next one. `rgbd_odometry` drops that frame during its exact-stamp sync, and the logs show no TF or tracking errors, so the pipeline does not filter it.
 
 ## Frame tree
 
@@ -219,15 +250,20 @@ Delete the `base_link_placeholder` node in `bag_pipeline.launch.py` at that poin
 
 `terrain_mapping_bringup/config/d455_elevation.yaml` is layered on top of upstream's `config/core/core_param.yaml`.
 `terrain_mapping_bringup/config/d455_plugins.yaml` replaces upstream's plugin chain. Upstream's chain is tuned for an excavator, and its `near_base_height_filter` deletes anything taller than 0.5 m within 4 m.
-All values are untuned first guesses.
+The Nov 6 bags were used to test the settings below; the depth cap was the only change that improved the floor (see `MAX_DEPTH` under Pipeline). Upstream drift compensation, visibility cleanup, edge sharpening, and two odometry settings (`Optimizer/GravitySigma` 0.1, `Vis/MaxDepth` 4 m) made no change past run-to-run spread, so they keep their defaults.
 
 | Parameter | Value | Why |
 |---|---|---|
 | `resolution` | 0.04 m | Fine enough for steps and cables. |
-| `map_length` | 6 m | The D455 depth is usable to about 3 m on each side. A 10 m map added no floor on bag 002. |
+| `MAX_DEPTH` (launch file) | 2.5 m | Farther depth bends the floor. 2.0 m flattens it more but leaves only about 1.1 to 1.4 m of floor ahead of the camera and gives unstable maps on two bags. |
+| `map_length` | 6 m | The depth cap keeps data within about 2.5 m of the camera. A 10 m map added no floor on bag 002. |
 | `min_valid_distance` | 0.3 m | Closer D455 depth is unreliable. |
 | `max_height_range` | 0.3 m | Measured above the camera at capture time. Drops the ceiling. |
 | `use_initializer_at_start` | false | The initializer paints a flat patch at `base_link` height, which is camera height here. |
+
+Three upstream features stay off until the camera height comes from the robot's TF (URDF camera mount and a state estimator) instead of a placeholder `base_link` at the camera:
+`use_initializer_at_start`, `initialize_tf_offset` (it needs the real height of `base_link` above the floor), and the `near_base_height_filter` plugin (it compares absolute map height with a threshold around `base_link`).
+Turn them back on when `base_link_placeholder` is deleted.
 
 ## Upstream code
 
@@ -245,6 +281,7 @@ Never edit `third_party/elevation_mapping_cupy` by hand. Add a patch instead. Th
 ## Known limitations
 
 - The bags are handheld. There is no robot TF, no leg odometry, and `base_link` is a placeholder. The camera height changes during each turn (0.2 m in bag 002, 0.5 m in bag 001).
-- The floor is mostly out of view. In bag 002 the camera sits about 0.65 m above the floor, inside a cubicle, and sees the floor only from about 1.5 m out and between desks. The largest connected floor patch is about 0.3 m².
+- Bags 001 and 002 barely see the floor. The camera sits about 0.65 m up inside a cubicle and sees the floor only between desks.
+- The floor tilts up to about 3° in the map. Single still frames already show about 1°, and the gravity error in `odom` is 1.4 to 3.8°, so the D455 IMU likely needs calibration (`rs-imu-calibration`). Glass walls also add phantom points below the floor within the depth cap.
 - Odometry comes from the camera alone. Gravity is fixed once at the start, so roll and pitch can drift, and nothing closes the loop at the end of the turn.
-- Replay is not deterministic. Two runs of the same bag give slightly different maps because the nodes run in real time.
+- Replay is not deterministic. Two runs of the same bag give slightly different maps because the nodes run in real time. With the current checker, repeat runs agree to within about 0.3° of tilt and 1 cm of object height.
