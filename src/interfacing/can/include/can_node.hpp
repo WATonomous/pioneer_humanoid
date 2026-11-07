@@ -49,7 +49,7 @@ private:
   void publishCanMessage(CanMessage& can_msg);
   void encodeSignal(const dbcppp::ISignal* signal, int64_t phys_value, CanMessage& can_msg);
   void encodeSignal(const dbcppp::ISignal* signal, double phys_value, CanMessage& can_msg);
-  int32_t getMessageId(const dbcppp::IMessage* msg, int device_id) const;
+  CanMessage dbcCanMessage(const dbcppp::IMessage* msg, int device_id) const;
   void receiveCanMessages();
 
   // MIT (Force Control) support: per-motor scaling constants + the manual's float_to_uint
