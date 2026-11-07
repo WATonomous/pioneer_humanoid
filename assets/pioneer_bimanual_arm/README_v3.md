@@ -46,8 +46,9 @@ Below the elbow the arm is 1.25 kg, about 0.55 kg more than v2's 0.70 kg.
 
 - **MuJoCo:** `pioneer_humanoid.mujoco_bimanual_arm.arm_spec(cameras, version="v3")`. The default is still `"v2"`.
   Joint lists, gains, the gripper and the cameras are in `pioneer_humanoid/arm_params_v3.py`.
-- **Isaac:** the USD has to be converted from the v3 URDF first. Use Isaac Lab's `convert_urdf.py`, with the same
-  options as `usd/config.yaml`. That conversion is not done here.
+- **Isaac:** `pioneer_humanoid.bimanual_arm_v3.BIMANUAL_ARM_V3_CFG`. The USD has to be converted from the v3 URDF
+  first (`usd_v3/config.yaml` has v2's converter options; the command is in that module's docstring). Neither the
+  conversion nor this config has been run here: there was no Isaac.
 
 **Checked in MuJoCo (2 ms step):**
 
