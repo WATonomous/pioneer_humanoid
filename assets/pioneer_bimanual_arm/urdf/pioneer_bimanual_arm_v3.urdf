@@ -1,0 +1,838 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pioneer bimanual arm v3: 7-DOF arms (wrist pitch + yaw on CubeMars AK45-10, gripper on an AK40-10).
+     Links base..4 from the team URDF (armv2URDF); links 5.. from Prometheus cad_bench/projects/pioneer_wrist (make_urdf.py).
+     Masses: motors at datasheet weights, prints at 0.65 g/cm^3, steel 7.85. -->
+<robot name="pioneer_bimanual_arm_v3">
+  <link name="base_link">
+    <inertial>
+      <origin xyz="0.0211873264413583 -0.000578679194436403 -0.535897425904545" rpy="0 0 0" />
+      <mass value="9.70005004618049" />
+      <inertia ixx="0.494157879661375" ixy="1.61145426298652E-07" ixz="-2.737415919313E-06" iyy="0.484477804733134" iyz="4.10251355813697E-07" izz="0.0374833293782543" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/base_link_motor.STL" />
+      </geometry>
+      <material name="motor">
+        <color rgba="0.169 0.176 0.192 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/base_link_steel.STL" />
+      </geometry>
+      <material name="steel">
+        <color rgba="0.604 0.620 0.643 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/base_link_aluminium.STL" />
+      </geometry>
+      <material name="aluminium">
+        <color rgba="0.725 0.741 0.761 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/base_link_camera.STL" />
+      </geometry>
+      <material name="camera">
+        <color rgba="0.063 0.071 0.078 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/base_link_print.STL" />
+      </geometry>
+      <material name="print">
+        <color rgba="0.925 0.929 0.937 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/base_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <link name="link1">
+    <inertial>
+      <origin xyz="-0.002027 -0.09612 1e-06" rpy="0 0 0" />
+      <mass value="1.3298" />
+      <inertia ixx="0.00366213" ixy="-0.000315279" ixz="-9.59003e-09" iyy="0.0016868" iyz="-1.38856e-07" izz="0.00331212" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/link1_motor.STL" />
+      </geometry>
+      <material name="motor">
+        <color rgba="0.169 0.176 0.192 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/link1_print.STL" />
+      </geometry>
+      <material name="print">
+        <color rgba="0.925 0.929 0.937 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/link1.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="joint1" type="revolute">
+    <origin xyz="0.0215734774382594 -0.163325 0.060481929205022" rpy="0 0 0" />
+    <parent link="base_link" />
+    <child link="link1" />
+    <axis xyz="0 1 0" />
+    <limit lower="-2.303835" upper="1.780236" effort="0" velocity="0" />
+  </joint>
+  <link name="link2">
+    <inertial>
+      <origin xyz="0.030136 3e-06 -0.074856" rpy="0 0 0" />
+      <mass value="0.789" />
+      <inertia ixx="0.00186331" ixy="-8.79883e-07" ixz="0.00032943" iyy="0.00195111" iyz="1.53965e-06" izz="0.00123242" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/link2_motor.STL" />
+      </geometry>
+      <material name="motor">
+        <color rgba="0.169 0.176 0.192 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/link2_print.STL" />
+      </geometry>
+      <material name="print">
+        <color rgba="0.925 0.929 0.937 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/link2.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="joint2" type="revolute">
+    <origin xyz="-0.0428200564481259 -0.116 -0.000180788468191695" rpy="0 0 0" />
+    <parent link="link1" />
+    <child link="link2" />
+    <axis xyz="1 0 0" />
+    <limit lower="-1.570796" upper="0.349066" effort="0" velocity="0" />
+  </joint>
+  <link name="link3">
+    <inertial>
+      <origin xyz="-0.002899 -0.001853 -0.144" rpy="0 0 0" />
+      <mass value="0.8487" />
+      <inertia ixx="0.0040313" ixy="7.98416e-06" ixz="0.000113755" iyy="0.00427549" iyz="-6.52993e-05" izz="0.000861061" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/link3_motor.STL" />
+      </geometry>
+      <material name="motor">
+        <color rgba="0.169 0.176 0.192 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/link3_print.STL" />
+      </geometry>
+      <material name="print">
+        <color rgba="0.925 0.929 0.937 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/link3.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="joint3" type="revolute">
+    <origin xyz="0.0359999999999998 0 -0.1162999991972" rpy="0 0 0" />
+    <parent link="link2" />
+    <child link="link3" />
+    <axis xyz="0 0 -1" />
+    <limit lower="-1.396263" upper="3.726278" effort="0" velocity="0" />
+  </joint>
+  <link name="link4">
+    <inertial>
+      <origin xyz="8.3e-05 0.0232 -0.079476" rpy="0 0 0" />
+      <mass value="0.6014" />
+      <inertia ixx="0.000778924" ixy="-6.16185e-07" ixz="-1.01459e-06" iyy="0.000690813" iyz="-2.7274e-06" izz="0.000707927" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/link4_motor.STL" />
+      </geometry>
+      <material name="motor">
+        <color rgba="0.169 0.176 0.192 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/link4_print.STL" />
+      </geometry>
+      <material name="print">
+        <color rgba="0.925 0.929 0.937 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/link4.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="joint4" type="revolute">
+    <origin xyz="0 -0.0252499991972028 -0.1846" rpy="0 0 0" />
+    <parent link="link3" />
+    <child link="link4" />
+    <axis xyz="0 -1 0" />
+    <limit lower="-1.745329" upper="2.312561" effort="0" velocity="0" />
+  </joint>
+  <joint name="joint5" type="revolute">
+    <origin xyz="0 0.023 -0.1075" rpy="0 0 0" />
+    <parent link="link4" />
+    <child link="link5" />
+    <axis xyz="0 0 1" />
+    <limit lower="-4.328417" upper="1.315978" effort="0" velocity="0" />
+  </joint>
+  <link name="link1L">
+    <inertial>
+      <origin xyz="-0.002027 0.096121 1e-06" rpy="0 0 0" />
+      <mass value="1.3298" />
+      <inertia ixx="0.00366207" ixy="0.000315279" ixz="-1.61051e-08" iyy="0.00168677" iyz="1.40561e-07" izz="0.00331206" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/link1L_motor.STL" />
+      </geometry>
+      <material name="motor">
+        <color rgba="0.169 0.176 0.192 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/link1L_print.STL" />
+      </geometry>
+      <material name="print">
+        <color rgba="0.925 0.929 0.937 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/link1L.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="joint1L" type="revolute">
+    <origin xyz="0.0215734774382595 0.163325 0.060481929205022" rpy="0 0 0" />
+    <parent link="base_link" />
+    <child link="link1L" />
+    <axis xyz="0 -1 0" />
+    <limit lower="-2.303835" upper="1.780236" effort="0" velocity="0" />
+  </joint>
+  <link name="link2l">
+    <inertial>
+      <origin xyz="-0.003858 -6.3e-05 -0.071808" rpy="0 0 0" />
+      <mass value="0.789" />
+      <inertia ixx="0.00166268" ixy="7.41974e-07" ixz="0.000315739" iyy="0.00174946" iyz="-2.1076e-06" izz="0.00104948" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/link2l_motor.STL" />
+      </geometry>
+      <material name="motor">
+        <color rgba="0.169 0.176 0.192 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/link2l_print.STL" />
+      </geometry>
+      <material name="print">
+        <color rgba="0.925 0.929 0.937 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/link2l.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="joint2l" type="revolute">
+    <origin xyz="-0.00882005644812602 0.116 -0.000180788468191695" rpy="0 0 0" />
+    <parent link="link1L" />
+    <child link="link2l" />
+    <axis xyz="1 0 0" />
+    <limit lower="-0.349066" upper="1.570796" effort="0" velocity="0" />
+  </joint>
+  <link name="link3l">
+    <inertial>
+      <origin xyz="-0.002892 0.001853 -0.142983" rpy="0 0 0" />
+      <mass value="0.8487" />
+      <inertia ixx="0.00403038" ixy="-8.0887e-06" ixz="0.000114254" iyy="0.00427431" iyz="6.50564e-05" izz="0.000860809" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/link3l_motor.STL" />
+      </geometry>
+      <material name="motor">
+        <color rgba="0.169 0.176 0.192 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/link3l_print.STL" />
+      </geometry>
+      <material name="print">
+        <color rgba="0.925 0.929 0.937 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/link3l.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="joint3l" type="revolute">
+    <origin xyz="0.00200000000000037 0 -0.117299999197201" rpy="0 0 0" />
+    <parent link="link2l" />
+    <child link="link3l" />
+    <axis xyz="0 0 -1" />
+    <limit lower="-3.726278" upper="1.396263" effort="0" velocity="0" />
+  </joint>
+  <link name="link4l">
+    <inertial>
+      <origin xyz="9.3e-05 -0.023224 -0.079475" rpy="0 0 0" />
+      <mass value="0.6014" />
+      <inertia ixx="0.000779198" ixy="3.27486e-07" ixz="-1.05061e-06" iyy="0.000690521" iyz="2.8138e-06" izz="0.000707912" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/link4l_motor.STL" />
+      </geometry>
+      <material name="motor">
+        <color rgba="0.169 0.176 0.192 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/link4l_print.STL" />
+      </geometry>
+      <material name="print">
+        <color rgba="0.925 0.929 0.937 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/link4l.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="joint4l" type="revolute">
+    <origin xyz="0 0.025249999197197 -0.183599999999999" rpy="0 0 0" />
+    <parent link="link3l" />
+    <child link="link4l" />
+    <axis xyz="0 1 0" />
+    <limit lower="-2.312561" upper="1.745329" effort="0" velocity="0" />
+  </joint>
+  <joint name="joint5l" type="revolute">
+    <origin xyz="0 -0.0230249984 -0.1075" rpy="0 0 0" />
+    <parent link="link4l" />
+    <child link="link5l" />
+    <axis xyz="0 0 1" />
+    <limit lower="-1.315978" upper="4.328417" effort="0" velocity="0" />
+  </joint>
+  <link name="link5">
+    <inertial>
+      <origin xyz="-8.70653e-05 -0.0414573 -0.103637" rpy="0 0 0" />
+      <mass value="0.421174" />
+      <inertia ixx="0.00130591" ixy="1.73608e-06" ixz="2.38571e-06" iyy="0.000946286" iyz="-0.000381328" izz="0.000540239" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link5_motor.STL" />
+      </geometry>
+      <material name="motor">
+        <color rgba="0.169 0.176 0.192 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link5_steel.STL" />
+      </geometry>
+      <material name="steel">
+        <color rgba="0.604 0.620 0.643 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link5_print.STL" />
+      </geometry>
+      <material name="print">
+        <color rgba="0.925 0.929 0.937 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link5.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <link name="link6">
+    <inertial>
+      <origin xyz="-0.00394422 -0.00156806 -0.00039385" rpy="0 0 0" />
+      <mass value="0.302112" />
+      <inertia ixx="0.000143597" ixy="1.87503e-06" ixz="-1.18547e-06" iyy="0.00010942" iyz="1.86881e-07" izz="0.000139632" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link6_motor.STL" />
+      </geometry>
+      <material name="motor">
+        <color rgba="0.169 0.176 0.192 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link6_steel.STL" />
+      </geometry>
+      <material name="steel">
+        <color rgba="0.604 0.620 0.643 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link6_print.STL" />
+      </geometry>
+      <material name="print">
+        <color rgba="0.925 0.929 0.937 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link6.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <link name="link7">
+    <inertial>
+      <origin xyz="0.00301107 -0.00148966 -0.0911906" rpy="0 0 0" />
+      <mass value="0.368637" />
+      <inertia ixx="0.000679471" ixy="4.11992e-05" ixz="-2.5337e-05" iyy="0.000537318" iyz="1.7273e-06" izz="0.000423847" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link7_motor.STL" />
+      </geometry>
+      <material name="motor">
+        <color rgba="0.169 0.176 0.192 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link7_steel.STL" />
+      </geometry>
+      <material name="steel">
+        <color rgba="0.604 0.620 0.643 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link7_print.STL" />
+      </geometry>
+      <material name="print">
+        <color rgba="0.925 0.929 0.937 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link7.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <link name="link8">
+    <inertial>
+      <origin xyz="0.00624448 0.000880858 0.0349351" rpy="0 0 0" />
+      <mass value="0.0634" />
+      <inertia ixx="7.25155e-05" ixy="9.81667e-08" ixz="6.02697e-07" iyy="7.00822e-05" iyz="4.62662e-06" izz="1.2638e-05" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link8_motor.STL" />
+      </geometry>
+      <material name="motor">
+        <color rgba="0.169 0.176 0.192 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link8_steel.STL" />
+      </geometry>
+      <material name="steel">
+        <color rgba="0.604 0.620 0.643 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link8_print.STL" />
+      </geometry>
+      <material name="print">
+        <color rgba="0.925 0.929 0.937 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link8.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <link name="link9">
+    <inertial>
+      <origin xyz="-0.00611547 -0.000893697 0.0349487" rpy="0 0 0" />
+      <mass value="0.0634" />
+      <inertia ixx="7.2516e-05" ixy="1.16968e-07" ixz="-5.11964e-07" iyy="7.0116e-05" iyz="-4.61842e-06" izz="1.26529e-05" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link9_motor.STL" />
+      </geometry>
+      <material name="motor">
+        <color rgba="0.169 0.176 0.192 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link9_steel.STL" />
+      </geometry>
+      <material name="steel">
+        <color rgba="0.604 0.620 0.643 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link9_print.STL" />
+      </geometry>
+      <material name="print">
+        <color rgba="0.925 0.929 0.937 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link9.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="joint6" type="revolute">
+    <origin xyz="-0 0 -0.13" rpy="0 0 0" />
+    <parent link="link5" />
+    <child link="link6" />
+    <axis xyz="0 -1 0" />
+    <limit lower="-1.570796" upper="1.570796" effort="7.0" velocity="18.8" />
+  </joint>
+  <joint name="joint7" type="revolute">
+    <origin xyz="0 0 0" rpy="0 0 0" />
+    <parent link="link6" />
+    <child link="link7" />
+    <axis xyz="1 0 0" />
+    <limit lower="-0.785398" upper="0.785398" effort="7.0" velocity="18.8" />
+  </joint>
+  <joint name="joint8" type="prismatic">
+    <origin xyz="-0.006475 -0.06102 -0.19515" rpy="0 0 0" />
+    <parent link="link7" />
+    <child link="link8" />
+    <axis xyz="0 -1 0" />
+    <limit lower="-0.041000" upper="0.000000" effort="34.0" velocity="0.2" />
+  </joint>
+  <joint name="joint9" type="prismatic">
+    <origin xyz="0.006571 0.06107 -0.19515" rpy="0 0 0" />
+    <parent link="link7" />
+    <child link="link9" />
+    <axis xyz="0 -1 0" />
+    <limit lower="0.000000" upper="0.041000" effort="34.0" velocity="0.2" />
+  </joint>
+  <link name="link5l">
+    <inertial>
+      <origin xyz="-8.70142e-05 0.041459 -0.103639" rpy="0 0 0" />
+      <mass value="0.421153" />
+      <inertia ixx="0.00130581" ixy="-1.76565e-06" ixz="2.38492e-06" iyy="0.000946258" iyz="0.000381251" izz="0.00054013" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link5l_motor.STL" />
+      </geometry>
+      <material name="motor">
+        <color rgba="0.169 0.176 0.192 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link5l_steel.STL" />
+      </geometry>
+      <material name="steel">
+        <color rgba="0.604 0.620 0.643 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link5l_print.STL" />
+      </geometry>
+      <material name="print">
+        <color rgba="0.925 0.929 0.937 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link5l.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <link name="link6l">
+    <inertial>
+      <origin xyz="-0.00394431 0.00156716 -0.0003936" rpy="0 0 0" />
+      <mass value="0.302102" />
+      <inertia ixx="0.000143586" ixy="-1.87425e-06" ixz="-1.18562e-06" iyy="0.000109417" iyz="-1.89059e-07" izz="0.000139625" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link6l_motor.STL" />
+      </geometry>
+      <material name="motor">
+        <color rgba="0.169 0.176 0.192 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link6l_steel.STL" />
+      </geometry>
+      <material name="steel">
+        <color rgba="0.604 0.620 0.643 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link6l_print.STL" />
+      </geometry>
+      <material name="print">
+        <color rgba="0.925 0.929 0.937 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link6l.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <link name="link7l">
+    <inertial>
+      <origin xyz="0.00301107 0.00150123 -0.0911906" rpy="0 0 0" />
+      <mass value="0.368637" />
+      <inertia ixx="0.000679459" ixy="-4.59911e-05" ixz="-2.5337e-05" iyy="0.000537318" iyz="-1.59221e-06" izz="0.000423835" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link7l_motor.STL" />
+      </geometry>
+      <material name="motor">
+        <color rgba="0.169 0.176 0.192 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link7l_steel.STL" />
+      </geometry>
+      <material name="steel">
+        <color rgba="0.604 0.620 0.643 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link7l_print.STL" />
+      </geometry>
+      <material name="print">
+        <color rgba="0.925 0.929 0.937 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link7l.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <link name="link8l">
+    <inertial>
+      <origin xyz="-0.00611547 -0.000893697 0.0349487" rpy="0 0 0" />
+      <mass value="0.0634" />
+      <inertia ixx="7.2516e-05" ixy="1.16968e-07" ixz="-5.11964e-07" iyy="7.0116e-05" iyz="-4.61842e-06" izz="1.26529e-05" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link8l_motor.STL" />
+      </geometry>
+      <material name="motor">
+        <color rgba="0.169 0.176 0.192 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link8l_steel.STL" />
+      </geometry>
+      <material name="steel">
+        <color rgba="0.604 0.620 0.643 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link8l_print.STL" />
+      </geometry>
+      <material name="print">
+        <color rgba="0.925 0.929 0.937 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link8l.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <link name="link9l">
+    <inertial>
+      <origin xyz="0.00624448 0.000880858 0.0349351" rpy="0 0 0" />
+      <mass value="0.0634" />
+      <inertia ixx="7.25155e-05" ixy="9.81667e-08" ixz="6.02697e-07" iyy="7.00822e-05" iyz="4.62662e-06" izz="1.2638e-05" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link9l_motor.STL" />
+      </geometry>
+      <material name="motor">
+        <color rgba="0.169 0.176 0.192 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link9l_steel.STL" />
+      </geometry>
+      <material name="steel">
+        <color rgba="0.604 0.620 0.643 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link9l_print.STL" />
+      </geometry>
+      <material name="print">
+        <color rgba="0.925 0.929 0.937 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://armv2URDF/meshes/v3_link9l.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="joint6l" type="revolute">
+    <origin xyz="-0 0 -0.13" rpy="0 0 0" />
+    <parent link="link5l" />
+    <child link="link6l" />
+    <axis xyz="0 1 0" />
+    <limit lower="-1.570796" upper="1.570796" effort="7.0" velocity="18.8" />
+  </joint>
+  <joint name="joint7l" type="revolute">
+    <origin xyz="0 0 0" rpy="0 0 0" />
+    <parent link="link6l" />
+    <child link="link7l" />
+    <axis xyz="1 0 0" />
+    <limit lower="-0.785398" upper="0.785398" effort="7.0" velocity="18.8" />
+  </joint>
+  <joint name="joint9l" type="prismatic">
+    <origin xyz="-0.006475 -0.06102 -0.19515" rpy="0 0 0" />
+    <parent link="link7l" />
+    <child link="link9l" />
+    <axis xyz="0 1 0" />
+    <limit lower="0.000000" upper="0.041000" effort="34.0" velocity="0.2" />
+  </joint>
+  <joint name="joint8l" type="prismatic">
+    <origin xyz="0.006571 0.06107 -0.19515" rpy="0 0 0" />
+    <parent link="link7l" />
+    <child link="link8l" />
+    <axis xyz="0 1 0" />
+    <limit lower="-0.041000" upper="0.000000" effort="34.0" velocity="0.2" />
+  </joint>
+</robot>

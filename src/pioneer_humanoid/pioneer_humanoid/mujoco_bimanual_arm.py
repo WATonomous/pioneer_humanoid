@@ -37,22 +37,40 @@ FINGER_SOLIMP = [0.95, 0.99, 0.001, 0.5, 2.0]
 ARM_ARMATURE = 0.01
 
 
-def arm_spec(cameras: dict[str, tuple[int, int]] | None = None) -> mujoco.MjSpec:
+def _version(version: str):
+    """(urdf path, mesh dir, joint limits, actuator groups, finger pairs, finger bodies, cameras) of an arm version:
+    "v2" (the GL40 wrist, urdf/pioneer_bimanual_arm.urdf) or "v3" (7-DOF: AK45-10 wrist pitch + yaw, AK40-10 gripper,
+    urdf/pioneer_bimanual_arm_v3.urdf; both in assets/pioneer_bimanual_arm)."""
+    if version == "v2":
+        return URDF_PATH, _MESH_DIR, JOINT_POS_LIMITS, ACTUATOR_GROUPS, FINGER_PAIRS, FINGER_BODIES, CAMERAS
+    if version != "v3":
+        raise ValueError(f"unknown arm version {version!r}")
+    from . import arm_params_v3 as v3
+    from .urdf_joint_limits import load_joint_limits
+    path = Path(URDF_PATH).with_name("pioneer_bimanual_arm_v3.urdf")      # beside v2's, sharing its meshes/
+    cams = {**{k: c for k, c in CAMERAS.items() if not k.startswith("wrist")}, **v3.CAMERAS_WRIST}
+    return (str(path), _MESH_DIR, load_joint_limits(str(path)), v3.ACTUATOR_GROUPS, v3.FINGER_PAIRS,
+            v3.FINGER_BODIES, cams)
+
+
+def arm_spec(cameras: dict[str, tuple[int, int]] | None = None, version: str = "v2") -> mujoco.MjSpec:
     """MjSpec of the arm: base_link fixed at the origin, one position actuator per joint (named after it).
 
-    ``cameras``: {name: (height, width)} from arm_params.CAMERAS, added as MuJoCo cameras of that name.
+    ``cameras``: {name: (height, width)} from arm_params.CAMERAS (v3: its wrist cameras sit on link7 / link7l), added
+    as MuJoCo cameras of that name. ``version``: "v2" (default, the current arm) or "v3" (see _version).
     """
-    urdf = Path(URDF_PATH).read_text()
+    urdf_path, mesh_dir, limits, groups, finger_pairs, finger_bodies, cam_table = _version(version)
+    urdf = Path(urdf_path).read_text()
     urdf = re.sub(r'filename="package://[^"]*/meshes/', 'filename="', urdf)
     urdf = urdf.replace(
         "</robot>",
-        f'<mujoco><compiler meshdir="{_MESH_DIR}" discardvisual="false" fusestatic="false"/></mujoco></robot>',
+        f'<mujoco><compiler meshdir="{mesh_dir}" discardvisual="false" fusestatic="false"/></mujoco></robot>',
     )
     spec = mujoco.MjSpec.from_string(urdf)
 
     for joint in spec.joints:
-        if joint.name in JOINT_POS_LIMITS:
-            joint.range = JOINT_POS_LIMITS[joint.name]
+        if joint.name in limits:
+            joint.range = limits[joint.name]
             joint.limited = mujoco.mjtLimited.mjLIMITED_TRUE
         joint.ref = 0.0
     for geom in spec.geoms:
@@ -61,7 +79,7 @@ def arm_spec(cameras: dict[str, tuple[int, int]] | None = None) -> mujoco.MjSpec
             geom.conaffinity = ARM_CONAFFINITY
             geom.group = 3  # hidden: drawn over the coloured visual meshes, they z-fight and grey them out
 
-    for group_name, group in ACTUATOR_GROUPS.items():
+    for group_name, group in groups.items():
         for name in group["joints"]:
             act = spec.add_actuator()
             act.name = name
@@ -73,13 +91,13 @@ def arm_spec(cameras: dict[str, tuple[int, int]] | None = None) -> mujoco.MjSpec
             if "gripper" not in group_name:
                 spec.joint(name).armature = ARM_ARMATURE
     # One motor drives both fingers through the linkage: they always move evenly (joint8 = -joint7).
-    for a, b in FINGER_PAIRS:
+    for a, b in finger_pairs:
         eq = spec.add_equality(type=mujoco.mjtEq.mjEQ_JOINT, name1=b, name2=a, solref=FINGER_COUPLING_SOLREF)
         eq.data[:5] = [0, -1, 0, 0, 0]
 
-    _box_fingers(spec)
+    _box_fingers(spec, finger_bodies)
     for name, (height, width) in (cameras or {}).items():
-        cam = CAMERAS[name]
+        cam = cam_table[name]
         spec.body(cam.body).add_camera(
             name=name,
             pos=list(cam.pos),
@@ -90,7 +108,7 @@ def arm_spec(cameras: dict[str, tuple[int, int]] | None = None) -> mujoco.MjSpec
     return spec
 
 
-def _box_fingers(spec: mujoco.MjSpec) -> None:
+def _box_fingers(spec: mujoco.MjSpec, finger_bodies=FINGER_BODIES) -> None:
     """Replace each finger's collision mesh with boxes: its bounding box in each of FINGER_SLABS
     slices along the finger, in the finger link's frame.
 
@@ -101,7 +119,7 @@ def _box_fingers(spec: mujoco.MjSpec) -> None:
     TPU contact: FINGER_FRICTION and the softer FINGER_SOLREF.
     """
     model = spec.compile()
-    for body in FINGER_BODIES:
+    for body in finger_bodies:
         geom_id = next(
             i for i in range(model.ngeom)
             if model.geom_bodyid[i] == model.body(body).id and model.geom_contype[i]
