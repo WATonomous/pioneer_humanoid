@@ -4,6 +4,8 @@
 `urdf/pioneer_bimanual_arm.urdf`, its USD and all the code that uses it are unchanged. v3 shares v2's `meshes/` folder;
 its new links are the `v3_*.STL` files there.
 
+![v3: the bimanual arm and the new lower arm](README_v3.jpg)
+
 | | v2 (current) | v3 |
 |---|---|---|
 | wrist | one joint, GL40 (0.25 / 0.73 N m) | **pitch + yaw**, two CubeMars **AK45-10** (2.5 / 7 N m) |
