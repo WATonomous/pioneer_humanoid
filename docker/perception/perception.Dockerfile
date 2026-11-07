@@ -145,7 +145,6 @@ COPY src/perception/camera_calibration/wrist_cam.py \
      /opt/humanoid_py/camera_calibration/
 ENV PYTHONPATH=/opt/humanoid_py/pioneer_humanoid:/opt/humanoid_py/camera_calibration:${PYTHONPATH}
 
-
 # Build ROS2 packages
 WORKDIR ${AMENT_WS}
 
