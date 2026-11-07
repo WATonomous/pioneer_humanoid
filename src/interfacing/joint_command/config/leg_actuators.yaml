@@ -1,0 +1,91 @@
+# Leg joints, laid out like arm_actuators.yaml (#477): `global` fallbacks, then one full block per
+# leg, keyed like leg_calibration.yaml. Nothing here has been bench-tested.
+safety:
+  units:
+    angle: "deg"
+    velocity: "deg_s"
+
+  # Same layers as the arm. velocity_max and delta_max are lower than the arm's for first bring-up
+  # (30 deg/s at 50 Hz = 0.6 deg per tick); raise them only with bench data.
+  #
+  # mit_kp / mit_kd stay 0 until #483 sets them per joint. No code reads this file yet: for the
+  # arms, joint_command validates every listed limb, active or not, and refuses an MIT joint with
+  # zero gains. The leg loader must do the same (add a test). mit_max_torque is the arm's fallback,
+  # also for #483 to set per joint.
+  global:
+    enable_position_clamp: true
+    enable_velocity_limit: true
+    enable_delta_limit: true
+    enable_low_pass: true
+    velocity_max: 30.0
+    delta_max: 0.6
+    low_pass_alpha: 0.85
+    control_type: -1   # -1 = joint_command.yaml's control_type; set per joint below
+    mit_kp: 0.0
+    mit_kd: 0.0
+    mit_max_torque: 10        # N.m, fault above
+    mit_max_track_err: 10.0    # deg, fault above
+    mit_feedback_timeout: 0.2  # s without feedback -> fault
+    mit_max_temperature: 50
+    mit_family: ak
+    mit_fault_kd: 2.0
+    gravity_ff_scale: 0.0      # no gravity model for the legs
+    gravity_ff_max_torque: 0.0
+
+  # active: false leaves that motor alone for the run. Every leg joint starts false.
+  left:
+    hip:
+      pitch:   # AKH70-48, id 40 (planned)
+        active: false
+        control_type: 0
+        mit_family: ak
+      roll:   # AK80-64, id 41 (planned)
+        active: false
+        control_type: 0
+        mit_family: ak
+      yaw:   # AK60-39, id 42 (planned)
+        active: false
+        control_type: 0
+        mit_family: ak
+    knee:
+      pitch:   # AKH70-48, id 43 (planned)
+        active: false
+        control_type: 0
+        mit_family: ak
+    ankle:
+      pitch:   # AK60-39, id 44 (planned)
+        active: false
+        control_type: 0
+        mit_family: ak
+      roll:   # AK60-39, id 45 (planned)
+        active: false
+        control_type: 0
+        mit_family: ak
+  right:
+    hip:
+      pitch:   # AKH70-48, id 56 (planned)
+        active: false
+        control_type: 0
+        mit_family: ak
+      roll:   # AK80-64, id 57 (planned)
+        active: false
+        control_type: 0
+        mit_family: ak
+      yaw:   # AK60-39, id 58 (planned)
+        active: false
+        control_type: 0
+        mit_family: ak
+    knee:
+      pitch:   # AKH70-48, id 59 (planned)
+        active: false
+        control_type: 0
+        mit_family: ak
+    ankle:
+      pitch:   # AK60-39, id 60 (planned)
+        active: false
+        control_type: 0
+        mit_family: ak
+      roll:   # AK60-39, id 61 (planned)
+        active: false
+        control_type: 0
+        mit_family: ak
