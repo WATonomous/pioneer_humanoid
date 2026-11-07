@@ -35,12 +35,12 @@ Joints 1-5 and the links base..link4 are v2's, unchanged. Two things differ on j
 
 | link | mass | what it holds |
 |---|---|---|
-| link5 | 421 g | forearm + pitch motor |
-| link6 | 302 g | knuckle + yaw motor |
+| link5 | 449 g | forearm + pitch motor + its harness |
+| link6 | 306 g | knuckle + yaw motor |
 | link7 | 369 g | wrist frame + AK40 + rail plate, rail, links, horn, camera |
 | link8 / link9 (each claw: finger + mount + carriage) | 63.4 g | |
 
-Below the elbow the arm is 1.22 kg, about 0.5 kg more than v2's 0.70 kg.
+Below the elbow the arm is 1.25 kg, about 0.55 kg more than v2's 0.70 kg.
 
 ## Use it
 
@@ -74,5 +74,7 @@ URDF and the `v3_*` meshes. The team's current gripper was taken from this folde
 - The **real-arm configs** (`src/interfacing/joint_command/config`, `src/interfacing/can/config/mit_profiles.yaml`)
   need the AK45-10s and the AK40-10: CAN ids, MIT ranges and limits. Bench-check them before enabling.
 - The **Isaac USD**: see "Use it" above.
-- **Cable routing** through the wrist is not modelled yet. It needs a service loop over pitch, behind the knuckle, and
-  one over yaw, under the yaw motor.
+- **Cable routing** is done in the CAD, but its zip ties are not modelled yet. The route: one 4-core harness in through
+  the forearm's back, a splice to the pitch plug, a clock-spring loop round the pitch axis outside the passive cheek to
+  the yaw plug, then a loop across yaw to the AK40. The harness is checked clear over the full wrist ranges. The URDF
+  carries the cables as part of links 5-6 (their mass only).
