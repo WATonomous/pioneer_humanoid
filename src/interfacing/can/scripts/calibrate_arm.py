@@ -319,10 +319,10 @@ def apply_result_to_joint(joint: Dict[str, Any], result: Dict[str, Any]) -> None
         joint["direction"] = int(result["direction"])
 
 
-def mit_motor_ids(joints: List[Tuple[str, Dict[str, Any]]]) -> List[int]:
-    """Drives that only answer MIT frames: every GL II, plus joints arm_actuators.yaml puts on
+def mit_motor_ids(joints: List[Tuple[str, Dict[str, Any]]], limb: str) -> List[int]:
+    """Drives that only answer MIT frames: every GL II, plus joints limb's actuators YAML puts on
     control_type 0 (an AK brought up in MIT)."""
-    safety = jc.find_actuators(None)
+    safety = jc.find_actuators(None, limb)
     ids = set()
     for name, joint in joints:
         motor_id = parse_can_id(joint["can_id"])
@@ -413,7 +413,7 @@ def run(args: argparse.Namespace) -> int:
         rclpy.shutdown()  # stops the spin thread; destroying a node mid-spin aborts the process
         spin_thread.join(timeout=2.0)
         return 1
-    mit_ids = mit_motor_ids(joints)
+    mit_ids = mit_motor_ids(joints, args.limb)
     if mit_ids:
         print(f"MIT drives {mit_ids}: polling with zero-gain frames so they report. They are "
               f"LIMP (zero torque) until this exits -- support the arm.")
@@ -592,25 +592,30 @@ def run(args: argparse.Namespace) -> int:
     return 0
 
 
-def build_parser() -> argparse.ArgumentParser:
+def default_mapping_path(limb: str) -> Path:
+    filename = f"{limb}_calibration.yaml"
     default_mapping = (
         Path(__file__).resolve().parents[3]
         / "interfacing"
         / "joint_command"
         / "config"
-        / "arm_calibration.yaml"
+        / filename
     )
     # In-container mount path used by docker-compose.interfacing.yaml
-    container_mapping = Path("/calibration/arm_calibration.yaml")
+    container_mapping = Path("/calibration/") / filename
     if container_mapping.exists():
         default_mapping = container_mapping
     elif not default_mapping.exists():
-        default_mapping = Path("arm_calibration.yaml")
+        default_mapping = Path(filename)
+    return default_mapping
 
+
+def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--arm-side", default="left", choices=["left", "right"], help="Side in arm_calibration.yaml")
-    p.add_argument("--calibration", "--mapping", dest="mapping", default=str(default_mapping),
-                   help="Path to arm_calibration.yaml")
+    p.add_argument("--limb", default="arm", choices=["arm", "leg"], help="Which limb to calibrate, default is arm")
+    p.add_argument("--arm-side", default="left", choices=["left", "right"], help="Side (left/right) in calibration YAML, default is left")
+    p.add_argument("--calibration", "--mapping", dest="mapping", default=None,
+                   help="Path to the calibration YAML (default chosen from --limb)")
     p.add_argument(
         "--sidecar",
         default=str(Path.home() / ".cache" / "humanoid" / "calibration" / "last_calibration.yaml"),
@@ -655,13 +660,15 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--write-mapping",
         action="store_true",
-        help="Update arm_calibration.yaml in place (creates .bak once)",
+        help="Update calibration YAML in place (creates .bak once)",
     )
     return p
 
 
 def main() -> int:
     args = build_parser().parse_args()
+    if args.mapping is None:
+        args.mapping = default_mapping_path(args.limb)
     if yaml is None:
         print("Missing PyYAML. In the container: apt-get update && apt-get install -y python3-yaml", file=sys.stderr)
         return 1

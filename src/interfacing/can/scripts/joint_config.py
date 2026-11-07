@@ -37,12 +37,15 @@ DEFAULT_CALIBRATIONS = [
     str(_REPO_CONFIG / "arm_calibration.yaml"),
 ]
 
-ACTUATOR_CONFIGS = [
-    "/opt/joint_command_config/arm_actuators.yaml",
-    "/root/ament_ws/src/joint_command/config/arm_actuators.yaml",
-    "/root/ament_ws/src/interfacing/joint_command/config/arm_actuators.yaml",
-    str(_REPO_CONFIG / "arm_actuators.yaml"),
-]
+
+def actuator_configs(limb: str) -> List[str]:
+    filename = f"{limb}_actuators.yaml"
+    return [
+        f"/opt/joint_command_config/{filename}",
+        f"/root/ament_ws/src/joint_command/config/{filename}",
+        f"/root/ament_ws/src/interfacing/joint_command/config/{filename}",
+        str(_REPO_CONFIG / filename)
+    ]
 
 # can/config/mit_profiles.yaml: which protocol family each drive speaks (gl2 | ak).
 MIT_PROFILES = [
@@ -74,8 +77,8 @@ def find_calibration(explicit: Optional[str]) -> Path:
     return found
 
 
-def find_actuators(explicit: Optional[str]) -> Optional[Path]:
-    return _first_existing([explicit] if explicit else ACTUATOR_CONFIGS)
+def find_actuators(explicit: Optional[str], limb: str = "arm") -> Optional[Path]:
+    return _first_existing([explicit] if explicit else actuator_configs(limb))
 
 
 def drive_family(motor_id: int) -> Optional[str]:
