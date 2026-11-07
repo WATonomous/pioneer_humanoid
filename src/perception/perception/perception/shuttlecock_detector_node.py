@@ -17,10 +17,11 @@ class ShuttlecockDetector(Node):
         self.declare_parameter('image_topic', '/camera/camera/color/image_raw')
         self.declare_parameter('point_topic', '/perception/shuttlecock/detections_2d')
         self.declare_parameter('visible_topic', '/perception/shuttlecock/detection_visible')
+        # update to '/data/weights/yolo26n_v2.pt'
         self.declare_parameter('weights', '/data/weights/yolo26n.pt')
         self.declare_parameter('device', 'cpu')
-        self.declare_parameter('imgsz', 960)
-        self.declare_parameter('conf_threshold', 0.25)
+        self.declare_parameter('imgsz', 1280)
+        self.declare_parameter('conf_threshold', 0.60)
         self.declare_parameter('class_ids', [0])
 
         self.device = self._param('device')
