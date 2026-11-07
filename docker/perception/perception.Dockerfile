@@ -34,8 +34,6 @@ FROM ${BASE_IMAGE} AS dependencies
 # Install Rosdep requirements
 COPY --from=source /tmp/colcon_install_list /tmp/colcon_install_list
 
-RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key \
-    -o /usr/share/keyrings/ros2-latest-archive-keyring.gpg
 RUN apt-get update && \
     apt-fast install -qq -y --no-install-recommends $(cat /tmp/colcon_install_list)
 
@@ -123,13 +121,6 @@ RUN apt-get -qq autoremove -y && apt-get -qq autoclean && apt-get -qq clean && \
 RUN mkdir -p /root/models && \
     wget -q https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-s_simcc-body7_pt-body7_420e-256x192-acd4a1ef_20230504.pth \
     -O /root/models/rtmpose-s.pth
-
-# Foxglove visualization support
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-      ros-$ROS_DISTRO-foxglove-bridge \
-      ros-$ROS_DISTRO-rosbag2-storage-mcap && \
-    rm -rf /var/lib/apt/lists/*
 
 ################################ Build ################################
 FROM dependencies AS build

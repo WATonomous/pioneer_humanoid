@@ -3,7 +3,7 @@
 Two grids:
 - policy map: height map sent to locomotion
   (16 x 10 cells at 0.1 m, confirmed with locomotion)
-- elevation map: the internal map built from sensor data. 
+- elevation map: the internal map built from sensor data
   (5 cm and bigger than the policy map)
 """
 

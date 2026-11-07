@@ -6,7 +6,7 @@ WHOLE_NUMBER_TOL = 1e-9
 
 
 def cells_along(size_m):
-    return size_m / config.RESOLUTION_M
+    return size_m / config.POLICY_RESOLUTION_M
 
 
 def is_whole_number(value):
@@ -17,11 +17,11 @@ def is_whole_number(value):
 
 
 def test_policy_map_is_16_by_10():
-    assert config.grid_shape() == (16, 10)
+    assert config.policy_shape() == (16, 10)
 
 
 def test_total_cell_count():
-    n_x, n_y = config.grid_shape()
+    n_x, n_y = config.policy_shape()
     assert n_x * n_y == 160
 
 
@@ -29,10 +29,11 @@ def test_total_cell_count():
 
 
 def test_resolution_is_positive():
-    assert config.RESOLUTION_M > 0
+    assert config.POLICY_RESOLUTION_M > 0
+    assert config.ELEVATION_RESOLUTION_M > 0
 
 
-@pytest.mark.parametrize("size_m", [config.MAP_LENGTH_M, config.MAP_WIDTH_M])
+@pytest.mark.parametrize("size_m", [config.POLICY_LENGTH_M, config.POLICY_WIDTH_M])
 def test_map_sizes_are_positive(size_m):
     assert size_m > 0
 
@@ -56,7 +57,7 @@ def test_policy_cell_is_whole_number_of_elevation_cells():
 
 
 def test_first_index_is_forward_axis():
-    n_x, n_y = config.grid_shape()
+    n_x, n_y = config.policy_shape()
     assert n_x == round(cells_along(config.POLICY_LENGTH_M))
     assert n_y == round(cells_along(config.POLICY_WIDTH_M))
     assert n_x > n_y
