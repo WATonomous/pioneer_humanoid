@@ -8,7 +8,6 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <exec_depend>depth_image_proc</exec_depend>
   <exec_depend>elevation_mapping_cupy</exec_depend>
   <exec_depend>grid_map_msgs</exec_depend>
   <exec_depend>grid_map_rviz_plugin</exec_depend>
@@ -20,6 +19,7 @@
   <exec_depend>ros2bag</exec_depend>
   <exec_depend>rosbag2_py</exec_depend>
   <exec_depend>rtabmap_odom</exec_depend>
+  <exec_depend>rtabmap_util</exec_depend>
   <exec_depend>rviz2</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>
   <exec_depend>tf2_msgs</exec_depend>

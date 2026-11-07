@@ -1,6 +1,6 @@
 """Replay a D455 bag and build a GPU elevation map from it, all on the bag's clock.
 
-    depth image ──> depth_image_proc ──> /camera/depth/points ──> elevation_mapping_cupy
+    depth image ──> rtabmap_util point_cloud_xyz ──> /camera/depth/points ──> elevation_mapping_cupy
     color + aligned depth + IMU (Madgwick) ──> rtabmap rgbd_odometry ──> TF odom -> camera_link
 
 Usage:
@@ -36,6 +36,9 @@ BAG_TOPICS = [
 SIM_TIME = {'use_sim_time': True}
 IMU_TOPIC = '/camera/camera/imu'
 STILL_SAMPLES = 50  # 0.25 s at 200 Hz; the camera is still at the start of each bag
+# [m] D455 depth beyond this bends the floor. elevation_mapping_cupy has a min_valid_distance
+# but no maximum.
+MAX_DEPTH = 2.5
 
 
 def quaternion_matrix(q) -> np.ndarray:
@@ -140,16 +143,19 @@ def generate_launch_description():
         executable='component_container',
         composable_node_descriptions=[
             ComposableNode(
-                package='depth_image_proc',
-                plugin='depth_image_proc::PointCloudXyzNode',
+                package='rtabmap_util',
+                plugin='rtabmap_util::PointCloudXYZ',
                 name='point_cloud_xyz',
                 remappings=[
-                    ('image_rect', '/camera/camera/depth/image_rect_raw'),
-                    # Humble derives the info topic from the unremapped name ('/camera_info'), so remap it too.
-                    ('camera_info', '/camera/camera/depth/camera_info'),
-                    ('points', '/camera/depth/points'),
+                    ('depth/image', '/camera/camera/depth/image_rect_raw'),
+                    ('depth/camera_info', '/camera/camera/depth/camera_info'),
+                    ('cloud', '/camera/depth/points'),
                 ],
-                parameters=[SIM_TIME],
+                parameters=[{
+                    'max_depth': MAX_DEPTH,
+                    'approx_sync': False,
+                    **SIM_TIME,
+                }],
             ),
         ],
     )
