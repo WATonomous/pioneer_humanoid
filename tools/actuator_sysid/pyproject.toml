@@ -5,10 +5,11 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "actuator-sysid"
 version = "0.1.0"
-description = "Bench tools for leg actuator system identification (#335): CubeMars MIT codecs"
+description = "Bench tools for leg actuator system identification (#335): MIT codecs, safety layer, profiles, logger"
 requires-python = ">=3.10"
 # Needs pioneer_humanoid (motor specs in leg_params.py). Not listed here so pip never fetches a
 # same-named package from PyPI; install the local one: pip install --no-deps -e src/pioneer_humanoid
+# Runtime: python-can 4.6.1, numpy, matplotlib (+ pytest for tests). Env setup in README.md.
 dependencies = []
 
 [tool.setuptools.packages.find]

@@ -300,3 +300,78 @@ def test_motor_id_out_of_range_raises(bad_id):
 def test_unknown_protocol_raises():
     with pytest.raises(ValueError):
         pr.mit_command(dataclasses.replace(AK60_39, protocol="gl2"), 1, 0, 0, 0, 0, 0)
+
+
+# --- Motor side (Task 9 fake motor): round trips against the host-side functions ---------------
+_COMMANDS = [(0.0, 0.0, 0.0, 0.0, 0.0), (1.234, -2.5, 10.0, 0.7, -3.3), (-11.0, 4.0, 499.0, 4.9, 60.0)]
+
+
+@pytest.mark.parametrize("motor", LEG_MOTORS, ids=lambda m: m.name)
+@pytest.mark.parametrize("cmd", _COMMANDS)
+def test_command_round_trip_within_one_step(motor, cmd):
+    p, v, kp, kd, t = cmd
+    frame = pr.mit_command(motor, 0x28, p, v, kp, kd, t)
+    unpack = pr.unpack_ak3_fields if motor.protocol == "ak3" else pr.unpack_ak2_fields
+    out = pr.decode_mit(motor, unpack(frame.data))
+    v_c, t_c = max(-motor.v_max, min(motor.v_max, v)), max(-motor.t_max, min(motor.t_max, t))
+    for got, want, lo, hi, bits in [(out.p, p, -motor.p_max, motor.p_max, 16), (out.v, v_c, -motor.v_max, motor.v_max, 12),
+                                    (out.kp, kp, 0, motor.kp_max, 12), (out.kd, kd, 0, motor.kd_max, 12),
+                                    (out.t, t_c, -motor.t_max, motor.t_max, 12)]:
+        assert want - _step(lo, hi, bits) - 1e-9 <= got <= want + 1e-9  # truncation rounds down
+
+
+def test_unpack_is_exact_inverse_of_pack():
+    codes = pr.MitCodes(p=0xBEEF, v=0xABC, kp=0x123, kd=0xFED, t=0x456)
+    assert pr.unpack_ak3_fields(pr.pack_ak3_fields(codes)) == codes
+    assert pr.unpack_ak2_fields(pr.pack_ak2_fields(codes)) == codes
+
+
+@pytest.mark.parametrize("motor", [AKH70_48, AK60_39], ids=lambda m: m.name)
+def test_ak3_status_encode_round_trip(motor):
+    frame = pr.encode_ak3_status(motor, 0x28, position=-1.2345, velocity=0.8, current=-3.21, temperature=-5, error=2)
+    fb = pr.decode_ak3_status(motor, frame)
+    assert fb.motor_id == 0x28 and fb.temperature == -5 and fb.error == 2
+    assert fb.position == pytest.approx(-1.2345, abs=math.radians(0.05))  # 0.1 deg counts, rounded
+    erpm_step = pr.erpm_to_rad_s(10.0, motor)
+    assert fb.velocity == pytest.approx(0.8, abs=erpm_step / 2 + 1e-12)
+    assert fb.current == pytest.approx(-3.21, abs=0.005 + 1e-12)
+    assert fb.torque == pytest.approx(fb.current * motor.torque_constant)
+
+
+def test_ak3_status_encode_saturates():
+    frame = pr.encode_ak3_status(AK60_39, 1, position=1e6, velocity=-1e6, current=1e6, temperature=500)
+    assert frame.data[:6] == bytes.fromhex("7fff80007fff") and frame.data[6] == 127
+
+
+def test_ak3_position_frame_round_trip():
+    assert pr.decode_ak3_position(pr.encode_ak3_position(5, -2.71828)) == pytest.approx(-2.71828, abs=math.radians(0.005))
+
+
+def test_ak2_feedback_encode_round_trip():
+    m = AK80_64
+    frame = pr.encode_ak2_feedback(m, 0x32, position=0.5, velocity=-1.5, torque=12.0, temperature=-3, error=1)
+    assert not frame.is_extended_id and frame.arbitration_id == 0x32
+    fb = pr.decode_ak2_feedback(m, frame)
+    assert fb.motor_id == 0x32 and fb.temperature == -3 and fb.error == 1
+    assert 0.5 - _step(-m.p_max, m.p_max, 16) <= fb.position <= 0.5 + 1e-9
+    assert -1.5 - _step(-m.v_max, m.v_max, 12) <= fb.velocity <= -1.5 + 1e-9
+    assert 12.0 - _step(-m.t_max, m.t_max, 12) <= fb.torque <= 12.0 + 1e-9
+    assert pr.encode_ak2_feedback(m, 0x32, 0, 0, 0, 25, arbitration_id=0).arbitration_id == 0
+
+
+def test_ak2_special_code():
+    assert pr.ak2_special_code(pr.ak2_enter(7)) == pr.AK2_ENTER
+    assert pr.ak2_special_code(pr.ak2_exit(7)) == pr.AK2_EXIT
+    assert pr.ak2_special_code(pr.ak2_set_zero(7)) == pr.AK2_SET_ZERO
+    assert pr.ak2_special_code(pr.mit_command(AK80_64, 7, 0, 0, 0, 0, 0)) is None
+    assert pr.ak2_special_code(pr.CanFrame(7, bytes([0xFF] * 7 + [0x00]), False)) is None
+    assert pr.ak2_special_code(pr.CanFrame(7, bytes([0xFF] * 7 + [0xFC]), True)) is None
+
+
+def test_ak2_feedback_id_accepts_zero_or_motor_id():
+    assert pr.is_ak2_feedback_id(0x00, 0x32) and pr.is_ak2_feedback_id(0x32, 0x32)
+    assert not pr.is_ak2_feedback_id(0x33, 0x32)
+
+
+def test_ak3_split_id_inverts_can_id():
+    assert pr.ak3_split_id(pr.ak3_can_id(pr.AK3_MODE_DISABLE, 0x41)) == (15, 0x41)

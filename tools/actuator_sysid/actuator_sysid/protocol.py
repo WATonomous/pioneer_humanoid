@@ -1,6 +1,7 @@
 """CubeMars MIT ("force control") CAN codecs for the leg motors: AK 3.0 and AK 2.0.
 
 Pure functions, bytes in / bytes out, no bus access (Task 9's bus.py sends the frames).
+The last section is the motor side (decode commands, encode feedback) for Task 9's fake motor.
 Encoding ranges come from leg_params.MotorSpec (p_max, v_max, t_max, kp_max, kd_max; symmetric
 p/v/t, gains from 0), and so does the protocol choice (MotorSpec.protocol).
 
@@ -269,6 +270,12 @@ def decode_ak3_position(frame: CanFrame) -> float:
     return math.radians(int.from_bytes(frame.data[0:4], "big", signed=True) * 0.01)
 
 
+def is_ak2_feedback_id(arbitration_id: int, motor_id: int) -> bool:
+    """AK 2.0 reply id. The manual's line "0X00+Drive ID" is ambiguous: id 0x00 or the drive id.
+    Accept both until Task 10 shows which one the motor uses (DATA[0] is checked as well)."""
+    return arbitration_id in (0x00, motor_id)
+
+
 def decode_ak2_feedback(motor: MotorSpec, frame: CanFrame) -> MotorFeedback:
     """AK 2.0 MIT reply -> SI units, using the motor's MIT ranges."""
     _require(motor.protocol == "ak2", f"{motor.name} is not an AK 2.0 motor")
@@ -287,3 +294,98 @@ def decode_ak2_feedback(motor: MotorSpec, frame: CanFrame) -> MotorFeedback:
         temperature=d[6] - _AK2_TEMP_OFFSET,
         error=d[7],
     )
+
+
+# --- Motor side (Task 9 fake motor) -----------------------------------------------------------
+# The reverse of the functions above: what the motor does with our frames and what it sends back.
+# Used only by fake_motor.py and the tests; tested by round trip against the functions above.
+class MitCommand(NamedTuple):
+    """One decoded MIT command, physical units (rad, rad/s, Nm/rad, Nm*s/rad, Nm)."""
+    p: float
+    v: float
+    kp: float
+    kd: float
+    t: float
+
+
+def unpack_ak3_fields(data: bytes) -> MitCodes:
+    """Inverse of pack_ak3_fields."""
+    _require(len(data) == 8, f"MIT command needs 8 bytes, got {len(data)}")
+    d = data
+    return MitCodes(
+        p=(d[3] << 8) | d[4],
+        v=(d[5] << 4) | (d[6] >> 4),
+        kp=(d[0] << 4) | (d[1] >> 4),
+        kd=((d[1] & 0xF) << 8) | d[2],
+        t=((d[6] & 0xF) << 8) | d[7],
+    )
+
+
+def unpack_ak2_fields(data: bytes) -> MitCodes:
+    """Inverse of pack_ak2_fields."""
+    _require(len(data) == 8, f"MIT command needs 8 bytes, got {len(data)}")
+    d = data
+    return MitCodes(
+        p=(d[0] << 8) | d[1],
+        v=(d[2] << 4) | (d[3] >> 4),
+        kp=((d[3] & 0xF) << 8) | d[4],
+        kd=(d[5] << 4) | (d[6] >> 4),
+        t=((d[6] & 0xF) << 8) | d[7],
+    )
+
+
+def decode_mit(motor: MotorSpec, codes: MitCodes) -> MitCommand:
+    """Codes -> physical command, using the motor's MIT ranges (inverse of encode_mit)."""
+    return MitCommand(
+        p=uint_to_float(codes.p, -motor.p_max, motor.p_max, 16),
+        v=uint_to_float(codes.v, -motor.v_max, motor.v_max, 12),
+        kp=uint_to_float(codes.kp, 0.0, motor.kp_max, 12),
+        kd=uint_to_float(codes.kd, 0.0, motor.kd_max, 12),
+        t=uint_to_float(codes.t, -motor.t_max, motor.t_max, 12),
+    )
+
+
+def ak3_split_id(arbitration_id: int) -> tuple[int, int]:
+    """AK 3.0 extended id -> (mode, drive id). Inverse of ak3_can_id."""
+    return arbitration_id >> 8, arbitration_id & 0xFF
+
+
+def ak2_special_code(frame: CanFrame) -> int | None:
+    """FC / FD / FE if the frame is an AK 2.0 special frame (FF x7 + code), else None."""
+    if frame.is_extended_id or len(frame.data) != 8 or frame.data[:7] != b"\xff" * 7:
+        return None
+    return frame.data[7] if frame.data[7] in (AK2_ENTER, AK2_EXIT, AK2_SET_ZERO) else None
+
+
+def _int16_bytes(value: float) -> bytes:
+    """Round and clamp to int16 (the motor saturates, it doesn't wrap)."""
+    return max(-32768, min(32767, round(value))).to_bytes(2, "big", signed=True)
+
+
+def encode_ak3_status(motor: MotorSpec, drive_id: int, position: float, velocity: float,
+                      current: float, temperature: int, error: int = 0) -> CanFrame:
+    """0x29 status frame from output-shaft SI values (inverse of decode_ak3_status)."""
+    erpm = velocity / _RPM_TO_RAD_S * motor.gear_ratio * motor.pole_pairs
+    data = (_int16_bytes(math.degrees(position) / 0.1) + _int16_bytes(erpm / 10.0)
+            + _int16_bytes(current / 0.01)
+            + max(-128, min(127, int(temperature))).to_bytes(1, "big", signed=True) + bytes([error & 0xFF]))
+    return CanFrame(ak3_can_id(AK3_STATUS, drive_id), data, True)
+
+
+def encode_ak3_position(drive_id: int, position: float) -> CanFrame:
+    """0x2A position frame, int32 * 0.01 deg (inverse of decode_ak3_position)."""
+    code = max(-(1 << 31), min((1 << 31) - 1, round(math.degrees(position) / 0.01)))
+    return CanFrame(ak3_can_id(AK3_POSITION, drive_id), code.to_bytes(4, "big", signed=True) + bytes(4), True)
+
+
+def encode_ak2_feedback(motor: MotorSpec, motor_id: int, position: float, velocity: float, torque: float,
+                        temperature: int, error: int = 0, arbitration_id: int | None = None) -> CanFrame:
+    """AK 2.0 MIT reply (inverse of decode_ak2_feedback). arbitration_id defaults to the motor id
+    (one reading of the manual's "0X00+Drive ID"; see is_ak2_feedback_id)."""
+    _check_motor_id(motor_id)
+    p = float_to_uint(position, -motor.p_max, motor.p_max, 16)
+    v = float_to_uint(velocity, -motor.v_max, motor.v_max, 12)
+    t = float_to_uint(torque, -motor.t_max, motor.t_max, 12)
+    temp = max(0, min(255, int(temperature) + _AK2_TEMP_OFFSET))
+    data = bytes([motor_id, p >> 8, p & 0xFF, v >> 4, ((v & 0xF) << 4) | (t >> 8), t & 0xFF, temp, error & 0xFF])
+    return CanFrame(motor_id if arbitration_id is None else arbitration_id, data, False)
