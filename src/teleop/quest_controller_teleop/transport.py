@@ -1,4 +1,4 @@
-"""Shared WebXR transport for the Isaac scene and standalone preview."""
+"""WebXR transport for the always-on Isaac controller scene."""
 import asyncio
 import json
 from pathlib import Path
@@ -19,7 +19,7 @@ class Shared:
         self.sequence = 0
         self.interrupted = {"left": True, "right": True}
         self.reset_sequence = 0
-        self.feedback = {"status": "Release both grips, then hold a grip to move"}
+        self.feedback = {"status": "Enter VR; tracked controllers move the arms"}
         self.images = {}
         self.stop = threading.Event()
 
@@ -31,13 +31,32 @@ class Shared:
             self.interrupted = {"left": True, "right": True}
 
 
+def parse_sample(value):
+    """Validate only the ordering/reference metadata needed for safe reanchoring."""
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        raise ValueError("Invalid controller metadata")
+    result = {}
+    for key in ("sequence", "epoch"):
+        number = value.get(key)
+        if type(number) is not int or not 0 <= number <= 2**53-1:
+            raise ValueError(f"Invalid controller {key}")
+        result[key] = number
+    stamp = value.get("time_ms")
+    if type(stamp) not in (int, float) or not np.isfinite(stamp) or stamp < 0:
+        raise ValueError("Invalid controller timestamp")
+    result["time_ms"] = float(stamp)
+    return result
+
+
 def validate_packet(raw):
     if not isinstance(raw, dict) or raw.get("version") != 1:
         raise ValueError("Expected controller protocol version 1")
     head = raw.get("head")
     head_rotation = quaternion_matrix(head) if head is not None else None
     return {"head": head_rotation, "left": Input.parse(raw.get("left")),
-            "right": Input.parse(raw.get("right"))}
+            "right": Input.parse(raw.get("right")), "sample": parse_sample(raw.get("sample"))}
 
 
 async def serve(shared, args):
@@ -70,18 +89,36 @@ async def serve(shared, args):
         owner = ws
         reset_armed = False
         reset_down = False
+        previous_epoch = None
+        previous_sequence = None
+        previous_time = None
         try:
             await ws.prepare(request)
             shared.clear()
             async for message in ws:
                 if message.type == WSMsgType.TEXT:
                     try:
-                        packet = validate_packet(json.loads(message.data))
+                        raw = json.loads(message.data)
+                        packet = validate_packet(raw)
                     except (ValueError, TypeError, KeyError):
                         shared.clear()
                         await ws.close(code=1008, message=b"Invalid controller packet")
                         break
                     with shared.lock:
+                        now = time.monotonic()
+                        sample = packet.get("sample")
+                        if sample is not None:
+                            if previous_sequence is not None and (sample["sequence"] <= previous_sequence
+                                    or sample["time_ms"] < previous_time):
+                                continue
+                            previous_sequence = sample["sequence"]
+                            previous_time = sample["time_ms"]
+                        # A recenter/session change must reanchor even if the
+                        # explicit null-pose notification was skipped by the mailbox.
+                        epoch = sample["epoch"] if sample is not None else None
+                        if epoch != previous_epoch:
+                            shared.interrupted = {"left": True, "right": True}
+                        previous_epoch = epoch
                         left = packet["left"]
                         down = left is not None and left.reset_scene
                         if left is None or packet["head"] is None:
@@ -96,7 +133,7 @@ async def serve(shared, args):
                             if packet[side] is None or packet["head"] is None:
                                 shared.interrupted[side] = True
                         shared.packet = packet
-                        shared.received = time.monotonic()
+                        shared.received = now
                         shared.sequence += 1
                         feedback = dict(shared.feedback)
                     await ws.send_json(feedback)

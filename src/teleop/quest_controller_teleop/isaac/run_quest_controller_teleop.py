@@ -1,9 +1,9 @@
 """Quest Touch controller teleoperation in Isaac Sim.
 
-WebXR poses/buttons -> clutched wrist targets -> position-priority IK -> simulated
+WebXR poses/buttons -> always-on wrist targets -> sequential article IK -> simulated
 joint actuators. Stereo/wrist camera JPEGs and status return to the headset.
 Supports pick-and-place, cloth folding, and optional demonstration recording.
-Launch with run_quest_controller_teleop.sh inside the simulation_isaac container.
+Launch with run_quest_controller_teleop_always_on.sh inside the simulation_isaac container.
 """
 
 from __future__ import annotations
@@ -48,10 +48,8 @@ parser.add_argument("--single-task-thread", action="store_true",
 parser.add_argument("--gain", type=float, default=1.5,
                     help="Motion gain: metres of EE motion per metre of real wrist motion")
 parser.add_argument("--controller-port", type=int, default=8444)
-parser.add_argument("--controller-diagnostics", action="store_true",
-                    help="Print controller IK, measured wrist orientation and joint tracking once per wall second")
-parser.add_argument("--joint-speed", type=float, default=1., help="Controller mode joint command speed limit (rad/s)")
-parser.add_argument("--wrist-speed", type=float, default=4., help="Controller joint 5/6 command speed limit (rad/s)")
+parser.add_argument("--joint-speed", type=float, default=.9, help="Controller mode joint command speed limit (rad/s)")
+parser.add_argument("--wrist-speed", type=float, default=3.6, help="Controller joint 5/6 command speed limit (rad/s)")
 parser.add_argument("--rotation-gain", type=float, default=1., help="Controller rotation gain (1 = one-to-one)")
 parser.add_argument("--angular-lead", type=float, default=.6, help="Controller angular target lead limit (radians)")
 parser.add_argument("--controller-frame", choices=("camera", "base"), default="camera",
@@ -721,7 +719,6 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     controller_path = _THIS_DIR.parent
     sys.path.insert(0, str(controller_path))
     from isaac_control import ControllerSceneDriver
-    from control import rotation_vector
     controller_frame = None
     if args_cli.controller_frame == "camera":
         # WebXR and USD cameras both use +X right, +Y up, -Z forward.
@@ -743,6 +740,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     print(f"[Quest] Controller frame: {args_cli.controller_frame}; rotation gain={args_cli.rotation_gain}; "
           f"proximal/wrist speed={args_cli.joint_speed}/{args_cli.wrist_speed} rad/s; "
           f"angular lead={args_cli.angular_lead} rad", flush=True)
+    print("[Quest] Always-on control with article-based sequential IK", flush=True)
     controller_driver.start()
     # Position the fixed stereo mounts once at startup.
     head_home_viewpoint_pos_b = torch.tensor([_HEAD_VIEWPOINT_HOME_POS], dtype=torch.float32, device=device)
@@ -811,7 +809,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         _keyboard_sub = _keyboard_iface.subscribe_to_keyboard_events(_keyboard, _on_keyboard_event)
 
     print(f"[Quest] Controller mode: http://localhost:{args_cli.controller_port}/; left Y resets scene.", flush=True)
-    print("[Quest] Both arms: clutched, position-priority IK; grip to move, trigger to grasp.", flush=True)
+    print("[Quest] Both arms: always-on article IK; trigger to grasp.", flush=True)
     if recorder is not None:
         print("[Quest] Press S to save the current episode, D to discard it -- recording "
               "continues either way for the next demo.", flush=True)
@@ -830,7 +828,6 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     _rtf_window_steps = 0
     _rtf_window_step_min_ms = float("inf")
     _rtf_window_step_max_ms = 0.0
-    _controller_diagnostic_deadline = 0.0
     # Ctrl-C / SIGTERM REQUEST a shutdown rather than exiting in the handler, so the single
     # cleanup path below the loop always runs. That matters because recorder.finalize() blocks
     # until the async save queue drains -- episodes save on a background thread, so exiting from
@@ -888,32 +885,6 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
             arm.last_joint_pos_des = torch.as_tensor(commands[side], dtype=torch.float32, device=device).unsqueeze(0)
             robot.set_joint_position_target(arm.last_joint_pos_des, joint_ids=arm.arm_ids)
             robot.set_joint_velocity_target(torch.zeros_like(arm.last_joint_pos_des), joint_ids=arm.arm_ids)
-        if args_cli.controller_diagnostics and time.monotonic() >= _controller_diagnostic_deadline:
-            _controller_diagnostic_deadline = time.monotonic()+1.
-            for side, arm in (("left", left_arm), ("right", right_arm)):
-                target = controller_driver.targets[side]
-                if not target.active:
-                    continue
-                solver = controller_driver.solvers[side]
-                actual_q = controller_joint_positions[side]
-                _, predicted_rotation, _, _ = solver.kinematics(actual_q)
-                _, measured_quat = _ee_pose_in_base(robot, arm.body_id)
-                measured_rotation = matrix_from_quat(measured_quat)[0].detach().cpu().numpy()
-                model_error = math.degrees(math.hypot(*rotation_vector(
-                    predicted_rotation @ measured_rotation.T)))
-                measured_error = math.degrees(math.hypot(*rotation_vector(
-                    target.rotation @ measured_rotation.T)))
-                joint_deg = [round(math.degrees(float(v)), 1) for v in actual_q]
-                command_deg = [round(math.degrees(float(v)), 1) for v in commands[side]]
-                diag = solver.diagnostics
-                print(f"[Quest][orientation][{side}] "
-                      f"target_vs_Isaac={measured_error:.1f}deg model_vs_Isaac={model_error:.2f}deg "
-                      f"IK={diag['command_orientation_error_deg']:.1f}deg "
-                      f"motor={diag['actuator_orientation_error_deg']:.1f}deg "
-                      f"position={diag['position_error_m']*1000:.1f}mm "
-                      f"limits={diag['limited_joints']} parked={diag['orientation_parked']} "
-                      f"absorbed={diag['absorbing_motion']} "
-                      f"actual_deg={joint_deg} command_deg={command_deg}", flush=True)
         # ── Gripper targets ────────────────────────────────────────────────────
         # smooth_time=0.05s keeps grasp timing snappy; max_speed is large relative to the
         # ~0.05-unit gripper range, so smooth_time shapes the motion, not the speed cap.

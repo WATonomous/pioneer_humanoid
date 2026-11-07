@@ -4,6 +4,8 @@
     simulation, rendering, recording and reset operations.
 """
 import io
+import asyncio
+from dataclasses import replace
 from pathlib import Path
 import threading
 import time
@@ -11,16 +13,19 @@ from types import SimpleNamespace
 
 import numpy as np
 
-from control import Target, UrdfPioneerIK, fit_pivot
+from control import fit_pivot
+from article_control import ArticleTarget, PioneerArticleIK
 from transport import Shared, load_pivots, serve
 
 
 class ControllerSceneDriver:
     def __init__(self, joint_names, gain, velocity, calibration, port=8444,
-                 wrist_velocity=4., rotation_gain=1., angular_lead=.6, frame_calibration=None):
+                 wrist_velocity=3.6, rotation_gain=1., angular_lead=.6, frame_calibration=None):
         self.shared = Shared()
-        self.solvers = {s: UrdfPioneerIK(names, velocity, wrist_velocity) for s, names in joint_names.items()}
-        self.targets = {s: Target(gain=gain, rotation_gain=rotation_gain, max_angle_error=angular_lead) for s in joint_names}
+        self.solvers = {s: PioneerArticleIK(names, velocity, wrist_velocity)
+                        for s, names in joint_names.items()}
+        self.targets = {s: ArticleTarget(gain=gain, rotation_gain=rotation_gain, max_angle_error=angular_lead)
+                        for s in joint_names}
         if frame_calibration is not None:
             for target in self.targets.values():
                 target.set_calibration(frame_calibration)
@@ -33,14 +38,15 @@ class ControllerSceneDriver:
         self.grippers = {s: 0. for s in joint_names}
         self.sequence = -1
         self.reset_sequence = 0
-        self.status = "Release grips, then squeeze to move. Left Y resets scene; stick-click calibrates wrist."
+        self.status = "Tracked controllers move the arms. Left Y resets; stick-click pauses to calibrate."
         self.error = None
         self.shared.feedback = {"scene": "isaac", "status": self.status}
         self.port = port
         self.server_task = None
         self.owner_thread = None
+        self.io_pump = None
 
-    def start(self, schedule=None):
+    def start(self, schedule=None, pump=None):
         """Run the web server on Kit's main loop, never asyncio.run in a worker.
 
         Kit owns an asyncio engine tied to its application updates. Starting a
@@ -55,6 +61,20 @@ class ControllerSceneDriver:
         if schedule is None:
             from omni.kit.async_engine import run_coroutine
             schedule = run_coroutine
+            loop = asyncio.get_event_loop()
+            run_once = getattr(loop, "run_once", None)
+            if callable(run_once):
+                def pump():
+                    # Kit's installed run_once is nonblocking and normally
+                    # called only on app updates. Physics-only ticks omit those.
+                    # Never nest it inside an already executing asyncio callback.
+                    try:
+                        asyncio.get_running_loop()
+                    except RuntimeError:
+                        run_once()
+            else:
+                print("[Quest] Async run_once unavailable; input remains tied to Kit app-update cadence.", flush=True)
+        self.io_pump = pump
         self.owner_thread = threading.get_ident()
         coroutine = serve(self.shared, SimpleNamespace(host="127.0.0.1", port=self.port, cert=None))
         try:
@@ -74,14 +94,17 @@ class ControllerSceneDriver:
             solver.command = np.array(joint_positions[side], dtype=float).copy()
             self.targets[side].lose_tracking()
             self.targets[side].position = self.targets[side].rotation = None
+            self.targets[side].requested_rotation = None
             self.samples[side].clear()
             self.calibrating[side] = False
             self.grippers[side] = 0.
-        self.status = "Scene reset. Release grips, then squeeze to resume."
+        self.status = "Scene reset. Control resumes from the current arm pose when tracking returns."
 
     def update(self, joint_positions):
         """Consume latest input once. Return a latched, single-shot scene reset."""
         self._check_thread()
+        if self.io_pump is not None:
+            self.io_pump()
         if self.server_task is not None and self.server_task.done():
             if self.server_task.cancelled():
                 raise RuntimeError("Controller service was cancelled")
@@ -109,7 +132,7 @@ class ControllerSceneDriver:
                 control = packet[side]
                 target = self.targets[side]
                 p, r, _, _ = solver.kinematics(joint_positions[side])
-                if control is not None and control.calibrate and not control.clutch:
+                if control is not None and control.calibrate:
                     if not self.calibrating[side]:
                         self.samples[side] = []
                     self.calibrating[side] = True
@@ -131,20 +154,26 @@ class ControllerSceneDriver:
                                 temporary.replace(self.calibration)
                                 self.pivots = pivots
                                 target.pivot = offset
-                                self.status = f"{side} calibrated (RMS {residual*1000:.1f} mm); release grip"
+                                self.status = f"{side} calibrated (RMS {residual*1000:.1f} mm); tracking resumes automatically"
                             except (ValueError, OSError) as error:
                                 self.status = f"{side}: {error}"
                         self.samples[side].clear()
+                    if control is not None and packet["head"] is not None:
+                        # Reuse the same incremental target mapping. The first
+                        # tracked frame anchors to measured FK, including after
+                        # loss/reset/calibration. Never mutate the shared packet.
+                        target.armed = True
+                        control = replace(control, clutch=True)
                     target.update(control, packet["head"], p, r)
                     if target.active:
                         self.grippers[side] = control.trigger
             self.sequence = sequence
         with self.shared.lock:
             self.shared.feedback = {
-                "scene": "isaac", "status": self.status if fresh else "Tracking paused. Release grips to rearm.",
+                "scene": "isaac",
+                "status": self.status if fresh else "Tracking paused. Control resumes from the current arm pose.",
                 "active": {s: t.active for s, t in self.targets.items()},
                 "haptics": {s: self.solvers[s].warning if t.active else 0. for s, t in self.targets.items()},
-                "tracking": {s: self.solvers[s].diagnostics if t.active else {} for s, t in self.targets.items()},
             }
         return False
 

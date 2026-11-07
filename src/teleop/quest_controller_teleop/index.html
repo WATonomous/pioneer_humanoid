@@ -12,40 +12,28 @@ img { width:31%; background:#253341; min-height:100px } p { line-height:1.6 } #s
 <p>Quest 2 + Touch controllers · simulated Pioneer bimanual arms</p>
 <button id="start" disabled>Enter VR</button>
 <p id="status">Connecting…</p>
-<p id="controls"><b>Grip:</b> hold to move that arm; release to hold its position.<br>
-<b>Index trigger:</b> squeeze to close the gripper while clutched.<br>
-<b>A / X:</b> hold for precision motion.<br>
-<b>B / Y:</b> with grip released, hold and twist your wrist about several axes for 3–5 seconds;
-release to save the wrist-pivot calibration.</p>
-<p>Release both grips before starting and after any tracking interruption. Forward is aligned
-to your headset heading each time you clutch. Camera panels show ego, left wrist, and right wrist.</p>
+<p id="controls">Tracked controllers move the arms automatically.<br>
+<b>Index trigger:</b> squeeze to close the gripper. <b>A / X:</b> hold for precision motion.<br>
+<b>Left Y:</b> reset scene. <b>Thumbstick click:</b> hold to pause that arm and calibrate the wrist pivot.</p>
+<p id="tracking-help">Tracking loss pauses movement. Tracking return resumes from the current arm pose.
+Forward is aligned to your headset heading when tracking engages.</p>
 <div><img id="ego" alt="Ego camera"><img id="wrist_left" alt="Left wrist camera"><img id="wrist_right" alt="Right wrist camera"><img id="pov_left" alt="Left stereo eye" hidden><img id="pov_right" alt="Right stereo eye" hidden></div>
 <canvas id="xr" hidden></canvas>
 <script>
 "use strict";
 const status = document.querySelector('#status'), start = document.querySelector('#start');
 let ws, session, reference, gl, layer, program, quad, projection, placement, textureUniform;
-let visible = true, feedback = {}, lastSend = 0, lastHaptic = 0, reconnectTimer;
+let visible = true, feedback = {}, lastHaptic = 0, reconnectTimer;
+let packetSequence = 0, referenceEpoch = 0;
 const textures = new Map(), images = ['ego', 'wrist_left', 'wrist_right', 'pov_left', 'pov_right'];
 const dirtyImages = new Set();
 const hud = document.createElement('canvas'); hud.width = 1024; hud.height = 128;
 const ctx = hud.getContext('2d');
 
 function setStatus(text) { status.textContent = text; }
-function trackingText() {
-  return ['left','right'].map(side=>{
-    const info=feedback.tracking?.[side];
-    if (!feedback.active?.[side] || !info || info.orientation_error_deg === undefined) return '';
-    const limit=info.joint_limited ? ` · joint ${info.limited_joints.join('/')} limit` : '';
-    const wall=info.absorbing_motion ? ' · motion absorbed' : '';
-    const motor=info.actuator_orientation_error_deg === undefined ? '' : ` · motor ${info.actuator_orientation_error_deg.toFixed(1)}°`;
-    const parked=info.orientation_parked ? ' · orientation paused' : '';
-    return `${side}: error ${info.orientation_error_deg.toFixed(1)}° · IK ${(info.command_orientation_error_deg ?? info.orientation_error_deg).toFixed(1)}°${motor}${limit}${wall}${parked}`;
-  }).filter(Boolean).join(' | ');
-}
 function connect() {
   ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`);
-  ws.onopen = () => { start.disabled = !navigator.xr; setStatus('Connected. Release grips, then enter VR.'); };
+  ws.onopen = () => { start.disabled = !navigator.xr; setStatus('Connected. Enter VR to start.'); };
   ws.onclose = () => {
     start.disabled = true; feedback = {}; setStatus('Disconnected. Holding robot; reconnecting…');
     clearTimeout(reconnectTimer); reconnectTimer = setTimeout(connect, 1500);
@@ -54,29 +42,37 @@ function connect() {
   ws.onmessage = event => {
     try {
       feedback = JSON.parse(event.data); setStatus(feedback.status || 'Connected');
-      if (feedback.scene === 'isaac') document.querySelector('#controls').textContent =
-        'Grip: hold to move; trigger: gripper; A/X: precision; LEFT Y: reset scene; hold thumbstick click with grip released: calibrate wrist.';
     }
     catch (_) { feedback = {}; }
   };
 }
 connect();
 
+function sendPacket(packet, force=false) {
+  if (ws?.readyState !== WebSocket.OPEN || (!force && ws.bufferedAmount !== 0)) {
+    return;
+  }
+  packet.sample = {sequence:++packetSequence, time_ms:performance.now(), epoch:referenceEpoch};
+  ws.send(JSON.stringify(packet));
+}
 function stopped() {
-  if (ws?.readyState === WebSocket.OPEN)
-    ws.send(JSON.stringify({version:1, head:null, left:null, right:null}));
+  referenceEpoch++;
+  sendPacket({version:1, head:null, left:null, right:null}, true);
 }
 function controller(frame, source) {
-  if (!visible || !source.gripSpace || !source.gamepad || source.gamepad.mapping !== 'xr-standard')
-    return null;
+  if (!visible) return {tracked:false, reason:'session_not_visible'};
+  if (!source.gripSpace) return {tracked:false, reason:'no_grip_space'};
+  if (!source.gamepad) return {tracked:false, reason:'no_gamepad'};
+  if (source.gamepad.mapping !== 'xr-standard') return {tracked:false, reason:'unsupported_gamepad_mapping'};
   const pose = frame.getPose(source.gripSpace, reference);
-  if (!pose || pose.emulatedPosition) return null;
+  if (!pose) return {tracked:false, reason:'pose_unavailable'};
+  if (pose.emulatedPosition) return {tracked:false, reason:'emulated_position'};
   const p = pose.transform.position, q = pose.transform.orientation, b = source.gamepad.buttons;
   return {tracked:true, position:[p.x,p.y,p.z], orientation:[q.x,q.y,q.z,q.w],
     trigger:b[0]?.value || 0, clutch:!!b[1]?.pressed,
     precision:!!b[4]?.pressed,
-    calibrate: feedback.scene === 'isaac' ? !!b[3]?.pressed : !!b[5]?.pressed,
-    reset_scene: feedback.scene === 'isaac' && source.handedness === 'left' && !!b[5]?.pressed};
+    calibrate:!!b[3]?.pressed,
+    reset_scene:source.handedness === 'left' && !!b[5]?.pressed};
 }
 
 function shader(type, source) {
@@ -124,6 +120,8 @@ function draw(time, frame) {
   const viewer=frame.getViewerPose(reference);
   const packet={version:1,head:null,left:null,right:null};
   if (viewer && visible) {
+    packet.left={tracked:false,reason:'no_input_source'};
+    packet.right={tracked:false,reason:'no_input_source'};
     const q=viewer.transform.orientation; packet.head=[q.x,q.y,q.z,q.w];
     for (const source of session.inputSources) {
       if (source.handedness === 'left' || source.handedness === 'right')
@@ -135,10 +133,9 @@ function draw(time, frame) {
     }
     if (time-lastHaptic>80) lastHaptic=time;
   }
-  // Do not queue old poses when transport falls behind.
-  if (time-lastSend>=13 && ws?.readyState===WebSocket.OPEN && ws.bufferedAmount===0) {
-    ws.send(JSON.stringify(packet)); lastSend=time;
-  }
+  // Send each XR frame when writable. A 13 ms gate halves a 90 Hz source.
+  // bufferedAmount only measures the browser queue, not server processing age.
+  sendPacket(packet);
   if (!viewer) return;
   gl.bindFramebuffer(gl.FRAMEBUFFER,layer.framebuffer);
   gl.clearColor(.035,.055,.075,1); gl.clear(gl.COLOR_BUFFER_BIT);
@@ -155,7 +152,6 @@ function draw(time, frame) {
   ctx.fillStyle='#86e2b8'; ctx.font='24px sans-serif';
   ctx.fillText(`Left ${feedback.active?.left?'MOVING':'HOLD'}   Right ${feedback.active?.right?'MOVING':'HOLD'}`,20,40);
   ctx.fillStyle='white'; ctx.font='20px sans-serif'; ctx.fillText(status.textContent,20,85,980);
-  ctx.font='17px sans-serif'; ctx.fillText(trackingText(),20,118,980);
   gl.bindTexture(gl.TEXTURE_2D,textures.get('hud'));
   gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,hud);
   for (const view of viewer.views) {
@@ -174,6 +170,7 @@ start.onclick = async () => {
     if (session) return;
     setupGL(); await gl.makeXRCompatible();
     session=await navigator.xr.requestSession('immersive-vr', {requiredFeatures:['local-floor']});
+    referenceEpoch++;
     layer=new XRWebGLLayer(session,gl); session.updateRenderState({baseLayer:layer});
     reference=await session.requestReferenceSpace('local-floor'); visible=session.visibilityState==='visible';
     reference.addEventListener('reset', stopped);

@@ -111,10 +111,15 @@ class Target:
     armed: bool = False
     position: np.ndarray | None = None
     rotation: np.ndarray | None = None
+    requested_rotation: np.ndarray | None = None
     previous_position: np.ndarray | None = None
     previous_rotation: np.ndarray | None = None
     mapping: np.ndarray = field(default_factory=lambda: np.eye(3))
     saturation: float = 0.
+    position_limited: bool = False
+    orientation_limited: bool = False
+    controller_rotation_delta_deg: float = 0.
+    engagement_count: int = 0
 
     def __post_init__(self):
         self.set_calibration(self.calibration)
@@ -152,21 +157,34 @@ class Target:
             self.mapping = self.calibration @ rotation_exp(np.array([0., -yaw, 0.]))
             self.position = actual_position.copy()
             self.rotation = actual_rotation.copy()
+            self.requested_rotation = actual_rotation.copy()
             self.saturation = 0.
+            self.position_limited = self.orientation_limited = False
+            self.controller_rotation_delta_deg = 0.
+            self.engagement_count += 1
             self.active = True
         else:
             scale = .25 if controller.precision else 1.
             delta = self.mapping @ (position-self.previous_position) * self.gain * scale
             dr = self.mapping @ (controller.rotation @ self.previous_rotation.T) @ self.mapping.T
+            controller_angle = rotation_vector(dr)
+            self.controller_rotation_delta_deg = float(np.degrees(np.linalg.norm(controller_angle)))
             proposed_position = self.position + delta
-            proposed_rotation = rotation_exp(rotation_vector(dr)*self.rotation_gain*scale) @ self.rotation
+            # Preserve the requested orientation independently of the lead-
+            # limited IK goal. Integrating onto a clipped goal loses angles:
+            # fast outward and slow return gestures then end at different poses.
+            reference = self.requested_rotation if self.requested_rotation is not None else self.rotation
+            self.requested_rotation = rotation_exp(controller_angle*self.rotation_gain*scale) @ reference
             error = proposed_position-actual_position
-            angle = rotation_vector(proposed_rotation @ actual_rotation.T)
+            angle = rotation_vector(self.requested_rotation @ actual_rotation.T)
+            self.position_limited = bool(np.linalg.norm(error) > self.max_position_error)
+            self.orientation_limited = bool(np.linalg.norm(angle) > self.max_angle_error)
             self.saturation = float(max(np.linalg.norm(error)/self.max_position_error,
                                         np.linalg.norm(angle)/self.max_angle_error))
             self.position = actual_position + cap_vector(error, self.max_position_error)
             self.rotation = rotation_exp(cap_vector(angle, self.max_angle_error)) @ actual_rotation
-        # Always consume overshoot: reversing the controller responds immediately.
+        # Position overshoot is consumed. Orientation keeps its reference so
+        # holding/reversing the controller preserves the requested pose.
         self.previous_position = position.copy()
         self.previous_rotation = controller.rotation.copy()
 
@@ -185,13 +203,63 @@ def dls(jacobian, error, baseline=.01, extra=.12, threshold=.015, bias=None, tas
     return np.linalg.solve(j.T @ j + (damping_squared+spring)*np.eye(j.shape[1]), rhs), rho
 
 
-class UrdfPioneerIK:
-    """Position-priority IK using analytic URDF kinematics in base_link.
+def bounded_dls(jacobian, error, lower, upper, bias=None):
+    """Minimize the same adaptive-DLS objective subject to joint-step bounds.
 
-    Joints 1–4 position the joint5 anchor. Their remaining nullspace and
-    joints 5–6 orient link6 while preserving the position task.
+    A small active-set quadratic solve redistributes position motion when a
+    joint reaches a stop. Clipping an unconstrained answer cannot do that.
+    Bounds include both physical limits and this tick's speed allowance.
     """
-    def __init__(self, names, velocity=1., wrist_velocity=None):
+    j = np.asarray(jacobian, dtype=float)
+    lower, upper = np.asarray(lower, dtype=float), np.asarray(upper, dtype=float)
+    if np.any(lower > upper):
+        raise ValueError("Invalid joint-step bounds")
+    singular = np.linalg.svd(j, compute_uv=False)
+    manipulability = float(np.prod(singular)) if len(singular) >= 3 else 0.
+    rho = max(0., 1.-manipulability/.015)
+    spring = .002**2 if bias is not None else 0.
+    h = j.T @ j + (.01**2+.12**2*rho**2+spring)*np.eye(j.shape[1])
+    rhs = j.T @ error
+    if bias is not None:
+        rhs += spring*bias
+    x = np.clip(np.linalg.solve(h, rhs), lower, upper)
+    fixed = upper-lower <= 1e-12
+    active = np.where(x <= lower+1e-12, -1, np.where(x >= upper-1e-12, 1, 0))
+    for _ in range(8*len(x)+8):
+        free = np.flatnonzero((active == 0) & ~fixed)
+        bound = np.flatnonzero((active != 0) | fixed)
+        direction = np.zeros_like(x)
+        if len(free):
+            optimum = np.linalg.solve(h[np.ix_(free, free)], rhs[free]-h[np.ix_(free, bound)] @ x[bound])
+            direction[free] = optimum-x[free]
+        fraction, hit = 1., None
+        for i in free:
+            if direction[i] > 1e-12:
+                limit = (upper[i]-x[i])/direction[i]
+            elif direction[i] < -1e-12:
+                limit = (lower[i]-x[i])/direction[i]
+            else:
+                continue
+            if limit < fraction:
+                fraction, hit = max(0., limit), i
+        x = np.clip(x+fraction*direction, lower, upper)
+        if hit is not None:
+            active[hit] = 1 if direction[hit] > 0 else -1
+            continue
+        gradient = h @ x-rhs
+        # Lower-bound optimum needs grad>=0; upper-bound optimum needs grad<=0.
+        violation = np.where(active == -1, -gradient, np.where(active == 1, gradient, 0.))
+        violation[fixed] = 0.
+        release = int(np.argmax(violation))
+        if violation[release] <= 1e-10:
+            return x, rho
+        active[release] = 0
+    raise RuntimeError("Bounded position IK failed to converge")
+
+
+class PioneerKinematics:
+    """URDF geometry and analytic Jacobians, independent of control policy."""
+    def __init__(self, names, velocity=.9, wrist_velocity=None):
         import xml.etree.ElementTree as ET
         from pioneer_humanoid.arm_params import DEFAULT_JOINT_POS
         from pioneer_humanoid.urdf_joint_limits import URDF_PATH, JOINT_POS_LIMITS
@@ -236,6 +304,14 @@ class UrdfPioneerIK:
         return anchor, transform[:3, :3].copy(), jp, np.array(axes).T
 
 
+class UrdfPioneerIK(PioneerKinematics):
+    """Legacy position-nullspace and two-axis orientation solvers."""
+    def __init__(self, names, velocity=.9, wrist_velocity=None, orientation_mode="wrist"):
+        if orientation_mode not in ("wrist", "full"):
+            raise ValueError("Orientation mode must be 'wrist' or 'full'")
+        super().__init__(names, velocity, wrist_velocity)
+        self.orientation_mode = orientation_mode
+
     def solve(self, qpos, target, dt):
         if not target.active:
             return self.command.copy()
@@ -253,7 +329,8 @@ class UrdfPioneerIK:
         # the shoulder redundancy home would fight orientation every tick.
         posture = np.zeros(4)
         posture[3] = self.rest[3]-q[3]
-        dp, rho_p = dls(jp[:, :4], target.position-p, bias=posture)
+        dp, rho_p = bounded_dls(jp[:, :4], target.position-p,
+                                lower[:4]-q[:4], upper[:4]-q[:4], bias=posture)
         intermediate = seed.copy()
         intermediate[self.qids[:4]] = np.clip(q[:4]+dp, lower[:4], upper[:4])
         # Recompute at the position command we can actually send this tick,
@@ -271,7 +348,12 @@ class UrdfPioneerIK:
             # that direction and resolve using the remaining DOFs. Independent
             # clipping after projection would destroy the position constraint.
             for _ in range(7):
-                constraints = np.vstack([jp, np.eye(6)[locked]]) if locked else jp
+                # A soft movement penalty alone still integrates into proximal
+                # rotation over successive ticks. Wrist mode excludes proximal
+                # orientation steps entirely and accepts angular residuals.
+                fixed = list(range(4)) if self.orientation_mode == "wrist" else []
+                fixed = sorted(set(fixed+locked))
+                constraints = np.vstack([jp, np.eye(6)[fixed]]) if fixed else jp
                 _, singular, vh = np.linalg.svd(constraints, full_matrices=True)
                 rank = int(np.sum(singular > 1e-5))
                 basis = vh[rank:].T
@@ -279,7 +361,11 @@ class UrdfPioneerIK:
                     step = np.zeros(6)
                     rho_r = 1.
                     break
-                orient, rho_r = dls(jr @ basis, rotation_error, threshold=.2)
+                # A two-axis wrist is intentionally rank two. Treating its
+                # missing third axis as a singularity would over-damp every
+                # valid wrist motion.
+                orient, rho_r = dls(jr @ basis, rotation_error, threshold=.2,
+                                    task_rank=2 if self.orientation_mode == "wrist" else 3)
                 step = basis @ orient
                 outward = np.flatnonzero(
                     ((candidate <= lower+1e-10) & (step < -1e-10)) |
@@ -304,10 +390,20 @@ class UrdfPioneerIK:
         sent_pose = seed.copy()
         sent_pose[self.qids] = self.command
         _, sent_rotation, _, _ = self.kinematics(sent_pose)
+        requested_rotation = target.requested_rotation if target.requested_rotation is not None else target.rotation
         self.diagnostics = {
+            "orientation_mode": self.orientation_mode,
             "position_error_m": float(np.linalg.norm(target.position-actual_p)),
             "orientation_error_deg": float(np.degrees(np.linalg.norm(rotation_vector(target.rotation @ actual_r.T)))),
-            "absorbing_motion": bool(target.saturation > 1.),
+            "absorbing_motion": target.position_limited,
+            "angular_lead_limited": target.orientation_limited,
+            "controller_rotation_delta_deg": target.controller_rotation_delta_deg,
+            "controller_rotvec_deg": (np.degrees(rotation_vector(target.previous_rotation)).tolist()
+                                       if target.previous_rotation is not None else None),
+            "requested_rotvec_deg": np.degrees(rotation_vector(requested_rotation)).tolist(),
+            "engagement_count": target.engagement_count,
+            "requested_orientation_error_deg": float(np.degrees(np.linalg.norm(rotation_vector(requested_rotation @ actual_r.T)))),
+            "requested_command_orientation_error_deg": float(np.degrees(np.linalg.norm(rotation_vector(requested_rotation @ sent_rotation.T)))),
             "orientation_parked": bool(parked),
             "orientation_damping": float(rho_r),
             "joint_limited": bool(margin.min() < np.radians(1)),

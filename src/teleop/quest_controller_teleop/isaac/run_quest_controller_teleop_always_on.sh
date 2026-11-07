@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Launch the Quest Touch controller scene inside the simulation_isaac container.
+# Always-on Quest Touch controller teleoperation inside the simulation_isaac container.
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ISAAC_LAB="${ISAAC_LAB:-/workspace/isaaclab}"
