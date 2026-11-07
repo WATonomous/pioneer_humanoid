@@ -15,6 +15,7 @@ def generate_launch_description():
     realsense_launch = os.path.join(get_package_share_directory('realsense2_camera'), 'launch', 'rs_launch.py')
 
     use_detector = LaunchConfiguration('use_detector')
+    use_dummy = LaunchConfiguration('use_dummy')
     use_camera = LaunchConfiguration('use_camera')
     sim_time = {'use_sim_time': ParameterValue(LaunchConfiguration('use_sim_time'), value_type=bool)}
 
@@ -22,6 +23,10 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'use_detector', default_value='false',
             description='Start the YOLO shuttlecock detector (needs ultralytics and /data/weights)'
+        ),
+        DeclareLaunchArgument(
+            'use_dummy', default_value='false',
+            description='Start the dummy publisher and dummy TrackNet nodes; leave false when using the real camera and detector'
         ),
         DeclareLaunchArgument(
             'use_camera', default_value='true',
@@ -77,13 +82,15 @@ def generate_launch_description():
             ],
             remappings=[
                 # Add any topic remappings here if needed
-            ]
+            ],
+            condition=IfCondition(use_dummy),
         ),
         Node(
             package='perception',
             executable='dummy_tracknet_output',
             name='dummy_tracknet_output',
             output='screen',
+            condition=IfCondition(use_dummy),
         ),
         Node(
             package='perception',
