@@ -85,7 +85,7 @@ _REAL_ARM_PUBLISH_START_DELAY_S = 3.0   # operator prep time (e-stop in hand); t
 class _RealLeftArm:
     """Publishes IK-solved left-arm joint targets to /arm/left/joint_targets (rclpy, direct).
 
-    Same field layout/units as run_quest_bimanual_teleop.py: LEFT_ARM_JOINTS order
+    Uses LEFT_ARM_JOINTS order:
     (joint1L..joint6l) -> shoulder(flexion, abduction, rotation) / elbow(flexion,
     forearm_rotation) / wrist(extension), degrees.
 

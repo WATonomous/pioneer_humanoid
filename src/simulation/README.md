@@ -47,7 +47,7 @@ cd src/teleop/keyboard_teleop
 isaaclab.sh -p keyboard_teleop.py --scene push        # or: bare, vial_rack, …
 ```
 
-`keyboard_teleop` uses this today; `quest_teleop/sim` and `task_space_controller`
+`keyboard_teleop` uses this today; `quest_controller_teleop/isaac` and `task_space_controller`
 will move onto the same `--scene` registry next.
 
 ## Training
