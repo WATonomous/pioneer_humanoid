@@ -12,7 +12,7 @@ Any scene in `humanoid_mujoco_scenes` (default `bimanual_sorting`), same page, I
 controls as Isaac. Needs `mujoco`, `aiohttp` and `Pillow`. Plug the Quest into the same machine:
 
 ```bash
-mjpython src/teleop/quest_controller_teleop/mujoco_sim.py --scene bimanual_sorting
+mjpython src/teleop/quest_controller_teleop/mujoco/mujoco_sim.py --scene bimanual_sorting
 adb reverse tcp:8444 tcp:8444
 ```
 
@@ -37,7 +37,7 @@ hardware range.
 
 MuJoCo defaults to `--controller-frame base` (hand up = wrist up, forward = forward): in the ego
 camera's frame, tilted 50 deg down, raising a hand moved the wrist forward as well. Headset cameras
-render on their own thread (`mujoco_cameras.py`), so the 10 ms control loop never waits on them.
+render on their own thread (`mujoco/mujoco_cameras.py`), so the 10 ms control loop never waits on them.
 
 ## Isaac: start from the host
 

@@ -21,10 +21,11 @@ import time
 import numpy as np
 
 _THIS_DIR = Path(__file__).resolve().parent
-_SRC = _THIS_DIR.parents[1]
+_SRC = _THIS_DIR.parents[2]  # src/teleop/quest_controller_teleop/mujoco -> src
 # pioneer_humanoid and humanoid_mujoco_scenes; this fallback keeps an uninstalled checkout working.
 sys.path.insert(0, str(_SRC / "pioneer_humanoid"))
 sys.path.insert(0, str(_SRC / "simulation" / "mujoco_scenes"))
+sys.path.insert(0, str(_THIS_DIR.parent))  # the simulator-independent controller modules
 sys.path.insert(0, str(_THIS_DIR))
 
 from mujoco_cameras import CameraStream  # noqa: E402

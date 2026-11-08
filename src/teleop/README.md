@@ -14,7 +14,7 @@ The repo is bind-mounted at `/workspace/humanoid`. Shared arm config + IK helper
 
 | Folder | Input | Sim robot | Notes |
 |--------|-------|-----------|-------|
-| [`quest_controller_teleop/`](quest_controller_teleop/) | Quest 2 Touch controllers | Isaac or MuJoCo (`mujoco_sim.py`), both arms | Clutch, position-priority IK, pivot calibration; left Y resets the scene; simulation only |
+| [`quest_controller_teleop/`](quest_controller_teleop/) | Quest 2 Touch controllers | Isaac (`isaac/`) or MuJoCo (`mujoco/`), both arms | Clutch, position-priority IK, pivot calibration; left Y resets the scene; simulation only |
 | **`keyboard_teleop/`** | keyboard + IK | pioneer bimanual, left arm | see below |
 | [`pioneer_leader_arm_teleop/`](pioneer_leader_arm_teleop/) | 7-servo leader arm | pioneer bimanual, left arm | any `--scene`, `--record`; see its README |
 | [`task_space_controller/`](task_space_controller/) | viewport pose gizmo + IK | pioneer bimanual, left arm | `--publish-real-left-arm` drives the real arm — **its README covers the CAN pipeline + e-stop** |
