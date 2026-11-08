@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Re-vendor upstream elevation_mapping_cupy (ros2 branch) at UPSTREAM_COMMIT and apply patches/*.patch.
+# Re-vendor upstream elevation_mapping_cupy (ros2 branch) at UPSTREAM_COMMIT, apply patches/*.patch,
+# and drop upstream's tests.
 # Upstream targets Jazzy; the patches are what it takes to run on Humble.
 set -euo pipefail
 
@@ -23,4 +24,6 @@ for p in "$here"/patches/*.patch; do
   patch -p1 -d "$dest" --forward --quiet < "$p"
   echo "applied $(basename "$p")"
 done
+rm -rf "$dest/elevation_mapping_cupy/test" "$dest/elevation_mapping_cupy/elevation_mapping_cupy/tests" \
+  "$dest/elevation_mapping_cupy/elevation_mapping_cupy/listener_test.py"
 echo "vendored $UPSTREAM_COMMIT into $dest"

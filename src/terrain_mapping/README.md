@@ -44,15 +44,12 @@ Blackwell GPUs (RTX 50xx) need CUDA 12.8 or newer.
 The host needs an NVIDIA driver of version 570 or newer. On a GeForce card with an older driver, the NVIDIA container runtime refuses to start the container.
 CI does not build this module. It is on the skip list in `.github/templates/docker_context/docker_context.sh` with the other GPU modules.
 
-To check the GPU stack, run upstream's tests inside the container. They include a CuPy kernel compile and the synthetic demo launch:
+To check the GPU stack, run upstream's synthetic demo inside the container. It compiles the CuPy kernels and maps a simulated depth camera:
 
 ```bash
-cd $AMENT_WS
-colcon build --symlink-install --cmake-args -DBUILD_TESTING=ON
-colcon test --packages-select elevation_mapping_cupy && colcon test-result
+ros2 launch elevation_mapping_cupy synthetic_depth_demo.launch.py launch_rviz:=false
+ros2 topic hz /elevation_mapping_node/elevation_map   # second shell; about 10 Hz
 ```
-
-All 17 test targets (82 test cases) pass on an RTX 5070 Laptop GPU.
 
 ## Rebuild after editing source
 
@@ -270,10 +267,11 @@ Turn them back on when `base_link_placeholder` is deleted.
 `third_party/elevation_mapping_cupy` is upstream `ros2` branch commit `d9e1c9fe` (2026-10-04). It holds only the `elevation_mapping_cupy` and `elevation_map_msgs` packages and the MIT license.
 Upstream targets Jazzy. Each Humble fix is a file in `third_party/patches/`:
 
-- `0001-humble-rosbag2-topic-metadata.patch` fixes the `save_map` and `load_map` services. Without it, upstream's save/load test fails on Humble.
-- `0002-drop-semantic-sensor.patch` drops the `semantic_sensor` test and dependency. That package is not vendored.
+- `0001-humble-rosbag2-topic-metadata.patch` fixes the `save_map` and `load_map` services, which fail on Humble without it.
+- `0002-drop-semantic-sensor.patch` drops the `semantic_sensor` dependency. That package is not vendored.
+- `0003-drop-tests.patch` removes upstream's test targets and test dependencies. The script deletes upstream's test folders after the patches apply, so the vendored code holds no tests.
 
-To move to a newer upstream commit, change `UPSTREAM_COMMIT` in `vendor_elevation_mapping_cupy.sh` and run the script. The script replaces the vendored folder and applies the patches.
+To move to a newer upstream commit, change `UPSTREAM_COMMIT` in `vendor_elevation_mapping_cupy.sh` and run the script. The script replaces the vendored folder, applies the patches, and deletes the tests.
 Never edit `third_party/elevation_mapping_cupy` by hand. Add a patch instead. The repo's autopep8 lint skips `src/terrain_mapping/third_party` for the same reason.
 
 `ros2_numpy` has no Humble release. The Dockerfile builds its `humble` branch at commit `d665add`.
