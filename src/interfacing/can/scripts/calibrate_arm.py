@@ -395,9 +395,26 @@ def run(args: argparse.Namespace) -> int:
         print("No joints found in mapping.", file=sys.stderr)
         return 1
 
+    # read flags
     skip_motors = parse_id_list(args.skip_motors)
     only_motors = parse_id_list(args.only_motors)
     skip_joints = parse_name_list(args.skip_joints)
+
+    # CLI filters only; per-joint skip / motor-id remap is interactive
+    selected: List[Tuple[str, Dict[str, Any]]] = []
+    for name, joint in joints:
+        mid = parse_can_id(joint["can_id"])
+        if only_motors and mid not in only_motors:
+            print(f"Skip {name} (not in --only-motors)")
+            continue
+        if joint_matches_skip(name, mid, skip_motors, skip_joints):
+            print(f"Skip {name} motor_id={mid} (0x{mid:02X})")
+            continue
+        selected.append((name, joint))
+
+    if not selected:
+        print("Nothing to calibrate after filters.", file=sys.stderr)
+        return 1
 
     rclpy.init()
     node = CalibrateNode()
@@ -413,7 +430,7 @@ def run(args: argparse.Namespace) -> int:
         rclpy.shutdown()  # stops the spin thread; destroying a node mid-spin aborts the process
         spin_thread.join(timeout=2.0)
         return 1
-    mit_ids = mit_motor_ids(joints, args.limb)
+    mit_ids = mit_motor_ids(selected, args.limb)  # builds the list of selected motor IDs for MIT polling, only selected motors get polled (go limp)
     if mit_ids:
         print(f"MIT drives {mit_ids}: polling with zero-gain frames so they report. They are "
               f"LIMP (zero torque) until this exits -- support the arm.")
@@ -427,25 +444,13 @@ def run(args: argparse.Namespace) -> int:
     if args.skip_missing:
         missing = [
             (name, parse_can_id(joint["can_id"]))
-            for name, joint in joints
+            for name, joint in selected
             if parse_can_id(joint["can_id"]) not in seen
         ]
         if missing:
             print("YAML can_id not on bus (still offered — you can type a new id at the per-joint prompt, or s to skip):")
             for name, mid in missing:
                 print(f"  {name}  mapped={mid} (0x{mid:02X})")
-
-    # CLI filters only; per-joint skip / motor-id remap is interactive
-    selected: List[Tuple[str, Dict[str, Any]]] = []
-    for name, joint in joints:
-        mid = parse_can_id(joint["can_id"])
-        if only_motors and mid not in only_motors:
-            print(f"Skip {name} (not in --only-motors)")
-            continue
-        if joint_matches_skip(name, mid, skip_motors, skip_joints):
-            print(f"Skip {name} motor_id={mid} (0x{mid:02X})")
-            continue
-        selected.append((name, joint))
 
     print()
     print("Arm joint calibration")
@@ -454,13 +459,6 @@ def run(args: argparse.Namespace) -> int:
     print("  joints:   ", len(selected), f"(of {len(joints)} in file)")
     print("  Per joint: Enter=yes that id is correct  |  type new id  |  s=skip  |  q=quit")
     print()
-
-    if not selected:
-        print("Nothing to calibrate after filters.", file=sys.stderr)
-        node.stop_mit_poke()
-        node.destroy_node()
-        rclpy.shutdown()
-        return 1
 
     results: Dict[str, Any] = {
         "arm_side": args.arm_side,
