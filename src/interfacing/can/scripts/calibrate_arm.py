@@ -416,6 +416,17 @@ def run(args: argparse.Namespace) -> int:
         print("Nothing to calibrate after filters.", file=sys.stderr)
         return 1
 
+    bad_joints = []
+    for name, joint in selected:
+        direction = joint.get("direction")
+        if direction not in (1, -1):
+            bad_joints.append((name, direction))
+    if bad_joints:
+        for name, direction in bad_joints:
+            print(f"Joint {name} with direction {direction} is not valid; set to 1 or -1 (motor vs URDF positive direction) in {mapping_path}",
+                  file=sys.stderr)
+        return 1
+
     rclpy.init()
     node = CalibrateNode()
     spin_thread = threading.Thread(target=rclpy.spin, args=(node,), daemon=True)
