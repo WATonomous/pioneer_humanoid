@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interactive per-joint arm calibration.
+"""Interactive per-joint arm or leg calibration.
 
 Requires can_node running (feedback + motorCMD topics).
 
@@ -7,16 +7,20 @@ Typical flow per joint:
   1. Confirm / set motor id (Enter = yes, or type the correct id e.g. 14)
   2. Move joint to the pose you want as 0° → Enter  (records zero)
   3. Move to one range end → Enter, other end → Enter  (records min/max)
-  4. Results written to arm_calibration.yaml and/or a sidecar file
+  4. Results written to the limb's calibration YAML and/or a sidecar file
 
 MIT drives only answer when spoken to, so they are polled with zero-gain MIT frames: those
-joints are LIMP while you calibrate -- support the arm. Stop joint_command_node first.
+joints are LIMP while you calibrate -- support the limb. Stop joint_command_node first.
 
 Examples (inside interfacing container, ROS sourced)::
 
   python3 /root/ament_ws/src/interfacing/can/scripts/calibrate_arm.py \\
-    --arm-side left --write-mapping --calibration /calibration/arm_calibration.yaml
-  ros2 run can calibrate_arm.py --arm-side left --write-mapping
+    --side left --write-mapping --calibration /calibration/arm_calibration.yaml
+  ros2 run can calibrate_arm.py --side left --write-mapping
+
+  python3 /root/ament_ws/src/interfacing/can/scripts/calibrate_arm.py \\
+    --limb leg --side left --write-mapping --calibration /calibration/leg_calibration.yaml
+  ros2 run can calibrate_arm.py --limb leg --side left --write-mapping
 """
 
 from __future__ import annotations
@@ -57,13 +61,13 @@ def _qos() -> QoSProfile:
 
 def flatten_joints(
     mapping: Dict[str, Any],
-    arm_side: str,
+    side: str,
     include_hand: bool,
     include_gripper: bool,
 ) -> List[Tuple[str, Dict[str, Any]]]:
-    """Return [(dotted.name, joint_dict), ...] for one arm side."""
-    if arm_side not in mapping:
-        raise KeyError(f"arm side '{arm_side}' not in mapping (keys={list(mapping)})")
+    """Return [(dotted.name, joint_dict), ...] for one side."""
+    if side not in mapping:
+        raise KeyError(f"side '{side}' not in mapping (keys={list(mapping)})")
 
     out: List[Tuple[str, Dict[str, Any]]] = []
 
@@ -81,7 +85,7 @@ def flatten_joints(
                 continue
             walk(child, name)
 
-    walk(mapping[arm_side], arm_side)
+    walk(mapping[side], side)
     return out
 
 
@@ -326,7 +330,7 @@ def mit_motor_ids(joints: List[Tuple[str, Dict[str, Any]]], limb: str) -> List[i
     ids = set()
     for name, joint in joints:
         motor_id = parse_can_id(joint["can_id"])
-        side, short = name.split(".", 1)  # flatten_joints names are "<arm side>.<joint>"
+        side, short = name.split(".", 1)  # flatten_joints names are "<side>.<joint>"
         control_type = jc.joint_safety(safety, side, short).get("control_type")
         if jc.drive_family(motor_id) == "gl2" or (control_type is not None and
                                                   int(control_type) == MotorCmd.MIT_CONTROL):
@@ -390,7 +394,7 @@ def run(args: argparse.Namespace) -> int:
     mapping = load_mapping(mapping_path)
     joints = flatten_joints(
         mapping,
-        args.arm_side,
+        args.side,
         include_hand=args.include_hand,
         include_gripper=not args.arm_only,
     )
@@ -451,7 +455,7 @@ def run(args: argparse.Namespace) -> int:
     mit_ids = mit_motor_ids(selected, args.limb)  # builds the list of selected motor IDs for MIT polling, only selected motors get polled (go limp)
     if mit_ids:
         print(f"MIT drives {mit_ids}: polling with zero-gain frames so they report. They are "
-              f"LIMP (zero torque) until this exits -- support the arm.")
+              f"LIMP (zero torque) until this exits -- support the limb.")
         node.start_mit_poke(mit_ids)
 
     print("Waiting for /interfacing/motorFeedback ...")
@@ -471,7 +475,7 @@ def run(args: argparse.Namespace) -> int:
                 print(f"  {name}  mapped={mid} (0x{mid:02X})")
 
     print()
-    print("Arm joint calibration")
+    print(f"{args.limb.capitalize()} joint calibration")
     print("  zero-mode:", args.zero_mode)
     print("  mapping:  ", mapping_path)
     print("  joints:   ", len(selected), f"(of {len(joints)} in file)")
@@ -479,7 +483,8 @@ def run(args: argparse.Namespace) -> int:
     print()
 
     results: Dict[str, Any] = {
-        "arm_side": args.arm_side,
+        "limb": args.limb,
+        "side": args.side,
         "zero_mode": args.zero_mode,
         "joints": {},
     }
@@ -629,7 +634,7 @@ def default_mapping_path(limb: str) -> Path:
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--limb", default="arm", choices=["arm", "leg"], help="Which limb to calibrate, default is arm")
-    p.add_argument("--arm-side", default="left", choices=["left", "right"], help="Side (left/right) in calibration YAML, default is left")
+    p.add_argument("--side", "--arm-side", dest="side", default="left", choices=["left", "right"], help="Side (left/right) in calibration YAML, default is left")
     p.add_argument("--calibration", "--mapping", dest="mapping", default=None,
                    help="Path to the calibration YAML (default chosen from --limb)")
     p.add_argument(
