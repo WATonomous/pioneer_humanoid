@@ -67,7 +67,7 @@ class DummyTrackNetOutput(Node):
 
         noisy_dir = noisy_dir / np.linalg.norm(noisy_dir)
 
-        velocity = np.random.uniform(70, 130) * noisy_dir
+        velocity = np.random.uniform(20, 70) * noisy_dir
 
         self.shuttle = Shuttle(velocity, position)
 
@@ -100,7 +100,7 @@ class DummyTrackNetOutput(Node):
         self.history_position.append(new_pos)
         true_msg = PointStamped()
         true_msg.header.stamp = self.get_clock().now().to_msg()
-        true_msg.header.frame_id = "robot_base_link"
+        msg.header.frame_id = "camera_link"
         true_msg.point.x = float(new_pos[0])
         true_msg.point.y = float(new_pos[1])
         true_msg.point.z = float(new_pos[2])
@@ -111,7 +111,7 @@ class DummyTrackNetOutput(Node):
         # publish noisy data
         msg = PointStamped()
         msg.header.stamp = self.get_clock().now().to_msg()
-        msg.header.frame_id = "robot_base_link"
+        msg.header.frame_id = "camera_link"
         msg.point.x = float(new_pos[0]+noise[0])
         msg.point.y = float(new_pos[1]+noise[1])
         msg.point.z = float(new_pos[2]+noise[2])
