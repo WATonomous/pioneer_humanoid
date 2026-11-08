@@ -627,8 +627,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Path to the calibration YAML (default chosen from --limb)")
     p.add_argument(
         "--sidecar",
-        default=str(Path.home() / ".cache" / "humanoid" / "calibration" / "last_calibration.yaml"),
-        help="Always write results here too",
+        default=None,
+        help="Always write results here too (default: ~/.cache/humanoid/calibration/last_<limb>_calibration.yaml)",
     )
     p.add_argument(
         "--zero-mode",
@@ -678,6 +678,8 @@ def main() -> int:
     args = build_parser().parse_args()
     if args.mapping is None:
         args.mapping = default_mapping_path(args.limb)
+    if args.sidecar is None:
+        args.sidecar = str(Path.home() / ".cache" / "humanoid" / "calibration" / f"last_{args.limb}_calibration.yaml")
     if yaml is None:
         print("Missing PyYAML. In the container: apt-get update && apt-get install -y python3-yaml", file=sys.stderr)
         return 1
