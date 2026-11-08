@@ -76,6 +76,7 @@ class Input:
     rotation: np.ndarray
     clutch: bool
     trigger: float
+    precision: bool
     calibrate: bool
     reset_scene: bool = False
 
@@ -91,7 +92,7 @@ class Input:
             raise ValueError("Invalid trigger")
         return cls(p, quaternion_matrix(value.get("orientation")),
                    value.get("clutch") is True, trigger,
-                   value.get("calibrate") is True,
+                   value.get("precision") is True, value.get("calibrate") is True,
                    value.get("reset_scene") is True)
 
 
@@ -163,7 +164,8 @@ class Target:
             self.engagement_count += 1
             self.active = True
         else:
-            delta = self.mapping @ (position-self.previous_position) * self.gain
+            scale = .25 if controller.precision else 1.
+            delta = self.mapping @ (position-self.previous_position) * self.gain * scale
             dr = self.mapping @ (controller.rotation @ self.previous_rotation.T) @ self.mapping.T
             controller_angle = rotation_vector(dr)
             self.controller_rotation_delta_deg = float(np.degrees(np.linalg.norm(controller_angle)))
@@ -172,7 +174,7 @@ class Target:
             # limited IK goal. Integrating onto a clipped goal loses angles:
             # fast outward and slow return gestures then end at different poses.
             reference = self.requested_rotation if self.requested_rotation is not None else self.rotation
-            self.requested_rotation = rotation_exp(controller_angle*self.rotation_gain) @ reference
+            self.requested_rotation = rotation_exp(controller_angle*self.rotation_gain*scale) @ reference
             error = proposed_position-actual_position
             angle = rotation_vector(self.requested_rotation @ actual_rotation.T)
             self.position_limited = bool(np.linalg.norm(error) > self.max_position_error)

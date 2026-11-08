@@ -47,25 +47,30 @@ the previous persistent-orientation update is not used here.
             self.engagement_count += 1
             self.active = True
         else:
-            dp = self.mapping @ (pivot_position-self.previous_position)*self.gain
+            precision = .25 if controller.precision else 1.
+            dp = self.mapping @ (pivot_position-self.previous_position)*self.gain*precision
             dr = self.mapping @ (controller.rotation @ self.previous_rotation.T) @ self.mapping.T
             angle_increment = rotation_vector(dr)
             self.controller_rotation_delta_deg = float(np.degrees(np.linalg.norm(angle_increment)))
-            increment = rotation_exp(angle_increment*self.rotation_gain)
+            increment = rotation_exp(angle_increment*self.rotation_gain*precision)
             # Accumulate onto the accepted target, not an unbounded request.
             proposed_rotation = increment @ self.rotation
             self.requested_rotation = proposed_rotation.copy()
-            ep = self.position+dp-actual_position
-            er = rotation_vector(proposed_rotation @ actual_rotation.T)
-            self.position_limited = bool(np.linalg.norm(ep) > self.max_position_error)
-            self.orientation_limited = bool(np.linalg.norm(er) > self.max_angle_error)
-            self.saturation = float(max(np.linalg.norm(ep)/self.max_position_error,
-                                        np.linalg.norm(er)/self.max_angle_error))
-            self.position = actual_position+cap_vector(ep, self.max_position_error)
-            self.rotation = rotation_exp(cap_vector(er, self.max_angle_error)) @ actual_rotation
+            self._cap_lead(self.position+dp, proposed_rotation, actual_position, actual_rotation)
         # Consume the input even when blocked: reversing acts immediately.
         self.previous_position = pivot_position.copy()
         self.previous_rotation = controller.rotation.copy()
+
+    def _cap_lead(self, position, rotation, actual_position, actual_rotation):
+        """Set the IK goal to the requested pose, at most the lead limits away from the measured one."""
+        ep = position-actual_position
+        er = rotation_vector(rotation @ actual_rotation.T)
+        self.position_limited = bool(np.linalg.norm(ep) > self.max_position_error)
+        self.orientation_limited = bool(np.linalg.norm(er) > self.max_angle_error)
+        self.saturation = float(max(np.linalg.norm(ep)/self.max_position_error,
+                                    np.linalg.norm(er)/self.max_angle_error))
+        self.position = actual_position+cap_vector(ep, self.max_position_error)
+        self.rotation = rotation_exp(cap_vector(er, self.max_angle_error)) @ actual_rotation
 
 
 class AnchoredTarget(ArticleTarget):
@@ -75,39 +80,34 @@ class AnchoredTarget(ArticleTarget):
     caps it, the excess is lost for good and hand and arm drift apart; the article re-grabs to realign. With
     always-on control there is no re-grab, so offsets only accumulate. Here the request is
     `engagement target + gain x (hand now - hand at engagement)`, and the lead limit caps only what is sent
-    to the IK this frame: once the arm catches up, it lines up with the hand again. Changing the gain or
-    rotation gain re-bases the reference at the current request, so it never jumps.
+    to the IK this frame: once the arm catches up, it lines up with the hand again. Pressing or releasing
+    precision (A/X, 25% motion) re-measures from the current request, so the arm never jumps.
     """
     def update(self, controller, head_rotation, actual_position, actual_rotation):
         if not self.active or controller is None or head_rotation is None or not controller.clutch:
             super().update(controller, head_rotation, actual_position, actual_rotation)  # engage, loss, release
-            if self.active:  # just engaged at the measured pose
-                self._rebase(self.previous_position, self.previous_rotation, self.position, self.rotation)
+            if self.active:  # just engaged at the measured pose: measure later hand motion from here
+                self._anchor(self.position, self.rotation, 1.)
             return
         pivot_position = controller.position + controller.rotation @ self.pivot
-        if (self.gain, self.rotation_gain) != self._scale:
-            self._rebase(self.previous_position, self.previous_rotation, self.requested_position, self.requested_rotation)
+        precision = .25 if controller.precision else 1.
+        if precision != self._precision:
+            self._anchor(self.requested_position, self.requested_rotation, precision)
         hand_turn = rotation_vector(self.mapping @ (controller.rotation @ self._hand_rotation.T) @ self.mapping.T)
-        self.requested_position = self._target_position + self.mapping @ (pivot_position-self._hand_position)*self._scale[0]
-        self.requested_rotation = rotation_exp(hand_turn*self._scale[1]) @ self._target_rotation
+        self.requested_position = self._target_position + self.mapping @ (pivot_position-self._hand_position)*self.gain*precision
+        self.requested_rotation = rotation_exp(hand_turn*self.rotation_gain*precision) @ self._target_rotation
         self.controller_rotation_delta_deg = float(np.degrees(np.linalg.norm(
             rotation_vector(controller.rotation @ self.previous_rotation.T))))
-        ep = self.requested_position-actual_position
-        er = rotation_vector(self.requested_rotation @ actual_rotation.T)
-        self.position_limited = bool(np.linalg.norm(ep) > self.max_position_error)
-        self.orientation_limited = bool(np.linalg.norm(er) > self.max_angle_error)
-        self.saturation = float(max(np.linalg.norm(ep)/self.max_position_error, np.linalg.norm(er)/self.max_angle_error))
-        self.position = actual_position+cap_vector(ep, self.max_position_error)
-        self.rotation = rotation_exp(cap_vector(er, self.max_angle_error)) @ actual_rotation
+        self._cap_lead(self.requested_position, self.requested_rotation, actual_position, actual_rotation)
         self.previous_position = pivot_position.copy()
         self.previous_rotation = controller.rotation.copy()
 
-    def _rebase(self, hand_position, hand_rotation, target_position, target_rotation):
-        """Measure later hand motion from here, at the current gains."""
-        self._hand_position, self._hand_rotation = hand_position.copy(), hand_rotation.copy()
+    def _anchor(self, target_position, target_rotation, precision):
+        """Measure later hand motion from the last hand pose, starting at this target, at this precision scale."""
+        self._hand_position, self._hand_rotation = self.previous_position.copy(), self.previous_rotation.copy()
         self._target_position, self._target_rotation = target_position.copy(), target_rotation.copy()
         self.requested_position, self.requested_rotation = target_position.copy(), target_rotation.copy()
-        self._scale = (self.gain, self.rotation_gain)
+        self._precision = precision
 
 
 def article_dls(jacobian, error, baseline, extra, threshold, rest_delta=None):
@@ -135,7 +135,7 @@ literal DK1 joint-index split would be singular there on this robot.
     position_ids = np.array([0, 1, 3])
     orientation_ids = np.array([2, 4, 5])
     orientation_mode = "article"
-    # Baseline DLS damping (lambda_b) per group, live-tunable: higher is smoother and slower to close an error.
+    # Baseline DLS damping (lambda_b) per group (--position/orientation-damping): higher is smoother, slower to close an error.
     # The extra near-singularity damping (lambda_s) and its manipulability threshold w0 stay fixed per group.
     position_damping = .05
     orientation_damping = .05
@@ -149,7 +149,7 @@ literal DK1 joint-index split would be singular there on this robot.
             raise ValueError("IK timestep must be positive and finite")
         seed = self.command.copy()
         step = self.velocity*dt
-        # Outside a (just narrowed) teleop limit, a joint returns into range at its speed cap, never in one jump.
+        # A joint outside its teleop limit (e.g. reset to a pose beyond it) returns into range at its speed cap, never in one jump.
         lower = np.minimum(np.maximum(self.limits[:, 0], seed-step), seed+step)
         upper = np.maximum(np.minimum(self.limits[:, 1], seed+step), seed-step)
         p, _, jp, _ = self.kinematics(seed)

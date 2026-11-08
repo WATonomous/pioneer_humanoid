@@ -40,10 +40,6 @@ def add_args(parser) -> None:
                         help="YAML of teleop joint limits, jN: [min, max] degrees, left-arm convention (default: %(default)s)")
 
 
-def from_args(args) -> dict:
-    return load(args.joint_limits)
-
-
 def physical_deg() -> np.ndarray:
     """(6, 2) left-arm hardware limits in degrees."""
     from pioneer_humanoid.arm_params import LEFT_ARM_JOINTS

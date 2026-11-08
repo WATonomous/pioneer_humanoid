@@ -11,8 +11,8 @@ from control import Input, Target, UrdfPioneerIK, rotation_exp, rotation_vector
 from pioneer_humanoid.arm_params import LEFT_ARM_JOINTS, RIGHT_ARM_JOINTS
 
 
-def controller(rotation, grip=True):
-    return Input(np.zeros(3), rotation, grip, 0., False)
+def controller(rotation, grip=True, precision=False):
+    return Input(np.zeros(3), rotation, grip, 0., precision, False)
 
 
 class OrientationReferenceTests(unittest.TestCase):
@@ -72,11 +72,12 @@ class OrientationReferenceTests(unittest.TestCase):
         target.update(controller(np.eye(3)), np.eye(3), np.zeros(3), initial_r)
         np.testing.assert_allclose(target.requested_rotation, initial_r, atol=1e-12)
 
-    def test_reengagement_starts_from_the_correct_reference(self):
+    def test_precision_and_reengagement_start_from_the_correct_reference(self):
         target = Target(calibration=np.eye(3))
         self.engage(target, np.zeros(3), np.eye(3))
         rc = rotation_exp(np.array([0., .8, 0.]))
-        target.update(controller(rc), np.eye(3), np.zeros(3), np.eye(3))
+        target.update(controller(rc, precision=True), np.eye(3), np.zeros(3), np.eye(3))
+        np.testing.assert_allclose(target.requested_rotation, rotation_exp(np.array([0., .2, 0.])), atol=1e-12)
         measured = rotation_exp(np.array([-.1, .3, .2]))
         target.lose_tracking()
         target.update(controller(rc, False), np.eye(3), np.zeros(3), measured)

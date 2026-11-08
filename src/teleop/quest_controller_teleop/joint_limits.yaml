@@ -1,6 +1,6 @@
 # Quest teleop joint limits: what the teleop IK may command, inside the hardware limits. The robot model
 # and its real limits are unchanged. Loaded by joint_limits.py as the defaults; pick another file with
-# --joint-limits PATH, override one bound with e.g. --j4-max -20, or tune live on the /tune page.
+# --joint-limits PATH.
 #
 # Degrees, LEFT-arm convention: jN: [min, max]. The right arm is the left mirrored (every angle negated),
 # so it gets [-max, -min]. A joint left out keeps its hardware range.

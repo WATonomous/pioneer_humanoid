@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import argparse
 import faulthandler
-import math
 import os
 import signal
 import sys
@@ -35,8 +34,7 @@ _ROBOT_LEARNING_PKG = _AUTONOMY / "robot_learning"
 from quest_scenes import add_scene_arguments, make_cloth_scene_cfg, reset_workspace, SceneHooks
 
 sys.path.insert(0, str(_THIS_DIR.parent))  # the simulator-independent controller modules
-import joint_limits  # noqa: E402
-from scene_driver import add_controller_args  # noqa: E402
+from scene_driver import ControllerSceneDriver, add_controller_args, check_controller_args  # noqa: E402
 
 
 def _ensure_robot_learning_on_path() -> None:
@@ -79,9 +77,7 @@ if args_cli.scene == "cloth_folding":
     if not str(args_cli.device).startswith("cuda"):
         parser.error("Cloth folding uses PhysX particle cloth and requires --device cuda")
     sys.path.insert(0, str(_SIM_DIR / "garment_fold_task"))
-if not all(math.isfinite(v) and v > 0 for v in (args_cli.gain, args_cli.joint_speed,
-                                               args_cli.wrist_speed, args_cli.rotation_gain, args_cli.angular_lead)):
-    parser.error("Controller gains, speeds, and angular lead must be positive and finite")
+check_controller_args(parser, args_cli)
 
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
@@ -644,7 +640,6 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     robot = scene["robot"]
     device = sim.device
     sim_dt = sim.get_physics_dt()
-    gain = args_cli.gain
 
     scene.update(sim_dt)
     apply_joint_limits(robot)
@@ -710,9 +705,6 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     sim.step()
     scene.update(sim_dt)
 
-    controller_path = _THIS_DIR.parent
-    sys.path.insert(0, str(controller_path))
-    from scene_driver import ControllerSceneDriver, add_controller_args
     controller_frame = None
     if args_cli.controller_frame == "camera":
         # WebXR and USD cameras both use +X right, +Y up, -Z forward.
@@ -725,14 +717,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
                                     dtype=torch.float32, device=device)
         camera_quat_b = quat_mul(quat_inv(robot.data.root_state_w[:, 3:7]), camera_quat_w)
         controller_frame = matrix_from_quat(camera_quat_b)[0].detach().cpu().numpy()
-    controller_driver = ControllerSceneDriver(
-        {"left": LEFT_ARM_JOINTS, "right": RIGHT_ARM_JOINTS},
-        gain, args_cli.joint_speed, args_cli.controller_calibration, args_cli.controller_port,
-        wrist_velocity=args_cli.wrist_speed, rotation_gain=args_cli.rotation_gain,
-        angular_lead=args_cli.angular_lead, position_lead=args_cli.position_lead, frame_calibration=controller_frame,
-        position_damping=args_cli.position_damping, orientation_damping=args_cli.orientation_damping,
-        limits_deg=joint_limits.from_args(args_cli), elbow_velocity=args_cli.elbow_speed, slip=args_cli.slip,
-    )
+    controller_driver = ControllerSceneDriver.from_args(
+        args_cli, {"left": LEFT_ARM_JOINTS, "right": RIGHT_ARM_JOINTS}, frame_calibration=controller_frame)
     print(f"[Quest] Controller frame: {args_cli.controller_frame}; rotation gain={args_cli.rotation_gain}; "
           f"proximal/wrist speed={args_cli.joint_speed}/{args_cli.wrist_speed} rad/s; "
           f"angular lead={args_cli.angular_lead} rad", flush=True)

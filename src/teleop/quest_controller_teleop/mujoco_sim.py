@@ -15,6 +15,7 @@ from contextlib import nullcontext
 from dataclasses import dataclass
 from pathlib import Path
 import sys
+import threading
 import time
 
 import numpy as np
@@ -26,10 +27,9 @@ sys.path.insert(0, str(_SRC / "pioneer_humanoid"))
 sys.path.insert(0, str(_SRC / "simulation" / "mujoco_scenes"))
 sys.path.insert(0, str(_THIS_DIR))
 
-import joint_limits  # noqa: E402
 from mujoco_cameras import CameraStream  # noqa: E402
 from mujoco_overlay import draw_targets, show_text  # noqa: E402
-from scene_driver import ControllerSceneDriver, add_controller_args  # noqa: E402
+from scene_driver import ControllerSceneDriver, add_controller_args, check_controller_args  # noqa: E402
 
 CONTROL_DT = 0.01        # s, IK solve and actuator command period
 CAMERA_PERIOD = 1 / 15   # s, headset camera refresh (rendered on its own thread, ~30 ms for all three)
@@ -60,9 +60,7 @@ def parse_args() -> argparse.Namespace:
     # into "wrist back and up" (scripted-motion check). The upright base frame keeps up as up, forward as forward.
     parser.set_defaults(controller_frame="base")
     args = parser.parse_args()
-    if not all(v > 0 for v in (args.gain, args.joint_speed, args.wrist_speed, args.rotation_gain, args.angular_lead,
-                               args.position_lead)):
-        parser.error("gains, speeds and the angular lead must be positive")
+    check_controller_args(parser, args)
     return args
 
 
@@ -96,16 +94,9 @@ def ego_frame(model, data) -> np.ndarray:
 def make_driver(args, model, data) -> ControllerSceneDriver:
     from pioneer_humanoid.arm_params import LEFT_ARM_JOINTS, RIGHT_ARM_JOINTS
 
-    return ControllerSceneDriver(
-        {"left": LEFT_ARM_JOINTS, "right": RIGHT_ARM_JOINTS},
-        args.gain, args.joint_speed, args.controller_calibration, args.controller_port,
-        wrist_velocity=args.wrist_speed, rotation_gain=args.rotation_gain, angular_lead=args.angular_lead,
-        position_lead=args.position_lead, position_damping=args.position_damping, orientation_damping=args.orientation_damping,
-        limits_deg=joint_limits.from_args(args), elbow_velocity=args.elbow_speed, slip=args.slip,
-        frame_calibration=ego_frame(model, data) if args.controller_frame == "camera" else None, scene="mujoco",
-    )
-
-
+    frame = ego_frame(model, data) if args.controller_frame == "camera" else None
+    return ControllerSceneDriver.from_args(args, {"left": LEFT_ARM_JOINTS, "right": RIGHT_ARM_JOINTS},
+                                           frame_calibration=frame, scene="mujoco")
 
 
 def run() -> None:
@@ -140,11 +131,11 @@ def run() -> None:
           f"(after adb reverse tcp:{args.controller_port} tcp:{args.controller_port}). Left Y or 6 in the window resets.", flush=True)
     if not args.headless:
         import mujoco.viewer
-    reset_key = [False]  # set by the viewer's key thread, consumed by the control loop
+    reset_key = threading.Event()  # set by the viewer's key thread, consumed by the control loop
 
     def on_key(key: int) -> None:
         if key == KEY_RESET:
-            reset_key[0] = True
+            reset_key.set()
 
     try:
         viewer_ctx = nullcontext() if args.headless else mujoco.viewer.launch_passive(model, data, key_callback=on_key)
@@ -172,8 +163,8 @@ def loop(model, data, driver, arms, cameras, viewer, reset, reset_key, scene_hoo
     if viewer is not None:
         show_text(viewer, "Press 6 to reset")
     while viewer is None or viewer.is_running():
-        if driver.update(joint_positions()) or reset_key[0]:  # left Y, or 6 in the viewer window
-            reset_key[0] = False
+        if driver.update(joint_positions()) or reset_key.is_set():  # left Y, or 6 in the viewer window
+            reset_key.clear()
             reset()
             driver.reset(joint_positions())
             print("[Quest] Scene reset; arms back to home.", flush=True)

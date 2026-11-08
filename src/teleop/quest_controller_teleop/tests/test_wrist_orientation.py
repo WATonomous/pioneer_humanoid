@@ -64,7 +64,7 @@ class WristOrientationTests(unittest.TestCase):
         for saved_pivot in (np.zeros(3), pivot):
             target = Target(calibration=np.eye(3), pivot=saved_pivot)
             def control(rotation, clutch):
-                return Input(wrist-rotation @ pivot, rotation, clutch, 0., False)
+                return Input(wrist-rotation @ pivot, rotation, clutch, 0., False, False)
             target.update(control(np.eye(3), False), np.eye(3), wrist, np.eye(3))
             target.update(control(np.eye(3), True), np.eye(3), wrist, np.eye(3))
             target.update(control(rotated, True), np.eye(3), wrist, np.eye(3))

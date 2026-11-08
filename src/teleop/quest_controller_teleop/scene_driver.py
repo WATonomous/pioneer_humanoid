@@ -6,6 +6,7 @@
 """
 import io
 import asyncio
+import math
 from dataclasses import replace
 from pathlib import Path
 import threading
@@ -16,10 +17,11 @@ import numpy as np
 
 import joint_limits
 from control import fit_pivot
-from article_control import AnchoredTarget, ArticleTarget, PioneerArticleIK
+from article_control import AnchoredTarget, PioneerArticleIK
 from transport import Shared, load_pivots, serve
 
 DEFAULT_CALIBRATION = Path(__file__).with_name("wrist_calibration.json")
+
 
 def add_controller_args(parser):
     """Controller flags common to every scene backend."""
@@ -44,10 +46,16 @@ def add_controller_args(parser):
     parser.add_argument("--controller-frame", choices=("camera", "base"), default="camera",
                         help="Align controller motion/rotation with the headset view camera or upright robot base")
     parser.add_argument("--controller-calibration", type=Path, default=DEFAULT_CALIBRATION)
-    parser.add_argument("--slip", action="store_true",
-                        help="the article's slipping target: motion past a lead limit is discarded, so hand and arm drift "
-                             "apart until tracking re-engages (default: the target stays anchored to the hand)")
     joint_limits.add_args(parser)
+
+
+def check_controller_args(parser, args):
+    """Reject non-positive or non-finite gains, speeds and leads (exits through parser.error)."""
+    values = [args.gain, args.joint_speed, args.wrist_speed, args.rotation_gain, args.angular_lead, args.position_lead]
+    if args.elbow_speed is not None:
+        values.append(args.elbow_speed)
+    if not all(math.isfinite(v) and v > 0 for v in values):
+        parser.error("Controller gains, speeds and leads must be positive and finite")
 
 
 class ControllerSceneDriver:
@@ -55,7 +63,7 @@ class ControllerSceneDriver:
                  wrist_velocity=3.6, rotation_gain=1., angular_lead=.6, frame_calibration=None, scene="isaac",
                  position_lead=.08, position_damping=PioneerArticleIK.position_damping,
                  orientation_damping=PioneerArticleIK.orientation_damping, limits_deg=None,
-                 elbow_velocity=None, slip=False):
+                 elbow_velocity=None):
         self.shared = Shared()
         self.solvers = {s: PioneerArticleIK(names, velocity, wrist_velocity)
                         for s, names in joint_names.items()}
@@ -67,9 +75,8 @@ class ControllerSceneDriver:
         limits_deg = joint_limits.DEFAULTS if limits_deg is None else limits_deg
         for side, solver in self.solvers.items():
             solver.set_teleop_limits(joint_limits.side_limits(limits_deg, side))
-        target_type = ArticleTarget if slip else AnchoredTarget
-        self.targets = {s: target_type(gain=gain, rotation_gain=rotation_gain, max_angle_error=angular_lead,
-                                         max_position_error=position_lead)
+        self.targets = {s: AnchoredTarget(gain=gain, rotation_gain=rotation_gain, max_angle_error=angular_lead,
+                                          max_position_error=position_lead)
                         for s in joint_names}
         if frame_calibration is not None:
             for target in self.targets.values():
@@ -92,6 +99,17 @@ class ControllerSceneDriver:
         self.server_task = None
         self.owner_thread = None
         self.io_pump = None
+
+    @classmethod
+    def from_args(cls, args, joint_names, frame_calibration=None, scene="isaac"):
+        """Build the driver from the add_controller_args flags."""
+        return cls(
+            joint_names, args.gain, args.joint_speed, args.controller_calibration, args.controller_port,
+            wrist_velocity=args.wrist_speed, rotation_gain=args.rotation_gain, angular_lead=args.angular_lead,
+            frame_calibration=frame_calibration, scene=scene, position_lead=args.position_lead,
+            position_damping=args.position_damping, orientation_damping=args.orientation_damping,
+            limits_deg=joint_limits.load(args.joint_limits), elbow_velocity=args.elbow_speed,
+        )
 
     def start(self, schedule=None, pump=None):
         """Run the web server on Kit's main loop, never asyncio.run in a worker.

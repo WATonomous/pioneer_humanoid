@@ -90,6 +90,7 @@ process is required.
 | --- | --- |
 | Controller motion | Move that arm automatically while tracked |
 | Index trigger | Proportional gripper closure |
+| A / X | Hold for 25% translation and rotation increments |
 | Left Y | Reset the scene, arms, and grippers once per press |
 | Thumbstick click | Hold to pause that arm and collect wrist-pivot calibration; release to fit and resume |
 
@@ -133,8 +134,9 @@ capped at 8 cm and rotation lead at 0.6 rad from measured FK, but the cap only l
 what the IK is sent each frame, so once the arm catches up it lines up with the hand
 again. The article's policy instead absorbs the excess for good, which in always-on
 control only accumulates: after 15 s of fast scripted wandering and a return to the
-start, the arm was 25 cm / 43 deg off with it and 0.1 cm / 0 deg anchored. `--slip`
-restores it. Changing a gain re-bases the reference, without a jump. Pausing and resuming tracking or calibration starts a new reference.
+start, the arm was 25 cm / 43 deg off with it and 0.1 cm / 0 deg anchored. Pressing or
+releasing precision (A/X) re-bases the reference, without a jump. Pausing and resuming
+tracking or calibration starts a new reference.
 
 Default translation gain is 1.5, rotation gain 1, joint-speed cap 0.9 rad/s on
 joints 1–4, and 3.6 rad/s on joints 5–6. To set them explicitly:

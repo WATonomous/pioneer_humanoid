@@ -139,6 +139,7 @@ class BrowserPacketTests(unittest.TestCase):
         self.assertEqual(packet["left"]["position"], [1, 2, 3])
         self.assertEqual(packet["left"]["trigger"], .4)
         self.assertFalse(packet["left"]["clutch"])
+        self.assertTrue(packet["left"]["precision"])
         self.assertTrue(packet["left"]["calibrate"])
         self.assertTrue(packet["left"]["reset_scene"])
         self.js.eval("clock=120;stopped();")
