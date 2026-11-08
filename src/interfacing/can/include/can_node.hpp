@@ -30,7 +30,12 @@ public:
   CanNode();
 
 private:
-  CanCore can_core;
+  CanCore can_upper;
+  CanCore can_lower;
+  bool upper_initialized_ = false;
+  bool lower_initialized_ = false;
+  std::unordered_map<int, CanCore*> motor_buses_;
+  CanCore* findBusForMotor(int motor_id);
   // Can messages
   // Map of CAN message ID to its DBC definition for decoding
   std::unordered_map<std::string, const dbcppp::IMessage*> can_messages;
@@ -46,11 +51,11 @@ private:
   static constexpr size_t max_payload_per_frame = 8; // CAN frame max bytes
   static constexpr size_t data_chunk_size = 8;
 
-  void publishCanMessage(CanMessage& can_msg);
+  void publishCanMessage(CanMessage& can_msg, CanCore& core);
   void encodeSignal(const dbcppp::ISignal* signal, int64_t phys_value, CanMessage& can_msg);
   void encodeSignal(const dbcppp::ISignal* signal, double phys_value, CanMessage& can_msg);
   CanMessage dbcCanMessage(const dbcppp::IMessage* msg, int device_id) const;
-  void receiveCanMessages();
+  void receiveCanMessages(CanCore& core);
 
   // MIT (Force Control) support: per-motor scaling constants + the manual's float_to_uint
   // packing formula (mit_protocol.hpp). See config/mit_profiles.yaml and can/README.md / MIT
@@ -75,7 +80,8 @@ private:
   // Callbacks
   void motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg);
 
-  rclcpp::TimerBase::SharedPtr receive_timer_; // Timer to periodically check for CAN messages
+  rclcpp::TimerBase::SharedPtr upper_receive_timer_; // Timer to periodically check for CAN messages
+  rclcpp::TimerBase::SharedPtr lower_receive_timer_;
 
   // Methods
   void createSubscribersPublishers();
