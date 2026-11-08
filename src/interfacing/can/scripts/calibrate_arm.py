@@ -384,6 +384,9 @@ def resolve_motor_id(
 
 def run(args: argparse.Namespace) -> int:
     mapping_path = Path(args.mapping).expanduser().resolve()
+    if not mapping_path.exists():
+        print(f"Expected mapping path: {mapping_path} is not there. Pass --calibration PATH", file = sys.stderr)
+        return 1
     mapping = load_mapping(mapping_path)
     joints = flatten_joints(
         mapping,
@@ -425,6 +428,10 @@ def run(args: argparse.Namespace) -> int:
         for name, direction in bad_joints:
             print(f"Joint {name} with direction {direction} is not valid; set to 1 or -1 (motor vs URDF positive direction) in {mapping_path}",
                   file=sys.stderr)
+        return 1
+
+    if jc.find_actuators(None, args.limb) is None:
+        print(f"File for {args.limb}_actuators.yaml is missing; (looked in: {', '.join(jc.actuator_configs(args.limb))})", file=sys.stderr)
         return 1
 
     rclpy.init()
