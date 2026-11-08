@@ -18,8 +18,7 @@ adb reverse tcp:8444 tcp:8444
 
 Then open `http://localhost:8444/` in Meta Browser and select **Enter VR**. The headset
 shows the ego camera (mono) and both wrist cameras; the MuJoCo window shows the scene on
-the laptop; **6** with that window focused resets, like left Y. The window marks each IK target with a sphere
-(green tracking, orange near the lead limit, red pinned). `--headless` drops the window and runs under
+the laptop; **6** with that window focused resets, like left Y. `--headless` drops the window and runs under
 plain `python` (`mjpython` is only needed for the window on macOS). Recording and the cloth scene are Isaac-only.
 
 **Tuning flags** (both backends): `--gain`, `--rotation-gain`, `--joint-speed` (shoulder),

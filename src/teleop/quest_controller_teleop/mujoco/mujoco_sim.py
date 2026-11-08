@@ -29,7 +29,7 @@ sys.path.insert(0, str(_THIS_DIR.parent))  # the simulator-independent controlle
 sys.path.insert(0, str(_THIS_DIR))
 
 from mujoco_cameras import CameraStream  # noqa: E402
-from mujoco_overlay import draw_targets, show_text  # noqa: E402
+from mujoco_overlay import show_text  # noqa: E402
 from scene_driver import ControllerSceneDriver, add_controller_args, check_controller_args  # noqa: E402
 
 CONTROL_DT = 0.01        # s, IK solve and actuator command period
@@ -178,8 +178,6 @@ def loop(model, data, driver, arms, cameras, viewer, reset, reset_key, scene_hoo
         mujoco.mj_step(model, data, nstep=substeps)
         now = time.monotonic()
         if viewer is not None:
-            with viewer.lock():
-                draw_targets(viewer, model, data, driver, joint_positions())
             viewer.sync()
         if now >= next_camera:
             cameras.push(data)
