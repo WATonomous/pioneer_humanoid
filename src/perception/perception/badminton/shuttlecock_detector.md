@@ -186,7 +186,11 @@ Use the same Ticket 3 manifest and threshold when comparing against the stock
 class-32 baseline. Promote the final weights to team-shared storage only after
 recording the source-video split, training command, commit, and metrics.
 
-#### Results so far (Ticket 3 set: PAC 1 + PAC 6, 149 positive / 48 negative frames)
+#### Results so far (Ticket 3 set: PAC 1 + PAC 6)
+
+The held-out set contains **197 frames total: 149 positive frames and 48
+no-shuttle frames**. The recall comparison below is the relevant tradeoff when
+choosing an inference size for latency:
 
 | Model | imgsz | conf | Recall | FP rate | Notes |
 | --- | --- | --- | --- | --- | --- |
@@ -195,6 +199,10 @@ recording the source-video split, training command, commit, and metrics.
 | yolo26n_v1 | 960 | 0.25 | 89.9% | 0.0% | median center error 0.66 px |
 | yolo26n_v1 | 1280 | 0.25 | 94.0% | 2.1% | same weights, larger inference size |
 | yolo26n_v2 | 1280 | 0.60 | 89.3% | 0.0% | included `yolo26n_v2.pt`; threshold selected on PAC 5 |
+
+For the models used in the latency comparison, v1 at 960 achieves **89.9%
+recall**, while v2 at 1280 achieves **89.3% recall**. See the timing table
+below when deciding whether the larger input size is worth its added latency.
 
 Most remaining misses are shuttles held in a hand, lying on the floor at the
 bottom edge of the frame, or about 10 px wide. On PAC 5, most false positives
