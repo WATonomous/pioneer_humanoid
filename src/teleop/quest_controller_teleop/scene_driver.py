@@ -1,7 +1,8 @@
-"""Controller input adapter for the existing Isaac lightbox/push-box scene.
+"""Controller input adapter shared by the Isaac and MuJoCo scenes.
 
-    No simulator launch or robot writes at import. The original scene owns all
-    simulation, rendering, recording and reset operations.
+    No simulator launch or robot writes at import. The scene script owns all
+    simulation, rendering, recording and reset operations; this turns headset
+    packets into joint commands and serves camera frames back.
 """
 import io
 import asyncio
@@ -13,18 +14,62 @@ from types import SimpleNamespace
 
 import numpy as np
 
+import joint_limits
 from control import fit_pivot
-from article_control import ArticleTarget, PioneerArticleIK
+from article_control import AnchoredTarget, ArticleTarget, PioneerArticleIK
 from transport import Shared, load_pivots, serve
+
+DEFAULT_CALIBRATION = Path(__file__).with_name("wrist_calibration.json")
+
+def add_controller_args(parser):
+    """Controller flags common to every scene backend."""
+    parser.add_argument("--gain", type=float, default=1.5,
+                        help="Motion gain: metres of EE motion per metre of real wrist motion")
+    parser.add_argument("--controller-port", type=int, default=8444)
+    parser.add_argument("--joint-speed", type=float, default=.9,
+                        help="Shoulder joints 1-3 command speed limit (rad/s); also the elbow's unless --elbow-speed")
+    # Above the shoulder cap, the elbow takes more of each motion (scripted reaches: elbow share of the first 0.3 s
+    # 42% -> 47% at 1.8 vs 0.9). A shoulder damping weight was tried for this and changed nothing up to 50x: the
+    # position group is square (3 joints, 3-D wrist), so each step is near-exact.
+    parser.add_argument("--elbow-speed", type=float, default=None,
+                        help="Elbow joint 4 command speed limit (rad/s); above --joint-speed, the elbow leads the shoulder")
+    parser.add_argument("--wrist-speed", type=float, default=3.6, help="Controller joint 5/6 command speed limit (rad/s)")
+    parser.add_argument("--rotation-gain", type=float, default=1., help="Controller rotation gain (1 = one-to-one)")
+    parser.add_argument("--angular-lead", type=float, default=.6, help="Controller angular target lead limit (radians)")
+    parser.add_argument("--position-lead", type=float, default=.08, help="Controller position target lead limit (m)")
+    parser.add_argument("--position-damping", type=float, default=PioneerArticleIK.position_damping,
+                        help="Baseline DLS damping of the position IK (higher: smoother, slower)")
+    parser.add_argument("--orientation-damping", type=float, default=PioneerArticleIK.orientation_damping,
+                        help="Baseline DLS damping of the orientation IK (higher: smoother, slower)")
+    parser.add_argument("--controller-frame", choices=("camera", "base"), default="camera",
+                        help="Align controller motion/rotation with the headset view camera or upright robot base")
+    parser.add_argument("--controller-calibration", type=Path, default=DEFAULT_CALIBRATION)
+    parser.add_argument("--slip", action="store_true",
+                        help="the article's slipping target: motion past a lead limit is discarded, so hand and arm drift "
+                             "apart until tracking re-engages (default: the target stays anchored to the hand)")
+    joint_limits.add_args(parser)
 
 
 class ControllerSceneDriver:
     def __init__(self, joint_names, gain, velocity, calibration, port=8444,
-                 wrist_velocity=3.6, rotation_gain=1., angular_lead=.6, frame_calibration=None):
+                 wrist_velocity=3.6, rotation_gain=1., angular_lead=.6, frame_calibration=None, scene="isaac",
+                 position_lead=.08, position_damping=PioneerArticleIK.position_damping,
+                 orientation_damping=PioneerArticleIK.orientation_damping, limits_deg=None,
+                 elbow_velocity=None, slip=False):
         self.shared = Shared()
         self.solvers = {s: PioneerArticleIK(names, velocity, wrist_velocity)
                         for s, names in joint_names.items()}
-        self.targets = {s: ArticleTarget(gain=gain, rotation_gain=rotation_gain, max_angle_error=angular_lead)
+        for solver in self.solvers.values():
+            solver.position_damping, solver.orientation_damping = position_damping, orientation_damping
+            if elbow_velocity is not None:
+                solver.velocity[3] = elbow_velocity
+        # Teleop joint limits, {jN: (min, max)} degrees in left-arm convention (default: joint_limits.yaml).
+        limits_deg = joint_limits.DEFAULTS if limits_deg is None else limits_deg
+        for side, solver in self.solvers.items():
+            solver.set_teleop_limits(joint_limits.side_limits(limits_deg, side))
+        target_type = ArticleTarget if slip else AnchoredTarget
+        self.targets = {s: target_type(gain=gain, rotation_gain=rotation_gain, max_angle_error=angular_lead,
+                                         max_position_error=position_lead)
                         for s in joint_names}
         if frame_calibration is not None:
             for target in self.targets.values():
@@ -40,7 +85,9 @@ class ControllerSceneDriver:
         self.reset_sequence = 0
         self.status = "Tracked controllers move the arms. Left Y resets; stick-click pauses to calibrate."
         self.error = None
-        self.shared.feedback = {"scene": "isaac", "status": self.status}
+        # index.html shows the stereo pov_left/pov_right pair only for "isaac"; any other scene shows "ego".
+        self.scene = scene
+        self.shared.feedback = {"scene": scene, "status": self.status}
         self.port = port
         self.server_task = None
         self.owner_thread = None
@@ -82,6 +129,20 @@ class ControllerSceneDriver:
         except Exception:
             coroutine.close()
             raise
+
+    def start_thread(self):
+        """Run the web server on its own event loop in a daemon thread (simulators without an asyncio engine).
+
+        The simulation stays on the calling thread; only Shared crosses threads, under its lock.
+        """
+        if self.server_task is not None:
+            raise RuntimeError("Controller service is already started")
+        loop = asyncio.new_event_loop()
+        threading.Thread(target=loop.run_forever, name="quest-web", daemon=True).start()
+        self.owner_thread = threading.get_ident()
+        # A concurrent.futures.Future: done()/cancelled()/exception() are what update() polls.
+        self.server_task = asyncio.run_coroutine_threadsafe(
+            serve(self.shared, SimpleNamespace(host="127.0.0.1", port=self.port, cert=None)), loop)
 
     def _check_thread(self):
         if self.owner_thread is not None and threading.get_ident() != self.owner_thread:
@@ -170,7 +231,7 @@ class ControllerSceneDriver:
             self.sequence = sequence
         with self.shared.lock:
             self.shared.feedback = {
-                "scene": "isaac",
+                "scene": self.scene,
                 "status": self.status if fresh else "Tracking paused. Control resumes from the current arm pose.",
                 "active": {s: t.active for s, t in self.targets.items()},
                 "haptics": {s: self.solvers[s].warning if t.active else 0. for s, t in self.targets.items()},
@@ -181,16 +242,24 @@ class ControllerSceneDriver:
         self._check_thread()
         return {s: solver.solve(joint_positions[s], self.targets[s], dt) for s, solver in self.solvers.items()}
 
-    def publish_cameras(self, left_eye, right_eye, left_wrist, right_wrist):
+    def publish_cameras(self, **frames):
+        """Serve RGB frames by the names index.html requests: ego, wrist_left, wrist_right, pov_left, pov_right."""
         self._check_thread()
+        self.serve_frames(**frames)
+
+    def serve_frames(self, **frames):
+        """publish_cameras without the owner-thread check: it touches only Shared, under its lock.
+
+        For a camera thread that renders off the control loop (MuJoCo); Isaac keeps publish_cameras.
+        """
         from PIL import Image
         images = {}
-        for name, frame in (("pov_left", left_eye), ("pov_right", right_eye),
-                            ("wrist_left", left_wrist), ("wrist_right", right_wrist)):
+        for name, frame in frames.items():
             output = io.BytesIO()
             Image.fromarray(frame).save(output, format="JPEG", quality=80)
             images[name] = output.getvalue()
-        images["ego"] = images["pov_left"]
+        if "ego" not in images and "pov_left" in images:
+            images["ego"] = images["pov_left"]
         with self.shared.lock:
             self.shared.images = images
 

@@ -71,7 +71,7 @@ Position bounds are applied before the orientation FK, whereas the reference
 applies its final bounds later. Both physical joint limits and existing command
 caps remain: 0.9 rad/s on joints 1–4 and 3.6 rad/s on joints 5–6.
 
-Camera/heading calibration, pivot fitting, left-Y reset, precision, both scenes,
+Camera/heading calibration, pivot fitting, left-Y reset, both scenes,
 and always-on activation remain. No motor settings or robot assets changed.
 
 ## Verification and remaining uncertainty
@@ -79,7 +79,7 @@ and always-on activation remain. No motor settings or robot assets changed.
 Offline checks cover both arms tracking ±20 degrees about each controller axis,
 then holding still without returning toward home; reachable mixed FK-generated
 poses; physical/rate bounds; stops; near-straight-arm damping; antipode parking;
-frame conjugation; precision; pivot calibration; reengagement; absorbed excess;
+frame conjugation; pivot calibration; reengagement; absorbed excess;
 and immediate reversal without a hidden backlog. Tested reachable cases converge
 within 1 mm and 0.1 degrees. Activation/tracking/reset regressions exercise the always-on article solver.
 Legacy mathematical solver tests remain for comparison.

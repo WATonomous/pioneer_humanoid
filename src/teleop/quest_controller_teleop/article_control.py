@@ -47,12 +47,11 @@ the previous persistent-orientation update is not used here.
             self.engagement_count += 1
             self.active = True
         else:
-            precision = .25 if controller.precision else 1.
-            dp = self.mapping @ (pivot_position-self.previous_position)*self.gain*precision
+            dp = self.mapping @ (pivot_position-self.previous_position)*self.gain
             dr = self.mapping @ (controller.rotation @ self.previous_rotation.T) @ self.mapping.T
             angle_increment = rotation_vector(dr)
             self.controller_rotation_delta_deg = float(np.degrees(np.linalg.norm(angle_increment)))
-            increment = rotation_exp(angle_increment*self.rotation_gain*precision)
+            increment = rotation_exp(angle_increment*self.rotation_gain)
             # Accumulate onto the accepted target, not an unbounded request.
             proposed_rotation = increment @ self.rotation
             self.requested_rotation = proposed_rotation.copy()
@@ -67,6 +66,48 @@ the previous persistent-orientation update is not used here.
         # Consume the input even when blocked: reversing acts immediately.
         self.previous_position = pivot_position.copy()
         self.previous_rotation = controller.rotation.copy()
+
+
+class AnchoredTarget(ArticleTarget):
+    """ArticleTarget without the drift: the request is measured from the engagement pose, not accumulated.
+
+    ArticleTarget adds each frame's hand increment to the last *accepted* target, so whenever the lead limit
+    caps it, the excess is lost for good and hand and arm drift apart; the article re-grabs to realign. With
+    always-on control there is no re-grab, so offsets only accumulate. Here the request is
+    `engagement target + gain x (hand now - hand at engagement)`, and the lead limit caps only what is sent
+    to the IK this frame: once the arm catches up, it lines up with the hand again. Changing the gain or
+    rotation gain re-bases the reference at the current request, so it never jumps.
+    """
+    def update(self, controller, head_rotation, actual_position, actual_rotation):
+        if not self.active or controller is None or head_rotation is None or not controller.clutch:
+            super().update(controller, head_rotation, actual_position, actual_rotation)  # engage, loss, release
+            if self.active:  # just engaged at the measured pose
+                self._rebase(self.previous_position, self.previous_rotation, self.position, self.rotation)
+            return
+        pivot_position = controller.position + controller.rotation @ self.pivot
+        if (self.gain, self.rotation_gain) != self._scale:
+            self._rebase(self.previous_position, self.previous_rotation, self.requested_position, self.requested_rotation)
+        hand_turn = rotation_vector(self.mapping @ (controller.rotation @ self._hand_rotation.T) @ self.mapping.T)
+        self.requested_position = self._target_position + self.mapping @ (pivot_position-self._hand_position)*self._scale[0]
+        self.requested_rotation = rotation_exp(hand_turn*self._scale[1]) @ self._target_rotation
+        self.controller_rotation_delta_deg = float(np.degrees(np.linalg.norm(
+            rotation_vector(controller.rotation @ self.previous_rotation.T))))
+        ep = self.requested_position-actual_position
+        er = rotation_vector(self.requested_rotation @ actual_rotation.T)
+        self.position_limited = bool(np.linalg.norm(ep) > self.max_position_error)
+        self.orientation_limited = bool(np.linalg.norm(er) > self.max_angle_error)
+        self.saturation = float(max(np.linalg.norm(ep)/self.max_position_error, np.linalg.norm(er)/self.max_angle_error))
+        self.position = actual_position+cap_vector(ep, self.max_position_error)
+        self.rotation = rotation_exp(cap_vector(er, self.max_angle_error)) @ actual_rotation
+        self.previous_position = pivot_position.copy()
+        self.previous_rotation = controller.rotation.copy()
+
+    def _rebase(self, hand_position, hand_rotation, target_position, target_rotation):
+        """Measure later hand motion from here, at the current gains."""
+        self._hand_position, self._hand_rotation = hand_position.copy(), hand_rotation.copy()
+        self._target_position, self._target_rotation = target_position.copy(), target_rotation.copy()
+        self.requested_position, self.requested_rotation = target_position.copy(), target_rotation.copy()
+        self._scale = (self.gain, self.rotation_gain)
 
 
 def article_dls(jacobian, error, baseline, extra, threshold, rest_delta=None):
@@ -94,6 +135,12 @@ literal DK1 joint-index split would be singular there on this robot.
     position_ids = np.array([0, 1, 3])
     orientation_ids = np.array([2, 4, 5])
     orientation_mode = "article"
+    # Baseline DLS damping (lambda_b) per group, live-tunable: higher is smoother and slower to close an error.
+    # The extra near-singularity damping (lambda_s) and its manipulability threshold w0 stay fixed per group.
+    position_damping = .05
+    orientation_damping = .05
+    POSITION_SINGULAR = (.15, .015)    # (lambda_s, w0 in m^3)
+    ORIENTATION_SINGULAR = (.4, .5)    # (lambda_s, w0)
 
     def solve(self, qpos, target, dt):
         if not target.active:
@@ -101,15 +148,17 @@ literal DK1 joint-index split would be singular there on this robot.
         if not math.isfinite(dt) or dt <= 0:
             raise ValueError("IK timestep must be positive and finite")
         seed = self.command.copy()
-        lower = np.maximum(self.limits[:, 0], seed-self.velocity*dt)
-        upper = np.minimum(self.limits[:, 1], seed+self.velocity*dt)
+        step = self.velocity*dt
+        # Outside a (just narrowed) teleop limit, a joint returns into range at its speed cap, never in one jump.
+        lower = np.minimum(np.maximum(self.limits[:, 0], seed-step), seed+step)
+        upper = np.maximum(np.minimum(self.limits[:, 1], seed+step), seed-step)
         p, _, jp, _ = self.kinematics(seed)
         ids = self.position_ids
         # Stabilize the elbow branch near straight-arm poses. With no task
         # error there is no reason to change the holding configuration.
         rest_delta = self.rest[ids]-seed[ids] if np.linalg.norm(target.position-p) > .001 else None
         dp, rho_p = article_dls(jp[:, ids], target.position-p,
-                                 .05, .15, .015, rest_delta)
+                                 self.position_damping, *self.POSITION_SINGULAR, rest_delta)
         candidate = seed.copy()
         candidate[ids] = np.clip(seed[ids]+dp, lower[ids], upper[ids])
 
@@ -118,7 +167,7 @@ literal DK1 joint-index split would be singular there on this robot.
         er = rotation_vector(target.rotation @ r.T)
         parked = bool(np.linalg.norm(er) > 2.2)
         ids = self.orientation_ids
-        dr, rho_r = article_dls(jr[:, ids], er, .05, .4, .5)
+        dr, rho_r = article_dls(jr[:, ids], er, self.orientation_damping, *self.ORIENTATION_SINGULAR)
         if parked:
             dr[:] = 0.
         unconstrained = candidate.copy()

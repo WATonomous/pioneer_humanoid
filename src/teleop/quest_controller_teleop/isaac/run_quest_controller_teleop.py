@@ -34,6 +34,10 @@ sys.path.insert(0, str(_AUTONOMY / "pioneer_humanoid"))
 _ROBOT_LEARNING_PKG = _AUTONOMY / "robot_learning"
 from quest_scenes import add_scene_arguments, make_cloth_scene_cfg, reset_workspace, SceneHooks
 
+sys.path.insert(0, str(_THIS_DIR.parent))  # the simulator-independent controller modules
+import joint_limits  # noqa: E402
+from scene_driver import add_controller_args  # noqa: E402
+
 
 def _ensure_robot_learning_on_path() -> None:
     if str(_ROBOT_LEARNING_PKG) not in sys.path:
@@ -45,17 +49,7 @@ parser = argparse.ArgumentParser(description="Quest Touch controller teleoperati
 add_scene_arguments(parser)
 parser.add_argument("--single-task-thread", action="store_true",
                     help="Work around the native carb.assets/tasking mutex crash by launching Kit with one task worker")
-parser.add_argument("--gain", type=float, default=1.5,
-                    help="Motion gain: metres of EE motion per metre of real wrist motion")
-parser.add_argument("--controller-port", type=int, default=8444)
-parser.add_argument("--joint-speed", type=float, default=.9, help="Controller mode joint command speed limit (rad/s)")
-parser.add_argument("--wrist-speed", type=float, default=3.6, help="Controller joint 5/6 command speed limit (rad/s)")
-parser.add_argument("--rotation-gain", type=float, default=1., help="Controller rotation gain (1 = one-to-one)")
-parser.add_argument("--angular-lead", type=float, default=.6, help="Controller angular target lead limit (radians)")
-parser.add_argument("--controller-frame", choices=("camera", "base"), default="camera",
-                    help="Align controller motion/rotation with the actual stereo view or upright robot base")
-parser.add_argument("--controller-calibration", type=Path,
-                    default=_THIS_DIR.parent / "wrist_calibration.json")
+add_controller_args(parser)
 parser.add_argument("--record", action="store_true",
                     help="Record demonstrations (requires: pip install -e src/robot_learning[record]). Records the "
                          "L-suffixed (link6l) arm only -- that's the arm ego_cam/wrist_cam are mounted for.")
@@ -718,7 +712,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
 
     controller_path = _THIS_DIR.parent
     sys.path.insert(0, str(controller_path))
-    from isaac_control import ControllerSceneDriver
+    from scene_driver import ControllerSceneDriver, add_controller_args
     controller_frame = None
     if args_cli.controller_frame == "camera":
         # WebXR and USD cameras both use +X right, +Y up, -Z forward.
@@ -735,7 +729,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         {"left": LEFT_ARM_JOINTS, "right": RIGHT_ARM_JOINTS},
         gain, args_cli.joint_speed, args_cli.controller_calibration, args_cli.controller_port,
         wrist_velocity=args_cli.wrist_speed, rotation_gain=args_cli.rotation_gain,
-        angular_lead=args_cli.angular_lead, frame_calibration=controller_frame,
+        angular_lead=args_cli.angular_lead, position_lead=args_cli.position_lead, frame_calibration=controller_frame,
+        position_damping=args_cli.position_damping, orientation_damping=args_cli.orientation_damping,
+        limits_deg=joint_limits.from_args(args_cli), elbow_velocity=args_cli.elbow_speed, slip=args_cli.slip,
     )
     print(f"[Quest] Controller frame: {args_cli.controller_frame}; rotation gain={args_cli.rotation_gain}; "
           f"proximal/wrist speed={args_cli.joint_speed}/{args_cli.wrist_speed} rad/s; "
@@ -971,8 +967,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
                 left_eye_camera.update(dt=sim_dt * _POV_CAPTURE_EVERY_N_STEPS)
                 right_eye_camera.update(dt=sim_dt * _POV_CAPTURE_EVERY_N_STEPS)
                 controller_driver.publish_cameras(
-                    _camera_rgb_frame(left_eye_camera), _camera_rgb_frame(right_eye_camera),
-                    _camera_rgb_frame(scene["wrist_cam"]), _camera_rgb_frame(scene["wrist_cam_right"]),
+                    pov_left=_camera_rgb_frame(left_eye_camera), pov_right=_camera_rgb_frame(right_eye_camera),
+                    wrist_left=_camera_rgb_frame(scene["wrist_cam"]),
+                    wrist_right=_camera_rgb_frame(scene["wrist_cam_right"]),
                 )
             except Exception as _pov_exc:  # noqa: BLE001 -- see comment above
                 print(f"[Quest] WARNING: POV capture failed this cycle: {_pov_exc}", flush=True)

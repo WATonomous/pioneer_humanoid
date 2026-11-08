@@ -13,7 +13,7 @@ img { width:31%; background:#253341; min-height:100px } p { line-height:1.6 } #s
 <button id="start" disabled>Enter VR</button>
 <p id="status">Connecting…</p>
 <p id="controls">Tracked controllers move the arms automatically.<br>
-<b>Index trigger:</b> squeeze to close the gripper. <b>A / X:</b> hold for precision motion.<br>
+<b>Index trigger:</b> squeeze to close the gripper.<br>
 <b>Left Y:</b> reset scene. <b>Thumbstick click:</b> hold to pause that arm and calibrate the wrist pivot.</p>
 <p id="tracking-help">Tracking loss pauses movement. Tracking return resumes from the current arm pose.
 Forward is aligned to your headset heading when tracking engages.</p>
@@ -70,7 +70,6 @@ function controller(frame, source) {
   const p = pose.transform.position, q = pose.transform.orientation, b = source.gamepad.buttons;
   return {tracked:true, position:[p.x,p.y,p.z], orientation:[q.x,q.y,q.z,q.w],
     trigger:b[0]?.value || 0, clutch:!!b[1]?.pressed,
-    precision:!!b[4]?.pressed,
     calibrate:!!b[3]?.pressed,
     reset_scene:source.handedness === 'left' && !!b[5]?.pressed};
 }

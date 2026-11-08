@@ -76,7 +76,6 @@ class Input:
     rotation: np.ndarray
     clutch: bool
     trigger: float
-    precision: bool
     calibrate: bool
     reset_scene: bool = False
 
@@ -92,7 +91,7 @@ class Input:
             raise ValueError("Invalid trigger")
         return cls(p, quaternion_matrix(value.get("orientation")),
                    value.get("clutch") is True, trigger,
-                   value.get("precision") is True, value.get("calibrate") is True,
+                   value.get("calibrate") is True,
                    value.get("reset_scene") is True)
 
 
@@ -164,8 +163,7 @@ class Target:
             self.engagement_count += 1
             self.active = True
         else:
-            scale = .25 if controller.precision else 1.
-            delta = self.mapping @ (position-self.previous_position) * self.gain * scale
+            delta = self.mapping @ (position-self.previous_position) * self.gain
             dr = self.mapping @ (controller.rotation @ self.previous_rotation.T) @ self.mapping.T
             controller_angle = rotation_vector(dr)
             self.controller_rotation_delta_deg = float(np.degrees(np.linalg.norm(controller_angle)))
@@ -174,7 +172,7 @@ class Target:
             # limited IK goal. Integrating onto a clipped goal loses angles:
             # fast outward and slow return gestures then end at different poses.
             reference = self.requested_rotation if self.requested_rotation is not None else self.rotation
-            self.requested_rotation = rotation_exp(controller_angle*self.rotation_gain*scale) @ reference
+            self.requested_rotation = rotation_exp(controller_angle*self.rotation_gain) @ reference
             error = proposed_position-actual_position
             angle = rotation_vector(self.requested_rotation @ actual_rotation.T)
             self.position_limited = bool(np.linalg.norm(error) > self.max_position_error)
@@ -259,6 +257,12 @@ def bounded_dls(jacobian, error, lower, upper, bias=None):
 
 class PioneerKinematics:
     """URDF geometry and analytic Jacobians, independent of control policy."""
+    # The tracked "wrist" point: joint 6's origin, the wrist pivot, which joints 5 and 6 never move. It used to be
+    # joint 5's origin (forearm roll), which the URDF puts 6.6 cm short of the pivot on the left arm but 12.8 cm
+    # on the right (a roll joint's position along its own axis is arbitrary), so the right arm tracked worse.
+    # Mirrored scripted reaches, final error left/right: joint 5 2.9/5.3 cm, joint 6 0.4/0.4 cm.
+    anchor_joint = 5
+
     def __init__(self, names, velocity=.9, wrist_velocity=None):
         import xml.etree.ElementTree as ET
         from pioneer_humanoid.arm_params import DEFAULT_JOINT_POS
@@ -281,13 +285,24 @@ class PioneerKinematics:
             axis = np.fromstring(joint.find("axis").get("xyz"), sep=" ")
             self.axes.append(axis/np.linalg.norm(axis))
         self.qids = np.arange(6)
-        self.limits = np.array([JOINT_POS_LIMITS[name] for name in names])
+        self.physical_limits = np.array([JOINT_POS_LIMITS[name] for name in names])
+        self.limits = self.physical_limits.copy()  # what the IK enforces; set_teleop_limits narrows it
         self.rest = np.array([DEFAULT_JOINT_POS[name] for name in names])
         self.command = self.rest.copy()
         self.velocity = np.array([velocity]*4 + [velocity if wrist_velocity is None else wrist_velocity]*2)
         self.warning = 0.
         self.diagnostics = {}
 
+
+    def set_teleop_limits(self, limits):
+        """Narrow the IK's joint ranges (rad, (6, 2)) inside the physical ones, e.g. to keep the elbow bending one way.
+
+        Teleop-only: the robot model and its real limits are unchanged. A range that misses the physical one
+        collapses to the nearest physical bound; an inverted one to its lower end.
+        """
+        low = np.clip(np.asarray(limits, dtype=float)[:, 0], *self.physical_limits.T)
+        high = np.clip(np.asarray(limits, dtype=float)[:, 1], *self.physical_limits.T)
+        self.limits = np.stack([low, np.maximum(low, high)], axis=1)
 
     def kinematics(self, qpos):
         transform = np.eye(4)
@@ -297,7 +312,7 @@ class PioneerKinematics:
             positions.append(transform[:3, 3].copy())
             axes.append(transform[:3, :3] @ axis)
             transform[:3, :3] = transform[:3, :3] @ rotation_exp(axis*qpos[i])
-        anchor = positions[4]
+        anchor = positions[self.anchor_joint]
         jp = np.zeros((3, 6))
         for i in range(4):
             jp[:, i] = np.cross(axes[i], anchor-positions[i])

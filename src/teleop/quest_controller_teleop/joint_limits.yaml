@@ -1,0 +1,20 @@
+# Quest teleop joint limits: what the teleop IK may command, inside the hardware limits. The robot model
+# and its real limits are unchanged. Loaded by joint_limits.py as the defaults; pick another file with
+# --joint-limits PATH, override one bound with e.g. --j4-max -20, or tune live on the /tune page.
+#
+# Degrees, LEFT-arm convention: jN: [min, max]. The right arm is the left mirrored (every angle negated),
+# so it gets [-max, -min]. A joint left out keeps its hardware range.
+# Directions, from FK at home: j1 + raises the arm forward; j2 + swings the elbow outward; j3 - turns the
+# forearm outward; j4 is -90 at home, 0 straight, + bent backward.
+
+j1: [-40, 90]     # shoulder flexion: little swing behind the body (hardware -132..102)
+# Abduction swings the elbow outward (+30 deg: 15 cm). Hand twists reach it through upper-arm rotation, which
+# swings the bent forearm sideways for the position solve to pull back by abducting. Capping both (scripted
+# moves): worst elbow swing out 18.0 -> 10.1 cm; cost: a 60 deg hand yaw reaches 43 deg (was 52).
+j2: [-20, 20]     # shoulder abduction (hardware -20..90)
+j3: [-10, 45]     # upper-arm rotation (hardware -213.5..80)
+# No deep fold; at -15 a far reach left the arm a near-straight pole lying on the table, -35 keeps a visible
+# bend: reach beyond that stops short instead of straightening the arm.
+j4: [-110, -35]   # elbow bend (hardware -132.5..100)
+j5: [-75, 75]     # forearm roll, about a human forearm's range (hardware -75.4..248)
+j6: [-45, 120]    # wrist up/down (hardware -360..360)

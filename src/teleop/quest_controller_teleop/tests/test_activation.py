@@ -10,7 +10,7 @@ import numpy as np
 HERE = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(HERE), str(HERE.parents[2]/"src/pioneer_humanoid")]
 from control import Input
-from isaac_control import ControllerSceneDriver
+from scene_driver import ControllerSceneDriver
 from pioneer_humanoid.arm_params import LEFT_ARM_JOINTS, RIGHT_ARM_JOINTS
 
 
@@ -40,7 +40,7 @@ class ActivationTests(unittest.TestCase):
             return Task()
         def pump():
             calls.append(1)
-            control = Input(np.array([0., 1., 0.]), np.eye(3), False, 0., False, False)
+            control = Input(np.array([0., 1., 0.]), np.eye(3), False, 0., False)
             with driver.shared.lock:
                 driver.shared.packet = {"head": np.eye(3), "left": control, "right": None}
                 driver.shared.received = time.monotonic()
@@ -82,7 +82,7 @@ class ActivationTests(unittest.TestCase):
             driver.close()
 
     def send(self, driver, home, *, grip=False, x=0., left=True, head=True, age=0., calibrate=False, reset=0):
-        control = Input(np.array([x, 1., 0.]), np.eye(3), grip, .4, False, calibrate)
+        control = Input(np.array([x, 1., 0.]), np.eye(3), grip, .4, calibrate)
         with driver.shared.lock:
             driver.shared.packet = {"head": np.eye(3) if head else None,
                                     "left": control if left else None, "right": None}

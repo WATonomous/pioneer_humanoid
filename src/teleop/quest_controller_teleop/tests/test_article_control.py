@@ -12,8 +12,8 @@ from control import Input, Target, quaternion_matrix, rotation_exp, rotation_vec
 from pioneer_humanoid.arm_params import LEFT_ARM_JOINTS, RIGHT_ARM_JOINTS
 
 
-def control(rotation, clutch=True, precision=False, position=None):
-    return Input(np.zeros(3) if position is None else position, rotation, clutch, 0., precision, False)
+def control(rotation, clutch=True, position=None):
+    return Input(np.zeros(3) if position is None else position, rotation, clutch, 0., False)
 
 
 def engage(target, position, rotation):
@@ -95,7 +95,7 @@ class ArticleControlTests(unittest.TestCase):
         target.update(control(rotation_exp(np.array([0., .9, 0.]))), np.eye(3), np.zeros(3), target.rotation.copy())
         np.testing.assert_allclose(rotation_vector(target.rotation), [0., .5, 0.], atol=1e-12)
 
-    def test_multi_axis_conjugation_precision_and_reengagement(self):
+    def test_multi_axis_conjugation_and_reengagement(self):
         mapping = rotation_exp(np.array([.3, .2, -.2]))
         r0 = rotation_exp(np.array([-.1, .3, .2]))
         target = ArticleTarget(calibration=mapping)
@@ -104,8 +104,6 @@ class ArticleControlTests(unittest.TestCase):
             rc = rotation_exp(np.array(vec))
             target.update(control(rc), np.eye(3), np.zeros(3), r0)
             np.testing.assert_allclose(target.rotation, mapping @ rc @ mapping.T @ r0, atol=1e-12)
-        target.update(control(rotation_exp(np.array([.2, 0., 0.])), precision=True), np.eye(3), np.zeros(3), r0)
-        np.testing.assert_allclose(target.rotation, mapping @ rotation_exp(np.array([.05, 0., 0.])) @ mapping.T @ r0, atol=1e-12)
         target.lose_tracking()
         engage(target, np.zeros(3), np.eye(3))
         np.testing.assert_allclose(target.rotation, np.eye(3), atol=1e-12)
