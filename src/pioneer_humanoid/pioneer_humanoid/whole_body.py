@@ -14,6 +14,21 @@ FIST = {
 } | {f"{side}_th_{joint}": angle for side in ("l", "r") for joint, angle in (("c", 0.6), ("f", 0.9), ("mcp", 0.8), ("ip", 0.9))}
 
 
+# Names as they appear in the whole-body URDF (the leg-only model reuses the
+# same leg links, so these are also valid for it). The upper body is merged
+# into the root when ``legs_only=True``, so only the leg links remain.
+WHOLE_BODY_FOOT_BODIES = ["l_foot", "r_foot"]
+WHOLE_BODY_CALF_BODIES = ["l_shank_foot", "r_shank_foot"]
+WHOLE_BODY_LEG_JOINTS = [
+    "Hip_F_.*",
+    "Hip_A_.*",
+    "Hip_R_.*",
+    "Knee_.*",
+    "Ankle_P_.*",
+    "Ankle_R_.*",
+]
+WHOLE_BODY_ANKLE_JOINTS = ["Ankle_P_.*", "Ankle_R_.*"]
+
 # The whole-body humanoid (arms and hands, 44.7 kg) walking on the same 12 leg joints, everything above the hips held rigid.
 WHOLE_BODY_WALKER_CFG = LEG_ONLY_HUMANOID_CFG.replace(
     spawn=LEG_ONLY_HUMANOID_CFG.spawn.replace(

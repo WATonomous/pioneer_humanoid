@@ -8,8 +8,13 @@ from isaaclab.utils import configclass
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
 from pioneer_humanoid.selective_self_collision import enable_selective_self_collision
-from pioneer_humanoid.rough_baseline import ROUGH_NO_STAIRS_BASELINE_CFG
-from pioneer_humanoid.old_leg_only import WHOLE_BODY_HUMANOID_CFG
+from pioneer_humanoid.whole_body import (
+    WHOLE_BODY_ANKLE_JOINTS,
+    WHOLE_BODY_CALF_BODIES,
+    WHOLE_BODY_FOOT_BODIES,
+    WHOLE_BODY_LEG_JOINTS,
+    WHOLE_BODY_WALKER_CFG,
+)
 
 from ... import mdp
 from ...locomotion_env_cfg import LocomotionVelocityRoughEnvCfg, RewardsCfg, TerminationsCfg
@@ -21,9 +26,11 @@ from ...mdp.terrain_contact import (
 
 
 BASE_BODY = "base"
-FOOT_BODIES = ["Foot_L", "Foot_R"]
-LEG_JOINTS = ["Hip_.*", "Knee_.*", "Ankle_.*"]
-ANKLE_JOINTS = ["Ankle_R_.*", "Ankle_P_.*"]
+# The whole-body model's leg links: l_foot/r_foot, l_shank_foot/r_shank_foot.
+FOOT_BODIES = WHOLE_BODY_FOOT_BODIES
+CALF_BODIES = WHOLE_BODY_CALF_BODIES
+LEG_JOINTS = WHOLE_BODY_LEG_JOINTS
+ANKLE_JOINTS = WHOLE_BODY_ANKLE_JOINTS
 
 # Processed position-target bounds for the isolated knee-saturation experiment.
 # The corrected URDF follows the hardware-style [-65, 0] degree convention and
@@ -106,7 +113,7 @@ class PioneerHumanoidRewards(RewardsCfg):
     # gradient at a hard margin boundary).
     # preserve_order=True: feet_crossing_l2 assumes body_ids[0]=left foot,
     # body_ids[1]=right foot -- SceneEntityCfg defaults to asset body index order
-    # otherwise, which isn't guaranteed to match FOOT_BODIES = ["Foot_L", "Foot_R"].
+    # otherwise, which isn't guaranteed to match FOOT_BODIES = ["l_foot", "r_foot"].
     feet_crossing_penalty = RewTerm(
         func=mdp.feet_crossing_l2,
         weight=-40.0,
@@ -168,7 +175,7 @@ class PioneerHumanoidRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
     def __post_init__(self):
         super().__post_init__()
 
-        self.scene.robot = WHOLE_BODY_HUMANOID_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.robot = WHOLE_BODY_WALKER_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         self.scene.height_scanner.prim_path = f"{{ENV_REGEX_NS}}/Robot/{BASE_BODY}"
 
         # Ported from flat_env_cfg.py: G1 never customizes per-joint action scale (it
@@ -342,7 +349,7 @@ class PioneerHumanoidRoughNoStairsSelectiveKneeShapeRewards(PioneerHumanoidRewar
         weight=-40.0,
         params={
             "feet_cfg": SceneEntityCfg("robot", body_names=FOOT_BODIES, preserve_order=True),
-            "calves_cfg": SceneEntityCfg("robot", body_names=["Calf_L", "Calf_R"], preserve_order=True),
+            "calves_cfg": SceneEntityCfg("robot", body_names=CALF_BODIES, preserve_order=True),
             **PIONEER_FOOT_CALF_CAPSULES,
             "margin": 0.01,
         },
@@ -373,11 +380,19 @@ class PioneerHumanoidRoughNoStairsSelectiveKneeShapeRewards(PioneerHumanoidRewar
     )
 
 
-def _configure_selective_self_collision(env_cfg):
-    """Keep physical pair filtering and the reward sensors terrain-specific."""
-    enable_selective_self_collision(env_cfg.scene.robot)
+def _configure_selective_self_collision(env_cfg, enable_physics_filter: bool = True):
+    """Keep physical pair filtering and the reward sensors terrain-specific.
+
+    The physical pair filter in ``selective_self_collision`` is authored for the
+    legacy leg-only hierarchy. The whole-body walker merges its upper body into
+    the root and renames the leg links, so its tasks run with the importer's
+    joint-adjacent filtering only; the foot/calf clearance reward still shapes
+    the crossing behaviour.
+    """
+    if enable_physics_filter:
+        enable_selective_self_collision(env_cfg.scene.robot)
     terrain_filter = f"{env_cfg.scene.terrain.prim_path}/terrain/mesh"
-    for side, foot in (("left", "Foot_L"), ("right", "Foot_R")):
+    for side, foot in zip(("left", "right"), FOOT_BODIES):
         setattr(
             env_cfg.scene,
             f"{side}_foot_terrain_contact",
@@ -418,8 +433,9 @@ class PioneerHumanoidRoughNoStairsSelectiveKneeShapeEnvCfg(PioneerHumanoidRoughE
     def __post_init__(self):
         super().__post_init__()
 
-        # Freeze the trained robot independently of upstream's shared model.
-        self.scene.robot = ROUGH_NO_STAIRS_BASELINE_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        # Walk the whole-body model (arms and head held rigid) on the same 12
+        # leg joints the legacy baseline used.
+        self.scene.robot = WHOLE_BODY_WALKER_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         self.rewards.base_height_l2.params["target_height"] = 0.84
         self.scene.terrain.terrain_generator = PIONEER_ROUGH_NO_STAIRS_TERRAINS_CFG.copy()
         self.scene.terrain.max_init_terrain_level = 1
@@ -427,7 +443,7 @@ class PioneerHumanoidRoughNoStairsSelectiveKneeShapeEnvCfg(PioneerHumanoidRoughE
         self.observations.policy.joint_vel.noise = Unoise(n_min=-0.3, n_max=0.3)
         # These are absolute processed position targets after scale and pose offset.
         self.actions.joint_pos.clip = KNEE_TARGET_CLIP_RAD.copy()
-        _configure_selective_self_collision(self)
+        _configure_selective_self_collision(self, enable_physics_filter=False)
 
 
 @configclass

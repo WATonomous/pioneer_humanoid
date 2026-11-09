@@ -219,13 +219,12 @@ class PioneerHumanoidOnshapeSpiralEnvCfg(PioneerHumanoidOnshapeCourseEnvCfg):
         # absolute (both-legs-the-same-way) roll is still priced by
         # hip_abduction_splay and the ankle terms.
         self.rewards.hip_yaw_splay.weight = 0.0
-        # The splay *is* priced (the lateral foot splay at -2.0 and the hip
-        # abduction splay at -6.0). Leaving it unpriced was tried and it did
-        # not reproduce the climb: with the splay priced, two separate runs
-        # from the splayed donor put the riser bonus at 0.0146 and 0.0096; with
-        # it unpriced the bonus stayed at zero. (A stage-2 curriculum -- learn
-        # the turn with the splay, then price it out -- is the obvious next
-        # step once a policy actually climbs.)
+        # The splay *is* priced by hip_abduction_splay below. Leaving it
+        # unpriced was tried and it did not reproduce the climb: with the splay
+        # priced, two separate runs from the splayed donor put the riser bonus
+        # at 0.0146 and 0.0096; with it unpriced the bonus stayed at zero. (A
+        # stage-2 curriculum -- learn the turn with the splay, then price it
+        # out -- is the obvious next step once a policy actually climbs.)
         #
         # The warm start for this task is the old *splayed* walker -- the only
         # policy in the repo that can already clear a 0.12 m riser, because it
@@ -240,7 +239,9 @@ class PioneerHumanoidOnshapeSpiralEnvCfg(PioneerHumanoidOnshapeCourseEnvCfg):
         # policy has learned to turn and climb the spiral with it, and the
         # splay-free gait is then fine-tuned on top (the same two-stage
         # curriculum the straight course used).
-        self.rewards.foot_lateral_splay.weight = -2.0
+        # The lateral foot-splay term this block used to price is not part of
+        # the current recipe; leg crossing is handled by feet_crossing_penalty.
+        # The splay is instead shaped by hip_abduction_splay below.
         # The hip abduction splay is eased to -1.0 (the straight course's
         # -6.0) for this task. It is the term that forbids the very hip
         # abduction the 0.12 m step-up needs, and the run log shows the
@@ -426,9 +427,9 @@ class PioneerHumanoidOnshapeSpiralEnvCfg(PioneerHumanoidOnshapeCourseEnvCfg):
             func=foot_flat_l2,
             weight=-0.5,
             params={
-                "left_sensor_cfg": SceneEntityCfg("contact_forces", body_names=["Foot_L"]),
-                "right_sensor_cfg": SceneEntityCfg("contact_forces", body_names=["Foot_R"]),
-                "feet_cfg": SceneEntityCfg("robot", body_names=["Foot_L", "Foot_R"]),
+                "left_sensor_cfg": SceneEntityCfg("contact_forces", body_names=["l_foot"]),
+                "right_sensor_cfg": SceneEntityCfg("contact_forces", body_names=["r_foot"]),
+                "feet_cfg": SceneEntityCfg("robot", body_names=["l_foot", "r_foot"]),
                 "local_up": (0.0, 0.0, 1.0),
                 "deadband": 0.23,
                 "landing_window": 0.15,

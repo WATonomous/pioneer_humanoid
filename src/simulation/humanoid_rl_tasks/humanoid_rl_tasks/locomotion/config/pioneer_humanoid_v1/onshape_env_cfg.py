@@ -47,27 +47,22 @@ from isaaclab.managers import EventTermCfg as EventTerm
 from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
-from isaaclab.sensors import ContactSensorCfg
 from isaaclab.utils import configclass
 
 from ...mdp import push_by_setting_velocity
 from ...mdp import shove as shove_mdp
 from ...mdp import stair_course as course_mdp
-from ...mdp.terrain_contact import (
-    TerrainContactSensor,
-    feet_air_time_positive_biped_terrain,
-    feet_slide_terrain,
-)
 from .rough_env_cfg import (
+    FOOT_BODIES,
     LEG_JOINTS,
     PioneerHumanoidRoughNoStairsSelectiveKneeShapeRewards,
     PioneerHumanoidRoughNoStairsSelectiveKneeShapeEnvCfg,
 )
 
-from pioneer_humanoid.leg_only import LEG_ONLY_HUMANOID_CFG
+from pioneer_humanoid.whole_body import WHOLE_BODY_WALKER_CFG
 
-# Body names for the new Pioneer leg-only model (different from old_leg_only)
-ONSHAPE_FOOT_BODIES = ["l_foot", "r_foot"]
+# Body names for the whole-body walker's leg links.
+ONSHAPE_FOOT_BODIES = FOOT_BODIES
 
 
 _ONSHAPE_COURSE_USD = "assets/staircase_onshape/straight_stairs_terrain.usd"
@@ -199,22 +194,15 @@ class PioneerHumanoidOnshapeCourseEnvCfg(PioneerHumanoidRoughNoStairsSelectiveKn
     origin ~0 (spacing 0); scatter comes from the pose ranges.
     """
 
-    # Create rewards instance with overridden feet_crossing_penalty for pioneer_leg_only
+    # Create the course reward set. The inherited feet_crossing_penalty already
+    # uses FOOT_BODIES (l_foot/r_foot), so it needs no per-task override.
     rewards = PioneerHumanoidOnshapeCourseRewards()
-    rewards.feet_crossing_penalty = RewTerm(
-        func=course_mdp.feet_crossing_l2,
-        weight=-40.0,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", body_names=ONSHAPE_FOOT_BODIES, preserve_order=True),
-            "margin": 0.08,
-        },
-    )
 
     def __post_init__(self):
         super().__post_init__()
 
-        # Use the new Pioneer leg-only model (not the legacy old_leg_only)
-        self.scene.robot = LEG_ONLY_HUMANOID_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        # Walk the whole-body model (arms and head held rigid) up the course.
+        self.scene.robot = WHOLE_BODY_WALKER_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
 
         self.scene.terrain.terrain_type = "usd"
@@ -270,37 +258,11 @@ class PioneerHumanoidOnshapeCourseEnvCfg(PioneerHumanoidRoughNoStairsSelectiveKn
         self.commands.base_velocity.ranges.heading = (_YAW_90, _YAW_90)
         self.commands.base_velocity.rel_standing_envs = 0.0
 
-        # Override contact sensors for pioneer_leg_only model (uses l_foot/r_foot)
-        terrain_filter = f"{self.scene.terrain.prim_path}/terrain/mesh"
-        for side, foot in (("left", "l_foot"), ("right", "r_foot")):
-            setattr(
-                self.scene,
-                f"{side}_foot_terrain_contact",
-                ContactSensorCfg(
-                    class_type=TerrainContactSensor,
-                    prim_path=f"{{ENV_REGEX_NS}}/Robot/{foot}",
-                    filter_prim_paths_expr=[terrain_filter],
-                    update_period=self.sim.dt,
-                    history_length=3,
-                    track_air_time=True,
-                ),
-            )
-        # Update reward sensor params to use the new contact sensors
-        sensor_params = {
-            "left_sensor_cfg": SceneEntityCfg("left_foot_terrain_contact"),
-            "right_sensor_cfg": SceneEntityCfg("right_foot_terrain_contact"),
-        }
-        self.rewards.feet_air_time.func = feet_air_time_positive_biped_terrain
-        self.rewards.feet_air_time.params = {
-            **sensor_params,
-            "command_name": "base_velocity",
-            "threshold": self.rewards.feet_air_time.params["threshold"],
-        }
-        self.rewards.feet_slide.func = feet_slide_terrain
-        self.rewards.feet_slide.params = {
-            **sensor_params,
-            "asset_cfg": SceneEntityCfg("robot", body_names=ONSHAPE_FOOT_BODIES, preserve_order=True),
-        }
+        # The terrain-contact sensors and the terrain-relative feet_air_time /
+        # feet_slide terms are already installed by
+        # PioneerHumanoidRoughNoStairsSelectiveKneeShapeEnvCfg's
+        # _configure_selective_self_collision(), using the same whole-body foot
+        # bodies (l_foot/r_foot) and the same /World/ground/terrain/mesh filter.
         # --- Knee range: give the stair task the robot's real knee travel -----
         # The shared recipe clips the knee *target* to -0.95 rad while the joint
         # itself allows -1.134 rad (65 deg). Forward kinematics on this URDF
