@@ -65,7 +65,9 @@ keyboard_teleop --scene <name>      # pass an unknown name to list them
 
 | name | notes |
 |------|-------|
-| `bare` | Empty lightbox workcell — the default `--scene`. |
-| `push` | Ramp-box + block (the RL `push_block` task's scene, re-registered). |
+| `bare` | **Simple**: empty lightbox workcell (table, lightbox with its tube light, robot). |
+| `bare_lab` | **Full lab** — the default `keyboard_teleop --scene`: `bare` plus the lab room (concrete floor, black tiled left wall, glass back wall) and the overhead lighting. Built on `bare`. |
+| `push` | **Simple**: ramp-box + block (the RL `push_block` task's scene, re-registered). |
+| `push_lab` | **Full lab**: `push` plus the lab room and the overhead lighting. The RL push-block env uses this one. |
 | `garment_fold` | Own apartment / worksurface, not the lightbox. Needs `humanoid_garment_fold` installed. |
 | `vial_rack` | Lightbox workcell + `Vial_rack_simple.usda` + 3 loose `Vial_opaque.usda`. Rack/vial xy is a first pass — reach-tune against the LEFT arm while driving it. Assets: `assets/lerobot/so101_vial_task/usd/`. |

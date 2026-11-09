@@ -83,6 +83,7 @@ from pioneer_humanoid.bimanual_arm import (
     resolve_joint_name,
 )
 from humanoid_isaac_scenes import list_scenes, make_scene_cfg, scene_camera, scene_post_init
+from humanoid_rl_tasks.workcell import RENDER_CARB_SETTINGS
 
 
 def _joint_ids(robot, names: list[str]) -> list[int]:
@@ -221,7 +222,11 @@ def main():
     if args_cli.scene not in list_scenes():
         raise SystemExit(f"unknown --scene {args_cli.scene!r}; available: {list_scenes()}")
 
-    sim = sim_utils.SimulationContext(sim_utils.SimulationCfg(dt=0.01, device=args_cli.device))
+    sim = sim_utils.SimulationContext(
+        sim_utils.SimulationCfg(
+            dt=0.01, device=args_cli.device, render=sim_utils.RenderCfg(carb_settings=RENDER_CARB_SETTINGS)
+        )
+    )
     sim.set_camera_view(*(scene_camera(args_cli.scene) or ([2.5, 2.5, 2.0], [0.0, 0.0, 0.8])))
 
     robot_cfg = BIMANUAL_ARM_CFG.replace(

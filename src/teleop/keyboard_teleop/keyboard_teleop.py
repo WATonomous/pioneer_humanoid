@@ -40,8 +40,9 @@ parser = argparse.ArgumentParser(description="Keyboard teleoperation for the Pio
 parser.add_argument(
     "--scene",
     type=str,
-    default="bare",
-    help="scene name: 'bare' (arm only), 'push', or any scene registered in "
+    default="bare_lab",
+    help="scene name: 'bare_lab' (the full lab around an empty table, the default), 'bare' (just table, lightbox and "
+    "arm), 'push_lab' / 'push' (with the ramp box and cube), or any scene registered in "
     "humanoid_isaac_scenes (validated after launch — pass an unknown name to list them)",
 )
 add_record_args(parser, task_description="sim keyboard teleop demonstration")
@@ -84,6 +85,7 @@ from pioneer_humanoid.bimanual_arm import (
     make_camera_cfg,
 )
 from humanoid_isaac_scenes import list_scenes, make_scene_cfg, scene_camera, scene_post_init
+from humanoid_rl_tasks.workcell import RENDER_CARB_SETTINGS
 
 
 def _joint_ids(robot, names: list[str]) -> list[int]:
@@ -314,7 +316,9 @@ def main():
     if args_cli.scene not in list_scenes():
         raise SystemExit(f"unknown --scene {args_cli.scene!r}; available: {list_scenes()}")
 
-    sim_cfg = sim_utils.SimulationCfg(dt=0.01, device=args_cli.device)
+    # Ray-traced reflections and bounce lighting are off in Isaac Lab's default render mode; this is a viewer, so turn them on
+    # (a --rendering_mode on the command line still wins).
+    sim_cfg = sim_utils.SimulationCfg(dt=0.01, device=args_cli.device, render=sim_utils.RenderCfg(rendering_mode="quality", carb_settings=RENDER_CARB_SETTINGS))
     sim = sim_utils.SimulationContext(sim_cfg)
     sim.set_camera_view(*(scene_camera(args_cli.scene) or ([2.5, 2.5, 2.0], [0.0, 0.0, 0.8])))
 
