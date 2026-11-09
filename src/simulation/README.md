@@ -17,6 +17,7 @@ src/simulation/
 ├── mujoco_scenes/          # plain-MuJoCo (CPU) scenes — @scene-discovered
 │   └── humanoid_mujoco_scenes/ #   bare/  peg_insert/
 ├── so101_vial_task/        # SO101 imitation-learning task
+├── newton_scenes/          # Newton (VBD) soft-body scenes: sponge_grip.py
 └── badminton/              # mjlab (MuJoCo Warp) badminton receive RL — see badminton/README.md
 └── whole_body_motion_tracking/  # Links to whole body motion tracking pipeline
 ```
