@@ -11,8 +11,8 @@ Imported by:
   - ``humanoid_isaac_scenes`` -- the teleop registry fills
     ``scene.robot`` and drops ``ee_frame``.
 
-Every world-Z-dependent MDP constant (``FLOOR_Z``, ``FLOOR_Z_COLLISION``,
-``RAMP_BASE_Z``, ``BLOCK_DROP_MIN_Z``) is derived from ``TABLE_TOP_Z`` here, so
+Every world-Z-dependent MDP constant (``FLOOR_Z``, ``RAMP_BASE_Z``,
+``BLOCK_DROP_MIN_Z``) is derived from ``TABLE_TOP_Z`` here, so
 the reward / observation terms stay correct against the raised table.
 """
 from __future__ import annotations
@@ -34,6 +34,7 @@ from ..workcell import (  # noqa: F401  (grounding re-exported for push_env_cfg 
     ROBOT_BASE_X,
     ROBOT_STAND_LIFT_Z,
     TABLE_TOP_Z,
+    LabRoomCfg,
     LightboxWorkcellCfg,
 )
 from .mdp.utils import BLOCK_HALF_SIZE
@@ -65,15 +66,10 @@ BLOCK_INIT_POS = (0.21 - BLOCK_HALF + TASK_X_OFFSET, -BLOCK_HALF, TABLE_TOP_Z)
 RAMP_BASE_X = 0.279 + TASK_X_OFFSET  # ramp meets the table
 RAMP_TOP_X = 0.308 + TASK_X_OFFSET   # ramp meets the interior floor
 RAMP_BASE_Z = TABLE_TOP_Z                    # support-surface height at the ramp base
-FLOOR_Z = TABLE_TOP_Z + 0.0063               # visual interior floor (absolute world Z)
-# Effective COLLISION floor: box USD's collision surface sits ~5 mm above the
-# visual floor, so a settled 50.8 mm block rests at center z ~= FLOOR_Z_COLLISION
-# + BLOCK_HALF. Used by the block_on_floor success check; FLOOR_Z stays the
-# visual value for the ramp_geometry obs and the scoop penalty.
-FLOOR_Z_COLLISION = TABLE_TOP_Z + 0.0115
+FLOOR_Z = TABLE_TOP_Z + 0.0063               # absolute world Z; collider matches the visual
 FLOOR_X_MAX = 0.511 + TASK_X_OFFSET  # interior floor end (back wall)
 FLOOR_Y_HALF = 0.114
-FLOOR_TARGET = (0.37 + TASK_X_OFFSET, 0.0)  # target point on the interior floor (xy)
+FLOOR_TARGET = ((RAMP_TOP_X + FLOOR_X_MAX) / 2, 0.0)  # xy
 
 BLOCK_DROP_MIN_Z = TABLE_TOP_Z - 0.10  # below this = block fell off the table
 
@@ -129,3 +125,8 @@ class PushBlockSceneCfg(LightboxWorkcellCfg):
         init_state=AssetBaseCfg.InitialStateCfg(pos=BOX_POS, rot=BOX_QUAT),
         spawn=UsdFileCfg(usd_path=BOX_USD),
     )
+
+
+@configclass
+class PushBlockLabSceneCfg(PushBlockSceneCfg, LabRoomCfg):
+    """FULL LAB: the push-block scene plus the lab room and overhead lighting (``workcell.LabRoomCfg``)."""

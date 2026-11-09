@@ -7,183 +7,211 @@ grasp.
 
 - **Task package:** `humanoid_rl_tasks.push_block`
 - **Gym IDs:**
-  - `Isaac-Bimanual-Push-Block-v0` — training (512 envs by default)
+  - `Isaac-Bimanual-Push-Block-v0` — training (1024 envs by default)
   - `Isaac-Bimanual-Push-Block-Play-v0` — evaluation (16 envs, no obs corruption)
   - `Isaac-Bimanual-Push-Block-Distill-v0` — vision distillation (camera + teacher/student obs)
   - `Isaac-Bimanual-Push-Block-Distill-Play-v0` — play distilled student
 - **RL agent:** RSL-RL PPO (`agents/rsl_rl_ppo_cfg.py`), experiment name `push_bimanual`
 
+**Two scenes.** `PushBlockSceneCfg` is the simple one (table, lightbox with its tube light, robot, ramp box, block; teleop `--scene push`).
+`PushBlockLabSceneCfg` adds the lab room and the overhead lighting (`workcell.LabRoomCfg`; teleop `--scene push_lab`). It is built on the
+simple one, so a change to the rig reaches both. The RL envs use the lab one; switch `PushBlockEnvCfg.scene` to `PushBlockSceneCfg` for the simple one.
+
 ---
 
 ## Scene & geometry
 
-All positions are in the per-env frame with the robot base at the origin. The box
-is spawned yawed −90° so its up-the-ramp direction aligns with the env **+x** axis
-— i.e. "make progress" always means "increase the block's x".
+All positions are in the per-env frame (world minus the env origin). The arm is on
+a floor stand at `ROBOT_BASE_POS = (0.15, 0, 1.1997)` and the table top is at
+`TABLE_TOP_Z` (both in `workcell.py`). The box is spawned yawed −90° so its
+up-the-ramp direction aligns with the env **+x** axis, so "make progress" always
+means "increase the block's x". `TASK_X_OFFSET = 0.27` shifts the block, ramp, box
+and target together onto the lightbox table; every x below already includes it.
 
 | Landmark | Value | Meaning |
 |---|---|---|
 | Block | 50.8 mm cube (corner-origin USD), `BLOCK_HALF_SIZE = 0.0254` | the object to push |
-| Block start | center ≈ `(0.21, 0.0)` on the table | in front of the ramp mouth |
-| Ramp base | `RAMP_BASE_X = 0.279` | ramp meets the table (z = 0) |
-| Ramp top | `RAMP_TOP_X = 0.308` | ramp meets the interior floor |
-| Floor (visual) | `FLOOR_Z = 0.0063` | interior floor height (obs / scoop) |
-| Floor (collision) | `FLOOR_Z_COLLISION = 0.0115` | effective rest height for success check |
-| Floor extent | `x_max = 0.511`, `|y| ≤ 0.114` | interior floor footprint |
-| Target | `FLOOR_TARGET = (0.37, 0.0)` | goal point on the interior floor |
+| Block start | center ≈ `(0.48, 0.0)` on the table | in front of the ramp mouth |
+| Ramp base | `RAMP_BASE_X = 0.549` | ramp meets the table |
+| Ramp top | `RAMP_TOP_X = 0.578` | ramp meets the interior floor |
+| Floor | `FLOOR_Z = TABLE_TOP_Z + 0.0063` | interior floor height (obs and success check; the collider matches the visual) |
+| Floor extent | `0.578 ≤ x ≤ FLOOR_X_MAX = 0.781`, `|y| ≤ 0.114` | interior floor footprint |
+| Target | `FLOOR_TARGET = ((RAMP_TOP_X + FLOOR_X_MAX) / 2, 0) = (0.6795, 0)` | centered on the interior floor |
 
 The block is a dynamic `RigidObject`; the box (ramp + walls) is a static
-collider (`AssetBaseCfg`, no rigid-body API).
+collider (`AssetBaseCfg`, no rigid-body API). All of these constants live in
+`scene.py`.
 
 ---
 
 ## Getting it running
 
-Prerequisites: an Isaac Lab 2.3 / Isaac Sim 5.1 environment with this task
-package importable, plus the host project's RSL-RL `train` / `play` /
-`list_envs` entry points (the standard Isaac Lab external-project workflow). The
-commands below assume those entry points are available and are run from the host
-project root.
-
-This folder provides only the task itself — the environment configs, MDP terms
-(rewards, observations, events, terminations, curriculum), and the PPO agent
-config. It does not ship the training/eval launcher scripts or the robot/box/block
-assets; those come from the host project.
-
-Confirm the task is registered:
-
-```bash
-uv run list_envs | grep Push
-```
-
-Sanity-check the environment with dummy agents (opens the GUI):
-
-```bash
-uv run zero_agent   --task Isaac-Bimanual-Push-Block-Play-v0   # zero actions
-uv run random_agent --task Isaac-Bimanual-Push-Block-Play-v0   # random actions
-```
+Run everything inside the `simulation_isaac` container (`./watod -t simulation_isaac`).
+The launchers are `humanoid_rl/humanoid_rl/scripts/train.py` and `play.py`, exposed as
+the `rl-train` and `rl-play` aliases.
 
 ### Train
 
 ```bash
-uv run train --task Isaac-Bimanual-Push-Block-v0 --headless
+rl-train --task Isaac-Bimanual-Push-Block-v0 --headless \
+  --num_envs 8192 --max_iterations 500 --run_name my_run
 ```
 
-Useful flags (provided by the host project's RSL-RL training entry point):
-
 - `--headless` — no GUI (recommended for training)
-- `--num_envs N` — override env count (default 512; the aggressive curriculum runs used 4096)
+- `--num_envs N` — override the env count (default 1024 from `PushBlockSceneCfg`)
 - `--max_iterations N` — override the 1500-iteration default
-- `--seed N`, `--video` — reproducibility / record rollout videos
+- `--run_name` — label appended to the run folder; `--seed N`, `--video` also available
 
-Checkpoints are written to `outputs/rl/push_block/<timestamp>[_<run_name>]/`
+Checkpoints are written to `outputs/rl/push_bimanual/<timestamp>[_<run_name>]/`
 (`save_interval = 50`).
 
 **Resume / finetune** from an existing checkpoint:
 
 ```bash
-uv run train --task Isaac-Bimanual-Push-Block-v0 --headless \
-  --resume --load_run <folder_name> --checkpoint model_1998.pt \
-  --run_name my_finetune --max_iterations 3000
+rl-train --task Isaac-Bimanual-Push-Block-v0 --headless \
+  --resume True --load_run <folder_name> --checkpoint model_300.pt \
+  --run_name my_finetune --max_iterations 1000
 ```
+
+The step counter restarts on resume, so the DR ramp (below) restarts too.
 
 ### Evaluate (play)
 
 ```bash
-uv run play --task Isaac-Bimanual-Push-Block-Play-v0 --load_run <folder_name>
+rl-play --task Isaac-Bimanual-Push-Block-Play-v0 --num_envs 4                      # newest checkpoint of the newest run
+rl-play --task Isaac-Bimanual-Push-Block-Play-v0 --num_envs 4 \
+  --checkpoint outputs/rl/push_bimanual/<folder_name>/model_150.pt                 # a specific one
 ```
 
-Play exports `exported/policy.pt` (TorchScript) and `policy.onnx` before the
-sim loop. **Gotcha:** `--checkpoint <name>` is resolved literally against the CWD
-and ignores `--load_run` — pass a full absolute path to `--checkpoint`, or omit it
-and rely on `--load_run` alone.
+Play runs at full training difficulty (all domain randomization, observation noise and the final spawn range) and
+exports `exported/policy.pt` (TorchScript) and `policy.onnx` before the sim loop.
+**Gotcha:** `--checkpoint` is resolved literally and ignores `--load_run`; give a
+real path, or omit it to load the latest from `outputs/rl/push_bimanual/`.
+
+Kit used to abort a few seconds after the lab scene rendered ("unlock() called by non-owning thread"): a race in its
+texture streaming once the room's three textures load together. The sims turn streaming off (`workcell.RENDER_CARB_SETTINGS`),
+so no `--kit_args=--/plugins/carb.tasking.plugin/threadCount=1` is needed.
 
 ---
 
 ## Observations & actions
 
-**Actions** (`ActionsCfg`): joint-position targets for the arm only —
-`shoulder_.*`, `elbow_flex`, `wrist_.*` (scale 0.5, default offset). The gripper
-joint has no action term, so its PD actuator holds it closed. 5 action dims.
+**Actions** (`ActionsCfg`): joint-position targets for the six left-arm joints,
+`LEFT_ARM_JOINTS` (`joint1L` … `joint6l`), scale 0.5 rad, default offset. The
+gripper has no action term and starts closed (`JOINT_POS_LIMITS` closed values).
+Isaac Lab leaves un-commanded joint targets at zero (= open), so the reset event
+passes `reset_joint_targets=True` to hold the closed pose.
 
 **Observations** (`ObservationsCfg.PolicyCfg`, concatenated, corruption on in
-training): joint pos/vel (relative), EE position in root frame, block center in
-root frame, block orientation, block linear velocity, constant ramp geometry
-(base x, top x, floor z, target xy, push-dir xy), and last action. 37 dims total.
+training): joint pos/vel (relative; with noise, see Domain randomization), EE
+position in the root frame, block center in the root frame, block orientation,
+block linear velocity, constant ramp geometry, and last action. The EE point is
+the fingertip midpoint (next section). The checkpoint's input size must match
+this layout.
 
 ---
 
 ## Reward function
 
 Weighted sum of the terms below (`RewardsCfg` in `push_env_cfg.py`, implemented in
-`mdp/rewards.py`). Everything is expressed in the env frame with **+x = up the
-ramp**.
+`mdp/rewards.py`). Everything is in the env frame with **+x = up the ramp**.
+`temp` is a sharpness in 1/m: the reward falls to 37% at a distance of `1 / temp`.
 
-| Term | Weight | What it does |
-|---|---:|---|
-| `ee_behind_block` | **+2.0** | tanh reach reward for keeping the EE just *behind* the block (`center − 0.05·x̂`), the side you push from |
-| `push_progress` | **+5.0** | dense signed block x-velocity, clamped to ±0.5 — rewards advancing up the ramp, penalizes sliding back |
-| `backslide` | **−8.0** | extra asymmetric penalty on the *backward* (−x) block speed only |
-| `block_to_target` | **+8.0** | tanh distance from block center to the floor target `(0.37, 0)`, wide kernel `std = 0.15` |
-| `block_to_target_fine` | **+5.0** | same, sharp kernel `std = 0.05` — precise final placement |
-| `block_on_floor` | **+30.0** | **success bonus**: block center inside the floor footprint, at floor rest height, and nearly at rest (`speed < 0.05`) |
-| `scoop_penalty` | **−40.0** | location-aware anti-cheat: penalizes block height above the *local* support surface, but only when the block is *outside* the ramp+box footprint (≈0 on the ramp/floor where height gain is required) — stops the arm from lifting/scooping the block in open table space |
-| `lateral_deviation` | **−10.0** | penalizes sideways drift `|y|` beyond a 0.06 m corridor |
-| `ee_reposition` | **0.0 → 1.5** | shaping to route the EE behind an *off-corridor* block toward the ramp mouth; off by default, switched on by the curriculum at stage ≥ 2 |
-| `action_rate` | −1e-4 → −1e-2 | action-smoothness penalty (raised by curriculum at 10 k steps) |
-| `joint_vel` | −1e-4 → −1e-2 | joint-velocity penalty (raised by curriculum at 10 k steps) |
+| Term | Weight | `temp` | What it does |
+|---|---:|---:|---|
+| `ee_behind_block` | **+1.0** | 15 | `exp(−temp·d)`, d = 3D distance from the fingertip midpoint to the push point: 6.5 cm from the block centre at angle `2N` from straight behind (N = angle between the block→goal line and the centerline, clamped to 80°), so off-centre blocks are pushed back toward the centerline. The point moves with the block |
+| `block_to_target` | **+2.0** | 5 | `exp(−temp·d)`, d = xy distance from the block center to `FLOOR_TARGET` |
+| `action_smoothness` | **−0.1** | 0.5 | `1 − exp(−temp·‖Δaction‖)`, bounded in [0, 1): penalizes step-to-step action changes (jitter) |
+
+**Success metric.** The `success_rate_logger` curriculum term logs `Curriculum/success/success_rate`:
+the fraction of the last 2000 episodes that ended with the block on the interior floor, at floor
+height and nearly at rest (`block_on_floor` in `mdp/rewards.py`, bounds in `CurriculumCfg`). It is
+a log only and has no effect on training.
+
+**End-effector point.** The fingertip midpoint is the wrist link (`link6l`) plus the
+fixed offset `LEFT_GRIPPER_TIP_OFFSET` in `pioneer_humanoid/arm_params.py`, applied
+through the `ee_frame` `OffsetCfg`. `check_gripper_tip_offset` (`mdp/events.py`)
+measures the fingertips from the finger meshes at startup and every 10 PPO
+iterations, and prints one red line with the value to paste if it is more than 2 mm
+off. The fingertip of each fin-ray finger is the centroid of its mesh points within 3 mm of the
+distal end (lowest point along the finger), so the midpoint is the centre of the two distal edges.
+For the fin-ray fingers on the pitch wrist it is (−0.00693, 0.00703, −0.25485) in the `link6l` frame, 10 cm further out
+than the old fingers' (0, 0.053, −0.15638): a teacher trained on the old offset has to be retrained.
+The two fingers can be deflected a few mm by arm motion, which may trigger spurious warnings.
 
 ### How the shaping fits together
 
-1. **Get behind the block** — `ee_behind_block` pulls the EE to the push point.
-2. **Drive it up the ramp** — `push_progress` rewards +x motion; `backslide`
-   punishes losing ground; `lateral_deviation` keeps it in the corridor.
-3. **Land it on the target** — `block_to_target` (coarse) + `_fine` (precise)
-   guide the block to `(0.37, 0)`.
-4. **Settle it** — `block_on_floor` pays a large one-shot bonus once the block is
-   inside the footprint, at floor height, and at rest.
-5. **Don't cheat** — `scoop_penalty` makes lifting the block in open space
-   costly, while staying ≈0 on the ramp/floor where climbing is legitimate.
-6. **Reposition when needed** — for hard spawns beside/behind the box,
-   `ee_reposition` (enabled by the curriculum) routes the EE to push the block
-   back toward the ramp mouth rather than straight +x.
+1. **Get behind the block** — `ee_behind_block` pulls the fingertips to the push point (behind and to the outside of an off-centre block).
+2. **Land it on the target** — `block_to_target` pulls the block toward the floor center.
+3. **Stay smooth** — `action_smoothness` penalizes jitter.
+4. **Measure success** — `success_rate_logger` logs how often an episode ends on the floor.
 
 ### Terminations (`TerminationsCfg`)
 
-- `time_out` — episode length 5.0 s.
-- `object_dropping` — block falls below −0.05 m (off the table).
-- `block_off_course` — block leaves the corridor: `x < 0.05`, `x > 0.55`, or
-  `|y| > 0.20`.
+- `time_out` — episode length 5.0 s (250 steps at 50 Hz).
+- `object_dropping` — block falls below `BLOCK_DROP_MIN_Z = TABLE_TOP_Z − 0.10`.
+- `block_off_course` — `x < 0.05`, `x > 0.8`, or `|y| > 0.20` (literals in `push_env_cfg.py`).
 
 ---
 
-## Spawn curriculum
+## Spawn randomization
 
-`CurriculumCfg.spawn` (`mdp/curriculums.py`, `spawn_offset_curriculum`)
-performance-gates the block's spawn randomization. It widens the block's spawn
-*offset* range one stage at a time around the fixed `(0.21, 0)` anchor:
+`reset_block_center_uniform` re-places the block at every reset around the
+`(0.48, 0)` anchor with a fully random yaw. Box-footprint spawns are rejected and
+re-sampled.
 
-| Stage | x offset | y offset | notes |
+The offset range is ramped by `spawn_ramp` (`mdp/curriculums.py`), linearly between
+`SPAWN_RAMP_START_ITER = 200` and `SPAWN_RAMP_END_ITER = 300` (knobs at the top of
+`push_env_cfg.py`), after the DR ramp has finished:
+
+| | x offset (m) | y offset (m) |
+|---|---|---|
+| Start, `SPAWN_STAGES[0]` | (−0.06, 0.02) | (−0.06, 0.06) |
+| End, `SPAWN_RAMP_TARGET = SPAWN_STAGES[1]` | (−0.10, 0.05) | (−0.12, 0.12) |
+
+`SPAWN_STAGES[2:]` put the block beside the box, which needs a repositioning skill the
+current reward has no term for, so they are not used. `spawn_offset_curriculum` is the
+older performance-gated version and is not registered. Logged as `Curriculum/spawn_ramp`
+(0 → 1). The play configs switch the ramp off, so play uses the narrow start range.
+
+---
+
+## Domain randomization
+
+All knobs are the `DR_*` constants at the top of `push_env_cfg.py`. They are used by
+the events in `EventCfg`, the observation noise in `PolicyCfg`, and the ramp in
+`CurriculumCfg`.
+
+| Knob | Default | Unit | Applies to |
 |---|---|---|---|
-| 0 | (−0.06, 0.02) | (−0.06, 0.06) | moderate, ramp-approach side |
-| 1 | (−0.10, 0.05) | (−0.12, 0.12) | wider, out to the ramp mouth edges |
-| 2 | (−0.12, 0.20) | (−0.20, 0.20) | **reaches beside the box** → `ee_reposition` turns on |
-| 3 | (−0.14, 0.30) | (−0.26, 0.26) | full reachable table incl. beside/behind box |
+| `DR_BLOCK_STATIC_FRICTION` / `DR_BLOCK_DYNAMIC_FRICTION` | (0.4, 1.0) / (0.3, 0.8) | coefficient | block, startup |
+| `DR_FINGER_STATIC_FRICTION` / `DR_FINGER_DYNAMIC_FRICTION` | (0.5, 1.2) / (0.4, 1.0) | coefficient | fingertip links, startup |
+| `DR_RESTITUTION` | (0.0, 0.05) | | block and fingertips |
+| `DR_BLOCK_MASS_SCALE` | (0.8, 1.2) | × nominal | block, reset |
+| `DR_ARM_LINK_MASS_SCALE` | (0.9, 1.2) | × nominal | all robot links, reset |
+| `DR_ARM_STIFFNESS_SCALE` / `DR_ARM_DAMPING_SCALE` | (0.6, 1.2) / (0.8, 1.2) | × nominal | left-arm joints only (not the gripper), reset |
+| `DR_JOINT_POS_NOISE` / `DR_JOINT_VEL_NOISE` | 0.01 / 0.2 | rad / rad/s | observation noise, training only |
 
-Yaw is always fully randomized. A stage advances only once **both** hold: the
-policy has trained at that stage for ≥ `min_stage_steps` (1200 env steps), **and**
-the rolling `block_on_floor` success rate over the last 100 episodes clears
-`threshold = 0.70`. The dwell gate prevents a competent (resumed) policy from
-cascading through all stages within one PPO iteration. Box-footprint spawns are
-rejected and re-sampled so a widened range never drops the block inside the walls.
+"Arm sag" has no knob of its own: it comes from gravity load against joint
+stiffness, so it is covered by the stiffness scale (below 1 = softer = more sag) and
+the link mass scale.
 
-Logged under `Curriculum/spawn/{stage, success_rate, x_off_hi, reposition_active}`.
+**Ramp.** `DR_RAMP_START_ITER = 100` to `DR_RAMP_END_ITER = 200`: the `dr_ramp`
+curriculum term (`mdp/curriculums.py`) linearly moves mass, actuator gains and
+observation noise from nominal to the full ranges above, and logs `Curriculum/dr_ramp`
+(0 → 1). `PPO_STEPS_PER_ITER` must equal `num_steps_per_env`. **Friction is not ramped:**
+its materials are sampled once at startup, so it is at full range from iteration 0.
+The ramp edits the observation manager's private term configs (Isaac Lab 2.3.2).
+
+The nominal friction of the block, fingertips and table was not checked, so the
+friction ranges are a first guess. There is no action delay or latency randomization.
+The play configs switch these events and the ramp off.
 
 ---
 
 ## Minimal vision distillation
 
-Distills a privileged PPO teacher into a camera student (RGB 64×64 + proprio, no
+Distills a privileged PPO teacher into a camera student (the robot's own ego and left-wrist cameras at 160×120 + proprio, no
 block state). Uses a small custom DAgger-style loop (`rsl_rl_scripts/distill_push.py`),
 not RSL-RL's MLP-only DistillationRunner.
 
@@ -206,18 +234,35 @@ PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/play_distill_push.py \
 
 Checkpoints land in `outputs/rl/push_distill/<timestamp>/nn/`.
 
+The distillation env runs at full DR and the full spawn range from iteration 0 (it drops the `dr_ramp` and `spawn_ramp` curriculum terms), so no `RESUME_ITER` is needed.
+
+**Cameras.** Both come from `pioneer_humanoid/arm_params.py` (`CAMERAS`: `ego` on `base_link`, `wrist_left` on
+`link6l`; `wrist_right` is not used). They are `TiledCameraCfg` (built in `distill_env_cfg.py` from the same mount and lens as
+`bimanual_arm.make_camera_cfg`) because per-env `CameraCfg` cameras fail at 64 envs. The image size is
+`STUDENT_IMG_WIDTH/HEIGHT` in `distill_env_cfg.py` (4:3 is required by the calibration). `mdp.image` divides by 255 and
+subtracts each image's per-channel mean, and deployment must do the same. The ego intrinsics in `arm_params` are an
+estimate; the wrist lens is measured.
+
 ### Vision domain randomization (sim2real template)
 
 Train distill env (`*-Distill-v0`) runs reset-time vision DR via `mdp/vision_dr.py`:
 
 | Term | What |
 |------|------|
-| Camera | ±3 cm position, ±3° look-at jitter on the external tiled cam |
-| Light | Dome intensity 1500–4500, mild RGB tint |
-| Materials | Diffuse tint / roughness / metallic on table, block, box |
-| Textures | Random pick from `tasks/push/assets/textures/` (3 small PNGs) |
+| Camera mounts | ego ±1 cm / ±2°, left wrist ±1 mm / ±2°, around the mounts in `arm_params.CAMERAS` (guesses until the real tolerance is known) |
+| Light | Workcell lights (`workcell.py`), stage-global: the tube light (`/World/tube_light`) keeps its colour and varies ×0.6–1.0 of nominal; the dim dome (`/World/light`) and the warm room light (`/World/room_light`) each vary ×0.5–1.5 with a mild RGB tint on their own draws |
+| Back wall | One of 3 photos of the view through the lab's glass wall (`assets/props/lab_room/textures/glass_view_*.jpg`), picked per reset, shared by all envs |
+| Materials | Per-object colour around the real colour (cube red, tray blue, table white), roughness and metallic: `VISION_MATERIAL_TARGETS` in `distill_env_cfg.py` |
+| Textures | Off (`apply_textures: False`): the real surfaces are plain. The 3 PNGs in `assets/textures/` are unused |
 
-Play distill (`*-Distill-Play-v0`) keeps vision DR **off** for clean eval. To scale
+Student proprio noise is on in the train env: joint pos ±0.01 rad, joint vel ±0.2 rad/s (same as the teacher's DR knobs), ee position ±5 mm; the last action is exact. The teacher's observations stay clean.
+`distill_push.py` also augments the student's images when computing the loss (`student_policy.augment_rgb`: shift ±4 px, contrast ×0.8–1.2, per-channel gain ×0.9–1.1, pixel noise σ=0.02); `--no_image_aug` turns it off. It acts on the clean images, so the logged success is the deployed student's.
+
+**No frame history needed for this task.** The student sees a single frame per camera (`--history 1`, the default) plus proprio, with no
+memory, and `student_v3_colors` still reached ~98.2% success at full difficulty against the teacher's ~98.6%. `--history` stays as an option
+but is not worth using here.
+
+Play distill (`*-Distill-Play-v0`) runs the same vision DR events as training; proprio noise and augmentation are **off**. To scale
 sim2real later: widen the ranges in `DistillEventCfg` and/or drop more PNGs into
 `assets/textures/` (no Git LFS required for a small pack).
 
@@ -227,10 +272,10 @@ This distill path is intentionally a **mono-RGB + light sim2real template**:
 
 | Area | This push distill setup | Fuller stacks (e.g. DextrAH-style) |
 |------|-------------------------|-------------------------------------|
-| Sensors | Single external RGB (64×64) | Mono and/or stereo RGB, optional depth |
+| Sensors | Ego + left-wrist RGB (160×120 each, separate CNN per camera) | Mono and/or stereo RGB, optional depth |
 | Vision DR | Camera jitter, dome tint/intensity, material tint/roughness, small texture pack | Large texture/HDRI packs, arm appearance DR, richer lighting |
-| Image augs | None (env appearance only) | Post-render RGB/depth augs (color jitter, blur, background paste, depth noise) |
-| Physics DR | Task spawn curriculum + existing push MDP | Full ADR (friction, mass, joint gains, obs noise, etc.), often maxed during distill |
+| Image augs | Random shift, contrast, colour cast, pixel noise at training time (`augment_rgb`) | Post-render RGB/depth augs (color jitter, blur, background paste, depth noise) |
+| Physics DR | Friction, block/link mass, arm gains, joint obs noise (mass/gains/noise ramped); no latency | Full ADR (friction, mass, joint gains, obs noise, etc.), often maxed during distill |
 | Student train loop | Custom DAgger/BC over RSL-RL teacher | Custom distill loop (often rl-games), aux heads, multi-GPU |
 
 **Main differences:** we stay on pure RGB with a lighter DR template; fuller systems add depth/stereo, heavier appearance DR, post-render augs, and stronger physics ADR. Same idea (privileged teacher → vision student); they scale sensors and randomization further.
@@ -243,5 +288,5 @@ This distill path is intentionally a **mono-RGB + light sim2real template**:
 
 `num_steps_per_env = 24`, `max_iterations = 1500`, MLP actor/critic
 `[256, 128, 64]` (ELU), `learning_rate = 3.333e-5` (adaptive schedule),
-`gamma = 0.98`, `lam = 0.95`, `entropy_coef = 0.006`, `clip = 0.2`,
+`gamma = 0.98`, `lam = 0.95`, `entropy_coef = 0.002`, `clip = 0.2`,
 `desired_kl = 0.01`.
