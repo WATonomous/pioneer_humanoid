@@ -31,6 +31,7 @@ from isaaclab.app import AppLauncher
 # in the image; this fallback keeps a bare bind-mounted checkout working.
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "pioneer_humanoid"))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "robot_learning"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "simulation" / "isaac_scenes"))   # humanoid_isaac_scenes, if the image predates its install
 
 from humanoid_robot_learning.sim.sim_teleop_record import (  # noqa: E402
     add_record_args,
@@ -224,7 +225,7 @@ def main():
 
     sim = sim_utils.SimulationContext(
         sim_utils.SimulationCfg(
-            dt=0.01, device=args_cli.device, render=sim_utils.RenderCfg(carb_settings=RENDER_CARB_SETTINGS)
+            dt=0.01, device=args_cli.device, render=sim_utils.RenderCfg(rendering_mode="quality", carb_settings=RENDER_CARB_SETTINGS)
         )
     )
     sim.set_camera_view(*(scene_camera(args_cli.scene) or ([2.5, 2.5, 2.0], [0.0, 0.0, 0.8])))

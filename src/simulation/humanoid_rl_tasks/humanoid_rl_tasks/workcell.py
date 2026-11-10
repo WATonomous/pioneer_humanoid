@@ -45,7 +45,10 @@ LIGHTBOX_USD = str(_PROPS / "lightbox.usd")
 LAB_ROOM_USD = str(_PROPS / "lab_room.usd")  # concrete floor, black tiled left wall, glass back wall (visual only)
 # Photos of the view through the lab's glass wall; the back wall shows one of them (picked at random by the vision DR).
 LAB_BACK_WALL_TEXTURES = tuple(str(_PROPS / "lab_room" / "textures" / f"glass_view_{i}.jpg") for i in range(3))
-LAB_BACK_WALL_TEXTURE_PRIM = "/World/LabRoom/Looks/GlassView/tex"
+LAB_BACK_WALL_TEXTURE_PRIM = "/LabRoom/Looks/GlassView/tex"   # under each env: every env has its own room
+# The room spans x -0.76..1.10, y -2.60..1.25 around its env's origin, so envs of a scene with a room are at least this far apart
+# (4 m) and each sees only its own room.
+LAB_ROOM_ENV_SPACING = 4.0
 
 # ── arm on its floor stand ───────────────────────────────────────────────────
 ROBOT_STAND_LIFT_Z = 1.1997   # base_link lift so the stand's feet reach floor level
@@ -107,25 +110,25 @@ LAB_WORKCELL_CAMERA = ([-0.7, -1.8, 1.8], [0.8, 0.1, 0.9])
 ROOM_LIGHT_POS = (0.48 - 1.0, LIGHTBOX_POS[1], TABLE_TOP_Z + 1.5)
 ROOM_LIGHT_COLOR = (1.0, 0.8, 0.6)
 ROOM_LIGHT_RADIUS = 0.3
-ROOM_LIGHT_INTENSITY = 100000.0
+ROOM_LIGHT_INTENSITY = 60000.0
 DOME_INTENSITY = 400.0
-TUBE_INTENSITY = 140000.0
+TUBE_INTENSITY = 80000.0
 
 
 @configclass
 class WhiteboardSurfaceCfg(sim_utils.MdlFileCfg):
     """A glossy white dry-erase board, as an Omniverse OmniPBR material (the renderer's full reflection model).
 
-    A high-gloss board is above ~70 GU at 60 deg, i.e. nearly mirror-smooth, and cured melamine resin has a refractive
-    index of ~1.5-1.7 (5-7% reflectance at normal incidence): so a very low reflection roughness and full specular level.
-    A true dielectric (metallic 0) only reflects ~5-8% of the scene, which vanishes against the bright white box, so
-    ``metallic_constant`` is raised to 0.5 to make the reflections read (1.0 is a perfect mirror)."""
+    A glossy dielectric-like board that reads as a whiteboard, not a mirror: a low reflection roughness for a smooth wiped
+    surface and a moderate ``metallic_constant`` (0.35) so the arm and lights show as a clear but faint reflection. Tried and
+    rejected: a plain dielectric (metallic ~0, roughness 0.12) and an ``OmniPBR_ClearCoat`` build (IOR 1.56-2.2) showed no
+    visible reflection in the camera; the old 0.5 was close to a mirror. Omniverse has no whiteboard preset."""
 
     mdl_path: str = "OmniPBR.mdl"
-    diffuse_color_constant: tuple[float, float, float] = (0.86, 0.86, 0.87)
-    reflection_roughness_constant: float = 0.02
+    diffuse_color_constant: tuple[float, float, float] = (0.9, 0.9, 0.91)
+    reflection_roughness_constant: float = 0.04
     specular_level: float = 1.0
-    metallic_constant: float = 0.5
+    metallic_constant: float = 0.35
 
 
 _BOARD = WhiteboardSurfaceCfg()
@@ -133,6 +136,10 @@ _HOUSING = sim_utils.PreviewSurfaceCfg(diffuse_color=(0.04, 0.04, 0.045), roughn
 _SEAM_Y, _BOARD_HALF_Y, _SEAM_HALF = -0.01, 0.745, 0.002   # the seam is 4 mm wide
 _BOARD_X, _BOARD_LEN_X = _TABLE_POS[0], 24 * 0.0254 - 0.008
 _BOARD_Z = TABLE_TOP_Z + BOTTOM_PANEL - 0.0003
+# The real table surface a block can sit on (the white boards inside the lightbox), env frame. The table's invisible collision
+# slab reaches past this (a block beyond the front edge is still held up in the sim but would hang in mid-air on the render
+# and fall on the real table), so anything that places objects uses these bounds, not the collision.
+TABLE_SURFACE = dict(x_min=_BOARD_X - _BOARD_LEN_X / 2, x_max=_BOARD_X + _BOARD_LEN_X / 2, y_abs=_BOARD_HALF_Y)
 _HANGER_H = (LIGHTBOX_TOP_Z - 0.02) - (TUBE_POS[2] + TUBE_R) + 0.004
 _HANGER_Z = (LIGHTBOX_TOP_Z - 0.02 + TUBE_POS[2] + TUBE_R) / 2
 
@@ -154,7 +161,7 @@ class LightboxWorkcellCfg(InteractiveSceneCfg):
         spawn=GroundPlaneCfg(visible=False),
     )
     tube_light = AssetBaseCfg(
-        prim_path="/World/tube_light",
+        prim_path="{ENV_REGEX_NS}/TubeLight",
         init_state=AssetBaseCfg.InitialStateCfg(pos=(TUBE_POS[0] + 0.004, TUBE_POS[1], TUBE_POS[2] - TUBE_R - 0.02),
                                                 rot=(0.70710678, 0.0, 0.0, 0.70710678)),   # its length (local X) along Y
         spawn=sim_utils.CylinderLightCfg(length=2 * TUBE_HALF_LEN, radius=0.012, intensity=TUBE_INTENSITY,
@@ -234,15 +241,18 @@ class LightboxWorkcellCfg(InteractiveSceneCfg):
 @configclass
 class LabRoomCfg:
     """The lab around the box: concrete floor, black tiled wall on the robot's left (+y), the glass wall behind the box
-    (+x), the faint dome and the warm overhead room light. A mixin: add it to any scene class to get its full-lab twin."""
+    (+x), the faint dome and the warm overhead room light. A mixin: add it to any scene class to get its full-lab twin.
 
-    lab_room = AssetBaseCfg(prim_path="/World/LabRoom", spawn=UsdFileCfg(usd_path=LAB_ROOM_USD))
+    The room and its light are per env (under ``{ENV_REGEX_NS}``), so parallel envs are isolated copies; only the faint dome
+    is global. Use ``env_spacing >= LAB_ROOM_ENV_SPACING`` with several envs."""
+
+    lab_room = AssetBaseCfg(prim_path="{ENV_REGEX_NS}/LabRoom", spawn=UsdFileCfg(usd_path=LAB_ROOM_USD))
     light = AssetBaseCfg(
         prim_path="/World/light",
         spawn=sim_utils.DomeLightCfg(color=(0.75, 0.75, 0.75), intensity=DOME_INTENSITY),
     )
     room_light = AssetBaseCfg(
-        prim_path="/World/room_light",
+        prim_path="{ENV_REGEX_NS}/RoomLight",
         init_state=AssetBaseCfg.InitialStateCfg(pos=ROOM_LIGHT_POS),
         spawn=sim_utils.DiskLightCfg(radius=ROOM_LIGHT_RADIUS, color=ROOM_LIGHT_COLOR, intensity=ROOM_LIGHT_INTENSITY),
     )
