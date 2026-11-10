@@ -149,9 +149,9 @@ class GarmentPioneerEnv(GarmentEnv):
                 rigid_props=sim_utils.RigidBodyPropertiesCfg(kinematic_enabled=True),
                 collision_props=sim_utils.CollisionPropertiesCfg(),
             )
-            # standalone Table038.usd is Y-up; rotate +90 deg about X to lay flat
+            # The committed Table038.usd is already Z-up; keep it upright.
             t.func("/World/Table", t, translation=(0.0, 0.0, 0.0),
-                   orientation=(0.7071068, 0.7071068, 0.0, 0.0))
+                   orientation=(1.0, 0.0, 0.0, 0.0))
         else:
             logger.warning(
                 "[GarmentPioneerEnv] no scene or table USD found -- garment will "

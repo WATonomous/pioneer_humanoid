@@ -91,7 +91,8 @@ _GROUND_DEFAULT = (
 _TABLE_DEFAULT = (
     AssetBaseCfg(
         prim_path="/World/Table",
-        init_state=AssetBaseCfg.InitialStateCfg(rot=(0.7071068, 0.7071068, 0.0, 0.0)),
+        # The committed Table038 is already Z-up; +90deg X lays it on its side.
+        init_state=AssetBaseCfg.InitialStateCfg(rot=(1.0, 0.0, 0.0, 0.0)),
         spawn=UsdFileCfg(
             usd_path=TABLE038_USD_PATH,
             rigid_props=sim_utils.RigidBodyPropertiesCfg(kinematic_enabled=True),
