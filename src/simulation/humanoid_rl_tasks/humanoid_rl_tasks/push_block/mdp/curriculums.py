@@ -7,13 +7,15 @@ from typing import TYPE_CHECKING
 import torch
 from isaaclab.managers import ManagerTermBase
 
+from .rewards import block_on_floor
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from isaaclab.envs import ManagerBasedRLEnv
     from isaaclab.managers import CurriculumTermCfg
 
-__all__ = ["spawn_offset_curriculum"]
+__all__ = ["spawn_offset_curriculum", "dr_ramp", "spawn_ramp", "success_rate_logger"]
 
 
 class spawn_offset_curriculum(ManagerTermBase):
@@ -144,3 +146,138 @@ class spawn_offset_curriculum(ManagerTermBase):
             "x_off_hi": float(self._stages[self._stage]["x"][1]),
             "reposition_active": float(self._stage >= self._reposition_start_stage),
         }
+
+
+class dr_ramp(ManagerTermBase):
+    """Linearly ramps domain randomization from none to full strength between two PPO iterations.
+
+    Each ``event_ranges`` entry maps an event term to {param name: (full range, center)}; the param is set to
+    ``center + alpha * (full range - center)``, with alpha going 0 -> 1 from ``start_iter`` to ``end_iter``.
+    ``noise_terms`` maps policy-group observation terms to a full noise half-width, ramped the same way.
+    Friction is not ramped: its materials are sampled once at startup and cannot be changed afterwards.
+    """
+
+    def __init__(self, cfg: CurriculumTermCfg, env: ManagerBasedRLEnv):
+        super().__init__(cfg, env)
+        p = cfg.params
+        self._start = p["start_iter"] * p["steps_per_iter"]
+        self._end = p["end_iter"] * p["steps_per_iter"]
+        self._offset = p["iter_offset"] * p["steps_per_iter"]
+        self._event_ranges: dict = p["event_ranges"]
+        self._noise_terms: dict = p["noise_terms"]
+        self._alpha = None
+        self._apply(self._alpha_at(0))
+
+    def _alpha_at(self, step: int) -> float:
+        return min(max((step + self._offset - self._start) / (self._end - self._start), 0.0), 1.0)
+
+    def _apply(self, alpha: float):
+        env = self._env
+        for event_name, params in self._event_ranges.items():
+            event_cfg = env.event_manager.get_term_cfg(event_name)
+            for key, (full, center) in params.items():
+                event_cfg.params[key] = tuple(center + alpha * (v - center) for v in full)
+        # the observation manager works on its own copies of the term configs, so edit those (private API, Isaac Lab 2.3.2)
+        manager = env.observation_manager
+        for name, term_cfg in zip(manager._group_obs_term_names["policy"], manager._group_obs_term_cfgs["policy"]):
+            if name in self._noise_terms and term_cfg.noise is not None:
+                half_width = self._noise_terms[name]
+                term_cfg.noise.n_min, term_cfg.noise.n_max = -alpha * half_width, alpha * half_width
+        self._alpha = alpha
+
+    def __call__(
+        self,
+        env: ManagerBasedRLEnv,
+        env_ids: Sequence[int],
+        start_iter: int,
+        end_iter: int,
+        steps_per_iter: int,
+        iter_offset: int,
+        event_ranges: dict,
+        noise_terms: dict,
+    ):
+        alpha = self._alpha_at(env.common_step_counter)
+        if alpha != self._alpha:
+            self._apply(alpha)
+        return alpha
+
+
+class spawn_ramp(ManagerTermBase):
+    """Linearly widens the block spawn range from ``start_range`` to ``end_range`` between two PPO iterations."""
+
+    def __init__(self, cfg: CurriculumTermCfg, env: ManagerBasedRLEnv):
+        super().__init__(cfg, env)
+        p = cfg.params
+        self._start = p["start_iter"] * p["steps_per_iter"]
+        self._end = p["end_iter"] * p["steps_per_iter"]
+        self._offset = p["iter_offset"] * p["steps_per_iter"]
+        self._from: dict = p["start_range"]
+        self._to: dict = p["end_range"]
+        self._event_term: str = p["event_term_name"]
+        self._alpha = None
+        self._apply(self._alpha_at(0))
+
+    def _alpha_at(self, step: int) -> float:
+        return min(max((step + self._offset - self._start) / (self._end - self._start), 0.0), 1.0)
+
+    def _apply(self, alpha: float):
+        pose_range = {k: tuple(a + alpha * (b - a) for a, b in zip(self._from[k], self._to[k])) for k in self._from}
+        self._env.event_manager.get_term_cfg(self._event_term).params["pose_range"] = pose_range
+        self._alpha = alpha
+
+    def __call__(
+        self,
+        env: ManagerBasedRLEnv,
+        env_ids: Sequence[int],
+        start_iter: int,
+        end_iter: int,
+        steps_per_iter: int,
+        iter_offset: int,
+        start_range: dict,
+        end_range: dict,
+        event_term_name: str,
+    ):
+        alpha = self._alpha_at(env.common_step_counter)
+        if alpha != self._alpha:
+            self._apply(alpha)
+        return alpha
+
+
+class success_rate_logger(ManagerTermBase):
+    """Logs the fraction of recent episodes that ended with the block on the floor at rest (``block_on_floor``).
+
+    Evaluated on the final state of each episode, at reset time. Changes nothing in training.
+    """
+
+    def __init__(self, cfg: CurriculumTermCfg, env: ManagerBasedRLEnv):
+        super().__init__(cfg, env)
+        self._window: int = int(cfg.params["window"])
+        self._buf = torch.zeros(self._window, device=env.device)
+        self._count = 0
+        self._ptr = 0
+
+    def __call__(
+        self,
+        env: ManagerBasedRLEnv,
+        env_ids: Sequence[int],
+        window: int,
+        x_min: float,
+        x_max: float,
+        y_half: float,
+        floor_z: float,
+        z_tol: float,
+        rest_speed: float,
+        min_episode_len: int = 2,
+    ) -> dict[str, float]:
+        valid = env.episode_length_buf[env_ids] >= min_episode_len
+        if bool(valid.any()):
+            outcomes = block_on_floor(
+                env, x_min=x_min, x_max=x_max, y_half=y_half, floor_z=floor_z, z_tol=z_tol, rest_speed=rest_speed
+            )[env_ids][valid]
+            n = int(outcomes.numel())
+            idx = (self._ptr + torch.arange(n, device=env.device)) % self._window
+            self._buf[idx] = outcomes
+            self._ptr = int((self._ptr + n) % self._window)
+            self._count = min(self._count + n, self._window)
+        rate = float(self._buf[: self._count].mean()) if self._count > 0 else 0.0
+        return {"success_rate": rate}

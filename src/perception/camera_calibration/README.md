@@ -38,6 +38,10 @@ middle of the image, all in one remap. In the sim, the lens is `WRIST_FOCAL_MM` 
 read from `calib/wrist_cam_pinhole_640x480.yaml` and used by the Pioneer wrist cameras and by
 `quest_cameras.py`. Changing the pinhole YAML changes the sim, with no code edit.
 
+> **Current deviation:** the Pioneer wrist cameras in sim now use a **120 deg diagonal** lens
+> (`WRIST_DIAG_FOV_DEG` in `arm_params.py`, about 108 x 92 deg at 4:3), not this pinhole, so the YAML no longer sets the
+> wrist lens in sim and sim and real images do not match until the remap target here is changed to the same camera.
+
 ## Using the wrist camera in code
 
 On the robot, use the [wrist_camera](../wrist_camera/README.md) ROS node: it publishes the rectified

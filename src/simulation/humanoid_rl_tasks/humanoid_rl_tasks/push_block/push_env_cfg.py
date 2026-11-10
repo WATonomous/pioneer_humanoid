@@ -10,6 +10,7 @@ up-the-ramp direction (box-local +y) is the env-frame ``+x`` axis.
 
 from __future__ import annotations
 
+import os
 import sys
 from dataclasses import MISSING
 from pathlib import Path
@@ -28,6 +29,7 @@ from isaaclab.sensors.frame_transformer.frame_transformer_cfg import (
     OffsetCfg,
 )
 from isaaclab.utils import configclass
+from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
 from . import mdp
 from .scene import (  # noqa: F401  (BOX_* / FLOOR_TARGET re-exported for distill_env_cfg)
@@ -41,7 +43,6 @@ from .scene import (  # noqa: F401  (BOX_* / FLOOR_TARGET re-exported for distil
     FLOOR_X_MAX,
     FLOOR_Y_HALF,
     FLOOR_Z,
-    FLOOR_Z_COLLISION,
     FULL_YAW,
     PUSH_DIR,
     RAMP_BASE_X,
@@ -51,8 +52,11 @@ from .scene import (  # noqa: F401  (BOX_* / FLOOR_TARGET re-exported for distil
     ROBOT_BASE_POS,
     SPAWN_STAGES,
     TABLE_TOP_Z,
+    PushBlockLabSceneCfg,
     PushBlockSceneCfg,
+    TRAY_PIVOT,
 )
+from ..workcell import LAB_ROOM_ENV_SPACING, LAB_WORKCELL_CAMERA, RENDER_CARB_SETTINGS, TABLE_SURFACE
 
 # The canonical pioneer bimanual-arm config (editable-installed in the isaac_lab
 # image; the sys.path entry is a fallback for a bare bind-mounted checkout).
@@ -60,16 +64,43 @@ _PIONEER = Path(__file__).resolve().parents[4] / "pioneer_humanoid"
 if str(_PIONEER) not in sys.path:
     sys.path.insert(0, str(_PIONEER))
 # Uses canonical URDF-side names directly (formerly aliased LEFT_* as RIGHT_* from an old, since-fixed URDF flip).
+from pioneer_humanoid.arm_params import LEFT_GRIPPER_TIP_OFFSET  # noqa: E402
+from pioneer_humanoid.urdf_joint_limits import JOINT_POS_LIMITS  # noqa: E402
 from pioneer_humanoid.bimanual_arm import (  # noqa: E402
     BIMANUAL_ARM_CFG,
     LEFT_ARM_JOINTS,
     LEFT_EE_BODY,
+    LEFT_FINGER_TIP_BODIES,
 )
 
 
 ##
 # MDP settings
 ##
+
+
+# DR knobs read by the events below: scale ranges multiply the nominal value, friction is absolute (first guesses, nominal unchecked).
+DR_BLOCK_STATIC_FRICTION = (0.4, 1.0)
+DR_BLOCK_DYNAMIC_FRICTION = (0.3, 0.8)  # kept <= static
+DR_FINGER_STATIC_FRICTION = (0.5, 1.2)
+DR_FINGER_DYNAMIC_FRICTION = (0.4, 1.0)
+DR_RESTITUTION = (0.0, 0.05)
+DR_BLOCK_MASS_SCALE = (0.8, 1.2)
+DR_ARM_LINK_MASS_SCALE = (0.9, 1.2)
+DR_ARM_STIFFNESS_SCALE = (0.6, 1.2)  # real MIT gains are untuned bench defaults
+DR_ARM_DAMPING_SCALE = (0.8, 1.2)
+DR_JOINT_POS_NOISE = 0.01  # rad
+DR_JOINT_VEL_NOISE = 0.2  # rad/s
+# Mass, gains and obs noise ramp from nominal over these iterations; friction is sampled once at startup, so it is not ramped.
+DR_RAMP_START_ITER = 100
+DR_RAMP_END_ITER = 200
+PPO_STEPS_PER_ITER = 24  # = num_steps_per_env in agents/rsl_rl_ppo_cfg.py
+# Resuming restarts the env step counter; RESUME_ITER=<iteration> keeps the ramps in place.
+RESUME_ITER = int(os.environ.get("RESUME_ITER", "0"))
+# Spawn range widens from SPAWN_STAGES[0] to SPAWN_RAMP_TARGET after the DR ramp.
+SPAWN_RAMP_START_ITER = 200
+SPAWN_RAMP_END_ITER = 300
+SPAWN_RAMP_TARGET = SPAWN_STAGES[1]
 
 
 @configclass
@@ -93,8 +124,8 @@ class ObservationsCfg:
     class PolicyCfg(ObsGroup):
         """Observations for policy group."""
 
-        joint_pos = ObsTerm(func=mdp.joint_pos_rel)
-        joint_vel = ObsTerm(func=mdp.joint_vel_rel)
+        joint_pos = ObsTerm(func=mdp.joint_pos_rel, noise=Unoise(n_min=-DR_JOINT_POS_NOISE, n_max=DR_JOINT_POS_NOISE))
+        joint_vel = ObsTerm(func=mdp.joint_vel_rel, noise=Unoise(n_min=-DR_JOINT_VEL_NOISE, n_max=DR_JOINT_VEL_NOISE))
         ee_position = ObsTerm(func=mdp.ee_position_in_robot_root_frame)
         block_position = ObsTerm(func=mdp.block_center_in_robot_root_frame)
         block_orientation = ObsTerm(func=mdp.block_orientation)
@@ -122,7 +153,14 @@ class ObservationsCfg:
 class EventCfg:
     """Configuration for events."""
 
-    reset_all = EventTerm(func=mdp.reset_scene_to_default, mode="reset")
+    reset_all = EventTerm(func=mdp.reset_scene_to_default, mode="reset", params={"reset_joint_targets": True})
+
+    # Tray pose DR: off here (ranges 0), the student env turns it on. Must sit after the scene reset and before the block reset.
+    randomize_tray = EventTerm(
+        func=mdp.randomize_tray_pose,
+        mode="reset",
+        params={"pos_range": 0.0, "yaw_deg": 0.0, "asset_cfg": SceneEntityCfg("box"), "pivot": TRAY_PIVOT},
+    )
 
     reset_object_position = EventTerm(
         func=mdp.reset_block_center_uniform,
@@ -138,112 +176,99 @@ class EventCfg:
             "velocity_range": {},
             "asset_cfg": SceneEntityCfg("object"),
             "box_exclusion": BOX_EXCLUSION,
+            # the block's whole footprint stays on the real table (and follows the tray if it is moved)
+            "table_bounds": TABLE_SURFACE,
+            "tray_pivot": TRAY_PIVOT,
         },
+    )
+
+    # domain randomization
+    dr_block_material = EventTerm(
+        func=mdp.randomize_rigid_body_material,
+        mode="startup",
+        params={
+            "asset_cfg": SceneEntityCfg("object"),
+            "static_friction_range": DR_BLOCK_STATIC_FRICTION,
+            "dynamic_friction_range": DR_BLOCK_DYNAMIC_FRICTION,
+            "restitution_range": DR_RESTITUTION,
+            "num_buckets": 64,
+            "make_consistent": True,
+        },
+    )
+
+    dr_finger_material = EventTerm(
+        func=mdp.randomize_rigid_body_material,
+        mode="startup",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=list(LEFT_FINGER_TIP_BODIES)),
+            "static_friction_range": DR_FINGER_STATIC_FRICTION,
+            "dynamic_friction_range": DR_FINGER_DYNAMIC_FRICTION,
+            "restitution_range": DR_RESTITUTION,
+            "num_buckets": 64,
+            "make_consistent": True,
+        },
+    )
+
+    dr_block_mass = EventTerm(
+        func=mdp.randomize_rigid_body_mass,
+        mode="reset",
+        params={
+            "asset_cfg": SceneEntityCfg("object"),
+            "mass_distribution_params": DR_BLOCK_MASS_SCALE,
+            "operation": "scale",
+        },
+    )
+
+    dr_arm_mass = EventTerm(
+        func=mdp.randomize_rigid_body_mass,
+        mode="reset",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=".*"),
+            "mass_distribution_params": DR_ARM_LINK_MASS_SCALE,
+            "operation": "scale",
+        },
+    )
+
+    # arm joints only: the gripper keeps its nominal hold stiffness
+    dr_arm_gains = EventTerm(
+        func=mdp.randomize_actuator_gains,
+        mode="reset",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=LEFT_ARM_JOINTS),
+            "stiffness_distribution_params": DR_ARM_STIFFNESS_SCALE,
+            "damping_distribution_params": DR_ARM_DAMPING_SCALE,
+            "operation": "scale",
+        },
+    )
+
+    check_gripper_tip_offset = EventTerm(func=mdp.check_gripper_tip_offset, mode="startup")
+
+    # every 10 PPO iterations: 10 * 24 steps * 0.02 s
+    recheck_gripper_tip_offset = EventTerm(
+        func=mdp.check_gripper_tip_offset,
+        mode="interval",
+        interval_range_s=(4.8, 4.8),
+        is_global_time=True,
     )
 
 
 @configclass
 class RewardsCfg:
-    """Reward terms for the MDP."""
+    """Reward terms for the MDP: reach behind the block, block to goal, smooth actions."""
 
-    # reach + stay behind the block relative to the push direction.
-    # Coarse + fine pair (mirrors block_to_target below): the SO101 default
-    # pose sits ~0.4-0.5 m from the push point, and a std=0.06-only kernel
-    # underflows to exact 0.0 reward (float32) at that range, giving zero
-    # gradient to ever learn reaching in the first place.
     ee_behind_block = RewTerm(
         func=mdp.ee_behind_block,
-        params={"std": 0.25, "push_offset": 0.05},
-        weight=1.5,
+        params={"temp": 15.0, "push_offset": 0.065, "target": FLOOR_TARGET, "angle_gain": 2.0, "max_angle_deg": 80.0},
+        weight=1,
     )
 
-    ee_behind_block_fine = RewTerm(
-        func=mdp.ee_behind_block,
-        params={"std": 0.06, "push_offset": 0.05},
-        weight=1.5,
-    )
-
-    # dense progress along the up-the-ramp axis (signed velocity)
-    push_progress = RewTerm(func=mdp.block_push_progress, params={"max_speed": 0.5}, weight=5.0)
-
-    # extra asymmetric penalty for sliding back down the ramp
-    backslide = RewTerm(func=mdp.block_backslide, weight=-8.0)
-
-    # distance to the target point on the interior floor
     block_to_target = RewTerm(
         func=mdp.block_to_target,
-        params={"std": 0.15, "target": FLOOR_TARGET},
-        weight=8.0,
+        params={"temp": 5.0, "target": FLOOR_TARGET},
+        weight=2,
     )
 
-    block_to_target_fine = RewTerm(
-        func=mdp.block_to_target,
-        params={"std": 0.05, "target": FLOOR_TARGET},
-        weight=5.0,
-    )
-
-    # success: settled on the elevated interior floor
-    block_on_floor = RewTerm(
-        func=mdp.block_on_floor,
-        params={
-            "x_min": RAMP_TOP_X + BLOCK_HALF,
-            "x_max": FLOOR_X_MAX - 0.01,
-            "y_half": FLOOR_Y_HALF - 0.025,
-            # use the effective collision floor: a settled block rests at center
-            # z ~= FLOOR_Z_COLLISION + BLOCK_HALF = 0.0369, ~5 mm above the visual
-            # floor, so keying on FLOOR_Z here made success unreachable.
-            "floor_z": FLOOR_Z_COLLISION,
-            "z_tol": 0.006,
-            "rest_speed": 0.05,
-        },
-        weight=30.0,
-    )
-
-    # location-aware anti-scoop: no lifting in open table space
-    # (~zero on the ramp and interior floor, where height gain is required)
-    scoop_penalty = RewTerm(
-        func=mdp.block_scoop_penalty,
-        params={
-            "ramp_base_x": RAMP_BASE_X,
-            "ramp_top_x": RAMP_TOP_X,
-            "ramp_base_z": RAMP_BASE_Z,
-            "floor_z": FLOOR_Z,
-            "box_x_max": FLOOR_X_MAX,
-            "box_y_half": FLOOR_Y_HALF,
-            "height_tol": 0.01,
-            "dist_std": 0.05,
-        },
-        weight=-40.0,
-    )
-
-    # sideways drift off the ramp approach corridor
-    lateral_deviation = RewTerm(func=mdp.block_lateral_deviation, params={"y_tol": 0.06}, weight=-10.0)
-
-    # repositioning shaping: route the EE behind an off-corridor block so it can
-    # be pushed toward the ramp mouth. Starts inactive (weight 0); the spawn
-    # curriculum turns it on only once spawns can land beside/behind the box
-    # (stage >= REPOSITION_START_STAGE).
-    ee_reposition = RewTerm(
-        func=mdp.ee_reposition_behind_block,
-        params={
-            "std": 0.06,
-            "push_offset": 0.05,
-            "ramp_mouth": (RAMP_BASE_X, 0.0),
-            "corridor_x_max": RAMP_BASE_X,
-            "corridor_y": 0.06,
-            "gate_std": 0.08,
-        },
-        weight=0.0,
-    )
-
-    # action penalties
-    action_rate = RewTerm(func=mdp.action_rate_l2, weight=-1e-4)
-
-    joint_vel = RewTerm(
-        func=mdp.joint_vel_l2,
-        weight=-1e-4,
-        params={"asset_cfg": SceneEntityCfg("robot")},
-    )
+    action_smoothness = RewTerm(func=mdp.action_smoothness, params={"temp": 0.5}, weight=-0.2)
 
 
 @configclass
@@ -259,45 +284,56 @@ class TerminationsCfg:
 
     block_off_course = DoneTerm(
         func=mdp.block_off_course,
-        params={"x_min": 0.05, "x_max": 0.55, "y_limit": 0.20},
+        params={"x_min": 0.05, "x_max": 0.8, "y_limit": 0.30},
     )
 
 
 @configclass
 class CurriculumCfg:
-    """Curriculum terms for the MDP."""
+    """Curriculum terms for the MDP: the domain randomization ramp, then the spawn-range ramp."""
 
-    action_rate = CurrTerm(
-        func=mdp.modify_reward_weight, params={"term_name": "action_rate", "weight": -1e-2, "num_steps": 10000}
-    )
-
-    joint_vel = CurrTerm(
-        func=mdp.modify_reward_weight, params={"term_name": "joint_vel", "weight": -1e-2, "num_steps": 10000}
-    )
-
-    # Performance-gated widening of the block spawn offsets. Advances a stage
-    # once the rolling success rate (block_on_floor) over the last `window`
-    # completed episodes clears `threshold`; also switches on the ee_reposition
-    # reward at REPOSITION_START_STAGE. Logs Curriculum/spawn/{stage,
-    # success_rate, x_off_hi, reposition_active}.
-    spawn = CurrTerm(
-        func=mdp.spawn_offset_curriculum,
+    dr_ramp = CurrTerm(
+        func=mdp.dr_ramp,
         params={
-            "stages": SPAWN_STAGES,
+            "start_iter": DR_RAMP_START_ITER,
+            "end_iter": DR_RAMP_END_ITER,
+            "steps_per_iter": PPO_STEPS_PER_ITER,
+            "iter_offset": RESUME_ITER,
+            "event_ranges": {
+                "dr_block_mass": {"mass_distribution_params": (DR_BLOCK_MASS_SCALE, 1.0)},
+                "dr_arm_mass": {"mass_distribution_params": (DR_ARM_LINK_MASS_SCALE, 1.0)},
+                "dr_arm_gains": {
+                    "stiffness_distribution_params": (DR_ARM_STIFFNESS_SCALE, 1.0),
+                    "damping_distribution_params": (DR_ARM_DAMPING_SCALE, 1.0),
+                },
+            },
+            "noise_terms": {"joint_pos": DR_JOINT_POS_NOISE, "joint_vel": DR_JOINT_VEL_NOISE},
+        },
+    )
+
+    success = CurrTerm(
+        func=mdp.success_rate_logger,
+        params={
+            "window": 2000,
+            "x_min": RAMP_TOP_X + BLOCK_HALF,
+            "x_max": FLOOR_X_MAX,
+            "y_half": FLOOR_Y_HALF - BLOCK_HALF,
+            "floor_z": FLOOR_Z,
+            "z_tol": 0.006,
+            "rest_speed": 0.05,
+        },
+    )
+
+    spawn_ramp = CurrTerm(
+        func=mdp.spawn_ramp,
+        params={
+            "start_iter": SPAWN_RAMP_START_ITER,
+            "end_iter": SPAWN_RAMP_END_ITER,
+            "steps_per_iter": PPO_STEPS_PER_ITER,
+            "iter_offset": RESUME_ITER,
             "event_term_name": "reset_object_position",
-            "success_reward_term": "block_on_floor",
-            "window": 100,
-            "threshold": 0.70,
-            # minimum training before a stage may advance. At num_steps_per_env=24
-            # the env step counter grows 24/iteration, so 1200 steps ~= 50 PPO
-            # iterations per stage. Without this the 100-episode window refills
-            # many times per iteration and the curriculum cascades straight to the
-            # last stage before the policy ever trains on the wider spawns.
-            "min_stage_steps": 1200,
-            "min_episode_len": 2,
-            "reposition_reward_term": "ee_reposition",
-            "reposition_weight": 1.5,
-            "reposition_start_stage": REPOSITION_START_STAGE,
+            "start_range": SPAWN_STAGES[0],
+            "end_range": SPAWN_RAMP_TARGET,
         },
     )
 
@@ -308,14 +344,7 @@ class CurriculumCfg:
 
 
 def _ee_frame_cfg(*, debug_vis: bool) -> FrameTransformerCfg:
-    """EE proxy at the left wrist link (LEFT_EE_BODY = link6l), zero offset.
-
-    No verified fingertip-center offset from link6l exists as a static frame (the
-    teleop code computes it dynamically from both finger tips at runtime, see
-    ``pioneer_humanoid.bimanual_arm.compute_gripper_tip_pose_b``). Zero offset is a
-    reasonable proxy for the push reward terms; refine with a measured offset if
-    pushing behavior looks visibly off from the wrist position.
-    """
+    """EE point: the fingertip midpoint, as a fixed offset from the left wrist link (LEFT_EE_BODY = link6l)."""
     marker_cfg = FRAME_MARKER_CFG.replace(prim_path="/Visuals/FrameTransformer/ee_tcp")
     marker_cfg.markers["frame"].scale = (0.03, 0.03, 0.03)
     return FrameTransformerCfg(
@@ -326,7 +355,7 @@ def _ee_frame_cfg(*, debug_vis: bool) -> FrameTransformerCfg:
             FrameTransformerCfg.FrameCfg(
                 prim_path="{ENV_REGEX_NS}/Robot/" + LEFT_EE_BODY,
                 name="end_effector",
-                offset=OffsetCfg(pos=(0.0, 0.0, 0.0), rot=(1.0, 0.0, 0.0, 0.0)),
+                offset=OffsetCfg(pos=LEFT_GRIPPER_TIP_OFFSET, rot=(1.0, 0.0, 0.0, 0.0)),
             ),
         ],
     )
@@ -341,7 +370,8 @@ class PushBlockEnvCfg(ManagerBasedRLEnvCfg):
     Only the arm is actuated; the closed gripper is the pushing tool.
     """
 
-    scene: PushBlockSceneCfg = PushBlockSceneCfg(num_envs=1024, env_spacing=2.5)
+    # Full lab (room + overhead lighting). PushBlockSceneCfg is the simple one: table, lightbox and robot only.
+    scene: PushBlockLabSceneCfg = PushBlockLabSceneCfg(num_envs=1024, env_spacing=LAB_ROOM_ENV_SPACING)
     observations: ObservationsCfg = ObservationsCfg()
     actions: ActionsCfg = ActionsCfg()
     rewards: RewardsCfg = RewardsCfg()
@@ -353,23 +383,36 @@ class PushBlockEnvCfg(ManagerBasedRLEnvCfg):
         # general settings
         self.decimation = 2
         self.episode_length_s = 5.0
-        self.viewer.eye = (2.6, 2.6, 2.3)
-        self.viewer.lookat = (0.4, 0.0, TABLE_TOP_Z)
+        # GUI view from inside the lab (the room's back wall is at x = 1.10; env_0 is the one enclosed by the room)
+        self.viewer.eye, self.viewer.lookat = LAB_WORKCELL_CAMERA
         # simulation settings
         self.sim.dt = 0.01  # 100Hz
         self.sim.render_interval = self.decimation
+        self.sim.render.carb_settings = dict(RENDER_CARB_SETTINGS)
+        self.sim.render.rendering_mode = "quality"   # ray-traced reflections and bounce light everywhere; there is no low-detail mode
         self.sim.physx.bounce_threshold_velocity = 0.01
         self.sim.physx.gpu_found_lost_aggregate_pairs_capacity = 1024 * 1024 * 4
         # PhysX warned it needed ~16400 for 4096 envs and dropped interactions;
         # give real headroom since randomized block spawns/yaw create varied contacts.
         self.sim.physx.gpu_total_aggregate_pairs_capacity = 128 * 1024
         self.sim.physx.friction_correlation_distance = 0.00625
+        # the exact-mesh ramp makes block-vs-ramp contacts overflow the 2**26 default at 8192 envs (needed ~69M, so ~138M at 16384)
+        self.sim.physx.gpu_collision_stack_size = 2**28
+        # contact patches overflow the 5 * 2**15 default at 16384 envs (needed ~166k)
+        self.sim.physx.gpu_max_rigid_patch_count = 5 * 2**16
 
         # ── bimanual arm ────────────────────────────────────────────────────
         self.scene.replicate_physics = True
         self.scene.robot = BIMANUAL_ARM_CFG.replace(
             prim_path="{ENV_REGEX_NS}/Robot",
-            init_state=BIMANUAL_ARM_CFG.init_state.replace(pos=ROBOT_BASE_POS),
+            init_state=BIMANUAL_ARM_CFG.init_state.replace(
+                pos=ROBOT_BASE_POS,
+                joint_pos={
+                    **BIMANUAL_ARM_CFG.init_state.joint_pos,
+                    "joint7l": JOINT_POS_LIMITS["joint7l"][0],
+                    "joint8l": JOINT_POS_LIMITS["joint8l"][1],
+                },
+            ),
         )
         self.scene.robot.spawn.articulation_props.enabled_self_collisions = False
 
@@ -384,27 +427,12 @@ class PushBlockEnvCfg(ManagerBasedRLEnvCfg):
 
 @configclass
 class PushBlockEnvCfg_PLAY(PushBlockEnvCfg):
-    # GUI CRASH WORKAROUND (interactive play/inspection only; does NOT affect
-    # headless training): playing this task in a live GUI window aborts ~29 s
-    # after the scene renders with a native Kit assertion
-    #   carb::thread::detail::BaseMutex::unlock(): "unlock() called by
-    #   non-owning thread" (carb/delegate Mutex.h:158)
-    # -- a cross-thread race in Kit's tasking plugin triggered by something
-    # bimanual-arm-specific. Root-cause fix is still TODO; until then launch
-    # play.py with Kit forced to a single tasking thread, which serializes the
-    # race away (measured cost: startup ~16 s vs ~11 s, no runtime impact):
-    #
-    #   ./isaaclab.sh -p .../rsl_rl_scripts/play.py \
-    #       --task Isaac-Bimanual-Push-Block-Play-v0 --num_envs 4 \
-    #       --checkpoint <run>/model_<N>.pt \
-    #       "--kit_args=--/plugins/carb.tasking.plugin/threadCount=1"
-    #
-    # NOTE the "=" form ("--kit_args=--/..."): with a space, argparse mistakes
-    # the "--/..." value for a new flag and errors. It is a Kit *launch* arg, so
-    # it cannot live in the env cfg -- it must be passed on the CLI.
     def __post_init__(self):
         super().__post_init__()
         self.scene.num_envs = 16
-        self.scene.env_spacing = 2.5
-        self.observations.policy.enable_corruption = False
+        self.scene.env_spacing = LAB_ROOM_ENV_SPACING
+        # Full training difficulty: all DR, obs noise, final spawn range, no ramps.
+        self.curriculum.dr_ramp = None
+        self.curriculum.spawn_ramp = None
+        self.events.reset_object_position.params["pose_range"] = dict(SPAWN_RAMP_TARGET)
         self.scene.ee_frame = _ee_frame_cfg(debug_vis=True)

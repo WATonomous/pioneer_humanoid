@@ -21,9 +21,10 @@ WRIST_CAM_ROLL_DEG = 270.0   # rotates the image counter-clockwise; 90 / 180 / 2
 WRIST_CAM_PITCH_DEG = 30.0   # angles the camera down toward the gripper
 
 # wrist_cam mount, relative to link6l's origin. Gripper-relative: +X up, +Y left, -Z forward
-# (follows from the roll/pitch above). It sits inside the wrist housing, so large moves bury it
-# in the mesh; the Quest script's _SHOW_WRIST_CAM_MARKER flag draws a sphere here to check.
-WRIST_CAM_POS = (0.06168, 0.060, -0.07895)
+# (follows from the roll/pitch above). The centre of the camera bracket plate's 4-hole pattern on link6l_print.STL,
+# moved out through the plate plus 0.1 mm (same as arm_params.CAMERAS["wrist_left"]); large moves bury it in the
+# mesh. The Quest script's _SHOW_WRIST_CAM_MARKER flag draws a sphere here to check.
+WRIST_CAM_POS = (0.057465, 0.007026, -0.077988)
 
 
 def _quat_mul_wxyz(a: tuple, b: tuple) -> tuple:
@@ -68,10 +69,9 @@ def make_ego_cam_cfg() -> CameraCfg:
 # but flips image-up (local +Y -> -Y), rendering the gripper upside down; the extra 180 roll
 # about the view axis restores it. Pitch is unchanged (already about the mirror-plane normal).
 #
-# Asset asymmetry, compensated: link6's origin sits 9.0mm further out in Y than the exact mirror
-# of link6l's (CAD frame placement; the fingertips themselves mirror perfectly). Without adding
-# it back, the right feed sat too far outboard in the headset.
-_LINK6_ORIGIN_Y_ASYMMETRY_M = 0.008997  # link6l.y + link6.y, measured in-sim at the rest pose
+# Asset asymmetry: the older wrist put link6's camera plate 9.0mm further out in Y than the exact mirror of link6l's.
+# The pitch wrist has none: the plate is at y = +0.007026 in link6l and -0.007026 in link6 (measured from the meshes).
+_LINK6_ORIGIN_Y_ASYMMETRY_M = 0.0
 
 
 def make_wrist_cam_cfg(body: str = "link6l", name: str = "wrist_cam", mirror: bool = False) -> CameraCfg:

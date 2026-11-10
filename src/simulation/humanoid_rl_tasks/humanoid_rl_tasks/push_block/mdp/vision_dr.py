@@ -6,7 +6,6 @@ textures later without changing the event wiring.
 
 from __future__ import annotations
 
-import math
 import random
 from pathlib import Path
 from typing import TYPE_CHECKING, Sequence
@@ -16,6 +15,8 @@ import torch
 
 import isaaclab.utils.math as math_utils
 from isaaclab.managers import SceneEntityCfg
+from isaaclab.sim.views import XformPrimView
+
 
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedEnv
@@ -23,17 +24,13 @@ if TYPE_CHECKING:
 __all__ = [
     "TEXTURE_DIR",
     "list_push_textures",
-    "randomize_tiled_camera_pose",
-    "randomize_dome_light",
+    "randomize_robot_camera_pose",
+    "randomize_back_wall",
+    "randomize_lights",
     "randomize_visual_materials",
 ]
 
 TEXTURE_DIR = Path(__file__).resolve().parents[1] / "assets" / "textures"
-
-# Nominal external camera (must match distill_env_cfg).
-_CAM_EYE = np.array([0.55, -0.50, 0.42], dtype=np.float64)
-_CAM_TARGET = np.array([0.30, 0.0, 0.05], dtype=np.float64)
-
 
 def list_push_textures() -> list[str]:
     """Absolute paths to the small template texture pack."""
@@ -42,86 +39,75 @@ def list_push_textures() -> list[str]:
     return sorted(str(p) for p in TEXTURE_DIR.glob("*.png"))
 
 
-def _look_at_quat_ros(eye: np.ndarray, target: np.ndarray, up=(0.0, 0.0, 1.0)) -> torch.Tensor:
-    """Return wxyz quaternion (ROS optical) as a length-4 tensor."""
-    z = target - eye
-    z = z / (np.linalg.norm(z) + 1e-12)
-    up_a = np.asarray(up, dtype=np.float64)
-    x = np.cross(z, up_a)
-    x = x / (np.linalg.norm(x) + 1e-12)
-    y = np.cross(z, x)
-    m = np.stack([x, y, z], axis=1)
-    w = math.sqrt(max(1.0 + m[0, 0] + m[1, 1] + m[2, 2], 1e-12)) / 2.0
-    quat = np.array(
-        [
-            w,
-            (m[2, 1] - m[1, 2]) / (4 * w),
-            (m[0, 2] - m[2, 0]) / (4 * w),
-            (m[1, 0] - m[0, 1]) / (4 * w),
-        ],
-        dtype=np.float32,
-    )
-    return torch.from_numpy(quat)
-
-
-def randomize_tiled_camera_pose(
+def randomize_robot_camera_pose(
     env: ManagerBasedEnv,
     env_ids: torch.Tensor,
-    camera_cfg: SceneEntityCfg = SceneEntityCfg("tiled_camera"),
-    pos_range: tuple[float, float] = (-0.03, 0.03),
-    rot_deg_range: tuple[float, float] = (-3.0, 3.0),
+    camera_cfg: SceneEntityCfg,
+    mount: str,
+    pos_range: tuple[float, float] = (-0.01, 0.01),
+    rot_deg_range: tuple[float, float] = (-2.0, 2.0),
 ):
-    """Jitter the external tiled camera pose per reset env (sim2real template)."""
-    if camera_cfg.name not in env.scene.sensors:
-        return
+    """Jitter a robot-mounted camera around its mount in ``arm_params.CAMERAS[mount]``, per reset env.
+
+    Sets the camera's pose local to its parent link, so it keeps following the link afterwards."""
+    from pioneer_humanoid.arm_params import CAMERAS
+
     camera = env.scene.sensors[camera_cfg.name]
+    views = env.__dict__.setdefault("_robot_camera_views", {})
+    if camera_cfg.name not in views:
+        views[camera_cfg.name] = XformPrimView(camera.cfg.prim_path, device=env.device)
+
     n = len(env_ids)
-    device = env.device
-
-    pos_noise = math_utils.sample_uniform(pos_range[0], pos_range[1], (n, 3), device=device)
-    # small euler jitter in degrees around the look-at orientation
-    rot_noise_deg = math_utils.sample_uniform(rot_deg_range[0], rot_deg_range[1], (n, 3), device=device)
-
-    base_eye = torch.tensor(_CAM_EYE, device=device, dtype=torch.float32)
-    base_target = torch.tensor(_CAM_TARGET, device=device, dtype=torch.float32)
-    origins = env.scene.env_origins[env_ids]
-
-    eyes = base_eye.unsqueeze(0) + pos_noise
-    # keep looking near the workspace; nudge target slightly too
-    targets = base_target.unsqueeze(0) + 0.25 * pos_noise
-
-    quats = []
-    for i in range(n):
-        eye_i = eyes[i].detach().cpu().numpy()
-        tgt_i = targets[i].detach().cpu().numpy()
-        q = _look_at_quat_ros(eye_i, tgt_i)
-        # apply extra euler jitter in camera frame via quat multiply
-        droll, dpitch, dyaw = torch.deg2rad(rot_noise_deg[i]).tolist()
-        dq = math_utils.quat_from_euler_xyz(
-            torch.tensor([droll]), torch.tensor([dpitch]), torch.tensor([dyaw])
-        )[0]
-        q = math_utils.quat_mul(q.unsqueeze(0), dq.unsqueeze(0))[0]
-        quats.append(q)
-    orientations = torch.stack(quats, dim=0).to(device=device)
-
-    camera.set_world_poses(
-        positions=eyes + origins,
-        orientations=orientations,
-        env_ids=env_ids,
-        convention="ros",
-    )
+    cam = CAMERAS[mount]
+    pos = torch.tensor(cam.pos, device=env.device, dtype=torch.float32).expand(n, 3)
+    pos = pos + math_utils.sample_uniform(pos_range[0], pos_range[1], (n, 3), device=env.device)
+    rot = torch.tensor(cam.rot, device=env.device, dtype=torch.float32).expand(n, 4)
+    rot_noise = torch.deg2rad(math_utils.sample_uniform(rot_deg_range[0], rot_deg_range[1], (n, 3), device=env.device))
+    rot = math_utils.quat_mul(rot, math_utils.quat_from_euler_xyz(rot_noise[:, 0], rot_noise[:, 1], rot_noise[:, 2]))
+    views[camera_cfg.name].set_local_poses(translations=pos, orientations=rot, indices=env_ids)
 
 
-def randomize_dome_light(
+def randomize_back_wall(env: ManagerBasedEnv, env_ids: torch.Tensor, texture_paths: Sequence[str], shader_path: str):
+    """Show one of ``texture_paths`` on each reset env's back wall (``shader_path`` is the shader's path under the env)."""
+    del env
+    try:
+        import omni.usd
+        from pxr import Sdf
+    except ImportError:
+        return
+
+    stage = omni.usd.get_context().get_stage()
+    for env_id in env_ids.tolist():
+        shader = stage.GetPrimAtPath(f"/World/envs/env_{int(env_id)}{shader_path}")
+        if shader.IsValid():
+            shader.GetAttribute("inputs:file").Set(Sdf.AssetPath(random.choice(list(texture_paths))))
+
+
+def _warmth_scale(w: float) -> tuple[float, float, float]:
+    """RGB multiplier for a colour axis from cool (w < 0) to neutral (0) to warm (w = 1, about 2800 K against white)."""
+    if w >= 0.0:
+        return (1.0, 1.0 - 0.25 * w, 1.0 - 0.55 * w)
+    return (1.0 + 0.2 * w, 1.0 + 0.1 * w, 1.0)
+
+
+def randomize_lights(
     env: ManagerBasedEnv,
     env_ids: torch.Tensor,
-    intensity_range: tuple[float, float] = (1500.0, 4500.0),
-    color_scale_range: tuple[float, float] = (0.85, 1.15),
-    light_prim_path: str = "/World/light",
+    light_groups: Sequence[tuple[Sequence[str], tuple[float, float], tuple[float, float] | None]] = (
+        (("/TubeLight",), (0.6, 1.0), (-0.25, 0.35)),
+        (("/World/light",), (0.5, 1.5), (-0.5, 1.0)),
+        (("/RoomLight",), (0.5, 1.5), (0.0, 0.5)),
+    ),
 ):
-    """Randomize global dome light intensity / tint (shared across envs)."""
-    # env_ids unused: dome light is stage-global. Still gated on reset for ADR-style use.
-    del env_ids
+    """Randomize the intensity and colour of the workcell's lights.
+
+    A path under ``/World`` is a stage-global light (the dome: one draw, shared by all envs); any other path is under each
+    env (``/World/envs/env_i`` + path) and is drawn separately for every env that resets.
+
+    A group is ``(prim paths, intensity scale range, warmth range or None)``. The intensity is scaled from the nominal. The
+    colour moves along one cool-to-warm axis (``_warmth_scale``: -1 slightly cool, 0 the nominal colour, 1 warm), so a draw is
+    always a believable light colour and never a green or magenta cast; None leaves the colour alone. The lights of a group
+    share one draw (per env); groups draw independently."""
     try:
         import omni.usd
         from pxr import Gf
@@ -129,21 +115,27 @@ def randomize_dome_light(
         return
 
     stage = omni.usd.get_context().get_stage()
-    prim = stage.GetPrimAtPath(light_prim_path)
-    if not prim.IsValid():
-        return
+    nominal = env.__dict__.setdefault("_light_nominal", {})
 
-    intensity = float(np.random.uniform(*intensity_range))
-    tint = [float(np.random.uniform(*color_scale_range)) for _ in range(3)]
-    # keep roughly gray-ish but allow mild warm/cool
-    color = Gf.Vec3f(min(tint[0], 1.25), min(tint[1], 1.25), min(tint[2], 1.25))
-
-    inten_attr = prim.GetAttribute("inputs:intensity")
-    if inten_attr.IsValid():
-        inten_attr.Set(intensity)
-    color_attr = prim.GetAttribute("inputs:color")
-    if color_attr.IsValid():
-        color_attr.Set(color)
+    for paths, intensity_range, warmth_range in light_groups:
+        global_paths = [p for p in paths if p.startswith("/World/") and not p.startswith("/World/envs/")]
+        local_paths = [p for p in paths if p not in global_paths]
+        draws = [(global_paths, None)] + [(local_paths, int(e)) for e in env_ids.tolist()]
+        for group, env_id in draws:
+            if not group:
+                continue
+            scale = float(np.random.uniform(*intensity_range))
+            mult = _warmth_scale(float(np.random.uniform(*warmth_range))) if warmth_range else None
+            for path in group:
+                path = path if env_id is None else f"/World/envs/env_{env_id}{path}"
+                prim = stage.GetPrimAtPath(path)
+                if not prim.IsValid():
+                    continue
+                inten_attr, color_attr = prim.GetAttribute("inputs:intensity"), prim.GetAttribute("inputs:color")
+                nom_inten, nom_color = nominal.setdefault(path, (inten_attr.Get(), color_attr.Get()))
+                inten_attr.Set(nom_inten * scale)
+                if mult is not None:
+                    color_attr.Set(Gf.Vec3f(*(min(c * m, 1.25) for c, m in zip(nom_color, mult))))
 
 
 def _iter_shader_prims(stage, root_path: str):
@@ -168,16 +160,18 @@ def _iter_shader_prims(stage, root_path: str):
 def randomize_visual_materials(
     env: ManagerBasedEnv,
     env_ids: torch.Tensor,
+    targets: dict[str, dict],
     texture_paths: Sequence[str] | None = None,
-    table_prim_suffix: str = "/Table",
-    object_prim_suffix: str = "/Object",
-    box_prim_suffix: str = "/Box",
-    apply_textures: bool = True,
+    apply_textures: bool = False,
 ):
-    """Randomize tint/roughness and optionally swap a small texture pack.
+    """Randomize colour, roughness and metallic of the prims named in ``targets``, per reset env.
 
-    Best-effort: skips prims/attributes that do not exist so Nucleus table /
-    local block-box USDs with different material graphs still run.
+    ``targets`` maps a prim suffix under each env (for example ``"/Box"``) to
+    ``dict(tint=((r, g, b) low, (r, g, b) high), roughness=(low, high), metallic=(low, high))``, plus an optional
+    ``clearcoat_roughness=(low, high)`` for clear-coated materials (the floor boards). Textures are only
+    swapped in when ``apply_textures`` is set.
+
+    Best-effort: skips prims/attributes that do not exist so USDs with different material graphs still run.
     """
     try:
         import omni.usd
@@ -185,32 +179,38 @@ def randomize_visual_materials(
     except ImportError:
         return
 
-    if texture_paths is None:
+    if apply_textures and texture_paths is None:
         texture_paths = list_push_textures()
     stage = omni.usd.get_context().get_stage()
+    shader_cache = env.__dict__.setdefault("_vision_shader_cache", {})  # USD tree walk is slow
 
     for env_id in env_ids.tolist():
         env_root = f"/World/envs/env_{int(env_id)}"
-        for suffix in (table_prim_suffix, object_prim_suffix, box_prim_suffix):
+        for suffix, rng in targets.items():
             root = env_root + suffix
-            tint = (
-                float(np.random.uniform(0.55, 1.0)),
-                float(np.random.uniform(0.50, 0.95)),
-                float(np.random.uniform(0.45, 0.90)),
-            )
-            roughness = float(np.random.uniform(0.25, 0.95))
-            metallic = float(np.random.uniform(0.0, 0.35))
+            lo, hi = rng["tint"]
+            tint = tuple(float(np.random.uniform(a, b)) for a, b in zip(lo, hi))
+            roughness = float(np.random.uniform(*rng["roughness"]))
+            metallic = float(np.random.uniform(*rng["metallic"]))
+            coat = float(np.random.uniform(*rng["clearcoat_roughness"])) if "clearcoat_roughness" in rng else None
             tex = random.choice(texture_paths) if (apply_textures and texture_paths) else None
 
-            for shader in _iter_shader_prims(stage, root):
-                # MDL / OmniPBR style
+            key = (int(env_id), suffix)
+            if key not in shader_cache:
+                shader_cache[key] = list(_iter_shader_prims(stage, root))
+            for shader in shader_cache[key]:
                 for attr_name, value in (
                     ("inputs:diffuse_tint", Gf.Vec3f(*tint)),
                     ("inputs:reflection_roughness_constant", roughness),
                     ("inputs:metallic_constant", metallic),
+                    ("inputs:roughness", roughness),
+                    ("inputs:metallic", metallic),
                     ("inputs:diffuse_color_constant", Gf.Vec3f(*tint)),
                     ("inputs:diffuseColor", Gf.Vec3f(*tint)),
+                    ("inputs:clearcoat_reflection_roughness", coat),
                 ):
+                    if value is None:
+                        continue
                     attr = shader.GetAttribute(attr_name)
                     if attr.IsValid():
                         try:
@@ -223,17 +223,5 @@ def randomize_visual_materials(
                         if attr.IsValid():
                             try:
                                 attr.Set(Sdf.AssetPath(tex))
-                            except Exception:
-                                pass
-                        else:
-                            # create input if this looks like an OmniPBR shader
-                            try:
-                                from pxr import UsdShade
-
-                                usd_shader = UsdShade.Shader(shader)
-                                if usd_shader:
-                                    usd_shader.CreateInput("diffuse_texture", Sdf.ValueTypeNames.Asset).Set(
-                                        Sdf.AssetPath(tex)
-                                    )
                             except Exception:
                                 pass

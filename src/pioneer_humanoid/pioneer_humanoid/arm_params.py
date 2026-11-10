@@ -56,11 +56,19 @@ LEFT_GRIPPER_CLOSED = {"joint7l": -0.041, "joint8l": 0.041}
 RIGHT_GRIPPER_OPEN = {"joint7": 0.0, "joint8": 0.0}
 RIGHT_GRIPPER_CLOSED = {"joint7": -0.041, "joint8": 0.041}
 
+# Midpoint of the two fingertips in the wrist (link6l) frame, m, gripper at 0.0: the centre of the distal end of the two
+# fin-ray fingers (link7l_finger / link8l_finger.STL, lowest points along the finger). Checked at startup by
+# check_gripper_tip_offset (humanoid_rl_tasks push_block/mdp/events.py), which prints the value to paste if it drifts.
+LEFT_GRIPPER_TIP_OFFSET = (-0.00693, 0.00703, -0.25485)
+
 # Prismatic gripper PD — tuned for hold during arm motion (not from motor datasheet).
 # If fingers bounce when the shoulder moves, raise stiffness; if jittery, raise damping.
 # effort_limit: the AK40-10's 4.1 Nm peak through the linkage (~38.5 deg of motor travel per 41 mm of finger travel,
 # arm_calibration.yaml), shared by the two fingers.
 _GRIPPER = dict(stiffness=400.0, damping=40.0, effort_limit=34.0, velocity_limit=0.2)  # N, m/s
+
+# Sim-only joint speed cap shared by every revolute arm joint (rad/s); the gripper has its own in _GRIPPER.
+ARM_JOINT_VELOCITY_LIMIT = _deg(60)
 
 # Joint PD groups: stiffness (Nm/rad or N/m), damping, effort_limit (Nm or N), velocity_limit.
 # effort_limit is a sim-only cap at the motor's PEAK torque (rated saturates against gravity
@@ -70,17 +78,17 @@ ACTUATOR_GROUPS = {
     # AK10-9 V3.0 — shoulder joints 1-2 (18 Nm rated / 53 peak). Stiffness/damping raised ~50%
     # from the original static-hold tuning to stop the shoulder lagging on large reaches; watch
     # for overshoot if pushed further.
-    "left_shoulder": dict(joints=["joint1L", "joint2l"], stiffness=2270.0, damping=180.0, effort_limit=53.0, velocity_limit=6.0),
+    "left_shoulder": dict(joints=["joint1L", "joint2l"], stiffness=2270.0, damping=180.0, effort_limit=53.0, velocity_limit=ARM_JOINT_VELOCITY_LIMIT),
     # AK80-9 V3.0 — elbow joints 3-5 (9 rated / 22 peak); raised with the shoulder for "forearm too slow".
-    "left_elbow": dict(joints=["joint3l", "joint4l", "joint5l"], stiffness=1550.0, damping=110.0, effort_limit=22.0, velocity_limit=6.0),
+    "left_elbow": dict(joints=["joint3l", "joint4l", "joint5l"], stiffness=1550.0, damping=110.0, effort_limit=22.0, velocity_limit=ARM_JOINT_VELOCITY_LIMIT),
     # AK40-10 — wrist joint 6 (1.3 rated / 4.1 peak).
-    "left_wrist": dict(joints=["joint6l"], stiffness=341.0, damping=18.0, effort_limit=4.1, velocity_limit=6.0),
+    "left_wrist": dict(joints=["joint6l"], stiffness=341.0, damping=18.0, effort_limit=4.1, velocity_limit=ARM_JOINT_VELOCITY_LIMIT),
     # AK40-10 rotary -> linkage -> two prismatic fingers, driven with synchronized targets.
     "left_gripper": dict(joints=["joint7l", "joint8l"], **_GRIPPER),
     # Right arm (unsuffixed) mirrors the left: both arms are teleoperated and need equal headroom.
-    "right_shoulder": dict(joints=["joint1", "joint2"], stiffness=2270.0, damping=180.0, effort_limit=53.0, velocity_limit=6.0),
-    "right_elbow": dict(joints=["joint3", "joint4", "joint5"], stiffness=1550.0, damping=110.0, effort_limit=22.0, velocity_limit=6.0),
-    "right_wrist": dict(joints=["joint6"], stiffness=341.0, damping=18.0, effort_limit=4.1, velocity_limit=6.0),
+    "right_shoulder": dict(joints=["joint1", "joint2"], stiffness=2270.0, damping=180.0, effort_limit=53.0, velocity_limit=ARM_JOINT_VELOCITY_LIMIT),
+    "right_elbow": dict(joints=["joint3", "joint4", "joint5"], stiffness=1550.0, damping=110.0, effort_limit=22.0, velocity_limit=ARM_JOINT_VELOCITY_LIMIT),
+    "right_wrist": dict(joints=["joint6"], stiffness=341.0, damping=18.0, effort_limit=4.1, velocity_limit=ARM_JOINT_VELOCITY_LIMIT),
     "right_gripper": dict(joints=["joint7", "joint8"], **_GRIPPER),
 }
 
@@ -105,6 +113,10 @@ class CameraMount(NamedTuple):
 #              1280x800 lens with the sides cropped to 4:3. Replace with the real camera_info.
 # wrist_left   between the fingers. OV3660 USB module, 110 deg (listed, taken as diagonal: ~97.6 x 81.2 deg
 #              at 4:3), as a distortion-free pinhole; the real lens is barrel-distorted. 4:3.
+#              Position: the centre of the 4-hole pattern (25 x 25 mm) of the camera bracket plate on link6l_print.STL,
+#              moved out through the plate (4.5 mm thick) plus 0.1 mm so it sits clear of the mesh. The plate is tilted
+#              20 deg, so the optical axis is its normal (pitch 20, roll 270); that axis passes within 0.02 deg of the
+#              fingertip midpoint (LEFT_GRIPPER_TIP_OFFSET), and the camera sits on the gripper's centre line (y = 0.007, the middle of the finger gap).
 # wrist_right  mirror of wrist_left
 WRIST_DIAG_FOV_DEG = 110.0
 WRIST_FOCAL_MM = (20.955 * 5 / 4) / 2 / math.tan(math.radians(WRIST_DIAG_FOV_DEG) / 2)   # 4:3 diagonal = 5/4 x width
@@ -116,12 +128,12 @@ CAMERAS = {
     ),
     "wrist_left": CameraMount(
         "link6l", "cam_wrist_left",
-        (0.06179, 0.05997, -0.07977), (0.696364, -0.122788, 0.122788, -0.696364),
+        (0.057465, 0.007026, -0.077988), (0.696364, -0.122788, 0.122788, -0.696364),
         WRIST_FOCAL_MM, 20.955, (0.05, 5.0), 4 / 3,
     ),
     "wrist_right": CameraMount(
         "link6", "cam_wrist_right",
-        (0.06179, -0.05097, -0.07977), (0.696364, -0.122788, 0.122788, -0.696364),
+        (0.057465, -0.007026, -0.077988), (0.696364, -0.122788, 0.122788, -0.696364),
         WRIST_FOCAL_MM, 20.955, (0.05, 5.0), 4 / 3,
     ),
 }

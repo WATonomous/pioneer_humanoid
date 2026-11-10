@@ -5,12 +5,16 @@ The scene geometry lives with the RL task (`humanoid_rl_tasks.push_block.scene`)
 Here we just register it under the ``push`` name so ``keyboard_teleop --scene
 push`` (and the other teleop scripts) can pull it in with the arm plugged into
 its ``MISSING`` robot slot.
+
+``push`` is the simple scene (table, lightbox, robot, ramp box and block); ``push_lab`` adds the lab room and the
+overhead lighting.
 """
 from __future__ import annotations
 
 from humanoid_isaac_scenes import scene
-from humanoid_rl_tasks.push_block.scene import PushBlockSceneCfg, ROBOT_BASE_POS
-from humanoid_rl_tasks.workcell import WORKCELL_CAMERA
+from humanoid_rl_tasks.push_block.scene import PushBlockLabSceneCfg, PushBlockSceneCfg, ROBOT_BASE_POS
+from humanoid_rl_tasks.workcell import LAB_WORKCELL_CAMERA, WORKCELL_CAMERA
 
 # Arm on its floor stand in the lightbox workcell; camera framed on the table top.
 scene("push", robot_pos=ROBOT_BASE_POS, camera=WORKCELL_CAMERA)(PushBlockSceneCfg)
+scene("push_lab", robot_pos=ROBOT_BASE_POS, camera=LAB_WORKCELL_CAMERA)(PushBlockLabSceneCfg)
