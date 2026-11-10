@@ -68,34 +68,46 @@ def randomize_robot_camera_pose(
 
 
 def randomize_back_wall(env: ManagerBasedEnv, env_ids: torch.Tensor, texture_paths: Sequence[str], shader_path: str):
-    """Show one of ``texture_paths`` on the back wall (stage-global, shared by all envs)."""
-    del env, env_ids
+    """Show one of ``texture_paths`` on each reset env's back wall (``shader_path`` is the shader's path under the env)."""
+    del env
     try:
         import omni.usd
         from pxr import Sdf
     except ImportError:
         return
 
-    shader = omni.usd.get_context().get_stage().GetPrimAtPath(shader_path)
-    if shader.IsValid():
-        shader.GetAttribute("inputs:file").Set(Sdf.AssetPath(random.choice(list(texture_paths))))
+    stage = omni.usd.get_context().get_stage()
+    for env_id in env_ids.tolist():
+        shader = stage.GetPrimAtPath(f"/World/envs/env_{int(env_id)}{shader_path}")
+        if shader.IsValid():
+            shader.GetAttribute("inputs:file").Set(Sdf.AssetPath(random.choice(list(texture_paths))))
+
+
+def _warmth_scale(w: float) -> tuple[float, float, float]:
+    """RGB multiplier for a colour axis from cool (w < 0) to neutral (0) to warm (w = 1, about 2800 K against white)."""
+    if w >= 0.0:
+        return (1.0, 1.0 - 0.25 * w, 1.0 - 0.55 * w)
+    return (1.0 + 0.2 * w, 1.0 + 0.1 * w, 1.0)
 
 
 def randomize_lights(
     env: ManagerBasedEnv,
     env_ids: torch.Tensor,
     light_groups: Sequence[tuple[Sequence[str], tuple[float, float], tuple[float, float] | None]] = (
-        (("/World/tube_light",), (0.6, 1.0), None),
-        (("/World/light",), (0.5, 1.5), (0.85, 1.15)),
-        (("/World/room_light",), (0.5, 1.5), (0.85, 1.15)),
+        (("/TubeLight",), (0.6, 1.0), (-0.25, 0.35)),
+        (("/World/light",), (0.5, 1.5), (-0.5, 1.0)),
+        (("/RoomLight",), (0.5, 1.5), (0.0, 0.5)),
     ),
 ):
-    """Randomize the intensity and colour of the workcell's lights (stage-global, shared by all envs).
+    """Randomize the intensity and colour of the workcell's lights.
 
-    A group is ``(prim paths, intensity scale range, colour scale range or None)``. The intensity is scaled from the
-    nominal; the colour is scaled per channel from the nominal, or left alone when the range is None. The lights of a
-    group share one draw; groups draw independently."""
-    del env_ids
+    A path under ``/World`` is a stage-global light (the dome: one draw, shared by all envs); any other path is under each
+    env (``/World/envs/env_i`` + path) and is drawn separately for every env that resets.
+
+    A group is ``(prim paths, intensity scale range, warmth range or None)``. The intensity is scaled from the nominal. The
+    colour moves along one cool-to-warm axis (``_warmth_scale``: -1 slightly cool, 0 the nominal colour, 1 warm), so a draw is
+    always a believable light colour and never a green or magenta cast; None leaves the colour alone. The lights of a group
+    share one draw (per env); groups draw independently."""
     try:
         import omni.usd
         from pxr import Gf
@@ -105,18 +117,25 @@ def randomize_lights(
     stage = omni.usd.get_context().get_stage()
     nominal = env.__dict__.setdefault("_light_nominal", {})
 
-    for paths, intensity_range, color_range in light_groups:
-        scale = float(np.random.uniform(*intensity_range))
-        tint = [float(np.random.uniform(*color_range)) for _ in range(3)] if color_range else None
-        for path in paths:
-            prim = stage.GetPrimAtPath(path)
-            if not prim.IsValid():
+    for paths, intensity_range, warmth_range in light_groups:
+        global_paths = [p for p in paths if p.startswith("/World/") and not p.startswith("/World/envs/")]
+        local_paths = [p for p in paths if p not in global_paths]
+        draws = [(global_paths, None)] + [(local_paths, int(e)) for e in env_ids.tolist()]
+        for group, env_id in draws:
+            if not group:
                 continue
-            inten_attr, color_attr = prim.GetAttribute("inputs:intensity"), prim.GetAttribute("inputs:color")
-            nom_inten, nom_color = nominal.setdefault(path, (inten_attr.Get(), color_attr.Get()))
-            inten_attr.Set(nom_inten * scale)
-            if tint is not None:
-                color_attr.Set(Gf.Vec3f(*(min(c * t, 1.25) for c, t in zip(nom_color, tint))))
+            scale = float(np.random.uniform(*intensity_range))
+            mult = _warmth_scale(float(np.random.uniform(*warmth_range))) if warmth_range else None
+            for path in group:
+                path = path if env_id is None else f"/World/envs/env_{env_id}{path}"
+                prim = stage.GetPrimAtPath(path)
+                if not prim.IsValid():
+                    continue
+                inten_attr, color_attr = prim.GetAttribute("inputs:intensity"), prim.GetAttribute("inputs:color")
+                nom_inten, nom_color = nominal.setdefault(path, (inten_attr.Get(), color_attr.Get()))
+                inten_attr.Set(nom_inten * scale)
+                if mult is not None:
+                    color_attr.Set(Gf.Vec3f(*(min(c * m, 1.25) for c, m in zip(nom_color, mult))))
 
 
 def _iter_shader_prims(stage, root_path: str):
@@ -148,7 +167,8 @@ def randomize_visual_materials(
     """Randomize colour, roughness and metallic of the prims named in ``targets``, per reset env.
 
     ``targets`` maps a prim suffix under each env (for example ``"/Box"``) to
-    ``dict(tint=((r, g, b) low, (r, g, b) high), roughness=(low, high), metallic=(low, high))``. Textures are only
+    ``dict(tint=((r, g, b) low, (r, g, b) high), roughness=(low, high), metallic=(low, high))``, plus an optional
+    ``clearcoat_roughness=(low, high)`` for clear-coated materials (the floor boards). Textures are only
     swapped in when ``apply_textures`` is set.
 
     Best-effort: skips prims/attributes that do not exist so USDs with different material graphs still run.
@@ -172,6 +192,7 @@ def randomize_visual_materials(
             tint = tuple(float(np.random.uniform(a, b)) for a, b in zip(lo, hi))
             roughness = float(np.random.uniform(*rng["roughness"]))
             metallic = float(np.random.uniform(*rng["metallic"]))
+            coat = float(np.random.uniform(*rng["clearcoat_roughness"])) if "clearcoat_roughness" in rng else None
             tex = random.choice(texture_paths) if (apply_textures and texture_paths) else None
 
             key = (int(env_id), suffix)
@@ -186,7 +207,10 @@ def randomize_visual_materials(
                     ("inputs:metallic", metallic),
                     ("inputs:diffuse_color_constant", Gf.Vec3f(*tint)),
                     ("inputs:diffuseColor", Gf.Vec3f(*tint)),
+                    ("inputs:clearcoat_reflection_roughness", coat),
                 ):
+                    if value is None:
+                        continue
                     attr = shader.GetAttribute(attr_name)
                     if attr.IsValid():
                         try:

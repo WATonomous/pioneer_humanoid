@@ -82,6 +82,8 @@ SPAWN_STAGES = [
     {"x": (-0.14, 0.30), "y": (-0.26, 0.26), "yaw": FULL_YAW},
 ]
 REPOSITION_START_STAGE = 2
+TRAY_X_RANGE = (BOX_POS[0], 0.524 + TASK_X_OFFSET)   # footprint of the tray (env frame): x 0.540..0.794, y +-0.127
+TRAY_PIVOT = ((TRAY_X_RANGE[0] + TRAY_X_RANGE[1]) / 2, 0.0)   # the tray's pose DR rotates about its footprint centre
 BOX_EXCLUSION = {
     "x_min": RAMP_BASE_X,
     "x_max": 0.524 + TASK_X_OFFSET + BLOCK_HALF,
@@ -120,9 +122,11 @@ class PushBlockSceneCfg(LightboxWorkcellCfg):
     )
 
     # static open box + ramp (collision baked into the USD, no RigidBodyAPI)
-    box = AssetBaseCfg(
+    # Kinematic (box.usd carries the rigid-body API): same exact-mesh collider as a static one, but its pose can be set per
+    # reset through the physics API, which a static collider ignores. See mdp.randomize_tray_pose.
+    box = RigidObjectCfg(
         prim_path="{ENV_REGEX_NS}/Box",
-        init_state=AssetBaseCfg.InitialStateCfg(pos=BOX_POS, rot=BOX_QUAT),
+        init_state=RigidObjectCfg.InitialStateCfg(pos=BOX_POS, rot=BOX_QUAT),
         spawn=UsdFileCfg(usd_path=BOX_USD),
     )
 

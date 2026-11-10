@@ -54,8 +54,9 @@ from .scene import (  # noqa: F401  (BOX_* / FLOOR_TARGET re-exported for distil
     TABLE_TOP_Z,
     PushBlockLabSceneCfg,
     PushBlockSceneCfg,
+    TRAY_PIVOT,
 )
-from ..workcell import LAB_WORKCELL_CAMERA, RENDER_CARB_SETTINGS
+from ..workcell import LAB_ROOM_ENV_SPACING, LAB_WORKCELL_CAMERA, RENDER_CARB_SETTINGS, TABLE_SURFACE
 
 # The canonical pioneer bimanual-arm config (editable-installed in the isaac_lab
 # image; the sys.path entry is a fallback for a bare bind-mounted checkout).
@@ -154,6 +155,13 @@ class EventCfg:
 
     reset_all = EventTerm(func=mdp.reset_scene_to_default, mode="reset", params={"reset_joint_targets": True})
 
+    # Tray pose DR: off here (ranges 0), the student env turns it on. Must sit after the scene reset and before the block reset.
+    randomize_tray = EventTerm(
+        func=mdp.randomize_tray_pose,
+        mode="reset",
+        params={"pos_range": 0.0, "yaw_deg": 0.0, "asset_cfg": SceneEntityCfg("box"), "pivot": TRAY_PIVOT},
+    )
+
     reset_object_position = EventTerm(
         func=mdp.reset_block_center_uniform,
         mode="reset",
@@ -168,6 +176,9 @@ class EventCfg:
             "velocity_range": {},
             "asset_cfg": SceneEntityCfg("object"),
             "box_exclusion": BOX_EXCLUSION,
+            # the block's whole footprint stays on the real table (and follows the tray if it is moved)
+            "table_bounds": TABLE_SURFACE,
+            "tray_pivot": TRAY_PIVOT,
         },
     )
 
@@ -360,7 +371,7 @@ class PushBlockEnvCfg(ManagerBasedRLEnvCfg):
     """
 
     # Full lab (room + overhead lighting). PushBlockSceneCfg is the simple one: table, lightbox and robot only.
-    scene: PushBlockLabSceneCfg = PushBlockLabSceneCfg(num_envs=1024, env_spacing=2.5)
+    scene: PushBlockLabSceneCfg = PushBlockLabSceneCfg(num_envs=1024, env_spacing=LAB_ROOM_ENV_SPACING)
     observations: ObservationsCfg = ObservationsCfg()
     actions: ActionsCfg = ActionsCfg()
     rewards: RewardsCfg = RewardsCfg()
@@ -378,6 +389,7 @@ class PushBlockEnvCfg(ManagerBasedRLEnvCfg):
         self.sim.dt = 0.01  # 100Hz
         self.sim.render_interval = self.decimation
         self.sim.render.carb_settings = dict(RENDER_CARB_SETTINGS)
+        self.sim.render.rendering_mode = "quality"   # ray-traced reflections and bounce light everywhere; there is no low-detail mode
         self.sim.physx.bounce_threshold_velocity = 0.01
         self.sim.physx.gpu_found_lost_aggregate_pairs_capacity = 1024 * 1024 * 4
         # PhysX warned it needed ~16400 for 4096 envs and dropped interactions;
@@ -418,10 +430,7 @@ class PushBlockEnvCfg_PLAY(PushBlockEnvCfg):
     def __post_init__(self):
         super().__post_init__()
         self.scene.num_envs = 16
-        self.scene.env_spacing = 2.5
-        # Full detail in the viewer: ray-traced reflections and bounce lighting (the student play env goes back to the
-        # training render mode, see distill_env_cfg).
-        self.sim.render.rendering_mode = "quality"
+        self.scene.env_spacing = LAB_ROOM_ENV_SPACING
         # Full training difficulty: all DR, obs noise, final spawn range, no ramps.
         self.curriculum.dr_ramp = None
         self.curriculum.spawn_ramp = None

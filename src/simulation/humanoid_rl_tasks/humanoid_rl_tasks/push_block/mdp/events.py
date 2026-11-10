@@ -14,7 +14,7 @@ from .utils import BLOCK_HALF_SIZE
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedEnv
 
-__all__ = ["reset_block_center_uniform", "check_gripper_tip_offset"]
+__all__ = ["reset_block_center_uniform", "randomize_tray_pose", "check_gripper_tip_offset"]
 
 
 def reset_block_center_uniform(
@@ -24,7 +24,10 @@ def reset_block_center_uniform(
     velocity_range: dict[str, tuple[float, float]],
     asset_cfg: SceneEntityCfg = SceneEntityCfg("object"),
     box_exclusion: dict[str, float] | None = None,
-    max_resample_iters: int = 8,
+    table_bounds: dict[str, float] | None = None,
+    table_margin: float = 0.01,
+    tray_pivot: tuple[float, float] = (0.0, 0.0),
+    max_resample_iters: int = 12,
 ):
     """Reset the block to a random *center* pose, uniformly within the ranges.
 
@@ -35,6 +38,14 @@ def reset_block_center_uniform(
     orientation into position. Here we instead sample the center offset and the
     yaw independently, then back-compute the corner root pose so the center
     lands exactly where sampled at any yaw.
+
+    The offsets are sampled in the tray's NOMINAL frame, then carried with the tray: if ``randomize_tray_pose`` has moved the
+    tray this reset (``env._tray_pose`` = dx, dy, dyaw per env), the sampled center and yaw are rotated about ``tray_pivot``
+    and shifted by the same amount, so the block keeps its place relative to the tray.
+
+    ``table_bounds`` (keys ``x_min``, ``x_max``, ``y_abs``, env frame; ``workcell.TABLE_SURFACE``) keeps the block's whole
+    rotated footprint, plus ``table_margin``, on the real table surface after the tray shift: a sample whose footprint
+    reaches past it is re-sampled like a box-exclusion hit.
 
     ``pose_range`` keys (``x``, ``y``, ``z``, ``roll``, ``pitch``, ``yaw``) are
     offsets applied to the block's *default center*; missing keys default to 0.
@@ -64,28 +75,48 @@ def reset_block_center_uniform(
 
     target_center = default_center + rand_samples[:, 0:3]
 
-    # reject-and-resample any center that lands inside the box footprint
-    if box_exclusion is not None:
-        x_min = box_exclusion["x_min"]
-        x_max = box_exclusion["x_max"]
-        y_abs = box_exclusion["y_abs"]
+    tray = env.__dict__.get("_tray_pose")
+    tray = tray[env_ids] if tray is not None else torch.zeros(len(env_ids), 3, device=asset.device)
+    pivot = torch.tensor(tray_pivot, device=asset.device)
+    cos_t, sin_t = torch.cos(tray[:, 2]), torch.sin(tray[:, 2])
 
-        def _inside(centers: torch.Tensor) -> torch.Tensor:
-            return (centers[:, 0] > x_min) & (centers[:, 0] < x_max) & (centers[:, 1].abs() < y_abs)
+    def _carried(centers: torch.Tensor, yaws: torch.Tensor):
+        """Centers and yaws as they end up once carried with the moved tray."""
+        rel = centers[:, :2] - pivot
+        xy = pivot + torch.stack([cos_t * rel[:, 0] - sin_t * rel[:, 1], sin_t * rel[:, 0] + cos_t * rel[:, 1]], dim=-1) + tray[:, :2]
+        return xy, yaws + tray[:, 2]
 
-        inside = _inside(target_center)
-        for _ in range(max_resample_iters):
-            if not bool(inside.any()):
-                break
-            n = int(inside.sum())
-            resample = math_utils.sample_uniform(ranges[:, 0], ranges[:, 1], (n, 6), device=asset.device)
-            rand_samples[inside] = resample
-            target_center[inside] = default_center[inside] + resample[:, 0:3]
-            inside = _inside(target_center)
-        # fallback: force any still-inside envs to the (always-valid) default center
-        if bool(inside.any()):
-            rand_samples[inside, 0:3] = 0.0
-            target_center[inside] = default_center[inside]
+    def _invalid(centers: torch.Tensor, samples: torch.Tensor) -> torch.Tensor:
+        bad = torch.zeros(len(centers), dtype=torch.bool, device=asset.device)
+        if box_exclusion is not None:   # in the tray's own (nominal) frame
+            bad |= (centers[:, 0] > box_exclusion["x_min"]) & (centers[:, 0] < box_exclusion["x_max"]) & (centers[:, 1].abs() < box_exclusion["y_abs"])
+        if table_bounds is not None:    # on the table, after the tray has carried the block
+            xy, yaw = _carried(centers, samples[:, 5])
+            reach = BLOCK_HALF_SIZE * (torch.cos(yaw).abs() + torch.sin(yaw).abs()) + table_margin   # half-width of the rotated footprint
+            bad |= (xy[:, 0] - reach < table_bounds["x_min"]) | (xy[:, 0] + reach > table_bounds["x_max"])
+            bad |= xy[:, 1].abs() + reach > table_bounds["y_abs"]
+        return bad
+
+    # reject-and-resample any sample inside the tray footprint or reaching off the table
+    invalid = _invalid(target_center, rand_samples)
+    for _ in range(max_resample_iters):
+        if not bool(invalid.any()):
+            break
+        n = int(invalid.sum())
+        resample = math_utils.sample_uniform(ranges[:, 0], ranges[:, 1], (n, 6), device=asset.device)
+        rand_samples[invalid] = resample
+        target_center[invalid] = default_center[invalid] + resample[:, 0:3]
+        invalid = _invalid(target_center, rand_samples)
+    # fallback: any still-invalid env gets the default center (offset 0, yaw 0), which is on the ramp approach, well inside the table
+    if bool(invalid.any()):
+        rand_samples[invalid, 0:3] = 0.0
+        rand_samples[invalid, 5] = 0.0
+        target_center[invalid] = default_center[invalid]
+
+    # carry the block with the tray
+    carried_xy, carried_yaw = _carried(target_center, rand_samples[:, 5])
+    target_center = torch.cat([carried_xy, target_center[:, 2:3]], dim=-1)
+    rand_samples[:, 5] = carried_yaw
 
     orientations_delta = math_utils.quat_from_euler_xyz(rand_samples[:, 3], rand_samples[:, 4], rand_samples[:, 5])
     orientations = math_utils.quat_mul(default_quat, orientations_delta)
@@ -102,6 +133,39 @@ def reset_block_center_uniform(
     # set into the physics simulation
     asset.write_root_pose_to_sim(torch.cat([positions, orientations], dim=-1), env_ids=env_ids)
     asset.write_root_velocity_to_sim(velocities, env_ids=env_ids)
+
+
+def randomize_tray_pose(
+    env: ManagerBasedEnv,
+    env_ids: torch.Tensor,
+    pos_range: float = 0.0,
+    yaw_deg: float = 0.0,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("box"),
+    pivot: tuple[float, float] = (0.0, 0.0),
+):
+    """Shift the tray by up to ``+-pos_range`` m in x and y and turn it by up to ``+-yaw_deg`` about ``pivot`` (its footprint centre).
+
+    The tray is a kinematic rigid body, so this writes its pose through the physics API: both its collider and its mesh move.
+    The shift is stored in ``env._tray_pose`` (dx, dy, dyaw per env) for ``reset_block_center_uniform`` to carry the block with
+    it. Must run after the scene reset and before the block reset; with the default ranges of 0 it leaves the tray where it is.
+    """
+    asset: RigidObject = env.scene[asset_cfg.name]
+    n = len(env_ids)
+    d = math_utils.sample_uniform(-pos_range, pos_range, (n, 2), device=asset.device)
+    dyaw = torch.deg2rad(math_utils.sample_uniform(-yaw_deg, yaw_deg, (n,), device=asset.device))
+    buf = env.__dict__.setdefault("_tray_pose", torch.zeros(env.num_envs, 3, device=asset.device))
+    buf[env_ids] = torch.cat([d, dyaw[:, None]], dim=-1)
+
+    root = asset.data.default_root_state[env_ids].clone()   # env frame
+    c, s = torch.cos(dyaw), torch.sin(dyaw)
+    piv = torch.tensor(pivot, device=asset.device)
+    rel = root[:, :2] - piv
+    xy = piv + torch.stack([c * rel[:, 0] - s * rel[:, 1], s * rel[:, 0] + c * rel[:, 1]], dim=-1) + d
+    zeros = torch.zeros(n, device=asset.device)
+    quat = math_utils.quat_mul(math_utils.quat_from_euler_xyz(zeros, zeros, dyaw), root[:, 3:7])
+    pose = torch.cat([xy, root[:, 2:3]], dim=-1) + env.scene.env_origins[env_ids]
+    asset.write_root_pose_to_sim(torch.cat([pose, quat], dim=-1), env_ids=env_ids)
+    asset.write_root_velocity_to_sim(torch.zeros(n, 6, device=asset.device), env_ids=env_ids)
 
 
 _TIP_TOLERANCE_M = 0.002

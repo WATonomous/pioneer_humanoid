@@ -10,7 +10,7 @@ teacher actions while the student rolls out in the env (DAgger-style).
 Example:
   PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/distill_push.py \\
     --task Isaac-Bimanual-Push-Block-Distill-v0 --headless --enable_cameras \\
-    --teacher models/push/model_1499.pt \\
+    --teacher models/push/model_500.pt \\
     --num_envs 64 --max_iterations 2000
 """
 

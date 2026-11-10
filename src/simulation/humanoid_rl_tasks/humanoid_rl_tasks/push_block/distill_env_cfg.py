@@ -11,7 +11,7 @@ from isaaclab.sensors import TiledCameraCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
-from ..workcell import LAB_BACK_WALL_TEXTURE_PRIM, LAB_BACK_WALL_TEXTURES
+from ..workcell import LAB_BACK_WALL_TEXTURE_PRIM, LAB_BACK_WALL_TEXTURES, LAB_ROOM_ENV_SPACING
 from . import mdp
 from .push_env_cfg import PushBlockEnvCfg, PushBlockEnvCfg_PLAY
 from .push_env_cfg import (
@@ -34,12 +34,17 @@ STUDENT_IMG_HEIGHT = 120
 STUDENT_EE_POS_NOISE = 0.005
 
 
+# Tray placement tolerance on the real rig: shift (m, each of x and y) and turn (deg) of the tray about its centre, per reset.
+TRAY_POS_DR = 0.005
+TRAY_YAW_DR_DEG = 5.0
+
 # Colour ranges around the real colours: glossy white floor boards, red cube, blue tray.
 VISION_MATERIAL_TARGETS = {
-    "/FloorBoardLeft": dict(tint=((0.9, 0.9, 0.9), (1.0, 1.0, 1.0)), roughness=(0.01, 0.08), metallic=(0.35, 0.65)),
-    "/FloorBoardRight": dict(tint=((0.9, 0.9, 0.9), (1.0, 1.0, 1.0)), roughness=(0.01, 0.08), metallic=(0.35, 0.65)),
-    "/Object": dict(tint=((0.75, 0.05, 0.05), (0.95, 0.20, 0.20)), roughness=(0.3, 0.8), metallic=(0.0, 0.05)),
-    "/Box": dict(tint=((0.05, 0.25, 0.70), (0.25, 0.45, 0.95)), roughness=(0.3, 0.8), metallic=(0.0, 0.05)),
+    # glossy white boards: smooth (low roughness) with moderate metallic so the reflections read but are not a mirror
+    "/FloorBoardLeft": dict(tint=((0.9, 0.9, 0.9), (1.0, 1.0, 1.0)), roughness=(0.02, 0.08), metallic=(0.25, 0.45)),
+    "/FloorBoardRight": dict(tint=((0.9, 0.9, 0.9), (1.0, 1.0, 1.0)), roughness=(0.02, 0.08), metallic=(0.25, 0.45)),
+    "/Object": dict(tint=((0.65, 0.0, 0.0), (1.0, 0.30, 0.30)), roughness=(0.3, 0.8), metallic=(0.0, 0.05)),    # reds, from deep to pinkish/orange
+    "/Box": dict(tint=((0.0, 0.15, 0.55), (0.30, 0.60, 1.0)), roughness=(0.3, 0.8), metallic=(0.0, 0.05)),     # blues, from navy to cyan
 }
 
 
@@ -179,10 +184,11 @@ class DistillEventCfg(EventCfg):
         func=mdp.randomize_lights,
         mode="reset",
         params={
+            # (lights, intensity scale, warmth: -1 slightly cool .. 0 nominal .. 1 warm). The tube is the real light, kept near neutral.
             "light_groups": (
-                (("/World/tube_light",), (0.6, 1.0), None),
-                (("/World/light",), (0.5, 1.5), (0.85, 1.15)),
-                (("/World/room_light",), (0.5, 1.5), (0.85, 1.15)),
+                (("/TubeLight",), (0.6, 1.0), (-0.25, 0.35)),    # per env
+                (("/World/light",), (0.5, 1.5), (-0.5, 1.0)),    # the dome is the one global light
+                (("/RoomLight",), (0.5, 1.5), (0.0, 0.5)),       # per env
             ),
         },
     )
@@ -211,7 +217,7 @@ class PushBlockDistillEnvCfg(PushBlockEnvCfg):
         super().__post_init__()
         # Cameras are expensive; keep this small for the minimal distill loop.
         self.scene.num_envs = 64
-        self.scene.env_spacing = 2.5
+        self.scene.env_spacing = LAB_ROOM_ENV_SPACING   # each env has its own lab room
         self.sim.render_interval = self.decimation
         _add_student_cameras(self.scene)
         # Full difficulty from iteration 0: no ramps.
@@ -219,6 +225,7 @@ class PushBlockDistillEnvCfg(PushBlockEnvCfg):
         self.curriculum.spawn_ramp = None
         self.events.reset_object_position.params["pose_range"] = dict(SPAWN_RAMP_TARGET)
         self.events.reset_object_position.params["box_exclusion"] = BOX_EXCLUSION
+        self.events.randomize_tray.params.update(pos_range=TRAY_POS_DR, yaw_deg=TRAY_YAW_DR_DEG)
 
 
 @configclass
@@ -232,8 +239,7 @@ class PushBlockDistillEnvCfg_PLAY(PushBlockEnvCfg_PLAY):
         super().__post_init__()
         self.scene.num_envs = 16
         self.sim.render_interval = self.decimation
-        # The student sees what it was trained on: Isaac Lab's default render mode, not the teacher viewer's quality mode.
-        self.sim.render.rendering_mode = None
+        self.events.randomize_tray.params.update(pos_range=TRAY_POS_DR, yaw_deg=TRAY_YAW_DR_DEG)
         self.observations.student.enable_corruption = False
         # the EE frame marker would be drawn into the student's camera images
         self.scene.ee_frame.debug_vis = False

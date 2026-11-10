@@ -139,6 +139,8 @@ For the fin-ray fingers on the pitch wrist it is (−0.00693, 0.00703, −0.2548
 than the old fingers' (0, 0.053, −0.15638): a teacher trained on the old offset has to be retrained.
 The two fingers can be deflected a few mm by arm motion, which may trigger spurious warnings.
 
+**Tray and spawn.** `box.usd` is a kinematic rigid body (the exact-mesh collider is unchanged), so its pose can be set per reset through the physics API; a static collider ignores a pose change at runtime. `randomize_tray` (ranges 0 in the teacher env, ±5 mm / ±5° in the student env) runs after the scene reset and before the block reset. The block is sampled in the tray's nominal frame (box exclusion and all) and then carried with the tray, so it keeps its place relative to it. The block's whole rotated footprint plus 1 cm must also stay on the real table surface (`workcell.TABLE_SURFACE`, the white boards: x 0.389–0.991, y ±0.745). The table's invisible collision slab reaches further, so a block past the real front edge used to be held up in the sim but floated on the render; about a third of the strip near the front edge is no longer sampled.
+
 ### How the shaping fits together
 
 1. **Get behind the block** — `ee_behind_block` pulls the fingertips to the push point (behind and to the outside of an off-centre block).
@@ -250,9 +252,10 @@ Train distill env (`*-Distill-v0`) runs reset-time vision DR via `mdp/vision_dr.
 | Term | What |
 |------|------|
 | Camera mounts | ego ±1 cm / ±2°, left wrist ±1 mm / ±2°, around the mounts in `arm_params.CAMERAS` (guesses until the real tolerance is known) |
-| Light | Workcell lights (`workcell.py`), stage-global: the tube light (`/World/tube_light`) keeps its colour and varies ×0.6–1.0 of nominal; the dim dome (`/World/light`) and the warm room light (`/World/room_light`) each vary ×0.5–1.5 with a mild RGB tint on their own draws |
-| Back wall | One of 3 photos of the view through the lab's glass wall (`assets/props/lab_room/textures/glass_view_*.jpg`), picked per reset, shared by all envs |
-| Materials | Per-object colour around the real colour (cube red, tray blue, table white), roughness and metallic: `VISION_MATERIAL_TARGETS` in `distill_env_cfg.py` |
+| Light | Workcell lights (`workcell.py`): tube and room light are per env (every env is its own lab room, drawn per reset env), the faint dome is the one global light. Intensity: tube ×0.6–1.0, dome and room light ×0.5–1.5. Colour moves along one cool–warm axis (`vision_dr._warmth_scale`): tube −0.25..0.35 (near neutral, it is the real light), dome −0.5..1.0, room light 0..0.5 (already warm). Each group draws on its own |
+| Back wall | One of 3 photos of the view through the lab's glass wall (`assets/props/lab_room/textures/glass_view_*.jpg`), picked per reset, separately for each env |
+| Materials | Cube red (R 0.65–1.0, G/B 0–0.3: crimson to orange-red), tray blue (R 0–0.3, G 0.15–0.6, B 0.55–1.0: navy to cyan), floor boards, roughness and metallic: `VISION_MATERIAL_TARGETS` in `distill_env_cfg.py` |
+| Tray pose | The tray shifts ±5 mm in x and y and turns ±5° about its footprint centre every reset (`TRAY_POS_DR`, `TRAY_YAW_DR_DEG`, `mdp.randomize_tray_pose`); the block spawns relative to the moved tray |
 | Textures | Off (`apply_textures: False`): the real surfaces are plain. The 3 PNGs in `assets/textures/` are unused |
 
 Student proprio noise is on in the train env: joint pos ±0.01 rad, joint vel ±0.2 rad/s (same as the teacher's DR knobs), ee position ±5 mm; the last action is exact. The teacher's observations stay clean.
