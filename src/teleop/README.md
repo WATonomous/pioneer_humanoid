@@ -15,7 +15,6 @@ The repo is bind-mounted at `/workspace/humanoid`. Shared arm config + IK helper
 | Folder | Input | Sim robot | Notes |
 |--------|-------|-----------|-------|
 | [`quest_controller_teleop/`](quest_controller_teleop/) | Quest 2 Touch controllers | pioneer_bimanual_arm_8dof (7-DoF + gripper), both arms, MuJoCo | mink IK, URDF limits + elbow rule, 1-euro input filter; see its README |
-| [`quest_teleop/`](quest_teleop/) | Quest 2 hand tracking | pioneer bimanual, both arms | `bridge/` (WebXR → `/quest_teleop`) + `sim/` (weighted-DLS fingertip IK); see its README |
 | **`keyboard_teleop/`** | keyboard + IK | pioneer bimanual, left arm | see below |
 | [`pioneer_leader_arm_teleop/`](pioneer_leader_arm_teleop/) | 7-servo leader arm | pioneer bimanual, left arm | any `--scene`, `--record`; see its README |
 | [`task_space_controller/`](task_space_controller/) | viewport pose gizmo + IK | pioneer bimanual, left arm | `--publish-real-left-arm` drives the real arm — **its README covers the CAN pipeline + e-stop** |
@@ -59,7 +58,6 @@ MuJoCo viewer focused. Recording keys only do something with `--record`. **If yo
 MuJoCo uses digits because every letter, `0`-`5` and `Esc` are MuJoCo viewer shortcuts. Where the keys are defined:
 recording defaults `S`/`N`/`D`/`Esc` in `src/robot_learning/humanoid_robot_learning/recording/episode_keys.py`;
 MuJoCo overrides in `pioneer_leader_arm_teleop/mujoco_sim.py` (`_KEY_RESET`, `RECORD_KEYS`);
-Quest in `quest_teleop/sim/run_quest_bimanual_teleop.py` (`_on_keyboard_event`);
 `keyboard_teleop` motion keys are Isaac Lab's `Se3Keyboard` defaults.
 
 ## Notes

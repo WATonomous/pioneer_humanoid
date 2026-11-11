@@ -1,4 +1,5 @@
-"""Quest teleop cameras: shared Pioneer ego camera and VR wrist cameras.
+"""Isaac Pioneer cameras: the shared ego camera and the wrist cameras (moved from the removed quest_teleop/sim,
+whose Quest hand-tracking teleop recorded with them).
 
 Prim paths assume the robot is spawned at ``{ENV_REGEX_NS}/Robot``.
 """
