@@ -5,9 +5,9 @@
     python synthetic/synthetic_teleop.py --scene drawer_stow --robot armv2 --record   # the old 6-DoF arm
 
 --robot: 8dof (default) = pioneer_bimanual_arm_8dof's left arm (7 joints + gripper, the 8-servo leader's mapping,
-pioneer_8dof_dataset_schema.yaml), armv2 = the old 6-DoF arm (pioneer_humanoid_dataset_schema.yaml). Both grasp 20 deg
-down: on the 8dof arm 30 and 45 deg failed more grasps with the plans' jaw heights (SYNTH_GRASP_PITCH_DEG overrides it
-for tuning runs).
+pioneer_8dof_dataset_schema.yaml), armv2 = the old 6-DoF arm (pioneer_humanoid_dataset_schema.yaml). The old arm grasps
+20 deg down; the 8dof arm's grasp pitch and IK null-space pull (its 7th joint kept off the limits) are per task
+(synthetic_tasks.Task). SYNTH_GRASP_PITCH_DEG / SYNTH_LIMIT_AVOID_GAIN override them for tuning runs.
 
 Same pipeline as ``pioneer_leader_arm_teleop.py --target mujoco --record``: the operator's leader angles
 go through the same LeaderMapping (engage at home, low-pass filter, URDF clamp), and frames are recorded
@@ -226,10 +226,15 @@ def make_operator(sim: TeleopSim, rng, style=None):
     import math
 
     from human_operator import HumanOperator
-    cfg = sim.cfg
-    pitch = float(os.environ.get("SYNTH_GRASP_PITCH_DEG", cfg["grasp_pitch_deg"]))   # override for tuning runs
+    from synthetic_tasks import TASKS
+    cfg, task = sim.cfg, TASKS.get(sim.scene)
+    pitch, avoid = cfg["grasp_pitch_deg"], 0.0
+    if sim.robot == "8dof" and task is not None:   # per-task grip on the 8dof arm (synthetic_tasks.Task)
+        pitch, avoid = task.grasp_pitch_deg_8dof, task.limit_avoid_8dof
+    pitch = float(os.environ.get("SYNTH_GRASP_PITCH_DEG", pitch))   # overrides for tuning runs
+    avoid = float(os.environ.get("SYNTH_LIMIT_AVOID_GAIN", avoid))
     return HumanOperator(sim.model, lambda: sim.data, sim.tick, sim.joints, sim.home, sim.control_dt, rng, style=style,
-                         fingers=cfg["fingers"], hand=cfg["hand"], grasp_pitch=math.radians(pitch))
+                         fingers=cfg["fingers"], hand=cfg["hand"], grasp_pitch=math.radians(pitch), limit_avoid=avoid)
 
 
 def _probe(job):

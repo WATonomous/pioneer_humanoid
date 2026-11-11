@@ -37,6 +37,8 @@ FITTS_A = 0.25
 FITTS_B = 0.25
 # rad/s: fastest a hand turns a leader joint (a brisk human reach peaks around 2 rad/s at the elbow).
 LEADER_MAX_SPEED = 3.0
+# Null-space step toward mid-range per IK iteration on a redundant (7-joint) arm, per unit of (offset / half range)^2.
+LIMIT_AVOID_GAIN = 0.05   # default; HumanOperator(limit_avoid=) per task
 # The gripper as it takes things, as near its home pose as a grasp gets: fingers forward, tipped GRASP_PITCH down,
 # jaws closing across the table: 20 deg on both arms (HumanOperator(grasp_pitch=) sets another; on the 8dof arm 30 and
 # 45 deg failed more grasps with the task plans' jaw heights).
@@ -165,7 +167,8 @@ class HumanOperator:
 
     def __init__(self, model: mujoco.MjModel, observe: Callable[[], mujoco.MjData], tick: Callable[[np.ndarray, float], None],
                  joints: list[str], q_home, dt: float, rng: np.random.Generator, style: Style | None = None,
-                 fingers: tuple[str, str] = ("link7l", "link8l"), hand: str = "link6l", grasp_pitch: float = GRASP_PITCH):
+                 fingers: tuple[str, str] = ("link7l", "link8l"), hand: str = "link6l", grasp_pitch: float = GRASP_PITCH,
+                 limit_avoid: float = LIMIT_AVOID_GAIN):
         self.m, self.observe, self._tick, self.dt, self.rng = model, observe, tick, dt, rng
         self.style = style or Style.sample(rng)
         self.hand = model.body(hand).id
@@ -202,6 +205,7 @@ class HumanOperator:
         a /= np.linalg.norm(a)
         fingers_down = grasp_fingers(grasp_pitch)
         self.grasp_pitch = grasp_pitch
+        self.limit_avoid = limit_avoid                   # redundant arm only: null-space pull off the joint limits
         self.jaw_half = jaw_half(grasp_pitch)            # tool point above the jaws' lowest point, in the grasp pose
         self.R_down = (np.column_stack([fingers_down, GRASP_JAWS, np.cross(fingers_down, GRASP_JAWS)])
                        @ np.column_stack([f, a, np.cross(f, a)]).T)
@@ -513,9 +517,17 @@ class HumanOperator:
             tcp = self._tcp(kin)
             e = np.concatenate([target - tcp, 0.5 * sum(np.cross(Rc[:, i], R[:, i]) for i in range(3))])
             err = float(np.linalg.norm(e))
-            if err < 1e-5:
+            if err < 1e-5 and (len(q) <= 6 or self.limit_avoid <= 0):   # else keep iterating: the null-space step runs
                 break
             mujoco.mj_jac(m, kin, jp, jr, tcp, self.hand)
             J = np.vstack([jp[:, self.vadr], jr[:, self.vadr]])
-            q = np.clip(q + J.T @ np.linalg.solve(J @ J.T + 1e-4 * np.eye(6), e), self.lim[:, 0], self.lim[:, 1])
+            Jp = J.T @ np.linalg.inv(J @ J.T + 1e-4 * np.eye(6))
+            dq = Jp @ e
+            if len(q) > 6 and self.limit_avoid > 0:
+                # A redundant arm (the 8dof's 7 joints): spend the spare joint keeping every joint off its limits, the
+                # way a person holds a 7-DoF leader (elbow out of the way, wrist mid-range), in J's null space so the
+                # hand pose is untouched. The 6-DoF arm has no null space, so its solutions are unchanged.
+                mid, half = self.lim.mean(1), (self.lim[:, 1] - self.lim[:, 0]) / 2
+                dq = dq + (np.eye(len(q)) - Jp @ J) @ (-self.limit_avoid * (q - mid) / half ** 2)
+            q = np.clip(q + dq, self.lim[:, 0], self.lim[:, 1])
         return q, err
