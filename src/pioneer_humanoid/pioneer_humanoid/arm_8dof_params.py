@@ -36,7 +36,7 @@ DEFAULT_JOINT_POS = {**{j: 0.0 for j in LEFT_ARM_JOINTS + RIGHT_ARM_JOINTS},
 
 # Joint PD groups (sim only): the old arm's tuning for the same motor class; AK45-10 wrist estimated
 # (2.5 Nm rated / 7 peak). effort_limit = the motor's PEAK torque.
-_GRIPPER = dict(stiffness=400.0, damping=40.0, effort_limit=34.0, velocity_limit=0.2)
+_GRIPPER = dict(stiffness=400.0, damping=40.0, effort_limit=34.0, velocity_limit=0.2)  # as arm_params: AK40-10 peak via the linkage
 ACTUATOR_GROUPS = {}
 for _s in ("left", "right"):
     ACTUATOR_GROUPS[f"{_s}_shoulder"] = dict(joints=[f"{_s}_shoulder_pitch", f"{_s}_shoulder_roll"],     # AK10-9
@@ -45,7 +45,7 @@ for _s in ("left", "right"):
                                         stiffness=1550.0, damping=110.0, effort_limit=22.0, velocity_limit=6.0)
     ACTUATOR_GROUPS[f"{_s}_wrist"] = dict(joints=[f"{_s}_wrist_pitch", f"{_s}_wrist_yaw"],                 # AK45-10
                                           stiffness=600.0, damping=30.0, effort_limit=7.0, velocity_limit=6.0)
-    ACTUATOR_GROUPS[f"{_s}_gripper"] = dict(joints=[f"{_s}_gripper"], **_GRIPPER)                         # GL40
+    ACTUATOR_GROUPS[f"{_s}_gripper"] = dict(joints=[f"{_s}_gripper"], **_GRIPPER)                         # AK40-10 via linkage
 
 # Cameras: the ego camera is on base_link, which is the old arm's base_link frame, so it keeps the same mount.
 # Wrist cameras: between the fingers at the palm, looking along the gripper (link7 frame, from build_info.json).

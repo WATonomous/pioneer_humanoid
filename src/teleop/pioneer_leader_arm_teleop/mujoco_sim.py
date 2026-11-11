@@ -239,7 +239,7 @@ def run() -> None:
                 wrist = model.joint(name)
                 frozen.append((wrist.qposadr[0], wrist.dofadr[0], data.qpos[wrist.qposadr[0]]))
         elif not eight:
-            # The old arm's GL40 wrist only; the 8dof wrist (AK45-10 PD group) keeps its own damping.
+            # The old arm's wrist (joint6l) only; the 8dof wrist (AK45-10 PD group) keeps its own damping.
             model.actuator_biasprm[model.actuator(joints[-1]).id, 2] = -WRIST_DAMPING
         print(f"[{side.upper()}] " * (len(sides) > 1) + mapping.describe(joints), flush=True)
 
