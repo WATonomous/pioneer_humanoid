@@ -32,7 +32,7 @@ class SceneEnv:
         if self.success is None:
             raise SystemExit(f"scene {scene!r} registers neither success nor progress: nothing to evaluate")
         self.randomise, self.hook, self.progress = scene_reset(scene), scene_step(scene), scene_progress(scene)
-        self.model = model = make_model(scene, cameras=cameras)
+        self.model = model = make_model(scene, cameras=cameras, robot="armv2")  # 6-DoF joint names; not yet ported to 8dof
         self.data = mujoco.MjData(model)
         model.actuator_biasprm[model.actuator("joint6l").id, 2] = -WRIST_DAMPING
         self.arm_acts = [model.actuator(j).id for j in LEFT_ARM_JOINTS]

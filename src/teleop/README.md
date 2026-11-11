@@ -14,6 +14,7 @@ The repo is bind-mounted at `/workspace/humanoid`. Shared arm config + IK helper
 
 | Folder | Input | Sim robot | Notes |
 |--------|-------|-----------|-------|
+| [`quest_controller_teleop/`](quest_controller_teleop/) | Quest 2 Touch controllers | pioneer_bimanual_arm_8dof (7-DoF + gripper), both arms, MuJoCo | mink IK, URDF limits + elbow rule, 1-euro input filter; see its README |
 | [`quest_teleop/`](quest_teleop/) | Quest 2 hand tracking | pioneer bimanual, both arms | `bridge/` (WebXR → `/quest_teleop`) + `sim/` (weighted-DLS fingertip IK); see its README |
 | **`keyboard_teleop/`** | keyboard + IK | pioneer bimanual, left arm | see below |
 | [`pioneer_leader_arm_teleop/`](pioneer_leader_arm_teleop/) | 7-servo leader arm | pioneer bimanual, left arm | any `--scene`, `--record`; see its README |
