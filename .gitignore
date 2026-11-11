@@ -29,13 +29,6 @@ src/robot_learning/pi05/eval/
 
 modules/docker-compose.perception_override.yaml
 
-src/teleop/quest_teleop/bridge/static/pov_left.*
-src/teleop/quest_teleop/bridge/static/pov_right.*
-src/teleop/quest_teleop/bridge/static/wrist_cam.*
-src/teleop/quest_teleop/bridge/static/wrist_cam_left.*
-src/teleop/quest_teleop/bridge/static/wrist_cam_right.*
-src/teleop/quest_teleop/bridge/static/contact_force_hud.*
-src/teleop/quest_teleop/bridge/static/marker_uv.json
 src/simulation/garment_fold_task/
 src/simulation/humanoid_rl/logs/
 src/simulation/humanoid_rl/outputs/

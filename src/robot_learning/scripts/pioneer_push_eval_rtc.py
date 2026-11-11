@@ -1,8 +1,8 @@
 """Closed-loop RTC rollout of a flow-matching policy on the pioneer left arm, push-block scene.
 
 Scene = the "push" entry of humanoid_isaac_scenes (same layout/assets as the RL push-block task),
-plus the ego + wrist cameras from quest_cameras.py -- the exact cameras the Quest teleop records
-with (run_quest_bimanual_teleop.py). The scene is driven raw (set_joint_position_target),
+plus the ego + wrist cameras from pioneer_isaac_cameras.py -- the cameras the (removed) Quest hand-tracking
+teleop recorded with. The scene is driven raw (set_joint_position_target),
 not through the gym env, whose action/obs managers are RL-specific (scaled relative actions, no
 cameras).
 
@@ -29,8 +29,8 @@ from types import SimpleNamespace
 from isaaclab.app import AppLauncher
 
 _SRC = Path(__file__).resolve().parents[2]
-# quest_cameras is not an installed package (run_quest_bimanual_teleop.py imports it the same way).
-sys.path.insert(0, str(_SRC / "teleop" / "quest_teleop" / "sim"))
+# pioneer_isaac_cameras sits next to this script.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 # Editable-installed in the image; fallbacks for a bare bind-mounted checkout.
 sys.path.insert(0, str(_SRC / "pioneer_humanoid"))
 sys.path.insert(0, str(_SRC / "robot_learning"))
@@ -82,13 +82,13 @@ from pioneer_humanoid.bimanual_arm import (  # noqa: E402
     apply_joint_limits,
     resolve_joint_name,
 )
-from quest_cameras import make_ego_cam_cfg, make_wrist_cam_cfg  # noqa: E402
+from pioneer_isaac_cameras import make_ego_cam_cfg, make_wrist_cam_cfg  # noqa: E402
 
 PHYSICS_DT = 0.02
 DECIMATION = 5
 POLICY_HZ = 1.0 / (PHYSICS_DT * DECIMATION)  # 10 Hz, the Quest recording fps
 
-# dataset image key -> scene sensor name (run_quest_bimanual_teleop.py RECORD_CAMERA_SENSORS)
+# dataset image key -> scene sensor name (as the removed Quest hand-tracking teleop recorded them)
 CAMERA_SENSORS = {"ego": "ego_cam", "wrist_left": "wrist_cam"}
 CAMERA_FACTORIES = {"ego_cam": make_ego_cam_cfg, "wrist_cam": make_wrist_cam_cfg}
 
@@ -96,7 +96,7 @@ CAMERA_FACTORIES = {"ego_cam": make_ego_cam_cfg, "wrist_cam": make_wrist_cam_cfg
 def read_policy_state(robot, state_joint_ids: list[int]) -> torch.Tensor:
     """Sim state for this tick: (7,) absolute joint positions of env 0, in SIM_STATE_JOINTS order.
 
-    Must match what the Quest teleop records (run_quest_bimanual_teleop.py, _record_state):
+    Must match what the (removed) Quest hand-tracking teleop recorded:
     absolute (not joint_pos_rel), joint1L..joint6l then joint7l (the interface turns it into the
     0-1 gripper closure), no joint8l, read before stepping physics. A wrong order or joint set
     doesn't crash -- the policy just sees a scrambled arm.
