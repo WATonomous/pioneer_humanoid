@@ -81,7 +81,7 @@ The control path is `index.html` → `transport.py` → `scene_driver.py` → `m
 - **Precision (A/X):** pressing or releasing re-bases the reference, with no jump.
 
 **mink IK** (`mink_control.py`), one QP per tick:
-- **Cost:** position error at the wrist pivot, plus gripper orientation error (weight 0.5), plus a pull toward the home pose (0.02), plus damping.
+- **Cost:** position error at the wrist pivot, plus gripper orientation error (weight 0.2), plus a pull toward the home pose (0.02), plus damping. Position comes first: with weight 0.5, a wrist twist beyond the wrist's range pulled the wrist up to 17 cm off target (0.2: 3 cm).
 - **Hard constraint per joint:** the joint limit and this tick's speed cap, as one box. A joint left outside its limit, e.g. after a reset, is driven back at its speed cap.
 - **Why, from the IK benchmark on this arm** (simulation only): against a sequential-DLS IK, it solved 82% vs 51% of random poses, returned to the start after wandering with 0.4° vs 28° of joint drift, and held hand orientation about 3× better.
 
