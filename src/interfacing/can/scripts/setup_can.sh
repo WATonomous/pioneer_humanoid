@@ -10,13 +10,13 @@
 # - interface_name: Name for the CAN interface (e.g., can0)
 # - bitrate_code: Bitrate configuration code (e.g., -s6 for 500k, -s8 for 1M)
 
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-DEVICE_PATH="$1"
-INTERFACE_NAME="$2"
-BITRATE_CODE="$3" # e.g., -s6 for 500k, -s8 for 1M 
+DEVICE_PATH="${1:-}"
+INTERFACE_NAME="${2:-}"
+BITRATE_CODE="${3:-}" # e.g., -s6 for 500k, -s8 for 1M 
 
 # Check if slcand is installed
 if ! command -v slcand &> /dev/null; then

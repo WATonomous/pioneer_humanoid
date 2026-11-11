@@ -22,17 +22,13 @@ Examples (inside interfacing container, ROS sourced)::
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 import threading
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-try:
-    import yaml
-except ImportError:  # pragma: no cover
-    yaml = None
+import yaml
 
 import rclpy
 from rclpy.node import Node
@@ -41,10 +37,6 @@ from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 from common_msgs.msg import MotorCmd, MotorFeedback
 
 import joint_config as jc
-
-
-SET_ORIGIN = 5
-DISABLE = 8
 
 
 def _qos() -> QoSProfile:
@@ -123,7 +115,8 @@ class CalibrateNode(Node):
     def __init__(self) -> None:
         super().__init__("calibrate_arm")
         self._lock = threading.Lock()
-        self._latest: Dict[int, MotorFeedback] = {}
+        # motor_id -> (last feedback, time.monotonic() it arrived)
+        self._latest: Dict[int, Tuple[MotorFeedback, float]] = {}
 
         self._pub = self.create_publisher(MotorCmd, "/interfacing/motorCMD", 10)
         self.create_subscription(
@@ -135,32 +128,37 @@ class CalibrateNode(Node):
 
     def _on_feedback(self, msg: MotorFeedback) -> None:
         with self._lock:
-            self._latest[int(msg.motor_id)] = msg
+            self._latest[int(msg.motor_id)] = (msg, time.monotonic())
 
     def latest(self, motor_id: int) -> Optional[MotorFeedback]:
         with self._lock:
-            return self._latest.get(motor_id)
+            entry = self._latest.get(motor_id)
+        return entry[0] if entry is not None else None
 
     def seen_motor_ids(self) -> List[int]:
         with self._lock:
             return sorted(self._latest.keys())
 
     def wait_for_feedback(self, motor_id: int, timeout_s: float = 3.0) -> MotorFeedback:
-        deadline = time.time() + timeout_s
-        while time.time() < deadline:
-            fb = self.latest(motor_id)
-            if fb is not None:
-                return fb
-            time.sleep(0.05)
+        """Feedback that arrived AFTER this call (i.e. after the operator pressed Enter), so a
+        position is never captured from a stale sample of a motor that went quiet."""
+        since = time.monotonic()
+        deadline = since + timeout_s
+        while time.monotonic() < deadline:
+            with self._lock:
+                entry = self._latest.get(motor_id)
+            if entry is not None and entry[1] > since:
+                return entry[0]
+            time.sleep(0.01)
         raise TimeoutError(
-            f"No feedback for motor_id={motor_id} within {timeout_s}s. "
+            f"No fresh feedback for motor_id={motor_id} within {timeout_s}s. "
             "Is can_node running? Try: ros2 topic echo /interfacing/motorFeedback"
         )
 
     def set_origin(self, motor_id: int, temporary: bool) -> None:
         msg = MotorCmd()
         msg.motor_id = motor_id
-        msg.control_type = SET_ORIGIN
+        msg.control_type = MotorCmd.SET_ORIGIN
         msg.temporary = temporary
         self._pub.publish(msg)
         # Give the bus a moment
@@ -212,12 +210,6 @@ class CalibrateNode(Node):
     def other_motor_cmd_publishers(self) -> List[str]:
         return sorted({i.node_name for i in self.get_publishers_info_by_topic("/interfacing/motorCMD")
                        if i.node_name != self.get_name()})
-
-    def disable(self, motor_id: int) -> None:
-        msg = MotorCmd()
-        msg.motor_id = motor_id
-        msg.control_type = DISABLE
-        self._pub.publish(msg)
 
 
 def prompt(msg: str) -> str:
@@ -272,8 +264,6 @@ def capture_limits(
 
 
 def load_mapping(path: Path) -> Dict[str, Any]:
-    if yaml is None:
-        raise RuntimeError("PyYAML required. Install: apt-get install -y python3-yaml")
     with path.open("r", encoding="utf-8") as f:
         data = yaml.safe_load(f)
     if not isinstance(data, dict):
@@ -282,8 +272,6 @@ def load_mapping(path: Path) -> Dict[str, Any]:
 
 
 def save_mapping(path: Path, data: Dict[str, Any]) -> None:
-    if yaml is None:
-        raise RuntimeError("PyYAML required")
     backup = path.with_suffix(path.suffix + ".bak")
     if path.exists() and not backup.exists():
         backup.write_text(path.read_text(encoding="utf-8"), encoding="utf-8")
@@ -295,13 +283,8 @@ def save_mapping(path: Path, data: Dict[str, Any]) -> None:
 
 def save_sidecar(path: Path, results: Dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    if yaml is not None:
-        with path.open("w", encoding="utf-8") as f:
-            yaml.safe_dump(results, f, default_flow_style=False, sort_keys=False)
-    else:
-        path = path.with_suffix(".json")
-        with path.open("w", encoding="utf-8") as f:
-            json.dump(results, f, indent=2)
+    with path.open("w", encoding="utf-8") as f:
+        yaml.safe_dump(results, f, default_flow_style=False, sort_keys=False)
     print(f"  Sidecar: {path}")
 
 
@@ -383,7 +366,8 @@ def resolve_motor_id(
 
 
 def run(args: argparse.Namespace) -> int:
-    mapping_path = Path(args.mapping).expanduser().resolve()
+    mapping_path = jc.find_calibration(
+        str(Path(args.mapping).expanduser()) if args.mapping else None).resolve()
     mapping = load_mapping(mapping_path)
     joints = flatten_joints(
         mapping,
@@ -393,6 +377,13 @@ def run(args: argparse.Namespace) -> int:
     )
     if not joints:
         print("No joints found in mapping.", file=sys.stderr)
+        return 1
+    # zero_offset and the limits are derived from direction: it must already be right.
+    bad = [(name, joint.get("direction")) for name, joint in joints
+           if joint.get("direction") not in (1, -1)]
+    if bad:
+        print(f"direction must be 1 or -1 in {mapping_path}; fix these first: {bad}",
+              file=sys.stderr)
         return 1
 
     skip_motors = parse_id_list(args.skip_motors)
@@ -423,17 +414,6 @@ def run(args: argparse.Namespace) -> int:
     time.sleep(max(1.0, args.discover_seconds))
     seen = set(node.seen_motor_ids())
     print(f"Motors seen on bus: {sorted(seen) if seen else '(none yet — move/power arm?)'}")
-
-    if args.skip_missing:
-        missing = [
-            (name, parse_can_id(joint["can_id"]))
-            for name, joint in joints
-            if parse_can_id(joint["can_id"]) not in seen
-        ]
-        if missing:
-            print("YAML can_id not on bus (still offered — you can type a new id at the per-joint prompt, or s to skip):")
-            for name, mid in missing:
-                print(f"  {name}  mapped={mid} (0x{mid:02X})")
 
     # CLI filters only; per-joint skip / motor-id remap is interactive
     selected: List[Tuple[str, Dict[str, Any]]] = []
@@ -511,9 +491,7 @@ def run(args: argparse.Namespace) -> int:
                 # joint_command: motor = direction * (cmd - zero_offset)
                 # Want cmd=0 → motor holds current home_pos:
                 #   home_pos = direction * (0 - zero_offset)  ⇒  zero_offset = -home_pos / direction
-                direction = int(joint.get("direction", 1))
-                if direction == 0:
-                    direction = 1
+                direction = int(joint["direction"])  # checked to be +-1 at startup
                 joint_result["zero_offset"] = -home_pos / float(direction)
                 joint_result["direction"] = direction
                 print(f"  software zero_offset := {joint_result['zero_offset']:.3f}")
@@ -547,8 +525,8 @@ def run(args: argparse.Namespace) -> int:
                 break
             if status == "ok" and ends is not None:
                 lo, hi, last = ends
-                direction = int(joint_result.get("direction", joint.get("direction", 1))) or 1
-                zero_offset = float(joint_result.get("zero_offset", joint.get("zero_offset", 0.0)))
+                direction = int(joint["direction"])  # checked to be +-1 at startup
+                zero_offset = float(joint_result["zero_offset"])  # set by every zero-mode
                 # Limits in arm_calibration.yaml are command-frame (pre-calibration) degrees.
                 # cmd = zero_offset + motor / direction
                 cmd_a = zero_offset + lo / float(direction)
@@ -558,9 +536,10 @@ def run(args: argparse.Namespace) -> int:
                 joint_result["lower_limit"] = cmd_lo + pad
                 joint_result["upper_limit"] = cmd_hi - pad
                 if joint_result["lower_limit"] > joint_result["upper_limit"]:
-                    mid = 0.5 * (joint_result["lower_limit"] + joint_result["upper_limit"])
-                    joint_result["lower_limit"] = mid - 1.0
-                    joint_result["upper_limit"] = mid + 1.0
+                    raise RuntimeError(
+                        f"{name}: recorded range [{cmd_lo:.2f}, {cmd_hi:.2f}] deg is smaller than "
+                        f"2 x --limit-pad ({2 * pad:g} deg). Re-run and move it end to end, or "
+                        f"lower --limit-pad.")
                 print(
                     f"  motor range [{lo:.2f}, {hi:.2f}]° → cmd limits "
                     f"[{joint_result['lower_limit']:.2f}, {joint_result['upper_limit']:.2f}] "
@@ -574,11 +553,19 @@ def run(args: argparse.Namespace) -> int:
             print(f"  Saved {name}")
 
     except (TimeoutError, RuntimeError, KeyboardInterrupt) as exc:
-        print(f"\nStopped: {exc}")
+        failed: Optional[BaseException] = exc
+    else:
+        failed = None
     finally:
         node.stop_mit_poke()
         node.destroy_node()
         rclpy.shutdown()
+
+    if failed is not None:
+        # A half-finished run may hold a stale or wrong capture: write nothing.
+        print(f"\nStopped ({type(failed).__name__}: {failed}). Nothing saved: neither the "
+              f"sidecar nor {mapping_path} was written. Re-run the calibration.", file=sys.stderr)
+        return 1
 
     sidecar = Path(args.sidecar).expanduser()
     save_sidecar(sidecar, results)
@@ -593,24 +580,11 @@ def run(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    default_mapping = (
-        Path(__file__).resolve().parents[3]
-        / "interfacing"
-        / "joint_command"
-        / "config"
-        / "arm_calibration.yaml"
-    )
-    # In-container mount path used by docker-compose.interfacing.yaml
-    container_mapping = Path("/calibration/arm_calibration.yaml")
-    if container_mapping.exists():
-        default_mapping = container_mapping
-    elif not default_mapping.exists():
-        default_mapping = Path("arm_calibration.yaml")
-
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--arm-side", default="left", choices=["left", "right"], help="Side in arm_calibration.yaml")
-    p.add_argument("--calibration", "--mapping", dest="mapping", default=str(default_mapping),
-                   help="Path to arm_calibration.yaml")
+    p.add_argument("--calibration", "--mapping", dest="mapping", default=None,
+                   help="Path to arm_calibration.yaml (default: the first of "
+                        f"{', '.join(jc.DEFAULT_CALIBRATIONS)} that exists)")
     p.add_argument(
         "--sidecar",
         default=str(Path.home() / ".cache" / "humanoid" / "calibration" / "last_calibration.yaml"),
@@ -640,11 +614,6 @@ def build_parser() -> argparse.ArgumentParser:
         help="Joint name suffixes to skip, e.g. 'shoulder.pitch gripper.open_close'",
     )
     p.add_argument(
-        "--skip-missing",
-        action="store_true",
-        help="Warn about YAML can_ids not on the bus (still prompt; type a new id at the per-joint prompt, or s to skip)",
-    )
-    p.add_argument(
         "--discover-seconds",
         type=float,
         default=2.0,
@@ -662,9 +631,6 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     args = build_parser().parse_args()
-    if yaml is None:
-        print("Missing PyYAML. In the container: apt-get update && apt-get install -y python3-yaml", file=sys.stderr)
-        return 1
     return run(args)
 
 

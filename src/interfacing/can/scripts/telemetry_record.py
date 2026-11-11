@@ -42,6 +42,9 @@ MIT_STATUS = {
     11: "MOS over-temp", 12: "Winding over-temp", 13: "Comms loss", 14: "Overload",
 }
 
+# A motor that has not reported for this long gets blank pos/tau/current rows, not its last value.
+FEEDBACK_STALE_S = 0.5
+
 
 class TelemetryRecorder(Node):
     def __init__(self, joint_map: Dict[int, dict], log: RunFolder, motors: Optional[List[int]],
@@ -50,14 +53,13 @@ class TelemetryRecorder(Node):
         self.joint_map = joint_map
         self.log = log
         self.motors = motors
-        self.rate_hz = rate_hz
         self.setpoints: Dict[int, float] = {}      # moderated, from MotorCmd
         self.mit_cmd: Dict[int, tuple] = {}        # (feed-forward N.m, kp) of the last MIT frame
         self.requested: Dict[int, float] = {}      # raw, from ArmPose
         self.feedback: Dict[int, MotorFeedback] = {}
+        self.fb_time: Dict[int, float] = {}        # time.monotonic() each motor last reported
         self.seen: set = set()
         self.rows = 0
-        self.first_pose_time: Optional[float] = None
         # Phase label for every row (set by arm_roundtrip.py).
         self.phase = "stream"
 
@@ -72,8 +74,6 @@ class TelemetryRecorder(Node):
         self.create_timer(1.0 / rate_hz, self._sample)
 
     def _on_pose(self, msg: ArmPose, side: str) -> None:
-        if self.first_pose_time is None:
-            self.first_pose_time = time.monotonic()
         slots = list(msg.shoulder.position[:3]) + list(msg.elbow.position[:2]) + \
             list(msg.wrist.position[:1])
         for motor_id, info in self.joint_map.items():
@@ -87,9 +87,11 @@ class TelemetryRecorder(Node):
                                     MotorCmd.POSITION_VELOCITY):
             return
         motor_id = int(msg.motor_id)
-        info = self.joint_map.get(motor_id, {})
-        direction = info.get("direction", 1.0) or 1.0
-        zero = info.get("zero_offset", 0.0)
+        info = self.joint_map.get(motor_id)
+        if info is None:
+            return  # not in the calibration: no frame to convert it into
+        direction = info["direction"]
+        zero = info["zero_offset"]
         # MIT_CONTROL carries radians; every servo mode carries degrees. Both are motor frame.
         deg = math.degrees(msg.position) if msg.control_type == 0 else float(msg.position)
         if msg.control_type == 0 and msg.kp == 0.0:
@@ -104,31 +106,34 @@ class TelemetryRecorder(Node):
 
     def _on_feedback(self, msg: MotorFeedback) -> None:
         self.feedback[int(msg.motor_id)] = msg
+        self.fb_time[int(msg.motor_id)] = time.monotonic()
         self.seen.add(int(msg.motor_id))
 
     def _sample(self) -> None:
+        now = time.monotonic()
         for motor_id, fb in sorted(self.feedback.items()):
             if self.motors is not None and motor_id not in self.motors:
                 continue
-            info = self.joint_map.get(motor_id, {})
-            direction = info.get("direction", 1.0) or 1.0
-            zero = info.get("zero_offset", 0.0)
+            info = self.joint_map.get(motor_id)
+            if info is None:
+                continue  # not in the calibration: its position has no command frame
             # Motor frame -> command frame, the inverse of what joint_command applies.
-            pos_cmd_deg = zero + float(fb.position) / direction
-            torque = float(getattr(fb, "torque", 0.0))
-            current = float(fb.current)
+            # Feedback older than FEEDBACK_STALE_S is not logged as a live position.
+            fresh = now - self.fb_time[motor_id] <= FEEDBACK_STALE_S
+            pos_cmd_deg = (info["zero_offset"] + float(fb.position) / info["direction"]
+                           if fresh else None)
             status = MIT_STATUS.get(int(fb.error_code), str(int(fb.error_code)))
             self.log.row(
                 motor_id=motor_id,
-                joint=info.get("name", f"motor{motor_id}"),
+                joint=info["name"],
                 phase=self.phase,
                 sp_deg=self.setpoints.get(motor_id),
                 sp_raw_deg=self.requested.get(motor_id),
                 pos_deg=pos_cmd_deg,
                 # Units differ (ERPM / drive units): recorded raw; the plotter uses d(position)/dt.
                 vel_dps=None,
-                tau_nm=torque if torque else None,
-                current_a=current if current else None,
+                tau_nm=float(fb.torque) if fresh else None,
+                current_a=float(fb.current) if fresh else None,
                 drive_c=int(fb.temperature),
                 status=status,
                 ff_nm=self.mit_cmd.get(motor_id, (None, None))[0],
@@ -212,12 +217,13 @@ def main(argv=None) -> int:
         node.destroy_node()
         rclpy.shutdown()
         print(f"\nrecorded {node.rows} rows from motors {seen}")
-        if not seen:
-            print("WARNING: no feedback received at all -- is can_node running?")
         if run_dir is not None:
             print(f"Telemetry: {run_dir}")
             print(f"  plot with: uv run --with matplotlib --with numpy "
                   f"tools/gl40_telemetry_plot.py {run_dir}")
+    if not seen:
+        print("ERROR: no feedback received at all -- is can_node running?", file=sys.stderr)
+        return 1
     return 0
 
 

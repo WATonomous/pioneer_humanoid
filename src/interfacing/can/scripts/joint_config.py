@@ -74,26 +74,33 @@ def find_calibration(explicit: Optional[str]) -> Path:
     return found
 
 
-def find_actuators(explicit: Optional[str]) -> Optional[Path]:
-    return _first_existing([explicit] if explicit else ACTUATOR_CONFIGS)
+def find_actuators(explicit: Optional[str]) -> Path:
+    candidates = [explicit] if explicit else ACTUATOR_CONFIGS
+    found = _first_existing(candidates)
+    if found is None:
+        raise SystemExit("could not find arm_actuators.yaml; pass --actuators PATH "
+                         f"(looked in: {', '.join(candidates)})")
+    return found
 
 
 def drive_family(motor_id: int) -> Optional[str]:
-    """mit_profiles.yaml family for this id (gl2 / ak), or None if unknown."""
+    """mit_profiles.yaml family for this id (gl2 / ak), or None if the id is not listed there."""
     path = _first_existing(MIT_PROFILES)
     if path is None:
-        return None
+        raise SystemExit(f"could not find mit_profiles.yaml (looked in: {', '.join(MIT_PROFILES)})")
     motors = (yaml.safe_load(path.read_text(encoding="utf-8")) or {}).get("motors", {}) or {}
     return (motors.get(str(motor_id)) or {}).get("family")
 
 
-def installed_joint_command_config() -> Optional[Path]:
+def installed_joint_command_config() -> Path:
     """joint_command_node's INSTALLED config dir -- what it enforces until rebuilt (needs ROS)."""
     try:
         from ament_index_python.packages import get_package_share_directory
         return Path(get_package_share_directory("joint_command")) / "config"
-    except Exception:  # noqa: BLE001 - no ROS, or the package is not installed here
-        return None
+    except (ImportError, LookupError) as exc:  # no ROS, or joint_command not installed here
+        raise SystemExit(f"cannot find joint_command's installed config ({exc!r}), so cannot "
+                         "check it matches the repo. Source the workspace joint_command is "
+                         "built in, or pass both --calibration and --actuators explicitly.")
 
 
 def same_yaml(a: Path, b: Path) -> bool:
@@ -114,14 +121,22 @@ def load_joint_map(path: Path, arm_side: str) -> Dict[int, dict]:
         if not isinstance(node, dict):
             return
         if "can_id" in node:
+            # joint_command requires every one of these keys (joint_command_core.cpp).
+            missing = [key for key in ("direction", "zero_offset", "lower_limit", "upper_limit",
+                                       "limit_range") if key not in node]
+            if missing:
+                raise SystemExit(f"{arm_side}.{prefix} in {path} is missing {missing}")
+            if node["direction"] not in (1, -1):
+                raise SystemExit(f"{arm_side}.{prefix} in {path}: direction must be 1 or -1, "
+                                 f"got {node['direction']!r}")
             out[int(node["can_id"])] = {
                 "name": prefix,
                 "side": arm_side,
-                "direction": float(node.get("direction", 1)) or 1.0,
-                "zero_offset": float(node.get("zero_offset", 0.0)),
-                "lower": float(node.get("lower_limit", float("-inf"))),
-                "upper": float(node.get("upper_limit", float("inf"))),
-                "limit_range": bool(node.get("limit_range", False)),
+                "direction": float(node["direction"]),
+                "zero_offset": float(node["zero_offset"]),
+                "lower": float(node["lower_limit"]),
+                "upper": float(node["upper_limit"]),
+                "limit_range": bool(node["limit_range"]),
                 "slot": None,
             }
             return
@@ -162,7 +177,7 @@ def joint_safety(path: Optional[Path], arm_side: str, name: str) -> Dict[str, An
 
 
 def load_actuator_limits(explicit: Optional[str], arm_side: str):
-    """({joint: velocity_max_dps}, {joint: mit thresholds}) for the plots; empty if missing."""
+    """({joint: velocity_max_dps}, {joint: mit thresholds}) for the plots."""
     _, joints = load_joint_safety(find_actuators(explicit), arm_side)
     vmax, mit = {}, {}
     for name, block in joints.items():
@@ -194,17 +209,3 @@ def gripper_position(info: dict, cmd_deg: float) -> float:
     """Gripper command angle -> position, 0 = open (its calibrated zero) .. 1 = closed
     (upper_limit), as joint_command maps it. Not clamped, so a bad calibration shows."""
     return cmd_deg / info["upper"]
-
-
-def cmd_to_motor_deg(info: dict, cmd_deg: float) -> float:
-    """joint_command's calibration: motor = direction * (cmd - zero_offset)."""
-    return (info["direction"] or 1.0) * (cmd_deg - info["zero_offset"])
-
-
-def motor_frame_limits_deg(info: dict) -> Tuple[Optional[float], Optional[float]]:
-    """Command-frame limits in the motor frame (deg, low first); (None, None) without limits."""
-    if not info.get("limit_range"):
-        return (None, None)
-    a = cmd_to_motor_deg(info, info["lower"])
-    b = cmd_to_motor_deg(info, info["upper"])
-    return (min(a, b), max(a, b))
