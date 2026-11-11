@@ -18,6 +18,30 @@ That is the URDF zero, the real arm's calibrated zero, and the leader's (`calibr
 | F | 7 | `joint6l` wrist | −1 |
 | G | 6 | gripper (41.5° open → 0° closed) | +1 |
 
+### The 8dof arms (`--robot 8dof`, MuJoCo)
+
+`--target mujoco` drives `pioneer_bimanual_arm_8dof` (7-DoF + gripper per arm) by default; `--robot armv2` keeps the
+old arms. Isaac and the real arm only have the old arms. The 8dof arms add a 7th joint, wrist yaw, after wrist pitch:
+the leader drives it with an **eighth servo, H, on bus ID 8**.
+
+| Servo | Bus ID | 8dof joint (left) | Default sign left / right |
+|-------|--------|-------------------|---------------------------|
+| A | 2 | `left_shoulder_pitch` | +1 / −1 |
+| B | 3 | `left_shoulder_roll` | +1 / −1 |
+| C | 1 | `left_shoulder_yaw` | +1 / −1 |
+| D | 5 | `left_elbow` (0 = straight) | +1 / +1 |
+| E | 4 | `left_forearm_roll` | −1 / +1 |
+| F | 7 | `left_wrist_pitch` | +1 / +1 |
+| **H** | **8** | `left_wrist_yaw` (**new servo**) | +1 / +1 |
+| G | 6 | gripper | +1 / +1 |
+
+- **Default signs** (`SIDE_SIGNS_8DOF`): the old signs times each 8dof joint's direction relative to the old arm's, from
+  the two models. Not checked on the leader: move each joint alone and compare with the sim, then calibrate with `--signs`.
+- **Calibration:** its own file, `leader_arm_8dof.json`, so `leader_arm.json` stays valid for the old arms:
+  `python calibrate_leader.py --side right --robot 8dof` (servo H on ID 8 first: `encoder_test.py --robot 8dof`).
+- **Recording:** `pioneer_8dof_dataset_schema.yaml`, 8 values per arm (7 joints + gripper), dataset `datasets/pioneer_8dof_*`.
+- **`--lock-wrist`** freezes both wrist joints (F and H).
+
 ## Calibrate (once per board)
 
 The leader unit has one board per arm, each on its own USB serial port (not the CANable's).

@@ -38,6 +38,12 @@ Output: `<repo>/datasets/pioneer_v1_left_arm/sim/`. Later sessions append to the
 | 6 | `left_wrist_pitch` | rad |
 | 7 | `left_gripper` | 0 open … 1 closed |
 
+**The 8dof arms** (`pioneer_bimanual_arm_8dof`, sim only): `config/pioneer_8dof_dataset_schema.yaml`, **8 values** per
+arm: `left_shoulder_pitch`, `left_shoulder_roll`, `left_shoulder_yaw`, `left_elbow`, `left_forearm_roll`,
+`left_wrist_pitch`, `left_wrist_yaw` (rad), then `left_gripper` (0 open … 1 closed). Datasets `pioneer_8dof_*`, kept
+apart from `pioneer_v1_*`. The MuJoCo leader teleop records it by default (`--robot 8dof`); `evaluate.py` picks the
+robot from the policy's action size (8 = 8dof, 7 = old arms) or `--robot`.
+
 | Field | Content |
 |-------|---------|
 | `observation.state` | measured joint positions + gripper closure |

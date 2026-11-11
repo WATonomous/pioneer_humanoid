@@ -19,15 +19,26 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from arm_limits import gripper_fraction, limited_target
-from servo_leader import ARM_SERVOS, GRIPPER_SERVO, SERVO_IDS, ServoLeader, calibration_zeros, parse_signs
+from servo_leader import (ARM_SERVOS, GRIPPER_SERVO, LAYOUTS, SERVO_IDS, LeaderLayout, ServoLeader,  # noqa: F401 (re-exported)
+                          calibration_zeros, parse_signs)
 
 # Per-servo direction of each board, A..F then G, found by moving one joint at a time: what calibrate_leader.py writes
 # without --signs.
 SIDE_SIGNS = {"left": "1,1,-1,-1,1,-1,1", "right": "1,1,-1,1,1,1,1"}
 DEFAULT_SIGNS = SIDE_SIGNS["left"]
+# The same boards driving the 8dof arms (servos A..F, H, G): A..F are SIDE_SIGNS times the direction of each 8dof
+# joint relative to the old arm's (its joint axes at zero: left shoulder yaw, elbow, forearm roll and wrist pitch turn
+# the other way; on the right, shoulder pitch and roll). H (wrist yaw, the added servo) starts at +1.
+# All from the models, not the hardware: check each joint by moving it alone, then calibrate with --signs.
+SIDE_SIGNS_8DOF = {"left": "1,1,1,1,-1,1,1,1", "right": "-1,-1,-1,1,1,1,1,1"}
+ROBOT_SIDE_SIGNS = {"armv2": SIDE_SIGNS, "8dof": SIDE_SIGNS_8DOF}
 # The leader unit's two boards (one per arm): port, USB serial, signs and zeros, written by
 # calibrate_leader.py and committed: the numbers belong to the unit, which is found by USB serial.
 DEFAULT_LEADER_ARM = Path(__file__).resolve().parent / "leader_arm.json"
+# The 8dof leader (one more servo, other signs) is calibrated into its own file, so the old arms' stays valid.
+DEFAULT_LEADER_ARMS = {"armv2": DEFAULT_LEADER_ARM, "8dof": DEFAULT_LEADER_ARM.with_name("leader_arm_8dof.json")}
+# The sim robot each --target drives by default; Isaac (no USD of the 8dof arms) and the real arm are the old arms.
+DEFAULT_ROBOT = {"mujoco": "8dof", "isaac": "armv2", "real": "armv2"}
 # Before leader_arm.json: the left board's zeros alone (calibrate_leader.py --from converts it).
 OLD_CALIBRATION = Path(__file__).resolve().parent / "leader_calibration.json"
 SIDES = ("left", "right")
@@ -50,12 +61,20 @@ def add_leader_args(parser: argparse.ArgumentParser, *, scene_help: str) -> None
         help="what the leader drives (real: dry run, read-only)",
     )
     parser.add_argument("--scene", type=str, default="bare", help=scene_help)
+    parser.add_argument(
+        "--robot",
+        choices=tuple(LAYOUTS),
+        default=None,
+        help="arms to drive: 8dof (7-DoF + gripper, leader servos A..F + H + G; default for --target mujoco) or "
+             "armv2 (the old 6-DoF arms; Isaac and the real arm only have these)",
+    )
     parser.add_argument("--baud", type=int, default=1_000_000, help="leader serial baud rate")
     parser.add_argument(
         "--leader-arm",
         type=Path,
-        default=DEFAULT_LEADER_ARM,
-        help="leader boards file from calibrate_leader.py (default: leader_arm.json here)",
+        default=None,
+        help="leader boards file from calibrate_leader.py (default: leader_arm.json here, leader_arm_8dof.json for "
+             "--robot 8dof)",
     )
     parser.add_argument(
         "--filter-alpha",
@@ -69,8 +88,14 @@ def check_leader_args(parser: argparse.ArgumentParser, args: argparse.Namespace,
     """Validate the leader flags and load the boards that drive `sides`."""
     if not 0.0 < args.filter_alpha <= 1.0:
         parser.error("--filter-alpha must be in (0, 1]")
+    if args.robot is None:
+        args.robot = DEFAULT_ROBOT[args.target]
+    if args.robot != "armv2" and args.target != "mujoco":
+        parser.error(f"--robot {args.robot} runs with --target mujoco only: the {args.target} backend has the old arms")
+    if args.leader_arm is None:
+        args.leader_arm = DEFAULT_LEADER_ARMS[args.robot]
     try:
-        return load_leader_boards(args.leader_arm, sides)
+        return load_leader_boards(args.leader_arm, sides, LAYOUTS[args.robot])
     except ValueError as exc:
         parser.error(str(exc))
 
@@ -84,7 +109,8 @@ class LeaderBoard:
     usb_serial: str
     signs: tuple[float, ...]
     zeros: dict[int, int]  # raw zero count per servo ID
-    lock_wrist: bool = False  # MuJoCo teleop: freeze this arm's wrist (F) at home instead of following the leader
+    lock_wrist: bool = False  # MuJoCo teleop: freeze this arm's wrist (layout.wrist_servos) at home instead of following
+    layout: LeaderLayout = LAYOUTS["armv2"]  # the servos this board has and the robot they drive
 
 
 def usb_serial(port: str) -> str | None:
@@ -119,12 +145,13 @@ def connected_port() -> str:
     return ports[0]
 
 
-def calibrate_hint(side: str) -> str:
-    return f"python calibrate_leader.py --side {side}"
+def calibrate_hint(side: str, robot: str = "armv2") -> str:
+    return f"python calibrate_leader.py --side {side}" + (f" --robot {robot}" if robot != "armv2" else "")
 
 
-def load_leader_boards(path: Path, sides: list[str]) -> dict[str, LeaderBoard]:
-    """The boards driving `sides` from leader_arm.json, each found on its port by its USB serial.
+def load_leader_boards(path: Path, sides: list[str], layout: LeaderLayout = LAYOUTS["armv2"]) -> dict[str, LeaderBoard]:
+    """The boards driving `sides` from leader_arm.json, each found on its port by its USB serial. `layout`: the servos
+    the boards have (LAYOUTS: the old arms' A..G, or the 8dof arms' A..F, H, G).
 
     Two boards must have different USB serials, so a swapped plug order can't swap the arms.
     """
@@ -132,27 +159,28 @@ def load_leader_boards(path: Path, sides: list[str]) -> dict[str, LeaderBoard]:
         if path == DEFAULT_LEADER_ARM and OLD_CALIBRATION.is_file():
             raise ValueError(f"no {path.name}: convert {OLD_CALIBRATION.name} (no re-hanging needed) with\n"
                              f"  {calibrate_hint('left')} --from {OLD_CALIBRATION.name}")
-        raise ValueError(f"no {path}: calibrate the leader first with\n  {calibrate_hint(sides[0])}")
+        raise ValueError(f"no {path}: calibrate the leader first with\n  {calibrate_hint(sides[0], layout.robot)}")
     data = json.loads(path.read_text())
     boards = {}
     for side in sides:
         entry = data.get(side) or {}
         if not entry.get("enabled"):
             raise ValueError(f"the {side} leader board is not enabled in {path}; calibrate it with\n"
-                             f"  {calibrate_hint(side)}")
+                             f"  {calibrate_hint(side, layout.robot)}")
         lock_wrist = entry.get("lock_wrist", False)
         if not isinstance(lock_wrist, bool):
             raise ValueError(f"the {side} board in {path}: lock_wrist must be true or false, got {lock_wrist!r}")
         if entry.get("usb_serial") is None:
             raise ValueError(f"the {side} board in {path} has no USB serial, so it can't be found; recalibrate it with\n"
-                             f"  {calibrate_hint(side)}")
+                             f"  {calibrate_hint(side, layout.robot)}")
         boards[side] = LeaderBoard(
             side=side,
             port=port_of(entry["usb_serial"]),
             usb_serial=entry["usb_serial"],
-            signs=parse_signs(entry["signs"]),
-            zeros=calibration_zeros(entry["servos"], f"{path} {side}"),
+            signs=parse_signs(entry["signs"], layout.servo_ids),
+            zeros=calibration_zeros(entry["servos"], f"{path} {side}", layout.servo_ids),
             lock_wrist=lock_wrist,
+            layout=layout,
         )
     serials = [board.usb_serial for board in boards.values()]
     if len(set(serials)) < len(serials):
@@ -164,19 +192,26 @@ class LeaderMapping:
     """Filtered, URDF-clamped arm targets (rad) and gripper closure (0 open .. 1 closed)."""
 
     def __init__(self, signs: tuple[float, ...], filter_alpha: float, home_rad: list[float],
-                 limits_rad: list[tuple[float, float]], locked: tuple[str, ...] = ()):
-        if len(home_rad) != len(ARM_SERVOS):
-            raise ValueError(f"leader drives {len(ARM_SERVOS)} joints but the arm has {len(home_rad)}")
-        unknown = set(locked) - set(ARM_SERVOS)
+                 limits_rad: list[tuple[float, float]], locked: tuple[str, ...] = (),
+                 layout: LeaderLayout = LAYOUTS["armv2"]):
+        self.layout = layout
+        arm_servos = layout.arm_servos
+        if len(home_rad) != len(arm_servos):
+            raise ValueError(f"leader drives {len(arm_servos)} joints but the arm has {len(home_rad)}")
+        if len(signs) != len(layout.servo_ids):
+            raise ValueError(f"{len(signs)} signs for {len(layout.servo_ids)} servos {list(layout.servo_ids)}")
+        if len(limits_rad) != len(arm_servos):
+            raise ValueError(f"{len(limits_rad)} joint limits for {len(arm_servos)} arm servos")
+        unknown = set(locked) - set(arm_servos)
         if unknown:
-            raise ValueError(f"can't lock {sorted(unknown)}: arm servos are {list(ARM_SERVOS)}")
+            raise ValueError(f"can't lock {sorted(unknown)}: arm servos are {list(arm_servos)}")
         self.signs = tuple(signs)
         # Locked joints hold home and ignore the leader (so they never block engaging either).
         self.locked = tuple(locked)
         self.alpha = filter_alpha
         self.home = list(home_rad)
         self.limits_deg = [(math.degrees(lo), math.degrees(hi)) for lo, hi in limits_rad]
-        self.gripper_axis = tuple(SERVO_IDS).index(GRIPPER_SERVO)
+        self.gripper_axis = tuple(layout.servo_ids).index(layout.gripper_servo)
         self.reset()
 
     def reset(self) -> None:
@@ -190,17 +225,17 @@ class LeaderMapping:
         desired = [
             self.home[i] if label in self.locked
             else limited_target(angles[i], self.signs[i], 1.0, self.limits_deg[i])
-            for i, label in enumerate(ARM_SERVOS)
+            for i, label in enumerate(self.layout.arm_servos)
         ]
         grip = gripper_fraction(angles[self.gripper_axis], self.signs[self.gripper_axis])
         if not self.engaged:
             self.home_errors = [
                 (label, math.degrees(d - h))
-                for label, d, h in zip(ARM_SERVOS, desired, self.home)
+                for label, d, h in zip(self.layout.arm_servos, desired, self.home)
             ]
-            self.home_errors.append((GRIPPER_SERVO, grip))
+            self.home_errors.append((self.layout.gripper_servo, grip))
             if any(
-                abs(err) > (ENGAGE_GRIP_TOL if label == GRIPPER_SERVO else ENGAGE_TOL_DEG)
+                abs(err) > (ENGAGE_GRIP_TOL if label == self.layout.gripper_servo else ENGAGE_TOL_DEG)
                 for label, err in self.home_errors
             ):
                 return self.target, self.grip
@@ -210,13 +245,14 @@ class LeaderMapping:
         return self.target, self.grip
 
     def describe(self, joints: list[str]) -> str:
+        ids, grip = self.layout.servo_ids, self.layout.gripper_servo
         return (
             "[LEADER] Mapping (1:1 from hanging zero): "
             + " | ".join(
-                f"{label}(ID{SERVO_IDS[label]}) " + ("locked" if label in self.locked else f"{sign:+.0f}") + f" -> {joint}"
-                for label, joint, sign in zip(ARM_SERVOS, joints, self.signs)
+                f"{label}(ID{ids[label]}) " + ("locked" if label in self.locked else f"{sign:+.0f}") + f" -> {joint}"
+                for label, joint, sign in zip(self.layout.arm_servos, joints, self.signs)
             )
-            + f" | {GRIPPER_SERVO}(ID{SERVO_IDS[GRIPPER_SERVO]}) {self.signs[self.gripper_axis]:+.0f} -> gripper"
+            + f" | {grip}(ID{ids[grip]}) {self.signs[self.gripper_axis]:+.0f} -> gripper"
         )
 
 
@@ -224,9 +260,10 @@ class LeaderInput:
     """Calibrated ServoLeader that holds the last reading on a dropped serial frame instead of stopping the sim."""
 
     def __init__(self, board: LeaderBoard, baud: int, label: str = ""):
-        self.leader = ServoLeader(board.port, baud, zeros=board.zeros)
+        self.leader = ServoLeader(board.port, baud, servo_ids=board.layout.servo_ids, zeros=board.zeros)
         self.label = f" {label}" if label else ""  # which leader, when there are two
-        self.angles = (0.0,) * len(SERVO_IDS)
+        self.labels = tuple(board.layout.servo_ids)
+        self.angles = (0.0,) * len(self.labels)
         self._last_warning = 0.0
         self._last_report = time.monotonic()
 
@@ -248,12 +285,12 @@ class LeaderInput:
         self._last_report = now
         if mapping.engaged:
             line = (
-                " ".join(f"{label}={math.degrees(a):+6.1f}" for label, a in zip(SERVO_IDS, self.angles))
+                " ".join(f"{label}={math.degrees(a):+6.1f}" for label, a in zip(self.labels, self.angles))
                 + f" grip={mapping.grip:.2f}"
             )
         else:
             line = f"move leader within {ENGAGE_TOL_DEG:g} deg of home (elbow 90, gripper open): " + " ".join(
-                f"{label} {err:+6.1f}deg" if label != GRIPPER_SERVO else f"{label} {err:4.2f}"
+                f"{label} {err:+6.1f}deg" if label != mapping.layout.gripper_servo else f"{label} {err:4.2f}"
                 for label, err in mapping.home_errors
             )
         if end:

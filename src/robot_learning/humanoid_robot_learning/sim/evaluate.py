@@ -4,8 +4,11 @@
 
 Works for any scene that registers ``success`` or a multi-step ``progress``. Episode ``i`` lays the scene out with
 ``reset`` seeded by ``--seed + i``, as the synthetic demos are, so pick seeds the training data did not use. The arm is
-driven like the recorded teleop: state is the 6 arm joints plus gripper closure, the action 6 joint targets plus the
+driven like the recorded teleop: state is the arm joints plus gripper closure, the action the joint targets plus the
 gripper command, held for one frame (1 / ``--fps``); cameras are rendered at the size the policy was trained on.
+
+Robot (``--robot``, default from the policy's action size): ``8dof`` = pioneer_bimanual_arm_8dof's left arm (7 joints +
+gripper, pioneer_8dof_dataset_schema.yaml), ``armv2`` = the old 6-DoF left arm (6 + gripper).
 """
 from __future__ import annotations
 
@@ -21,20 +24,47 @@ import numpy as np
 CONTROL_DT = 0.01
 WRIST_DAMPING = 2.5
 HOLD_S = 0.4    # success must last this long (a peg that drops in and bounces out is not inserted)
+# Left-arm action size (arm joints + gripper) per robot: how --robot is picked from the policy.
+ACTION_DIM = {"armv2": 7, "8dof": 8}
+
+
+def robot_params(robot: str):
+    """(params module, set_home, wrist actuator to give the teleop's damping or None) of a sim robot."""
+    if robot == "8dof":
+        from pioneer_humanoid import arm_8dof_params as params
+        from pioneer_humanoid.mujoco_bimanual_arm_8dof import set_home
+        return params, set_home, None   # AK45-10 wrist PD group: no extra damping
+    if robot == "armv2":
+        from pioneer_humanoid import arm_params as params
+        from pioneer_humanoid.mujoco_bimanual_arm import set_home
+        return params, set_home, "joint6l"
+    raise ValueError(f"unknown robot {robot!r}; known: {list(ACTION_DIM)}")
+
+
+def robot_for_action_dim(dim: int) -> str:
+    for robot, n in ACTION_DIM.items():
+        if n == dim:
+            return robot
+    raise ValueError(f"policy action size {dim} matches no robot ({ACTION_DIM}); pass --robot")
 
 
 class SceneEnv:
-    def __init__(self, scene: str, cameras: dict[str, tuple[int, int]]):
+    def __init__(self, scene: str, cameras: dict[str, tuple[int, int]], robot: str = "8dof"):
         from humanoid_mujoco_scenes import make_model, scene_progress, scene_reset, scene_step, scene_success
-        from pioneer_humanoid.arm_params import LEFT_ARM_JOINTS, LEFT_GRIPPER_CLOSED, LEFT_GRIPPER_JOINTS, LEFT_GRIPPER_OPEN
+
+        params, self.set_home, wrist = robot_params(robot)
+        LEFT_ARM_JOINTS, LEFT_GRIPPER_JOINTS = params.LEFT_ARM_JOINTS, params.LEFT_GRIPPER_JOINTS
+        LEFT_GRIPPER_OPEN, LEFT_GRIPPER_CLOSED = params.LEFT_GRIPPER_OPEN, params.LEFT_GRIPPER_CLOSED
+        self.robot, self.n_arm = robot, len(LEFT_ARM_JOINTS)
 
         self.success = scene_success(scene)
         if self.success is None:
             raise SystemExit(f"scene {scene!r} registers neither success nor progress: nothing to evaluate")
         self.randomise, self.hook, self.progress = scene_reset(scene), scene_step(scene), scene_progress(scene)
-        self.model = model = make_model(scene, cameras=cameras, robot="armv2")  # 6-DoF joint names; not yet ported to 8dof
+        self.model = model = make_model(scene, cameras=cameras, robot=robot)
         self.data = mujoco.MjData(model)
-        model.actuator_biasprm[model.actuator("joint6l").id, 2] = -WRIST_DAMPING
+        if wrist is not None:
+            model.actuator_biasprm[model.actuator(wrist).id, 2] = -WRIST_DAMPING
         self.arm_acts = [model.actuator(j).id for j in LEFT_ARM_JOINTS]
         self.arm_qpos = [model.joint(j).qposadr[0] for j in LEFT_ARM_JOINTS]
         self.arm_lo, self.arm_hi = model.jnt_range[[model.joint(j).id for j in LEFT_ARM_JOINTS]].T
@@ -47,10 +77,8 @@ class SceneEnv:
         self.renderers = {size: mujoco.Renderer(model, *size) for size in set(cameras.values())}
 
     def reset(self, seed: int) -> None:
-        from pioneer_humanoid.mujoco_bimanual_arm import set_home
-
         mujoco.mj_resetData(self.model, self.data)
-        set_home(self.model, self.data)
+        self.set_home(self.model, self.data)
         if self.randomise is not None:
             self.randomise(self.model, self.data, np.random.default_rng([seed, 0]))
         mujoco.mj_forward(self.model, self.data)
@@ -64,8 +92,11 @@ class SceneEnv:
         return obs
 
     def step(self, action: np.ndarray, control_steps: int) -> None:
-        self.data.ctrl[self.arm_acts] = np.clip(action[:6], self.arm_lo, self.arm_hi)
-        self.data.ctrl[self.grip_acts] = self.grip_open + np.clip(action[6], 0.0, 1.0) * (self.grip_closed - self.grip_open)
+        if len(action) != self.n_arm + 1:
+            raise ValueError(f"{self.robot}: action has {len(action)} values, expected {self.n_arm} joints + gripper")
+        n = self.n_arm
+        self.data.ctrl[self.arm_acts] = np.clip(action[:n], self.arm_lo, self.arm_hi)
+        self.data.ctrl[self.grip_acts] = self.grip_open + np.clip(action[n], 0.0, 1.0) * (self.grip_closed - self.grip_open)
         for _ in range(control_steps):
             if self.hook is not None:
                 self.hook(self.model, self.data)
@@ -127,6 +158,8 @@ def main() -> None:
     p.add_argument("--task", default=None, help="task text (default: the scene's step instruction, else the training dataset's task)")
     p.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     p.add_argument("--video_dir", default=None, help="write an mp4 per episode (cameras side by side)")
+    p.add_argument("--robot", choices=tuple(ACTION_DIM), default=None,
+                   help="sim arm (default: from the policy's action size: 8 = 8dof, 7 = armv2)")
     args = p.parse_args()
 
     control_steps = round(1 / (args.fps * CONTROL_DT))
@@ -134,7 +167,15 @@ def main() -> None:
         p.error(f"--fps {args.fps} must divide {1 / CONTROL_DT:g} Hz")
     policy, pre, post = load_policy(args.policy, args.device)
     cameras = {key.removeprefix("observation.images."): tuple(ft.shape[1:]) for key, ft in policy.config.image_features.items()}
-    env = SceneEnv(args.scene, cameras)
+    action_dim = int(policy.config.output_features["action"].shape[0])
+    try:
+        robot = args.robot or robot_for_action_dim(action_dim)
+    except ValueError as exc:
+        p.error(str(exc))
+    if action_dim != ACTION_DIM[robot]:
+        p.error(f"the policy outputs {action_dim} actions; --robot {robot} takes {ACTION_DIM[robot]}")
+    print(f"[EVAL] robot {robot} ({action_dim} actions)", flush=True)
+    env = SceneEnv(args.scene, cameras, robot)
     task = args.task or training_task(args.policy)
     if task is None and env.progress is None:
         p.error("pass --task: the scene has no step instructions and the training dataset's task was not found")

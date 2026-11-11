@@ -24,20 +24,20 @@ import math
 import sys
 import time
 
-from servo_leader import SERVO_IDS, ServoLeader
+from servo_leader import LAYOUTS, ServoLeader
 
 POLL_PERIOD = 0.02  # 50 Hz
 
 
-def _select_servos(spec: str | None) -> dict[str, int]:
-    """SERVO_IDS, or the subset named by a comma list of bus IDs."""
+def _select_servos(spec: str | None, servo_ids: dict[str, int]) -> dict[str, int]:
+    """servo_ids, or the subset named by a comma list of bus IDs."""
     if not spec:
-        return dict(SERVO_IDS)
+        return dict(servo_ids)
     try:
         wanted = [int(item.strip()) for item in spec.split(",") if item.strip()]
     except ValueError:
         raise SystemExit(f"--ids: expected comma-separated integers, got {spec!r}")
-    by_id = {servo_id: label for label, servo_id in SERVO_IDS.items()}
+    by_id = {servo_id: label for label, servo_id in servo_ids.items()}
     unknown = [i for i in wanted if i not in by_id]
     if unknown:
         raise SystemExit(
@@ -53,14 +53,16 @@ def main() -> int:
     parser.add_argument(
         "--ids",
         default=None,
-        help="comma-separated bus IDs to watch (default: all seven)",
+        help="comma-separated bus IDs to watch (default: all of --robot's servos)",
     )
+    parser.add_argument("--robot", choices=tuple(LAYOUTS), default="armv2",
+                        help="leader layout: armv2 (A..G, 7 servos) or 8dof (A..F, H, G: 8 servos)")
     parser.add_argument(
         "--raw", action="store_true", help="also show raw encoder counts"
     )
     args = parser.parse_args()
 
-    servos = _select_servos(args.ids)
+    servos = _select_servos(args.ids, LAYOUTS[args.robot].servo_ids)
 
     try:
         leader = ServoLeader(args.port, args.baud, servo_ids=servos)
