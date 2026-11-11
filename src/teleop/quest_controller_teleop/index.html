@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pioneer · Quest 2 controller teleop</title>
+<style>
+body { background:#111820; color:#edf5fa; font:18px system-ui; max-width:920px; margin:40px auto; padding:20px }
+button { padding:16px 30px; background:#86e2b8; color:#10251b; border:0; border-radius:8px; font:inherit }
+img { width:31%; background:#253341; min-height:100px } p { line-height:1.6 } #status { color:#86e2b8 }
+</style>
+<h1>Pioneer VR teleoperation</h1>
+<p>Quest 2 + Touch controllers · simulated Pioneer bimanual arms</p>
+<button id="start" disabled>Enter VR</button>
+<p id="status">Connecting…</p>
+<p id="controls">Tracked controllers move the arms automatically.<br>
+<b>Index trigger:</b> squeeze to close the gripper. <b>A / X:</b> hold for precision motion.<br>
+<b>Left Y:</b> reset scene. <b>Thumbstick click:</b> hold to pause that arm and calibrate the wrist pivot.</p>
+<p id="tracking-help">Tracking loss pauses movement. Tracking return resumes from the current arm pose.
+Forward is aligned to your headset heading when tracking engages.</p>
+<div><img id="ego" alt="Ego camera"><img id="wrist_left" alt="Left wrist camera"><img id="wrist_right" alt="Right wrist camera"><img id="pov_left" alt="Left stereo eye" hidden><img id="pov_right" alt="Right stereo eye" hidden></div>
+<canvas id="xr" hidden></canvas>
+<script>
+"use strict";
+const status = document.querySelector('#status'), start = document.querySelector('#start');
+let ws, session, reference, gl, layer, program, quad, projection, placement, textureUniform;
+let visible = true, feedback = {}, lastHaptic = 0, reconnectTimer;
+let packetSequence = 0, referenceEpoch = 0;
+const textures = new Map(), images = ['ego', 'wrist_left', 'wrist_right', 'pov_left', 'pov_right'];
+const dirtyImages = new Set();
+const hud = document.createElement('canvas'); hud.width = 1024; hud.height = 128;
+const ctx = hud.getContext('2d');
+
+function setStatus(text) { status.textContent = text; }
+function connect() {
+  ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`);
+  ws.onopen = () => { start.disabled = !navigator.xr; setStatus('Connected. Enter VR to start.'); };
+  ws.onclose = () => {
+    start.disabled = true; feedback = {}; setStatus('Disconnected. Holding robot; reconnecting…');
+    clearTimeout(reconnectTimer); reconnectTimer = setTimeout(connect, 1500);
+  };
+  ws.onerror = () => setStatus('Connection failed. Check that the simulator is running.');
+  ws.onmessage = event => {
+    try {
+      feedback = JSON.parse(event.data); setStatus(feedback.status || 'Connected');
+    }
+    catch (_) { feedback = {}; }
+  };
+}
+connect();
+
+function sendPacket(packet, force=false) {
+  if (ws?.readyState !== WebSocket.OPEN || (!force && ws.bufferedAmount !== 0)) {
+    return;
+  }
+  packet.sample = {sequence:++packetSequence, time_ms:performance.now(), epoch:referenceEpoch};
+  ws.send(JSON.stringify(packet));
+}
+function stopped() {
+  referenceEpoch++;
+  sendPacket({version:1, head:null, left:null, right:null}, true);
+}
+function controller(frame, source) {
+  if (!visible) return {tracked:false, reason:'session_not_visible'};
+  if (!source.gripSpace) return {tracked:false, reason:'no_grip_space'};
+  if (!source.gamepad) return {tracked:false, reason:'no_gamepad'};
+  if (source.gamepad.mapping !== 'xr-standard') return {tracked:false, reason:'unsupported_gamepad_mapping'};
+  const pose = frame.getPose(source.gripSpace, reference);
+  if (!pose) return {tracked:false, reason:'pose_unavailable'};
+  if (pose.emulatedPosition) return {tracked:false, reason:'emulated_position'};
+  const p = pose.transform.position, q = pose.transform.orientation, b = source.gamepad.buttons;
+  return {tracked:true, position:[p.x,p.y,p.z], orientation:[q.x,q.y,q.z,q.w],
+    trigger:b[0]?.value || 0, clutch:!!b[1]?.pressed,
+    precision:!!b[4]?.pressed,
+    calibrate:!!b[3]?.pressed,
+    reset_scene:source.handedness === 'left' && !!b[5]?.pressed};
+}
+
+function shader(type, source) {
+  const s = gl.createShader(type); gl.shaderSource(s,source); gl.compileShader(s);
+  if (!gl.getShaderParameter(s,gl.COMPILE_STATUS)) throw Error(gl.getShaderInfoLog(s));
+  return s;
+}
+function setupGL() {
+  gl = document.querySelector('#xr').getContext('webgl', {xrCompatible:true});
+  if (!gl) throw Error('WebGL unavailable');
+  program = gl.createProgram();
+  gl.attachShader(program,shader(gl.VERTEX_SHADER, `attribute vec2 point; varying vec2 uv;
+    uniform mat4 projection; uniform vec4 placement;
+    void main(){uv=vec2(point.x*.5+.5,.5-point.y*.5);
+    gl_Position=projection*vec4(point*placement.zw+placement.xy,-1.5,1.);}`));
+  gl.attachShader(program,shader(gl.FRAGMENT_SHADER, `precision mediump float;
+    varying vec2 uv; uniform sampler2D image; void main(){gl_FragColor=texture2D(image,uv);}`));
+  gl.linkProgram(program);
+  if (!gl.getProgramParameter(program,gl.LINK_STATUS)) throw Error(gl.getProgramInfoLog(program));
+  gl.useProgram(program);
+  quad = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,quad);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1, 1,-1, -1,1, 1,1]),gl.STATIC_DRAW);
+  const attribute = gl.getAttribLocation(program,'point');
+  gl.enableVertexAttribArray(attribute); gl.vertexAttribPointer(attribute,2,gl.FLOAT,false,0,0);
+  projection=gl.getUniformLocation(program,'projection'); placement=gl.getUniformLocation(program,'placement');
+  textureUniform=gl.getUniformLocation(program,'image');
+  // Images arrive asynchronously; upload only in the XR callback while drawing.
+  for (const name of [...images,'hud']) {
+    const tex=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,tex);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([20,30,40,255]));
+    textures.set(name,tex);
+  }
+}
+function panel(name, x, y, width, height) {
+  gl.bindTexture(gl.TEXTURE_2D,textures.get(name));
+  gl.uniform4f(placement,x,y,width,height); gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+}
+function draw(time, frame) {
+  if (!session) return;
+  session.requestAnimationFrame(draw);
+  const viewer=frame.getViewerPose(reference);
+  const packet={version:1,head:null,left:null,right:null};
+  if (viewer && visible) {
+    packet.left={tracked:false,reason:'no_input_source'};
+    packet.right={tracked:false,reason:'no_input_source'};
+    const q=viewer.transform.orientation; packet.head=[q.x,q.y,q.z,q.w];
+    for (const source of session.inputSources) {
+      if (source.handedness === 'left' || source.handedness === 'right')
+        packet[source.handedness]=controller(frame,source);
+      if (time-lastHaptic>80 && packet[source.handedness]?.clutch) {
+        const intensity=feedback.haptics?.[source.handedness] || 0;
+        if (intensity>0) source.gamepad?.hapticActuators?.[0]?.pulse(intensity,80).catch(()=>{});
+      }
+    }
+    if (time-lastHaptic>80) lastHaptic=time;
+  }
+  // Send each XR frame when writable. A 13 ms gate halves a 90 Hz source.
+  // bufferedAmount only measures the browser queue, not server processing age.
+  sendPacket(packet);
+  if (!viewer) return;
+  gl.bindFramebuffer(gl.FRAMEBUFFER,layer.framebuffer);
+  gl.clearColor(.035,.055,.075,1); gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.useProgram(program); gl.activeTexture(gl.TEXTURE0); gl.uniform1i(textureUniform,0);
+  for (const name of images) {
+    const img=document.getElementById(name);
+    if (dirtyImages.has(name) && img.complete && img.naturalWidth) {
+      gl.bindTexture(gl.TEXTURE_2D,textures.get(name));
+      gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,img);
+      dirtyImages.delete(name);
+    }
+  }
+  ctx.fillStyle='#111820'; ctx.fillRect(0,0,hud.width,hud.height);
+  ctx.fillStyle='#86e2b8'; ctx.font='24px sans-serif';
+  ctx.fillText(`Left ${feedback.active?.left?'MOVING':'HOLD'}   Right ${feedback.active?.right?'MOVING':'HOLD'}`,20,40);
+  ctx.fillStyle='white'; ctx.font='20px sans-serif'; ctx.fillText(status.textContent,20,85,980);
+  gl.bindTexture(gl.TEXTURE_2D,textures.get('hud'));
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,hud);
+  for (const view of viewer.views) {
+    const vp=layer.getViewport(view); gl.viewport(vp.x,vp.y,vp.width,vp.height);
+    gl.uniformMatrix4fv(projection,false,view.projectionMatrix);
+    const eye = view.eye === 'left' ? 'pov_left' : 'pov_right';
+    panel(feedback.scene === 'isaac' ? eye : 'ego',0,.13,.52,.39);
+    panel('wrist_left',-.28,-.52,.26,.195); panel('wrist_right',.28,-.52,.26,.195);
+    panel('hud',0,.65,.70,.0875);
+  }
+}
+start.onclick = async () => {
+  try {
+    if (!navigator.xr || !await navigator.xr.isSessionSupported('immersive-vr'))
+      throw Error('Open this page in Meta Browser on the Quest 2. USB uses localhost; LAN requires HTTPS.');
+    if (session) return;
+    setupGL(); await gl.makeXRCompatible();
+    session=await navigator.xr.requestSession('immersive-vr', {requiredFeatures:['local-floor']});
+    referenceEpoch++;
+    layer=new XRWebGLLayer(session,gl); session.updateRenderState({baseLayer:layer});
+    reference=await session.requestReferenceSpace('local-floor'); visible=session.visibilityState==='visible';
+    reference.addEventListener('reset', stopped);
+    session.addEventListener('visibilitychange',()=>{visible=session.visibilityState==='visible'; if(!visible) stopped();});
+    session.addEventListener('end',()=>{stopped(); session=null; setStatus('VR ended. Arms holding.');});
+    session.requestAnimationFrame(draw);
+  } catch(error) {
+    const failed=session; session=null; if(failed) await failed.end();
+    setStatus(error.message);
+  }
+};
+for (const name of images) {
+  const img=document.getElementById(name);
+  const refresh=()=>setTimeout(()=>{
+    if (name.startsWith('pov_') && feedback.scene !== 'isaac') return refresh();
+    img.src=`/camera/${name}.jpg?t=${Date.now()}`;
+  },40);
+  img.onload=()=>{dirtyImages.add(name);refresh();}; img.onerror=refresh; img.src=`/camera/${name}.jpg`;
+}
+window.addEventListener('pagehide', stopped);
+</script>
+</html>

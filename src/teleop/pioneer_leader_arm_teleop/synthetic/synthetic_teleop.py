@@ -50,7 +50,7 @@ class TeleopSim:
 
         self.mujoco, self.np = mujoco, np
         self.scene = scene
-        self.model = model = make_model(scene, cameras=cameras)
+        self.model = model = make_model(scene, cameras=cameras, robot="armv2")  # 6-DoF joint names; not yet ported to 8dof
         self.data = data = mujoco.MjData(model)
         model.actuator_biasprm[model.actuator("joint6l").id, 2] = -WRIST_DAMPING
         self.hook, self.progress = scene_step(scene), scene_progress(scene)
