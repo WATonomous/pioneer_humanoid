@@ -26,10 +26,24 @@ class EKFPredictionNode(Node):
         self.process_noise_vel = 1e-2
 
         # ---------------- CONSTANTS ----------------
-        self.g = np.array([0.0, 0.0, -9.81])
+        # Gravity in the frame of the incoming measurements. The default assumes z is up
+        # (camera_link / robot convention); set it for the frame the measurements are really in.
+        self.g = np.array(self.declare_parameter('gravity', [0.0, 0.0, -9.81]).value, dtype=float)
         self.L = 3.4  # aerodynamic characteristic length (L-value)
         self.look_ahead_time = 2  # seconds
         self.bounding_sphere_radius = 2.0  # meters
+
+        # ---------------- TRACK RULES ----------------
+        # Seconds without a measurement before the track is dropped (and the next measurement starts a new one)
+        self.track_timeout = self.declare_parameter('track_timeout', 0.5).value
+        # A measurement is used if it is within gate_distance (m) of the prediction, or inside the
+        # filter's own uncertainty ellipse (squared Mahalanobis distance <= gate_chi2; 16.27 = 99.9%, 3 dof)
+        self.gate_distance = self.declare_parameter('gate_distance', 1.5).value
+        self.gate_chi2 = self.declare_parameter('gate_chi2', 16.27).value
+        # Consecutive rejected measurements after which the track is considered lost and restarted
+        self.max_rejections = self.declare_parameter('max_rejections', 5).value
+        self.rejections = 0
+        self.last_meas_clock = None  # node-clock time (s) the last measurement arrived
 
         # ---------------- ROS ----------------
         self.pub = self.create_publisher(Pose, '/ekf_predicted_states', 10)
@@ -58,6 +72,9 @@ class EKFPredictionNode(Node):
 
         self.timer = self.create_timer(self.dt, self.step)
 
+    def now_seconds(self):
+        return self.get_clock().now().nanoseconds * 1e-9
+
     # ---------------- CALLBACK ----------------
     def shuttle_callback(self, msg):
 
@@ -69,12 +86,13 @@ class EKFPredictionNode(Node):
                     + self.latest_meas_time.nanosec * 1e-9
                 )
             )
-            # over 3 seconds of no measurements, assume new shuttle
-            if dt_elapsed > 3:
+            # a long gap between measurements (including a time jump): assume a new shuttle
+            if dt_elapsed > self.track_timeout:
                 self.shuttle_spawned_callback(Bool(data=True))
 
         self.latest_meas = msg
         self.latest_meas_time = msg.header.stamp
+        self.last_meas_clock = self.now_seconds()
         self.new_meas_available = True
 
         z = np.array([msg.point.x, msg.point.y, msg.point.z])
@@ -121,19 +139,24 @@ class EKFPredictionNode(Node):
     def shuttle_spawned_callback(self, msg):
         if msg.data:
             self.get_logger().info("Shuttle spawned → resetting EKF state")
-            self.x = np.zeros(6)
-            self.P = np.eye(6) * 0.1
-            self.P[3:6, 3:6] = np.eye(3) * 50.0
-            self.increments = 0
-            self.latest_meas = None
-            self.new_meas_available = False
-            self.latest_meas_time = None
-            self.true_pos = np.zeros(3)
-            self.true_pos_valid = False
-            self.low_uncertainty = False
-            self.prev_meas = None
-            self.velocity_initialized = False
-            self.prev_meas_time = None
+            self.reset_track()
+
+    def reset_track(self):
+        self.x = np.zeros(6)
+        self.P = np.eye(6) * 0.1
+        self.P[3:6, 3:6] = np.eye(3) * 50.0
+        self.increments = 0
+        self.latest_meas = None
+        self.new_meas_available = False
+        self.latest_meas_time = None
+        self.last_meas_clock = None
+        self.rejections = 0
+        self.true_pos = np.zeros(3)
+        self.true_pos_valid = False
+        self.low_uncertainty = False
+        self.prev_meas = None
+        self.velocity_initialized = False
+        self.prev_meas_time = None
 
     # ---------------- MODEL ----------------
     def f(self, x):
@@ -249,9 +272,25 @@ class EKFPredictionNode(Node):
 
         self.impact_estimate_pub.publish(impact_msg)
 
+    # ---------------- MEASUREMENT GATE ----------------
+    def within_gate(self, y, S):
+        """y: measurement minus prediction, S: its covariance. True if the measurement is plausible."""
+        if np.linalg.norm(y) <= self.gate_distance:
+            return True
+        return float(y @ np.linalg.solve(S, y)) <= self.gate_chi2
+
     # ---------------- STEP ----------------
 
     def step(self):
+        # No track (nothing measured yet, or the last one was dropped): nothing to predict or publish
+        if self.latest_meas is None:
+            return
+        # The shuttle stopped being measured: drop the track instead of predicting it forever
+        if self.last_meas_clock is not None and self.now_seconds() - self.last_meas_clock > self.track_timeout:
+            self.get_logger().info(f"No measurement for {self.track_timeout} s → dropping track")
+            self.reset_track()
+            return
+
         self.increments += 1
         if (
             self.true_pos_valid
@@ -299,13 +338,27 @@ class EKFPredictionNode(Node):
             y = z - H @ self.x
 
             S = H @ self.P @ H.T + self.R
-            PHt = self.P @ H.T
-            K = np.linalg.solve(S.T, PHt.T).T
-            self.x = self.x + K @ y
 
-            identity = np.eye(6)
-            I_KH = identity - K @ H
-            self.P = I_KH @ self.P @ I_KH.T + K @ self.R @ K.T
+            # Gate: only use measurements that are plausible given the prediction (the velocity
+            # must be seeded first: until then the prediction is just the previous measurement)
+            if not self.velocity_initialized or self.within_gate(y, S):
+                self.rejections = 0
+                PHt = self.P @ H.T
+                K = np.linalg.solve(S.T, PHt.T).T
+                self.x = self.x + K @ y
+
+                identity = np.eye(6)
+                I_KH = identity - K @ H
+                self.P = I_KH @ self.P @ I_KH.T + K @ self.R @ K.T
+            else:
+                self.rejections += 1
+                self.get_logger().debug(
+                    f"Measurement rejected ({self.rejections}/{self.max_rejections}): "
+                    f"{np.linalg.norm(y):.2f} m from the prediction")
+                if self.rejections >= self.max_rejections:
+                    self.get_logger().info("Measurements keep missing the predicted track → restarting")
+                    self.reset_track()
+                    return
 
         # ==== IMPACT ESTIMATION (post-update) ====
         self.estimate_impact()
