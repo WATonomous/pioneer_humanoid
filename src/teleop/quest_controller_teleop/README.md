@@ -4,7 +4,7 @@ Drive the Pioneer bimanual rig's **7-DoF + 1-DoF-gripper arms**
 ([`pioneer_bimanual_arm_8dof`](../../../assets/pioneer_bimanual_arm_8dof/README.md)) in MuJoCo with Meta Quest 2 Touch
 controllers. MuJoCo only (no Isaac: the arm has no USD yet); no recording yet.
 
-## Run (no GPU, runs on a laptop)
+## Run
 
 1. `pip install -r src/teleop/quest_controller_teleop/requirements.txt` (plus `numpy`, `Pillow`, `pyyaml`).
 2. Plug the Quest into the same machine and start the sim (`python` instead of `mjpython` off macOS; `--headless` drops the window):
