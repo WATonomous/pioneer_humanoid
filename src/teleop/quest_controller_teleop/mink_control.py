@@ -58,7 +58,7 @@ class _JointBox:
 
 
 class PioneerMinkIK(PioneerKinematics):
-    def __init__(self, names, velocity=.9, wrist_velocity=None, orientation_weight=0.5, posture_weight=0.02,
+    def __init__(self, names, velocity=.9, wrist_velocity=None, orientation_weight=0.2, posture_weight=0.02,
                  body_keepout=False):
         super().__init__(names, velocity, wrist_velocity)
         import mink

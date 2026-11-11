@@ -96,6 +96,8 @@ def finger_colour(link, rgb):
     return rgb
 
 # ------------------------------------------------------------------ frames
+
+
 def to_urdf(p_mm):
     p = np.asarray(p_mm, float)
     return np.stack([(p[..., 1] - 575.0) / 1000 + 0.02157, -p[..., 0] / 1000, (p[..., 2] - 679.0) / 1000 + 0.06048], -1)
@@ -341,8 +343,8 @@ def main(step, out):
     def inertial_xml(fname):
         m, c, I = inertial[fname]
         return (f'<inertial><origin xyz="{c[0]:.6f} {c[1]:.6f} {c[2]:.6f}" rpy="0 0 0"/><mass value="{m:.4f}"/>'
-                f'<inertia ixx="{I[0,0]:.3e}" ixy="{I[0,1]:.3e}" ixz="{I[0,2]:.3e}" iyy="{I[1,1]:.3e}" '
-                f'iyz="{I[1,2]:.3e}" izz="{I[2,2]:.3e}"/></inertial>')
+                f'<inertia ixx="{I[0, 0]:.3e}" ixy="{I[0, 1]:.3e}" ixz="{I[0, 2]:.3e}" iyy="{I[1, 1]:.3e}" '
+                f'iyz="{I[1, 2]:.3e}" izz="{I[2, 2]:.3e}"/></inertial>')
 
     def link_xml(fname):
         vis = "".join(

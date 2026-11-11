@@ -40,7 +40,7 @@ def add_controller_args(parser):
     parser.add_argument("--rotation-gain", type=float, default=1., help="Controller rotation gain (1 = one-to-one)")
     parser.add_argument("--angular-lead", type=float, default=.6, help="Controller angular target lead limit (radians)")
     parser.add_argument("--position-lead", type=float, default=.08, help="Controller position target lead limit (m)")
-    parser.add_argument("--ik-orientation-weight", type=float, default=0.5,
+    parser.add_argument("--ik-orientation-weight", type=float, default=0.2,
                         help="Orientation cost relative to position (1 rad ~ 1/w m); lower = position first")
     parser.add_argument("--body-keepout", action="store_true",
                         help="Keep the upper arm/forearm 2 cm off an approximate torso box (off: the stand has no torso)")
@@ -67,7 +67,7 @@ def check_controller_args(parser, args):
 class ControllerSceneDriver:
     def __init__(self, joint_names, gain, velocity, calibration, port=8444,
                  wrist_velocity=3.6, rotation_gain=1., angular_lead=.6, frame_calibration=None, scene="mujoco",
-                 position_lead=.08, elbow_velocity=None, input_filter_factory=None, ik_orientation_weight=0.5,
+                 position_lead=.08, elbow_velocity=None, input_filter_factory=None, ik_orientation_weight=0.2,
                  body_keepout=False):
         """joint_names: {side: the 7 arm joints} of pioneer_bimanual_arm_8dof (arm_8dof_params)."""
         self.shared = Shared()
