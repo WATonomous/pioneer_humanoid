@@ -9,7 +9,6 @@ operator's human motion model. ``success`` decides whether the take is kept.
 from __future__ import annotations
 
 import math
-import os
 from dataclasses import dataclass
 from typing import Callable
 
@@ -146,9 +145,7 @@ def drawer_plan(op, model, data, notes) -> None:
 
 
 # ----------------------------------------------------------------------------- peg_insert
-def peg_plan(op, model, data, notes, resume: bool = False) -> None:
-    """``resume``: the operator takes over mid-episode (DAgger, dagger_collect.py): the peg may already be in the
-    jaws, or let go in the hole's mouth; ``op.home_tcp`` is where the hand rests afterwards."""
+def peg_plan(op, model, data, notes) -> None:
     import humanoid_mujoco_scenes.peg_insert.scene as S
 
     rng, T = op.rng, S.TABLE_TOP_Z
@@ -170,16 +167,15 @@ def peg_plan(op, model, data, notes, resume: bool = False) -> None:
         return (np.all(np.abs(data.xpos[peg][:2] - hole[:2]) < (S.PEG_SIZE + S.CLEARANCE) / 2) and tilt_deg() < 10
                 and peg_bottom() < block_top - 0.01)
 
-    def grasp(base=T):
-        """``base``: what the peg stands on (the table; on resume, wherever it was left, e.g. the hole's mouth)."""
+    def grasp():
         for attempt in range(3):
             p = op.see("peg")
-            op.arc((p[0], p[1], base + S.PEG_HEIGHT + JAW_HALF + 0.015), max(high, base + S.PEG_HEIGHT + JAW_HALF + 0.03),
+            op.arc((p[0], p[1], T + S.PEG_HEIGHT + JAW_HALF + 0.015), max(high, T + S.PEG_HEIGHT + JAW_HALF + 0.03),
                    R=op.down(jaw_yaw), grip=rng.uniform(0.0, 0.08), tol=0.004, axes=(1, 1, 0), via=True)   # on down, no stop above it
-            op.move((p[0], p[1], base + grip_z), tol=0.003)
+            op.move((p[0], p[1], T + grip_z), tol=0.003)
             op.set_grip(1.0)
-            op.move((p[0], p[1], base + grip_z + 0.04), tol=0.01, via=True)   # up off the table, on into the carry
-            if peg_bottom() > base + 0.01:
+            op.move((p[0], p[1], T + grip_z + 0.04), tol=0.01, via=True)   # up off the table, on into the carry
+            if peg_bottom() > T + 0.01:
                 return
             notes.append("regrasp peg")
             op.set_grip(0.4)
@@ -210,61 +206,26 @@ def peg_plan(op, model, data, notes, resume: bool = False) -> None:
         op.move((tcp[0], tcp[1], z + (tcp[2] - peg_bottom())), tol=0.003, corrections=0, speed=speed)
         op.settle()
 
-    if not resume:                              # (taking over, the hand is already on the leader: no settling-in pause)
-        op.pause(0.3, 0.8)
-    start = op.home_tcp if resume else op.follower_tcp()
-    held = (resume and op.grip.goal()[0] > 0.7 and peg_bottom() > T + 0.015
-            and np.linalg.norm((op.follower_tcp() - data.xpos[peg])[:2]) < 0.03)
-    if S.is_inserted(model, data) or (resume and not held and in_hole()):
-        attempts = 0                            # already in (or let go in the mouth): just the finish below
-    elif held:
-        attempts = 5
+    op.pause(0.3, 0.8)
+    start = op.follower_tcp()
+    if S.is_inserted(model, data):
+        attempts = 0                            # already in: just the finish below
     else:
-        base = T
-        if resume:                              # let go of whatever was (half) held and come up clear of the block
-            if tilt_deg() > 25:
-                raise TaskFailed("peg fallen over")
-            tcp = op.follower_tcp()
-            op.move((tcp[0], tcp[1], max(high, tcp[2])), R=op.down(jaw_yaw), grip=rng.uniform(0.3, 0.45), tol=0.02, via=True)
-            op.settle()
-            if tilt_deg() > 25:
-                raise TaskFailed("peg fallen over")
-            base = max(T, peg_bottom())         # left standing on the block or in the hole's mouth: take it from there
-        grasp(base)
+        grasp()
         attempts = 5
     for attempt in range(attempts):
         if tilt_deg() > 6:
             notes.append("peg crooked: set it down, take it again")
             set_down()
-        err = op.see_offset("peg", "hole_block")[:2]
-        if resume and attempt == 0 and held and np.linalg.norm(err) < 0.01 and peg_bottom() > block_top - 0.002:
-            # Taken over with the peg already above the hole: don't hover and line it up again from scratch (a policy
-            # trained on that learns to hover), correct the last millimetres on the way down.
-            tcp = op.follower_tcp()
-            op.move((tcp[0] + err[0], tcp[1] + err[1], min(tcp[2], block_top + 0.004 + (tcp[2] - peg_bottom()))),
-                    tol=0.003, corrections=0, speed=0.6)
-            op.settle()
-        else:
-            h = op.see("hole_block")
-            off = op.follower_tcp() - op.see("peg")
-            op.arc((h[0] + off[0], h[1] + off[1], block_top + 0.012 + S.PEG_HEIGHT / 2 + off[2]), high, tol=0.003,
-                   speed=0.8, land=0.7, via=True)                                   # over the block's edge, on down
-            align()
-            lower_peg_to(block_top + 0.004, 0.6)     # just above the hole: look again
+        h = op.see("hole_block")
+        off = op.follower_tcp() - op.see("peg")
+        op.arc((h[0] + off[0], h[1] + off[1], block_top + 0.012 + S.PEG_HEIGHT / 2 + off[2]), high, tol=0.003,
+               speed=0.8, land=0.7, via=True)                                   # over the block's edge, on down
+        align()
+        lower_peg_to(block_top + 0.004, 0.6)     # just above the hole: look again
         align(tries=4)
         lower_peg_to(block_top - 0.004, 0.4)     # into the mouth, look again
         align(tries=2)
-        if os.environ.get("PEG_PLAN", "default") not in ("default", "wiggle"):
-            raise ValueError(f"PEG_PLAN must be default or wiggle, got {os.environ['PEG_PLAN']!r}")
-        if os.environ.get("PEG_PLAN") == "wiggle":
-            # Variant for imitation: instead of relying only on feel, work the peg in with a small outward spiral
-            # while easing it down (what people do with a tight fit). The motion itself tolerates a millimetre or two
-            # of misalignment, so a policy that replays it without feeling the rim still gets the peg in.
-            for k in range(14):
-                if in_hole():
-                    break
-                r, a = 0.0006 + 0.00016 * k, 2.4 * k
-                op.nudge((r * math.cos(a), r * math.sin(a), -0.0015), size=0.002)
         # Push it in a bit at a time, feeling for it: if it stops going down it's caught on the rim, so ease off
         # (don't lean on it, it twists in the jaws) and nudge it towards the hole.
         for _ in range(10):

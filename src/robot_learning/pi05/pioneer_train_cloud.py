@@ -32,13 +32,13 @@ from action_space import delta_action_stats, save_action_space_delta, to_delta
 import lerobot.policies.pi05.modeling_pi05 as pi05_modeling
 
 """
-in joint vla models like pi0.5, vlm layer attends to the action expert which passes all 2b param on VLmM
+in joint vla models like pi0.5, action expert attends to the vlm layer which passes all (3b) param on to the action expert
 causes pytorch to cache all vlm activations (calculations of neurons passing through) and trace through frozen weights
 BUT SINCE we freeze the backbone this is all redundant!! Attention mask blocks later tokens to affect current tokens, so 
 we can run .detach on all prefix tokens stops vlm from caching values to save VRAM
 also skips backpropgation through VLM 2b backbone model
-
 """
+
 _compute_layer_complete = pi05_modeling.compute_layer_complete
 
 

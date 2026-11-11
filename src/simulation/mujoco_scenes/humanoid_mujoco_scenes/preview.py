@@ -15,7 +15,7 @@ from humanoid_mujoco_scenes import list_scenes, make_model, scene_camera, scene_
 
 
 def _reset_scene(scene_name: str, model: mujoco.MjModel, data: mujoco.MjData) -> None:
-    from pioneer_humanoid.mujoco_bimanual_arm import set_home
+    from pioneer_humanoid.mujoco_bimanual_arm_8dof import set_home
 
     mujoco.mj_resetData(model, data)
     set_home(model, data)
@@ -74,8 +74,9 @@ def main() -> None:
     if args.scene not in list_scenes():
         raise SystemExit(f"unknown --scene {args.scene!r}; available: {list_scenes()}")
 
-    from pioneer_humanoid.arm_params import CAMERA_NAMES
-    from pioneer_humanoid.mujoco_bimanual_arm import set_home
+    from pioneer_humanoid.arm_8dof_params import CAMERAS
+    from pioneer_humanoid.mujoco_bimanual_arm_8dof import set_home
+    CAMERA_NAMES = tuple(CAMERAS)
 
     cameras = {name: (480, 640) for name in CAMERA_NAMES} if args.interactive else None
     model = make_model(args.scene, cameras=cameras)

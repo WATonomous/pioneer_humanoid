@@ -1,0 +1,5 @@
+# Quest controller teleop (MuJoCo). numpy, Pillow and pyyaml are assumed present.
+aiohttp>=3.9,<4
+mujoco>=3.1
+mink>=1.0
+daqp>=0.6

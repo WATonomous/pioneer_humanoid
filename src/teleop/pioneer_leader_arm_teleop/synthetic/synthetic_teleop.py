@@ -50,7 +50,7 @@ class TeleopSim:
 
         self.mujoco, self.np = mujoco, np
         self.scene = scene
-        self.model = model = make_model(scene, cameras=cameras)
+        self.model = model = make_model(scene, cameras=cameras, robot="armv2")  # 6-DoF joint names; not yet ported to 8dof
         self.data = data = mujoco.MjData(model)
         model.actuator_biasprm[model.actuator("joint6l").id, 2] = -WRIST_DAMPING
         self.hook, self.progress = scene_step(scene), scene_progress(scene)
@@ -343,8 +343,7 @@ def _record_take(args, record, seed: int, take_s: float, result) -> None:
         recorder.wait_saved()
         with open(Path(recorder.dataset_root) / TAKES_FILE, "a") as f:
             f.write(json.dumps({"episode_index": episode, "scene": args.scene, "seed": seed, "pace": args.pace, "take_s": round(sim_t, 2),
-                                "notes": notes, "operator": style,
-                                "env": {k: os.environ[k] for k in ("PEG_PLAN", "PEG_INSERT_RANGE") if k in os.environ}}) + "\n")
+                                "notes": notes, "operator": style}) + "\n")
     else:   # physics is deterministic, so this would be a bug; never save a failed take
         recorder.cancel_recording()
     recorder.finalize()

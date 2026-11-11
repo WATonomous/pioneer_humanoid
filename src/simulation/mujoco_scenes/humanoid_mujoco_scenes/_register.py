@@ -2,7 +2,7 @@
 ``humanoid_mujoco_scenes/<name>/scene.py``.
 
 A scene is one function that adds world geometry to an ``mujoco.MjSpec``; ``make_model``
-attaches the Pioneer arm (pioneer_humanoid.mujoco_bimanual_arm) at ``robot_pos`` and compiles.
+attaches the Pioneer rig (default pioneer_humanoid.mujoco_bimanual_arm_8dof; robot="armv2" for the previous arms) at ``robot_pos`` and compiles.
 CPU only: no Isaac imports anywhere in this package.
 """
 from __future__ import annotations
@@ -135,12 +135,24 @@ def add_floor(spec: mujoco.MjSpec, light: bool = True) -> None:
         spec.worldbody.add_light(pos=[0.5, 0, 3.0], dir=[0, 0, -1], diffuse=[0.8, 0.8, 0.8], castshadow=True)
 
 
-def make_model(name: str, cameras: dict[str, tuple[int, int]] | None = None) -> mujoco.MjModel:
+# 8dof (default): the bimanual rig with the 1107 Arm Draft arms, 7-DoF + 1-DoF gripper each (pioneer_bimanual_arm_8dof).
+# armv2: the previous 6-DoF arms (pioneer_bimanual_arm), for tools not yet ported (leader-arm teleop, policies).
+ROBOTS = ("8dof", "armv2")
+
+
+def make_model(name: str, cameras: dict[str, tuple[int, int]] | None = None, robot: str = "8dof") -> mujoco.MjModel:
     """Compile scene ``name`` with the arm attached; joint/actuator names are the URDF joint names.
 
-    ``cameras``: robot cameras to mount, {name: (height, width)} (pioneer_humanoid.arm_params.CAMERAS).
+    ``cameras``: robot cameras to mount, {name: (height, width)} (that robot's params CAMERAS).
+    ``robot``: "8dof" (default: pioneer_bimanual_arm_8dof, the rig with the 1107 Arm Draft arms) or "armv2" (the previous
+    6-DoF arms). Both are the same rig (same base_link), so a scene's robot_pos fits either.
     """
-    from pioneer_humanoid.mujoco_bimanual_arm import arm_spec
+    if robot == "armv2":
+        from pioneer_humanoid.mujoco_bimanual_arm import arm_spec
+    elif robot == "8dof":
+        from pioneer_humanoid.mujoco_bimanual_arm_8dof import arm_spec
+    else:
+        raise ValueError(f"unknown robot {robot!r}; expected one of {ROBOTS}")
 
     _discover()
     entry = _REGISTRY[name]

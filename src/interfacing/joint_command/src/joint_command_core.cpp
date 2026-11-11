@@ -15,6 +15,7 @@ constexpr double kDegToRad = 3.14159265358979323846 / 180.0;
 // 12-bit gain fields (every CubeMars MIT drive).
 constexpr double kMitGainCodes = 4096.0;
 constexpr double kGravityFfRampSec = 1.0;
+constexpr double kMaxGravityFfScale = 5.0;
 
 // ArmPose joint order, shared by both config files.
 const std::vector<std::pair<std::string, std::string>>& jointPaths() {
@@ -319,9 +320,11 @@ bool JointCommandCore::validateMitGains() {
     if (s.gravity_assume_deg.has_value() && !std::isfinite(*s.gravity_assume_deg)) {
       errors << "\n  " << name << ": gravity_assume_deg must be finite";
     }
-    if (s.gravity_ff_scale < 0.0 || s.gravity_ff_scale > 2.0) {
-      errors << "\n  " << name << ": gravity_ff_scale must be in [0, 2] (got " << s.gravity_ff_scale
-             << ")";
+    // Up to 5x the model: the torque itself is still capped by gravity_ff_max_torque and the
+    // stall rule below (kp x track_err + gravity_ff_max_torque <= cap).
+    if (s.gravity_ff_scale < 0.0 || s.gravity_ff_scale > kMaxGravityFfScale) {
+      errors << "\n  " << name << ": gravity_ff_scale must be in [0, " << kMaxGravityFfScale
+             << "] (got " << s.gravity_ff_scale << ")";
     }
     if (s.gravity_ff_scale > 0.0) {
       if (!isMitJoint(i)) {
@@ -329,7 +332,7 @@ bool JointCommandCore::validateMitGains() {
                << "POSITION_LOOP has no torque field";
       }
       if (!hasGravityModel()) {
-        errors << "\n  " << name << ": the gravity model is the LEFT arm (joint1L..joint6l); "
+        errors << "\n  " << name << ": gravity_model.hpp has only the left and right arms; "
                << "arm_side is '" << arm_side_ << "'";
       }
       if (s.gravity_ff_max_torque <= 0.0) {
@@ -558,7 +561,8 @@ JointCommandCore::gravityTorqueMotor(const std::vector<double>& cmd_targets_deg)
     }
     q_urdf[i] = q_cmd * kDegToRad; // the command frame is the URDF frame
   }
-  const std::array<double, 6> tau = leftArmGravityHoldTorque(q_urdf);
+  const std::array<double, 6> tau =
+      arm_side_ == "right" ? rightArmGravityHoldTorque(q_urdf) : leftArmGravityHoldTorque(q_urdf);
   for (size_t i = 0; i < q_urdf.size(); ++i) {
     // Torque follows the angle's sign mapping: urdf (= cmd) -> motor.
     const double dir = joints_[i].direction == 0 ? 1.0 : joints_[i].direction;

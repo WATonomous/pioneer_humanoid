@@ -22,6 +22,8 @@ ARM_CONTYPE = 2
 ARM_CONAFFINITY = 1
 
 FINGER_BODIES = ("link7", "link8", "link7l", "link8l")
+FINGER_PAIRS = (("joint7", "joint8"), ("joint7l", "joint8l"))
+FINGER_COUPLING_SOLREF = [0.002, 1.0]  # 2 x the scenes' 1 ms step: MuJoCo's default 20 ms lets the fingers drift mm apart
 FINGER_SLABS = 16  # collision boxes per finger, 8.5 mm each along the 136 mm finger
 # TPU fingers: estimates, not measured. Rubber-like sliding friction, and contact twice as soft
 # as the scenes' stiff default (humanoid_mujoco_scenes CONTACT_SOLREF 0.004 s).
@@ -70,6 +72,10 @@ def arm_spec(cameras: dict[str, tuple[int, int]] | None = None) -> mujoco.MjSpec
             act.forcerange = [-group["effort_limit"], group["effort_limit"]]
             if "gripper" not in group_name:
                 spec.joint(name).armature = ARM_ARMATURE
+    # One motor drives both fingers through the linkage: they always move evenly (joint8 = -joint7).
+    for a, b in FINGER_PAIRS:
+        eq = spec.add_equality(type=mujoco.mjtEq.mjEQ_JOINT, name1=b, name2=a, solref=FINGER_COUPLING_SOLREF)
+        eq.data[:5] = [0, -1, 0, 0, 0]
 
     _box_fingers(spec)
     for name, (height, width) in (cameras or {}).items():

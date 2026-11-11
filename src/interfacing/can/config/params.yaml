@@ -8,8 +8,6 @@ can_node:
     bitrate: 1000000                   # CAN bitrate in bps (125000, 250000, 500000, 1000000)
     
     # Communication Settings
-    publish_rate_hz: 50                # Rate for checking incoming CAN messages
-    receive_timeout_ms: 10000          # Timeout for receiving CAN messages
     receive_poll_interval_ms: 10           # Interval for polling CAN messages in milliseconds
 
     # MIT: CAN id the GL II drives reply on ("master id", default 0x000).

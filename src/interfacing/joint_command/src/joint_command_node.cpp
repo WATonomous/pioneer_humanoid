@@ -403,7 +403,7 @@ void JointCommandNode::controlTimerCallback() {
 void JointCommandNode::logGravityModel(const std::vector<Limb*>& limbs) {
   // Bring-up check: with gravity_ff_scale = 0, pred and meas should agree (sign included).
   // One line for every arm: the throttle is per call site, so a line per arm would hide all but
-  // one. An arm without a gravity model (gravity_model.hpp is the left arm) shows meas only.
+  // one. An arm without a gravity model (gravity_model.hpp has left and right) shows meas only.
   std::string s;
   for (const Limb* limb : limbs) {
     const JointCommandCore& core = limb->core;

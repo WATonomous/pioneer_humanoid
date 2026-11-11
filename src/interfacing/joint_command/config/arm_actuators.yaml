@@ -17,9 +17,9 @@ safety:
     enable_velocity_limit: true
     enable_delta_limit: true
     enable_low_pass: true
-    velocity_max: 60.0 # measured in deg/s. decreasing value from 60 may lead to slugishness between leader arm and real arm teleop
+    velocity_max: 90.0 # deg/s; was 60 (teleop lagged). Keep < 114 (2 rad/s, test bound). Not bench-tested
     delta_max: 2.4
-    low_pass_alpha: 0.85
+    low_pass_alpha: 0.4   # weight on the PREVIOUS target (0 = off); 0.85 lagged ~110 ms, 0.2 ~5 ms, 0.4 ~13 ms. Not bench-tested
     control_type: -1   # -1 = joint_command.yaml's control_type; set per joint below
     mit_kp: 0.0   # 0 = MIT_CONTROL is a safe no-op until set per-joint below
     mit_kd: 0.0
@@ -28,7 +28,7 @@ safety:
     mit_feedback_timeout: 0.2  # s without feedback -> fault
     # Optional, per joint: mit_peak_torque (N.m) and mit_max_temperature (deg C, as the drive
     # reports it). Above mit_max_torque (rated) is then allowed while the drive reads below
-    mit_max_temperature: 50
+    mit_max_temperature: 80
     # torque; no reading (0) falls back to the rated cap. The startup rule then checks against
     # the peak, so a stalled joint can push at up to mit_peak_torque until the temperature trips.
     # The sensor lags the windings: set mit_max_temperature well below the drive's own cutoff.
@@ -59,7 +59,7 @@ safety:
         control_type: 0
         mit_family: ak
         mit_kp: 200.0                  # stall 11.5 N.m
-        mit_kd: 0.5
+        mit_kd: 3   # 0.015 x kp (right shoulder roll ratio); was 0.5, not bench-tested
         mit_max_torque: 18
         mit_peak_torque: 48.0      # AK10-9 datasheet peak; bench-check before enabling
         mit_fault_kd: 5.0
@@ -71,7 +71,7 @@ safety:
         control_type: 0
         mit_family: ak
         mit_kp: 30.0
-        mit_kd: 0.8
+        mit_kd: 0.45   # 0.015 x kp (right shoulder roll ratio); was 0.8, not bench-tested
         mit_max_torque: 9.0
         mit_peak_torque: 48.0      # AK80-9: its MIT torque reading saturates at 18
         mit_fault_kd: 1.0
@@ -83,7 +83,7 @@ safety:
         control_type: 0
         mit_family: ak
         mit_kp: 60.0
-        mit_kd: 0.4
+        mit_kd: 0.9   # 0.015 x kp (right shoulder roll ratio); was 0.4, not bench-tested
         mit_max_torque: 18.0   # gravity max 1.24 N.m
         mit_peak_torque: 48.0      # AK10-9 datasheet peak; bench-check before enabling
         mit_fault_kd: 5.0
@@ -96,8 +96,8 @@ safety:
         delta_max: 1.6
         control_type: 0
         mit_family: ak
-        mit_kp: 60.0                  # stall 6.7 N.m + 3.59 ff
-        mit_kd: 0.4
+        mit_kp: 70.0   # was 60; 60-80 asked, not bench-tested
+        mit_kd: 1.05   # 0.015 x kp (right shoulder roll ratio); was 0.4, not bench-tested
         mit_max_torque: 9.0
         mit_peak_torque: 22.0      # AK80-9: its MIT torque reading saturates at 18
         mit_fault_kd: 5.0
@@ -110,7 +110,7 @@ safety:
         control_type: 0
         mit_family: ak
         mit_kp: 30.0
-        mit_kd: 0.4
+        mit_kd: 0.45   # 0.015 x kp (right shoulder roll ratio); was 0.4, not bench-tested
         mit_max_torque: 9.0
         mit_peak_torque: 22.0      # AK80-9: its MIT torque reading saturates at 18
         mit_fault_kd: 0.5
@@ -130,7 +130,7 @@ safety:
         control_type: 0        # MIT_CONTROL
         mit_family: gl2        # fault action defaults to limp: unloaded, safe to free
         mit_kp:   0.22           # N.m/rad  -> raw 10 -> 1.2207 applied
-        mit_kd: 0.0098         # N.m.s/rad -> raw 8 -> 0.00977 applied
+        mit_kd: 0.0033   # 0.015 x kp (right shoulder roll ratio); was 0.0098, not bench-tested
         mit_max_torque: 0.3    # N.m, fault above
         mit_max_track_err: 12.0  # deg, fault above
         mit_feedback_timeout: 0.2  # s without feedback -> fault
@@ -144,7 +144,7 @@ safety:
         control_type: 0        # MIT_CONTROL
         mit_family: gl2        # fault action limp
         mit_kp: 0.1221         # N.m/rad -> raw 1, the softest nonzero stiffness
-        mit_kd: 0.0098         # N.m.s/rad -> raw 8, as the wrist
+        mit_kd: 0.0018   # 0.015 x kp (right shoulder roll ratio); was 0.0098, not bench-tested
         mit_max_torque: 0.25   # N.m: squeeze limit
         mit_max_track_err: 105.0  # deg, >= full travel (upper_limit - lower_limit)
         mit_feedback_timeout: 0.2
@@ -155,52 +155,80 @@ safety:
         active: true
         control_type: 0
         mit_family: ak
-        mit_kp: 12.0
-        mit_kd: 0.3
+        # Highest kp inside these margins (2026-11-05), not yet run at this gain:
+        #  - stalled torque <= rated: kp x track_err <= 18 N.m (no peak allowance)
+        #  - track_err >= 2 x (gravity sag + dynamic lag): sag = 4.7 N.m / kp = 2.4 deg,
+        #    dynamic lag 2.14 deg (worst seen on roll at 60 deg/s) -> 4.6 deg -> 9 deg
+        #  110 x 9 deg = 17.3 N.m. Replace the 2.14 with this joint's own lag once measured.
+        mit_kp: 80
+        mit_max_track_err: 9.0   # deg, this joint only (default 10)
+        mit_kd: 1.5
         mit_max_torque: 18
         mit_fault_kd: 5.0
+        # Gravity ff (right-arm model, current URDF): up to ~8.7 N.m, arm straight out forward.
+        # Startup rule: kp 80 (79.96 applied) x 9 deg = 12.56 N.m + max_torque <= 18 -> <= 5.4.
+        # Check the "pred vs meas" log at scale 0 before raising it.
+        gravity_ff_scale: 5
+        gravity_ff_max_torque: 5.0
       roll:    # AK80-9
         active: true
         control_type: 0
         mit_family: ak
-        mit_kp: 12.0
-        mit_kd: 0.3
+        # kp 12 stick-slipped (45 deg move: 4.8 deg lag, 44 deg/s jumps); kp 50 lagged 1.3 deg
+        # (rt-shouldp45, 2026-11-05); kp 65 lagged 1.07 deg; 45 deg moves up to 60 deg/s lagged
+        # <= 1.75 deg; kp 130 lagged 1.12 deg at 30 deg/s. Own track limit so kp can rise:
+        # kp x 3.5 deg <= 9 N.m -> kp <= ~147.
+        mit_kp: 100
+        mit_max_track_err: 3.5   # deg, roll only (default 10); 2x the worst lag seen (1.75)
+        mit_kd: 1.5
         mit_max_torque: 9.0
         mit_fault_kd: 1.0
+        # Gravity ff: model ~0 hanging, up to ~8.3 N.m with the arm out sideways. Startup rule:
+        # kp 145 x 3.5 deg = 8.86 N.m + max_torque <= 9 -> <= 0.14, so lower kp or track_err to use more.
+        gravity_ff_scale: 5
+        gravity_ff_max_torque: 0.1
       yaw:     # AK10-9
         active: true
         delta_max: 2.0
         control_type: 0
         mit_family: ak
-        mit_kp: 60.0
+        # Highest kp inside these margins (2026-11-05), not yet run at this gain:
+        #  - stalled torque <= rated 18 N.m: mit_peak_torque (48, never bench-checked) removed
+        #  - track_err >= 2 x (gravity sag + dynamic lag): sag = 1.2 N.m / kp = 0.4 deg,
+        #    dynamic lag 2.14 deg (worst seen on roll at 60 deg/s) -> 2.5 deg -> 5 deg
+        #  180 x 5 deg + gravity_ff_max 1.5 = 17.2 N.m. kp 60 lagged 0.93 deg on a 3 deg move.
+        mit_kp: 100
         mit_kd: 0.4
         mit_max_torque: 18.0   # gravity max 1.24 N.m
-        mit_peak_torque: 48.0      # AK10-9 datasheet peak; bench-check before enabling
         mit_fault_kd: 5.0
-        mit_max_track_err: 15.0
-        gravity_ff_max_torque: 12.5    # model max 1.2 N.m
-        gravity_ff_scale: 0.0
+        mit_max_track_err: 5.0   # deg (was 15)
+        # Right-arm model (current URDF): up to ~2.3 N.m. Startup rule: kp 180 x 5 deg = 15.7 N.m
+        # + max_torque <= 18 -> <= 2.2, so 1.5 clips the largest loads.
+        gravity_ff_max_torque: 1.5
+        gravity_ff_scale: 1.0
     elbow:
       pitch:   # AK80-9
         active: false
         delta_max: 1.6
         control_type: 0
         mit_family: ak
-        mit_kp: 60.0                  # stall 6.7 N.m + 3.59 ff
-        mit_kd: 0.4
+        mit_kp: 70.0   # was 60; 60-80 asked, not bench-tested
+        mit_kd: 1.05   # 0.015 x kp (right shoulder roll ratio); was 0.4, not bench-tested
         mit_max_torque: 9.0
         mit_peak_torque: 22.0      # AK80-9: its MIT torque reading saturates at 18
         mit_fault_kd: 5.0
         gravity_ff_max_torque: 3.59
-        gravity_ff_scale: 0.0
+        gravity_ff_scale: 1.0
       roll:    # AK80-9
         active: false
         control_type: 0
         mit_family: ak
         mit_kp: 30.0
-        mit_kd: 0.3
+        mit_kd: 0.45   # 0.015 x kp (right shoulder roll ratio); was 0.3, not bench-tested
         mit_max_torque: 9.0
         mit_fault_kd: 0.5
+        gravity_ff_scale: 1.0
+        gravity_ff_max_torque: 0.1   # model max ~0.04 N.m
 
         # active: true
         # # velocity_max: 120
@@ -220,10 +248,13 @@ safety:
         control_type: 0        # MIT_CONTROL
         mit_family: gl2        # fault action defaults to limp
         mit_kp: 0.22
-        mit_kd: 0.0098
+        mit_kd: 0.0033   # 0.015 x kp (right shoulder roll ratio); was 0.0098, not bench-tested
         mit_max_torque: 0.3
         mit_max_track_err: 12.0
         mit_feedback_timeout: 0.2
+        # Model up to ~0.39 N.m. Startup rule: kp 0.244 (applied) x 12 deg = 0.05 + max <= 0.3.
+        gravity_ff_scale: 1.0
+        gravity_ff_max_torque: 0.24
     gripper:
       open_close:   # GL40
         active: false
@@ -232,7 +263,7 @@ safety:
         control_type: 0        # MIT_CONTROL
         mit_family: gl2        # fault action limp
         mit_kp: 0.1221         # N.m/rad -> raw 1, the softest nonzero stiffness
-        mit_kd: 0.0098
+        mit_kd: 0.0018   # 0.015 x kp (right shoulder roll ratio); was 0.0098, not bench-tested
         mit_max_torque: 0.25   # N.m: squeeze limit
         mit_max_track_err: 105.0  # deg, >= full travel (upper_limit - lower_limit)
         mit_feedback_timeout: 0.2

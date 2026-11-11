@@ -14,7 +14,7 @@ from types import SimpleNamespace
 import numpy as np
 
 from control import fit_pivot
-from article_control import ArticleTarget, PioneerArticleIK
+from isaac_article_control import ArticleTarget, PioneerArticleIK
 from transport import Shared, load_pivots, serve
 
 

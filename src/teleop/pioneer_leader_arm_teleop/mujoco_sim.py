@@ -181,7 +181,7 @@ def run() -> None:
     if unknown:
         raise SystemExit(f"{record.path}: unknown images {unknown}; available: {list(arm_params.CAMERA_NAMES)}")
     cameras = {name: (int(spec["height"]), int(spec["width"])) for name, spec in record.images.items()}
-    model = make_model(args.scene, cameras=cameras)
+    model = make_model(args.scene, cameras=cameras, robot="armv2")  # 6-DoF joint names; not yet ported to 8dof
     scene_hook = scene_step(args.scene)  # per-step scene mechanics (e.g. zip_tie's ratchet), or None
     scene_randomise = scene_reset(args.scene)  # new layout per episode, or None
     scene_steps = scene_progress(args.scene)  # multi-step task: (index, total, instruction), or None

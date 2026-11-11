@@ -3,13 +3,17 @@
 --arms left (default), right or bimanual: each arm is driven by its own leader board (leader_arm.json).
 
 Dry run by default: subscribes to /interfacing/motorFeedback and never creates a publisher, so it
-cannot move an arm. --live publishes each leader as ArmPose on /arm/<side>/joint_targets (50 Hz) through
-joint_command, but only after the gate passes (every active joint of every arm: real arm inside its
-calibrated limits, leader within 3 deg of home and within 10 deg of the real arm; gripper inside its
-calibrated limits and within 0.1) and you press Enter; one gate and one Enter for both arms. Before
-the gate, --live offers to ramp each real elbow.pitch from its measured angle to home at --home-rate
-deg/s (default 5) and hold it there; it refuses if home is outside the joint's calibrated limits or
-it is inactive.
+cannot move an arm. --live first asks "start at home? [y/N]":
+
+  y  every active joint of every arm ramps from its measured angle to home at --home-rate deg/s
+     (default 5) and holds there; you then put the leader at home by hand. Refused (nothing moves)
+     if an active joint's home is outside its calibrated limits.
+  n  no homing: start from wherever the arm is.
+
+Then it publishes each leader as ArmPose on /arm/<side>/joint_targets (50 Hz) through joint_command,
+but only after the gate passes and you press Enter; one gate and one Enter for both arms. The gate, on
+every active joint of every arm: real arm inside its calibrated limits, leader within 15 deg of the
+real arm (and within 15 deg of home after y); gripper inside its calibrated limits and within 0.1.
 
 Run in the `simulation_mj` container (ROS, common_msgs, the leader's servo SDK) while
 `interfacing` is up and the arm is powered:
@@ -57,8 +61,8 @@ from arm_limits import gripper_fraction, limited_target  # noqa: E402
 from leader_mapping import LeaderBoard, add_leader_args, check_leader_args  # noqa: E402
 from servo_leader import ARM_SERVOS, GRIPPER_SERVO, SERVO_IDS  # noqa: E402
 
-# The --live gate: leader within HOME_TOL_DEG of home and within AGREE_TOL_DEG of the real arm on
-# every active joint, gripper within GRIP_TOL.
+# The --live gate: leader within AGREE_TOL_DEG of the real arm on every active joint (and within
+# HOME_TOL_DEG of home after homing), gripper within GRIP_TOL.
 HOME_TOL_DEG = 15.0
 AGREE_TOL_DEG = 15.0
 STALE_AFTER_S = 0.5
@@ -67,9 +71,8 @@ READ_PERIOD_S = 0.02
 # Each arm's gripper (a GL40) in arm_calibration.yaml, compared as position 0 open .. 1 closed.
 GRIPPER_JOINT = "gripper.open_close"
 GRIP_TOL = 0.1
-# --live, before the gate: optionally ramp the real HOME_JOINT from its measured angle to home at
-# --home-rate deg/s (the others held where they are), then hold it there until the leader takes over.
-HOME_JOINT = "elbow.pitch"
+# --live, before the gate, on y: ramp every active real joint from its measured angle to home at
+# --home-rate deg/s, then hold it there until the leader takes over.
 HOME_RATE_DEG_S = 5.0
 HOME_SETTLE_S = 3.0
 FEEDBACK_WAIT_S = 2.0
@@ -115,7 +118,7 @@ class RealArm:
     grip_active: bool
     leader: Any = None  # LeaderInput, opened inside run()'s try so a failed open still closes the others
     pub: Any = None  # ArmPose publisher, once live
-    homed: Any = None  # (publisher, hold timer) after home_real_joint
+    homed: Any = None  # (publisher, hold timer) after home_real_arms
 
 
 def load_arm(side: str, board: LeaderBoard, mapping: Path, actuators: Path | None) -> RealArm:
@@ -171,10 +174,11 @@ def compare(joints: list[dict], leader_rad: tuple[float, ...], signs: list[float
 
 def gate_failures(rows: list[dict], grip: float, real_grip: float | None,
                   active: set[str], grip_active: bool,
-                  grip_range: tuple[float, float] | None = None) -> list[str]:
+                  grip_range: tuple[float, float] | None = None, check_home: bool = True) -> list[str]:
     """Why --live may not start yet; empty when it may. Inactive joints are not driven, so skipped.
 
-    grip_range: the gripper's calibrated limits as positions (low, high); None to skip that check."""
+    grip_range: the gripper's calibrated limits as positions (low, high); None to skip that check.
+    check_home: also require the leader within HOME_TOL_DEG of home (after the real arm was homed)."""
     out = []
     for row in rows:
         j = row["joint"]
@@ -189,7 +193,7 @@ def gate_failures(rows: list[dict], grip: float, real_grip: float | None,
                            f"[{j['lower']:.1f}, {j['upper']:.1f}]")
             if abs(row["diff"]) > AGREE_TOL_DEG:
                 out.append(f"{name}: leader {row['diff']:+.1f} deg from real")
-        if abs(row["home_err"]) > HOME_TOL_DEG:
+        if check_home and abs(row["home_err"]) > HOME_TOL_DEG:
             out.append(f"{name}: leader {row['home_err']:+.1f} deg from home")
     if grip_active:
         if real_grip is None:
@@ -209,14 +213,26 @@ def ramp(start: float, goal: float, rate_deg_s: float, elapsed: float) -> float:
     return goal if abs(goal - start) <= step else start + math.copysign(step, goal - start)
 
 
-def home_refusal(joint: dict, home_deg: float, active: set[str]) -> str | None:
-    """Why the real joint may not be homed; None when it may."""
-    if joint["name"] not in active:
-        return f"{joint['name']} is not active in arm_actuators.yaml, so joint_command would not drive it"
-    if joint["limit_range"] and not joint["lower"] <= home_deg <= joint["upper"]:
-        return (f"home {home_deg:+.1f} deg is outside {joint['name']}'s calibrated limits "
-                f"[{joint['lower']:.1f}, {joint['upper']:.1f}] and joint_command would clamp it; "
-                "re-run calibrate_arm.py sweeping past home first")
+def home_refusals(joints: list[dict], home_rad: list[float], active: set[str]) -> list[str]:
+    """Why the real arm may not be ramped to home; empty when it may. An active joint whose home is
+    outside its calibrated limits would be clamped by joint_command; inactive joints are not driven."""
+    out = []
+    for joint, home in zip(joints, home_rad):
+        home_deg = math.degrees(home)
+        if joint["name"] in active and joint["limit_range"] and not joint["lower"] <= home_deg <= joint["upper"]:
+            out.append(f"{joint['name']}: home {home_deg:+.1f} deg is outside its calibrated limits "
+                       f"[{joint['lower']:.1f}, {joint['upper']:.1f}]")
+    return out
+
+
+def home_rate_error(rate: float, arms: list[RealArm], actuators: Path | None) -> str | None:
+    """Why --home-rate is not allowed: it must be > 0 and at most every active joint's velocity_max."""
+    for arm in arms:
+        for j in arm.joints:
+            if j["name"] in arm.active:
+                vmax = float(joint_safety(actuators, arm.side, j["name"]).get("velocity_max") or 0.0)
+                if not 0.0 < rate <= vmax:
+                    return f"--home-rate must be in (0, {vmax:g}], the {arm.side} {j['name']}'s velocity_max"
     return None
 
 
@@ -299,11 +315,20 @@ def self_test() -> None:
     assert gate_failures(rows, 1.0, 1.0, active, True, (-0.3, 1.0)) == []
     assert "real outside hw" in format_rows(rows, 1.2, 1.2, (-0.3, 1.0))[-2]
 
+    # Not homed ("n"): the leader only has to match the real arm, wherever both are.
+    far = math.radians(30.0)  # leader 30 deg from home
+    rows = compare([joint], (far,), [1.0], {1: 25.0}, [0.0])
+    assert gate_failures(rows, 0.0, None, active, False) == ["shoulder.pitch: leader +30.0 deg from home"]
+    assert gate_failures(rows, 0.0, None, active, False, check_home=False) == []
+    rows = compare([joint], (far,), [1.0], {1: 10.0}, [0.0])
+    assert gate_failures(rows, 0.0, None, active, False, check_home=False) == ["shoulder.pitch: leader +20.0 deg from real"]
+
     assert ramp(0.0, -90.0, 5.0, 2.0) == -10.0 and ramp(0.0, -90.0, 5.0, 100.0) == -90.0
     assert ramp(10.0, 12.0, 5.0, 1.0) == 12.0 and ramp(3.0, 3.0, 5.0, 0.0) == 3.0
-    assert home_refusal(joint, 0.0, active) is None
-    assert "outside" in home_refusal(joint, -90.0, active)
-    assert "not active" in home_refusal(joint, 0.0, set())
+    other = dict(joint, motor_id=2, name="elbow.pitch")
+    assert home_refusals([joint, other], [0.0, math.radians(90.0)], {"shoulder.pitch"}) == [], "inactive elbow skipped"
+    assert home_refusals([joint, other], [0.0, math.radians(90.0)], {"shoulder.pitch", "elbow.pitch"}) == [
+        "elbow.pitch: home +90.0 deg is outside its calibrated limits [-45.0, 45.0]"]
 
     # is_left follows the side: joint_command ignores a pose whose is_left doesn't match its topic.
     from types import SimpleNamespace
@@ -334,11 +359,9 @@ def self_test() -> None:
                 assert j["limits_deg"] == (j["lower"], j["upper"]), j
         assert arm.grip_id is not None, f"{side}: no {GRIPPER_JOINT} in {mapping}"
         ids[side] = {j["motor_id"] for j in arm.joints} | {arm.grip_id}
-        slot = next(i for i, j in enumerate(arm.joints) if j["name"] == HOME_JOINT)
-        home_deg = math.degrees(arm.home[slot])
-        print(f"{side}: {len(arm.joints)} joints + gripper (id {arm.grip_id}); --live homing of {HOME_JOINT} "
-              f"to {home_deg:+.1f} deg (limits only): "
-              f"{home_refusal(arm.joints[slot], home_deg, {HOME_JOINT}) or 'allowed'}")
+        refusals = home_refusals(arm.joints, arm.home, arm.active)
+        print(f"{side}: {len(arm.joints)} joints + gripper (id {arm.grip_id}); active {sorted(arm.active)}; "
+              f"--live homing: {'; '.join(refusals) or 'allowed'}")
     assert not ids["left"] & ids["right"], ids
     print(f"self-test ok (both arms from {mapping})")
 
@@ -368,7 +391,7 @@ def run() -> None:
     parser.add_argument("--live", action="store_true",
                         help="publish /arm/<side>/joint_targets once the gate passes and you press Enter")
     parser.add_argument("--home-rate", type=float, default=HOME_RATE_DEG_S,
-                        help=f"--live: deg/s of the optional ramp of each real {HOME_JOINT} to home")
+                        help="--live: deg/s of each real joint's ramp to home, if you answer y")
     parser.add_argument("--self-test", action="store_true", help="check the angle math and exit (no ROS, no leader)")
     args = parser.parse_args()
     if args.self_test:
@@ -391,10 +414,9 @@ def run() -> None:
                 raise SystemExit(f"{mapping}: motor {motor_id} is in both arms")
             by_id[motor_id] = info
     grip_axis = tuple(SERVO_IDS).index(GRIPPER_SERVO)
-    for arm in arms:
-        home_vmax = float(joint_safety(actuators, arm.side, HOME_JOINT).get("velocity_max") or 0.0)
-        if not 0.0 < args.home_rate <= home_vmax:
-            parser.error(f"--home-rate must be in (0, {home_vmax:g}], the {arm.side} {HOME_JOINT}'s velocity_max")
+    rate_error = home_rate_error(args.home_rate, arms, actuators)
+    if rate_error:
+        parser.error(rate_error)
 
     print(f"{' + '.join(sides)} arm{'s' * bimanual}, "
           f"{'LIVE once the gate passes' if args.live else 'DRY RUN (read-only)'}. "
@@ -451,7 +473,8 @@ def run() -> None:
         for arm, (rows, grip, real_grip) in zip(arms, snaps):
             prefix = f"{arm.side} " if bimanual else ""
             out += [prefix + failure for failure in
-                    gate_failures(rows, grip, real_grip, arm.active, arm.grip_active, arm.grip_range)]
+                    gate_failures(rows, grip, real_grip, arm.active, arm.grip_active, arm.grip_range,
+                                  check_home=arm.homed is not None)]
         return out
 
     def publish(arm: RealArm, publisher, q: list[float]) -> None:
@@ -472,56 +495,70 @@ def run() -> None:
                 return None
             time.sleep(READ_PERIOD_S)
 
-    def home_real_joint(arm: RealArm):
-        """Offer to ramp `arm`'s real HOME_JOINT to home; -> (publisher, hold timer), or None if not homed."""
+    def home_real_arms() -> None:
+        """Ask once: start at home? On y, ramp every active joint of every arm from its measured angle to
+        home at --home-rate, then keep holding that pose (arm.homed) until the leader takes over."""
         nonlocal published
-        name = f"{arm.side} {HOME_JOINT}"
-        slot = next(i for i, j in enumerate(arm.joints) if j["name"] == HOME_JOINT)
-        joint, goal = arm.joints[slot], math.degrees(arm.home[slot])
-        refusal = home_refusal(joint, goal, arm.active)
-        if refusal:
-            print(f"[INFO] Not homing the real {name}: {refusal}.", flush=True)
-            return None
-        real = measured_active(arm)
-        if real is None:
-            print(f"[INFO] Not homing the real {name}: no feedback from every active {arm.side} joint.", flush=True)
-            return None
-        answer = input(f"\nRamp the real {name} from {real[joint['motor_id']]:+.1f} to {goal:+.1f} deg "
-                       f"at {args.home_rate:g} deg/s, holding the other {arm.side} joints where they are? "
-                       "Hand on the E-stop. [y/N]: ")
+        answer = input("\nStart at home? y: the real arm ramps to home and holds there, then you put the leader "
+                       f"at home. n: start from where the arm is (leader within {AGREE_TOL_DEG:g} deg of it). [y/N]: ")
         if answer.strip().lower() != "y":
-            return None
-        # Start from where the arm is now, not where it was before the prompt.
-        real = measured_active(arm)
-        if real is None:
-            raise SystemExit(f"[ERROR] lost feedback while at the prompt; {name} not homed.")
-        # Inactive joints are ignored by joint_command; any finite angle will do for their slots.
-        q = [real.get(j["motor_id"], math.degrees(arm.home[i])) for i, j in enumerate(arm.joints)]
-        start = q[slot]
-        publisher = node.create_publisher(ArmPose, arm_pose_topic(arm.side), 10)
+            print("[INFO] Not homing: starting from where the arm is.", flush=True)
+            return
+        refusals = [f"{arm.side} {r}" if bimanual else r
+                    for arm in arms for r in home_refusals(arm.joints, arm.home, arm.active)]
+        if refusals:
+            print("[INFO] Not homing, nothing moved: " + "; ".join(refusals) + " (joint_command would clamp it; "
+                  "re-run calibrate_arm.py sweeping past home). Starting from where the arm is.", flush=True)
+            return
+        # Start from where each arm is NOW (measured), never from an assumed pose.
+        plans = []  # (arm, publisher, q, {slot: start deg}, {slot: home deg})
+        for arm in arms:
+            real = measured_active(arm)
+            if real is None:
+                raise SystemExit(f"[ERROR] no feedback from every active {arm.side} joint; nothing moved.")
+            # Inactive joints are ignored by joint_command; any finite angle will do for their slots.
+            q = [real.get(j["motor_id"], math.degrees(arm.home[i])) for i, j in enumerate(arm.joints)]
+            slots = [i for i, j in enumerate(arm.joints) if j["name"] in arm.active]
+            plans.append((arm, None, q, {i: q[i] for i in slots}, {i: math.degrees(arm.home[i]) for i in slots}))
+        far = max((abs(goals[i] - starts[i]) for _, _, _, starts, goals in plans for i in starts), default=0.0)
+        print(f"[HOME] Ramping every active joint to home at {args.home_rate:g} deg/s "
+              f"(furthest {far:.1f} deg, ~{far / args.home_rate:.0f} s). Hand on the E-stop.", flush=True)
+        plans = [(arm, node.create_publisher(ArmPose, arm_pose_topic(arm.side), 10), q, starts, goals)
+                 for arm, _, q, starts, goals in plans]
         published = True
         t0 = time.monotonic()
         settle_by = None
         while True:
             now = time.monotonic()
-            q[slot] = ramp(start, goal, args.home_rate, now - t0)
-            publish(arm, publisher, q)
-            measured = fresh_real().get(joint["motor_id"])
-            if measured is None:
-                raise SystemExit(f"[ERROR] {name} feedback went stale while homing; stopped publishing.")
-            print(f"\r[HOME] {name} target {q[slot]:+6.1f}  real {measured:+6.1f}  home {goal:+6.1f}",
-                  end="", flush=True)
-            if q[slot] == goal:
+            done, worst = True, (0.0, "")
+            fresh = fresh_real()
+            for arm, publisher, q, starts, goals in plans:
+                for i in starts:
+                    q[i] = ramp(starts[i], goals[i], args.home_rate, now - t0)
+                    done = done and q[i] == goals[i]
+                publish(arm, publisher, q)
+                for i in starts:
+                    name = f"{arm.side} {arm.joints[i]['name']}" if bimanual else arm.joints[i]["name"]
+                    measured = fresh.get(arm.joints[i]["motor_id"])
+                    if measured is None:
+                        raise SystemExit(f"[ERROR] {name} feedback went stale while homing; stopped publishing.")
+                    worst = max(worst, (abs(measured - goals[i]), name))
+            print(f"\r[HOME] furthest from home: {worst[1]} {worst[0]:5.1f} deg   ", end="", flush=True)
+            if done:
                 settle_by = settle_by or now + HOME_SETTLE_S
-                if abs(measured - goal) <= HOME_TOL_DEG or now > settle_by:
+                if worst[0] <= HOME_TOL_DEG or now > settle_by:
                     break
             time.sleep(READ_PERIOD_S)
-        if abs(measured - goal) > HOME_TOL_DEG:
-            print(f"\n[WARN] {name} settled {measured - goal:+.1f} deg from home.", flush=True)
+        if worst[0] > HOME_TOL_DEG:
+            print(f"\n[WARN] {worst[1]} settled {worst[0]:.1f} deg from home.", flush=True)
         # Keep publishing the home pose from the spin thread: input() below blocks this loop, and
         # joint_command drops to kp = 0 after command_timeout_sec without an ArmPose.
-        hold_q = list(q)
-        return publisher, node.create_timer(READ_PERIOD_S, lambda: publish(arm, publisher, hold_q))
+        for arm, publisher, q, _, _ in plans:
+            hold_q = list(q)
+            arm.homed = (publisher, node.create_timer(
+                READ_PERIOD_S, lambda arm=arm, publisher=publisher, hold_q=hold_q: publish(arm, publisher, hold_q)))
+        print("\n[HOME] Holding at home. Now put the leader at home by hand (upper arm down, forearm "
+              "forward, gripper matching the real one).", flush=True)
 
     redraw = sys.stdout.isatty()
     next_print = 0.0
@@ -531,8 +568,7 @@ def run() -> None:
         for arm in arms:
             arm.leader = LeaderInput(arm.board, args.baud, label=arm.side.upper() if bimanual else "")
         if args.live:
-            for arm in arms:
-                arm.homed = home_real_joint(arm)
+            home_real_arms()
         while rclpy.ok():
             snaps = [snapshot(arm) for arm in arms]
             failures = [] if live else gate(snaps)
@@ -540,7 +576,8 @@ def run() -> None:
                 # Drop keys typed before the prompt, so only an Enter pressed after it starts live.
                 if sys.stdin.isatty():
                     termios.tcflush(sys.stdin, termios.TCIFLUSH)
-                answer = input("\nGate passed: every leader at home and matching its real arm. Hand on the "
+                at_home = " at home and" if any(arm.homed is not None for arm in arms) else ""
+                answer = input(f"\nGate passed: every leader{at_home} matching its real arm. Hand on the "
                                "E-stop, then press Enter to start publishing (anything else quits): ")
                 if answer.strip():
                     break
@@ -579,8 +616,8 @@ def run() -> None:
                                  "Ctrl-C to stop.")
                 elif holding:
                     lines.append("waiting for the gate: " + ("; ".join(failures) or "ok"))
-                    lines.append(f"HOLDING the real {' and '.join(holding)} {HOME_JOINT} at home.  "
-                                 "Ctrl-C to stop (the arm then sinks).")
+                    lines.append(f"HOLDING the real {' and '.join(holding)} arm{'s' * (len(holding) > 1)} at home: "
+                                 "put the leader at home.  Ctrl-C to stop (the arm then sinks).")
                 else:
                     if args.live:
                         lines.append("waiting for the gate: " + ("; ".join(failures) or "ok"))

@@ -672,6 +672,32 @@ TEST(GravityModel, MatchesTheUrdfReference) {
   }
 }
 
+// Right arm (joint1..joint6), current URDF; same independent numpy evaluation.
+TEST(GravityModel, RightArmMatchesTheUrdfReference) {
+  const auto hang = rightArmGravityHoldTorque(degToRad({0, 0, 0, 0, 0, 0}));
+  const std::array<double, 6> hang_expected = {0.331, -0.041, 0.0, -0.042, 0.0, 0.0};
+  for (size_t i = 0; i < 6; ++i) {
+    EXPECT_NEAR(hang[i], hang_expected[i], 0.01) << "hanging, joint " << i;
+  }
+
+  const auto out = rightArmGravityHoldTorque(degToRad({90, 0, 0, 0, 0, 0}));
+  EXPECT_NEAR(out[0], 8.708, 0.01) << "4.2 kg arm straight out forward";
+  EXPECT_NEAR(out[3], -2.267, 0.01);
+
+  const auto back = rightArmGravityHoldTorque(degToRad({-30, 0, 0, 0, 0, 0}));
+  EXPECT_NEAR(back[0], -4.067, 0.01) << "swung back: the holding torque flips sign";
+
+  const auto elbow = rightArmGravityHoldTorque(degToRad({0, 0, 0, 90, 0, 0}));
+  EXPECT_NEAR(elbow[0], -1.978, 0.01);
+  EXPECT_NEAR(elbow[3], 2.267, 0.01) << "forearm out level";
+
+  const std::array<double, 6> expected = {1.188, -4.537, 0.961, 1.424, -0.044, 0.186};
+  const auto mixed = rightArmGravityHoldTorque(degToRad({20, -30, 40, 50, 10, -20}));
+  for (size_t i = 0; i < 6; ++i) {
+    EXPECT_NEAR(mixed[i], expected[i], 0.01) << "joint " << i;
+  }
+}
+
 TEST_F(ShippedConfig, ShippedFeedForwardOnlyWhereEnabledAndWithinItsCap) {
   seedAtCommandZero();
   for (int tick = 0; tick < 60; ++tick) {
@@ -795,19 +821,38 @@ TEST_F(ShippedConfig, UnsafeGravityFeedForwardConfigIsRefused) {
 
   EXPECT_FALSE(core.loadSafetyFromYaml(configWithShoulderPitchFf(1.0, 0.0), kRateHz));
 
+  // The scale may reach 5x the model (the clamp still caps the torque), not more.
+  EXPECT_TRUE(core.loadSafetyFromYaml(configWithShoulderPitchFf(5.0, 0.5), kRateHz))
+      << core.lastError();
+  EXPECT_FALSE(core.loadSafetyFromYaml(configWithShoulderPitchFf(5.1, 0.5), kRateHz));
+  EXPECT_NE(core.lastError().find("gravity_ff_scale must be in [0, 5]"), std::string::npos)
+      << core.lastError();
+
   YAML::Node cfg = YAML::LoadFile(configPath("arm_actuators.yaml"))["safety"];
   cfg["left"]["elbow"]["pitch"]["control_type"] = kPositionLoop;
   cfg["left"]["elbow"]["pitch"]["gravity_ff_scale"] = 1.0;
   EXPECT_FALSE(core.loadSafetyFromYaml(cfg, kRateHz));
   EXPECT_NE(core.lastError().find("POSITION_LOOP"), std::string::npos) << core.lastError();
+}
 
+// The right arm gets its own model, not the left arm's.
+TEST_F(ShippedConfig, RightArmFeedForwardUsesTheRightArmModel) {
   YAML::Node mapping = YAML::LoadFile(configPath("arm_calibration.yaml"));
   mapping["right"] = mapping["left"];
   ASSERT_TRUE(core.loadFromYaml(mapping, "right"));
   YAML::Node right_ff = configWithShoulderPitchFf();
   right_ff["right"] = right_ff["left"];
-  EXPECT_FALSE(core.loadSafetyFromYaml(right_ff, kRateHz)) << "the model is the left arm only";
-  EXPECT_NE(core.lastError().find("LEFT arm"), std::string::npos) << core.lastError();
+  ASSERT_TRUE(core.loadSafetyFromYaml(right_ff, kRateHz)) << core.lastError();
+  seedAtCommandZero();
+  for (int tick = 0; tick < 120; ++tick) {
+    core.armPoseToMotorCmds(makePose(30, 0, 0, 0, 0, 0), kPositionLoop);
+  }
+  const double right = rightArmGravityHoldTorque(degToRad({30, 0, 0, 0, 0, 0}))[kShoulderPitch];
+  const double left = leftArmGravityHoldTorque(degToRad({30, 0, 0, 0, 0, 0}))[kShoulderPitch];
+  ASSERT_GT(std::abs(right - left), 0.5)
+      << "the two models must differ for this test to mean anything";
+  EXPECT_NEAR(core.lastGravityTorqueMotor()[kShoulderPitch],
+              core.joint(kShoulderPitch).direction * right, 0.01);
 }
 
 TEST_F(ShippedConfig, UnpoweredJointUsesItsGravityAssumptionOnlyWhenSet) {

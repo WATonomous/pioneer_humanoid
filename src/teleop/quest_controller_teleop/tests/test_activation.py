@@ -10,8 +10,8 @@ import numpy as np
 HERE = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(HERE), str(HERE.parents[2]/"src/pioneer_humanoid")]
 from control import Input
-from isaac_control import ControllerSceneDriver
-from pioneer_humanoid.arm_params import LEFT_ARM_JOINTS, RIGHT_ARM_JOINTS
+from scene_driver import ControllerSceneDriver
+from pioneer_humanoid.arm_8dof_params import LEFT_ARM_JOINTS, RIGHT_ARM_JOINTS
 
 
 class ActivationTests(unittest.TestCase):
@@ -23,11 +23,17 @@ class ActivationTests(unittest.TestCase):
         home = {side: solver.rest.copy() for side, solver in driver.solvers.items()}
         return driver, home
 
-    def test_default_is_article_solver_with_article_target(self):
-        from article_control import ArticleTarget, PioneerArticleIK
+    def test_solver_is_mink_with_anchored_target_and_urdf_limits_plus_elbow_rule(self):
+        import math
+        from article_control import AnchoredTarget
+        from mink_control import PioneerMinkIK
         driver, _ = self.driver()
-        self.assertTrue(all(isinstance(s, PioneerArticleIK) for s in driver.solvers.values()))
-        self.assertTrue(all(isinstance(t, ArticleTarget) for t in driver.targets.values()))
+        self.assertTrue(all(isinstance(s, PioneerMinkIK) for s in driver.solvers.values()))
+        self.assertTrue(all(isinstance(t, AnchoredTarget) for t in driver.targets.values()))
+        for s in driver.solvers.values():
+            expected = s.physical_limits.copy()
+            expected[3, 0] = math.radians(10.)
+            np.testing.assert_allclose(s.limits, expected)
 
     def test_io_is_serviced_before_consuming_input_on_a_physics_tick(self):
         driver, home = self.driver()

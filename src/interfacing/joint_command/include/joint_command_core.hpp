@@ -96,9 +96,9 @@ public:
     return arm_side_;
   }
 
-  // gravity_model.hpp models the left arm only; elsewhere gravity_ff_scale must stay 0.
+  // gravity_model.hpp models the left and right arms; elsewhere gravity_ff_scale must stay 0.
   bool hasGravityModel() const {
-    return arm_side_ == "left";
+    return arm_side_ == "left" || arm_side_ == "right";
   }
 
   // Why loadSafetyFromYaml refused; empty on success.

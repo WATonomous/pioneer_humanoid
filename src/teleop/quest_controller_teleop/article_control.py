@@ -1,17 +1,12 @@
-"""Fresh sequential-DLS controller based on Aurel Arnold's article/source.
-
-Reference: Dream-Machines-Robotics/vr-teleop-kit, commit 8d37f3d6bd44c8ce646f7bc110ac98e802e0ab57.
-Pioneer differs from DK1: its functional position group is joints 1/2/4,
-and its three-axis orientation group is 3/5/6. Joint 3 also moves the wrist
-anchor, so position is corrected on subsequent ticks, not exactly decoupled.
-The mapper targets the wrist anchor directly instead of a tool-tip pose.
+"""Controller-to-target mapping, from Aurel Arnold's VR teleoperation article: ArticleTarget (incremental clutch
+mapping with lead limits) and AnchoredTarget (no drift: measured from the engagement pose). The IK is mink_control.py.
 """
 from __future__ import annotations
 
 import math
 import numpy as np
 
-from control import PioneerKinematics, Target, cap_vector, rotation_exp, rotation_vector
+from control import Target, cap_vector, rotation_exp, rotation_vector
 
 
 class ArticleTarget(Target):
@@ -56,77 +51,55 @@ the previous persistent-orientation update is not used here.
             # Accumulate onto the accepted target, not an unbounded request.
             proposed_rotation = increment @ self.rotation
             self.requested_rotation = proposed_rotation.copy()
-            ep = self.position+dp-actual_position
-            er = rotation_vector(proposed_rotation @ actual_rotation.T)
-            self.position_limited = bool(np.linalg.norm(ep) > self.max_position_error)
-            self.orientation_limited = bool(np.linalg.norm(er) > self.max_angle_error)
-            self.saturation = float(max(np.linalg.norm(ep)/self.max_position_error,
-                                        np.linalg.norm(er)/self.max_angle_error))
-            self.position = actual_position+cap_vector(ep, self.max_position_error)
-            self.rotation = rotation_exp(cap_vector(er, self.max_angle_error)) @ actual_rotation
+            self._cap_lead(self.position+dp, proposed_rotation, actual_position, actual_rotation)
         # Consume the input even when blocked: reversing acts immediately.
         self.previous_position = pivot_position.copy()
         self.previous_rotation = controller.rotation.copy()
 
-
-def article_dls(jacobian, error, baseline, extra, threshold, rest_delta=None):
-    """The article's 3x3 normal equations and independent damping ramp."""
-    j = np.asarray(jacobian, dtype=float)
-    w = abs(float(np.linalg.det(j)))
-    ramp = max(0., 1.-w/threshold)
-    damping = baseline**2+extra**2*ramp**2
-    # Robot-specific weak position branch bias; no orientation/home spring.
-    mu2 = .002**2 if rest_delta is not None else 0.
-    rhs = j.T @ error
-    if rest_delta is not None:
-        rhs += mu2*rest_delta
-    step = np.linalg.solve(j.T @ j+(damping+mu2)*np.eye(3), rhs)
-    return step, ramp
+    def _cap_lead(self, position, rotation, actual_position, actual_rotation):
+        """Set the IK goal to the requested pose, at most the lead limits away from the measured one."""
+        ep = position-actual_position
+        er = rotation_vector(rotation @ actual_rotation.T)
+        self.position_limited = bool(np.linalg.norm(ep) > self.max_position_error)
+        self.orientation_limited = bool(np.linalg.norm(er) > self.max_angle_error)
+        self.saturation = float(max(np.linalg.norm(ep)/self.max_position_error,
+                                    np.linalg.norm(er)/self.max_angle_error))
+        self.position = actual_position+cap_vector(ep, self.max_position_error)
+        self.rotation = rotation_exp(cap_vector(er, self.max_angle_error)) @ actual_rotation
 
 
-class PioneerArticleIK(PioneerKinematics):
-    """Position DLS, updated FK, orientation DLS, hard physical/rate bounds.
+class AnchoredTarget(ArticleTarget):
+    """ArticleTarget without the drift: the request is measured from the engagement pose, not accumulated.
 
-No nullspace solve, per-joint orientation preference, or discarded third axis.
-Pioneer's orientation group is full rank at its bent-elbow home pose. A
-literal DK1 joint-index split would be singular there on this robot.
-"""
-    position_ids = np.array([0, 1, 3])
-    orientation_ids = np.array([2, 4, 5])
-    orientation_mode = "article"
+    ArticleTarget adds each frame's hand increment to the last *accepted* target, so whenever the lead limit
+    caps it, the excess is lost for good and hand and arm drift apart; the article re-grabs to realign. With
+    always-on control there is no re-grab, so offsets only accumulate. Here the request is
+    `engagement target + gain x (hand now - hand at engagement)`, and the lead limit caps only what is sent
+    to the IK this frame: once the arm catches up, it lines up with the hand again. Pressing or releasing
+    precision (A/X, 25% motion) re-measures from the current request, so the arm never jumps.
+    """
+    def update(self, controller, head_rotation, actual_position, actual_rotation):
+        if not self.active or controller is None or head_rotation is None or not controller.clutch:
+            super().update(controller, head_rotation, actual_position, actual_rotation)  # engage, loss, release
+            if self.active:  # just engaged at the measured pose: measure later hand motion from here
+                self._anchor(self.position, self.rotation, 1.)
+            return
+        pivot_position = controller.position + controller.rotation @ self.pivot
+        precision = .25 if controller.precision else 1.
+        if precision != self._precision:
+            self._anchor(self.requested_position, self.requested_rotation, precision)
+        hand_turn = rotation_vector(self.mapping @ (controller.rotation @ self._hand_rotation.T) @ self.mapping.T)
+        self.requested_position = self._target_position + self.mapping @ (pivot_position-self._hand_position)*self.gain*precision
+        self.requested_rotation = rotation_exp(hand_turn*self.rotation_gain*precision) @ self._target_rotation
+        self.controller_rotation_delta_deg = float(np.degrees(np.linalg.norm(
+            rotation_vector(controller.rotation @ self.previous_rotation.T))))
+        self._cap_lead(self.requested_position, self.requested_rotation, actual_position, actual_rotation)
+        self.previous_position = pivot_position.copy()
+        self.previous_rotation = controller.rotation.copy()
 
-    def solve(self, qpos, target, dt):
-        if not target.active:
-            return self.command.copy()
-        if not math.isfinite(dt) or dt <= 0:
-            raise ValueError("IK timestep must be positive and finite")
-        seed = self.command.copy()
-        lower = np.maximum(self.limits[:, 0], seed-self.velocity*dt)
-        upper = np.minimum(self.limits[:, 1], seed+self.velocity*dt)
-        p, _, jp, _ = self.kinematics(seed)
-        ids = self.position_ids
-        # Stabilize the elbow branch near straight-arm poses. With no task
-        # error there is no reason to change the holding configuration.
-        rest_delta = self.rest[ids]-seed[ids] if np.linalg.norm(target.position-p) > .001 else None
-        dp, rho_p = article_dls(jp[:, ids], target.position-p,
-                                 .05, .15, .015, rest_delta)
-        candidate = seed.copy()
-        candidate[ids] = np.clip(seed[ids]+dp, lower[ids], upper[ids])
-
-        # Orientation sees exactly the bounded position update sent this tick.
-        _, r, _, jr = self.kinematics(candidate)
-        er = rotation_vector(target.rotation @ r.T)
-        parked = bool(np.linalg.norm(er) > 2.2)
-        ids = self.orientation_ids
-        dr, rho_r = article_dls(jr[:, ids], er, .05, .4, .5)
-        if parked:
-            dr[:] = 0.
-        unconstrained = candidate.copy()
-        unconstrained[ids] += dr
-        candidate[ids] = np.clip(unconstrained[ids], lower[ids], upper[ids])
-        self.command = candidate
-
-        margin = np.minimum(candidate-self.limits[:, 0], self.limits[:, 1]-candidate)
-        self.warning = float(np.clip(max(rho_p, rho_r, 1-margin.min()/.1,
-                                         target.saturation-1., float(parked)), 0., 1.))
-        return self.command.copy()
+    def _anchor(self, target_position, target_rotation, precision):
+        """Measure later hand motion from the last hand pose, starting at this target, at this precision scale."""
+        self._hand_position, self._hand_rotation = self.previous_position.copy(), self.previous_rotation.copy()
+        self._target_position, self._target_rotation = target_position.copy(), target_rotation.copy()
+        self.requested_position, self.requested_rotation = target_position.copy(), target_rotation.copy()
+        self._precision = precision

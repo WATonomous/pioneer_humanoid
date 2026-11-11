@@ -8,7 +8,7 @@ import numpy as np
 
 HERE = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(HERE), str(HERE.parents[2]/"src/pioneer_humanoid")]
-from control import Target, UrdfPioneerIK, bounded_dls, dls, rotation_exp, rotation_vector
+from isaac_ik import Target, UrdfPioneerIK, bounded_dls, dls, rotation_exp, rotation_vector
 from pioneer_humanoid.arm_params import LEFT_ARM_JOINTS, RIGHT_ARM_JOINTS
 
 
