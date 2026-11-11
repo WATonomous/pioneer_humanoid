@@ -56,7 +56,7 @@ def main() -> int:
         help="comma-separated bus IDs to watch (default: all of --robot's servos)",
     )
     parser.add_argument("--robot", choices=tuple(LAYOUTS), default="armv2",
-                        help="leader layout: armv2 (A..G, 7 servos) or 8dof (A..F, H, G: 8 servos)")
+                        help="leader layout: armv2 (A..G, 7 servos) or 8dof (A..H: 8 servos)")
     parser.add_argument(
         "--raw", action="store_true", help="also show raw encoder counts"
     )

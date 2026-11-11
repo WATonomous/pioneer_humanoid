@@ -35,8 +35,9 @@ GRIPPER_SERVO = "G"
 assert tuple(SERVO_IDS) == ARM_SERVOS + (GRIPPER_SERVO,)
 
 # The 8dof arms (pioneer_bimanual_arm_8dof) have a 7th joint, wrist yaw, after wrist pitch: the leader drives it with
-# an eighth servo, H, on the next free bus ID. A..F drive the same joints as on the old arms (shoulder pitch, roll,
-# yaw, elbow, forearm roll, wrist pitch); G stays the gripper.
+# an eighth servo on the next free bus ID. Labels follow joint order, A..H: A..F drive the same joints (and keep the
+# same bus IDs) as on the old arms (shoulder pitch, roll, yaw, elbow, forearm roll, wrist pitch), G is the new wrist-yaw
+# servo, H the gripper (the old leader's G, bus ID 6).
 SERVO_IDS_8DOF: dict[str, int] = {
     "A": 2,  # left_shoulder_pitch
     "B": 3,  # left_shoulder_roll
@@ -44,11 +45,12 @@ SERVO_IDS_8DOF: dict[str, int] = {
     "D": 5,  # left_elbow
     "E": 4,  # left_forearm_roll
     "F": 7,  # left_wrist_pitch
-    "H": 8,  # left_wrist_yaw (the added servo)
-    "G": 6,  # gripper
+    "G": 8,  # left_wrist_yaw (the added servo)
+    "H": 6,  # gripper
 }
-ARM_SERVOS_8DOF: tuple[str, ...] = ("A", "B", "C", "D", "E", "F", "H")
-assert tuple(SERVO_IDS_8DOF) == ARM_SERVOS_8DOF + (GRIPPER_SERVO,)
+ARM_SERVOS_8DOF: tuple[str, ...] = ("A", "B", "C", "D", "E", "F", "G")
+GRIPPER_SERVO_8DOF = "H"
+assert tuple(SERVO_IDS_8DOF) == ARM_SERVOS_8DOF + (GRIPPER_SERVO_8DOF,)
 
 
 @dataclass(frozen=True)
@@ -64,7 +66,7 @@ class LeaderLayout:
 
 LAYOUTS: dict[str, LeaderLayout] = {
     "armv2": LeaderLayout("armv2", SERVO_IDS, ARM_SERVOS, ("F",)),
-    "8dof": LeaderLayout("8dof", SERVO_IDS_8DOF, ARM_SERVOS_8DOF, ("F", "H")),
+    "8dof": LeaderLayout("8dof", SERVO_IDS_8DOF, ARM_SERVOS_8DOF, ("F", "G"), GRIPPER_SERVO_8DOF),
 }
 
 COUNTS_PER_REV = 4096

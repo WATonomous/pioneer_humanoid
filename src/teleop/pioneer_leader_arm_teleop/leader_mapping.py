@@ -26,9 +26,10 @@ from servo_leader import (ARM_SERVOS, GRIPPER_SERVO, LAYOUTS, SERVO_IDS, LeaderL
 # without --signs.
 SIDE_SIGNS = {"left": "1,1,-1,-1,1,-1,1", "right": "1,1,-1,1,1,1,1"}
 DEFAULT_SIGNS = SIDE_SIGNS["left"]
-# The same boards driving the 8dof arms (servos A..F, H, G): A..F are SIDE_SIGNS times the direction of each 8dof
+# The same boards driving the 8dof arms (servos A..H: G = wrist yaw, H = gripper): A..F are SIDE_SIGNS times the direction of each 8dof
 # joint relative to the old arm's (its joint axes at zero: left shoulder yaw, elbow, forearm roll and wrist pitch turn
-# the other way; on the right, shoulder pitch and roll). H (wrist yaw, the added servo) starts at +1.
+# the other way; on the right, shoulder pitch and roll). G (wrist yaw, the added servo) starts at +1; H (gripper) keeps
+# the old G's sign.
 # All from the models, not the hardware: check each joint by moving it alone, then calibrate with --signs.
 SIDE_SIGNS_8DOF = {"left": "1,1,1,1,-1,1,1,1", "right": "-1,-1,-1,1,1,1,1,1"}
 ROBOT_SIDE_SIGNS = {"armv2": SIDE_SIGNS, "8dof": SIDE_SIGNS_8DOF}
@@ -65,7 +66,7 @@ def add_leader_args(parser: argparse.ArgumentParser, *, scene_help: str) -> None
         "--robot",
         choices=tuple(LAYOUTS),
         default=None,
-        help="arms to drive: 8dof (7-DoF + gripper, leader servos A..F + H + G; default for --target mujoco) or "
+        help="arms to drive: 8dof (7-DoF + gripper, leader servos A..H: G = wrist yaw, H = gripper; default for --target mujoco) or "
              "armv2 (the old 6-DoF arms; Isaac and the real arm only have these)",
     )
     parser.add_argument("--baud", type=int, default=1_000_000, help="leader serial baud rate")
@@ -151,7 +152,7 @@ def calibrate_hint(side: str, robot: str = "armv2") -> str:
 
 def load_leader_boards(path: Path, sides: list[str], layout: LeaderLayout = LAYOUTS["armv2"]) -> dict[str, LeaderBoard]:
     """The boards driving `sides` from leader_arm.json, each found on its port by its USB serial. `layout`: the servos
-    the boards have (LAYOUTS: the old arms' A..G, or the 8dof arms' A..F, H, G).
+    the boards have (LAYOUTS: the old arms' A..G, or the 8dof arms' A..H).
 
     Two boards must have different USB serials, so a swapped plug order can't swap the arms.
     """

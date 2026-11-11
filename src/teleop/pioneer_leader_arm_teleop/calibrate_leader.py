@@ -9,9 +9,9 @@ leader_arm.json (here; commit it: it describes the team's leader unit) and enabl
     python calibrate_leader.py --side right --port <your-port>        # several plugged in: say which
     python calibrate_leader.py --side right --signs=<A..G>            # = because signs may start with -
     python calibrate_leader.py --side left --from leader_calibration.json  # convert
-    python calibrate_leader.py --side right --robot 8dof              # the 8dof leader (+ servo H): leader_arm_8dof.json
+    python calibrate_leader.py --side right --robot 8dof              # the 8dof leader (A..H): leader_arm_8dof.json
 
-Without --signs the servo directions (A..G; A..F, H, G for --robot 8dof) are the side's ROBOT_SIDE_SIGNS in
+Without --signs the servo directions (A..G; A..H for --robot 8dof) are the side's ROBOT_SIDE_SIGNS in
 leader_mapping.py.
 
 The board's USB serial number is stored too: the teleop finds each board by it, so plugging the two
@@ -34,8 +34,8 @@ def main() -> int:
     parser.add_argument("--port", help="the board's serial port now (default: the one USB serial board plugged in); "
                                        "not stored: the teleop finds the board by its USB serial")
     parser.add_argument("--robot", choices=tuple(LAYOUTS), default="armv2",
-                        help="which leader: armv2 (servos A..G, the old arms) or 8dof (A..F, H = wrist yaw, G)")
-    parser.add_argument("--signs", help="direction per servo, in reading order (A..G, or A..F,H,G for --robot 8dof; "
+                        help="which leader: armv2 (servos A..G, the old arms) or 8dof (A..H: G = wrist yaw, H = gripper)")
+    parser.add_argument("--signs", help="direction per servo, in reading order (A..G, or A..H for --robot 8dof; "
                                         "default: the side's in leader_mapping.ROBOT_SIDE_SIGNS)")
     parser.add_argument("--from", dest="old", type=Path,
                         help="take the zeros from an old leader_calibration.json instead of reading the leader")

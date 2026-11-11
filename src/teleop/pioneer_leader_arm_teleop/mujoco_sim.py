@@ -1,7 +1,7 @@
 """MuJoCo leader teleop: one leader per arm, right arm by default (--arms right, left or bimanual).
 
 --robot 8dof (default): the pioneer_bimanual_arm_8dof arms (7-DoF + gripper), driven by the 8-servo leader
-(A..F, H = wrist yaw, G; leader_arm_8dof.json) and recorded with pioneer_8dof_dataset_schema.yaml.
+(A..H: G = wrist yaw, H = gripper; leader_arm_8dof.json) and recorded with pioneer_8dof_dataset_schema.yaml.
 --robot armv2: the old 6-DoF arms with the 7-servo leader (leader_arm.json, pioneer_humanoid_dataset_schema.yaml).
 
 Same leader mapping as the Isaac backend (leader_mapping.py). Scenes: humanoid_mujoco_scenes.
@@ -161,7 +161,7 @@ def run() -> None:
     parser.add_argument("--arms", choices=tuple(ARM_SETS), default="right",
                         help="arms to drive and record, one leader board each (leader_arm.json)")
     parser.add_argument("--lock-wrist", action=argparse.BooleanOptionalAction, default=None,
-                        help="freeze the wrist (F; F and H on the 8dof arms) rigidly at home: no motor, no physics, "
+                        help="freeze the wrist (F; F and G on the 8dof arms) rigidly at home: no motor, no physics, "
                              "leader's wrist ignored "
                              "(default: each arm's lock_wrist in leader_arm.json)")
     add_record_args(parser, task_description="sim leader teleop demonstration")

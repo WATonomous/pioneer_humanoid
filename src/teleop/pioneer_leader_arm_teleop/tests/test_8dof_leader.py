@@ -1,4 +1,4 @@
-"""The 8-servo leader (A..F, H = wrist yaw, G) on the pioneer_bimanual_arm_8dof arms: layout, mapping, boards file, schema."""
+"""The 8-servo leader (A..H: G = wrist yaw, H = gripper) on the pioneer_bimanual_arm_8dof arms: layout, mapping, boards file, schema."""
 import json
 import math
 import sys
@@ -21,7 +21,7 @@ LIMITS = [(-1.57, 3.14), (-0.35, 2.79), (-2.09, 2.09), (-0.087, 2.27), (-1.92, 1
 
 
 def leader_at(joints, grip=0.0, signs=(1.0,) * 8):
-    """Leader readings (A..F, H, G) that map to `joints` and gripper closure `grip` (0 = open)."""
+    """Leader readings (A..H) that map to `joints` and gripper closure `grip` (0 = open)."""
     arm = [q / s for q, s in zip(joints, signs)]
     return (*arm, -math.radians(grip * 41.5) / signs[-1])
 
@@ -29,12 +29,15 @@ def leader_at(joints, grip=0.0, signs=(1.0,) * 8):
 class Layout8dofTests(unittest.TestCase):
 
     def test_layout_adds_wrist_yaw_servo_on_a_free_bus_id(self):
-        self.assertEqual(EIGHT.arm_servos, ("A", "B", "C", "D", "E", "F", "H"))
-        self.assertEqual(tuple(EIGHT.servo_ids)[-1], "G")
+        self.assertEqual(tuple(EIGHT.servo_ids), tuple("ABCDEFGH"))
+        self.assertEqual(EIGHT.arm_servos, tuple("ABCDEFG"))
+        self.assertEqual(EIGHT.gripper_servo, "H")
         ids = list(EIGHT.servo_ids.values())
         self.assertEqual(len(ids), len(set(ids)))
         old = LAYOUTS["armv2"].servo_ids
-        self.assertEqual({k: v for k, v in EIGHT.servo_ids.items() if k != "H"}, old)
+        self.assertEqual({k: EIGHT.servo_ids[k] for k in "ABCDEF"}, {k: old[k] for k in "ABCDEF"})
+        self.assertEqual(EIGHT.servo_ids["H"], old["G"])   # same gripper servo
+        self.assertEqual(EIGHT.servo_ids["G"], 8)          # the new wrist-yaw servo
 
     def test_default_signs_parse_for_each_side(self):
         for side in lm.SIDES:
@@ -70,7 +73,7 @@ class Layout8dofTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             lm.LeaderMapping((1.0,) * 8, 1.0, HOME[:6], LIMITS[:6], layout=EIGHT)
 
-    def test_boards_file_round_trip_with_servo_h(self):
+    def test_boards_file_round_trip_with_the_new_servo(self):
         positions = {sid: 2000 + sid for sid in EIGHT.servo_ids.values()}
         data = {"right": {"enabled": True, "usb_serial": "ABC", "signs": lm.SIDE_SIGNS_8DOF["right"],
                           "servos": calibration_entry(positions, EIGHT.servo_ids)}}
@@ -82,7 +85,7 @@ class Layout8dofTests(unittest.TestCase):
                 self.assertEqual(board.layout, EIGHT)
                 self.assertEqual(board.zeros[8], 2008)
                 with self.assertRaises(ValueError):        # a 7-servo file is not an 8dof leader
-                    data["right"]["servos"].pop("H")
+                    data["right"]["servos"].pop("G")
                     path.write_text(json.dumps(data))
                     lm.load_leader_boards(path, ["right"], EIGHT)
 
