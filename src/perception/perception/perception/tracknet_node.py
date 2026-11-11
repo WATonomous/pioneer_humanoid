@@ -1,14 +1,13 @@
 """TrackNet node: camera image in, the shuttle's 2D pixel out.
 
-Same output contract as the YOLO detector node (shuttlecock_detector_node), so the two are
-interchangeable in front of shuttlecock_localizer_node, which adds depth.
+Publishes the topics shuttlecock_localizer_node already subscribes to (as on main and in #501), which adds depth.
 
-Subscribes  image_topic        /camera/camera/color/image_raw    (sensor_msgs/Image)
-            camera_info_topic  /camera/camera/color/camera_info  (sensor_msgs/CameraInfo)
-Publishes   point_topic        /perception/shuttlecock/detections_2d      (geometry_msgs/PointStamped)
+Subscribes  image_topic        /camera/color/image_raw    (sensor_msgs/Image)
+            camera_info_topic  /camera/color/camera_info  (sensor_msgs/CameraInfo)
+Publishes   point_topic        /tracknetv3/shuttle_point    (geometry_msgs/PointStamped)
                 x, y = shuttle pixel (u, v), z = TrackNet confidence 0-1; header copied from the image.
                 Only published for frames where the gated track matched a hotspot.
-            visible_topic      /perception/shuttlecock/detection_visible  (std_msgs/Bool)
+            visible_topic      /tracknetv3/shuttle_visible  (std_msgs/Bool)
                 every frame: whether point_topic got a point for it
             hotspots_topic     /perception/tracknet/hotspots              (vision_msgs/Detection2DArray)
                 debug: TrackNet's raw top hotspots before gating, strongest first
@@ -56,11 +55,10 @@ class TrackNetNode(Node):
         self.fps = self.declare_parameter('fps', 30.).value
         self.use_gate = self.declare_parameter('use_gate', True).value
         self.pitch = self.declare_parameter('camera_pitch_deg', 0.).value
-        image_topic = self.declare_parameter('image_topic', '/camera/camera/color/image_raw').value
-        info_topic = self.declare_parameter('camera_info_topic', '/camera/camera/color/camera_info').value
-        point_topic = self.declare_parameter('point_topic', '/perception/shuttlecock/detections_2d').value
-        visible_topic = self.declare_parameter(
-            'visible_topic', '/perception/shuttlecock/detection_visible').value
+        image_topic = self.declare_parameter('image_topic', '/camera/color/image_raw').value
+        info_topic = self.declare_parameter('camera_info_topic', '/camera/color/camera_info').value
+        point_topic = self.declare_parameter('point_topic', '/tracknetv3/shuttle_point').value
+        visible_topic = self.declare_parameter('visible_topic', '/tracknetv3/shuttle_visible').value
         hotspots_topic = self.declare_parameter('hotspots_topic', '/perception/tracknet/hotspots').value
 
         self.tracker = LiveTracker(model_path, top_k=top_k, min_score=min_score)
