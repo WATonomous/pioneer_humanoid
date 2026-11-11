@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <stdexcept>
 #include <string>
 
 #include "gravity_model.hpp"
@@ -53,8 +54,8 @@ protected:
   std::map<int, double> feedbackForCommandFrame(double cmd_deg) {
     std::map<int, double> feedback;
     for (size_t i = 0; i < core.jointCount(); ++i) {
-      const double dir = core.joint(i).direction == 0 ? 1.0 : core.joint(i).direction;
-      feedback[static_cast<int>(core.motorId(i))] = dir * (cmd_deg - core.joint(i).zero_offset);
+      feedback[static_cast<int>(core.motorId(i))] =
+          core.joint(i).direction * (cmd_deg - core.joint(i).zero_offset);
     }
     return feedback;
   }
@@ -289,11 +290,21 @@ TEST_F(ShippedConfig, FirstCommandRampsFromTheMeasuredPoseNotFromZero) {
   }
 }
 
+TEST_F(ShippedConfig, NoCommandBeforeSeedingFromFeedback) {
+  // No assumed starting pose: unseeded, the core refuses instead of ramping from 0.
+  EXPECT_THROW(core.armPoseToMotorCmds(uniformPose(0.0), kPositionLoop), std::logic_error);
+  seedAtCommandZero();
+  EXPECT_NO_THROW(core.armPoseToMotorCmds(uniformPose(0.0), kPositionLoop));
+  // A reload needs a fresh seed.
+  ASSERT_TRUE(
+      core.loadSafetyFromYaml(YAML::LoadFile(configPath("arm_actuators.yaml"))["safety"], kRateHz));
+  EXPECT_THROW(core.armPoseToMotorCmds(uniformPose(0.0), kPositionLoop), std::logic_error);
+}
+
 TEST_F(ShippedConfig, MotorsWithoutFeedbackAreReportedNotSilentlyZeroed) {
   std::map<int, double> feedback;
-  const double dir = core.joint(0).direction == 0 ? 1.0 : core.joint(0).direction;
   feedback[static_cast<int>(core.motorId(0))] =
-      dir * (0.0 - core.joint(0).zero_offset); // only one joint reporting
+      core.joint(0).direction * (0.0 - core.joint(0).zero_offset); // only one joint reporting
   const SeedReport report = core.seedPrevTargetsFromFeedback(feedback);
   EXPECT_EQ(report.matched, 1u);
   EXPECT_EQ(report.unmatched.size(), core.jointCount() - 1);
@@ -303,8 +314,8 @@ TEST_F(ShippedConfig, MotorsWithoutFeedbackAreReportedNotSilentlyZeroed) {
 TEST_F(ShippedConfig, UnpoweredJointsAreExcludedUntilTheNextSeed) {
   // One motor powered: silent ones must not be ramped from an assumed 0.
   std::map<int, double> feedback;
-  const double dir = core.joint(0).direction == 0 ? 1.0 : core.joint(0).direction;
-  feedback[static_cast<int>(core.motorId(0))] = dir * (0.0 - core.joint(0).zero_offset);
+  feedback[static_cast<int>(core.motorId(0))] =
+      core.joint(0).direction * (0.0 - core.joint(0).zero_offset);
   core.seedPrevTargetsFromFeedback(feedback);
 
   EXPECT_FALSE(core.isBlocked(0));
@@ -797,6 +808,50 @@ TEST_F(ShippedConfig, RemovedUrdfMappingKeysAreRefused) {
     cfg["global"][key] = 1;
     EXPECT_FALSE(core.loadSafetyFromYaml(cfg, kRateHz)) << "global " << key;
   }
+}
+
+TEST_F(ShippedConfig, UnknownSafetyKeyIsRefused) {
+  // A typo would otherwise silently leave the default in place.
+  YAML::Node cfg = YAML::LoadFile(configPath("arm_actuators.yaml"))["safety"];
+  cfg["left"]["elbow"]["pitch"]["mit_max_torqe"] = 1.0;
+  EXPECT_FALSE(core.loadSafetyFromYaml(cfg, kRateHz));
+  EXPECT_NE(core.lastError().find("mit_max_torqe"), std::string::npos) << core.lastError();
+  EXPECT_NE(core.lastError().find("elbow.pitch"), std::string::npos) << core.lastError();
+
+  cfg = YAML::LoadFile(configPath("arm_actuators.yaml"))["safety"];
+  cfg["global"]["velocity_maxx"] = 10.0;
+  EXPECT_FALSE(core.loadSafetyFromYaml(cfg, kRateHz));
+  EXPECT_NE(core.lastError().find("velocity_maxx"), std::string::npos) << core.lastError();
+}
+
+TEST_F(ShippedConfig, InvalidModerationValuesAreRefused) {
+  auto expectRefused = [&](const char* key, double value, const std::string& needle) {
+    YAML::Node cfg = YAML::LoadFile(configPath("arm_actuators.yaml"))["safety"];
+    cfg["left"]["elbow"]["pitch"][key] = value;
+    EXPECT_FALSE(core.loadSafetyFromYaml(cfg, kRateHz)) << key << " = " << value;
+    EXPECT_NE(core.lastError().find(needle), std::string::npos) << core.lastError();
+  };
+  expectRefused("low_pass_alpha", 1.5, "low_pass_alpha must be in [0, 1)");
+  expectRefused("low_pass_alpha", 1.0, "low_pass_alpha must be in [0, 1)"); // would freeze it
+  expectRefused("low_pass_alpha", -0.1, "low_pass_alpha must be in [0, 1)");
+  expectRefused("velocity_max", -30.0, "velocity_max must be > 0");
+  expectRefused("velocity_max", 0.0, "velocity_max must be > 0");
+  expectRefused("delta_max", -2.0, "delta_max must be > 0");
+}
+
+TEST_F(ShippedConfig, InvalidCalibrationIsRefused) {
+  YAML::Node mapping = YAML::LoadFile(configPath("arm_calibration.yaml"));
+  mapping["left"]["elbow"]["pitch"]["direction"] = 0;
+  EXPECT_THROW(core.loadFromYaml(mapping, "left"), std::runtime_error);
+
+  mapping = YAML::LoadFile(configPath("arm_calibration.yaml"));
+  mapping["left"]["elbow"]["pitch"]["direction"] = 2;
+  EXPECT_THROW(core.loadFromYaml(mapping, "left"), std::runtime_error);
+
+  mapping = YAML::LoadFile(configPath("arm_calibration.yaml"));
+  mapping["left"]["elbow"]["pitch"]["lower_limit"] = 10.0;
+  mapping["left"]["elbow"]["pitch"]["upper_limit"] = -10.0;
+  EXPECT_THROW(core.loadFromYaml(mapping, "left"), std::runtime_error);
 }
 
 TEST_F(ShippedConfig, BlockedJointZeroesAllFeedForward) {

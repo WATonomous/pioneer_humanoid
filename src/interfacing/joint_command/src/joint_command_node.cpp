@@ -11,21 +11,23 @@
 #include <yaml-cpp/yaml.h>
 
 JointCommandNode::JointCommandNode() : Node("joint_command_node") {
-  this->declare_parameter("arms", std::vector<std::string>{"left"});
-  this->declare_parameter("control_rate_hz", 50.0);
-  this->declare_parameter("motor_cmd_topic", "/interfacing/motorCMD");
-  this->declare_parameter("control_type", common_msgs::msg::MotorCmd::POSITION_LOOP);
-  this->declare_parameter("feedback_topic", "/interfacing/motorFeedback");
-  this->declare_parameter("command_timeout_sec", 10.0);
-  this->declare_parameter("mit_shutdown_damp_sec", 2.0);
-
-  const std::vector<std::string> arms = this->get_parameter("arms").as_string_array();
-  control_rate_hz_ = this->get_parameter("control_rate_hz").as_double();
-  const std::string motor_cmd_topic = this->get_parameter("motor_cmd_topic").as_string();
-  control_type_ = static_cast<int8_t>(this->get_parameter("control_type").as_int());
-  const std::string feedback_topic = this->get_parameter("feedback_topic").as_string();
-  command_timeout_sec_ = this->get_parameter("command_timeout_sec").as_double();
-  mit_shutdown_damp_sec_ = this->get_parameter("mit_shutdown_damp_sec").as_double();
+  // No defaults: every one comes from joint_command.yaml, so a missing params file fails here.
+  const auto arms = this->declare_parameter<std::vector<std::string>>("arms");
+  control_rate_hz_ = this->declare_parameter<double>("control_rate_hz");
+  const auto motor_cmd_topic = this->declare_parameter<std::string>("motor_cmd_topic");
+  control_type_ = static_cast<int8_t>(this->declare_parameter<int64_t>("control_type"));
+  const auto feedback_topic = this->declare_parameter<std::string>("feedback_topic");
+  command_timeout_sec_ = this->declare_parameter<double>("command_timeout_sec");
+  mit_shutdown_damp_sec_ = this->declare_parameter<double>("mit_shutdown_damp_sec");
+  if (!(control_rate_hz_ > 0.0)) {
+    throw std::runtime_error("control_rate_hz must be > 0");
+  }
+  if (!(command_timeout_sec_ > 0.0)) {
+    throw std::runtime_error("command_timeout_sec must be > 0");
+  }
+  if (!(mit_shutdown_damp_sec_ >= 0.0)) {
+    throw std::runtime_error("mit_shutdown_damp_sec must be >= 0");
+  }
 
   const YAML::Node hardware_config =
       YAML::LoadFile(ament_index_cpp::get_package_share_directory("joint_command") +
@@ -133,10 +135,7 @@ void JointCommandNode::armPoseCallback(size_t limb_index,
     return;
   }
   // Only cache the pose here. Moderation and publishing happen exclusively on control_timer_'s
-  // own steady 50Hz clock (below) -- previously this also
-  // called publishMotorCommands() directly, so with ArmPose already arriving at ~50Hz from
-  // task_space_real.py, motor commands were sent from two independent, phase-unrelated 50Hz
-  // sources at once (up to ~100Hz combined, jittery), not the intended steady 50Hz.
+  // own steady clock, so commands go out at exactly control_rate_hz however often ArmPose arrives.
   for (const auto* joints : {&msg->shoulder, &msg->elbow, &msg->wrist}) {
     for (const double a : joints->position) {
       if (!std::isfinite(a)) {
@@ -393,8 +392,10 @@ void JointCommandNode::controlTimerCallback() {
     try {
       publishMotorCommands(*limb, limb->core.armPoseToMotorCmds(limb->latest_pose, control_type_));
     } catch (const std::exception& e) {
-      RCLCPP_ERROR_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
-                            "[%s] Failed to process ArmPose: %s", limb->side.c_str(), e.what());
+      // Sending nothing would go silent (an AK trips its CAN timeout and drops the arm): latch
+      // the fault so every arm gets its fault action, like a watchdog fault.
+      mitFault("[" + limb->side + "] failed to process ArmPose: " + e.what());
+      return;
     }
   }
   logGravityModel(ready);

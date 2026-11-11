@@ -1,9 +1,16 @@
 joint_command_node:
   ros__parameters:
+    # Every parameter here is required: the node declares them without defaults and refuses to
+    # start if one is missing.
     # Every arm this node drives: its key in arm_calibration.yaml and arm_actuators.yaml. Each
     # listens on /arm/<side>/joint_targets; arm_actuators.yaml `active` picks what moves this run.
     # Motor ids must be unique across arms (the node refuses to start otherwise).
     arms: ["left", "right"]
-    control_rate_hz: 50.0
+    control_rate_hz: 50.0  # control tick, Hz (> 0); velocity_max is deg/s at this rate
     motor_cmd_topic: "/interfacing/motorCMD"
     control_type: 0  # MIT_CONTROL
+    feedback_topic: "/interfacing/motorFeedback"
+    # s (> 0) without an ArmPose before commands stop and the next pose re-seeds from feedback.
+    command_timeout_sec: 10.0
+    # s (>= 0) on Ctrl-C that damp MIT joints are damped before every MIT joint is exited.
+    mit_shutdown_damp_sec: 2.0
