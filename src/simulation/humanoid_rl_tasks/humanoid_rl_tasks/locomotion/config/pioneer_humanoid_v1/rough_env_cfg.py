@@ -140,7 +140,7 @@ class PioneerHumanoidRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
             scale=_joint_pos_scale,
             use_default_offset=_base_action.use_default_offset,
             min_delay=0,
-            max_delay=4
+            max_delay=1,  # in POLICY steps (20 ms each): 4 trained with up to 80 ms. Revisit once sysid measures the real delay
         )
 
         # --- Sim-to-real randomization (actuator model) ---

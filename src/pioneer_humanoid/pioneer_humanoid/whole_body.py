@@ -69,10 +69,11 @@ WHOLE_BODY_HUMANOID_CFG = ArticulationCfg(
         # AKH70-48: 222 N·m peak, 35 RPM no-load, 48:1, rotor 1170 g·cm²
         "hip_flexion": DCMotorCfg(
             joint_names_expr=["Hip_F_.*"],
-            stiffness=267.0,            # 5 Hz
-            damping=17.0,               # ζ ≈ 1.0
+            stiffness=150.0,            # 3.75 Hz. Lowered with Kd: MIT mode caps Kd at 5
+            damping=5.0,                # driver maximum (ζ ≈ 0.39)
             armature=0.270,
-            friction=2.2,               # datasheet back-drive torque
+            friction=2.2,               # bench-measured 1.8-2.5 N·m, see docs/sysid/akh70-48_bench.md
+            # viscous_friction=1.0,     # measured ~0.9-1.2 N·m·s/rad; enable on Isaac Lab versions that have it
             saturation_effort=222.0,
             effort_limit=222.0,
             velocity_limit=3.67,
@@ -80,8 +81,8 @@ WHOLE_BODY_HUMANOID_CFG = ArticulationCfg(
         # AK80-64 @ 48 V: 120 N·m peak, 75 RPM no-load, 64:1, rotor 564.5 g·cm²
         "hip_abduction": DCMotorCfg(
             joint_names_expr=["Hip_A_.*"],
-            stiffness=146.0,            # 4 Hz
-            damping=12.0,               # ζ ≈ 1.0
+            stiffness=100.0,            # 3.3 Hz. Lowered with Kd: MIT mode caps Kd at 5
+            damping=5.0,                # driver maximum (ζ ≈ 0.52)
             armature=0.231,
             friction=2.0,               # estimate (not published)
             saturation_effort=120.0,
@@ -91,8 +92,8 @@ WHOLE_BODY_HUMANOID_CFG = ArticulationCfg(
         # AK80-64 @ 48 V (changed from AK60-39)
         "hip_rotation": DCMotorCfg(
             joint_names_expr=["Hip_R_.*"],
-            stiffness=146.0,            # 4 Hz
-            damping=12.0,               # ζ ≈ 1.0
+            stiffness=100.0,            # 3.3 Hz. Lowered with Kd: MIT mode caps Kd at 5
+            damping=5.0,                # driver maximum (ζ ≈ 0.52)
             armature=0.231,
             friction=2.0,               # estimate (not published)
             saturation_effort=120.0,
@@ -102,10 +103,11 @@ WHOLE_BODY_HUMANOID_CFG = ArticulationCfg(
         # AKH70-48: same motor as hip flexion
         "knee": DCMotorCfg(
             joint_names_expr=["Knee_.*"],
-            stiffness=267.0,            # 5 Hz
-            damping=17.0,               # ζ ≈ 1.0
+            stiffness=150.0,            # 3.75 Hz. Lowered with Kd: MIT mode caps Kd at 5
+            damping=5.0,                # driver maximum (ζ ≈ 0.39)
             armature=0.270,
-            friction=2.2,
+            friction=2.2,               # bench-measured 1.8-2.5 N·m, see docs/sysid/akh70-48_bench.md
+            # viscous_friction=1.0,     # measured ~0.9-1.2 N·m·s/rad; enable on Isaac Lab versions that have it
             saturation_effort=222.0,
             effort_limit=222.0,
             velocity_limit=3.67,
