@@ -2,87 +2,39 @@
 
 Drive the Pioneer bimanual rig's **7-DoF + 1-DoF-gripper arms**
 ([`pioneer_bimanual_arm_8dof`](../../../assets/pioneer_bimanual_arm_8dof/README.md)) in MuJoCo with Meta Quest 2 Touch
-controllers.
-
-- **No grip button:** arm motion is always on while tracking is valid.
-- **IK:** a [mink](https://github.com/kevinzakka/mink) QP (`mink_control.py`), the IK library OpenArm's VR teleop uses.
-- **Isaac:** not supported yet, because `pioneer_bimanual_arm_8dof` has no USD.
+controllers. MuJoCo only (no Isaac: the arm has no USD yet); no recording yet.
 
 ## Run (no GPU, runs on a laptop)
 
-Needs `pip install -r src/teleop/quest_controller_teleop/requirements.txt` (plus `numpy`, `Pillow`, `pyyaml`). Plug the Quest into the same machine:
+1. `pip install -r src/teleop/quest_controller_teleop/requirements.txt` (plus `numpy`, `Pillow`, `pyyaml`).
+2. Plug the Quest into the same machine and start the sim (`python` instead of `mjpython` off macOS; `--headless` drops the window):
+   ```bash
+   mjpython src/teleop/quest_controller_teleop/mujoco/mujoco_sim.py --scene bimanual_sorting
+   adb reverse tcp:8444 tcp:8444
+   ```
+3. In Meta Browser open `http://localhost:8444/` and select **Enter VR**. The headset shows the ego and both wrist cameras.
 
-```bash
-mjpython src/teleop/quest_controller_teleop/mujoco/mujoco_sim.py --scene bimanual_sorting
-adb reverse tcp:8444 tcp:8444
-```
-
-1. Open `http://localhost:8444/` in Meta Browser and select **Enter VR**.
-2. **Headset:** shows the ego camera and both wrist cameras.
-3. **MuJoCo window:** shows the scene on the laptop. With it focused, **6** resets the scene, like left Y.
-
-The scene can be any one in `humanoid_mujoco_scenes`. `--headless` drops the window and runs under plain `python`; `mjpython` is only needed for the window on macOS.
-
-**Tuning flags:**
-- Gains: `--gain`, `--rotation-gain`.
-- Speed caps: `--joint-speed` (shoulder; also the elbow unless `--elbow-speed` is set), `--wrist-speed`.
-- Lead limits: `--position-lead`, `--angular-lead`.
-- IK: `--ik-orientation-weight`, `--body-keepout`.
-- Input filter: the flags in the table below.
-
-`--help` lists the defaults.
-
-**Joint limits are the URDF's**, the owner's joint chart, plus one rule: the elbow stays at least 10° bent, away from the straight-arm singularity.
-- **No hand-picked ranges:** with 7 joints, the IK's pull toward the home pose uses the spare joint to keep the elbow natural. In simulation the elbow came near straight 1% of the time without the rule, and 0% with it.
-- **Torso keep-out:** `--body-keepout` keeps the upper arm and forearm off an approximate torso box. It's off by default because the stand has no torso.
-
-MuJoCo uses `--controller-frame base` by default (hand up = wrist up). Headset cameras render on their own thread (`mujoco/mujoco_cameras.py`), so the 10 ms control loop never waits on them.
+Any scene in `humanoid_mujoco_scenes` works. `--help` lists the tuning flags (gains, speed caps, lead limits, IK, input filter) and their defaults.
 
 ## Controls
 
 | Input | Action |
 | --- | --- |
-| Controller motion | Move that arm automatically while tracked |
+| Controller motion | Moves that arm (always on while tracked; no grip button) |
 | Index trigger | Proportional gripper closure |
-| A / X | Hold for 25% translation and rotation increments |
-| Left Y | Reset the scene, arms, and grippers once per press |
-| Thumbstick click | Hold to pause that arm and collect wrist-pivot calibration; release to fit and resume |
+| A / X | Hold for 25% translation and rotation (precision) |
+| Left Y, or **6** in the MuJoCo window | Reset the scene, arms and grippers |
+| Thumbstick click | Hold, rotate the controller about your still wrist for 3–5 s, release: wrist-pivot calibration (saved in git-ignored `wrist_calibration.json`) |
 
-**Tracking loss:** input older than 200 ms pauses movement. When tracking returns, the target re-anchors at the measured arm pose, so there's no jump. Reset and calibration re-anchor the same way.
+Input older than 200 ms pauses the arm; when tracking returns (or after a reset / calibration) it re-anchors at the measured pose, so it never jumps.
 
-**Pivot calibration:**
-1. Hold the thumbstick click.
-2. Rotate the controller about several axes, keeping your wrist pivot still.
-3. Release after 3–5 s.
+## How it works
 
-Offsets are saved in `wrist_calibration.json`, which is git-ignored.
+`index.html` → `transport.py` → `scene_driver.py` → `mink_control.py` → joint targets.
 
-## Motion mapping and IK
+- **Input filter** (`input_filter.py`): a 1-euro filter on each controller pose (OpenArm's scheme): smooth when the hand is still, little lag when it moves; speed caps spread tracking jumps.
+- **Targets** (`article_control.py`): the arm pose at engagement plus 1.5× the hand's motion, at most 8 cm / 0.6 rad ahead of the arm.
+- **IK** (`mink_control.py`): one mink QP per tick, position at the wrist pivot first, gripper orientation second (weight 0.2), a light pull toward home; each joint's URDF limit and speed cap (0.9 rad/s joints 1–4, 3.6 rad/s 5–7) are hard constraints.
+- **Joint limits:** the URDF's, plus one rule: the elbow stays at least 10° bent (away from the straight-arm singularity). `--body-keepout` adds an approximate torso keep-out (off: the stand has no torso).
 
-The control path is `index.html` → `transport.py` → `scene_driver.py` → `mink_control.py` → joint targets. `scene_driver.py` applies the input filter and `AnchoredTarget` from `article_control.py`. `control.py` supplies the URDF kinematics, rotation utilities and pivot fitting.
-
-**Input filter** (`input_filter.py`, on by default): a 1-euro filter on each controller pose, the scheme from OpenArm's VR teleop, re-tuned on our arm.
-- **Hand still:** strong smoothing. In simulation, wrist jitter dropped from 2.9 to 1.1 mm.
-- **Hand moving:** little lag, about 10 ms.
-- **Tracking jumps:** the speed caps spread a one-frame jump over several frames.
-- **Resets:** on tracking loss, scene reset and calibration.
-
-| Flag | Default | What it does |
-|---|---|---|
-| `--input-filter-cutoff` | 3 Hz | Minimum cutoff; 0 turns the filter off |
-| `--input-filter-beta` | 50 s/m | How fast the position cutoff rises with hand speed |
-| `--input-filter-beta-rot` | 8 s/rad | How fast the rotation cutoff rises with turn speed |
-| `--max-hand-speed` | 1 m/s | Speed cap, in controller space, before `--gain` |
-| `--max-hand-turn-rate` | 10 rad/s | Turn-rate cap |
-
-**Targets** are anchored to the hand (`AnchoredTarget`).
-- **What's sent:** the pose at engagement plus the gain times the hand's motion since then.
-- **Lead caps:** 8 cm and 0.6 rad ahead of the measured arm. They only limit what the IK gets each frame, so the arm lines up with the hand again once it catches up.
-- **Precision (A/X):** pressing or releasing re-bases the reference, with no jump.
-
-**mink IK** (`mink_control.py`), one QP per tick:
-- **Cost:** position error at the wrist pivot, plus gripper orientation error (weight 0.2), plus a pull toward the home pose (0.02), plus damping. Position comes first: with weight 0.5, a wrist twist beyond the wrist's range pulled the wrist up to 17 cm off target (0.2: 3 cm).
-- **Hard constraint per joint:** the joint limit and this tick's speed cap, as one box. A joint left outside its limit, e.g. after a reset, is driven back at its speed cap.
-- **Why, from the IK benchmark on this arm** (simulation only): against a sequential-DLS IK, it solved 82% vs 51% of random poses, returned to the start after wandering with 0.4° vs 28° of joint drift, and held hand orientation about 3× better.
-
-Default gains and speed caps: translation gain 1.5, rotation gain 1, 0.9 rad/s on joints 1–4 and 3.6 rad/s on joints 5–7.
+Benchmarks behind these choices: PRs #535 and #540.
