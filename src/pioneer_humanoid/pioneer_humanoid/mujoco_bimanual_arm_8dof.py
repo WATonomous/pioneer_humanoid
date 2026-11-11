@@ -11,6 +11,7 @@ from pathlib import Path
 import mujoco
 
 from .arm_params import vertical_fov_deg
+from .mujoco_bimanual_arm import FINGER_COUPLING_SOLREF, FINGER_FRICTION, FINGER_SOLIMP, FINGER_SOLREF
 from .arm_8dof_params import ACTUATOR_GROUPS, CAMERAS, DEFAULT_JOINT_POS, MESH_DIR, URDF_PATH, urdf_limits
 from .urdf_joint_limits import URDF_PATH as ARMV2_URDF_PATH
 
@@ -43,6 +44,11 @@ def arm_spec(cameras: dict[str, tuple[int, int]] | None = None) -> mujoco.MjSpec
         if geom.contype or geom.conaffinity:
             geom.contype, geom.conaffinity = ARM_CONTYPE, ARM_CONAFFINITY
             geom.group = 3
+    for side in ("left", "right"):   # TPU finger contact, as mujoco_bimanual_arm (else held objects slip out)
+        for finger in ("finger_a", "finger_b"):
+            for geom in spec.body(f"{side}_{finger}").geoms:
+                if geom.contype or geom.conaffinity:
+                    geom.friction, geom.solref, geom.solimp = FINGER_FRICTION, FINGER_SOLREF, FINGER_SOLIMP
     for group_name, group in ACTUATOR_GROUPS.items():
         for name in group["joints"]:
             act = spec.add_actuator()
@@ -58,6 +64,7 @@ def arm_spec(cameras: dict[str, tuple[int, int]] | None = None) -> mujoco.MjSpec
         eq.type = mujoco.mjtEq.mjEQ_JOINT
         eq.name1, eq.name2 = f"{side}_gripper_mimic", f"{side}_gripper"
         eq.data[:5] = [0, 1, 0, 0, 0]
+        eq.solref = FINGER_COUPLING_SOLREF
     for name, (height, width) in (cameras or {}).items():
         cam = CAMERAS[name]
         spec.body(cam.body).add_camera(name=name, pos=list(cam.pos), quat=list(cam.rot),
