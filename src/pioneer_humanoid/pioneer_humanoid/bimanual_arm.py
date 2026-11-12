@@ -1,3 +1,4 @@
+# Old 6-DoF arm only (Isaac has no 8dof USD yet). 8dof is the default; the real arm moves to 8dof soon.
 """
 Canonical articulation config for the pioneer_bimanual_arm.
 
@@ -7,8 +8,6 @@ Naming: LEFT_* = the L-suffixed chain (joint1L..joint6l) = physical LEFT arm.
 RIGHT_* = unsuffixed (joint1..joint6).
 
 Notes:
-  - _WRIST_ORIENT_OFFSET_* in run_quest_bimanual_teleop.py are identity and need
-    live in-headset retuning for this asset's joint6 axis.
   - actuator gains are motor-derived but not independently verified.
 
 Motor specs: https://watonomous.github.io/humanoid-docs/mechanical/index.html

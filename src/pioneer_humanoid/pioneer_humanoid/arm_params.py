@@ -1,3 +1,4 @@
+# Old 6-DoF arm only (Isaac has no 8dof USD yet). 8dof is the default; the real arm moves to 8dof soon.
 """Simulator-neutral pioneer_bimanual_arm parameters: joints, default pose, gripper, actuator gains, cameras.
 
 Plain Python (no Isaac / MuJoCo imports) so both bimanual_arm.py (Isaac Lab) and

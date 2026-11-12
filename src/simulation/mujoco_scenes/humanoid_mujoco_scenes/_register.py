@@ -2,7 +2,7 @@
 ``humanoid_mujoco_scenes/<name>/scene.py``.
 
 A scene is one function that adds world geometry to an ``mujoco.MjSpec``; ``make_model``
-attaches the Pioneer arm (pioneer_humanoid.mujoco_bimanual_arm) at ``robot_pos`` and compiles.
+builds it into the Pioneer rig's spec (default pioneer_humanoid.mujoco_bimanual_arm_8dof; robot="armv2" for the previous arms), rig at ``robot_pos``, and compiles.
 CPU only: no Isaac imports anywhere in this package.
 """
 from __future__ import annotations
@@ -135,16 +135,33 @@ def add_floor(spec: mujoco.MjSpec, light: bool = True) -> None:
         spec.worldbody.add_light(pos=[0.5, 0, 3.0], dir=[0, 0, -1], diffuse=[0.8, 0.8, 0.8], castshadow=True)
 
 
-def make_model(name: str, cameras: dict[str, tuple[int, int]] | None = None) -> mujoco.MjModel:
-    """Compile scene ``name`` with the arm attached; joint/actuator names are the URDF joint names.
+# 8dof (default): the bimanual rig with the 1107 Arm Draft arms, 7-DoF + 1-DoF gripper each (pioneer_bimanual_arm_8dof).
+# armv2: the previous 6-DoF arms (pioneer_bimanual_arm), for tools not yet ported (leader-arm teleop, policies).
+ROBOTS = ("8dof", "armv2")
 
-    ``cameras``: robot cameras to mount, {name: (height, width)} (pioneer_humanoid.arm_params.CAMERAS).
+
+def make_model(name: str, cameras: dict[str, tuple[int, int]] | None = None, robot: str = "8dof") -> mujoco.MjModel:
+    """Compile scene ``name`` around the arm; joint/actuator names are the URDF joint names.
+
+    ``cameras``: robot cameras to mount, {name: (height, width)} (that robot's params CAMERAS).
+    ``robot``: "8dof" (default: pioneer_bimanual_arm_8dof, the rig with the 1107 Arm Draft arms) or "armv2" (the previous
+    6-DoF arms). Both are the same rig (same base_link), so a scene's robot_pos fits either.
     """
-    from pioneer_humanoid.mujoco_bimanual_arm import arm_spec
+    if robot == "armv2":
+        from pioneer_humanoid.mujoco_bimanual_arm import arm_spec
+    elif robot == "8dof":
+        from pioneer_humanoid.mujoco_bimanual_arm_8dof import arm_spec
+    else:
+        raise ValueError(f"unknown robot {robot!r}; expected one of {ROBOTS}")
 
     _discover()
     entry = _REGISTRY[name]
-    spec = mujoco.MjSpec()
+    # The robot spec is the root and the scene is built into it (MuJoCo Menagerie's scene.xml-includes-robot
+    # pattern): nothing is attached, so no name prefix is needed and joint/actuator names stay the URDF's. Its
+    # compiler stays in the URDF's radians: switching to MuJoCo's default degrees rescales every joint limit, and a
+    # scene that sets euler/axisangle angles must give them in radians.
+    spec = arm_spec(cameras)
+    spec.body("base_link").pos = list(entry.robot_pos)
     spec.modelname = name
     spec.option.timestep = TIMESTEP
     # Implicit damping keeps the stiff arm PD (kp up to 2270) stable at this step.
@@ -156,8 +173,6 @@ def make_model(name: str, cameras: dict[str, tuple[int, int]] | None = None) -> 
     spec.visual.global_.offwidth = 1280
     spec.visual.global_.offheight = 960
     entry.build(spec)
-    frame = spec.worldbody.add_frame(pos=list(entry.robot_pos))
-    frame.attach_body(arm_spec(cameras).body("base_link"), "", "")
     for geom in spec.geoms:
         # Stiffer than MuJoCo's default contact (0.02 s, 0.9-0.95), which lets a 50 g peg sink mm
         # into the fingers and eats a 1 mm insertion clearance. Geoms a scene tuned are left alone.

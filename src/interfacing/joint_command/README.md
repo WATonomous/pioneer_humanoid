@@ -85,12 +85,12 @@ MIT joints can be sent the torque that holds the arm's weight, in `MotorCmd.torq
 \tau_{\mathrm{ff}} = \mathrm{clip}\big(\mathtt{gravity\_ff\_scale} \cdot r \cdot \tau_{\mathrm{model}},\ \pm\mathtt{gravity\_ff\_max\_torque}\big)
 ```
 
-$\tau_{\mathrm{model}}$ ([gravity_model.cpp](src/gravity_model.cpp)) is the left arm's static load
+$\tau_{\mathrm{model}}$ ([gravity_model.cpp](src/gravity_model.cpp)) is the arm's static load
 from the URDF masses at the commanded pose; $r$ ramps 0 → 1 over 1 s after each seed. It is zeroed
 while any joint's angle is unknown, unless an unpowered joint sets `gravity_assume_deg` (valid
-only while that joint is strapped at that angle). There is no right-arm model yet: on any other
-arm `gravity_ff_scale` must stay 0 (the node refuses otherwise), and the bring-up log shows only
-the measured torque.
+only while that joint is strapped at that angle). Each arm has its own table: the right arm's is
+from the current (new-CAD) URDF; the left arm's is still from the old CAD and reads light (link1L
+0.95 vs 1.33 kg).
 
 The model reads command-frame angles as URDF angles: **the command frame is the URDF frame.**
 `arm_calibration.yaml`'s zero is the URDF zero (arm hanging straight down, elbow straight) and

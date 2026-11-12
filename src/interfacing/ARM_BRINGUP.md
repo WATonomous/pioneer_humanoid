@@ -2,6 +2,8 @@
 
 Follow top to bottom. Package details: [can/README.md](can/README.md) (CAN bridge, MIT mode,
 benchmarks), [joint_command/README.md](joint_command/README.md) (command node, configs).
+Already set up? [REAL_ARM_TELEOP_CHECKLIST.md](REAL_ARM_TELEOP_CHECKLIST.md) is the per-session
+command list, through leader-arm teleop.
 
 ## 0. Connect
 1. **Hardware**: battery + E-stop closed (motor power ≠ CAN power). CANable USB → host; CAN_H/CAN_L → arm (120 Ω term).

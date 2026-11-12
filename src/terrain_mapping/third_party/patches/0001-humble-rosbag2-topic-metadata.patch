@@ -1,0 +1,14 @@
+Humble's rosbag2_py.TopicMetadata has no leading id argument (Jazzy added it).
+Keyword arguments work on both distros. Fixes the save_map/load_map services.
+
+--- a/elevation_mapping_cupy/elevation_mapping_cupy/elevation_mapping_node.py	2026-11-05 21:42:50.705383475 -0600
++++ b/elevation_mapping_cupy/elevation_mapping_cupy/elevation_mapping_node.py	2026-11-05 21:42:50.707383469 -0600
+@@ -767,7 +767,7 @@
+     def _make_topic_metadata(self, topic: str) -> rosbag2_py.TopicMetadata:
+         msg_type = "grid_map_msgs/msg/GridMap"
+         serialization_format = "cdr"
+-        return rosbag2_py.TopicMetadata(0, topic, msg_type, serialization_format)
++        return rosbag2_py.TopicMetadata(name=topic, type=msg_type, serialization_format=serialization_format)
+ 
+     def _write_grid_map_bag(self, path: Path, topic: str, grid_map_msg: GridMap) -> None:
+         writer = rosbag2_py.SequentialWriter()

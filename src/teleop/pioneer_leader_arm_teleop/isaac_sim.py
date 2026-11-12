@@ -1,3 +1,4 @@
+# Old 6-DoF arm only (Isaac has no 8dof USD yet). 8dof is the default; the real arm moves to 8dof soon.
 """Isaac Sim backend of pioneer_leader_arm_teleop.py: the 7-servo leader arm drives the Pioneer left arm (no IK).
 
     A (servo ID 2) -> joint1L (shoulder flexion)
