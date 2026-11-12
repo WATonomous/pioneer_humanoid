@@ -9,17 +9,19 @@ controllers. MuJoCo only (no Isaac: the arm has no USD yet); no recording yet.
 1. `pip install -r src/teleop/quest_controller_teleop/requirements.txt` (plus `numpy`, `Pillow`, `pyyaml`).
 2. Plug the Quest in (USB debugging allowed) and run, from the repo root:
    ```bash
-   src/teleop/quest_controller_teleop/start_quest.sh --scene bimanual_sorting
+   src/teleop/quest_controller_teleop/start_quest.sh --scene bimanual_sorting --no-headset-video
    ```
-   It forwards the port, leaves one teleop tab in Meta Browser, starts the sim and clicks into VR. If the headset
-   shows the page instead, pull the trigger anywhere on it (any click enters VR). It runs `.venv/bin/mjpython`;
-   set `PY=python` off macOS.
-3. The headset shows the ego and both wrist cameras. To watch only the MuJoCo window (headset just tracks the
-   controllers), add `--no-headset-video`: the GPU then goes to the window (~60 fps instead of ~20).
+   It forwards the port, leaves one teleop tab in Meta Browser, starts the sim and clicks into VR for you (retrying
+   until poses arrive), so the VR controllers never touch the page. If it gives up (headset asleep), wake the
+   headset and rerun, or pull the trigger anywhere on the page.
+3. The Mac shows one camera window: ego on top, both wrist cameras below (~30 fps). **6** resets; closing it stops
+   the sim. `--no-headset-video` makes the headset tracking-only (no camera rendering for it), which keeps the
+   GPU for this window; leave it off to also see the cameras in the headset.
 
-By hand: `mjpython src/teleop/quest_controller_teleop/mujoco/mujoco_sim.py --scene bimanual_sorting`,
-`adb reverse tcp:8444 tcp:8444`, then open `http://localhost:8444/` in Meta Browser. The window opens on the ego
-camera (Esc frees it). Only Meta Browser can take control, and of several open tabs the one in VR has it.
+`--classic-viewer` shows the MuJoCo viewer instead (3D UI, free camera; the launcher runs it under `mjpython`).
+By hand: `python src/teleop/quest_controller_teleop/mujoco/mujoco_sim.py --scene bimanual_sorting`,
+`adb reverse tcp:8444 tcp:8444`, then open `http://localhost:8444/` in Meta Browser. Only Meta Browser can take
+control, and of several open tabs the one in VR has it.
 
 Any scene in `humanoid_mujoco_scenes` works. `--help` lists the tuning flags (gains, speed caps, lead limits, IK, input filter) and their defaults.
 

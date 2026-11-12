@@ -3,3 +3,4 @@ aiohttp>=3.9,<4
 mujoco>=3.1
 mink>=1.0
 daqp>=0.6
+opencv-python>=4.8   # the camera window (mujoco_sim.py; not with --classic-viewer or --headless)

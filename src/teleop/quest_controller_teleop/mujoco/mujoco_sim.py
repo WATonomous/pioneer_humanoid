@@ -3,10 +3,11 @@
 Same headset page, IK and controls as the Isaac backend (scene_driver.py): open
 http://localhost:8444/ in Meta Browser after `adb reverse tcp:8444 tcp:8444`. The headset
 shows the ego camera and both wrist cameras (mono; the stereo eye pair is Isaac-only).
-Left Y (or 6 with the MuJoCo window focused) resets the arms and the scene.
+Left Y (or 6 with the window focused) resets the arms and the scene.
 
-Runs on a Mac without a GPU. The MuJoCo viewer window needs ``mjpython`` on macOS;
-``--headless`` skips it and runs under plain ``python``.
+This machine shows one camera window (ego on top, both wrist cameras below; plain ``python``).
+``--classic-viewer`` shows the MuJoCo viewer instead (3D UI, free camera; ``mjpython`` on macOS);
+``--headless`` shows nothing. Runs on a Mac without a GPU.
 """
 from __future__ import annotations
 
@@ -28,7 +29,7 @@ sys.path.insert(0, str(_SRC / "simulation" / "mujoco_scenes"))
 sys.path.insert(0, str(_THIS_DIR.parent))  # the simulator-independent controller modules
 sys.path.insert(0, str(_THIS_DIR))
 
-from mujoco_cameras import CameraStream  # noqa: E402
+from mujoco_cameras import CameraStream, CameraWindow  # noqa: E402
 from mujoco_overlay import show_text  # noqa: E402
 from scene_driver import ControllerSceneDriver, add_controller_args, check_controller_args  # noqa: E402
 
@@ -56,7 +57,9 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Quest Touch controller teleoperation in MuJoCo (both arms).")
     parser.add_argument("--scene", default="bimanual_sorting",
                         help="scene registered in humanoid_mujoco_scenes (an unknown name lists them)")
-    parser.add_argument("--headless", action="store_true", help="no MuJoCo viewer window; the headset is the only view")
+    parser.add_argument("--headless", action="store_true", help="no window on this machine; the headset is the only view")
+    parser.add_argument("--classic-viewer", action="store_true",
+                        help="the MuJoCo viewer (3D UI, free camera; needs mjpython on macOS) instead of the camera window")
     parser.add_argument("--no-headset-video", action="store_true",
                         help="headset only tracks the controllers: no camera rendering, so the GPU is the window's")
     add_controller_args(parser)
@@ -186,14 +189,41 @@ def run() -> None:
     substeps = max(1, round(CONTROL_DT / model.opt.timestep))
     dt = substeps * model.opt.timestep
     cameras = None if args.no_headset_video else CameraStream(model, driver, HEADSET_CAMERAS, CAMERA_SIZE)
-    driver.start_thread()
     if cameras is not None:
         cameras.start()
     print(f"[Quest] MuJoCo scene {args.scene}: open http://localhost:{args.controller_port}/ in Meta Browser "
           f"(after adb reverse tcp:{args.controller_port} tcp:{args.controller_port}). Left Y or 6 in the window resets.", flush=True)
+    reset_key = threading.Event()  # set by the window's key handler, consumed by the control loop
+    stop = threading.Event()
+
+    def control(viewer=None, mirror=None, window=None) -> None:
+        driver.start_thread()   # the driver is owned by the thread that starts it: start, loop and close here
+        try:
+            loop(model, data, driver, arms, cameras, viewer, mirror, window, reset, reset_key, scene_hook, substeps, dt,
+                 stop)
+        finally:
+            stop.set()
+            driver.close()
+
+    if not args.headless and not args.classic_viewer:
+        # Camera window: shown on the main thread (macOS), so the control loop runs on its own thread.
+        window = CameraWindow(model)
+        worker = threading.Thread(target=control, kwargs=dict(window=window), name="control", daemon=True)
+        worker.start()
+        try:
+            window.show(stop, reset_key, worker.is_alive)
+        except KeyboardInterrupt:
+            pass
+        finally:
+            stop.set()
+            worker.join(timeout=2.)
+            if cameras is not None:
+                cameras.close()
+            print("\n[Quest] Stopped.", flush=True)
+        return
+
     if not args.headless:
         import mujoco.viewer
-    reset_key = threading.Event()  # set by the viewer's key thread, consumed by the control loop
 
     def on_key(key: int) -> None:
         if key == KEY_RESET:
@@ -208,18 +238,18 @@ def run() -> None:
                 viewer.cam.type = mujoco.mjtCamera.mjCAMERA_FIXED
                 viewer.cam.fixedcamid = model.camera("ego").id
             mirror = ViewerMirror(model, viewer, vdata, dt) if viewer is not None else None
-            loop(model, data, driver, arms, cameras, viewer, mirror, reset, reset_key, scene_hook, substeps, dt)
+            control(viewer, mirror)
     except KeyboardInterrupt:
         pass
     finally:
         if cameras is not None:
             cameras.close()
-        driver.close()
         print("\n[Quest] Stopped.", flush=True)
 
 
-def loop(model, data, driver, arms, cameras, viewer, mirror, reset, reset_key, scene_hook, substeps, dt) -> None:
-    """Control ticks at dt until the viewer closes (or Ctrl+C): input, IK, physics, camera frames."""
+def loop(model, data, driver, arms, cameras, viewer, mirror, window, reset, reset_key, scene_hook, substeps, dt,
+         stop) -> None:
+    """Control ticks at dt until the viewer closes or `stop` is set (or Ctrl+C): input, IK, physics, camera frames."""
     import mujoco
 
     def joint_positions():
@@ -229,7 +259,7 @@ def loop(model, data, driver, arms, cameras, viewer, mirror, reset, reset_key, s
     previous = {side: data.qpos[ids.qpos].copy() for side, ids in arms.items()}
     if viewer is not None:
         show_text(viewer, "Press 6 to reset")
-    while viewer is None or viewer.is_running():
+    while not stop.is_set() and (viewer is None or viewer.is_running()):
         if driver.update(joint_positions()) or reset_key.is_set():  # left Y, or 6 in the viewer window
             reset_key.clear()
             reset()
@@ -245,6 +275,8 @@ def loop(model, data, driver, arms, cameras, viewer, mirror, reset, reset_key, s
             scene_hook(model, data)
         mujoco.mj_step(model, data, nstep=substeps)
         now = time.monotonic()
+        if window is not None:
+            window.push(data)
         if mirror is not None:   # every tick: the window draws the newest state as fast as it can (a 30 Hz push
             mirror.push(data)    # beat against its ~20 ms frames and showed 22 fps; every tick, 31-44 fps)
         if cameras is not None and now >= next_camera:
