@@ -1,12 +1,15 @@
 # pioneer_leader_arm_teleop
 
-The 7-servo leader arm (STS3215, torque always off) drives the Pioneer left arm joint to joint,
-with no IK, in any registered scene: Isaac Sim (default) or plain MuJoCo (`--target mujoco`, CPU).
+The leader arm (STS3215 servos, torque always off: 8 for the default 8dof arms, 7 for the old arms) drives the Pioneer
+arms joint to joint, with no IK, in any registered scene: plain MuJoCo (default, CPU, the 8dof arms) or Isaac Sim
+(`--target isaac`, the old 6-DoF arms).
 `--target real` compares the leader with the real arm (dry run, publishes nothing); `--live` then drives it (#327).
-Optional recording in the shared `pioneer_humanoid_dataset_schema.yaml` format, from either simulator.
+Optional recording (`--record`) in the robot's schema: `pioneer_8dof_dataset_schema.yaml` by default.
 
 Angles map **one-to-one** from a shared zero: arm hanging straight down under gravity, gripper open.
 That is the URDF zero, the real arm's calibrated zero, and the leader's (`calibrate_leader.py`).
+
+Old arms (`--robot armv2`, 7 servos):
 
 | Servo | Bus ID | Sim joint | Default sign |
 |-------|--------|-----------|--------------|
@@ -17,6 +20,31 @@ That is the URDF zero, the real arm's calibrated zero, and the leader's (`calibr
 | E | 4 | `joint5l` forearm rotation | +1 |
 | F | 7 | `joint6l` wrist | −1 |
 | G | 6 | gripper (41.5° open → 0° closed) | +1 |
+
+### The 8dof arms (`--robot 8dof`, MuJoCo)
+
+`--target mujoco` drives `pioneer_bimanual_arm_8dof` (7-DoF + gripper per arm) by default; `--robot armv2` keeps the
+old arms. Isaac and the real arm only have the old arms. The 8dof arms add a 7th joint, wrist yaw, after wrist pitch:
+the leader drives it with an **eighth servo on bus ID 8**. Labels follow joint order: **G = wrist yaw (new), H = gripper**
+(the old leader's G, same bus ID 6).
+
+| Servo | Bus ID | 8dof joint (left) | Default sign left / right |
+|-------|--------|-------------------|---------------------------|
+| A | 2 | `left_shoulder_pitch` | +1 / −1 |
+| B | 3 | `left_shoulder_roll` | +1 / −1 |
+| C | 1 | `left_shoulder_yaw` | +1 / −1 |
+| D | 5 | `left_elbow` (0 = straight) | +1 / +1 |
+| E | 4 | `left_forearm_roll` | −1 / +1 |
+| F | 7 | `left_wrist_pitch` | +1 / +1 |
+| **G** | **8** | `left_wrist_yaw` (**new servo**) | +1 / +1 |
+| H | 6 | gripper | +1 / +1 |
+
+- **Default signs** (`SIDE_SIGNS_8DOF`): the old signs times each 8dof joint's direction relative to the old arm's, from
+  the two models. Not checked on the leader: move each joint alone and compare with the sim, then calibrate with `--signs`.
+- **Calibration:** its own file, `leader_arm_8dof.json`, so `leader_arm.json` stays valid for the old arms:
+  `python calibrate_leader.py --side right --robot 8dof` (the new servo G on ID 8 first: `encoder_test.py --robot 8dof`).
+- **Recording:** `pioneer_8dof_dataset_schema.yaml`, 8 values per arm (7 joints + gripper), dataset `datasets/pioneer_8dof_*`.
+- **`--lock-wrist`** freezes both wrist joints (F and G).
 
 ## Calibrate (once per board)
 
@@ -52,8 +80,8 @@ cd /workspace/humanoid/src/teleop/pioneer_leader_arm_teleop
 $PYTHON encoder_test.py                   # first time: all 7 servos respond? (--ids 2,3 --raw for a subset)
 $PYTHON calibrate_leader.py --side left   # first time: store the hanging-pose zero
 
-/workspace/isaaclab/isaaclab.sh -p pioneer_leader_arm_teleop.py --scene push
-/workspace/isaaclab/isaaclab.sh -p pioneer_leader_arm_teleop.py --scene vial_rack --record
+/workspace/isaaclab/isaaclab.sh -p pioneer_leader_arm_teleop.py --target isaac --scene push
+/workspace/isaaclab/isaaclab.sh -p pioneer_leader_arm_teleop.py --target isaac --scene vial_rack --record
 ```
 
 Scenes: `bare` (default), `push`, `vial_rack`, or any scene registered in `humanoid_isaac_scenes` (an unknown name lists them).
@@ -201,20 +229,48 @@ python3 pioneer_leader_arm_teleop.py --target real --self-test           # angle
   `arm_calibration.yaml`: id 21 left, 36 right); `>0.1` and `real outside hw` warn.
 
 `--live`:
-0. Optionally homes each arm's real elbow.pitch first. Once every active joint has feedback, it asks `[y/N]`.
-   On `y` it ramps elbow.pitch from its measured angle to home (−90° left, +90° right) at `--home-rate` deg/s
-   (default 5, at most its `velocity_max`), holding the other joints where they are. It then keeps publishing
-   that pose until the leader takes over. It refuses if elbow.pitch is not `active` or home is outside its
-   `arm_calibration.yaml` limits (re-run `calibrate_arm.py` sweeping past home).
+0. Asks **start at home? `[y/N]`** (one question for both arms with `bimanual`).
+   - `y`: every `active` joint ramps from its measured angle to home (shoulders 0°, elbow.pitch −90° left /
+     +90° right) at `--home-rate` deg/s (default 5, at most every active joint's `velocity_max`), then holds
+     there. Put the leader at home by hand. Refused, nothing moves, if an active joint's home is outside its
+     `arm_calibration.yaml` limits (re-run `calibrate_arm.py` sweeping past home); it then carries on as `n`.
+   - `n`: no homing; start from wherever the arm is.
 1. Shows the dry run until the gate passes: on every joint `active` in `arm_actuators.yaml`, the real arm is
-   inside its `arm_calibration.yaml` limits and the leader is within 3° of home and within 10° of the real
-   arm; the gripper (if active) is inside its limits and within 0.1. The screen lists what fails. With
-   `bimanual` both arms must pass.
+   inside its `arm_calibration.yaml` limits and the leader is within 15° of the real arm (and within 15° of
+   home after `y`); the gripper (if active) is inside its limits and within 0.1. The screen lists what fails.
+   With `bimanual` both arms must pass.
 2. Asks you to press Enter (anything else quits), re-checks the gate, then publishes `ArmPose` on
    `/arm/<side>/joint_targets` at 50 Hz, gripper included; with `bimanual` one Enter starts both arms.
    `joint_command` clamps, rate-limits and runs the watchdog.
 3. Ctrl-C stops publishing. `joint_command` holds the last pose for `command_timeout_sec` (10 s), then
    sets kp = 0 and the arm sinks: support it.
+
+## Real arm, phased start: `real_arm_teleop.py`
+
+The leader can start anywhere; the real arm comes to it, slowly. Enter advances, `q` + Enter quits.
+At start it asks **start at home? `[y/N]`**: `y` adds the HOME step below, `n` skips it.
+
+```bash
+python3 real_arm_teleop.py --arms right [--slow-rate 15] [--home-rate 5] [--skip-zero]   # needs interfacing + joint_command up
+python3 real_arm_teleop.py --self-test                      # logic only, no ROS / leader
+```
+
+0. **ZERO** (read-only): hang the leader and the real arm straight down (leader gripper open), Enter: the
+   leader's reading becomes its zero for this run. Refuses if an active real joint reads more than 5° from 0
+   (recalibrate with `calibrate_arm.py`); the real arm's zero is never changed here. `--skip-zero` skips it.
+1. **CHECK** (read-only, publishes nothing): leader / real per joint. Enter starts HOME (`y`) or SLOW
+   (`n`) once every `active` joint has feedback and is inside its `arm_calibration.yaml` limits.
+   - **HOME** (`y` only): every `active` joint ramps from its measured angle to home at `--home-rate` deg/s
+     (default 5) and holds; put the leader at home by hand. Enter starts SLOW once the ramp is done and every
+     active leader joint is within 15° of home. Refused at the question if an active joint's home is outside
+     its calibrated limits (it then runs as `n`).
+2. **SLOW**: starts from the real arm's measured pose and moves each joint toward the leader at most
+   `--slow-rate` deg/s (default 15, at most each joint's `velocity_max`), then keeps following at that
+   speed: test the joints. Enter starts LIVE once every target is within 2° of the leader.
+3. **LIVE**: full teleop; `joint_command`'s `velocity_max` still applies. Enter drops back to SLOW.
+
+Lost feedback on an active joint holds the last target (still published) and falls back to SLOW.
+Ctrl-C stops publishing: `joint_command` holds for `command_timeout_sec`, then kp = 0 and the arm sinks.
 
 ## Files
 
@@ -223,6 +279,7 @@ python3 pioneer_leader_arm_teleop.py --target real --self-test           # angle
 | `pioneer_leader_arm_teleop.py` | entry; `--target isaac\|mujoco\|real` picks the backend before any simulator import |
 | `isaac_sim.py` / `mujoco_sim.py` | sim backends |
 | `real_arm.py` | real-arm backend (`--arms left\|right\|bimanual`): dry run (leader vs `/interfacing/motorFeedback`), `--live` publishes `/arm/<side>/joint_targets` |
+| `real_arm_teleop.py` | real arm, phased start: ZERO (leader) -> CHECK -> [HOME if `y`] -> SLOW (arm moves to the leader at `--slow-rate`) -> LIVE, Enter to advance |
 | `leader_mapping.py` | shared: 1:1 mapping, home check, filter, gripper closure, leader read, wall-clock pacing |
 | `servo_leader.py` / `arm_limits.py` | servo bus reader / clamp + gripper fraction |
 | `calibrate_leader.py` | stores a board's hanging-pose zero, signs and USB serial in `leader_arm.json` |

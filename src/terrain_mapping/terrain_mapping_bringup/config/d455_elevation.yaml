@@ -1,0 +1,32 @@
+# elevation_mapping_cupy settings for a RealSense D455 point cloud, layered on top of
+# upstream's config/core/core_param.yaml.
+# UNTUNED: these are first guesses for handheld office bags, not measured optima.
+/elevation_mapping_node:
+  ros__parameters:
+    map_frame: odom
+    base_frame: base_link            # placeholder frame, see bag_pipeline.launch.py
+    corrected_map_frame: odom
+
+    resolution: 0.04                 # [m]
+    map_length: 6.0                  # [m] square map centred on base_link
+    min_valid_distance: 0.3          # [m] D455 depth is unreliable closer than this
+    max_height_range: 0.3            # [m] above the camera; drops the office ceiling
+
+    # The initializer paints a flat patch at base_link height. base_link sits at the camera
+    # (about 0.65 m above the floor in bag 002), so it would add a fake surface at camera height.
+    use_initializer_at_start: false
+
+    subscribers:
+      d455_depth:
+        topic_name: /camera/depth/points
+        data_type: pointcloud
+
+    publishers:
+      elevation_map_raw:
+        layers: ['elevation', 'traversability', 'variance']
+        basic_layers: ['elevation']
+        fps: 5.0
+      elevation_map_filter:
+        layers: ['min_filter', 'smooth', 'despiked', 'inpaint', 'elevation']
+        basic_layers: ['inpaint']
+        fps: 3.0

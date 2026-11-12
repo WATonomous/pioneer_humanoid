@@ -21,6 +21,12 @@ log/
 datasets/
 outputs/
 
+# Recorded RealSense bags for terrain_mapping (GBs; mounted read-only into the container)
+Terrain Mapping Bags/
+
+# Generated from the pinned upstream commit and patches during the Docker build
+src/terrain_mapping/third_party/elevation_mapping_cupy/
+
 src/simulation/humanoid_rl/datasets/
 # pi0.5 training outputs: checkpoints + train_log.csv, and pioneer_eval_offline.py's plots
 src/robot_learning/pi05/checkpoint/
@@ -29,13 +35,6 @@ src/robot_learning/pi05/eval/
 
 modules/docker-compose.perception_override.yaml
 
-src/teleop/quest_teleop/bridge/static/pov_left.*
-src/teleop/quest_teleop/bridge/static/pov_right.*
-src/teleop/quest_teleop/bridge/static/wrist_cam.*
-src/teleop/quest_teleop/bridge/static/wrist_cam_left.*
-src/teleop/quest_teleop/bridge/static/wrist_cam_right.*
-src/teleop/quest_teleop/bridge/static/contact_force_hud.*
-src/teleop/quest_teleop/bridge/static/marker_uv.json
 src/simulation/garment_fold_task/
 src/simulation/humanoid_rl/logs/
 src/simulation/humanoid_rl/outputs/

@@ -1,6 +1,6 @@
 """Bowling: stand three bottles back up, cap end on top, on the table in front of the left arm.
 
-Three bottles (8 x 8 x 21 cm boxes for now, 150 g; the cap goes on each one's local +z end) lie on
+Three bottles (4 x 4 x 21 cm boxes for now, 150 g; the cap goes on each one's local +z end) lie on
 their sides. Every reset scatters them to random, non-overlapping spots and directions inside
 SPAWN_X / SPAWN_Y, clear of the robot's stand.
 
@@ -19,9 +19,9 @@ import numpy as np
 
 from humanoid_mujoco_scenes import TABLE_TOP_Z, add_workcell, scene
 
-BOTTLE_SIZE = 0.08              # square cross-section (m); the gripper's collision hulls close past 0
+BOTTLE_SIZE = 0.04              # square cross-section (m); the gripper's collision hulls close past 0
 BOTTLE_HEIGHT = 0.21
-CAP_SIZE = 0.04
+CAP_SIZE = 0.02
 CAP_HEIGHT = 0.03
 BOTTLE_MASS = 0.15              # in kg
 BOTTLE1_POS = (0.42, 0.26)       # xy on the table; both inside the left arm's gripper-down reach

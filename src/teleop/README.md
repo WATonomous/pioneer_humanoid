@@ -1,7 +1,7 @@
 # Teleop
 
-All teleoperation entry points, one home. **Everything runs inside the
-`simulation_isaac` watod container** (Isaac Lab 2.3.2) — do not use host Isaac Lab.
+All teleoperation entry points, one home. The MuJoCo ones (Quest, leader arm by default) run natively, even on a
+laptop; **the Isaac ones run inside the `simulation_isaac` watod container** (Isaac Lab 2.3.2), not host Isaac Lab.
 
 ```bash
 # host: ACTIVE_MODULES="simulation_isaac" in watod-config.local.sh
@@ -14,9 +14,9 @@ The repo is bind-mounted at `/workspace/humanoid`. Shared arm config + IK helper
 
 | Folder | Input | Sim robot | Notes |
 |--------|-------|-----------|-------|
-| [`quest_teleop/`](quest_teleop/) | Quest 2 hand tracking | pioneer bimanual, both arms | `bridge/` (WebXR → `/quest_teleop`) + `sim/` (weighted-DLS fingertip IK); see its README |
+| [`quest_controller_teleop/`](quest_controller_teleop/) | Quest 2 Touch controllers | pioneer_bimanual_arm_8dof (7-DoF + gripper), both arms, MuJoCo | mink IK, URDF limits + elbow rule, 1-euro filter; `start_quest.sh`, `--record`; see its README |
 | **`keyboard_teleop/`** | keyboard + IK | pioneer bimanual, left arm | see below |
-| [`pioneer_leader_arm_teleop/`](pioneer_leader_arm_teleop/) | 7-servo leader arm | pioneer bimanual, left arm | any `--scene`, `--record`; see its README |
+| [`pioneer_leader_arm_teleop/`](pioneer_leader_arm_teleop/) | leader arm (8 servos; 7 for the old arms) | pioneer_bimanual_arm_8dof in MuJoCo (default); old arms in Isaac / real | any `--scene`, `--record`; see its README |
 | [`task_space_controller/`](task_space_controller/) | viewport pose gizmo + IK | pioneer bimanual, left arm | `--publish-real-left-arm` drives the real arm — **its README covers the CAN pipeline + e-stop** |
 | `humanoid-record` (CLI) | ROS topics | real pioneer arm | `src/robot_learning` |
 
@@ -58,7 +58,6 @@ MuJoCo viewer focused. Recording keys only do something with `--record`. **If yo
 MuJoCo uses digits because every letter, `0`-`5` and `Esc` are MuJoCo viewer shortcuts. Where the keys are defined:
 recording defaults `S`/`N`/`D`/`Esc` in `src/robot_learning/humanoid_robot_learning/recording/episode_keys.py`;
 MuJoCo overrides in `pioneer_leader_arm_teleop/mujoco_sim.py` (`_KEY_RESET`, `RECORD_KEYS`);
-Quest in `quest_teleop/sim/run_quest_bimanual_teleop.py` (`_on_keyboard_event`);
 `keyboard_teleop` motion keys are Isaac Lab's `Se3Keyboard` defaults.
 
 ## Notes

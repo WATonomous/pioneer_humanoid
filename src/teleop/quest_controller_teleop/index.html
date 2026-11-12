@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pioneer · Quest teleop</title>
+<style>
+body { background:#111820; color:#edf5fa; font:18px system-ui; margin:40px }
+button { padding:16px 30px; background:#86e2b8; color:#10251b; border:0; border-radius:8px; font:inherit }
+#status { color:#86e2b8 }
+</style>
+<h1>Pioneer VR teleop</h1>
+<button id="start" disabled>Enter VR (or click anywhere)</button>
+<p id="status">Connecting…</p>
+<canvas id="xr" hidden></canvas>
+<script>
+"use strict";
+// Streams the headset and controller poses to the sim every XR frame. The view is the sim's window on the Mac.
+const status = document.querySelector('#status'), start = document.querySelector('#start');
+let ws, session, reference, gl, layer, visible = true, feedback = {}, reconnectTimer;
+let packetSequence = 0, referenceEpoch = 0;
+
+function setStatus(text) { status.textContent = text; }
+function connect() {
+  ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`);
+  ws.onopen = () => setStatus(session ? 'Connected' : 'Connected. Click anywhere to enter VR.');
+  ws.onclose = () => {
+    feedback = {}; setStatus('Disconnected. Holding robot; reconnecting…');
+    clearTimeout(reconnectTimer); reconnectTimer = setTimeout(connect, 1500);
+  };
+  ws.onerror = () => setStatus('Connection failed. Check that the simulator is running.');
+  ws.onmessage = event => {
+    try { feedback = JSON.parse(event.data); setStatus(feedback.status || 'Connected'); }
+    catch (_) { feedback = {}; }
+  };
+}
+connect();
+
+function sendPacket(packet, force=false) {
+  if (ws?.readyState !== WebSocket.OPEN || (!force && ws.bufferedAmount !== 0)) return;
+  packet.sample = {sequence:++packetSequence, time_ms:performance.now(), epoch:referenceEpoch};
+  ws.send(JSON.stringify(packet));
+}
+function stopped() {
+  referenceEpoch++;
+  sendPacket({version:1, head:null, left:null, right:null}, true);
+}
+function controller(frame, source) {
+  if (!visible) return {tracked:false, reason:'session_not_visible'};
+  if (!source.gripSpace) return {tracked:false, reason:'no_grip_space'};
+  if (!source.gamepad) return {tracked:false, reason:'no_gamepad'};
+  if (source.gamepad.mapping !== 'xr-standard') return {tracked:false, reason:'unsupported_gamepad_mapping'};
+  const pose = frame.getPose(source.gripSpace, reference);
+  if (!pose) return {tracked:false, reason:'pose_unavailable'};
+  if (pose.emulatedPosition) return {tracked:false, reason:'emulated_position'};
+  const p = pose.transform.position, q = pose.transform.orientation, b = source.gamepad.buttons;
+  return {tracked:true, position:[p.x,p.y,p.z], orientation:[q.x,q.y,q.z,q.w],
+    trigger:b[0]?.value || 0, clutch:!!b[1]?.pressed,
+    precision:!!b[4]?.pressed,
+    calibrate:!!b[3]?.pressed,
+    reset_scene:source.handedness === 'left' && !!b[5]?.pressed,
+    record:source.handedness === 'right' && !!b[5]?.pressed};
+}
+
+function draw(time, frame) {
+  if (!session) return;
+  session.requestAnimationFrame(draw);
+  const viewer=frame.getViewerPose(reference);
+  const packet={version:1,head:null,left:null,right:null};
+  if (viewer && visible) {
+    packet.left={tracked:false,reason:'no_input_source'};
+    packet.right={tracked:false,reason:'no_input_source'};
+    const q=viewer.transform.orientation; packet.head=[q.x,q.y,q.z,q.w];
+    for (const source of session.inputSources)
+      if (source.handedness === 'left' || source.handedness === 'right')
+        packet[source.handedness]=controller(frame,source);
+  }
+  sendPacket(packet);   // every XR frame the socket can take
+  if (!viewer) return;
+  gl.bindFramebuffer(gl.FRAMEBUFFER,layer.framebuffer);   // WebXR needs a frame: plain dark
+  gl.clearColor(.035,.055,.075,1); gl.clear(gl.COLOR_BUFFER_BIT);
+}
+// Any click enters VR (the browser needs a user gesture); the session survives simulator restarts.
+start.disabled = !navigator.xr;
+document.addEventListener('click', async () => {
+  try {
+    if (!navigator.xr || !await navigator.xr.isSessionSupported('immersive-vr'))
+      throw Error('Open this page in Meta Browser on the Quest 2. USB uses localhost; LAN requires HTTPS.');
+    if (session) return;
+    gl = document.querySelector('#xr').getContext('webgl', {xrCompatible:true});
+    if (!gl) throw Error('WebGL unavailable');
+    await gl.makeXRCompatible();
+    session=await navigator.xr.requestSession('immersive-vr', {requiredFeatures:['local-floor']});
+    referenceEpoch++;
+    layer=new XRWebGLLayer(session,gl); session.updateRenderState({baseLayer:layer});
+    reference=await session.requestReferenceSpace('local-floor'); visible=session.visibilityState==='visible';
+    reference.addEventListener('reset', stopped);
+    session.addEventListener('visibilitychange',()=>{visible=session.visibilityState==='visible'; if(!visible) stopped();});
+    session.addEventListener('end',()=>{stopped(); session=null; setStatus('VR ended. Arms holding.');});
+    session.requestAnimationFrame(draw);
+  } catch(error) {
+    const failed=session; session=null; if(failed) await failed.end();
+    setStatus(error.message);
+  }
+});
+window.addEventListener('pagehide', stopped);
+</script>
+</html>

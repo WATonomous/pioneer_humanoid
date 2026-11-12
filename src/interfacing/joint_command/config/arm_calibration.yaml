@@ -2,24 +2,24 @@ right:
   shoulder:
     pitch:
       can_id: 14
-      lower_limit: -82.19999694824219
-      upper_limit: 62.80000114440918
+      lower_limit: -85.29999542236328
+      upper_limit: 89.0
       direction: 1
-      zero_offset: 36.79999923706055
+      zero_offset: 35.400001525878906
       limit_range: true
     roll:
       can_id: 13
       direction: -1
-      zero_offset: -150.3000030517578
-      lower_limit: -77.70000457763672
-      upper_limit: 80.5
+      zero_offset: -110.9000015258789
+      lower_limit: -77.4000015258789
+      upper_limit: 92.5999984741211
       limit_range: true
     yaw:
       can_id: 12
       direction: 1
-      lower_limit: -89.79999542236328
-      upper_limit: 5.3000030517578125
-      zero_offset: -159.5
+      lower_limit: -77.10000610351562
+      upper_limit: 6.1999969482421875
+      zero_offset: -159.8000030517578
       limit_range: true
   elbow:
     pitch:
