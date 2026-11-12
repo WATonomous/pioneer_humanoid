@@ -11,7 +11,7 @@ from pathlib import Path
 import mujoco
 
 from .arm_params import vertical_fov_deg
-from .mujoco_bimanual_arm import FINGER_COUPLING_SOLREF, FINGER_FRICTION, FINGER_SOLIMP, FINGER_SOLREF
+from .mujoco_bimanual_arm import FINGER_CONDIM, FINGER_COUPLING_SOLREF, FINGER_FRICTION, FINGER_SOLIMP, FINGER_SOLREF
 from .arm_8dof_params import ACTUATOR_GROUPS, CAMERAS, DEFAULT_JOINT_POS, MESH_DIR, URDF_PATH, urdf_limits
 from .urdf_joint_limits import URDF_PATH as ARMV2_URDF_PATH
 
@@ -49,6 +49,7 @@ def arm_spec(cameras: dict[str, tuple[int, int]] | None = None) -> mujoco.MjSpec
             for geom in spec.body(f"{side}_{finger}").geoms:
                 if geom.contype or geom.conaffinity:
                     geom.friction, geom.solref, geom.solimp = FINGER_FRICTION, FINGER_SOLREF, FINGER_SOLIMP
+                    geom.condim = FINGER_CONDIM
     for group_name, group in ACTUATOR_GROUPS.items():
         for name in group["joints"]:
             act = spec.add_actuator()
