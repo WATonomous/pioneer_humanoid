@@ -16,8 +16,8 @@ import yaml
 
 # The six ArmPose slots, in message order -- identical to joint_command_core.cpp's jointPaths().
 ARM_POSE_JOINTS = [
-    ("shoulder", "pitch"), ("shoulder", "yaw"), ("shoulder", "roll"),
-    ("elbow", "pitch"), ("elbow", "roll"), ("wrist", "pitch"),
+    ("shoulder", "pitch"), ("shoulder", "roll"), ("shoulder", "yaw"),
+    ("elbow", "pitch"), ("elbow", "yaw"), ("wrist", "pitch"),
 ]
 ARM_POSE_NAMES = [f"{group}.{joint}" for group, joint in ARM_POSE_JOINTS]
 
