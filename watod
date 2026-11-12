@@ -98,6 +98,9 @@ if [[ $# -gt 0 ]]; then
 	COMPOSE_CMD="${COMPOSE_CMD} $@"
 fi
 
+# The containers' ROS_DOMAIN_ID comes only from watod-config(.local).sh, not the host shell.
+unset ROS_DOMAIN_ID
+
 # Allow for local overrides of any of the below parameters (prioritized your local config)
 if [ -f "$MONO_DIR/watod-config.local.sh" ]; then
 	source "$MONO_DIR/watod-config.local.sh"

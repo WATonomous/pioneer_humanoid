@@ -22,6 +22,7 @@ x-simulation_isaac_env: &simulation_isaac_env
   - NVIDIA_DRIVER_CAPABILITIES=all
   - DISPLAY=${DISPLAY}
   - QT_X11_NO_MITSHM=1
+  - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
   - TELEOP_PORT=${TELEOP_PORT:-/dev/ttyACM0}
   - TELEOP_ID=${TELEOP_ID:-leader_arm_1}
   - ISAACLAB=/workspace/isaaclab
