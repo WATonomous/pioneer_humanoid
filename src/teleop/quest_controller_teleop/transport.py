@@ -61,7 +61,7 @@ def validate_packet(raw):
 
 async def serve(shared, args):
     from aiohttp import web, WSMsgType
-    owner = None
+    owner, owner_seen, sockets = None, 0., set()
     # Static bytes avoid FileResponse's executor-backed filesystem operations
     # in the embedded Isaac path. All handler data is ordinary in-memory data.
     page = Path(__file__).with_name("index.html").read_bytes()
@@ -82,11 +82,15 @@ async def serve(shared, args):
         return web.json_response(feedback, headers={"Cache-Control": "no-store"})
 
     async def socket(request):
-        nonlocal owner
-        if owner is not None:
-            raise web.HTTPConflict(text="Another Quest already owns control")
+        nonlocal owner, owner_seen
+        # Control is single-owner, and every open tab on this page reconnects every 1.5 s. Desktop tabs (an
+        # editor's port preview) may never own it; they still get the page and camera views. Among Quest tabs the
+        # owner is whichever is streaming VR poses: an idle tab (open but not in VR, or in the background) never
+        # locks out the one you are wearing. Owner silent 0.5 s -> the next tab with a head pose takes over.
+        if "OculusBrowser" not in request.headers.get("User-Agent", ""):
+            raise web.HTTPForbidden(text="Control is reserved for Meta Browser on the Quest")
         ws = web.WebSocketResponse(heartbeat=2., max_msg_size=8192)
-        owner = ws
+        sockets.add(ws)
         reset_armed = False
         reset_down = False
         previous_epoch = None
@@ -94,18 +98,28 @@ async def serve(shared, args):
         previous_time = None
         try:
             await ws.prepare(request)
-            shared.clear()
             async for message in ws:
                 if message.type == WSMsgType.TEXT:
                     try:
                         raw = json.loads(message.data)
                         packet = validate_packet(raw)
                     except (ValueError, TypeError, KeyError):
-                        shared.clear()
+                        if owner is ws:
+                            shared.clear()
                         await ws.close(code=1008, message=b"Invalid controller packet")
                         break
+                    now = time.monotonic()
+                    if owner is not ws:
+                        if packet["head"] is None or (owner is not None and now - owner_seen < .5):
+                            with shared.lock:
+                                feedback = {**shared.feedback, "status": "Another headset tab has control" if
+                                            owner is not None else shared.feedback.get("status")}
+                            await ws.send_json(feedback)
+                            continue
+                        owner = ws
+                        shared.clear()   # re-anchor: never continue another tab's motion
+                    owner_seen = now
                     with shared.lock:
-                        now = time.monotonic()
                         sample = packet.get("sample")
                         if sample is not None:
                             if previous_sequence is not None and (sample["sequence"] <= previous_sequence
@@ -138,8 +152,10 @@ async def serve(shared, args):
                         feedback = dict(shared.feedback)
                     await ws.send_json(feedback)
         finally:
-            shared.clear()
-            owner = None
+            sockets.discard(ws)
+            if owner is ws:
+                shared.clear()
+                owner = None
         return ws
 
     app = web.Application()
@@ -159,8 +175,8 @@ async def serve(shared, args):
         while not shared.stop.is_set():
             await asyncio.sleep(.1)
     finally:
-        if owner is not None:
-            await owner.close()
+        for ws in list(sockets):
+            await ws.close()
         await runner.cleanup()
 
 

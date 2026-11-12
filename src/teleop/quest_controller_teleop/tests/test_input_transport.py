@@ -45,7 +45,7 @@ class WebSocketRoundTripTests(unittest.IsolatedAsyncioTestCase):
         import contextlib
         from types import SimpleNamespace
         from unittest.mock import patch
-        from aiohttp import ClientSession, web
+        from aiohttp import ClientSession, WSServerHandshakeError, web
         from transport import Shared, serve
         with tempfile.TemporaryDirectory() as d:
             shared = Shared()
@@ -59,7 +59,11 @@ class WebSocketRoundTripTests(unittest.IsolatedAsyncioTestCase):
                 task = asyncio.create_task(serve(shared, SimpleNamespace(host="127.0.0.1", port=0, cert=None)))
                 try:
                     port = await asyncio.wait_for(ready, timeout=5)
-                    async with ClientSession() as client:
+                    async with ClientSession() as desktop:   # an editor's port preview must not take control
+                        with self.assertRaises(WSServerHandshakeError) as refused:
+                            await desktop.ws_connect(f"http://127.0.0.1:{port}/ws")
+                        self.assertEqual(refused.exception.status, 403)
+                    async with ClientSession(headers={"User-Agent": "Mozilla/5.0 OculusBrowser/38.0"}) as client:
                         async with client.ws_connect(f"http://127.0.0.1:{port}/ws") as ws:
                             raw = raw_sample(1, 10., angle=.3)
                             await ws.send_json(raw)
@@ -93,6 +97,19 @@ class WebSocketRoundTripTests(unittest.IsolatedAsyncioTestCase):
                             await ws.send_json(raw_sample(7, 70., epoch=1))
                             await ws.receive_json(timeout=2)
                             self.assertEqual(shared.packet["sample"]["sequence"], 7)
+                        await asyncio.sleep(.1)   # the server releases the closed owner
+                        # A tab open but not in VR must not lock out the tab in VR (several tabs on the same page
+                        # once left the headset stuck on "reconnecting"); while that tab streams, others are ignored.
+                        url = f"http://127.0.0.1:{port}/ws"
+                        async with client.ws_connect(url) as idle, client.ws_connect(url) as worn:
+                            await worn.send_json(raw_sample(1, 10., angle=.5))
+                            await worn.receive_json(timeout=2)
+                            worn_rotation = validate_packet(raw_sample(angle=.5))["left"].rotation
+                            np.testing.assert_allclose(shared.packet["left"].rotation, worn_rotation)
+                            await idle.send_json(raw_sample(1, 10., angle=.1))
+                            feedback = await idle.receive_json(timeout=2)
+                            self.assertEqual(feedback["status"], "Another headset tab has control")
+                            np.testing.assert_allclose(shared.packet["left"].rotation, worn_rotation)
                 finally:
                     task.cancel()
                     with contextlib.suppress(asyncio.CancelledError):
@@ -109,7 +126,8 @@ class BrowserPacketTests(unittest.TestCase):
             const performance={now:()=>clock};
             const elements=new Map();
             function element(id){if(!elements.has(id))elements.set(id,{textContent:'',getContext:()=>({})});return elements.get(id);}
-            const document={querySelector:element,getElementById:element,createElement:element};
+            const document={querySelector:element,getElementById:element,createElement:element,addEventListener:()=>{}};
+            const navigator={};
             const location={protocol:'http:',host:'localhost:8444'};
             const window={addEventListener:()=>{}};
             const setTimeout=()=>1, clearTimeout=()=>{};

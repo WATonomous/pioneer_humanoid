@@ -7,12 +7,19 @@ controllers. MuJoCo only (no Isaac: the arm has no USD yet); no recording yet.
 ## Run (no GPU, runs on a laptop)
 
 1. `pip install -r src/teleop/quest_controller_teleop/requirements.txt` (plus `numpy`, `Pillow`, `pyyaml`).
-2. Plug the Quest into the same machine and start the sim (`python` instead of `mjpython` off macOS; `--headless` drops the window):
+2. Plug the Quest in (USB debugging allowed) and run, from the repo root:
    ```bash
-   mjpython src/teleop/quest_controller_teleop/mujoco/mujoco_sim.py --scene bimanual_sorting
-   adb reverse tcp:8444 tcp:8444
+   src/teleop/quest_controller_teleop/start_quest.sh --scene bimanual_sorting
    ```
-3. In Meta Browser open `http://localhost:8444/` and select **Enter VR**. The headset shows the ego and both wrist cameras.
+   It forwards the port, leaves one teleop tab in Meta Browser, starts the sim and clicks into VR. If the headset
+   shows the page instead, pull the trigger anywhere on it (any click enters VR). It runs `.venv/bin/mjpython`;
+   set `PY=python` off macOS.
+3. The headset shows the ego and both wrist cameras. To watch only the MuJoCo window (headset just tracks the
+   controllers), add `--no-headset-video`: the GPU then goes to the window (~60 fps instead of ~20).
+
+By hand: `mjpython src/teleop/quest_controller_teleop/mujoco/mujoco_sim.py --scene bimanual_sorting`,
+`adb reverse tcp:8444 tcp:8444`, then open `http://localhost:8444/` in Meta Browser. The window opens on the ego
+camera (Esc frees it). Only Meta Browser can take control, and of several open tabs the one in VR has it.
 
 Any scene in `humanoid_mujoco_scenes` works. `--help` lists the tuning flags (gains, speed caps, lead limits, IK, input filter) and their defaults.
 
