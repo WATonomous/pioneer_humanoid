@@ -141,8 +141,8 @@ Targets are clamped to the arm's URDF limits. Wrist damping is lowered to 2.5 in
 
 A simulated person "uses" the leader arm, so you get teleop demos without a human. Demos go through the same
 `LeaderMapping` and recorder as `--target mujoco --record`, so the dataset format is identical (same features,
-per-step `task` and `subtask_index`). Output: `<repo>/datasets/pioneer_v1_left_arm/sim_synthetic/<scene>/`, kept apart
-from human takes (`--dataset_root` to override).
+per-step `task` and `subtask_index`). Always the 8dof arm (`pioneer_bimanual_arm_8dof`), left arm. Output:
+`<repo>/datasets/pioneer_8dof_left_arm/sim_synthetic/<scene>/`, kept apart from human takes (`--dataset_root` to override).
 
 ```bash
 python synthetic/synthetic_teleop.py --scene peg_insert --num_episodes 3 --preview peg.mp4   # watch, no dataset
