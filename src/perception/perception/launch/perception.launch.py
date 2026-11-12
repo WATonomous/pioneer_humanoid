@@ -1,11 +1,16 @@
 from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch.actions import DeclareLaunchArgument
+from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 
 
 def generate_launch_description():
     return LaunchDescription([
+        DeclareLaunchArgument(
+            'use_tracknet', default_value='false',
+            description='Start the TrackNet detector node (needs a GPU and models/TrackNet_best.pt)'
+        ),
         DeclareLaunchArgument(
             'log_level',
             default_value='info',
@@ -39,6 +44,13 @@ def generate_launch_description():
                 'enable_color': True,
                 'enable_depth': True
             }]
+        ),
+        Node(
+            package='perception',
+            executable='tracknet_node',
+            name='tracknet_node',
+            output='screen',
+            condition=IfCondition(LaunchConfiguration('use_tracknet')),
         ),
         Node(
             package='perception',
