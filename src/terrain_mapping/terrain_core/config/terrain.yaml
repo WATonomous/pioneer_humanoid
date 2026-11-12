@@ -1,0 +1,6 @@
+# Terrain mapping settings, shared by the offline runner and the ROS node.
+
+preprocess:
+  z_min: 0.3          # m: closer than this the D455 can't measure depth
+  z_max: 3.0          # m: farther than this its depth is too noisy
+  voxel_size: 0.02    # m: keep at most one point per cube of this size
