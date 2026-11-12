@@ -73,6 +73,30 @@ class Arm8dofTeleopTests(unittest.TestCase):
             self.assertTrue(np.all(q >= s.limits[:, 0] - 1e-9) and np.all(q <= s.limits[:, 1] + 1e-9))
         self.assertLess(np.linalg.norm(s.kinematics(q)[0] - p), .005)
 
+    def test_sim_feedforward_removes_gravity_sag_and_tracking_lag(self):
+        sys.path[:0] = [str(HERE/"mujoco"), str(HERE.parents[2]/"src/simulation/mujoco_scenes")]
+        import mujoco
+        import mujoco_sim as ms
+        from humanoid_mujoco_scenes import make_model
+        from pioneer_humanoid.mujoco_bimanual_arm_8dof import set_home
+        model = make_model("bimanual_sorting", robot="8dof")
+        errors = {}
+        for feedforward in (False, True):
+            data = mujoco.MjData(model)
+            set_home(model, data)
+            mujoco.mj_forward(model, data)
+            ids = ms.arm_ids(model, "right")
+            q0, worst = data.qpos[ids.qpos].copy(), 0.
+            for k in range(100):   # 1 s: the shoulder sweeps at 0.5 rad/s
+                command = q0 + np.array([.5, 0, 0, 0, 0, 0, 0]) * k * .01
+                velocity = np.array([.5, 0, 0, 0, 0, 0, 0])
+                data.ctrl[ids.arm_acts] = ms.arm_ctrl(model, data, ids, command, velocity) if feedforward else command
+                mujoco.mj_step(model, data, nstep=round(.01 / model.opt.timestep))
+                worst = max(worst, np.abs(data.qpos[ids.qpos] - command).max()) if k > 50 else worst
+            errors[feedforward] = worst
+        self.assertGreater(errors[False], .03)     # plain PD trails ~kv/kp x speed
+        self.assertLess(errors[True], .01)
+
 
 if __name__ == "__main__":
     unittest.main()
