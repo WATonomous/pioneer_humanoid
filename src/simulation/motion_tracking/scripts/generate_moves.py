@@ -3,7 +3,8 @@ for the Pioneer robot as a CSV, chained freely.
 
 The stance and guard are an orthodox boxing stance (left foot forward, torso bladed)
 measured from the previous robot's (Wato's) stance, made by inverse kinematics on
-this robot: the same foot placement and pelvis blade, the hips CROUCH below
+this robot: the same foot placement (scaled to fit), pelvis blade and half its forward
+lean, the hips CROUCH below
 standing, both soles flat and the weight split 50/50 so it can stand under physics,
 and the gloves and elbows placed from the shoulders as Wato's were, scaled to this
 robot's longer arms. Moves:
@@ -60,8 +61,9 @@ from humanoid_tracking.robot import ACTUATORS, CSV_JOINT_NAMES, SOLE_THICKNESS, 
 LEAD, REAR = "l_foot", "r_foot"  # orthodox
 LEG_JOINTS = tuple(j for j in CSV_JOINT_NAMES if re.match(r"(Hip|Knee|Ankle)_", j))
 LEG_COLS = np.array([7 + CSV_JOINT_NAMES.index(j) for j in LEG_JOINTS])  # their columns in a CSV row
+# the arm joints the guard is solved with; the wrists stay straight (0), as a boxer's
 ARM_JOINTS = {
-  s: tuple(f"{s}_{j}" for j in ("shoulder_pitch", "shoulder_roll", "upper_arm_yaw", "elbow", "forearm_roll", "wrist_dev", "wrist_flex"))
+  s: tuple(f"{s}_{j}" for j in ("shoulder_pitch", "shoulder_roll", "upper_arm_yaw", "elbow", "forearm_roll"))
   for s in "lr"
 }  # fmt: skip
 
@@ -71,13 +73,19 @@ STANCE_SOLES = {LEAD: (0.207, 0.1248), REAR: (-0.175, -0.1722)}  # sole centres 
 STANCE_FOOT_YAW = {LEAD: -106.1, REAR: -136.4}  # foot turn from the zero pose [deg]
 STANCE_BASE_QUAT = (0.5629, -0.0713, 0.082, -0.8194)  # pelvis (wxyz): faces the opponent, bladed, tilted
 KNEE_MIN_BEND = 5.0  # deg
-CROUCH = 0.05  # hips below standing [m]
-STANCE_SCALE = 0.6  # of Wato's 45 cm stance: this robot's legs reach less (knee 65 deg, ankle 30 deg, hip extension 20 deg)
-WATO_ARM = 0.539  # Wato's shoulder -> elbow -> wrist length [m]
-# from the shoulder (roll link), in the pelvis frame (x right, y forward, z up), for Wato's arm length
+# Sized for the DESIGN joint ranges in humanoid_tracking/robot.py (knee 110 deg, ankles, hips past the
+# URDF's). With the URDF's ranges this stance does not fit: it was 60% as long, hips 8 cm down.
+CROUCH = 0.12  # hips below standing [m]: knees ~60 deg of their 110
+STANCE_TILT = 0.5  # share of Wato's pelvis tilt kept: its full forward lean sat this robot's hips over the rear foot
+STANCE_SCALE = 1.0  # of Wato's stance: soles 48 cm apart
+STANCE_WIDTH = 1.0  # extra sideways scale on top (Wato's 30 cm)
+# A tight guard: elbows down by the ribs and in front of the body, just inside the shoulders; the lead
+# glove at the cheek, the rear one by the chin. From the shoulder (arm_link2), in the pelvis frame
+# (x right, y forward, z up) [m]. It needs the elbows to bend past 90 deg (the DESIGN ranges, robot.py):
+# Wato's guard, with its elbows out level with the chest, kept this robot's elbows at their 90 deg limit.
 GUARD = {
-  "l": {"elbow": (-0.1137, 0.2591, -0.1067), "glove": (0.0612, 0.3437, 0.1820)},
-  "r": {"elbow": (0.0543, 0.2786, -0.0982), "glove": (-0.1486, 0.2596, 0.1822)},
+  "l": {"elbow": (0.03, 0.17, -0.20), "glove": (0.12, 0.30, 0.14)},
+  "r": {"elbow": (-0.04, 0.12, -0.21), "glove": (-0.17, 0.22, 0.14)},
 }
 UP = np.array([0.0, 0.0, 1.0])
 
@@ -243,29 +251,20 @@ class Robot:
     for i, j in enumerate(LEG_JOINTS):
       if j.startswith("Knee_"):
         self.leg_range[i, 1] = min(self.leg_range[i, 1], -np.radians(KNEE_MIN_BEND))
-    # the fist's centre in the hand frame (where the glove goes, fighters.py)
-    self.d.qpos[3] = 1.0
-    self.forward()
-    self.fist = {}
-    for s, hand in zip("lr", WRISTS):
-      b = self.m.body(hand).id
-      pts = []
-      for g in range(self.m.ngeom):
-        if self.m.geom_bodyid[g] == b and self.m.geom_type[g] == mujoco.mjtGeom.mjGEOM_MESH:
-          mid = self.m.geom_dataid[g]
-          v = self.m.mesh_vert[self.m.mesh_vertadr[mid] : self.m.mesh_vertadr[mid] + self.m.mesh_vertnum[mid]]
-          pts.append(self.d.geom_xpos[g] + v @ self.d.geom_xmat[g].reshape(3, 3).T)
-      pts = np.vstack(pts)
-      self.fist[s] = self.d.xmat[b].reshape(3, 3).T @ ((pts.min(0) + pts.max(0)) / 2 - self.d.xpos[b])
+    # the glove's centre in the hand frame (robot.py's glove site; the arena's glove hitbox sits there)
+    self.fist = {s: self.m.site_pos[self.m.site(f"{hand}_glove").id].copy() for s, hand in zip("lr", WRISTS)}
 
   def solve_arm(self, side: str, glove: np.ndarray, elbow: np.ndarray, iters: int = 200) -> float:
-    """Arm joints that put the fist's centre on `glove` (first) and the elbow near `elbow`."""
+    """Arm joints that put the glove's centre on `glove` (first) and the elbow near `elbow`, the forearm
+    roll near the middle of its range (it barely moves the fist, and a punch needs it free)."""
     m, d, nv = self.m, self.d, self.m.nv
     joints = [m.joint(j).id for j in ARM_JOINTS[side]]
     dofs = np.array([m.jnt_dofadr[j] for j in joints])
     qadr = np.array([m.jnt_qposadr[j] for j in joints])
     rng = np.array([m.jnt_range[j] for j in joints])
     hand, elb = m.body(WRISTS["lr".index(side)]).id, m.body(f"{side}_arm_link4").id
+    roll_i = ARM_JOINTS[side].index(f"{side}_forearm_roll")
+    roll = np.eye(len(dofs))[roll_i : roll_i + 1]
     jp = np.zeros((3, nv))
     err = np.inf
     for _ in range(iters):
@@ -276,8 +275,8 @@ class Robot:
       je = jp[:, dofs].copy()
       eg, ee = glove - fist, elbow - d.xpos[elb]
       err = float(np.linalg.norm(eg))
-      J = np.vstack([10.0 * jg, 2.0 * je, 0.05 * np.eye(len(dofs))])
-      e = np.concatenate([10.0 * eg, 2.0 * ee, np.zeros(len(dofs))])
+      J = np.vstack([10.0 * jg, 2.0 * je, 0.05 * np.eye(len(dofs)), 0.3 * roll])
+      e = np.concatenate([10.0 * eg, 2.0 * ee, np.zeros(len(dofs)), -0.3 * d.qpos[qadr][roll_i : roll_i + 1]])
       dq = np.linalg.solve(J.T @ J + 1e-4 * np.eye(len(dofs)), J.T @ e)
       dq *= min(1.0, 0.1 / max(np.abs(dq).max(), 1e-12))
       d.qpos[qadr] = np.clip(d.qpos[qadr] + dq, rng[:, 0], rng[:, 1])
@@ -626,10 +625,10 @@ def make_stance(robot: Robot, scale: float, crouch: float) -> Stance:
     R = np.zeros(9)
     mujoco.mju_quat2Mat(R, feet_quat[f])
     sole_world = R.reshape(3, 3) @ robot.sole[f]
-    target = scale * np.array(STANCE_SOLES[f])
+    target = scale * np.array(STANCE_SOLES[f]) * [1.0, STANCE_WIDTH]
     feet_pos[f] = np.array([*(target - sole_world[:2]), -sole_world[2] + SOLE_THICKNESS / 2])
-  com = scale * (np.array(STANCE_SOLES[LEAD]) + np.array(STANCE_SOLES[REAR])) / 2
-  base_quat = np.array(STANCE_BASE_QUAT)
+  com = scale * (np.array(STANCE_SOLES[LEAD]) + np.array(STANCE_SOLES[REAR])) / 2 * [1.0, STANCE_WIDTH]
+  base_quat = slerp(quat_z(_yaw(np.array(STANCE_BASE_QUAT))), np.array(STANCE_BASE_QUAT), STANCE_TILT)
 
   for k in range(1, 41):
     s = k / 40
@@ -640,20 +639,15 @@ def make_stance(robot: Robot, scale: float, crouch: float) -> Stance:
       base_z0 - s * crouch,
       slerp(base_quat0, base_quat, s),
     )
-  # the guard: gloves and elbows from the shoulders, as Wato's, scaled to this arm. The arms move
-  # the centre of mass, so legs (balance) and arms are solved in turn until both settle
-  arm = sum(
-    np.linalg.norm(d.xpos[robot.m.body(b).id] - d.xpos[robot.m.body(a).id])
-    for a, b in (("l_arm_link2", "l_arm_link4"), ("l_arm_link4", "l_hand_W"))
-  )
-  k = arm / WATO_ARM
+  # the guard: gloves and elbows from the shoulders (GUARD). The arms move the centre of mass, so
+  # legs (balance) and arms are solved in turn until both settle
   for _ in range(4):
     Rp = d.xmat[robot.base].reshape(3, 3)
     errs = {}
     for side in "lr":
       shoulder = d.xpos[robot.m.body(f"{side}_arm_link2").id].copy()
       errs[side] = robot.solve_arm(
-        side, shoulder + Rp @ (k * np.array(GUARD[side]["glove"])), shoulder + Rp @ (k * np.array(GUARD[side]["elbow"]))
+        side, shoulder + Rp @ np.array(GUARD[side]["glove"]), shoulder + Rp @ np.array(GUARD[side]["elbow"])
       )
     robot.solve(feet_pos, feet_quat, com, base_z0 - crouch, base_quat, iters=200)
   for side, err in errs.items():
@@ -661,6 +655,12 @@ def make_stance(robot: Robot, scale: float, crouch: float) -> Stance:
       print(f"WARNING: the {side} glove misses its guard position by {err * 100:.1f} cm")
   sole_off = {f: robot.sole_xy(f) - feet_pos[f][:2] for f in (LEAD, REAR)}
   return Stance(feet_pos, feet_quat, sole_off, com, base_z0 - crouch, base_quat)
+
+
+def _yaw(quat: np.ndarray) -> float:
+  m = np.zeros(9)
+  mujoco.mju_quat2Mat(m, quat)
+  return float(np.arctan2(m[3], m[0]))
 
 
 def rot_mat2(quat: np.ndarray) -> np.ndarray:
@@ -702,18 +702,19 @@ def main(
   hold: float = 1.0,
   fps: float = 50.0,
   max_cap_use: float = 0.8,
-  # sizes: the largest each move this robot's joint ranges allow (IK within 1 cm), as a share of Wato's
-  step: StepCfg = StepCfg(forward=0.06, side=0.048, lift=0.018),  # noqa: B008  (60%)
-  duck: DuckCfg = DuckCfg(depth=0.08, lean=8.0, down=0.25, bottom=0.1, up=0.3),  # noqa: B008  (80%)
-  deep_duck: DuckCfg = DuckCfg(depth=0.06, lean=7.5, down=0.5, bottom=0.2, up=0.55),  # noqa: B008  (30%)
-  slip: SlipCfg = SlipCfg(depth=0.048, lean=9.6),  # noqa: B008  (80%)
-  weave: WeaveCfg = WeaveCfg(depth=0.084, side_depth=0.036, lean=4.8, forward_lean=6.0),  # noqa: B008  (60%)
-  pivot: PivotCfg = PivotCfg(angle=13.5, lift=0.009),  # noqa: B008  (30%)
+  # sizes: Wato's, which the design ranges allow (IK within 1 cm), but steps of 9 cm (Wato 10: the step
+  # back runs out of leg) with half the weight shifted (Wato 60%)
+  step: StepCfg = StepCfg(forward=0.09, weight_shift=0.5),  # noqa: B008
+  duck: DuckCfg = DuckCfg(depth=0.10, lean=10.0, down=0.25, bottom=0.1, up=0.3),  # noqa: B008
+  deep_duck: DuckCfg = DuckCfg(depth=0.20, lean=20.0, down=0.5, bottom=0.2, up=0.55),  # noqa: B008  (Wato 25 deg)
+  slip: SlipCfg = SlipCfg(),  # noqa: B008
+  weave: WeaveCfg = WeaveCfg(),  # noqa: B008
+  pivot: PivotCfg = PivotCfg(weight=0.5),  # noqa: B008
 ):
   """Args:
     sequence: moves in order (see the module docstring).
     output_file: CSV to write.
-    stance_scale: scales the distance between the feet (1 = Wato's 45 cm stance; 0.6 fits this robot).
+    stance_scale: scales the distance between the feet (1 = Wato's 48 cm stance).
     crouch: how far below standing the hips are in the stance [m].
     hold: stance pause at the start, end and for each H [s].
     fps: output frame rate.

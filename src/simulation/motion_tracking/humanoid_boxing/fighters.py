@@ -12,8 +12,9 @@ A fighter's hitboxes never touch its own body; they meet the opponent
 and the floor. Hitboxes are simple shapes fitted to the CAD meshes; the
 meshes stay visual only.
 
-Hitbox geoms (per fighter): glove_l, glove_r (spheres on the wrists, shown),
-head, torso, pelvis, and capsules along the arms and legs (hidden, group 3).
+Hitbox geoms (per fighter): glove_l, glove_r (spheres on the fists, inside the
+glove props), head, torso, pelvis, and capsules along the arms and legs (hidden,
+group 3). The glove props take the team's glove colour.
 """
 
 import dataclasses
@@ -24,7 +25,7 @@ import numpy as np
 
 from mjlab.entity import EntityArticulationInfoCfg, EntityCfg
 from mjlab.utils.spec_config import CollisionCfg
-from humanoid_tracking.robot import ACTUATORS, FEET_COLLISION, get_spec
+from humanoid_tracking.robot import ACTUATORS, FEET_COLLISION, HIDDEN_GROUP, get_spec
 
 Team = Literal["red", "blue"]
 
@@ -33,7 +34,7 @@ ROPE_BIT = 8
 TEAM_RGBA = {"red": (0.80, 0.30, 0.28, 1.0), "blue": (0.30, 0.40, 0.80, 1.0)}
 GLOVE_RGBA = {"red": (0.65, 0.05, 0.05, 1.0), "blue": (0.05, 0.12, 0.60, 1.0)}
 
-GLOVE_RADIUS = 0.07  # round the fist (12.6 x 13.4 x 16.9 cm)
+GLOVE_RADIUS = 0.07  # round the glove prop's centre (the fist is 12.6 x 13.4 x 16.9 cm)
 HEAD_RADIUS = 0.11
 ARM_RADIUS = 0.045
 LEG_RADIUS = 0.06
@@ -65,41 +66,41 @@ LIMB_CHAINS = {
 }
 
 # Orthodox boxing stance: frame 0 of scripts/generate_moves.py (Wato's stance made on this robot:
-# 60% of its length, hips 5 cm lower, both soles flat, weight 50/50; see that script). Root pose is
-# relative to the centre between the feet, facing +x (the opponent). Regenerate from
-# data/motions/moves.csv row 0 if the stance changes.
-STANCE_ROOT_POS = (-0.0864, 0.0160, 0.7979)
-STANCE_ROOT_QUAT = (0.5629, -0.0713, 0.0820, -0.8194)  # wxyz
+# full size with the DESIGN joint ranges (robot.py), half its forward lean, hips 12 cm lower, both
+# soles flat, weight 50/50; see that script). Root pose is relative to the centre between the feet,
+# facing +x (the opponent). Regenerate from data/motions/moves.csv row 0 if the stance changes.
+STANCE_ROOT_POS = (-0.0668, 0.0115, 0.7279)
+STANCE_ROOT_QUAT = (0.5659, -0.0357, 0.0411, -0.8226)  # wxyz
 STANCE_JOINTS = {
   "waist_yaw": 0.0000,
   "neck_yaw": 0.0000,
   "neck_pitch": 0.0000,
-  "r_shoulder_pitch": -1.2274,
-  "r_shoulder_roll": 0.1689,
-  "r_upper_arm_yaw": 0.5897,
-  "r_elbow": -1.5708,
-  "r_forearm_roll": -0.9657,
-  "r_wrist_dev": 0.5236,
-  "r_wrist_flex": 0.6603,
-  "l_shoulder_pitch": -1.1789,
-  "l_shoulder_roll": 0.3712,
-  "l_upper_arm_yaw": 0.3175,
-  "l_elbow": -1.5708,
-  "l_forearm_roll": -0.1493,
-  "l_wrist_dev": 0.4846,
-  "l_wrist_flex": 0.4879,
-  "Hip_F_L": 0.7378,
-  "Hip_A_L": 0.0315,
-  "Hip_R_L": 0.0779,
-  "Knee_L": -0.6262,
-  "Ankle_P_L": -0.1061,
-  "Ankle_R_L": -0.0359,
-  "Hip_F_R": 0.5386,
-  "Hip_A_R": 0.0645,
-  "Hip_R_R": 0.4491,
-  "Knee_R": -0.6981,
-  "Ankle_P_R": -0.3693,
-  "Ankle_R_R": -0.0604,
+  "r_shoulder_pitch": -0.4967,
+  "r_shoulder_roll": -0.1706,
+  "r_upper_arm_yaw": 0.5841,
+  "r_elbow": -2.2913,
+  "r_forearm_roll": -0.0000,
+  "r_wrist_dev": 0.0000,
+  "r_wrist_flex": 0.0000,
+  "l_shoulder_pitch": -0.5811,
+  "l_shoulder_roll": -0.0873,
+  "l_upper_arm_yaw": 0.3419,
+  "l_elbow": -2.1512,
+  "l_forearm_roll": -0.0001,
+  "l_wrist_dev": 0.0000,
+  "l_wrist_flex": 0.0000,
+  "Hip_F_L": 0.8756,
+  "Hip_A_L": 0.1106,
+  "Hip_R_L": 0.0098,
+  "Knee_L": -1.0150,
+  "Ankle_P_L": -0.2450,
+  "Ankle_R_L": 0.0605,
+  "Hip_F_R": 0.5107,
+  "Hip_A_R": 0.2799,
+  "Hip_R_R": 0.3629,
+  "Knee_R": -1.1032,
+  "Ankle_P_R": -0.6214,
+  "Ankle_R_R": 0.1098,
 }
 
 
@@ -142,8 +143,10 @@ def _body_quat_of_world_axes(data: mujoco.MjData, model: mujoco.MjModel, body: s
 def add_hitboxes(spec: mujoco.MjSpec, team: Team) -> None:
   """Recolour the robot and add gloves + hitboxes for `team`."""
   for geom in spec.geoms:
-    if geom.type == mujoco.mjtGeom.mjGEOM_MESH:
+    if geom.type == mujoco.mjtGeom.mjGEOM_MESH and geom.group != HIDDEN_GROUP:
       geom.rgba = TEAM_RGBA[team]
+    elif geom.name.endswith(("_glove", "_glove_cuff")):
+      geom.rgba = GLOVE_RGBA[team]
 
   # measure at qpos0 (upright, all joints 0): offsets in body frames are fixed
   model = spec.copy().compile()
@@ -160,17 +163,15 @@ def add_hitboxes(spec: mujoco.MjSpec, team: Team) -> None:
       **kw,
     )
 
-  # gloves: around the fist, on the hand body
+  # gloves: at the glove props' centres (robot.py), on the hand body
   for side, wrist in WRISTS.items():
-    pts = _mesh_points_world(model, data, wrist)
     add(
       wrist,
       f"glove_{side}",
-      group=1,
       rgba=GLOVE_RGBA[team],
       type=mujoco.mjtGeom.mjGEOM_SPHERE,
       size=(GLOVE_RADIUS, 0, 0),
-      pos=_to_body(data, model, wrist, (pts.min(0) + pts.max(0)) / 2),
+      pos=model.site_pos[model.site(f"{wrist}_glove").id],
     )
 
   # head: sphere at the centre of the head
