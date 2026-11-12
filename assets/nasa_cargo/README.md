@@ -7,7 +7,12 @@ tray and set the bag down upright. The bag moves only through physics.
 
 This adapts the [NASA CLR cargo pick-and-place demo](https://github.com/NASA-JSC-Robotics/clr_ws/blob/jazzy-devel/src/clr_demos/clr_behavior_demos/trees/roboplan_pick_and_place_ctb.xml)
 to a fixed arm stand. NASA's rail/lift traversal and bench destination are
-replaced with two nearby stations; their planner is not included.
+replaced with two nearby stations; their planner is not included. A scripted
+privileged-state expert generates bootstrap demonstrations through robot
+contact, and a separate runner executes your learned policy and records human
+corrections. See [the training/HG-DAgger workflow](HG_DAGGER.md).
+
+For fixed cargo and a randomized green destination, see [moving-tray playback and HG-DAgger](MOVING_TRAY.md).
 
 ## Open the scene
 
@@ -57,6 +62,9 @@ loads, and does not establish a hardware payload rating. The hardware wrist
 and gripper must still be commissioned before attempting physical pickup.
 
 ## Connect your policy
+
+For synthetic data generation, overnight ACT training, keyboard correction
+collection and dataset aggregation, see [the HG-DAgger workflow](HG_DAGGER.md).
 
 After your usual Isaac AppLauncher:
 

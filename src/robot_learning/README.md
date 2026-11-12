@@ -79,6 +79,14 @@ Sim rollout for a flow-matching policy (pi0 / pi0.5 / SmolVLA) on the push-block
   --policy_path <checkpoint> --num_episodes 10
 ```
 
+## Cargo pick-and-place with HG-DAgger
+
+The NASA cargo task has 50 synthetic left-arm demonstrations, an ACT training
+script, an Isaac evaluator and keyboard human-intervention collection. See
+[the cargo workflow](../../assets/nasa_cargo/HG_DAGGER.md) for generation,
+overnight training and correction/aggregation commands. Its two RGB cameras
+and seven-action contract must be used consistently across collection rounds.
+
 ## 4. Real arm (planned)
 
 Not runnable yet. The plan is the same leader arm and the same schema, saved under `datasets/pioneer_v1_left_arm/real/`:

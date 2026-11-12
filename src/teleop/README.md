@@ -14,6 +14,7 @@ The repo is bind-mounted at `/workspace/humanoid`. Shared arm config + IK helper
 
 | Folder | Input | Sim robot | Notes |
 |--------|-------|-----------|-------|
+| [`quest_controller_teleop/`](quest_controller_teleop/) | Quest Touch controllers | pioneer bimanual; cargo HG-DAgger uses left arm | Imported VR v2 stack; [cargo takeover controls and commands](../../assets/nasa_cargo/VR_HG_DAGGER.md) |
 | [`quest_teleop/`](quest_teleop/) | Quest 2 hand tracking | pioneer bimanual, both arms | `bridge/` (WebXR → `/quest_teleop`) + `sim/` (weighted-DLS fingertip IK); see its README |
 | **`keyboard_teleop/`** | keyboard + IK | pioneer bimanual, left arm | see below |
 | [`pioneer_leader_arm_teleop/`](pioneer_leader_arm_teleop/) | 7-servo leader arm | pioneer bimanual, left arm | any `--scene`, `--record`; see its README |
