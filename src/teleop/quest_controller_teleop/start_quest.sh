@@ -6,8 +6,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/../../.."
 PORT=8444
-# The camera window runs under plain python; the classic MuJoCo viewer needs mjpython on macOS.
-case " $* " in *" --classic-viewer "*) PY=${PY:-.venv/bin/mjpython} ;; *) PY=${PY:-.venv/bin/python} ;; esac
+PY=${PY:-.venv/bin/python}
 
 adb wait-for-device
 adb reverse tcp:$PORT tcp:$PORT >/dev/null

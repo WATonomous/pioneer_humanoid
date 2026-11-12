@@ -18,7 +18,6 @@ controllers. MuJoCo only (no Isaac: the arm has no USD yet); no recording yet.
    the sim. `--no-headset-video` makes the headset tracking-only (no camera rendering for it), which keeps the
    GPU for this window; leave it off to also see the cameras in the headset.
 
-`--classic-viewer` shows the MuJoCo viewer instead (3D UI, free camera; the launcher runs it under `mjpython`).
 By hand: `python src/teleop/quest_controller_teleop/mujoco/mujoco_sim.py --scene bimanual_sorting`,
 `adb reverse tcp:8444 tcp:8444`, then open `http://localhost:8444/` in Meta Browser. Only Meta Browser can take
 control, and of several open tabs the one in VR has it.
