@@ -1,3 +1,4 @@
+# Old 6-DoF arm only (Isaac has no 8dof USD yet). 8dof is the default; the real arm moves to 8dof soon.
 """
 Canonical articulation config for the pioneer_bimanual_arm.
 

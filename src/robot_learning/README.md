@@ -1,6 +1,10 @@
 # Robot learning: record datasets, train policies
 
-Teleoperate the Pioneer left arm, record the demos as a **LeRobot** dataset, train a policy (ACT, SmolVLA, pi0.5, …) on it and run evals.
+Teleoperate the Pioneer arms, record the demos as a **LeRobot** dataset, train a policy (ACT, SmolVLA, pi0.5, …) on it and run evals.
+
+**The default robot is `pioneer_bimanual_arm_8dof`** (7-DoF + gripper per arm), recorded in MuJoCo. The old 6-DoF arms
+(armv2, `pioneer_v1_*` datasets) remain for Isaac, which has no 8dof USD yet, and for today's real arm; the real arm will
+soon be 8dof too. The Quest VR teleop (`src/teleop/quest_controller_teleop`) does not record yet.
 
 ## 1. Collect demos
 
@@ -9,7 +13,7 @@ Add `--record` to the leader-arm teleop (or any other teleop method of your choi
 ```bash
 # simulation_isaac container
 cd /workspace/humanoid/src/teleop/pioneer_leader_arm_teleop
-/workspace/isaaclab/isaaclab.sh -p pioneer_leader_arm_teleop.py --scene vial_rack --record \
+/workspace/isaaclab/isaaclab.sh -p pioneer_leader_arm_teleop.py --target isaac --scene vial_rack --record \
   --task_description "put the vial in the rack" --num_episodes 20
 
 # simulation_mj container (CPU)
@@ -37,6 +41,12 @@ Output: `<repo>/datasets/pioneer_v1_left_arm/sim/`. Later sessions append to the
 | 4–5 | `left_elbow_pitch`, `left_elbow_roll` | rad |
 | 6 | `left_wrist_pitch` | rad |
 | 7 | `left_gripper` | 0 open … 1 closed |
+
+**The 8dof arms** (`pioneer_bimanual_arm_8dof`, sim only): `config/pioneer_8dof_dataset_schema.yaml`, **8 values** per
+arm: `left_shoulder_pitch`, `left_shoulder_roll`, `left_shoulder_yaw`, `left_elbow`, `left_forearm_roll`,
+`left_wrist_pitch`, `left_wrist_yaw` (rad), then `left_gripper` (0 open … 1 closed). Datasets `pioneer_8dof_*`, kept
+apart from `pioneer_v1_*`. The MuJoCo leader teleop records it by default (`--target mujoco`, the default, with `--robot 8dof`); `evaluate.py` picks the
+robot from the policy's action size (8 = 8dof, 7 = old arms) or `--robot`.
 
 | Field | Content |
 |-------|---------|
@@ -72,7 +82,7 @@ python -m humanoid_robot_learning.sim.evaluate --scene peg_insert --policy <run>
   --episodes 40 --seed 1000 --video_dir eval_videos
 ```
 
-Sim rollout for a flow-matching policy (pi0 / pi0.5 / SmolVLA) on the push-block scene, driven with Real-Time Chunking (`humanoid_robot_learning/deploy/rtc_driver.py`): [`scripts/pioneer_push_eval_rtc.py`](scripts/pioneer_push_eval_rtc.py). It expects a checkpoint trained on `config/pioneer_humanoid_dataset_schema.yaml` (the format the Quest teleop records); `--dry_run` runs it without one. **The VLA is not hooked up yet**: no real checkpoint has been run through it, and its schema, camera keys and action space (absolute vs delta) still need matching. See the `TODO(VLA)` block in the script.
+Sim rollout for a flow-matching policy (pi0 / pi0.5 / SmolVLA) on the push-block scene, driven with Real-Time Chunking (`humanoid_robot_learning/deploy/rtc_driver.py`): [`scripts/pioneer_push_eval_rtc.py`](scripts/pioneer_push_eval_rtc.py). It expects a checkpoint trained on `config/pioneer_humanoid_dataset_schema.yaml` (the old arms' format, recorded by the Isaac leader teleop); `--dry_run` runs it without one. **The VLA is not hooked up yet**: no real checkpoint has been run through it, and its schema, camera keys and action space (absolute vs delta) still need matching. See the `TODO(VLA)` block in the script.
 
 ```bash
 /workspace/isaaclab/isaaclab.sh -p /workspace/humanoid/src/robot_learning/scripts/pioneer_push_eval_rtc.py \
@@ -107,4 +117,4 @@ humanoid-merge-takes datasets/pioneer_v1_left_arm/real/001 datasets/pioneer_v1_l
   --output datasets/pioneer_v1_left_arm/real_merged [--push_to_hub <hf-user>/pioneer_v1_left_arm]
 ```
 
-`--sink` (`lerobot`, `hdf5`, or both) exists only on `humanoid-record` and the Quest teleop; the sim leader and keyboard teleop always write LeRobot.
+`--sink` (`lerobot`, `hdf5`, or both) exists only on `humanoid-record`; the sim leader and keyboard teleop always write LeRobot.

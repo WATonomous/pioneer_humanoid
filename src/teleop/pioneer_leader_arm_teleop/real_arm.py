@@ -1,3 +1,4 @@
+# Old 6-DoF arm only (today's real arm). 8dof is the default; the real arm moves to 8dof soon.
 """Real-arm backend of pioneer_leader_arm_teleop.py: leader vs real arm(s), side by side.
 
 --arms left (default), right or bimanual: each arm is driven by its own leader board (leader_arm.json).

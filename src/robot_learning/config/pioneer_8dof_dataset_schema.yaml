@@ -1,0 +1,56 @@
+# pioneer_bimanual_arm_8dof arms (7-DoF + 1-DoF gripper each): the sim data contract for the 8dof rig (leader teleop,
+# synthetic demos, policy evaluation). Same layout and rules as pioneer_humanoid_dataset_schema.yaml (the old 6-DoF
+# arms); a different robot_id / repo_id / record.root, so 8dof and old-arm datasets never mix.
+# select_arms() builds joint_names from the recorded arms, left first, and adds _left_arm, _right_arm or _bimanual.
+robot_id: pioneer_8dof
+repo_id: humanoid/pioneer_8dof
+fps: 25
+state_unit: rad  # arm joints; the grippers are 0-1 closure fractions
+
+# Names = the sim joints (pioneer_humanoid/arm_8dof_params.py). No real 8dof arm yet.
+arms:
+  left:
+    - left_shoulder_pitch
+    - left_shoulder_roll
+    - left_shoulder_yaw
+    - left_elbow
+    - left_forearm_roll
+    - left_wrist_pitch
+    - left_wrist_yaw
+    - left_gripper          # left_gripper (+ its mimic finger): 0 = open, 1 = closed
+  right:
+    - right_shoulder_pitch
+    - right_shoulder_roll
+    - right_shoulder_yaw
+    - right_elbow
+    - right_forearm_roll
+    - right_wrist_pitch
+    - right_wrist_yaw
+    - right_gripper         # right_gripper (+ its mimic finger): 0 = open, 1 = closed
+
+# All 640x480 (4:3). Sim poses/lenses: pioneer_humanoid/arm_8dof_params.py.
+# `enabled` is the default; override with --cameras.
+images:
+  ego:
+    height: 480
+    width: 640
+    enabled: true
+    topic: null
+  wrist_left:
+    height: 480
+    width: 640
+    enabled: true
+    topic: null
+  wrist_right:
+    height: 480
+    width: 640
+    enabled: false
+    topic: null
+
+ros: null  # sim only: no real 8dof arm yet
+
+record:
+  root: datasets/pioneer_8dof  # + the arm suffix; relative to the repo root; sim -> <root>/sim
+  use_videos: true
+  image_writer_threads: 4
+  image_writer_processes: 0
