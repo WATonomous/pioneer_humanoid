@@ -1,8 +1,8 @@
-# Terrain mapping
+# terrain_core
 
-Robot-centric elevation and traversability map from the chest D455, per the terrain mapping
-project plan (tickets TR-1 to TR-18). Same layout as the SLAM stack: a ROS-free core library
-(`terrain_core`), a thin ROS wrapper (later), and offline tools.
+The ROS-free part of terrain mapping (tickets TR-1 to TR-18): plain Python that can be run and tested
+offline, with no ROS imports. The ROS side (launch files, `elevation_mapping_cupy`) is in
+[`../terrain_mapping_bringup`](../terrain_mapping_bringup); see [`../README.md`](../README.md).
 
 ## Status
 
@@ -15,12 +15,13 @@ project plan (tickets TR-1 to TR-18). Same layout as the SLAM stack: a ROS-free 
 ## Layout
 
 ```
-terrain/
+src/terrain_mapping/terrain_core/
+├── pyproject.toml          pip-installable library, no ROS imports
+├── COLCON_IGNORE           not a ROS package: keeps the terrain_mapping image's colcon build away
 ├── config/terrain.yaml     settings (preprocess: crop range, voxel size)
-├── terrain_core/           pip-installable library, no ROS imports
-│   ├── terrain_core/
-│   │   └── preprocess/     depth.py, crop.py, downsample.py, transform.py, pipeline.py
-│   └── tests/              python -m pytest terrain_core (no dataset needed, except one TUM test)
+├── terrain_core/
+│   └── preprocess/         depth.py, crop.py, downsample.py, transform.py, pipeline.py
+├── tests/                  python -m pytest (no dataset needed, except one TUM test)
 ├── terrain_tools/          tum.py: TumDataset loads a TUM RGB-D sequence as slam_core Frames
 ├── prototype/              demo scripts with plots (take --data path/to/sequence)
 └── data/                   datasets and bags (gitignored)
@@ -29,10 +30,10 @@ terrain/
 ## Setup
 
 ```bash
-cd src/perception/terrain
+cd src/terrain_mapping/terrain_core
 python3.10 -m venv .venv && source .venv/bin/activate
-pip install -e "terrain_core[dev]" -e ../slam/slam_core
-python -m pytest terrain_core
+pip install -e ".[dev]" -e ../../perception/slam/slam_core
+python -m pytest
 ```
 
 `terrain_core` depends on `slam_core` (for `Frame`), which is not on PyPI, so always install

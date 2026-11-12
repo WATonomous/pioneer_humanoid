@@ -1,6 +1,6 @@
 """TumDataset on a tiny fake sequence (runs in CI), and the alignment check on real TUM data.
 
-The real-data test needs the sequence in terrain/data/ (see the README), or the
+The real-data test needs the sequence in terrain_core/data/ (see the README), or the
 TUM_DATA environment variable pointing at it; it is skipped when neither is there.
 """
 import os

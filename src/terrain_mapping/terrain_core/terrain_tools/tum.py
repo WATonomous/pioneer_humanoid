@@ -6,7 +6,7 @@ from PIL import Image
 from slam_core.types import Frame
 from slam_core.types.pose import from_tum
 
-# Where the prototypes and tests look by default: terrain/data/ (parents[1] = the terrain/ folder)
+# Where the prototypes and tests look by default: terrain_core/data/ (parents[1] = the outer terrain_core/ folder)
 DEFAULT_PATH = Path(__file__).resolve().parents[1] / "data" / "rgbd_dataset_freiburg1_desk"
 
 # TUM freiburg1 camera intrinsics, from the dataset's website

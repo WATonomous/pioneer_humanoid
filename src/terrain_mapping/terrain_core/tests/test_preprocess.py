@@ -1,6 +1,6 @@
 """Tests for terrain_core.preprocess, on tiny inputs whose answers can be worked out by hand.
 
-Run from src/perception/terrain:  python -m pytest terrain_core
+Run from src/terrain_mapping/terrain_core:  python -m pytest
 """
 import numpy as np
 import pytest

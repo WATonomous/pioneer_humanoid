@@ -8,6 +8,7 @@ It is perception only. It never starts `interfacing`, CAN, or `joint_command`.
 
 ```
 src/terrain_mapping/
+├── terrain_core/                 # ROS-free Python core (depth preprocessing, tests); see its README
 ├── terrain_mapping_bringup/      # our package: launch, configs, RViz, check_map.py
 └── third_party/
     ├── elevation_mapping_cupy/   # generated during the Docker build (gitignored)

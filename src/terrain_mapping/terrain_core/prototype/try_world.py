@@ -1,6 +1,6 @@
 """Run preprocess() on two TUM frames and show both clouds in the world frame.
 
-Run from src/perception/terrain:  python prototype/try_world.py [--data path/to/tum/sequence]
+Run from src/terrain_mapping/terrain_core:  python prototype/try_world.py [--data path/to/tum/sequence]
 """
 import argparse
 import sys
@@ -12,7 +12,7 @@ import numpy as np
 from terrain_core.preprocess.pipeline import PreprocessConfig, preprocess
 
 # tum.py lives in terrain_tools/, not next to this script, so add that folder
-# to the places Python looks for imports (parents[1] = the terrain/ folder).
+# to the places Python looks for imports (parents[1] = the outer terrain_core/ folder).
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "terrain_tools"))
 from tum import DEFAULT_PATH, TumDataset  # noqa: E402
 
