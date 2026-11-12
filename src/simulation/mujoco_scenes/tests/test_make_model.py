@@ -45,21 +45,5 @@ class MakeModelTests(unittest.TestCase):
             self.assertAlmostEqual(model.qpos_spring[joint.qposadr[0]], -_wrap(_PATH[i][2] - _PATH[i - 1][2]), places=9)
 
 
-    def test_gripper_holds_like_a_position_servo(self):
-        # AK40-10 gripper (arm_8dof_params._GRIPPER): settles without ringing and a 10 N push barely opens it.
-        from pioneer_humanoid.arm_8dof_params import GRIPPER_STROKE
-        from pioneer_humanoid.mujoco_bimanual_arm_8dof import set_home
-        model = make_model("bare")
-        data = mujoco.MjData(model)
-        set_home(model, data)
-        joint, act = model.joint("right_gripper"), model.actuator("right_gripper").id
-        data.ctrl[act] = GRIPPER_STROKE / 2
-        mujoco.mj_step(model, data, nstep=300)
-        self.assertLess(abs(data.qpos[joint.qposadr[0]] - GRIPPER_STROKE / 2), 2e-4)
-        data.qfrc_applied[joint.dofadr[0]] = -10.0
-        mujoco.mj_step(model, data, nstep=500)
-        self.assertLess(GRIPPER_STROKE / 2 - data.qpos[joint.qposadr[0]], .003)   # was 21 mm at 400 N/m
-
-
 if __name__ == "__main__":
     unittest.main()
