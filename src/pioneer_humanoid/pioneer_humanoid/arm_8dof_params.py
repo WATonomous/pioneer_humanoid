@@ -36,7 +36,12 @@ DEFAULT_JOINT_POS = {**{j: 0.0 for j in LEFT_ARM_JOINTS + RIGHT_ARM_JOINTS},
 
 # Joint PD groups (sim only): the old arm's tuning for the same motor class; AK45-10 wrist estimated
 # (2.5 Nm rated / 7 peak). effort_limit = the motor's PEAK torque.
-_GRIPPER = dict(stiffness=400.0, damping=40.0, effort_limit=34.0, velocity_limit=0.2)
+# Gripper (AK40-10, 1.3 Nm rated / 4.1 Nm peak, one rotary motor -> linkage -> both fingers): stiff like a servo in
+# position mode, so a finger blocked by an object reaches the force cap within ~5 mm (34 N = 7000 N/m x 4.9 mm).
+# 400 N/m capped the squeeze at 4-16 N (never the cap: 8.5 mm short of target > the 41 mm stroke) and let a 10 N push
+# open a finger 21 mm (now 1.4 mm). 34 N is the 4.1 Nm peak through the linkage (old arm's notes; ratio not verified).
+# damping ~ critical for the two 40 g fingers coupled.
+_GRIPPER = dict(stiffness=7000.0, damping=50.0, effort_limit=34.0, velocity_limit=0.2)
 ACTUATOR_GROUPS = {}
 for _s in ("left", "right"):
     ACTUATOR_GROUPS[f"{_s}_shoulder"] = dict(joints=[f"{_s}_shoulder_pitch", f"{_s}_shoulder_roll"],     # AK10-9
@@ -45,7 +50,7 @@ for _s in ("left", "right"):
                                         stiffness=1550.0, damping=110.0, effort_limit=22.0, velocity_limit=6.0)
     ACTUATOR_GROUPS[f"{_s}_wrist"] = dict(joints=[f"{_s}_wrist_pitch", f"{_s}_wrist_yaw"],                 # AK45-10
                                           stiffness=600.0, damping=30.0, effort_limit=7.0, velocity_limit=6.0)
-    ACTUATOR_GROUPS[f"{_s}_gripper"] = dict(joints=[f"{_s}_gripper"], **_GRIPPER)                         # GL40
+    ACTUATOR_GROUPS[f"{_s}_gripper"] = dict(joints=[f"{_s}_gripper"], **_GRIPPER)                         # AK40-10
 
 # Cameras: the ego camera is on base_link, which is the old arm's base_link frame, so it keeps the same mount.
 # Wrist cameras: between the fingers at the palm, looking along the gripper (link7 frame, from build_info.json).
