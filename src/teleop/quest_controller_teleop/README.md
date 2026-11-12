@@ -2,21 +2,20 @@
 
 Drive the Pioneer bimanual rig's **7-DoF + 1-DoF-gripper arms**
 ([`pioneer_bimanual_arm_8dof`](../../../assets/pioneer_bimanual_arm_8dof/README.md)) in MuJoCo with Meta Quest 2 Touch
-controllers. MuJoCo only (no Isaac: the arm has no USD yet); no recording yet.
+controllers. MuJoCo only (no Isaac: the arm has no USD yet). The headset only tracks; you watch the Mac's window.
 
 ## Run (no GPU, runs on a laptop)
 
 1. `pip install -r src/teleop/quest_controller_teleop/requirements.txt` (plus `numpy`, `Pillow`, `pyyaml`).
 2. Plug the Quest in (USB debugging allowed) and run, from the repo root:
    ```bash
-   src/teleop/quest_controller_teleop/start_quest.sh --scene bimanual_sorting --no-headset-video
+   src/teleop/quest_controller_teleop/start_quest.sh --scene bimanual_sorting
    ```
    It forwards the port, leaves one teleop tab in Meta Browser, starts the sim and clicks into VR for you (retrying
    until poses arrive), so the VR controllers never touch the page. If it gives up (headset asleep), wake the
    headset and rerun, or pull the trigger anywhere on the page.
 3. The Mac shows one camera window: ego on top, both wrist cameras below (~30 fps). **6** resets; closing it stops
-   the sim. `--no-headset-video` makes the headset tracking-only (no camera rendering for it), which keeps the
-   GPU for this window; leave it off to also see the cameras in the headset.
+   the sim. The headset shows a plain dark scene: it only streams poses.
 
 By hand: `python src/teleop/quest_controller_teleop/mujoco/mujoco_sim.py --scene bimanual_sorting`,
 `adb reverse tcp:8444 tcp:8444`, then open `http://localhost:8444/` in Meta Browser. Only Meta Browser can take
@@ -42,7 +41,7 @@ Input older than 200 ms pauses the arm; when tracking returns (or after a reset 
 Add `--record` to record LeRobot datasets for training (`pip install -e src/robot_learning[sim]` first):
 
 ```bash
-src/teleop/quest_controller_teleop/start_quest.sh --scene bowling --no-headset-video --record \
+src/teleop/quest_controller_teleop/start_quest.sh --scene bowling --record \
   --task_description "stand the bottles up"
 ```
 
