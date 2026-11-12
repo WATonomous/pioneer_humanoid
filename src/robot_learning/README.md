@@ -9,54 +9,51 @@ soon be 8dof too. The Quest VR teleop (`src/teleop/quest_controller_teleop`) rec
 
 ## 1. Collect demos
 
-Add `--record` to the leader-arm teleop (or any other teleop method of your choice), in Isaac or MuJoCo:
+Add `--record` to a teleop. The default (8dof arms, MuJoCo, runs on a laptop):
 
 ```bash
-# simulation_isaac container
-cd /workspace/humanoid/src/teleop/pioneer_leader_arm_teleop
-/workspace/isaaclab/isaaclab.sh -p pioneer_leader_arm_teleop.py --target isaac --scene vial_rack --record \
-  --task_description "put the vial in the rack" --num_episodes 20
-
-# simulation_mj container (CPU)
-python3 pioneer_leader_arm_teleop.py --target mujoco --scene peg_insert --record
+src/teleop/quest_controller_teleop/start_quest.sh --scene bowling --record --task_description "stand the bottles up"
+python3 src/teleop/pioneer_leader_arm_teleop/pioneer_leader_arm_teleop.py --scene peg_insert --record   # leader arm; macOS: mjpython
 ```
 
-| Key | Effect |
-|-----|--------|
-| S | Start the take |
-| N | Save the take, then the scene resets |
-| D | Discard the take and redo it |
-| R | Reset arm and scene (discards a take in progress) |
+| Teleop | Start a take | Save it (scene resets) | Discard |
+|--------|--------------|------------------------|---------|
+| Quest | right B (or 7) | right B (or 8) | left Y (or 9) |
+| Leader, MuJoCo | 7 | 8 | 9 |
+| Leader, Isaac (old arms) | S | N | D (R resets) |
 
-More info: [`src/teleop/pioneer_leader_arm_teleop/README.md`](../teleop/pioneer_leader_arm_teleop/README.md).
+Old 6-DoF arms in Isaac (simulation_isaac container):
 
-Output: `<repo>/datasets/pioneer_v1_left_arm/sim/`. Later sessions append to the same dataset.
+```bash
+/workspace/isaaclab/isaaclab.sh -p pioneer_leader_arm_teleop.py --target isaac --scene vial_rack --record \
+  --task_description "put the vial in the rack" --num_episodes 20
+```
+
+More: the [Quest](../teleop/quest_controller_teleop/README.md) and
+[leader](../teleop/pioneer_leader_arm_teleop/README.md) READMEs. Output: `<repo>/datasets/<dataset>/sim/` (later
+sessions append).
 
 ## 2. Data contract
 
-`config/pioneer_humanoid_dataset_schema.yaml`, shared by sim and real. **7 values** per arm, 25 fps. The left arm by default (dataset `pioneer_v1_left_arm`); the MuJoCo leader teleop records `--arms bimanual` as `pioneer_v1_bimanual` (left 7, then the same 7 for the right arm) or `--arms right` as `pioneer_v1_right_arm`:
-
-| # | Name | Unit |
-|---|------|------|
-| 1–3 | `left_shoulder_pitch`, `left_shoulder_roll`, `left_shoulder_yaw` | rad |
-| 4–5 | `left_elbow_pitch`, `left_elbow_roll` | rad |
-| 6 | `left_wrist_pitch` | rad |
-| 7 | `left_gripper` | 0 open … 1 closed |
-
-**The 8dof arms** (`pioneer_bimanual_arm_8dof`, sim only): `config/pioneer_8dof_dataset_schema.yaml`, **8 values** per
-arm: `left_shoulder_pitch`, `left_shoulder_roll`, `left_shoulder_yaw`, `left_elbow`, `left_forearm_roll`,
-`left_wrist_pitch`, `left_wrist_yaw` (rad), then `left_gripper` (0 open … 1 closed). Datasets `pioneer_8dof_*`, kept
-apart from `pioneer_v1_*`. The MuJoCo leader teleop records it by default (`--target mujoco`, the default, with `--robot 8dof`); `evaluate.py` picks the
-robot from the policy's action size (8 = 8dof, 7 = old arms) or `--robot`.
+25 fps. Per frame:
 
 | Field | Content |
 |-------|---------|
-| `observation.state` | measured joint positions + gripper closure |
+| `observation.state` | measured joint positions + gripper closure (0 open … 1 closed) |
 | `action` | commanded joint targets + gripper command |
-| `observation.images.<name>` | `ego` and `wrist_left` by default, 640×480 RGB (`wrist_right` off) |
+| `observation.images.<name>` | 640×480 RGB: `ego` + the wrists of the arms recorded |
 | `task` | `--task_description` |
 
-Camera poses and lenses: `pioneer_humanoid/arm_params.py`.
+**8dof arms (default)**, `config/pioneer_8dof_dataset_schema.yaml`: **8 values** per arm, left first:
+`shoulder_pitch`, `shoulder_roll`, `shoulder_yaw`, `elbow`, `forearm_roll`, `wrist_pitch`, `wrist_yaw` (rad),
+`gripper`. Datasets `pioneer_8dof_left_arm` / `_right_arm` / `_bimanual` (the Quest records `_bimanual`).
+
+**Old 6-DoF arms**, `config/pioneer_humanoid_dataset_schema.yaml` (Isaac and today's real arm): **7 values** per arm,
+`shoulder_pitch`, `shoulder_roll`, `shoulder_yaw`, `elbow_pitch`, `elbow_roll`, `wrist_pitch` (rad), `gripper`.
+Datasets `pioneer_v1_*`, never mixed with 8dof.
+
+`evaluate.py` picks the robot from the policy's action size (8 = 8dof, 7 = old arms) or `--robot`. Camera poses:
+`pioneer_humanoid/arm_8dof_params.py` (8dof), `arm_params.py` (old arms).
 
 ## 3. Train
 

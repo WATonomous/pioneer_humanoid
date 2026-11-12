@@ -1,7 +1,7 @@
 # Teleop
 
-All teleoperation entry points, one home. **Everything runs inside the
-`simulation_isaac` watod container** (Isaac Lab 2.3.2) — do not use host Isaac Lab.
+All teleoperation entry points, one home. The MuJoCo ones (Quest, leader arm by default) run natively, even on a
+laptop; **the Isaac ones run inside the `simulation_isaac` watod container** (Isaac Lab 2.3.2), not host Isaac Lab.
 
 ```bash
 # host: ACTIVE_MODULES="simulation_isaac" in watod-config.local.sh
@@ -14,9 +14,9 @@ The repo is bind-mounted at `/workspace/humanoid`. Shared arm config + IK helper
 
 | Folder | Input | Sim robot | Notes |
 |--------|-------|-----------|-------|
-| [`quest_controller_teleop/`](quest_controller_teleop/) | Quest 2 Touch controllers | pioneer_bimanual_arm_8dof (7-DoF + gripper), both arms, MuJoCo | mink IK, URDF limits + elbow rule, 1-euro input filter; see its README |
+| [`quest_controller_teleop/`](quest_controller_teleop/) | Quest 2 Touch controllers | pioneer_bimanual_arm_8dof (7-DoF + gripper), both arms, MuJoCo | `start_quest.sh` (one command), `--record`; see its README |
 | **`keyboard_teleop/`** | keyboard + IK | pioneer bimanual, left arm | see below |
-| [`pioneer_leader_arm_teleop/`](pioneer_leader_arm_teleop/) | 7-servo leader arm | pioneer bimanual, left arm | any `--scene`, `--record`; see its README |
+| [`pioneer_leader_arm_teleop/`](pioneer_leader_arm_teleop/) | leader arm (8 servos; 7 for the old arms) | pioneer_bimanual_arm_8dof in MuJoCo (default); old arms in Isaac / real | any `--scene`, `--record`; see its README |
 | [`task_space_controller/`](task_space_controller/) | viewport pose gizmo + IK | pioneer bimanual, left arm | `--publish-real-left-arm` drives the real arm — **its README covers the CAN pipeline + e-stop** |
 | `humanoid-record` (CLI) | ROS topics | real pioneer arm | `src/robot_learning` |
 

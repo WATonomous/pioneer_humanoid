@@ -1,12 +1,15 @@
 # pioneer_leader_arm_teleop
 
-The 7-servo leader arm (STS3215, torque always off) drives the Pioneer left arm joint to joint,
-with no IK, in any registered scene: plain MuJoCo (default, CPU, the 8dof arms) or Isaac Sim (`--target isaac`, the old 6-DoF arms).
+The leader arm (STS3215 servos, torque always off: 8 for the default 8dof arms, 7 for the old arms) drives the Pioneer
+arms joint to joint, with no IK, in any registered scene: plain MuJoCo (default, CPU, the 8dof arms) or Isaac Sim
+(`--target isaac`, the old 6-DoF arms).
 `--target real` compares the leader with the real arm (dry run, publishes nothing); `--live` then drives it (#327).
-Optional recording in the shared `pioneer_humanoid_dataset_schema.yaml` format, from either simulator.
+Optional recording (`--record`) in the robot's schema: `pioneer_8dof_dataset_schema.yaml` by default.
 
 Angles map **one-to-one** from a shared zero: arm hanging straight down under gravity, gripper open.
 That is the URDF zero, the real arm's calibrated zero, and the leader's (`calibrate_leader.py`).
+
+Old arms (`--robot armv2`, 7 servos):
 
 | Servo | Bus ID | Sim joint | Default sign |
 |-------|--------|-----------|--------------|
