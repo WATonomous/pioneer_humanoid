@@ -3,7 +3,7 @@
 Same headset page, IK and controls as the Isaac backend (scene_driver.py): open
 http://localhost:8444/ in Meta Browser after `adb reverse tcp:8444 tcp:8444`. The headset
 shows the ego camera and both wrist cameras (mono; the stereo eye pair is Isaac-only).
-Left Y (or 6 with the window focused) resets the arms and the scene.
+Left Y (or 6 with the window focused) resets the arms and the scene. --record: right B starts / saves a take.
 
 This machine shows one camera window (ego on top, both wrist cameras below; plain ``python``);
 ``--headless`` shows nothing. Runs on a Mac without a GPU.
@@ -24,11 +24,14 @@ _SRC = _THIS_DIR.parents[2]  # src/teleop/quest_controller_teleop/mujoco -> src
 # pioneer_humanoid and humanoid_mujoco_scenes; this fallback keeps an uninstalled checkout working.
 sys.path.insert(0, str(_SRC / "pioneer_humanoid"))
 sys.path.insert(0, str(_SRC / "simulation" / "mujoco_scenes"))
+sys.path.insert(0, str(_SRC / "robot_learning"))
 sys.path.insert(0, str(_THIS_DIR.parent))  # the simulator-independent controller modules
 sys.path.insert(0, str(_THIS_DIR))
 
 from mujoco_cameras import CameraStream, CameraWindow  # noqa: E402
 from scene_driver import ControllerSceneDriver, add_controller_args, check_controller_args  # noqa: E402
+from humanoid_robot_learning.sim.sim_teleop_record import (  # noqa: E402
+    add_record_args, load_record_schema, make_sim_recorder)
 
 CONTROL_DT = 0.01        # s, IK solve and actuator command period
 CAMERA_PERIOD = 1 / 15   # s, headset camera refresh (rendered on its own thread, ~30 ms for all three)
@@ -44,11 +47,12 @@ class ArmIds:
     dofs: list[int]
     arm_acts: list[int]
     grip_acts: list[int]
+    grip_qpos: list[int]
     grip_open: np.ndarray
     grip_closed: np.ndarray
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args():
     parser = argparse.ArgumentParser(description="Quest Touch controller teleoperation in MuJoCo (both arms).")
     parser.add_argument("--scene", default="bimanual_sorting",
                         help="scene registered in humanoid_mujoco_scenes (an unknown name lists them)")
@@ -56,12 +60,51 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--no-headset-video", action="store_true",
                         help="headset only tracks the controllers: no camera rendering, so the GPU is the window's")
     add_controller_args(parser)
+    add_record_args(parser, task_description="Quest VR teleop demonstration")
     # The ego camera looks 50 deg down, so its frame turns "hand up" into "wrist forward and up" and "hand back"
     # into "wrist back and up" (scripted-motion check). The upright base frame keeps up as up, forward as forward.
     parser.set_defaults(controller_frame="base")
     args = parser.parse_args()
     check_controller_args(parser, args)
-    return args
+    if args.record and args.cameras is None:
+        args.cameras = ",".join(CameraWindow.CAMERAS)   # both arms move: record both wrists
+    return args, load_record_schema(parser, args, arms=["left", "right"], robot="8dof")
+
+
+class Recording:
+    """Right B (or 7) starts a take and saves it (or 8); left Y, 6 or 9 discards it. Frames: 25 Hz of sim time."""
+
+    def __init__(self, recorder, window, every, driver):
+        self.recorder, self.window, self.every, self.driver = recorder, window, every, driver
+        self.flags = recorder.start_flags()
+        self.presses = self.saved_takes = 0
+
+    def toggle(self) -> None:
+        self.save() if self.flags.start else self.start()
+
+    def start(self) -> None:
+        if not self.flags.start:
+            self.flags.start = True
+            self.driver.status = "Recording: right B saves, left Y discards"
+
+    def save(self) -> None:
+        if self.flags.start:
+            self.flags.success = True   # the render thread saves at the next sample, then resets the scene
+
+    def discard(self) -> None:
+        if self.flags.start:
+            self.flags.start = False
+            self.window.discard()
+            self.driver.status = "Take discarded. Right B records a take."
+
+    def saved(self) -> None:
+        self.saved_takes += 1
+        self.driver.status = f"Saved take {self.saved_takes}. Right B records the next."
+
+    def status(self) -> str:
+        if self.flags.start:
+            return f"REC {self.recorder.num_buffered_frames / self.recorder.fps:.1f} s"
+        return f"{self.saved_takes} saved"
 
 
 def arm_ids(model, side: str) -> ArmIds:
@@ -76,6 +119,7 @@ def arm_ids(model, side: str) -> ArmIds:
         dofs=[model.joint(j).dofadr[0] for j in joints],
         arm_acts=[model.actuator(j).id for j in joints],
         grip_acts=[model.actuator(j).id for j in fingers],
+        grip_qpos=[model.joint(j).qposadr[0] for j in fingers],
         grip_open=np.array([grip_open[j] for j in fingers]),
         grip_closed=np.array([grip_closed[j] for j in fingers]),
     )
@@ -113,7 +157,7 @@ def make_driver(args, model, data) -> ControllerSceneDriver:
 
 
 def run() -> None:
-    args = parse_args()
+    args, record = parse_args()
     import mujoco
     from humanoid_mujoco_scenes import list_scenes, make_model, scene_reset, scene_step
     from pioneer_humanoid.mujoco_bimanual_arm_8dof import set_home
@@ -144,12 +188,22 @@ def run() -> None:
           f"(after adb reverse tcp:{args.controller_port} tcp:{args.controller_port}). Left Y or 6 in the window resets.", flush=True)
     reset_key = threading.Event()  # set by the window's key handler, consumed by the control loop
     stop = threading.Event()
-    window = None if args.headless else CameraWindow(model)
+    recorder, every = make_sim_recorder(args, record, device="cpu", sim_dt=dt)
+    sizes = {name: (int(spec["height"]), int(spec["width"])) for name, spec in record.images.items()}
+    window = None if args.headless and recorder is None else CameraWindow(model, sizes, recorder)
+    recording = Recording(recorder, window, every, driver) if recorder is not None else None
+    keys = {"6": reset_key.set}
+    if recording is not None:
+        window.on_saved = lambda: (recording.saved(), reset_key.set())
+        keys.update({"7": recording.start, "8": recording.save, "9": recording.discard})
+        print(f"[RECORD] Right B (or 7) records a take, again (or 8) saves it; left Y, 6 or 9 discards. "
+              f"Saving to {recorder.dataset_root}", flush=True)
 
     def control() -> None:
         driver.start_thread()   # the driver is owned by the thread that starts it: start, loop and close here
         try:
-            loop(model, data, driver, arms, cameras, window, reset, reset_key, scene_hook, substeps, dt, stop)
+            loop(model, data, driver, arms, cameras, window, recording, reset, reset_key, scene_hook, substeps, dt,
+                 stop)
         finally:
             stop.set()
             driver.close()
@@ -158,8 +212,8 @@ def run() -> None:
     worker = threading.Thread(target=control, name="control", daemon=True)
     worker.start()
     try:
-        if window is not None:
-            window.show(stop, reset_key, worker.is_alive)
+        if not args.headless:
+            window.show(stop, worker.is_alive, keys)
             stop.set()   # window closed: stop the sim
         while worker.is_alive():
             worker.join(timeout=.5)
@@ -170,21 +224,36 @@ def run() -> None:
         worker.join(timeout=2.)
         if cameras is not None:
             cameras.close()
+        if window is not None:
+            window.close()   # renders any queued recorded frames first
+        if recorder is not None:
+            recorder.finalize()
+            print(f"[RECORD] {recorder.num_recorded_episodes} takes saved under {recorder.dataset_root}", flush=True)
         print("\n[Quest] Stopped.", flush=True)
 
 
-def loop(model, data, driver, arms, cameras, window, reset, reset_key, scene_hook, substeps, dt, stop) -> None:
+def loop(model, data, driver, arms, cameras, window, recording, reset, reset_key, scene_hook, substeps, dt,
+         stop) -> None:
     """Control ticks at dt until `stop` is set (window closed, Ctrl+C): input, IK, physics, camera frames."""
     import mujoco
 
     def joint_positions():
         return {side: data.qpos[ids.qpos].copy() for side, ids in arms.items()}
 
-    next_tick, next_camera, shown = time.monotonic(), 0., None
+    next_tick, next_camera, shown, tick = time.monotonic(), 0., None, 0
     previous = {side: data.qpos[ids.qpos].copy() for side, ids in arms.items()}
     while not stop.is_set():
-        if driver.update(joint_positions()) or reset_key.is_set():  # left Y, or 6 in the window
+        if recording is not None and recording.recorder.is_complete:
+            print("[RECORD] Session complete.", flush=True)
+            break
+        reset_now = driver.update(joint_positions()) or reset_key.is_set()   # left Y, or 6 in the window
+        if recording is not None and driver.record_presses != recording.presses:
+            recording.presses = driver.record_presses
+            recording.toggle()
+        if reset_now:
             reset_key.clear()
+            if recording is not None:
+                recording.discard()   # frames either side of a reset are not one demo
             reset()
             driver.reset(joint_positions())
             previous = joint_positions()
@@ -194,6 +263,17 @@ def loop(model, data, driver, arms, cameras, window, reset, reset_key, scene_hoo
             data.ctrl[ids.arm_acts] = arm_ctrl(model, data, ids, commands[side], (commands[side] - previous[side]) / dt)
             previous[side] = commands[side]
             data.ctrl[ids.grip_acts] = ids.grip_open + driver.grippers[side] * (ids.grip_closed - ids.grip_open)
+        if recording is not None and recording.flags.start and tick % recording.every == 0:
+            # Before the step: image, state and action are of the same instant. Left arm first, as the schema.
+            action, state = [], []
+            for side, ids in arms.items():
+                closure = (data.qpos[ids.grip_qpos] - ids.grip_open) / (ids.grip_closed - ids.grip_open)
+                action.extend([*commands[side], driver.grippers[side]])
+                state.extend([*data.qpos[ids.qpos], float(np.clip(closure.mean(), 0., 1.))])
+            window.push_sample(data, np.asarray(action, np.float32), np.asarray(state, np.float32))
+        if recording is not None:
+            window.status = recording.status()
+        tick += 1
         if scene_hook is not None:
             scene_hook(model, data)
         mujoco.mj_step(model, data, nstep=substeps)

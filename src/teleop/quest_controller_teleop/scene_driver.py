@@ -100,6 +100,7 @@ class ControllerSceneDriver:
         self.grippers = {s: 0. for s in joint_names}
         self.sequence = -1
         self.reset_sequence = 0
+        self.record_presses = 0   # right-B presses so far (the scene backend toggles recording on each)
         self.status = "Tracked controllers move the arms. Left Y resets; stick-click pauses to calibrate."
         self.error = None
         # index.html shows the stereo pov_left/pov_right pair only for "isaac"; any other scene shows "ego".
@@ -211,6 +212,7 @@ class ControllerSceneDriver:
             lost = self.shared.interrupted.copy()
             self.shared.interrupted = {s: False for s in self.targets}
             reset_sequence = self.shared.reset_sequence
+            self.record_presses = self.shared.record_presses
         if reset_sequence != self.reset_sequence:
             self.reset_sequence = reset_sequence
             # Consume the frame containing Y; it must not move an arm after reset.

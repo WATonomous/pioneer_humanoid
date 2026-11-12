@@ -30,6 +30,8 @@ def _open_for_append(repo_id: str, root: Path):
     import datasets
     from lerobot.datasets.lerobot_dataset import LeRobotDataset
 
+    if hasattr(LeRobotDataset, "resume"):   # lerobot >= 0.7: the constructor opens read-only
+        return LeRobotDataset.resume(repo_id, root=root)
     with tempfile.TemporaryDirectory(prefix="lerobot_append_") as tmp:
         keep = datasets.config.HF_DATASETS_CACHE
         datasets.config.HF_DATASETS_CACHE = Path(tmp)
@@ -184,6 +186,11 @@ class SimLeRobotRecorder:
         self._flags = EpisodeFlags(start=False)
         self._keyboard = EpisodeKeyboard(self._flags, **keys)
         return self._keyboard.start()
+
+    def start_flags(self) -> EpisodeFlags:
+        """Like start_keyboard, without a keyboard: the caller sets the returned flags (e.g. from VR buttons)."""
+        self._flags = EpisodeFlags(start=False)
+        return self._flags
 
     def tick(
         self,

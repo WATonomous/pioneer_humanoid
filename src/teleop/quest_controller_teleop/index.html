@@ -72,7 +72,8 @@ function controller(frame, source) {
     trigger:b[0]?.value || 0, clutch:!!b[1]?.pressed,
     precision:!!b[4]?.pressed,
     calibrate:!!b[3]?.pressed,
-    reset_scene:source.handedness === 'left' && !!b[5]?.pressed};
+    reset_scene:source.handedness === 'left' && !!b[5]?.pressed,
+    record:source.handedness === 'right' && !!b[5]?.pressed};
 }
 
 function shader(type, source) {
