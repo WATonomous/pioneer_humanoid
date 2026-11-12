@@ -42,8 +42,8 @@ def generate_launch_description():
         ),
         Node(
             package='perception',
-            executable='dummy_tracknet_output',
-            name='dummy_tracknet_output',
+            executable='tracknet_node',
+            name='tracknet_node',
             output='screen',
         ),
         Node(
