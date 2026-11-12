@@ -23,6 +23,9 @@ outputs/
 # Recorded RealSense bags for terrain_mapping (GBs; mounted read-only into the container)
 Terrain Mapping Bags/
 
+# Generated from the pinned upstream commit and patches during the Docker build
+src/terrain_mapping/third_party/elevation_mapping_cupy/
+
 src/simulation/humanoid_rl/datasets/
 # pi0.5 training outputs: checkpoints + train_log.csv, and pioneer_eval_offline.py's plots
 src/robot_learning/humanoid_il/pi0.5/checkpoint/

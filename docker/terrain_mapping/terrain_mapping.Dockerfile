@@ -85,7 +85,8 @@ FROM dependencies AS build
 WORKDIR ${AMENT_WS}
 COPY src/terrain_mapping src/terrain_mapping
 
-RUN . /opt/ros/$ROS_DISTRO/setup.sh && \
+RUN src/terrain_mapping/third_party/vendor_elevation_mapping_cupy.sh && \
+    . /opt/ros/$ROS_DISTRO/setup.sh && \
     colcon build \
         --cmake-args -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF \
         --install-base ${WATONOMOUS_INSTALL} && \

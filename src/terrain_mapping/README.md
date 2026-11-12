@@ -10,7 +10,7 @@ It is perception only. It never starts `interfacing`, CAN, or `joint_command`.
 src/terrain_mapping/
 ├── terrain_mapping_bringup/      # our package: launch, configs, RViz, check_map.py
 └── third_party/
-    ├── elevation_mapping_cupy/   # vendored upstream (do not edit by hand)
+    ├── elevation_mapping_cupy/   # generated during the Docker build (gitignored)
     ├── patches/                  # Humble fixes applied on top of upstream
     └── vendor_elevation_mapping_cupy.sh
 docker/terrain_mapping/           # Dockerfile and the Fast DDS profile
@@ -62,7 +62,7 @@ colcon build --symlink-install
 source install/setup.bash
 ```
 
-Rebuild the image (`./watod build terrain_mapping`) only after you change the Dockerfile.
+Rebuild the image (`./watod build terrain_mapping`) after changing the Dockerfile, vendor script, or upstream patches.
 
 ## Run on a bag
 
@@ -137,77 +137,9 @@ The floor still tilts 0.2 to 2.9°, against a 1° target. The tilt is already pr
 | Floor | 1.5 m² of floor under 2.5 m depth; plane tilt not stable between runs | none within 2.5 m depth (the camera sees desks, not floor) |
 | Highest cell above highest camera | 0.30 m | 0.29 m |
 
-## Record a bag for terrain mapping
+## Record a bag
 
-Bags 001 and 002 miss most of the floor. The camera was handheld about 0.65 m up, looked nearly level, and turned in place.
-Record new bags this way so the map can be checked against the floor and against objects of known height.
-These steps follow RealSense ROS driver 4.58.4, the version in the perception image. Nobody has run them end to end with a camera yet.
-
-### Set up the camera and the scene
-
-- Mount the D455 rigidly at the humanoid's real camera height and angle, about 1.4 to 1.5 m above the floor. Use a pole, a tripod, or a helmet mount. Bags 001 and 002 were handheld and moved up and down by 0.2 to 0.5 m. The Nov 6 bags were handheld at about 1.65 m, above the robot's head.
-- Tilt the camera down about 30°. At 1.45 m, the floor is then in view from about 0.9 m out, and the image center meets the floor about 2.5 m ahead.
-- Measure the camera's height above the floor with a tape. The floor should map at minus that height.
-- Include an open stretch of floor, and place two or three boxes of measured height (for example 0.1 m and 0.2 m). A step, a curb, or a stair is better still.
-- Avoid glass walls and whiteboards close to the path. They reflect the IR projector, and the reflections land in the map as phantom floor below the real one.
-
-### Start the camera
-
-Start a one-off perception container with a shell. Its normal launch, `perception.launch.py`, holds the camera with different settings (no IMU, 640x480 depth, other topic names).
-Put `perception` in `ACTIVE_MODULES`, stop a running perception container, and run:
-
-```bash
-mkdir -p ~/terrain_bags
-./watod run --rm -v $HOME/terrain_bags:/bags_out perception bash
-```
-
-In that shell, start the driver:
-
-```bash
-ros2 launch realsense2_camera rs_launch.py \
-	depth_module.depth_profile:=848x480x30 \
-	rgb_camera.color_profile:=848x480x30 \
-	align_depth.enable:=true \
-	enable_gyro:=true enable_accel:=true unite_imu_method:=2
-```
-
-Before you record, make sure the IR projector is on for every frame. In a second shell, run:
-
-```bash
-ros2 param get /camera/camera depth_module.emitter_enabled   # expect 1 (laser on)
-ros2 param get /camera/camera depth_module.emitter_on_off    # expect False or 0
-```
-
-Do not record these bags with `src/perception/slam/config/d455.yaml`. Its `emitter: on_off` setting turns the projector off on every other frame. That helps visual SLAM, but it halves the usable depth frames.
-
-### Record
-
-Record only the topics the pipeline reads. They add up to about 85 MB/s, or about 5 GB per minute.
-
-```bash
-cd /bags_out
-ros2 bag record -o '003-D455(scene_name)' \
-	/tf_static /camera/camera/imu \
-	/camera/camera/depth/image_rect_raw /camera/camera/depth/camera_info \
-	/camera/camera/color/image_raw /camera/camera/color/camera_info \
-	/camera/camera/aligned_depth_to_color/image_raw /camera/camera/aligned_depth_to_color/camera_info
-```
-
-1. Hold the camera still for 3 s. The launch file computes the starting tilt from the first 0.25 s of IMU data.
-2. Walk slowly (about 0.3 m/s) across the floor and past the boxes. Turn slowly, at under about 45° per second.
-3. Stop at the starting point, facing the starting direction. The true end-to-start distance is then 0, so `check_map.py` measures the odometry drift directly.
-4. Stop recording after 30 to 90 s.
-
-Move the bag folder from `~/terrain_bags` into `Terrain Mapping Bags/`. Check that each bag folder holds a `.db3` file next to `metadata.yaml`. Two Nov 6 bags reached the shared drive with only `metadata.yaml`.
-Beside the bags, add a `notes.md` with tape-measured values:
-
-```markdown
-Camera: 1.45 m above the floor (lens centre), tilted 30° down, on a pole
-Step: 0.14 m high, 0.73 x 0.28 m, about 2 m ahead of the start
-Box: 0.39 m high, 0.39 x 0.36 m top
-Bags: 003 = walk past the step and box and back; 004 = ...
-```
-Then run it with `bag:='/bags/003-D455(scene_name)'`.
+Record D455 bags for terrain mapping and VSLAM using the [recording guide](recording.md).
 
 ## Pipeline
 
@@ -264,15 +196,18 @@ Turn them back on when `base_link_placeholder` is deleted.
 
 ## Upstream code
 
-`third_party/elevation_mapping_cupy` is upstream `ros2` branch commit `d9e1c9fe` (2026-10-04). It holds only the `elevation_mapping_cupy` and `elevation_map_msgs` packages and the MIT license.
+The Dockerfile runs `third_party/vendor_elevation_mapping_cupy.sh` before `colcon build`.
+The script fetches upstream `ros2` branch commit `d9e1c9fe42ea3d463519333a443da99f680adde8` (2026-10-04) into `third_party/elevation_mapping_cupy`, a generated, gitignored directory.
+It keeps the `elevation_mapping_cupy` and `elevation_map_msgs` packages and the MIT license.
 Upstream targets Jazzy. Each Humble fix is a file in `third_party/patches/`:
 
 - `0001-humble-rosbag2-topic-metadata.patch` fixes the `save_map` and `load_map` services, which fail on Humble without it.
 - `0002-drop-semantic-sensor.patch` drops the `semantic_sensor` dependency. That package is not vendored.
 - `0003-drop-tests.patch` removes upstream's test targets and test dependencies. The script deletes upstream's test folders after the patches apply, so the vendored code holds no tests.
 
-To move to a newer upstream commit, change `UPSTREAM_COMMIT` in `vendor_elevation_mapping_cupy.sh` and run the script. The script replaces the vendored folder, applies the patches, and deletes the tests.
-Never edit `third_party/elevation_mapping_cupy` by hand. Add a patch instead. The repo's autopep8 lint skips `src/terrain_mapping/third_party` for the same reason.
+To move to a newer upstream commit, change `UPSTREAM_COMMIT` in `vendor_elevation_mapping_cupy.sh` and rebuild the image. The script replaces the generated folder, applies the patches, and deletes the tests.
+For local inspection, run `src/terrain_mapping/third_party/vendor_elevation_mapping_cupy.sh` from the repo root.
+Keep upstream changes in `third_party/patches/` so each image build reproduces them.
 
 `ros2_numpy` has no Humble release. The Dockerfile builds its `humble` branch at commit `d665add`.
 
