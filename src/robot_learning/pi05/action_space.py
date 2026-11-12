@@ -1,3 +1,4 @@
+# Old 6-DoF arm only (Isaac has no 8dof USD yet). 8dof is the default; the real arm moves to 8dof soon.
 """Delta (relative) joint actions for the Pioneer pi0.5 policy.
 
 The dataset stores ABSOLUTE joint targets. In delta mode the policy instead predicts each step

@@ -1,3 +1,4 @@
+# Old 6-DoF arm only (today's real arm). 8dof is the default; the real arm moves to 8dof soon.
 """Adapter between Isaac Sim's pioneer_bimanual_arm (left chain) and RTCDrivenPolicy.
 
 Mirrors humanoid_so101_vial_task.utils.lerobot_interface.LeRobotSO101Interface's

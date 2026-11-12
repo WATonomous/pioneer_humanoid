@@ -1,3 +1,4 @@
+# Old 6-DoF arm only (today's real arm). 8dof is the default; the real arm moves to 8dof soon.
 """Leader arm -> real arm(s) teleop with a phased start: no need to put the leader at home.
 
     python3 real_arm_teleop.py [--arms right|bimanual] [--slow-rate 15] [--home-rate 5] [--skip-zero]

@@ -1,3 +1,4 @@
+# Old 6-DoF arm only (Isaac has no 8dof USD yet). 8dof is the default; the real arm moves to 8dof soon.
 """Isaac Pioneer cameras: the shared ego camera and the wrist cameras (moved from the removed quest_teleop/sim,
 whose Quest hand-tracking teleop recorded with them).
 

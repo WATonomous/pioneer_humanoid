@@ -37,13 +37,45 @@ FITTS_A = 0.25
 FITTS_B = 0.25
 # rad/s: fastest a hand turns a leader joint (a brisk human reach peaks around 2 rad/s at the elbow).
 LEADER_MAX_SPEED = 3.0
+# Null-space step toward mid-range per IK iteration on a redundant (7-joint) arm, per unit of (offset / half range)^2.
+LIMIT_AVOID_GAIN = 0.05   # default; HumanOperator(limit_avoid=) per task
 # The gripper as it takes things, as near its home pose as a grasp gets: fingers forward, tipped GRASP_PITCH down,
-# jaws closing across the table (pointing the fingers straight down would need a forearm roll first).
+# jaws closing across the table: 20 deg on both arms (HumanOperator(grasp_pitch=) sets another; on the 8dof arm 30 and
+# 45 deg failed more grasps with the task plans' jaw heights).
 # The operator aims a point between the jaws this far up the fingers from their tips (where a grip holds).
 TCP_ABOVE_TIPS = 0.025
 GRASP_PITCH = math.radians(20)
-GRASP_FINGERS = np.array([math.cos(GRASP_PITCH), 0.0, -math.sin(GRASP_PITCH)])
 GRASP_JAWS = np.array([0.0, -1.0, 0.0])
+# Below the tool point, how far the jaws reach down past their tips' tool-point offset: half a jaw's depth.
+JAW_DEPTH_HALF = 0.018
+
+
+def grasp_fingers(pitch: float) -> np.ndarray:
+    """World direction of the fingers in the grasp pose: forward, tipped `pitch` down."""
+    return np.array([math.cos(pitch), 0.0, -math.sin(pitch)])
+
+
+GRASP_FINGERS = grasp_fingers(GRASP_PITCH)
+
+
+def jaw_half(pitch: float) -> float:
+    """How far the tool point sits above the fingers' lowest point (their tips, tipped `pitch` down, plus the jaw)."""
+    return TCP_ABOVE_TIPS * math.sin(pitch) + JAW_DEPTH_HALF
+
+
+def _geom_points(model: mujoco.MjModel, data: mujoco.MjData, g: int) -> np.ndarray:
+    """World points bounding collision geom g: a box's 8 corners, a mesh's vertices, else its bounding box's corners."""
+    pos, rot = data.geom_xpos[g], data.geom_xmat[g].reshape(3, 3)
+    if model.geom_type[g] == mujoco.mjtGeom.mjGEOM_MESH:
+        mesh = model.geom_dataid[g]
+        start, count = model.mesh_vertadr[mesh], model.mesh_vertnum[mesh]
+        return pos + model.mesh_vert[start:start + count] @ rot.T
+    if model.geom_type[g] == mujoco.mjtGeom.mjGEOM_BOX:
+        centre, half = np.zeros(3), model.geom_size[g]
+    else:
+        centre, half = model.geom_aabb[g, :3], model.geom_aabb[g, 3:]
+    corners = np.array([[sx, sy, sz] for sx in (-1, 1) for sy in (-1, 1) for sz in (-1, 1)]) * half + centre
+    return pos + corners @ rot.T
 
 
 def minimum_jerk(s):
@@ -135,7 +167,8 @@ class HumanOperator:
 
     def __init__(self, model: mujoco.MjModel, observe: Callable[[], mujoco.MjData], tick: Callable[[np.ndarray, float], None],
                  joints: list[str], q_home, dt: float, rng: np.random.Generator, style: Style | None = None,
-                 fingers: tuple[str, str] = ("link7l", "link8l"), hand: str = "link6l"):
+                 fingers: tuple[str, str] = ("link7l", "link8l"), hand: str = "link6l", grasp_pitch: float = GRASP_PITCH,
+                 limit_avoid: float = LIMIT_AVOID_GAIN):
         self.m, self.observe, self._tick, self.dt, self.rng = model, observe, tick, dt, rng
         self.style = style or Style.sample(rng)
         self.hand = model.body(hand).id
@@ -147,21 +180,34 @@ class HumanOperator:
         self.q_home = self.q.copy()
         self.kin.qpos[self.qadr] = self.q
         mujoco.mj_kinematics(model, self.kin)
-        jaws = [g for g in range(model.ngeom) if model.geom_contype[g] and model.geom_bodyid[g] in [model.body(b).id for b in fingers]]
         R = self.kin.xmat[self.hand].reshape(3, 3).copy()
-        centre = R.T @ (self.kin.geom_xpos[jaws].mean(0) - self.kin.xpos[self.hand])
+        # Each finger's collision geometry as points in the hand frame: box corners (the old arm's slab pads) or the
+        # convex hull's vertices (the 8dof arm's fingers). Their mean is between the jaws.
+        pts = [np.vstack([_geom_points(model, self.kin, g) for g in range(model.ngeom)
+                          if model.geom_contype[g] and model.geom_bodyid[g] == model.body(b).id])
+               @ R - R.T @ self.kin.xpos[self.hand] for b in fingers]
+        centre = np.vstack(pts).mean(0)
         f = centre / np.linalg.norm(centre)              # along the fingers, hand frame
         # the tool point is TCP_ABOVE_TIPS up the fingers from their tips, between the jaws
-        tips = max(float((R.T @ (self.kin.geom_xpos[g] - self.kin.xpos[self.hand]) + np.abs(
-            R.T @ self.kin.geom_xmat[g].reshape(3, 3)) @ model.geom_size[g]) @ f) for g in jaws)
+        jaws = [g for g in range(model.ngeom) if model.geom_contype[g] and model.geom_bodyid[g] in [model.body(b).id for b in fingers]]
+        if all(model.geom_type[g] == mujoco.mjtGeom.mjGEOM_BOX for g in jaws):
+            # The old arm's box pads: the tips as its synthetic demos were tuned with (each box's half-extents along the
+            # hand axes, projected on f), kept so its takes stay reproducible.
+            tips = max(float((R.T @ (self.kin.geom_xpos[g] - self.kin.xpos[self.hand]) + np.abs(
+                R.T @ self.kin.geom_xmat[g].reshape(3, 3)) @ model.geom_size[g]) @ f) for g in jaws)
+        else:
+            tips = max(float((p @ f).max()) for p in pts)
         self.tcp_off = centre + (tips - TCP_ABOVE_TIPS - centre @ f) * f
         self.R_home = R
         # hand frame -> world for the grasp pose: map the fingers' and the jaws' closing directions (hand frame) onto it
-        side = [self.kin.geom_xpos[[g for g in jaws if model.geom_bodyid[g] == model.body(b).id]].mean(0) for b in fingers]
-        a = R.T @ (side[1] - side[0])
+        a = pts[1].mean(0) - pts[0].mean(0)
         a = a - (a @ f) * f
         a /= np.linalg.norm(a)
-        self.R_down = (np.column_stack([GRASP_FINGERS, GRASP_JAWS, np.cross(GRASP_FINGERS, GRASP_JAWS)])
+        fingers_down = grasp_fingers(grasp_pitch)
+        self.grasp_pitch = grasp_pitch
+        self.limit_avoid = limit_avoid                   # redundant arm only: null-space pull off the joint limits
+        self.jaw_half = jaw_half(grasp_pitch)            # tool point above the jaws' lowest point, in the grasp pose
+        self.R_down = (np.column_stack([fingers_down, GRASP_JAWS, np.cross(fingers_down, GRASP_JAWS)])
                        @ np.column_stack([f, a, np.cross(f, a)]).T)
         self.t = 0.0
         self.pos = _Channel(self._tcp(self.kin))
@@ -471,9 +517,17 @@ class HumanOperator:
             tcp = self._tcp(kin)
             e = np.concatenate([target - tcp, 0.5 * sum(np.cross(Rc[:, i], R[:, i]) for i in range(3))])
             err = float(np.linalg.norm(e))
-            if err < 1e-5:
+            if err < 1e-5 and (len(q) <= 6 or self.limit_avoid <= 0):   # else keep iterating: the null-space step runs
                 break
             mujoco.mj_jac(m, kin, jp, jr, tcp, self.hand)
             J = np.vstack([jp[:, self.vadr], jr[:, self.vadr]])
-            q = np.clip(q + J.T @ np.linalg.solve(J @ J.T + 1e-4 * np.eye(6), e), self.lim[:, 0], self.lim[:, 1])
+            Jp = J.T @ np.linalg.inv(J @ J.T + 1e-4 * np.eye(6))
+            dq = Jp @ e
+            if len(q) > 6 and self.limit_avoid > 0:
+                # A redundant arm (the 8dof's 7 joints): spend the spare joint keeping every joint off its limits, the
+                # way a person holds a 7-DoF leader (elbow out of the way, wrist mid-range), in J's null space so the
+                # hand pose is untouched. The 6-DoF arm has no null space, so its solutions are unchanged.
+                mid, half = self.lim.mean(1), (self.lim[:, 1] - self.lim[:, 0]) / 2
+                dq = dq + (np.eye(len(q)) - Jp @ J) @ (-self.limit_avoid * (q - mid) / half ** 2)
+            q = np.clip(q + dq, self.lim[:, 0], self.lim[:, 1])
         return q, err

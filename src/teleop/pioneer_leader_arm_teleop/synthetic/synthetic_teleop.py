@@ -2,6 +2,12 @@
 
     python synthetic/synthetic_teleop.py --scene drawer_stow --record --num_episodes 10
     python synthetic/synthetic_teleop.py --scene peg_insert --num_episodes 3 --preview peg.mp4   # look first, no dataset
+    python synthetic/synthetic_teleop.py --scene drawer_stow --robot armv2 --record   # the old 6-DoF arm
+
+--robot: 8dof (default) = pioneer_bimanual_arm_8dof's left arm (7 joints + gripper, the 8-servo leader's mapping,
+pioneer_8dof_dataset_schema.yaml), armv2 = the old 6-DoF arm (pioneer_humanoid_dataset_schema.yaml). The old arm grasps
+20 deg down; the 8dof arm's grasp pitch and IK null-space pull (its 7th joint kept off the limits) are per task
+(synthetic_tasks.Task). SYNTH_GRASP_PITCH_DEG / SYNTH_LIMIT_AVOID_GAIN override them for tuning runs.
 
 Same pipeline as ``pioneer_leader_arm_teleop.py --target mujoco --record``: the operator's leader angles
 go through the same LeaderMapping (engage at home, low-pass filter, URDF clamp), and frames are recorded
@@ -33,26 +39,50 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from humanoid_robot_learning.sim.sim_teleop_record import add_record_args, load_record_schema, make_sim_recorder  # noqa: E402
 
 from arm_limits import GRIPPER_OPEN_DEG  # noqa: E402
-from leader_mapping import CONTROL_DT, DEFAULT_SIGNS, WRIST_DAMPING, LeaderMapping  # noqa: E402
-from servo_leader import parse_signs  # noqa: E402
+from leader_mapping import CONTROL_DT, ROBOT_SIDE_SIGNS, WRIST_DAMPING, LeaderMapping  # noqa: E402
+from servo_leader import LAYOUTS, parse_signs  # noqa: E402
+
+# Per sim robot: the operator's hand (the last arm link), its fingers, the grasp pitch it takes things at, and the
+# wrist actuator that gets the leader teleop's lower damping (None: keep the model's).
+ROBOTS = {
+    "8dof": dict(hand="left_link7", fingers=("left_finger_a", "left_finger_b"), grasp_pitch_deg=20.0, wrist=None),
+    "armv2": dict(hand="link6l", fingers=("link7l", "link8l"), grasp_pitch_deg=20.0, wrist="joint6l"),
+}
+DEFAULT_ROBOT = "8dof"
+
+
+def _robot_modules(robot: str):
+    """(params module, set_home) of a sim robot."""
+    if robot == "8dof":
+        from pioneer_humanoid import arm_8dof_params as params
+        from pioneer_humanoid.mujoco_bimanual_arm_8dof import set_home
+    elif robot == "armv2":
+        from pioneer_humanoid import arm_params as params
+        from pioneer_humanoid.mujoco_bimanual_arm import set_home
+    else:
+        raise ValueError(f"unknown robot {robot!r}; known: {list(ROBOTS)}")
+    return params, set_home
 
 
 class TeleopSim:
     """mujoco_sim.py's control/record loop, driven by leader angles instead of the serial leader."""
 
-    def __init__(self, scene: str, seed: int, cameras: dict[str, tuple[int, int]] | None = None, filter_alpha: float = 0.35):
+    def __init__(self, scene: str, seed: int, cameras: dict[str, tuple[int, int]] | None = None, filter_alpha: float = 0.35,
+                 robot: str = DEFAULT_ROBOT):
         """``cameras``: {name: (height, width)} to render with ``render_at`` (the recording's render workers)."""
         import mujoco
         import numpy as np
         from humanoid_mujoco_scenes import make_model, scene_progress, scene_reset, scene_step
-        from pioneer_humanoid.arm_params import LEFT_ARM_JOINTS, LEFT_GRIPPER_CLOSED, LEFT_GRIPPER_JOINTS, LEFT_GRIPPER_OPEN
-        from pioneer_humanoid.mujoco_bimanual_arm import set_home
 
+        params, set_home = _robot_modules(robot)
+        LEFT_ARM_JOINTS, LEFT_GRIPPER_JOINTS = params.LEFT_ARM_JOINTS, params.LEFT_GRIPPER_JOINTS
+        LEFT_GRIPPER_OPEN, LEFT_GRIPPER_CLOSED = params.LEFT_GRIPPER_OPEN, params.LEFT_GRIPPER_CLOSED
         self.mujoco, self.np = mujoco, np
-        self.scene = scene
-        self.model = model = make_model(scene, cameras=cameras, robot="armv2")  # 6-DoF joint names; not yet ported to 8dof
+        self.scene, self.robot, self.cfg = scene, robot, ROBOTS[robot]
+        self.model = model = make_model(scene, cameras=cameras, robot=robot)
         self.data = data = mujoco.MjData(model)
-        model.actuator_biasprm[model.actuator("joint6l").id, 2] = -WRIST_DAMPING
+        if self.cfg["wrist"] is not None:
+            model.actuator_biasprm[model.actuator(self.cfg["wrist"]).id, 2] = -WRIST_DAMPING
         self.hook, self.progress = scene_step(scene), scene_progress(scene)
         self.joints = LEFT_ARM_JOINTS
         self.arm_acts = [model.actuator(j).id for j in LEFT_ARM_JOINTS]
@@ -67,11 +97,13 @@ class TeleopSim:
             randomise(model, data, np.random.default_rng([seed, 0]))
         mujoco.mj_forward(model, data)
         self.home = [data.ctrl[a] for a in self.arm_acts]
-        self.signs = parse_signs(DEFAULT_SIGNS)
+        layout = LAYOUTS[robot]
+        self.signs = parse_signs(ROBOT_SIDE_SIGNS[robot]["left"], layout.servo_ids)
         self.mapping = LeaderMapping(
             self.signs, filter_alpha,
             home_rad=self.home,
             limits_rad=[tuple(model.jnt_range[model.joint(j).id]) for j in LEFT_ARM_JOINTS],
+            layout=layout,
         )
         self.substeps = max(1, round(CONTROL_DT / model.opt.timestep))
         self.control_dt = self.substeps * model.opt.timestep
@@ -96,7 +128,7 @@ class TeleopSim:
         data.ctrl[self.grip_acts] = [o + g * (c - o) for o, c in zip(self.grip_open, self.grip_closed)]
         if self.mapping.engaged and self.record_every and self.steps % self.record_every == 0:
             if self.frame_sink is not None:
-                # Same features as mujoco_sim.py: 6 joints + mean finger closure / 6 targets + leader grip.
+                # Same features as mujoco_sim.py: the arm joints + mean finger closure / joint targets + leader grip.
                 closure = sum((data.qpos[q] - o) / (c - o) for q, o, c in zip(self.grip_qpos, self.grip_open, self.grip_closed)) / len(self.grip_qpos)
                 state = np.append(data.qpos[self.arm_qpos], min(max(closure, 0.0), 1.0)).astype(np.float32)
                 action = np.append(target, g).astype(np.float32)
@@ -133,13 +165,13 @@ _WORKER_SIMS: dict = {}
 
 def _render_job(job):
     """Render pool worker: images of episode (scene, seed) at one recorded frame's qpos."""
-    scene, seed, cameras, qpos = job
-    key = (scene, seed)
+    scene, seed, cameras, qpos, robot = job
+    key = (scene, seed, robot)
     if key not in _WORKER_SIMS:
         for old in _WORKER_SIMS.values():
             old.close()
         _WORKER_SIMS.clear()
-        _WORKER_SIMS[key] = TeleopSim(scene, seed, cameras)   # same seed: same layout (e.g. peg_insert's block)
+        _WORKER_SIMS[key] = TeleopSim(scene, seed, cameras, robot=robot)   # same seed: same layout (e.g. peg_insert's block)
     return _WORKER_SIMS[key].render_at(qpos)
 
 
@@ -147,12 +179,12 @@ class _Recording:
     """Feeds one take's frames into the recorder in order, rendering the cameras on a process pool while the
     simulation runs (CPU rendering is the slow part; physics and the operator stay on this process)."""
 
-    def __init__(self, recorder, pool, scene: str, seed: int, cameras):
-        self.recorder, self.pool, self.job = recorder, pool, (scene, seed, cameras)
+    def __init__(self, recorder, pool, scene: str, seed: int, cameras, robot: str = DEFAULT_ROBOT):
+        self.recorder, self.pool, self.job, self.robot = recorder, pool, (scene, seed, cameras), robot
         self.pending = []
 
     def __call__(self, action, state, task, extras, qpos) -> None:
-        self.pending.append((action, state, task, extras, self.pool.submit(_render_job, (*self.job, qpos))))
+        self.pending.append((action, state, task, extras, self.pool.submit(_render_job, (*self.job, qpos, self.robot))))
         self.drain(block=len(self.pending) > 64)   # bounded queue: images wait in the recorder, not here
 
     def drain(self, block: bool = False) -> None:
@@ -162,7 +194,8 @@ class _Recording:
             block = block and len(self.pending) > 32
 
 
-def run_episode(scene: str, seed: int, frame_sink=None, record_every: int = 0, on_frame=None, pace: float = 1.0):
+def run_episode(scene: str, seed: int, frame_sink=None, record_every: int = 0, on_frame=None, pace: float = 1.0,
+                robot: str = DEFAULT_ROBOT):
     """Play one synthetic take; returns (success, sim seconds, notes, the operator's style as a dict)."""
     import dataclasses
 
@@ -171,11 +204,10 @@ def run_episode(scene: str, seed: int, frame_sink=None, record_every: int = 0, o
     from humanoid_mujoco_scenes import scene_success
     from synthetic_tasks import TASKS, TaskFailed
 
-    sim = TeleopSim(scene, seed)
+    sim = TeleopSim(scene, seed, robot=robot)
     sim.frame_sink, sim.record_every, sim.on_frame = frame_sink, record_every, on_frame
     rng = np.random.default_rng([seed, 1])
-    op = HumanOperator(sim.model, lambda: sim.data, sim.tick, sim.joints, sim.home, sim.control_dt, rng,
-                       style=Style.sample(rng, pace))
+    op = make_operator(sim, rng, style=Style.sample(rng, pace))
     task = TASKS[scene]
     notes = []
     try:
@@ -189,20 +221,36 @@ def run_episode(scene: str, seed: int, frame_sink=None, record_every: int = 0, o
     return ok, sim.data.time, notes, {k: round(float(v), 5) for k, v in dataclasses.asdict(op.style).items()}
 
 
+def make_operator(sim: TeleopSim, rng, style=None):
+    """The simulated person on `sim`'s leader: its hand, fingers and grasp pitch from ROBOTS."""
+    import math
+
+    from human_operator import HumanOperator
+    from synthetic_tasks import TASKS
+    cfg, task = sim.cfg, TASKS.get(sim.scene)
+    pitch, avoid = cfg["grasp_pitch_deg"], 0.0
+    if sim.robot == "8dof" and task is not None:   # per-task grip on the 8dof arm (synthetic_tasks.Task)
+        pitch, avoid = task.grasp_pitch_deg_8dof, task.limit_avoid_8dof
+    pitch = float(os.environ.get("SYNTH_GRASP_PITCH_DEG", pitch))   # overrides for tuning runs
+    avoid = float(os.environ.get("SYNTH_LIMIT_AVOID_GAIN", avoid))
+    return HumanOperator(sim.model, lambda: sim.data, sim.tick, sim.joints, sim.home, sim.control_dt, rng, style=style,
+                         fingers=cfg["fingers"], hand=cfg["hand"], grasp_pitch=math.radians(pitch), limit_avoid=avoid)
+
+
 def _probe(job):
-    scene, seed, pace = job
+    scene, seed, pace, robot = job
     os.environ.setdefault("MUJOCO_GL", "egl")
     t0 = time.time()
-    ok, sim_t, notes, _ = run_episode(scene, seed, pace=pace)
+    ok, sim_t, notes, _ = run_episode(scene, seed, pace=pace, robot=robot)
     return seed, ok, sim_t, time.time() - t0, notes
 
 
-def self_test() -> None:
+def self_test(robot: str = DEFAULT_ROBOT) -> None:
     """Check the virtual leader without recording: angle math, motion model, a short reach."""
     import numpy as np
-    from human_operator import HumanOperator, _Channel, minimum_jerk
+    from human_operator import _Channel, minimum_jerk
 
-    sim = TeleopSim("bare", 0, filter_alpha=1.0)   # no low-pass: targets must equal the leader exactly
+    sim = TeleopSim("bare", 0, filter_alpha=1.0, robot=robot)   # no low-pass: targets must equal the leader exactly
     sim.mapping.update(sim.leader_angles(sim.home, 0.0))
     assert sim.mapping.engaged
     q = np.array(sim.home) + 0.1
@@ -215,12 +263,12 @@ def self_test() -> None:
     ch.add(0.5, 1.0, [0.0, 2.0])
     assert np.allclose(ch.goal(), [1.0, 2.0]) and np.allclose(ch.at(2.0), [1.0, 2.0])
 
-    sim = TeleopSim("bare", 0)
-    op = HumanOperator(sim.model, lambda: sim.data, sim.tick, sim.joints, sim.home, sim.control_dt, np.random.default_rng(0))
+    sim = TeleopSim("bare", 0, robot=robot)
+    op = make_operator(sim, np.random.default_rng(0))
     goal = op.follower_tcp() + (0.05, -0.05, 0.0)
     err = op.move(goal, tol=0.005)
     assert err < 0.01, f"reach missed by {err * 1000:.1f} mm"
-    print(f"self-test ok (reach error {err * 1000:.1f} mm in {sim.data.time:.1f} s)")
+    print(f"self-test ok, {robot} (reach error {err * 1000:.1f} mm in {sim.data.time:.1f} s)")
 
 
 def main() -> None:
@@ -233,11 +281,13 @@ def main() -> None:
                         help="operator tempo: 1 a practised operator, 0.5 a slow careful beginner, 1.5 brisk")
     parser.add_argument("--preview", type=str, default=None, help="also write an mp4 of the kept takes (scene camera)")
     parser.add_argument("--self-test", action="store_true", help="check the leader math and motion model and exit")
+    parser.add_argument("--robot", choices=tuple(ROBOTS), default=DEFAULT_ROBOT,
+                        help="sim arm: 8dof (7 joints + gripper) or armv2 (the old 6-DoF arm)")
     add_record_args(parser, task_description="")
     args = parser.parse_args()
     if args.self_test:
-        return self_test()
-    record = load_record_schema(parser, args, arms=["left"])
+        return self_test(args.robot)
+    record = load_record_schema(parser, args, arms=["left"], robot=args.robot)
     os.environ.setdefault("MUJOCO_GL", "egl")
 
     from synthetic_tasks import TASKS
@@ -259,7 +309,7 @@ def main() -> None:
     if want <= 0:
         return
     kept, takes = [], {}
-    jobs = [(args.scene, args.seed + i, args.pace) for i in range(tries) if args.seed + i not in done_seeds]
+    jobs = [(args.scene, args.seed + i, args.pace, args.robot) for i in range(tries) if args.seed + i not in done_seeds]
     ctx = multiprocessing.get_context("fork")
     with ctx.Pool(args.workers) as pool:
         for seed, ok, sim_t, wall, notes in pool.imap(_probe, jobs):
@@ -298,7 +348,7 @@ def main() -> None:
                     raise SystemExit(f"seed {seed} succeeded without cameras but failed on its camera replay: not deterministic")
                 print(f"[SYNTH] seed {seed}: saved ({sim_t:.1f} s, {time.time() - t0:.0f} s wall)", flush=True)
             if preview is not None:
-                run_episode(args.scene, seed, record_every=4, on_frame=preview.frame, pace=args.pace)
+                run_episode(args.scene, seed, record_every=4, on_frame=preview.frame, pace=args.pace, robot=args.robot)
     finally:
         if preview is not None:
             preview.close()
@@ -323,7 +373,7 @@ def _record_take(args, record, seed: int, take_s: float, result) -> None:
     from concurrent.futures import ProcessPoolExecutor
 
     cameras = {n: (int(s["height"]), int(s["width"])) for n, s in record.images.items()}
-    probe = TeleopSim(args.scene, seed, None)
+    probe = TeleopSim(args.scene, seed, None, robot=args.robot)
     # Frame buffers sized to this take (not the default 120 s): ~0.9 GB per 10 s with two 640x480 cameras.
     recorder, record_every = make_sim_recorder(args, record, device="cpu", sim_dt=probe.control_dt,
                                                extra_features={"subtask_index": ["subtask_index"]} if probe.progress else None,
@@ -333,8 +383,8 @@ def _record_take(args, record, seed: int, take_s: float, result) -> None:
     # CPU rendering is the slow part: 2 spawned render workers (~1.3 GB each with osmesa).
     pool = ProcessPoolExecutor(max_workers=min(args.workers, 2), mp_context=multiprocessing.get_context("spawn"))
     try:
-        rec = _Recording(recorder, pool, args.scene, seed, cameras)
-        ok, sim_t, notes, style = run_episode(args.scene, seed, rec, record_every, pace=args.pace)
+        rec = _Recording(recorder, pool, args.scene, seed, cameras, robot=args.robot)
+        ok, sim_t, notes, style = run_episode(args.scene, seed, rec, record_every, pace=args.pace, robot=args.robot)
         rec.drain(block=True)
     finally:
         pool.shutdown(cancel_futures=True)
@@ -342,7 +392,8 @@ def _record_take(args, record, seed: int, take_s: float, result) -> None:
         recorder.save_episode()
         recorder.wait_saved()
         with open(Path(recorder.dataset_root) / TAKES_FILE, "a") as f:
-            f.write(json.dumps({"episode_index": episode, "scene": args.scene, "seed": seed, "pace": args.pace, "take_s": round(sim_t, 2),
+            f.write(json.dumps({"episode_index": episode, "scene": args.scene, "robot": args.robot, "seed": seed,
+                                "pace": args.pace, "take_s": round(sim_t, 2),
                                 "notes": notes, "operator": style}) + "\n")
     else:   # physics is deterministic, so this would be a bug; never save a failed take
         recorder.cancel_recording()

@@ -1,3 +1,4 @@
+# Old 6-DoF arm model (--robot armv2); 8dof is the default. Its FINGER_* constants are shared with the 8dof.
 """pioneer_bimanual_arm for plain MuJoCo: the URDF plus joint limits and PD position actuators.
 
 Same numbers as the Isaac config (bimanual_arm.py), from arm_params.py and urdf_joint_limits.py.

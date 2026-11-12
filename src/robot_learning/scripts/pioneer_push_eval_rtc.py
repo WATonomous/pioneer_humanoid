@@ -1,3 +1,4 @@
+# Old 6-DoF arm only (Isaac has no 8dof USD yet). 8dof is the default; the real arm moves to 8dof soon.
 """Closed-loop RTC rollout of a flow-matching policy on the pioneer left arm, push-block scene.
 
 Scene = the "push" entry of humanoid_isaac_scenes (same layout/assets as the RL push-block task),
