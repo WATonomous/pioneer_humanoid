@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use this software in your own work, please cite the following paper."
+preferred-citation:
+  type: conference-paper
+  authors:
+  - family-names: "Dunkelberger"
+    given-names: "Nathan"
+  - family-names: "Sheetz"
+    given-names: "Emily"
+  - family-names: "Rainen"
+    given-names: "Connor"
+  - family-names: "Graf"
+    given-names: "Jodi"
+  - family-names: "Hart"
+    given-names: "Nikki"
+  - family-names: "Zemler"
+    given-names: "Emma"
+  - family-names: "Azimi"
+    given-names: "Shaun"
+  title: "Design of the iMETRO Facility: A Platform for Intravehicular Space Robotics Research"
+  doi: 10.1109/UR65550.2025.11077983
+  collection-title: "2025 22nd International Conference on Ubiquitous Robots (UR)"
+  year: 2025
+  pages: {390-397}

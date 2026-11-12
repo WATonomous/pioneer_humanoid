@@ -25,13 +25,14 @@ class _Entry:
     robot_rot: tuple = (1.0, 0.0, 0.0, 0.0)  # wxyz
     camera: Optional[tuple] = None  # (eye_xyz, target_xyz) for the teleop initial view
     post_init: Optional[Callable] = None  # post_init(scene, sim) -- see module docstring
+    robot_joint_pos: Optional[dict] = None
 
 
 _REGISTRY: dict[str, _Entry] = {}
 _DISCOVERED = False
 
 
-def scene(name: str, *, robot_pos=(0.0, 0.0, 0.0), robot_rot=(1.0, 0.0, 0.0, 0.0), camera=None, post_init=None):
+def scene(name: str, *, robot_pos=(0.0, 0.0, 0.0), robot_rot=(1.0, 0.0, 0.0, 0.0), camera=None, post_init=None, robot_joint_pos=None):
     """Register an ``InteractiveSceneCfg`` subclass under ``name``.
 
     robot_pos: where to place the arm base. Scenes with a low table (arm reaching
@@ -44,9 +45,11 @@ def scene(name: str, *, robot_pos=(0.0, 0.0, 0.0), robot_rot=(1.0, 0.0, 0.0, 0.0
                lets the teleop script fall back to its default framing.
     post_init: optional ``post_init(scene, sim)`` for assets that can't be
                built from a declarative cfg field -- see module docstring.
+    robot_joint_pos: optional initial joint pose override for task clearance;
+               applied to the caller's robot config without changing its source.
     """
     def deco(cfg_cls):
-        _REGISTRY[name] = _Entry(cfg_cls, tuple(robot_pos), tuple(robot_rot), camera, post_init)
+        _REGISTRY[name] = _Entry(cfg_cls, tuple(robot_pos), tuple(robot_rot), camera, post_init, robot_joint_pos)
         return cfg_cls
 
     return deco
@@ -94,6 +97,8 @@ def make_scene_cfg(name, robot_cfg, *, num_envs=1, env_spacing=2.0, prim_path="{
         prim_path=prim_path,
         init_state=robot_cfg.init_state.replace(pos=entry.robot_pos, rot=entry.robot_rot),
     )
+    if entry.robot_joint_pos is not None:
+        cfg.robot.init_state.joint_pos = dict(entry.robot_joint_pos)
     if hasattr(cfg, "ee_frame"):
         cfg.ee_frame = None
     return cfg

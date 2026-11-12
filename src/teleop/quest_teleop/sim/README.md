@@ -254,6 +254,24 @@ tracked — homed at ...` as each wrist is first tracked.
 
 ## Controls
 
+### NASA cargo pick-and-place scene
+
+From the repo root inside `simulation_isaac`:
+
+```bash
+src/teleop/quest_teleop/sim/run_quest_bimanual_teleop.sh --scene nasa_cargo
+# Record both arms for your learned policy:
+src/teleop/quest_teleop/sim/run_quest_bimanual_teleop.sh \
+  --scene nasa_cargo --record --record-arms bimanual
+```
+
+The default `--scene quest_box` keeps the original box/container workcell.
+`nasa_cargo` uses NASA's cargo bag on a pickup station beside a receiving tray.
+Both arms keep the existing wrist tracking and pinch controls. `T` resets
+the bag and arms and drops the current take; `S` saves and `D` discards.
+See the [cargo task guide](../../../../assets/nasa_cargo/README.md) for the
+recording format, lightweight mass setting, source attribution and task metrics.
+
 | Action | Effect |
 |--------|--------|
 | Move right wrist | Right arm follows |
@@ -265,11 +283,11 @@ tracked — homed at ...` as each wrist is first tracked.
 Pass `--gain VALUE` (default `1.0`) to `run_quest_bimanual_teleop.sh` to scale
 how far the arm moves per metre of real wrist motion.
 
-The scene always includes a white lightbox enclosure + table around the arm
+The default `quest_box` scene includes a white lightbox enclosure + table around the arm
 stand — same geometry as `BimanualPushBlockSceneCfg` in
 `humanoid_rl_tasks/push_block/push_env_cfg.py` (plain emissive-white
 `CuboidCfg` walls, lit by the scene's existing dome light; no RectLight, no
-external USD/asset dependency; no CLI flag needed). This replaced the older
+external USD/asset dependency). Other `--scene` selections supply their own room. This replaced the older
 `bimanual_arm_lightbox.usd` stage (Ramy's, removed in
 "RL-push-task-switch-to-bimanual-arm") which baked in a RectLight rig,
 PerceptionCamera, and wrist-mounted RealSense D455s — none of that is

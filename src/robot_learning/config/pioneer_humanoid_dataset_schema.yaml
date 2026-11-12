@@ -1,5 +1,5 @@
 # Pioneer v1 arms: one data contract for sim (keyboard, leader and Quest teleop) and real (humanoid-record).
-# Each recording picks the arms it records (leader teleop: --arms; the others record the left arm).
+# Each recording picks its arms (leader: --arms; Quest: --record-arms; others: left arm).
 # select_arms() builds joint_names from them, left first, and adds _left_arm, _right_arm or
 # _bimanual to robot_id, repo_id and record.root, so each arm set is its own dataset.
 robot_id: pioneer_v1

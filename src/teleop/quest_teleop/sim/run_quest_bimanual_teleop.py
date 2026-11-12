@@ -29,7 +29,7 @@ Cameras
 -------
     eye pair (RSD455)  stereo headset view, attached at runtime -> pov_left/right.jpg
     wrist_cam          link6l (LEFT Quest hand) -- headset HUD panel + recording
-    wrist_cam_right    link6  (RIGHT Quest hand) -- headset HUD panel only
+    wrist_cam_right    link6  (RIGHT Quest hand) -- headset HUD + optional recording
     ego_cam            recording only; left out of the scene entirely without --record
 
 Performance
@@ -42,7 +42,7 @@ D discard episode (S/D only with --record).
 
 Usage
 -----
-    ./run_quest_bimanual_teleop.sh [--record] [--publish-real-left-arm]
+    ./run_quest_bimanual_teleop.sh [--scene nasa_cargo] [--record --record-arms bimanual]
 """
 
 import argparse
@@ -77,9 +77,16 @@ def _ensure_robot_learning_on_path() -> None:
 parser = argparse.ArgumentParser(description="Quest pioneer_bimanual_arm teleop (both arms: DLS fingertip IK)")
 parser.add_argument("--gain", type=float, default=1.0,
                     help="Motion gain: metres of EE motion per metre of real wrist motion")
+parser.add_argument("--scene", default="quest_box",
+                    help="quest_box (original workcell), or a humanoid_isaac_scenes scene such as nasa_cargo")
+parser.add_argument("--pov-camera", choices=("rsd455", "pinhole"), default=None,
+                    help="Stereo view: pinhole uses local cameras; rsd455 downloads NVIDIA's sensor model "
+                         "(default: pinhole for NASA scenes, rsd455 otherwise)")
+parser.add_argument("--record-arms", choices=("left", "right", "bimanual"), default="left",
+                    help="Arms to record; bimanual stores left 7 values followed by right 7")
 parser.add_argument("--record", action="store_true",
-                    help="Record demonstrations (requires: pip install -e src/robot_learning[record]). Records the "
-                         "L-suffixed (link6l) arm only -- that's the arm ego_cam/wrist_cam are mounted for.")
+                    help="Record demonstrations (requires: pip install -e src/robot_learning[record]); "
+                         "--record-arms selects which arms (default: left).")
 parser.add_argument("--schema", type=str,
                     default=str(_ROBOT_LEARNING_PKG / "config" / "pioneer_humanoid_dataset_schema.yaml"),
                     help="Path to dataset_schema.yaml (only used with --record)")
@@ -88,7 +95,7 @@ parser.add_argument("--sink", type=str, default="lerobot",
 parser.add_argument("--dataset_root", type=str, default=None,
                     help="Output directory (default: <repo>/<schema record.root>/quest_sim)")
 parser.add_argument("--num_episodes", type=int, default=10)
-parser.add_argument("--task_description", type=str, default="pick up box and place it in container")
+parser.add_argument("--task_description", type=str, default=None)
 parser.add_argument("--publish-real-left-arm", action="store_true",
                     help="Also publish the left arm's DLS-solved joint targets to /arm/left/joint_targets for "
                          "joint_command_node to drive the REAL physical left arm over CAN. Off by default -- "
@@ -99,6 +106,12 @@ parser.add_argument("--publish-real-left-arm", action="store_true",
                          "the sim's rest pose (see PUBLISH_START_DELAY below).")
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
+if args_cli.pov_camera is None:
+    args_cli.pov_camera = "pinhole" if args_cli.scene == "nasa_cargo" else "rsd455"
+if args_cli.task_description is None:
+    args_cli.task_description = {
+        "nasa_cargo": "pick up the cargo transfer bag by its red handle and place it in the green tray",
+    }.get(args_cli.scene, "pick up box and place it in container")
 
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
@@ -422,14 +435,29 @@ def _project_world_point_to_uv(camera_prim: Usd.Prim, world_xyz: tuple) -> tuple
 
 
 def _attach_rsd455_camera(parent_prim_path: str, mount_name: str, translate: tuple, orient_wxyz: tuple) -> str:
-    """Attach an rsd455 payload as a `mount_name` child Xform. Returns the mount prim path.
+    """Attach the chosen stereo camera under a common mount/path. Returns the mount prim path.
 
     create=True is used only here; see _set_mount_pose for why it must not be repeated."""
     mount_path = f"{parent_prim_path}/{mount_name}"
     _set_mount_pose(mount_path, translate, orient_wxyz, create=True)
     stage = omni.usd.get_context().get_stage()
-    rsd_prim = stage.DefinePrim(f"{mount_path}/rsd455")
-    rsd_prim.GetPayloads().AddPayload(_RSD455_USD_URL)
+    if args_cli.pov_camera == "pinhole":
+        cam = UsdGeom.Camera.Define(stage, f"{mount_path}/{_RSD455_CAMERA_SUBPATH}")
+        # USD cameras look down -Z with +Y up. Map those to the existing
+        # teleop mount basis (+X forward, +Z up, -Y right), preserving hand mapping.
+        basis = Gf.Matrix3d(0, -1, 0, 0, 0, 1, -1, 0, 0)
+        # Isaac's XformPrimView requires the complete translate/orient/scale op stack.
+        cam.AddTranslateOp().Set(Gf.Vec3d(0))
+        cam.AddOrientOp(precision=UsdGeom.XformOp.PrecisionDouble).Set(basis.ExtractRotation().GetQuat())
+        cam.AddScaleOp().Set(Gf.Vec3f(1))
+        aperture = 2 * _RSD455_WIDENED_FOCAL_LENGTH * math.sqrt(3)  # 120-degree horizontal FOV
+        cam.CreateHorizontalApertureAttr(aperture)
+        cam.CreateVerticalApertureAttr(aperture * 0.75)
+        cam.CreateFocalLengthAttr(_RSD455_WIDENED_FOCAL_LENGTH)
+        cam.CreateClippingRangeAttr(Gf.Vec2f(0.01, 100.0))
+    else:
+        rsd_prim = stage.DefinePrim(f"{mount_path}/rsd455")
+        rsd_prim.GetPayloads().AddPayload(_RSD455_USD_URL)
     return mount_path
 
 
@@ -1053,7 +1081,7 @@ class _ArmDlsController:
 # ── recording (see pioneer_humanoid_dataset_schema.yaml) ─────────────────────
 
 # schema image key -> scene camera
-RECORD_CAMERA_SENSORS = {"ego": "ego_cam", "wrist_left": "wrist_cam"}
+RECORD_CAMERA_SENSORS = {"ego": "ego_cam", "wrist_left": "wrist_cam", "wrist_right": "wrist_cam_right"}
 
 
 def _gripper_closure(finger_pos: torch.Tensor, open_pos: float, closed_pos: float) -> torch.Tensor:
@@ -1068,16 +1096,17 @@ def _init_recorder(device: str):
     _ensure_robot_learning_on_path()
     try:
         from humanoid_robot_learning.recording.record_utils import resolve_config_path, resolve_dataset_root
-        from humanoid_robot_learning.recording.schema import enabled_images, load_yaml, select_arms
+        from humanoid_robot_learning.recording.schema import ARM_SETS, enabled_images, load_yaml, select_arms
         from humanoid_robot_learning.sim.sim_recorder import SimLeRobotRecorder
     except ImportError as exc:
         raise ImportError("Recording requires humanoid-robot-learning. Install with:\n  pip install -e src/robot_learning[sim]") from exc
 
     schema_path = resolve_config_path(args_cli.schema, anchor=_ROBOT_LEARNING_PKG)
-    cfg = select_arms(load_yaml(schema_path), ["left"])  # records the link6l arm only, see --record
+    cfg = select_arms(load_yaml(schema_path), list(ARM_SETS[args_cli.record_arms]))
     # Own subdir: this dataset is recorded at _RECORD_FPS, not the schema's fps, so it must not
     # append to the <root>/sim dataset the keyboard and leader teleops write.
-    dataset_root = resolve_dataset_root(cfg, args_cli.dataset_root, subdir="quest_sim")
+    subdir = "quest_sim" if args_cli.scene == "quest_box" else f"quest_sim/{args_cli.scene}"
+    dataset_root = resolve_dataset_root(cfg, args_cli.dataset_root, subdir=subdir)
     cameras = {name: {"height": spec["height"], "width": spec["width"]} for name, spec in enabled_images(cfg).items()}
     sensors = {name: RECORD_CAMERA_SENSORS[name] for name in cameras}  # KeyError: no scene camera for that image
     # device="cpu" always: the recorder's multi-GB circular frame buffer on "cuda" competes with
@@ -1136,7 +1165,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
 
     scene.update(sim_dt)
     apply_joint_limits(robot)
-    _set_rigid_body_friction(scene["box"], _BOX_STATIC_FRICTION, _BOX_DYNAMIC_FRICTION)
+    if "box" in scene.rigid_objects:
+        _set_rigid_body_friction(scene["box"], _BOX_STATIC_FRICTION, _BOX_DYNAMIC_FRICTION)
     _set_rigid_body_friction(
         robot, _GRIPPER_STATIC_FRICTION, _GRIPPER_DYNAMIC_FRICTION,
         body_names=(*LEFT_FINGER_TIP_BODIES, *RIGHT_FINGER_TIP_BODIES),
@@ -1156,7 +1186,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     right_eye_mount = _attach_rsd455_camera(
         _base_link_prim_path, "right_eye_camera_mount", _HEAD_VIEWPOINT_HOME_POS, _HEAD_VIEWPOINT_HOME_QUAT
     )
-    print(f"[Quest] Stereo head-tracked RealSense D455 pair attached: {left_eye_mount}, {right_eye_mount}", flush=True)
+    print(f"[Quest] Stereo {args_cli.pov_camera} pair attached: {left_eye_mount}, {right_eye_mount}", flush=True)
     if _SHOW_WRIST_CAM_MARKER:
         _spawn_wrist_cam_marker("/World/envs/env_0/Robot/link6l/wrist_cam_marker", WRIST_CAM_POS)
         print(f"[Quest] wrist_cam calibration marker ON (2cm green sphere at {WRIST_CAM_POS} "
@@ -1370,15 +1400,23 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
 
     def _reset_scene() -> None:
         """Full scene reset (distinct from R's recalibration, which only re-anchors tracking):
-        box/container back to their original spawn pose+velocity, arm joints back to the default
+        scene props and passive joints back to their defaults, arm joints back to the default
         rest pose, IK targets back to the rest tip pose (+ offsets), grippers back to open, and
         tracking re-homed (same as R) so the arm doesn't immediately snap back toward wherever
         your hand currently is."""
         nonlocal target_pos_b_left, target_quat_b_left, target_pos_b_right, target_quat_b_right
         nonlocal left_closed, right_closed
         nonlocal left_gripper_smoothed, left_gripper_vel, right_gripper_smoothed, right_gripper_vel
-        scene["box"].write_root_state_to_sim(scene["box"].data.default_root_state.clone())
-        scene["container"].write_root_state_to_sim(scene["container"].data.default_root_state.clone())
+        if recorder is not None:
+            recorder.cancel_recording()  # a reset must never join two unrelated trajectories
+        for obj in scene.rigid_objects.values():
+            obj.write_root_state_to_sim(obj.data.default_root_state.clone())
+            obj.reset()
+        for name, articulation in scene.articulations.items():
+            if name != "robot":
+                articulation.write_joint_state_to_sim(
+                    articulation.data.default_joint_pos.clone(), articulation.data.default_joint_vel.clone())
+                articulation.reset()
         robot.write_joint_state_to_sim(robot.data.default_joint_pos.clone(), robot.data.default_joint_vel.clone())
         target_pos_b_left = init_tip_pos_b_l.clone()
         target_quat_b_left = init_tip_quat_b_l.clone()
@@ -1395,7 +1433,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         right_gripper_smoothed = right_g_open.clone()
         right_gripper_vel = torch.zeros_like(right_g_open)
         _recalibrate()
-        print("[Quest] Scene reset -- box/container respawned, arm back to rest pose.", flush=True)
+        print("[Quest] Scene reset -- props and articulations reset, arms back to rest pose.", flush=True)
 
     def _on_keyboard_event(event, *args, **kwargs) -> None:
         if event.type != carb.input.KeyboardEventType.KEY_PRESS:
@@ -1422,7 +1460,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     if recorder is not None:
         print("[Quest] Press S to save the current episode, D to discard it -- recording "
               "continues either way for the next demo.", flush=True)
-    print("[Quest] Press T (Isaac Sim window focused) to fully reset the scene (box/container/arm).", flush=True)
+    print("[Quest] Press T (Isaac Sim window focused) to reset the scene and discard the current take.", flush=True)
 
     diag_frame = 0
     pov_capture_frame = 0
@@ -1645,11 +1683,20 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         # near-copy of action (r>0.999 on all 6 arm joints) and teaches a BC policy to echo
         # proprioception rather than move.
         if recorder is not None and _render_this_step:
-            _record_state = torch.cat([
-                robot.data.joint_pos[:, left_arm.arm_ids],
-                _gripper_closure(robot.data.joint_pos[:, left_gripper_ids[:1]],
-                                 LEFT_GRIPPER_OPEN["joint7l"], LEFT_GRIPPER_CLOSED["joint7l"]),
-            ], dim=1)[0].clone()
+            state_parts = []
+            if args_cli.record_arms in ("left", "bimanual"):
+                state_parts.extend([
+                    robot.data.joint_pos[:, left_arm.arm_ids],
+                    _gripper_closure(robot.data.joint_pos[:, left_gripper_ids[:1]],
+                                     LEFT_GRIPPER_OPEN["joint7l"], LEFT_GRIPPER_CLOSED["joint7l"]),
+                ])
+            if args_cli.record_arms in ("right", "bimanual"):
+                state_parts.extend([
+                    robot.data.joint_pos[:, right_arm.arm_ids],
+                    _gripper_closure(robot.data.joint_pos[:, right_gripper_ids[:1]],
+                                     RIGHT_GRIPPER_OPEN["joint7"], RIGHT_GRIPPER_CLOSED["joint7"]),
+                ])
+            _record_state = torch.cat(state_parts, dim=1)[0].clone()
 
         # ── Differential IK (DLS) solve, both arms, every frame ─────────────────
         tip_pos_b_l_now, tip_quat_b_l_now = left_arm.solve_and_apply(robot, device, target_pos_b_left, target_quat_b_left, sim_dt)
@@ -1754,10 +1801,18 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
                 # snaps 0 -> -0.05 in one frame while _smooth_damp eases the joint over ~50ms,
                 # and it is the eased value that was actually commanded. Logging the snap
                 # trained the policy to slam a gripper the demos never slammed.
-                action = torch.cat([
-                    left_arm.last_joint_pos_des,
-                    _gripper_closure(left_gripper_smoothed[:, :1], LEFT_GRIPPER_OPEN["joint7l"], LEFT_GRIPPER_CLOSED["joint7l"]),
-                ], dim=1)[0]
+                action_parts = []
+                if args_cli.record_arms in ("left", "bimanual"):
+                    action_parts.extend([
+                        left_arm.last_joint_pos_des,
+                        _gripper_closure(left_gripper_smoothed[:, :1], LEFT_GRIPPER_OPEN["joint7l"], LEFT_GRIPPER_CLOSED["joint7l"]),
+                    ])
+                if args_cli.record_arms in ("right", "bimanual"):
+                    action_parts.extend([
+                        right_arm.last_joint_pos_des,
+                        _gripper_closure(right_gripper_smoothed[:, :1], RIGHT_GRIPPER_OPEN["joint7"], RIGHT_GRIPPER_CLOSED["joint7"]),
+                    ])
+                action = torch.cat(action_parts, dim=1)[0]
                 # images as a callable, not a dict: two 640x480 GPU->CPU copies that must only
                 # run on pushed frames. Every step tanked RTF -- looked like the arm barely moving.
                 recorder.tick(action, _record_state, lambda: _capture_record_images(scene, record_sensors))
@@ -1886,7 +1941,22 @@ def main() -> None:
         except Exception as exc:  # noqa: BLE001 -- best-effort, see docstring above
             print(f"[Quest] Could not set {_rtx_setting}: {exc}", flush=True)
 
-    scene_cfg = ArmV2SceneCfg(num_envs=1, env_spacing=2.0)
+    if args_cli.scene == "quest_box":
+        scene_cfg = ArmV2SceneCfg(num_envs=1, env_spacing=2.0)
+        post_init = None
+    else:
+        sys.path.insert(0, str(_SIM_DIR / "isaac_scenes"))
+        from humanoid_isaac_scenes import list_scenes, make_scene_cfg, scene_camera, scene_post_init
+
+        if args_cli.scene not in list_scenes():
+            raise ValueError(f"Unknown scene {args_cli.scene!r}; choose quest_box or {list_scenes()}")
+        scene_cfg = make_scene_cfg(args_cli.scene, BIMANUAL_ARM_CFG)
+        scene_cfg.ego_cam = make_ego_cam_cfg()
+        scene_cfg.wrist_cam = make_wrist_cam_cfg()
+        scene_cfg.wrist_cam_right = make_wrist_cam_cfg(body="link6", name="wrist_cam_right", mirror=True)
+        if scene_camera(args_cli.scene) is not None:
+            sim.set_camera_view(*scene_camera(args_cli.scene))
+        post_init = scene_post_init(args_cli.scene)
     if not args_cli.record:
         # ego_cam only feeds recording. Dropping it removes a whole RenderProduct from every
         # render tick and costs the operator nothing. None is InteractiveScene's skip value.
@@ -1894,7 +1964,9 @@ def main() -> None:
         print("[Quest] ego_cam disabled (no --record): one fewer camera rendered per frame.", flush=True)
     scene = InteractiveScene(scene_cfg)
     sim.reset()
-    print("[Quest] Simulation ready (lightbox enclosure walls added).")
+    if post_init is not None:
+        post_init(scene, sim)
+    print(f"[Quest] Simulation ready (scene={args_cli.scene}).")
     exit_code = 0
     try:
         run_simulator(sim, scene)

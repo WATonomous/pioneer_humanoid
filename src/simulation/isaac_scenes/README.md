@@ -69,3 +69,4 @@ keyboard_teleop --scene <name>      # pass an unknown name to list them
 | `push` | Ramp-box + block (the RL `push_block` task's scene, re-registered). |
 | `garment_fold` | Own apartment / worksurface, not the lightbox. Needs `humanoid_garment_fold` installed. |
 | `vial_rack` | Lightbox workcell + `Vial_rack_simple.usda` + 3 loose `Vial_opaque.usda`. Rack/vial xy is a first pass — reach-tune against the LEFT arm while driving it. Assets: `assets/lerobot/so101_vial_task/usd/`. |
+| `nasa_cargo` | NASA rigid Cargo Transfer Bag with red handle, pickup station and receiving tray. Includes scene-only viewer, contact-grasp physics check and lift/placement metrics. [Setup and task contract](../../../assets/nasa_cargo/README.md). |

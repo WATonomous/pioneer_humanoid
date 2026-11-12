@@ -1,0 +1,11 @@
+{
+  "repository": "https://github.com/NASA-JSC-Robotics/surface_robotics_mockups_description",
+  "revision": "934f1129085450e99ac6c1cf3e7f9b20ad076469",
+  "sha256": {
+    "LICENSE": "10df721a4406adc5fc3024b9cefc6f62345dda19a28b7d842cc16ee470c6c198",
+    "CITATION.cff": "efd092b445825aaad58059ca237d9ca6bb56a209202e1a4b311b7da935d96ecf",
+    "ctb/urdf/ctb_macro.xacro": "bc7e4ae0726c9fcfccd07a02c7aa95a453d6346d4088e9b2abec676f3e7b75bc",
+    "ctb/meshes/ctb_body.stl": "5b115555ced3e6dbb48f43a084750d6595f267b4f459cb27300a5a1314aa3707",
+    "ctb/meshes/ctb_handle.stl": "35133dd4ff50815e3e7ff645afbaee67e38939d04c98320e54cdbad7bb876569"
+  }
+}
