@@ -10,7 +10,10 @@ simulated operator in `src/teleop/pioneer_leader_arm_teleop/synthetic/`. Base de
 
 - Format: LeRobot v3, 25 fps, `pioneer_8dof_dataset_schema.yaml` (8-value state and action, `ego` and `wrist_left`
   cameras at 640x480). `meta/synthetic_takes.jsonl` logs each take's seed and operator style.
-- Seeds: drawn from 0..499, in order. Evaluate on seeds it does not use (e.g. `evaluate.py --seed 1000`).
+- Size: **40 episodes, 12,689 frames (about 8.5 min), 134 MB.** Takes are 10.8 to 21.6 s long (median 13.9 s).
+- Seeds used: 40 of 0..71 (the kept ones, in order). Evaluate on seeds it does not use (e.g. `evaluate.py --seed 1000`).
+- To extend it, record the next kept seeds after 71 (same filter); a rerun with the same `--dataset_root` appends.
+- The repo carries the `v3.0` tag LeRobot looks for, so `LeRobotDataset(<repo id>)` loads it directly.
 - Takes kept: successful and at most 30 s long. Of seeds 0..499, 298 succeed (60%, median take 13.5 s) and 280 of
   those are 30 s or shorter. The long ones are many-retry takes (one is 163 s); dropping them keeps the demos clean,
   and the recorder buffers a whole take in RAM, so a 2-minute take runs a 16 GB machine out of memory.
