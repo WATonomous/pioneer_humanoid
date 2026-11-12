@@ -110,6 +110,13 @@ class WebSocketRoundTripTests(unittest.IsolatedAsyncioTestCase):
                             feedback = await idle.receive_json(timeout=2)
                             self.assertEqual(feedback["status"], "Another headset tab has control")
                             np.testing.assert_allclose(shared.packet["left"].rotation, worn_rotation)
+                            # Right B counts presses (rising edges), not frames held down.
+                            for k, down in enumerate((True, True, False, True), start=2):
+                                raw = raw_sample(k, k * 10., angle=.5)
+                                raw["right"] = {**raw["left"], "record": down}
+                                await worn.send_json(raw)
+                                await worn.receive_json(timeout=2)
+                            self.assertEqual(shared.record_presses, 2)
                 finally:
                     task.cancel()
                     with contextlib.suppress(asyncio.CancelledError):

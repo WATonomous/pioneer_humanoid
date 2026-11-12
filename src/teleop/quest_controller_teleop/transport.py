@@ -19,6 +19,7 @@ class Shared:
         self.sequence = 0
         self.interrupted = {"left": True, "right": True}
         self.reset_sequence = 0
+        self.record_presses = 0
         self.feedback = {"status": "Enter VR; tracked controllers move the arms"}
         self.images = {}
         self.stop = threading.Event()
@@ -93,6 +94,7 @@ async def serve(shared, args):
         sockets.add(ws)
         reset_armed = False
         reset_down = False
+        record_down = False
         previous_epoch = None
         previous_sequence = None
         previous_time = None
@@ -142,6 +144,11 @@ async def serve(shared, args):
                         if down and not reset_down and reset_armed:
                             shared.reset_sequence += 1
                         reset_down = down
+                        right = packet["right"]
+                        pressed = right is not None and right.record
+                        if pressed and not record_down:
+                            shared.record_presses += 1
+                        record_down = pressed
                         for side in ("left", "right"):
                             # Latch losses even when the latest-value mailbox skips a frame.
                             if packet[side] is None or packet["head"] is None:

@@ -31,10 +31,24 @@ Any scene in `humanoid_mujoco_scenes` works. `--help` lists the tuning flags (ga
 | Controller motion | Moves that arm (always on while tracked; no grip button) |
 | Index trigger | Proportional gripper closure |
 | A / X | Hold for 25% translation and rotation (precision) |
-| Left Y, or **6** in the MuJoCo window | Reset the scene, arms and grippers |
+| Left Y, or **6** in the window | Reset the scene, arms and grippers (discards an unsaved take) |
+| Right B, or **7** / **8** in the window | With `--record`: start a take / save it (the scene then resets); **9** discards |
 | Thumbstick click | Hold, rotate the controller about your still wrist for 3–5 s, release: wrist-pivot calibration (saved in git-ignored `wrist_calibration.json`) |
 
 Input older than 200 ms pauses the arm; when tracking returns (or after a reset / calibration) it re-anchors at the measured pose, so it never jumps.
+
+## Recording
+
+Add `--record` to record LeRobot datasets for training (`pip install -e src/robot_learning[sim]` first):
+
+```bash
+src/teleop/quest_controller_teleop/start_quest.sh --scene bowling --no-headset-video --record \
+  --task_description "stand the bottles up"
+```
+
+Both arms, 25 fps of sim time, schema `pioneer_8dof_dataset_schema.yaml` (8 values per arm), cameras ego and both
+wrists at 640x480, into `datasets/pioneer_8dof_bimanual/sim` (later sessions append). The window shows `REC <s>` while
+recording. Train on it as in `src/robot_learning/README.md`.
 
 ## How it works
 
