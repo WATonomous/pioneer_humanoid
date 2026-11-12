@@ -24,7 +24,7 @@ services:
       - ROS_DOMAIN_ID=0
     volumes:
       - /dev:/dev # Allow access to host devices
-      - ${MONO_DIR}/src/interfacing:/root/ament_ws/src/interfacing
+      - ${MONO_DIR}/src/interfacing:/home/bolty/ament_ws/src/interfacing
       # For calibrate_arm.py --write-mapping
       # (whole dir, not the single file, so the .bak it creates lands on the host)
       - ${MONO_DIR}/src/interfacing/joint_command/config:/calibration
@@ -60,7 +60,7 @@ services:
     #   watod -t joint_command  ->  ros2 launch joint_command joint_command.launch.py
     command: tail -F anything
     volumes:
-      - ${MONO_DIR}/src/interfacing/joint_command:/root/ament_ws/src/joint_command
+      - ${MONO_DIR}/src/interfacing/joint_command:/home/bolty/ament_ws/src/joint_command
       # Scripts for telemetry_record.py, outside /root (this container runs as the host user)
       - ${MONO_DIR}/src/interfacing/can/scripts:/opt/humanoid_scripts:ro
       - ${MONO_DIR}/src/interfacing/joint_command/config/arm_calibration.yaml:/calibration/arm_calibration.yaml:ro
