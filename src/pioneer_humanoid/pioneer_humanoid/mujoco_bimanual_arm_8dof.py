@@ -12,7 +12,8 @@ import mujoco
 
 from .arm_params import vertical_fov_deg
 from .mujoco_bimanual_arm import FINGER_CONDIM, FINGER_COUPLING_SOLREF, FINGER_FRICTION, FINGER_SOLIMP, FINGER_SOLREF
-from .arm_8dof_params import ACTUATOR_GROUPS, CAMERAS, DEFAULT_JOINT_POS, MESH_DIR, URDF_PATH, urdf_limits
+from .arm_8dof_params import (ACTUATOR_GROUPS, CAMERAS, DEFAULT_JOINT_POS, GRIPPER_FRICTIONLOSS, MESH_DIR, URDF_PATH,
+                              urdf_limits)
 from .urdf_joint_limits import URDF_PATH as ARMV2_URDF_PATH
 
 ARMV2_MESH_DIR = str(Path(ARMV2_URDF_PATH).resolve().parents[1] / "meshes")
@@ -60,6 +61,10 @@ def arm_spec(cameras: dict[str, tuple[int, int]] | None = None) -> mujoco.MjSpec
             act.forcerange = [-group["effort_limit"], group["effort_limit"]]
             if "gripper" not in group_name:
                 spec.joint(name).armature = ARM_ARMATURE
+            else:   # near-rigid friction: MuJoCo's default (20 ms, 0.9-0.95) lets a pushed finger creep ~5 cm/s
+                joint = spec.joint(name)
+                joint.frictionloss = GRIPPER_FRICTIONLOSS
+                joint.solref_friction, joint.solimp_friction = [0.002, 1.0], [0.999, 0.9999, 0.001, 0.5, 2.0]
     for side in ("left", "right"):   # the URDF <mimic>: finger B follows finger A (one motor drives both)
         eq = spec.add_equality()
         eq.type = mujoco.mjtEq.mjEQ_JOINT

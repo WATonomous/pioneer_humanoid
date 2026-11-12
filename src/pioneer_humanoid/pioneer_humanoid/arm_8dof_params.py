@@ -42,6 +42,7 @@ DEFAULT_JOINT_POS = {**{j: 0.0 for j in LEFT_ARM_JOINTS + RIGHT_ARM_JOINTS},
 # open a finger 21 mm (now 1.4 mm). 34 N is the 4.1 Nm peak through the linkage (old arm's notes; ratio not verified).
 # damping ~ critical for the two 40 g fingers coupled.
 _GRIPPER = dict(stiffness=7000.0, damping=50.0, effort_limit=34.0, velocity_limit=0.2)
+GRIPPER_FRICTIONLOSS = 25.0   # N: the linkage resists back-driving, so a push needs > 34 + 25 N to open the fingers
 ACTUATOR_GROUPS = {}
 for _s in ("left", "right"):
     ACTUATOR_GROUPS[f"{_s}_shoulder"] = dict(joints=[f"{_s}_shoulder_pitch", f"{_s}_shoulder_roll"],     # AK10-9
