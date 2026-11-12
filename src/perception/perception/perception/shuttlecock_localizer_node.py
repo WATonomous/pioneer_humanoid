@@ -58,8 +58,13 @@ class ShuttlecockLocalizer(Node):
 
         self.ts = ApproximateTimeSynchronizer(
             [det_sub, visible_sub, depth_sub],
+<<<<<<< HEAD
             queue_size=self._param('sync_queue_size'),
             slop=self._param('sync_slop'),
+=======
+            queue_size=10,
+            slop=0.015,
+>>>>>>> 5a920a4b (Revert slop to 0.015 per review)
             allow_headerless=True,
         )
         self.ts.registerCallback(self._synchronized_callback)
