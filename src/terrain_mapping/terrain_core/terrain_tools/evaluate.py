@@ -228,11 +228,31 @@ def print_report(results, label):
     overall = "PASS" if all(m["pass"] for m in results.values()) else "FAIL"
 
     print(f"\n=== Terrain Evaluation: {label} [{overall}] ===")
-    print(f"  Under-feet coverage : {_fmt(uf['coverage'] * 100, 1)}% ({uf['valid_cells']}/{uf['total_cells']} cells, min {uf['min_coverage'] * 100:.0f}%) -> {'PASS' if uf['pass'] else 'FAIL'}")
-    print(f"  Flat floor (0.0 cm) : mean err {_fmt(fl['mean_cm']):>6} cm | RMSE {_fmt(fl['rmse_cm']):>5} cm | False obstacles: {fl['false_obstacle_cells']} cells ({_fmt(fl['false_obstacle_rate'] * 100, 2)}%) -> {'PASS' if fl['pass'] else 'FAIL'}")
-    print(f"  Step      (14.0 cm) : measured {_fmt(st['measured_height_cm']):>6} cm | mean err {_fmt(st['mean_cm']):>6} cm | RMSE {_fmt(st['rmse_cm']):>5} cm -> {'PASS' if st['pass'] else 'FAIL'}")
-    print(f"  Ramp      ( 9.0 deg): measured {_fmt(rp['measured_slope_deg'], 1):>6} deg | mean err {_fmt(rp['mean_cm']):>6} cm | RMSE {_fmt(rp['rmse_cm']):>5} cm -> {'PASS' if rp['pass'] else 'FAIL'}")
-    print(f"  Box       (39.0 cm) : measured {_fmt(bx['measured_height_cm']):>6} cm | mean err {_fmt(bx['mean_cm']):>6} cm | RMSE {_fmt(bx['rmse_cm']):>5} cm -> {'PASS' if bx['pass'] else 'FAIL'}")
+    print(
+        f"  Under-feet coverage : {_fmt(uf['coverage'] * 100, 1)}% "
+        f"({uf['valid_cells']}/{uf['total_cells']} cells, min {uf['min_coverage'] * 100:.0f}%) "
+        f"-> {'PASS' if uf['pass'] else 'FAIL'}"
+    )
+    print(
+        f"  Flat floor (0.0 cm) : mean err {_fmt(fl['mean_cm']):>6} cm | "
+        f"RMSE {_fmt(fl['rmse_cm']):>5} cm | False obstacles: {fl['false_obstacle_cells']} cells "
+        f"({_fmt(fl['false_obstacle_rate'] * 100, 2)}%) -> {'PASS' if fl['pass'] else 'FAIL'}"
+    )
+    print(
+        f"  Step      (14.0 cm) : measured {_fmt(st['measured_height_cm']):>6} cm | "
+        f"mean err {_fmt(st['mean_cm']):>6} cm | RMSE {_fmt(st['rmse_cm']):>5} cm "
+        f"-> {'PASS' if st['pass'] else 'FAIL'}"
+    )
+    print(
+        f"  Ramp      ( 9.0 deg): measured {_fmt(rp['measured_slope_deg'], 1):>6} deg | "
+        f"mean err {_fmt(rp['mean_cm']):>6} cm | RMSE {_fmt(rp['rmse_cm']):>5} cm "
+        f"-> {'PASS' if rp['pass'] else 'FAIL'}"
+    )
+    print(
+        f"  Box       (39.0 cm) : measured {_fmt(bx['measured_height_cm']):>6} cm | "
+        f"mean err {_fmt(bx['mean_cm']):>6} cm | RMSE {_fmt(bx['rmse_cm']):>5} cm "
+        f"-> {'PASS' if bx['pass'] else 'FAIL'}"
+    )
 
 
 def format_markdown_summary(all_runs):
@@ -331,7 +351,7 @@ def plot_maps(maps_dict, all_runs, course, out_path=None, show=False):
         [
             (0.00, "#1d4ed8"),  # -6 cm
             (0.33, "#06b6d4"),  # -2 cm
-            (0.50, "#16a34a"),  #  0 cm (on baseline)
+            (0.50, "#16a34a"),  # 0 cm (on baseline)
             (0.67, "#facc15"),  # +2 cm (floor tolerance limit)
             (0.90, "#ef4444"),  # +5 cm (shifted above baseline)
             (1.00, "#991b1b"),  # +6 cm+
@@ -411,7 +431,9 @@ def plot_maps(maps_dict, all_runs, course, out_path=None, show=False):
         )
         hud2 = (
             f"{err_titles.get(name, name)}\n"
-            f"Floor: {_fmt(fl['mean_cm'], 1, signed=True)} cm | Step: {_fmt(res['step']['mean_cm'], 1, signed=True)} cm | Ramp: {_fmt(res['ramp']['mean_cm'], 1, signed=True)} cm"
+            f"Floor: {_fmt(fl['mean_cm'], 1, signed=True)} cm | "
+            f"Step: {_fmt(res['step']['mean_cm'], 1, signed=True)} cm | "
+            f"Ramp: {_fmt(res['ramp']['mean_cm'], 1, signed=True)} cm"
         )
         ax2.text(
             0.03, 0.97, hud2, transform=ax2.transAxes, va="top", ha="left",
