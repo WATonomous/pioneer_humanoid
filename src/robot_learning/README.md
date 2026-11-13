@@ -73,6 +73,16 @@ Flag pitfalls (`--steps`, not epochs; always `--policy.push_to_hub=false` for lo
 
 Our own policy, `humanoid_dit` ([`humanoid_robot_learning/policies/dit`](humanoid_robot_learning/policies/dit)), is a flow-matching diffusion transformer conditioned on CLIP image and text features. Install with `pip install -e .[dit]` and train with `python -m humanoid_robot_learning.train --policy.type=humanoid_dit` plus the arguments above and `--steps=70000 --batch_size=6`. On 540 synthetic peg-insertion demos it succeeds in 80% of 400 sim episodes. At 50k steps: 58-75% across two training seeds (180 demos: 60-64%). The learning rate decays over `--steps`, so set it up front: a finished run can't be extended.
 
+`humanoid_ditx` ([`humanoid_robot_learning/policies/ditx`](humanoid_robot_learning/policies/ditx)) is the language-conditioned successor, for picking the object an instruction names. A DINOv3 ViT-B/16 encodes every camera. The scene camera gives all of its patch tokens, the wrist cameras a 7x7 pooled grid. The instruction's frozen CLIP text features join them through FiLM and as word tokens, and two fusion layers let each patch attend to the words. The action head is a flow-matching transformer (adaLN-Zero) that cross-attends to this context, trained with real-time chunking, and eval uses an EMA of the weights. 256M parameters, 193M trained. DINOv3 is gated on Hugging Face: request access on [its page](https://huggingface.co/facebook/dinov3-vitb16-pretrain-lvd1689m) first. Install with `pip install -e .[ditx]` and train with:
+
+```bash
+python -m humanoid_robot_learning.train --policy.type=humanoid_ditx --policy.device=cuda --policy.push_to_hub=false \
+  --dataset.repo_id=<repo> --dataset.root=<dataset> --dataset.video_backend=pyav \
+  --batch_size=32 --steps=60000 --save_freq=10000 --output_dir=<run>
+```
+
+On 600 synthetic tabletop-pick demos (two objects on the table, "put the <object> in the bowl"; the scene comes in a follow-up PR) it succeeds in 54/100 sim episodes on unseen layouts at 40k steps (51/100 at 60k; 0.37 s/step on an L40S, batch 32). The CLIP-encoder version picks the named object in 99.6% of paired layouts. Its failures are placing and releasing into the bowl, not picking the wrong object. If memory is short, `--policy.grad_checkpoint=true` recomputes the encoder and fusion layers in the backward pass (same result, about half the memory).
+
 Success rate of any checkpoint on a MuJoCo scene that defines `success` (or multi-step `progress`), left arm, as recorded by the leader-arm teleop. It prints a 95% interval: 40 episodes tell 35% from 65% (about ±15 points); comparing 60% with 70% needs about 400. Use layout seeds the training demos did not (`--seed`; the synthetic demos start at 0).
 
 ```bash
