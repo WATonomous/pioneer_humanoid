@@ -31,3 +31,18 @@ gym.register(
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:PioneerWholeBodyFootholdPPORunnerCfg",
     },
 )
+
+for _suffix in ("", "_PLAY"):
+    gym.register(
+        id=f"Isaac-Locomotion-RoughSpecialist-PioneerWholeBody{'-Play' if _suffix else ''}-v0",
+        entry_point="isaaclab.envs:ManagerBasedRLEnv",
+        disable_env_checker=True,
+        kwargs={
+            "env_cfg_entry_point": (
+                f"{__name__}.rough_specialist_env_cfg:PioneerWholeBodyRoughSpecialistEnvCfg{_suffix}"
+            ),
+            "rsl_rl_cfg_entry_point": (
+                f"{agents.__name__}.rough_specialist_ppo_cfg:PioneerWholeBodyRoughSpecialistPPORunnerCfg"
+            ),
+        },
+    )

@@ -163,6 +163,67 @@ footholds.
 
 ## Policy interface (for deployment)
 
+### Rough-specialist preset
+
+`Isaac-Locomotion-RoughSpecialist-PioneerWholeBody-v0` (and `-Play-v0`) is a
+separate, unassisted non-stair training preset in `rough_specialist_env_cfg.py`.
+It preserves the reference full-body robot, rewards, 152-input actor / 845-input
+critic, twelve leg actions, scripted arm swing and foothold predictor interface.
+The published `RoughFoothold` tasks are unchanged.
+
+The terrain mix is 20% flat, 30% random rough, 25% boxes and 12.5% each uphill/
+downhill slopes, starting at curriculum level zero. Generator parameters are
+1–5 cm rough-height samples, 2–8 cm box offsets and slope grade 0–0.20
+(approximately 11.3° nominal maximum); these are not validated terrain limits.
+The PPO experiment is `pioneer_whole_body_rough_specialist`, with a default
+1,500-update probe budget. No trained specialist checkpoint is supplied.
+
+Predictor outputs default to a unique per-config directory under that experiment.
+For a warm start, explicitly set both the PPO checkpoint and `env.load_run_dir`
+to the matching predictor source. Keep `env.log_dir` unique per run. PLAY freezes
+predictor training and defaults to the published predictor; when viewing another
+checkpoint, provide its matched predictor too. A fresh predictor still follows
+the existing 500-update bootstrap/refit schedule.
+
+Inside the provided Isaac Docker container, from the repository root:
+
+```bash
+# Fresh training; this does not resume the published policy/predictor.
+rl-train --task=Isaac-Locomotion-RoughSpecialist-PioneerWholeBody-v0 \
+  --headless --num_envs 1024 --max_iterations 1500 --run_name rough_probe
+
+# Preview this terrain preset using the existing, colocated published pair.
+rl-play --task=Isaac-Locomotion-RoughSpecialist-PioneerWholeBody-Play-v0 \
+  --checkpoint models/pioneer_whole_body_rough_foothold/model_4500.pt \
+  --num_envs 1 --real-time
+```
+
+Windowed playback requires a working Isaac graphics/display setup; successful
+headless training does not establish WSL GUI support.
+
+For a newly trained checkpoint, find its predictor directory in the **top-level
+`log_dir`** of that run's `params/env.yaml` (not the scene's `log_dir`). Copy the
+chosen matching `foot_model_N.pt` beside the PPO checkpoint, then supply that
+checkpoint's path to `rl-play --checkpoint`. Keep only the intended predictor
+in that directory: the loader selects the highest numbered foot model, and PPO
+and predictor iteration numbers need not match. Confirm the expected `[FPM]
+loading ...` path in the console; a missing predictor can fall back to bootstrap
+footholds. Do not assume that seeing the robot walk proves the predictor loaded.
+Pair files using the chosen checkpoint's training/load record, not merely the
+newest predictor. Warm starts without refitting may still use `load_run_dir`;
+fresh checkpoints before the first refit have no learned predictor yet.
+
+Local validation used a 200-update weight warm-start with a frozen matched
+predictor, followed by 500 playback steps. It verified setup/optimization health,
+not convergence or improved gait; it was not the fresh-training command above.
+
+### Flat/blind reference interface
+
+The following 50-input layout applies to the flat/blind policies. Foothold
+policies add 102 predicted-location/patch inputs to the actor (152 total), and
+their critic also receives the full scan (845 total). The leg action mapping is
+the same.
+
 50 Hz. Observation (50): base linear velocity of the base's centre of mass and angular velocity, both in the base frame
 (3 + 3), projected gravity (3), command vx, vy, wz (3), joint positions minus default (12), joint velocities (12), last
 action (12), gait clock sin, cos of 2π·(t mod 1 s) (2). Action (12): joint target = default + 0.25 · action. Joint order:
