@@ -1,0 +1,8 @@
+Metadata-Version: 2.4
+Name: terrain_core
+Version: 0.1.0
+Summary: ROS-free core of the humanoid terrain mapping stack
+Requires-Python: >=3.10
+Requires-Dist: numpy
+Provides-Extra: test
+Requires-Dist: pytest; extra == "test"

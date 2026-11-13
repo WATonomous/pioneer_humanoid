@@ -33,6 +33,7 @@ class RobotLimits:
     max_variance: float | None = None  # m^2; None disables the confidence gate
     planar_tol_m: float | None = 0.01  # plane-fit residual below which a cell counts as a planar surface.
 
+
 def compute_traversability(
     elevation: np.ndarray,
     resolution: float,
