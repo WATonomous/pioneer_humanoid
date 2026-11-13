@@ -5,7 +5,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import EnvironmentVariable, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
@@ -18,6 +18,7 @@ def generate_launch_description():
     use_detector = LaunchConfiguration('use_detector')
     use_dummy = LaunchConfiguration('use_dummy')
     use_camera = LaunchConfiguration('use_camera')
+    detector_device = LaunchConfiguration('detector_device')
     sim_time = {'use_sim_time': ParameterValue(LaunchConfiguration('use_sim_time'), value_type=bool)}
 
     return LaunchDescription([
@@ -32,6 +33,10 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'use_camera', default_value='true',
             description='Start the D455 driver; false when replaying a bag'
+        ),
+        DeclareLaunchArgument(
+            'detector_device', default_value=EnvironmentVariable('DETECTOR_DEVICE', default_value='cuda:0'),
+            description="Torch device for the YOLO detector: 'cuda:0' on the robot, 'cpu' without an NVIDIA GPU"
         ),
         DeclareLaunchArgument(
             'use_sim_time', default_value='false',
@@ -60,8 +65,16 @@ def generate_launch_description():
             executable='shuttlecock_detector_node',
             name='shuttlecock_detector_node',
             output='screen',
-            parameters=[config, sim_time],
-            arguments=['--ros-args', '--log-level', LaunchConfiguration('log_level')],
+            parameters=[
+                config,
+                sim_time,
+                {'device': ParameterValue(detector_device, value_type=str)},
+            ],
+            arguments=[
+                '--ros-args',
+                '--log-level',
+                LaunchConfiguration('log_level')
+            ],
             condition=IfCondition(use_detector),
         ),
         Node(

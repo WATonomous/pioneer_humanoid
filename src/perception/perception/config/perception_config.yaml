@@ -31,10 +31,10 @@ shuttlecock_detector_node:
     point_topic: "/perception/shuttlecock/detections_2d"
     visible_topic: "/perception/shuttlecock/detection_visible"
     weights: "/data/weights/yolo26n.pt"   # update to "/data/weights/yolo26n_v2.pt"
-    device: "cpu"
     imgsz: 1280
     conf_threshold: 0.60
     class_ids: [0]
+    half: true
 
 shuttlecock_localizer_node:
   ros__parameters:
