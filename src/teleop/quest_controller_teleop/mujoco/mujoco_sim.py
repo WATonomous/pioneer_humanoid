@@ -179,7 +179,12 @@ def run() -> None:
           f"(after adb reverse tcp:{args.controller_port} tcp:{args.controller_port}). Left Y or 6 in the window resets.", flush=True)
     reset_key = threading.Event()  # set by the window's key handler, consumed by the control loop
     stop = threading.Event()
-    recorder, every = make_sim_recorder(args, record, device="cpu", sim_dt=dt)
+    extras = None
+    if args.record:
+        from humanoid_robot_learning.sim.mujoco_arm_extras import ArmExtras, arm_8dof_spec
+        extras = ArmExtras(model, [arm_8dof_spec(side) for side in ("left", "right")])
+    recorder, every = make_sim_recorder(args, record, device="cpu", sim_dt=dt,
+                                        extra_features=extras.features if extras else None)
     sizes = {name: (int(spec["height"]), int(spec["width"])) for name, spec in record.images.items()}
     window = None if args.headless and recorder is None else CameraWindow(model, sizes, recorder)
     recording = Recording(recorder, window, every, driver) if recorder is not None else None
@@ -194,7 +199,7 @@ def run() -> None:
         driver.start_thread()   # the driver is owned by the thread that starts it: start, loop and close here
         try:
             loop(model, data, driver, arms, window, recording, reset, reset_key, scene_hook, substeps, dt,
-                 stop)
+                 stop, extras)
         finally:
             stop.set()
             driver.close()
@@ -222,8 +227,10 @@ def run() -> None:
 
 
 def loop(model, data, driver, arms, window, recording, reset, reset_key, scene_hook, substeps, dt,
-         stop) -> None:
-    """Control ticks at dt until `stop` is set (window closed, Ctrl+C): input, IK, physics, camera frames."""
+         stop, extras=None) -> None:
+    """Control ticks at dt until `stop` is set (window closed, Ctrl+C): input, IK, physics, camera frames.
+
+    `extras`: an ArmExtras (hand pose, joint velocity and effort) for recorded frames, or None."""
     import mujoco
 
     def joint_positions():
@@ -259,7 +266,11 @@ def loop(model, data, driver, arms, window, recording, reset, reset_key, scene_h
                 closure = (data.qpos[ids.grip_qpos] - ids.grip_open) / (ids.grip_closed - ids.grip_open)
                 action.extend([*commands[side], driver.grippers[side]])
                 state.extend([*data.qpos[ids.qpos], float(np.clip(closure.mean(), 0., 1.))])
-            window.push_sample(data, np.asarray(action, np.float32), np.asarray(state, np.float32))
+            values = None
+            if extras is not None:
+                mujoco.mj_forward(model, data)   # this ctrl's actuator forces and the current FK; no state change
+                values = extras.values(data, commands)
+            window.push_sample(data, np.asarray(action, np.float32), np.asarray(state, np.float32), values)
         if recording is not None:
             window.status = recording.status()
         tick += 1

@@ -252,8 +252,15 @@ def run() -> None:
     substeps = max(1, round(CONTROL_DT / model.opt.timestep))
     control_dt = substeps * model.opt.timestep
     # Multi-step scenes record the current step's instruction as each frame's task, plus its index.
-    extra = {"subtask_index": ["subtask_index"]} if scene_steps is not None else None
-    recorder, record_every = make_sim_recorder(args, record, device="cpu", sim_dt=control_dt, extra_features=extra)
+    extra = {"subtask_index": ["subtask_index"]} if scene_steps is not None else {}
+    # 8dof: hand pose, joint velocity and effort too (mujoco_arm_extras.py). The old arms' datasets stay as they were.
+    arm_extras = None
+    if args.record and eight:
+        from humanoid_robot_learning.sim.mujoco_arm_extras import ArmExtras, arm_8dof_spec
+        arm_extras = ArmExtras(model, [arm_8dof_spec(arm.side) for arm in arms])
+        extra.update(arm_extras.features)
+    recorder, record_every = make_sim_recorder(args, record, device="cpu", sim_dt=control_dt,
+                                               extra_features=extra or None)
     if recorder is not None:
         print("[RECORD] Keys: 7=start, 8=save episode (then reset), 9=discard, 6=reset")
         recorder.start_keyboard(**RECORD_KEYS)
@@ -310,12 +317,13 @@ def run() -> None:
                 if status is not None:
                     status.poll(all(arm.mapping.engaged for arm in arms))
 
-                actions = []
+                actions, commands = [], {}
                 for arm in arms:
                     target, grip = arm.mapping.update(arm.leader.read())
                     data.ctrl[arm.arm_acts] = target
                     data.ctrl[arm.grip_acts] = arm.grip_open + grip * (arm.grip_closed - arm.grip_open)
                     actions.extend([*target, grip])
+                    commands[arm.side] = np.asarray(target)
 
                 # Record one synchronized frame only once every active leader is at home.
                 if recorder is not None and all(arm.mapping.engaged for arm in arms) and step % record_every == 0:
@@ -325,10 +333,14 @@ def run() -> None:
                         states.extend([*data.qpos[arm.arm_qpos], np.clip(closure, 0, 1)])
                     state = np.asarray(states, dtype=np.float32)
                     action = np.asarray(actions, dtype=np.float32)
-                    task, extras = None, None
+                    task, extras = None, {}
                     if scene_steps is not None:
                         index, _, task = scene_steps(model, data)
-                        extras = {"subtask_index": np.array([index], dtype=np.float32)}
+                        extras["subtask_index"] = np.array([index], dtype=np.float32)
+                    if arm_extras is not None:
+                        mujoco.mj_forward(model, data)   # this ctrl's actuator forces and the current FK
+                        extras.update(arm_extras.values(data, commands))
+                    extras = extras or None
                     seconds = recorder.num_buffered_frames / recorder.fps
                     with viewer.lock():
                         saved = recorder.tick(action, state, read_images, task=task, extras=extras)

@@ -48,7 +48,8 @@ src/teleop/quest_controller_teleop/start_quest.sh --scene bowling --record \
 ```
 
 Both arms, 25 fps of sim time, schema `pioneer_8dof_dataset_schema.yaml` (8 values per arm), cameras ego and both
-wrists at 640x480, into `datasets/pioneer_8dof_bimanual/sim` (later sessions append). The window shows `REC <s>` while
+wrists at 640x480, into `datasets/pioneer_8dof_bimanual/sim` (later sessions append). Each frame also records both
+hand poses (measured and commanded), joint velocities and joint efforts (see `src/robot_learning/README.md`). The window shows `REC <s>` while
 recording. Train on it as in `src/robot_learning/README.md`.
 
 ## How it works
