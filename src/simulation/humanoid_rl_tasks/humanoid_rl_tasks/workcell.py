@@ -77,7 +77,7 @@ TUBE_POS = (0.45, -0.06, 1.385)
 TUBE_HALF_LEN, TUBE_R = 0.48, 0.03
 
 # Teleop initial view: from the robot's front-right, looking at the table top.
-WORKCELL_CAMERA = ([1.6, -1.2, 1.5], [0.55, 0.0, TABLE_TOP_Z])
+WORKCELL_CAMERA = ([-1.2, -1.2, 1.5], [0.55, 0.0, TABLE_TOP_Z])
 
 
 DOME_INTENSITY = 400.0
