@@ -145,10 +145,23 @@ safety:
         delta_max: 2.4
         control_type: 0        # MIT_CONTROL
         mit_family: gl2        # fault action limp
-        mit_kp: 0.1221         # N.m/rad -> raw 1, the softest nonzero stiffness
-        mit_kd: 0.0018   # 0.015 x kp (right shoulder yaw ratio); was 0.0098, not bench-tested
-        mit_max_torque: 0.25   # N.m: squeeze limit
-        mit_max_track_err: 105.0  # deg, >= full travel (upper_limit - lower_limit)
+        # BENCH: pending (2026-11-12). kp 0.1221 (raw 1) never moved it (rt-gripp1): kp x error
+        # peaked at 0.11 N.m, under its breakaway. A PD joint stops friction / kp short of its
+        # target, so stiffness is what makes it track. The squeeze is bounded by mit_max_lead
+        # instead: joint_command keeps the setpoint within it of the measured position, so a grasp
+        # pushes at kp x mit_max_lead = 1.2207 N.m/rad x 30 deg = 0.639 N.m <= mit_peak_torque.
+        # Gains: the wrist's bench pair on the same motor (2026-09-19); ~5 deg short at 0.11 N.m.
+        # Go stiffer (e.g. raw 20 = 2.4414 with lead 15) only once the bench shows it stable.
+        mit_kp: 1.22           # N.m/rad -> raw 10 -> 1.2207 applied
+        mit_kd: 0.0098         # N.m.s/rad -> raw 8 -> 0.00977 applied
+        mit_max_lead: 30.0     # deg, setpoint within this of the fingers: the squeeze limit
+        mit_max_torque: 0.25   # N.m, rated: above it only while a temperature reads below the limit
+        mit_peak_torque: 0.65  # N.m, squeeze cap; the GL40 peak is 0.73 (confirmed 2026-11-12)
+        # The global value, written out. can_node reports the hotter of drive and winding, but the
+        # 2026-09-19 capture of this drive had the winding byte at 0: until a bench capture shows
+        # it filled, this is the drive-board temperature, which lags the winding.
+        mit_max_temperature: 80
+        mit_max_track_err: 35.0  # deg, > mit_max_lead: a grasp sits at 30, motion adds a little
         mit_feedback_timeout: 0.2
 
   right:

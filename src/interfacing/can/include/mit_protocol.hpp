@@ -102,6 +102,11 @@ std::array<uint8_t, 8> packAkMitCommand(double p, double v, double kp, double kd
 // GL II feedback -> physical units. `data` must hold at least 8 bytes.
 MitFeedback decodeGl2Feedback(const uint8_t* data, const MitProfile& profile);
 
+// The temperature MotorFeedback carries for a GL II drive: the hotter of drive and winding, so
+// joint_command's temperature watchdog sees whichever heats first. A drive that leaves the winding
+// byte at 0 (the 2026-09-19 GL40 capture) reports its drive temperature, as before.
+int gl2ReportedTemperature(const MitFeedback& fb);
+
 // AK feedback -> physical units. `data` must hold at least 8 bytes.
 MitAkFeedback decodeAkFeedback(const uint8_t* data, const MitProfile& profile);
 

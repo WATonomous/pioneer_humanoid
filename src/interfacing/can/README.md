@@ -149,12 +149,16 @@ tools/arm_roundtrip.sh --joints elbow.yaw --offset "0,0,0,0,5,0"    # one joint,
 tools/arm_roundtrip.sh --offset "3,1.5,5,5,5,10" --dwell 5            # all six at once
 tools/arm_roundtrip.sh --arm-side both --joints left.elbow.yaw,right.elbow.yaw \
   --offset "0,0,0,0,5,0,0,0,0,0,5,0"                                  # both arms, one run
+tools/arm_roundtrip.sh --gripper 0.5 --vel 20                          # gripper half closed
 ```
 
 It holds at the origin, ramps out (cosine, ≤ `--vel` and `velocity_max`), dwells, returns and
 rests. `--arm-side` (default `left`) picks the arm and its topic, `/arm/<side>/joint_targets`.
 `--arm-side both` drives both arms together: joints are prefixed `left.`/`right.` and
 `--offset`/`--pose` take twelve values, the left arm's six then the right's.
+`--gripper` (0 open .. 1 closed, one per arm) adds the gripper to the same sequence, with the
+arm or alone; it may cover its whole travel and does not trip `--max-track-err` (friction and a
+grasp leave it short). Without it the gripper is not commanded and `joint_command` holds it.
 It refuses to start if something else publishes that topic, a moving joint is
 silent or near a limit, a move exceeds `--max-delta`, or `joint_command`'s installed configs
 differ from the repo's (rebuild after every calibration or limits edit). Ctrl-C ramps back, a
