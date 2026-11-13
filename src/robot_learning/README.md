@@ -52,6 +52,22 @@ sessions append).
 `shoulder_pitch`, `shoulder_roll`, `shoulder_yaw`, `elbow_pitch`, `elbow_roll`, `wrist_pitch` (rad), `gripper`.
 Datasets `pioneer_v1_*`, never mixed with 8dof.
 
+**8dof extras** (MuJoCo Quest and leader teleops; `sim/mujoco_arm_extras.py`), per arm, left first:
+
+| Field | Content |
+|-------|---------|
+| `observation.ee_pose` | hand pose: position (m) + 6D rotation (the rotation matrix's first two columns), 9 values |
+| `action.ee_pose` | the same for the commanded joints |
+| `observation.velocity` | joint velocities (rad/s) + gripper closure rate (1/s) |
+| `observation.effort` | joint actuator torques (N m) + mean finger force (N) |
+
+The hand is `<side>_link7` in `base_link`. These fields let you train hand-pose policies and mix in human demos
+later. A dataset's fields are fixed when it is created: appending to an older 8dof dataset records without the
+extras (with a warning), so pass a new `--dataset_root` to get them.
+
+**`meta/modality.json`**: written with every 8dof dataset. It names the arm, gripper and hand-pose slices of the
+state and action in NVIDIA GR00T's format, so GR00T can fine-tune on the dataset as is (not yet tried).
+
 `evaluate.py` picks the robot from the policy's action size (8 = 8dof, 7 = old arms) or `--robot`. Camera poses:
 `pioneer_humanoid/arm_8dof_params.py` (8dof), `arm_params.py` (old arms).
 

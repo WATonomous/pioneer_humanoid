@@ -285,14 +285,10 @@ class SimLeRobotRecorder:
         from lerobot.datasets.lerobot_dataset import LeRobotDataset
 
         _install_subprocess_video_encoder()
-        if self._free_slots.empty():
-            self._allocate_cpu_slots()
         root = self.dataset_root
         if root.exists():
             try:
                 self.dataset = _open_for_append(self.repo_id, root)
-                print(f"[INFO]: Opened existing dataset at {root}")
-                return
             except Exception as exc:
                 raise ValueError(
                     f"[ERROR]: Dataset folder exists but cannot be opened: {root}\n"
@@ -300,15 +296,41 @@ class SimLeRobotRecorder:
                     "  A run that ended before saving an episode leaves a folder LeRobotDataset "
                     "cannot re-open. Delete it (or pass --dataset_root elsewhere) and retry."
                 ) from exc
+            print(f"[INFO]: Opened existing dataset at {root}")
+            self._match_existing_extras()
+        else:
+            self.dataset = LeRobotDataset.create(
+                self.repo_id,
+                fps=self.fps,
+                features=self._build_features(),
+                root=root,
+                robot_type=self.robot_type,
+            )
+            print(f"[INFO]: Created new dataset at {root}")
+        if self._free_slots.empty():
+            self._allocate_cpu_slots()   # after _match_existing_extras: slots hold only the recorded extras
+        from humanoid_robot_learning.recording.modality import write_modality
+        write_modality(root, self.joint_names, list(self.cameras), self.extra_features)
 
-        self.dataset = LeRobotDataset.create(
-            self.repo_id,
-            fps=self.fps,
-            features=self._build_features(),
-            root=root,
-            robot_type=self.robot_type,
-        )
-        print(f"[INFO]: Created new dataset at {root}")
+    def _match_existing_extras(self) -> None:
+        """Appending to a dataset made before an extra feature existed: record only the extras it already has.
+
+        A dataset's features are fixed when it is created, so new extras (e.g. the hand pose) start with a new
+        dataset; older takes keep appending as they were. An extra the dataset needs but this run lacks is an error.
+        """
+        have = set(self.dataset.features)
+        dropped = [name for name in self.extra_features if name not in have]
+        for name in dropped:
+            del self.extra_features[name]
+        if dropped:
+            print(f"[WARN]: {self.dataset_root} was created without {dropped}; not recording them. "
+                  "Pass a new --dataset_root to record them.")
+        expected = set(self._build_features())
+        missing = sorted(n for n in have - expected if not n.startswith("observation.images.")
+                         and n not in ("timestamp", "frame_index", "episode_index", "index", "task_index"))
+        if missing:
+            raise ValueError(f"{self.dataset_root} records {missing}, which this run does not provide. "
+                             "Pass a new --dataset_root.")
 
     def _allocate_buffers(self) -> None:
         dim = len(self.joint_names)
