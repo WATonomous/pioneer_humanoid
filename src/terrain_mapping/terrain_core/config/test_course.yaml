@@ -1,0 +1,79 @@
+# ==============================================================================
+# TEST COURSE GROUND TRUTH SPECIFICATION
+# Test Course + Evaluation
+#
+# PURPOSE:
+# This file defines the known physical dimensions of obstacles and spatial bounding boxes
+# Spatial bounding boxes: [x_min, x_max, y_min, y_max] in meters.
+# ==============================================================================
+
+course_metadata:
+  name: "Nov 6 Hallway Layout"
+  version: "1.0"
+  grid_resolution_m: 0.04          # 4 cm grid res
+  map_bounds_m: [-2.0, 2.0, -0.8, 5.2]  # 4m x 6m
+  camera_height_m: 1.64            # estimate
+
+regions:
+  under_feet:
+    bounds: [-0.40, 0.40, -0.40, 0.40]
+    expected_height_m: 0.00
+    min_coverage_pct: 95.0
+
+  # 1. Flat ground zone
+  flat_floor:
+    bounds: [-1.25, 1.25, -0.40, 4.60]
+    expected_height_m: 0.00
+    expected_slope_deg: 0.0
+    tolerance_cm: 2.0
+    false_obstacle_threshold_m: 0.05
+
+  # 2. Step (bottom-right of hallway): 73 cm wide (x) x 28 cm deep (y) x 14 cm tall
+  #    Width:  1.08 - 0.35 = 0.73 m (73 cm)
+  #    Depth:  1.13 - 0.85 = 0.28 m (28 cm)
+  step:
+    bounds: [0.35, 1.08, 0.85, 1.13]
+    expected_height_m: 0.14
+    expected_slope_deg: 0.0
+    tolerance_cm: 2.5
+
+  # 3. Ramp: 81 cm wide (x) x 90 cm long (y), ~9 deg incline
+  #    Width:  1.06 - 0.25 = 0.81 m (81 cm)
+  #    Length: 3.10 - 2.20 = 0.90 m (90 cm)
+  #    Rise:   0.90 * tan(9 deg) = 0.1425 m
+  ramp:
+    bounds: [0.25, 1.06, 2.20, 3.10]
+    expected_slope_deg: 9.0
+    start_height_m: 0.00
+    end_height_m: 0.1425
+    tolerance_cm: 2.5
+    slope_tolerance_deg: 2.0
+
+  # 4. Obstacle box (further up off to the left of the ramp): 39 cm (x) x 36 cm (y) x 39 cm tall
+  #    Width:  -0.56 - (-0.95) = 0.39 m (39 cm)
+  #    Depth:   3.96 - 3.60    = 0.36 m (36 cm)
+  obstacle_box:
+    bounds: [-0.95, -0.56, 3.60, 3.96]
+    expected_height_m: 0.39
+    height_m: 0.39
+    tolerance_cm: 3.0
+    is_traversable: false
+
+  synthetic_faults:
+    # Map 2: Vertical shift applied
+    floor_shift_m: 0.05
+
+    # Map 3: Deliberately placed fake obstacles on the flat floor.
+    fake_obstacles:
+      - name: "ghost_blob_1"
+        shape: "circle"
+        center: [-0.55, 1.65]      # [x, y] in meters on the flat floor
+        radius_m: 0.22             
+        height_m: 0.24             
+      - name: "fake_box_2"
+        shape: "box"
+        bounds: [-0.60, -0.20, 0.50, 0.80]
+        height_m: 0.18
+
+    # Map 4: Missing hole bounds 
+    hole_under_feet_bounds: [-0.40, 0.40, -0.40, 0.40]
