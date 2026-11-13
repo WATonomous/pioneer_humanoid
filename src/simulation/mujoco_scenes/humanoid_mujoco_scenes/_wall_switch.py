@@ -13,12 +13,12 @@ import numpy as np
 
 from humanoid_mujoco_scenes import TABLE_TOP_Z
 
-WALL_FRONT_X = 0.50             # the wall's face toward the robot; inside the arm's reach with the gripper pointing forward
+WALL_FRONT_X = 0.55             # the wall's face toward the robot: ~9 cm beyond the 8dof arm's home-pose fingertips, well inside its reach (at 0.50 they start touching the lever; at 0.60 the arm is nearly straight)
 WALL_THICK = 0.02
 WALL_HALF_Y = 0.15
 WALL_HEIGHT = 0.32              # above the table
 PLATE_SIZE = (0.004, 0.070, 0.115)   # x (thickness), y, z: a standard US wall plate (70 x 115 mm)
-SWITCH_POS = (0.30, 0.15)       # y on the table, height above the table of the plate centre
+SWITCH_POS = (0.30, 0.17)       # y on the table, height above the table of the plate centre
 JITTER = (0.03, 0.03)           # m, random shift of the plate (y, z) per reset
 
 JOINT = "switch"
@@ -43,8 +43,8 @@ def add_wall(spec: mujoco.MjSpec, side: float = 1.0) -> mujoco.MjsBody:
 def add_hinge(spec: mujoco.MjSpec, plate: mujoco.MjsBody, limit: float) -> mujoco.MjsBody:
     """The switch body on the plate's front face with its hinge (about Y, +-``limit`` rad). The caller adds its geoms."""
     sw = plate.add_body(name="switch", pos=[0, 0, 0])
-    sw.add_joint(name=JOINT, type=mujoco.mjtJoint.mjJNT_HINGE, axis=[0, 1, 0], range=[-np.degrees(limit), np.degrees(limit)],
-                 limited=mujoco.mjtLimited.mjLIMITED_TRUE, damping=0.005, armature=0.0003)   # MjSpec reads hinge ranges in degrees
+    sw.add_joint(name=JOINT, type=mujoco.mjtJoint.mjJNT_HINGE, axis=[0, 1, 0], range=[-limit, limit],
+                 limited=mujoco.mjtLimited.mjLIMITED_TRUE, damping=0.005, armature=0.0003)   # the scene compiler is in radians since #548, so the range is in radians too
     spec.add_exclude(bodyname1="plate", bodyname2="switch")   # it turns on its hinge, it does not hit its own plate
     return sw
 

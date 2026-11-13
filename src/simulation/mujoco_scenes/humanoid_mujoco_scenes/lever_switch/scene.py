@@ -59,7 +59,7 @@ def build(spec: mujoco.MjSpec) -> None:
 
     # The lever hinges on the top of the base, about Y. Its geoms start just above the hinge and run up (+z).
     lever = base.add_body(name="lever", pos=[0, 0, bz / 2])
-    lever.add_joint(name="lever", type=mujoco.mjtJoint.mjJNT_HINGE, axis=[0, 1, 0], range=[-np.degrees(HINGE_LIMIT), np.degrees(HINGE_LIMIT)],   # MjSpec reads hinge ranges in degrees
+    lever.add_joint(name="lever", type=mujoco.mjtJoint.mjJNT_HINGE, axis=[0, 1, 0], range=[-HINGE_LIMIT, HINGE_LIMIT],   # radians (the scene compiler has been in radians since #548)
                     limited=mujoco.mjtLimited.mjLIMITED_TRUE, damping=0.01, armature=0.0005)
     lever.add_geom(name="lever_stick", type=box, size=[LEVER_WIDTH / 2, LEVER_WIDTH / 2, LEVER_LENGTH / 2],
                    pos=[0, 0, 0.005 + LEVER_LENGTH / 2], mass=LEVER_MASS, friction=[1.0, 0.02, 0.001],
