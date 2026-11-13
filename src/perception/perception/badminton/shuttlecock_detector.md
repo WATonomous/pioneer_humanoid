@@ -100,17 +100,9 @@ python benchmark_latency.py --engine path/to/best.engine --imgsz 960 --n_iters 2
 | `~/shuttle_data/` | `/data/` |
 | `~/shuttle_data/weights/yolo26n.pt` | `/data/weights/yolo26n.pt` |
 
-The mount is in `modules/docker-compose.perception.local.yaml`, a per-developer override that `watod` adds automatically when it exists. The file is gitignored (`modules/docker-compose.*.local.yaml`). **The shared `modules/docker-compose.perception.yaml` does not mount `/data`.** On a fresh checkout, make the override yourself or the detector will fail to start:
+The mount is in the shared modules/docker-compose.perception.yaml (${HOME}/shuttle_data:/data:ro), so it works on a fresh checkout and on the robot. ${HOME} is the home directory of whoever runs watod, so put the weights under that user's ~/shuttle_data.
 
-```yaml
-# modules/docker-compose.perception.local.yaml
-services:
-  perception:
-    volumes:
-      - ${HOME}/shuttle_data:/data
-```
-
-(The existing local override replaces the whole `volumes` list with `!override` to move the source mount to `/home/bolty/ament_ws`. If you do the same, keep the `/data` line in it.)
+If your modules/docker-compose.perception.local.yaml replaces volumes with !override (the existing one does, to move the source mount to /home/bolty/ament_ws), it drops the shared /data mount, so keep a ${HOME}/shuttle_data:/data:ro line in it.
 
 Put the weights on the host:
 

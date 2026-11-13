@@ -30,8 +30,6 @@ shuttlecock_detector_node:
     image_topic: "/camera/camera/color/image_raw"
     point_topic: "/perception/shuttlecock/detections_2d"
     visible_topic: "/perception/shuttlecock/detection_visible"
-    # Host ~/shuttle_data is mounted at /data by the gitignored
-    # modules/docker-compose.perception.local.yaml; see badminton/shuttlecock_detector.md.
     weights: "/data/weights/yolo26n.pt"   # update to "/data/weights/yolo26n_v2.pt"
     device: "cpu"
     imgsz: 1280
