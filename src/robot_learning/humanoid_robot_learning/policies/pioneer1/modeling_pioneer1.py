@@ -27,7 +27,7 @@ from lerobot.utils.constants import ACTION, OBS_IMAGES, OBS_LANGUAGE_ATTENTION_M
 from torch import Tensor, nn
 from transformers import AutoModel, CLIPTextModel, CLIPVisionModel
 
-from .configuration_ditx import DiTXConfig
+from .configuration_pioneer1 import Pioneer1Config
 
 CLIP_MEAN, CLIP_STD = (0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711)
 IMAGENET_MEAN, IMAGENET_STD = (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)
@@ -137,11 +137,11 @@ class VisionEncoder(nn.Module):
         return out.last_hidden_state
 
 
-class DiTXPolicy(PreTrainedPolicy):
-    config_class = DiTXConfig
-    name = "humanoid_ditx"
+class Pioneer1Policy(PreTrainedPolicy):
+    config_class = Pioneer1Config
+    name = "pioneer1"
 
-    def __init__(self, config: DiTXConfig, **kwargs):
+    def __init__(self, config: Pioneer1Config, **kwargs):
         super().__init__(config)
         config.validate_features()
         self.config = config
@@ -363,7 +363,7 @@ class DiTXPolicy(PreTrainedPolicy):
             d = inference_delay
             if d > self.config.rtc_max_prefix:   # trained with prefixes up to rtc_max_prefix: anchor on that many
                 if not getattr(self, "_warned_delay", False):
-                    print(f"[humanoid_ditx] inference delay {d} > rtc_max_prefix {self.config.rtc_max_prefix}: prefix cut to "
+                    print(f"[pioneer1] inference delay {d} > rtc_max_prefix {self.config.rtc_max_prefix}: prefix cut to "
                           f"{self.config.rtc_max_prefix} (the RTC queue still skips the {d} executed actions)", flush=True)
                     self._warned_delay = True
                 d = self.config.rtc_max_prefix

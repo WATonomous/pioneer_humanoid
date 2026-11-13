@@ -8,9 +8,9 @@ from lerobot.optim.optimizers import AdamWConfig
 from lerobot.optim.schedulers import DiffuserSchedulerConfig
 
 
-@PreTrainedConfig.register_subclass("humanoid_ditx")
+@PreTrainedConfig.register_subclass("pioneer1")
 @dataclass
-class DiTXConfig(PreTrainedConfig):
+class Pioneer1Config(PreTrainedConfig):
     """Flow-matching transformer over action chunks that cross-attends to language-modulated visual tokens."""
 
     n_obs_steps: int = 1
@@ -91,7 +91,7 @@ class DiTXConfig(PreTrainedConfig):
 
     def validate_features(self) -> None:
         if not self.image_features:
-            raise ValueError("humanoid_ditx needs at least one camera")
+            raise ValueError("pioneer1 needs at least one camera")
         missing = [c for c in self.full_token_cameras if c not in self.image_features]
         if missing:
             raise ValueError(f"full_token_cameras {missing} are not cameras of the dataset: {list(self.image_features)}")

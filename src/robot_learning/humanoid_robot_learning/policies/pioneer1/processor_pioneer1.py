@@ -16,10 +16,10 @@ from lerobot.processor import (
 from lerobot.processor.converters import policy_action_to_transition, transition_to_policy_action
 from lerobot.utils.constants import POLICY_POSTPROCESSOR_DEFAULT_NAME, POLICY_PREPROCESSOR_DEFAULT_NAME
 
-from .configuration_ditx import DiTXConfig
+from .configuration_pioneer1 import Pioneer1Config
 
 
-def make_ditx_pre_post_processors(config: DiTXConfig, dataset_stats: dict[str, dict[str, torch.Tensor]] | None = None):
+def make_pioneer1_pre_post_processors(config: Pioneer1Config, dataset_stats: dict[str, dict[str, torch.Tensor]] | None = None):
     """Batch, tokenize the task with the text encoder's tokenizer, move to the device and normalize; unnormalize actions on the way out."""
     features = {**config.input_features, **config.output_features}
     pre = PolicyProcessorPipeline[dict[str, Any], dict[str, Any]](
