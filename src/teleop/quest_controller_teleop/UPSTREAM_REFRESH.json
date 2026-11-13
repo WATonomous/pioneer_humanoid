@@ -1,0 +1,15 @@
+{
+  "repository": "https://github.com/WATonomous/pioneer_humanoid",
+  "revision": "2f3c83777fa866a40baf04721cc52bae2762cb41",
+  "latest_teleop_commit": "782eedf887cc872306fdeb2ca6f9f4f8feaf917f",
+  "source_sha256": {
+    "input_filter.py": "8596a77e2c159e57d7641ccf8253c331a75199aef5119c39d38ade1d4e08451d",
+    "article_control.py": "98b325df50d855d616f89e58cbf7f71fa804df52f781290b54d6ce5b2920fcb3",
+    "scene_driver.py": "2d92f950c6d1097b64d68ff36d5e930a20bd0ca7f676726a31c5069e782759b3",
+    "transport.py": "4cc62bfc5d72b4b877c584c9b1a9206cbc8f0fb70993c3a189e3fb8ad776d9d6",
+    "index.html": "af27393100bc4300493be3e90feb768724937c02062dbd69e88779ca7e971500",
+    "tests/test_input_filter.py": "c8b123e31b93c8abdb3cd084ef9a17d527cfcf64349e22c80e2ac005415522e2",
+    "tests/test_input_transport.py": "99ec702ec8365f728d2e3b99f45130d71ab4911ad3084ba7440a8d49a6a994e9"
+  },
+  "scope": "Compatible input/mapping/transport port to the existing six-joint Isaac cargo policy. The seven-joint MuJoCo model, mink solver, no-video frontend and recording schema are not substituted."
+}

@@ -63,6 +63,35 @@ class CargoGateTests(unittest.TestCase):
         self.assertEqual(self.saved[0][1], "buffer_boundary")
         self.assertEqual(len(self.gate.frames), 1)
 
+    def test_explicit_save_keeps_interventions_separate_across_policy_intervals(self):
+        self.gate.save_on_hand_back = False
+        for label in ("first", "second"):
+            self.gate.toggle()
+            self.gate.record({}, label, "cargo")
+            self.gate.toggle()
+            self.gate.record({}, "autonomous", "cargo")
+        self.assertEqual(self.saved, [])
+        self.assertEqual(self.gate.pending_frames, 2)
+        self.gate.save("vr_operator_save")
+        self.assertEqual([s[0][0]["action"] for s in self.saved], ["first", "second"])
+        self.assertEqual(self.gate.pending_frames, 0)
+        self.assertEqual(self.gate.saved_segments, 2)
+
+    def test_explicit_save_buffer_limit_holds_instead_of_auto_saving(self):
+        self.gate.save_on_hand_back = False
+        self.gate.toggle()
+        for i in range(4):
+            self.gate.record({}, i, "cargo")
+        self.assertTrue(self.gate.buffer_full)
+        self.assertEqual(self.gate.pending_frames, 3)
+        self.assertEqual(self.saved, [])
+        with self.assertRaises(RuntimeError):
+            self.gate.select({}, "cargo")
+        self.gate.toggle()
+        self.assertEqual(self.saved, [])
+        self.assertEqual(self.gate.discard(), 3)
+        self.assertFalse(self.gate.buffer_full)
+
 
 if __name__ == "__main__":
     unittest.main()

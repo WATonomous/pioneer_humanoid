@@ -13,6 +13,7 @@ VR_ROOT = Path(__file__).resolve().parents[4] / "src/teleop/quest_controller_tel
 sys.path.insert(0, str(VR_ROOT))
 from isaac_control import ControllerSceneDriver
 from control import quaternion_matrix
+from input_filter import OneEuroPose
 from pioneer_humanoid.arm_params import LEFT_ARM_JOINTS, RIGHT_ARM_JOINTS
 
 
@@ -34,13 +35,18 @@ class VrExpert:
         self.driver = driver or ControllerSceneDriver(
             {"left": LEFT_ARM_JOINTS, "right": RIGHT_ARM_JOINTS}, gain, .9,
             calibration or VR_ROOT / "wrist_calibration.json", port,
-            wrist_velocity=1.5, frame_calibration=camera_in_base)
+            wrist_velocity=1.5, frame_calibration=camera_in_base,
+            input_filter_factory=OneEuroPose, anchored=True, predict_input=True)
         self.grip = 0.
         self.grip_matched = False
         self.button_synced = False
         self.right_grip = False
         self.ready = False
+        self.waiting_for_start = True
         self.reset_requested = False
+        self.save_requested = False
+        self.record_presses = 0
+        self.waiting_for_release = False
         self.fine = False  # keyboard shift is unused; X supplies VR precision mode
 
     def positions(self, env):
@@ -60,25 +66,41 @@ class VrExpert:
     def poll(self, env):
         """Pump input even in policy/pause mode. Return explicit authority edges."""
         self.reset_requested = self.driver.update(self.positions(env))
+        self.save_requested = False
         with self.driver.shared.lock:
             packet = self.driver.shared.packet
             fresh = packet is not None and time.monotonic() - self.driver.shared.received <= .2
+            presses = self.driver.shared.record_presses
+        pressed = presses > self.record_presses
+        self.record_presses = presses
+        # B is a latched UI event, not a pose command. A valid button press can
+        # arrive just before the latest mailbox pose loses tracking or expires.
+        self.save_requested = bool(pressed and not self.waiting_for_start and not self.waiting_for_release)
         self.ready = bool(fresh and self.driver.targets["left"].active and packet["right"] is not None)
         right = packet["right"] if fresh and packet["head"] is not None else None
         if right is None:
             self.button_synced = False
             return None
         held = bool(right.clutch)
+        if self.waiting_for_release:
+            self.button_synced, self.right_grip = True, held
+            if self.is_ready() and not held:
+                self.waiting_for_release = False
+                return "POLICY"
+            return None
+        authority = None
         if not self.button_synced:
             self.button_synced, self.right_grip = True, held
-            return None
-        if held != self.right_grip:
-            self.right_grip = held
-            return "HUMAN" if held else "POLICY"
-        return None
+        else:
+            if held != self.right_grip:
+                self.right_grip = held
+                authority = "HUMAN" if held else "POLICY"
+        if self.waiting_for_start and self.is_ready() and not held and not packet["left"].clutch:
+            self.waiting_for_start = False
+        return authority
 
     def action(self, env):
-        if not self.is_ready():
+        if self.waiting_for_release or not self.is_ready():
             raise VrInputUnavailable("VR input unavailable; do not execute or label stale input")
         commands = self.driver.solve(self.positions(env), .04)
         trigger = float(self.driver.grippers["left"])
@@ -108,17 +130,33 @@ class VrExpert:
 
     def feedback(self, gate):
         status = f"Cargo HG-DAgger: {gate.mode}"
-        if gate.paused:
+        if gate.notice:
+            status += f" | {gate.notice}"
+        if self.waiting_for_start:
+            status += " | WAITING FOR VR: Enter VR, track both controllers and release both grips"
+        elif self.driver.shared.record_button_supported is False:
+            status += " | REFRESH QUEST BROWSER PAGE: old page is not sending the RIGHT B button"
+        elif self.waiting_for_release:
+            status += " | Release RIGHT grip to start the next attempt"
+        elif gate.buffer_full:
+            status += " | BUFFER FULL: RIGHT B saves; LEFT Y discards/resets; physics held"
+        elif gate.paused:
             status += " | PAUSED"
         elif gate.mode == "HUMAN" and not self.ready:
             status += " | WAITING FOR TRACKING / LEFT CALIBRATION; physics and recording held"
         elif gate.mode == "HUMAN" and not self.grip_matched:
             status += " | Match left trigger to held grip before changing it"
+        status += (f" | Saved: {gate.saved_segments} segments | Unsaved: {gate.pending_frames} frames; "
+                   "RIGHT B save+reset / LEFT Y discard+reset")
         with self.driver.shared.lock:
-            self.driver.shared.feedback.update(status=status, controls=(
-                "Cargo left arm only. Hold RIGHT grip to intervene; release to save and return to policy. "
+            self.driver.shared.feedback.update(
+                status=status, right_b_presses=self.record_presses, unsaved_frames=gate.pending_frames,
+                saved_segments=gate.saved_segments,
+                vr_client_has_save_button=self.driver.shared.record_button_supported, controls=(
+                "Cargo left arm only. Hold RIGHT grip to intervene; release returns to policy WITHOUT saving. "
                 "LEFT controller moves arm; LEFT index trigger grips; X = precision. "
-                "Left Y resets/discards. Keyboard H toggles authority, P pauses, B resets. "
+                "RIGHT B saves unsaved corrections AND resets; LEFT Y discards them AND resets. "
+                "Keyboard H toggles authority, N saves, P pauses, B resets. "
                 "Headset overview is monoscopic; both wrist panels show the left wrist."))
 
     def close(self):

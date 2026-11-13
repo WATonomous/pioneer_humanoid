@@ -24,7 +24,8 @@ parser.add_argument("--no-cameras", action="store_true", help="Physics probe onl
 parser.add_argument("--resume", action="store_true", help="Append to a matching dataset; never overwrite")
 parser.add_argument("--round-id", default="round_001")
 parser.add_argument("--max-seconds", type=float, default=45.)
-parser.add_argument("--max-segment-frames", type=int, default=750)
+parser.add_argument("--max-segment-frames", type=int, default=750,
+                    help="Human frame buffer: VR waits for B/Y at the limit; keyboard saves at the boundary")
 parser.add_argument("--report", type=Path, default=ROOT / "outputs/nasa_cargo/evaluation.json")
 parser.add_argument("--debug-images", action="store_true")
 parser.add_argument("--randomization", choices=("baseline", "varied", "wide", "tray"), default="baseline",
@@ -259,11 +260,23 @@ def collect(env):
         writer.save(frames, {"source": "human_intervention" if actor else "human_demo",
                                 "seed": seed, "round": args.round_id, "checkpoint": str(args.policy),
                                 "teleop": "quest_controller_v2" if vr else "keyboard",
+                                "save_mode": "explicit_button" if vr else "hand_back",
                                 "reset": env.reset_metadata,
                                 "segment": segment, "boundary": reason})
         segment += 1
 
-    gate = HumanGate(env, expert, actor, save, args.max_segment_frames)
+    gate = HumanGate(env, expert, actor, save, args.max_segment_frames, save_on_hand_back=not vr)
+    gate.saved_segments = writer.episodes
+
+    def reset_attempt(notice):
+        nonlocal seed
+        seed += 1
+        env.reset(seed)
+        gate.reset(resume_policy=vr)
+        if vr:
+            expert.waiting_for_release = True
+        gate.notice = notice
+        print(f"[HG-DAgger] {notice}; reset to seed={seed}", flush=True)
 
     def key(event, *unused):
         if event.input.name in ("LEFT_SHIFT", "RIGHT_SHIFT"):
@@ -285,8 +298,10 @@ def collect(env):
     if vr:
         print(f"[HG-DAgger VR] adb reverse tcp:{args.vr_port} tcp:{args.vr_port}; "
               f"Quest browser http://localhost:{args.vr_port}/ -> Enter VR", flush=True)
-        print("[HG-DAgger VR] Hold RIGHT grip: human; release: save and return. "
-              "LEFT motion/trigger: arm/gripper. Left Y: reset/discard. Right arm stays parked.", flush=True)
+        print("[HG-DAgger VR] Hold RIGHT grip: human; release: return WITHOUT saving. "
+              "RIGHT B: save then reset; LEFT Y: discard then reset. LEFT motion/trigger: arm/gripper.", flush=True)
+        print("[HG-DAgger VR] Waiting before starting: Enter VR with head and both controllers tracked, "
+              "and release both grip buttons. Physics and recording are held until then.", flush=True)
     else:
         print("[HG-DAgger] W/S A/D Q/E translation; Z/X T/G C/V rotation; Shift fine. Focus viewport.", flush=True)
     print(f"[HG-DAgger] mode={gate.mode}", flush=True)
@@ -296,14 +311,18 @@ def collect(env):
         while app.is_running() and not quit_requested and writer.episodes < args.episodes:
             started = time.monotonic()
             if vr:
+                was_waiting = expert.waiting_for_start
                 authority = expert.poll(env)
+                if was_waiting and not expert.waiting_for_start:
+                    print("[HG-DAgger VR] VR ready; starting control.", flush=True)
                 if expert.reset_requested:
                     events.append("B")
                 elif actor and authority is not None and authority != gate.mode:
                     gate.toggle()
                     print(f"[HG-DAgger] mode={gate.mode}", flush=True)
-                elif not actor and authority == "POLICY":
-                    gate.save("vr_operator_save")
+                if not expert.reset_requested and expert.save_requested:
+                    print(f"[HG-DAgger VR] RIGHT B received; unsaved human frames={gate.pending_frames}", flush=True)
+                    events.append("VR_SAVE")
             while events:
                 event = events.pop(0)
                 if event == "ESCAPE":
@@ -314,20 +333,29 @@ def collect(env):
                 elif event == "P":
                     gate.pause()
                     print(f"[HG-DAgger] paused={gate.paused}", flush=True)
-                elif event == "N":
-                    gate.save("operator_save")
+                elif event in ("N", "VR_SAVE"):
+                    count = gate.pending_frames
+                    gate.save("vr_operator_save" if event == "VR_SAVE" else "operator_save")
+                    gate.notice = (f"SAVED {count} human frames; total saved segments={writer.episodes}" if count
+                                   else f"NO NEW CORRECTION TO SAVE; total saved segments={writer.episodes}. "
+                                        "Hold RIGHT grip to record human actions")
+                    if event == "VR_SAVE":
+                        # Save completes before reset. A write error must never trigger a reset.
+                        reset_attempt(gate.notice)
+                    else:
+                        print(f"[HG-DAgger] {gate.notice}", flush=True)
                 elif event == "DELETE":
-                    gate.frames.clear()
-                    print("[HG-DAgger] Current human segment discarded", flush=True)
+                    print(f"[HG-DAgger] Discarded {gate.discard()} unsaved human frames", flush=True)
                 elif event == "B":
-                    seed += 1
-                    env.reset(seed)
-                    gate.reset()
+                    count = gate.pending_frames
+                    reset_attempt(f"DISCARDED {count} unsaved human frames; total saved segments={writer.episodes}")
             if quit_requested:
                 break
             if vr:
                 expert.feedback(gate)
-            if gate.paused or not env.sim.is_playing() or (vr and gate.mode == "HUMAN" and not expert.is_ready()):
+            if (gate.paused or gate.buffer_full or not env.sim.is_playing()
+                    or (vr and (expert.waiting_for_start or expert.waiting_for_release
+                                or (gate.mode == "HUMAN" and not expert.is_ready())))):
                 if vr and time.monotonic() - last_stream >= .1:
                     expert.publish(env.observe(), gate)
                     last_stream = time.monotonic()
@@ -358,7 +386,7 @@ def collect(env):
             expert.close()
         if subscription is not None:
             interface.unsubscribe_to_keyboard_events(keyboard, subscription)
-        print(f"[HG-DAgger] Saved {writer.episodes} human segments; discarded {len(gate.frames)} pending frames", flush=True)
+        print(f"[HG-DAgger] Saved {writer.episodes} human segments; discarded {gate.pending_frames} pending frames", flush=True)
 
 
 def main():

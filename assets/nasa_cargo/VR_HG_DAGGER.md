@@ -18,6 +18,13 @@ URDF IK through `cargo_vr.py`. It keeps the trained left-arm policy, receiving
 tray, 100 g cargo bag, two 320×240 RGB observations, 25 Hz and seven-action
 contract. The right arm stays parked.
 
+Wilson’s latest compatible input/transport updates are included: 1-euro pose
+smoothing, mapping anchored at takeover to avoid accumulated drift, bounded
+inter-packet prediction, and active-headset-tab ownership. The cargo headset
+camera panels are retained. Upstream’s new seven-joint MuJoCo model and mink
+IK are not substituted for this trained six-joint Isaac policy; see
+[the import record](../../src/teleop/quest_controller_teleop/IMPORTED_FROM.md).
+
 Use the cargo entry point below for HG-DAgger. The standalone VR launcher in
 the imported directory has its own scenes and recording configuration.
 
@@ -60,7 +67,10 @@ Start the trained policy with VR human interventions:
 ```
 
 This starts the cargo scene and its embedded HTTP/WebSocket server on port
-8444. The trained policy runs autonomously until you intervene. Close a previous
+8444. Startup waits with physics and recording held while the browser preview
+remains live. Enter VR with head and both controllers tracked and both grip
+buttons released; then the trained policy starts automatically and runs until
+you intervene. Close a previous
 Isaac viewer before starting this command. The task-worker flag carries over
 the VR branch's startup workaround; its native-runtime behavior has not been
 retested for this integration.
@@ -70,21 +80,25 @@ retested for this integration.
 Open **`http://localhost:8444/` in Meta Browser**, refresh, then select **Enter
 VR**. Start with both grip buttons released, so button state can synchronize.
 The page/HUD identifies `POLICY`, `HUMAN` and pause/tracking-wait states.
+Until the first ready connection it displays `WAITING FOR VR`; the terminal
+prints `VR ready; starting control` when startup is released. This is a
+one-time startup wait; subsequent policy-mode disconnect behavior is unchanged.
 
 | Input | Cargo HG-DAgger behavior |
 |---|---|
 | Hold **right grip button** (middle finger) | Take over from the policy |
-| Release right grip | Save this human segment, clear stale policy actions and return to the policy |
+| Release right grip | Return to policy; keep corrections unsaved until B or Y |
+| Press **right B** | Save all unsaved human correction segments, then reset to the next seed |
 | Move/rotate **left controller** | Move the left arm while you have human authority |
 | **Left index trigger** | Proportional gripper closure after matching the current held grip |
 | Hold **X** | Fine translation/rotation at 25% increments |
 | Hold left thumbstick click, rotate controller, release | Pause arm input and fit wrist-pivot calibration |
-| **Left Y** | Reset arm/bag for the next seed; discard the current unsaved segment |
-| GUI keyboard **H** | Alternative takeover/return toggle |
+| **Left Y** | Discard all unsaved corrections and reset; release right grip to start the next attempt |
+| GUI keyboard **H** | Alternative takeover/return toggle; does not save in VR mode |
 | GUI keyboard **P** | Freeze/resume physics |
-| GUI keyboard **N** / **Delete** | Save / discard the current human segment |
+| GUI keyboard **N** / **Delete** | Save / discard all unsaved correction segments |
 | GUI keyboard **B** | Reset/discard for the next attempt |
-| GUI **Esc**, or terminal **Ctrl+C** | Exit; discard unsaved frames |
+| GUI **Esc**, or terminal **Ctrl+C** | Exit; discard all unsaved frames, including released interventions |
 
 Taking over reanchors controller movement at the measured arm pose. If the
 policy is carrying a bag, its gripper command is retained: squeeze the left
@@ -103,17 +117,30 @@ left wrist view (both wrist panels show that same left camera). This preserves
 the recorded policy camera contract; head movement does not move those cameras.
 Default translation gain is 1.0; use `--vr-gain 0.5` for smaller movements.
 
-Each intervention is a separate episode, split at 750 frames if necessary.
-Only human-controlled executed actions become correction labels. Policy-only
-execution is excluded. `--episodes 50` counts saved segments, not complete
-pick-and-place attempts. For a completed policy attempt, use Left Y/B to reset.
+Each uninterrupted intervention remains a separate episode; policy-only execution
+is excluded and action chunks never bridge a policy-controlled interval. Releasing
+right grip stages the segment in memory without writing it. Right B explicitly
+saves all staged segments plus any active human segment, then resets. Saving
+finishes before the reset; the saved segments retain the original attempt seed.
+Left Y discards all
+unsaved segments for the attempt and resets, including when right grip is held.
+After either button, physics waits for right-grip release so reset cannot create
+stray frames. B also resets an empty attempt without creating a recording. The
+HUD always shows both the total saved segment count and the unsaved frame count.
+If B and Y arrive together, Y wins. Existing saved recordings are not deleted.
+
+The VR buffer holds at most `--max-segment-frames` human frames (default 750,
+30 simulated seconds of human control). At the limit, physics pauses and the HUD
+asks for B to save or Y to discard; it never automatically saves a failed attempt.
+`--episodes 50` counts saved intervention segments, not full tasks or B presses.
+One B press can save multiple segments if you intervened more than once.
 Existing output directories require `--resume`; choose a new round directory
 for a new collection round.
 
 For VR-only demonstrations using this same data contract, use `--mode teleop
 --teleop vr`, omit `--policy`, and choose a new dataset directory. That mode
-starts in HUMAN authority; pressing/releasing the right grip saves a segment
-and keeps human control. Append `--headless` for headset-only operation; GUI
+starts in HUMAN authority; right B saves/resets, left Y discards/resets, and releasing
+right grip does not save. Append `--headless` for headset-only operation; GUI
 keyboard shortcuts then require switching back to a windowed run.
 
 ## 4. Aggregate and train v2
@@ -141,10 +168,28 @@ and synthetic dataset remain available.
 
 ## Integration validation
 
-Unit checks run without launching a simulator, headset session or server:
-12 cargo/gate checks passed (one optional PyArrow check skipped), and 38 imported
-VR checks passed (four optional browser/WebSocket checks skipped). New checks
-exercise right-grip authority edges, takeover while carrying, trigger matching,
-stale/missing tracking, reconnect behavior, camera reuse and label admission.
-Runtime Quest/Isaac operation has not been tested for this integration. The v1
-policy's earlier headless performance was measured before adding VR.
+The cargo suite covers explicit-save and reset behavior in the container. Regression checks cover
+right-grip authority without automatic saves, explicit B saving (including
+held-button suppression), Y discard/reset, simultaneous B+Y with Y priority,
+post-reset grip-release waiting, bounded pending buffers, and exclusion of
+policy actions. The actual collection loop is exercised without an Isaac
+launcher. The imported VR stack also has protocol, smoothing, target-mapping
+and prediction tests; optional browser/asset tests depend on installed tools.
+A live headless check verified the waiting server and headset camera endpoint.
+Runtime Quest/controller feel still requires the operator's headset check.
+
+
+## If right B appears to do nothing
+
+Restart the collector with `--resume` if its output directory already exists.
+Exit immersive VR, reload `http://localhost:8444/` in Meta Browser, and enter VR
+again so the headset runs the current page. An old page can still stream motion
+and grips while omitting the new B field; the HUD now explicitly requests a
+page refresh in that case. Received presses are logged as `RIGHT B received`.
+A successful write shows `SAVED ...`; an empty buffer shows `NO NEW CORRECTION
+TO SAVE`, together with the unchanged total saved count. B resets in both cases.
+The `/status` response includes `right_b_presses`, `unsaved_frames`, and
+`vr_client_has_save_button` and `saved_segments` for diagnostics. A brief tracking dropout does not
+discard an already-received save-button event; pose commands still require
+fresh tracking. Focus the Isaac window and press keyboard N as an alternative
+explicit save. Save pending work before exiting the collector.

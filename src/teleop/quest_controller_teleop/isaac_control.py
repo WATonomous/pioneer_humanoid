@@ -13,18 +13,24 @@ from types import SimpleNamespace
 
 import numpy as np
 
-from control import fit_pivot
-from article_control import ArticleTarget, PioneerArticleIK
+from control import fit_pivot, rotation_exp, rotation_vector
+from article_control import ArticleTarget, AnchoredTarget, PioneerArticleIK
 from transport import Shared, load_pivots, serve
 
 
 class ControllerSceneDriver:
     def __init__(self, joint_names, gain, velocity, calibration, port=8444,
-                 wrist_velocity=3.6, rotation_gain=1., angular_lead=.6, frame_calibration=None):
+                 wrist_velocity=3.6, rotation_gain=1., angular_lead=.6, frame_calibration=None,
+                 input_filter_factory=None, anchored=False, predict_input=False):
         self.shared = Shared()
         self.solvers = {s: PioneerArticleIK(names, velocity, wrist_velocity)
                         for s, names in joint_names.items()}
-        self.targets = {s: ArticleTarget(gain=gain, rotation_gain=rotation_gain, max_angle_error=angular_lead)
+        target_class = AnchoredTarget if anchored else ArticleTarget
+        self.filters = {s: input_filter_factory() if input_filter_factory else None for s in joint_names}
+        self.history = {s: [] for s in joint_names}
+        self.predict_input = predict_input
+        self.record_presses = 0
+        self.targets = {s: target_class(gain=gain, rotation_gain=rotation_gain, max_angle_error=angular_lead)
                         for s in joint_names}
         if frame_calibration is not None:
             for target in self.targets.values():
@@ -87,15 +93,21 @@ class ControllerSceneDriver:
         if self.owner_thread is not None and threading.get_ident() != self.owner_thread:
             raise RuntimeError("Isaac controller updates must remain on the main thread")
 
+    def _reset_filter(self, side):
+        if self.filters[side] is not None:
+            self.filters[side].reset()
+
     def reset(self, joint_positions):
         """Reset references/commands after the owner restores the whole scene."""
         self._check_thread()
         for side, solver in self.solvers.items():
+            self._reset_filter(side)
             solver.command = np.array(joint_positions[side], dtype=float).copy()
             self.targets[side].lose_tracking()
             self.targets[side].position = self.targets[side].rotation = None
             self.targets[side].requested_rotation = None
             self.samples[side].clear()
+            self.history[side].clear()
             self.calibrating[side] = False
             self.grippers[side] = 0.
         self.status = "Scene reset. Control resumes from the current arm pose when tracking returns."
@@ -116,6 +128,7 @@ class ControllerSceneDriver:
             lost = self.shared.interrupted.copy()
             self.shared.interrupted = {s: False for s in self.targets}
             reset_sequence = self.shared.reset_sequence
+            self.record_presses = self.shared.record_presses
         if reset_sequence != self.reset_sequence:
             self.reset_sequence = reset_sequence
             # Consume the frame containing Y; it must not move an arm after reset.
@@ -125,11 +138,17 @@ class ControllerSceneDriver:
         for side, target in self.targets.items():
             if lost[side] or not fresh:
                 target.lose_tracking()
+                self._reset_filter(side)
                 self.samples[side].clear()
+                self.history[side].clear()
                 self.calibrating[side] = False
+        now = time.monotonic()
         if fresh and sequence != self.sequence:
             for side, solver in self.solvers.items():
                 control = packet[side]
+                sample = packet.get("sample")
+                self.history[side] = (self.history[side][-1:] + [((sample["time_ms"] / 1e3) if sample else received, control)]
+                                      if control is not None and not control.calibrate else [])
                 target = self.targets[side]
                 p, r, _, _ = solver.kinematics(joint_positions[side])
                 if control is not None and control.calibrate:
@@ -139,6 +158,7 @@ class ControllerSceneDriver:
                     if len(self.samples[side]) < 1500:
                         self.samples[side].append((control.position.copy(), control.rotation.copy()))
                     target.lose_tracking()
+                    self._reset_filter(side)
                     self.status = f"{side}: twist with wrist stationary; release stick-click to save"
                 else:
                     if self.calibrating[side]:
@@ -158,16 +178,18 @@ class ControllerSceneDriver:
                             except (ValueError, OSError) as error:
                                 self.status = f"{side}: {error}"
                         self.samples[side].clear()
-                    if control is not None and packet["head"] is not None:
-                        # Reuse the same incremental target mapping. The first
-                        # tracked frame anchors to measured FK, including after
-                        # loss/reset/calibration. Never mutate the shared packet.
-                        target.armed = True
-                        control = replace(control, clutch=True)
-                    target.update(control, packet["head"], p, r)
-                    if target.active:
-                        self.grippers[side] = control.trigger
+                    if control is None:
+                        self._reset_filter(side)
+                    self._drive(side, control, packet["head"], p, r, now)
             self.sequence = sequence
+        elif self.predict_input and fresh and packet["head"] is not None:
+            # Between packets (90 Hz headset, 100 Hz ticks) the arm targets move on along the hand's last velocity.
+            # Holding them instead left a tenth to a third of ticks with no motion: stop-go, felt as clicking (profiled).
+            for side, solver in self.solvers.items():
+                control = self._predict(side, now - received)
+                if control is not None and self.targets[side].active:
+                    p, r, _, _ = solver.kinematics(joint_positions[side])
+                    self._drive(side, control, packet["head"], p, r, now)
         with self.shared.lock:
             self.shared.feedback = {
                 "scene": "isaac",
@@ -176,6 +198,34 @@ class ControllerSceneDriver:
                 "haptics": {s: self.solvers[s].warning if t.active else 0. for s, t in self.targets.items()},
             }
         return False
+
+    def _predict(self, side, elapsed):
+        """The raw pose `elapsed` s after the newest packet, from the last two: at most one packet interval ahead."""
+        if len(self.history[side]) < 2:
+            return None
+        (t0, a), (t1, b) = self.history[side]
+        if not 0 < t1 - t0 < .05:
+            return None
+        k = min(max(elapsed, 0.) / (t1 - t0), 1.)
+        return replace(b, position=b.position + k * (b.position - a.position),
+                       rotation=rotation_exp(k * rotation_vector(b.rotation @ a.rotation.T)) @ b.rotation)
+
+    def _drive(self, side, control, head, p, r, now):
+        """Filter the controller pose and move this arm's target (a None control loses tracking)."""
+        target = self.targets[side]
+        if control is not None and self.filters[side] is not None:
+            # Smooth Quest jitter and cap one-frame tracking jumps before the mapping (input_filter.py). Timed by
+            # control tick, not packet arrival: every tick now carries a pose, so the filter sees an even rate.
+            position, rotation = self.filters[side](control.position, control.rotation, now)
+            control = replace(control, position=position, rotation=rotation)
+        if control is not None and head is not None:
+            # Reuse the same incremental target mapping. The first tracked frame anchors to measured FK, including
+            # after loss/reset/calibration. Never mutate the shared packet.
+            target.armed = True
+            control = replace(control, clutch=True)
+        target.update(control, head, p, r)
+        if target.active:
+            self.grippers[side] = control.trigger
 
     def solve(self, joint_positions, dt):
         self._check_thread()

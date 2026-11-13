@@ -46,8 +46,8 @@ Follow [the Quest container/USB/browser setup](VR_HG_DAGGER.md), then run:
 ```
 
 Hold the right grip to intervene, use the left controller/trigger to correct,
-and release the right grip to save and resume the policy. Left Y resets to the
-next seed and discards unsaved frames. The wider support is a reset-domain
+and release right grip to resume policy without saving. Right B saves unsaved
+corrections and resets; left Y discards them and resets to the next seed. The wider support is a reset-domain
 variation; the recording contract is compatible with the existing aggregate.
 
 The existing policy was trained with the smaller `varied` range. No automatic

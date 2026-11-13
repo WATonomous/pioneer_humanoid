@@ -79,6 +79,7 @@ class Input:
     precision: bool
     calibrate: bool
     reset_scene: bool = False
+    record: bool = False
 
     @classmethod
     def parse(cls, value):
@@ -93,7 +94,7 @@ class Input:
         return cls(p, quaternion_matrix(value.get("orientation")),
                    value.get("clutch") is True, trigger,
                    value.get("precision") is True, value.get("calibrate") is True,
-                   value.get("reset_scene") is True)
+                   value.get("reset_scene") is True, value.get("record") is True)
 
 
 @dataclass

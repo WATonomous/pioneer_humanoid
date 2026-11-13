@@ -1,3 +1,8 @@
+> For the current NASA cargo policy, use [the HG-DAgger runner](../../../assets/nasa_cargo/MOVING_TRAY.md).
+> It includes Wilson's latest compatible smoothing, anchored mapping, packet prediction and tab-ownership updates.
+> [Import details](IMPORTED_FROM.md) explain the six-joint Isaac / seven-joint MuJoCo compatibility boundary.
+> The standalone Isaac commands below retain their original defaults.
+
 # Quest 2 controller teleoperation
 
 For the trained **NASA cargo policy with HG-DAgger interventions**, use the

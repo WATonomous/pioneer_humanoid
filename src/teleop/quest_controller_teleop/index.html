@@ -10,7 +10,7 @@ img { width:31%; background:#253341; min-height:100px } p { line-height:1.6 } #s
 </style>
 <h1>Pioneer VR teleoperation</h1>
 <p>Quest 2 + Touch controllers · simulated Pioneer bimanual arms</p>
-<button id="start" disabled>Enter VR</button>
+<button id="start" disabled>Enter VR (or click anywhere)</button>
 <p id="status">Connecting…</p>
 <p id="controls">Tracked controllers move the arms automatically.<br>
 <b>Index trigger:</b> squeeze to close the gripper. <b>A / X:</b> hold for precision motion.<br>
@@ -33,9 +33,9 @@ const ctx = hud.getContext('2d');
 function setStatus(text) { status.textContent = text; }
 function connect() {
   ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`);
-  ws.onopen = () => { start.disabled = !navigator.xr; setStatus('Connected. Enter VR to start.'); };
+  ws.onopen = () => setStatus(session ? 'Connected' : 'Connected. Click anywhere to enter VR.');
   ws.onclose = () => {
-    start.disabled = true; feedback = {}; setStatus('Disconnected. Holding robot; reconnecting…');
+    feedback = {}; setStatus('Disconnected. Holding robot; reconnecting…');
     clearTimeout(reconnectTimer); reconnectTimer = setTimeout(connect, 1500);
   };
   ws.onerror = () => setStatus('Connection failed. Check that the simulator is running.');
@@ -73,7 +73,8 @@ function controller(frame, source) {
     trigger:b[0]?.value || 0, clutch:!!b[1]?.pressed,
     precision:!!b[4]?.pressed,
     calibrate:!!b[3]?.pressed,
-    reset_scene:source.handedness === 'left' && !!b[5]?.pressed};
+    reset_scene:source.handedness === 'left' && !!b[5]?.pressed,
+    record:source.handedness === 'right' && !!b[5]?.pressed};
 }
 
 function shader(type, source) {
@@ -164,7 +165,8 @@ function draw(time, frame) {
     panel('hud',0,.65,.70,.0875);
   }
 }
-start.onclick = async () => {
+start.disabled = !navigator.xr;
+document.addEventListener('click', async () => {
   try {
     if (!navigator.xr || !await navigator.xr.isSessionSupported('immersive-vr'))
       throw Error('Open this page in Meta Browser on the Quest 2. USB uses localhost; LAN requires HTTPS.');
@@ -182,7 +184,7 @@ start.onclick = async () => {
     const failed=session; session=null; if(failed) await failed.end();
     setStatus(error.message);
   }
-};
+});
 for (const name of images) {
   const img=document.getElementById(name);
   const refresh=()=>setTimeout(()=>{

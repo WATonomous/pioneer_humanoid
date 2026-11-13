@@ -4,6 +4,7 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 
@@ -15,11 +16,11 @@ from pioneer_humanoid.arm_params import LEFT_ARM_JOINTS, RIGHT_ARM_JOINTS
 
 
 class ActivationTests(unittest.TestCase):
-    def driver(self):
+    def driver(self, **kwargs):
         folder = tempfile.TemporaryDirectory()
         self.addCleanup(folder.cleanup)
         driver = ControllerSceneDriver({"left": LEFT_ARM_JOINTS, "right": RIGHT_ARM_JOINTS},
-                                       1.5, 1., Path(folder.name)/"pivot.json")
+                                       1.5, 1., Path(folder.name)/"pivot.json", **kwargs)
         home = {side: solver.rest.copy() for side, solver in driver.solvers.items()}
         return driver, home
 
@@ -28,6 +29,43 @@ class ActivationTests(unittest.TestCase):
         driver, _ = self.driver()
         self.assertTrue(all(isinstance(s, PioneerArticleIK) for s in driver.solvers.values()))
         self.assertTrue(all(isinstance(t, ArticleTarget) for t in driver.targets.values()))
+
+    def test_anchored_mapping_does_not_lose_motion_when_lead_is_capped(self):
+        from article_control import AnchoredTarget
+        target = AnchoredTarget(gain=1., calibration=np.eye(3))
+        origin = np.zeros(3)
+        def hand(x):
+            return Input(np.array([x, 0., 0.]), np.eye(3), True, 0., False, False)
+        target.armed = True
+        target.update(hand(0.), np.eye(3), origin, np.eye(3))
+        target.update(hand(.20), np.eye(3), origin, np.eye(3))
+        self.assertTrue(target.position_limited)
+        np.testing.assert_allclose(target.position, [.08, 0, 0])
+        for _ in range(4):
+            target.update(hand(.20), np.eye(3), target.position.copy(), np.eye(3))
+        np.testing.assert_allclose(target.position, [.20, 0, 0])
+        for _ in range(4):
+            target.update(hand(0.), np.eye(3), target.position.copy(), np.eye(3))
+        np.testing.assert_allclose(target.position, origin)
+
+    def test_prediction_bridges_empty_ticks_and_stops_on_stale_tracking(self):
+        driver, home = self.driver(anchored=True, predict_input=True)
+        p, _, _, _ = driver.solvers["left"].kinematics(home["left"])
+        with patch("isaac_control.time.monotonic", return_value=100.) as clock:
+            self.send(driver, home)
+            clock.return_value = 100.01
+            self.send(driver, home, x=.01)
+            np.testing.assert_allclose(driver.targets["left"].position, p+[0, -.015, 0])
+            clock.return_value = 100.02
+            driver.update(home)
+            np.testing.assert_allclose(driver.targets["left"].position, p+[0, -.030, 0])
+            clock.return_value = 100.10
+            driver.update(home)
+            np.testing.assert_allclose(driver.targets["left"].position, p+[0, -.030, 0])
+            clock.return_value = 100.30
+            driver.update(home)
+            self.assertFalse(driver.targets["left"].active)
+            self.assertEqual(driver.history["left"], [])
 
     def test_io_is_serviced_before_consuming_input_on_a_physics_tick(self):
         driver, home = self.driver()

@@ -58,9 +58,16 @@ First follow the container/Quest connection instructions in
   --episodes 30 --seed 82000 --round-id tray_round_001
 ```
 
-Hold the right grip to intervene; move/grip with the left controller. Release
-the right grip to save and resume policy control. Left Y resets to the next
-seed and discards unsaved frames. Use a new dataset directory for this round.
+The scene waits at startup while the server and camera previews stay live.
+Enter VR with head and both controllers tracked and both grip buttons released;
+control then starts automatically. The HUD says `WAITING FOR VR` until ready.
+
+Hold right grip to intervene; move/grip with the left controller. Release
+right grip to return to policy without saving. Press **right B** to save the
+unsaved corrections and reset to the next seed. Press **left Y** to discard them and reset to the next
+seed, then release right grip to resume. Y overrides B when both arrive together.
+The HUD shows both saved segment totals and the unsaved frame count. At 750 unsaved frames, physics pauses
+for B/Y rather than automatically saving. Use a new dataset directory for this round.
 
 ## Validation
 
@@ -133,6 +140,55 @@ then merge corrections with this round's aggregate. Collection seeds start at
 human correction. `--episodes 30` in collection means 30 saved intervention
 segments, not 30 completed tasks. Intervene before a bad approach, missed
 grasp, collision or incorrect placement; complete the useful correction, then
-release the right grip to save it. Reset with left Y after success or an
-unrecoverable failure. Saved segments survive Ctrl+C; an active unsaved segment
-is discarded, so release the right grip before exiting.
+release right grip whenever you want to return control to the policy. Press
+right B to save a useful correction and reset, or left Y to discard the unsaved attempt
+and reset. Saved segments survive Ctrl+C; all unsaved frames are discarded on
+exit, including interventions whose right grip has already been released.
+
+
+## Restarting before the first correction
+
+If a session exits before its first saved segment, LeRobot leaves an empty
+metadata shell without `meta/tasks.parquet`. Restart collection with `--resume`:
+the cargo writer verifies zero episode/frame counters and absence of recording
+artifacts, preserves that shell in a sibling `.empty-session-*` backup, and
+creates a fresh local writer at the original path. Completed sessions append
+normally. Inconsistent metadata or recording artifacts are preserved and cause
+a local error rather than being overwritten. No Hugging Face login is needed
+for these local correction datasets.
+
+
+## Completed HG-DAgger round 001
+
+The existing ACT checkpoint was fine-tuned once for 5,000 steps on the original
+62 synthetic demonstrations plus 30 accepted human corrections (92 segments,
+36,401 frames). The saved observation/action normalization was preserved.
+The original policy is retained. The new checkpoint is:
+
+`outputs/train/nasa_cargo_hg_tray_round_001/checkpoints/005000/pretrained_model`
+
+On the same 50 seeds (81000–81049), same tray profile and 30-second timeout,
+strict placement improved from **19/50 (38%) to 45/50 (90%)**. Both policies
+lifted in all 50 trials. Farther-half tray placements improved from 2/26 to
+24/26; nearer-half placements improved from 17/24 to 21/24. The final checkpoint
+was selected before the after-evaluation; no test-set tuning was performed.
+This is one HG-DAgger aggregation/refinement round using ACT, not a literal
+reproduction of the paper's driving-policy ensemble or five data-collection
+rounds. See [the report](../../outputs/nasa_cargo/tray_round_001/HG_DAGGER_ROUND_001.md)
+and [paired results](../../outputs/nasa_cargo/tray_round_001/before_after_comparison.json).
+
+To play the updated policy inside the simulation container:
+
+```bash
+cd /workspace/humanoid
+/workspace/isaaclab/isaaclab.sh -p \
+  src/robot_learning/humanoid_robot_learning/sim/hg_dagger.py \
+  --mode evaluate --randomization tray --episodes 10 --seed 83000 \
+  --max-seconds 30 --device cuda \
+  --policy outputs/train/nasa_cargo_hg_tray_round_001/checkpoints/005000/pretrained_model \
+  --report outputs/nasa_cargo/evaluations/hg_round001_playback.json
+```
+
+For another HG-DAgger round, use the updated checkpoint, a new dataset folder
+(e.g. `datasets/nasa_cargo/tray_round_002/vr_corrections`) and fresh collection
+seeds. Keep the reserved evaluation seeds for comparisons.

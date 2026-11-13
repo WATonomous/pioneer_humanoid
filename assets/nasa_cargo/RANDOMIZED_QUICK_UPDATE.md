@@ -82,9 +82,9 @@ For human correction, follow [the Quest USB/browser setup](VR_HG_DAGGER.md), the
 ```
 
 The right grip selects human authority; left-controller motion and trigger
-control the arm and gripper. Release the right grip to save the correction and
-return to the policy. Left Y resets to another randomized scene and discards
-unsaved frames. Keep `--randomization varied` on each run to vary colour,
+control the arm and gripper. Release right grip to return to policy without
+saving. Right B saves the pending corrections and resets; left Y discards them and resets
+to another randomized scene. Keep `--randomization varied` on each run to vary colour,
 spawn and starting arm pose; the default `baseline` profile retains the old
 white-bag setup for comparison.
 

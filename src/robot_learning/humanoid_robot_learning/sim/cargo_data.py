@@ -1,11 +1,40 @@
 """CPU-buffered LeRobot episode writing and dataset validation/aggregation tools."""
 import argparse
 import json
+from datetime import datetime, timezone
 from pathlib import Path
+import uuid
 
 import numpy as np
 
 REPO_ID = "humanoid/nasa_cargo_left_arm"
+
+
+def _archive_empty_session(root):
+    """Preserve a never-recorded LeRobot shell before recreating its writer.
+
+    LeRobot does not write tasks/episode parquet until the first save. Loading
+    that shell as an existing dataset otherwise falls back to Hugging Face.
+    Refuse recovery if anything could be a recording, even with zero counters.
+    """
+    info_path = root / "meta/info.json"
+    if not info_path.is_file():
+        raise FileNotFoundError(f"Incomplete local cargo dataset: missing {info_path}; use a new output folder")
+    info = json.loads(info_path.read_text())
+    if any(type(info.get(key)) is not int or info[key] < 0 for key in ("total_episodes", "total_frames")):
+        raise ValueError(f"Invalid local dataset counters in {info_path}")
+    if info["total_episodes"] or info["total_frames"]:
+        return None
+    allowed = {"cargo_contract.json", "meta/info.json", "meta/stats.json", "randomization_profile.json"}
+    for path in root.rglob("*"):
+        relative = path.relative_to(root).as_posix()
+        if path.is_symlink() or (path.is_file() and relative not in allowed
+                and not (relative == "collection_manifest.jsonl" and path.stat().st_size == 0)):
+            raise ValueError(f"Dataset reports zero episodes but contains {path}; preserving it for recovery")
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    backup = root.with_name(f"{root.name}.empty-session-{stamp}-{uuid.uuid4().hex[:8]}")
+    root.rename(backup)
+    return backup
 
 
 class EpisodeWriter:
@@ -22,8 +51,17 @@ class EpisodeWriter:
                 raise FileExistsError(f"Dataset exists: {root}; use --resume to append")
             if json.loads((self.root / "cargo_contract.json").read_text()) != contract:
                 raise ValueError("Existing dataset has a different cargo observation/action contract")
-            self.dataset = _open_for_append(REPO_ID, self.root)
-        else:
+            backup = _archive_empty_session(self.root)
+            if backup is None:
+                tasks = self.root / "meta/tasks.parquet"
+                if not tasks.is_file():
+                    raise FileNotFoundError(f"Incomplete local cargo dataset: missing {tasks}; "
+                                            "saved recordings are preserved. This is not a Hugging Face login issue.")
+                self.dataset = _open_for_append(REPO_ID, self.root)
+            else:
+                print(f"[Dataset] No saved episodes; preserved empty session at {backup}. Starting a new writer.",
+                      flush=True)
+        if not self.root.exists():
             features = {
                 "observation.state": {"dtype": "float32", "shape": (7,), "names": contract["action_names"]},
                 "action": {"dtype": "float32", "shape": (7,), "names": contract["action_names"]},
