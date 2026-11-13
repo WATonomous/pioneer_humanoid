@@ -71,8 +71,6 @@ train-policy \
 
 Flag pitfalls (`--steps`, not epochs; always `--policy.push_to_hub=false` for local runs) are listed in the [SO101 README](../simulation/so101_vial_task/README.md), which uses the same command.
 
-Our earlier policy, `humanoid_dit` (CLIP-pooled flow-matching DiT; 80% on 540 synthetic peg-insertion demos), is replaced by Pioneer-1 below and lives in git history (#398).
-
 **Pioneer-1** (`pioneer1`, [`humanoid_robot_learning/policies/pioneer1`](humanoid_robot_learning/policies/pioneer1)) is our policy model (the model, not the robot): language-conditioned, for picking the object an instruction names. A DINOv3 ViT-B/16 encodes every camera. The scene camera gives all of its patch tokens, the wrist cameras a 7x7 pooled grid. The instruction's frozen CLIP text features join them through FiLM and as word tokens, and two fusion layers let each patch attend to the words. The action head is a flow-matching transformer (adaLN-Zero) that cross-attends to this context, trained with real-time chunking, and eval uses an EMA of the weights. 256M parameters, 193M trained. DINOv3 is gated on Hugging Face: request access on [its page](https://huggingface.co/facebook/dinov3-vitb16-pretrain-lvd1689m) first. Install with `pip install -e .[pioneer1]` and train with:
 
 ```bash
