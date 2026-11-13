@@ -20,8 +20,8 @@ constexpr double kMaxGravityFfScale = 5.0;
 // ArmPose joint order, shared by both config files.
 const std::vector<std::pair<std::string, std::string>>& jointPaths() {
   static const std::vector<std::pair<std::string, std::string>> paths = {
-      {"shoulder", "pitch"}, {"shoulder", "yaw"}, {"shoulder", "roll"},
-      {"elbow", "pitch"},    {"elbow", "roll"},   {"wrist", "pitch"},
+      {"shoulder", "pitch"}, {"shoulder", "roll"}, {"shoulder", "yaw"},
+      {"elbow", "pitch"},    {"elbow", "yaw"},     {"wrist", "pitch"},
   };
   return paths;
 }
@@ -263,6 +263,9 @@ JointSafetyConfig JointCommandCore::loadJointSafetyConfig(const YAML::Node& join
   if (joint_node["mit_max_temperature"]) {
     cfg.mit_max_temperature = joint_node["mit_max_temperature"].as<double>();
   }
+  if (joint_node["mit_max_lead"]) {
+    cfg.mit_max_lead = joint_node["mit_max_lead"].as<double>();
+  }
   if (joint_node["mit_family"]) {
     const std::string family = joint_node["mit_family"].as<std::string>();
     if (family == "gl2") {
@@ -371,19 +374,26 @@ bool JointCommandCore::validateMitGains() {
       errors << "\n  " << name << ": mit_max_temperature must be in (0, 127] deg C (got "
              << *s.mit_max_temperature << "; MotorFeedback.temperature is int8)";
     }
-    // Worst case is a stalled joint: the tracking fault caps PD torque at kp * mit_max_track_err.
-    // Uses the quantised kp the drive applies; feed-forward adds on top. Bounded by the peak cap
-    // when one is set: a stalled joint above rated is then stopped only by the temperature check.
+    if (s.mit_max_lead.has_value() && i != kGripperJoint) {
+      errors << "\n  " << name << ": mit_max_lead applies only to the gripper";
+    }
+    // Worst case is a stalled joint: the tracking fault caps PD torque at kp * mit_max_track_err,
+    // or the lead clamp at kp * mit_max_lead (the gripper). Uses the quantised kp the drive
+    // applies; feed-forward adds on top. Bounded by the peak cap when one is set: a stalled joint
+    // above rated is then stopped only by the temperature check.
     const double kp_q = quantiseKp(s.mit_kp);
     const double ff_max = s.gravity_ff_scale > 0.0 ? s.gravity_ff_max_torque : 0.0;
-    const double worst = kp_q * s.mit_max_track_err * kDegToRad + ff_max;
+    const bool lead = s.mit_max_lead.has_value() && *s.mit_max_lead < s.mit_max_track_err;
+    const double err_deg = lead ? *s.mit_max_lead : s.mit_max_track_err;
+    const double worst = kp_q * err_deg * kDegToRad + ff_max;
     const double cap = s.mit_peak_torque.value_or(s.mit_max_torque);
     const char* cap_name = s.mit_peak_torque.has_value() ? "mit_peak_torque" : "mit_max_torque";
     if (worst > cap) {
-      errors << "\n  " << name << ": mit_kp " << kp_q << " N.m/rad (quantised) x "
-             << s.mit_max_track_err << " deg + gravity_ff_max_torque " << ff_max
-             << " N.m = " << worst << " N.m exceeds " << cap_name << " " << cap
-             << " N.m -- lower mit_kp, mit_max_track_err or gravity_ff_max_torque";
+      errors << "\n  " << name << ": mit_kp " << kp_q << " N.m/rad (quantised) x " << err_deg
+             << " deg (" << (lead ? "mit_max_lead" : "mit_max_track_err")
+             << ") + gravity_ff_max_torque " << ff_max << " N.m = " << worst << " N.m exceeds "
+             << cap_name << " " << cap << " N.m -- lower mit_kp, "
+             << (lead ? "mit_max_lead" : "mit_max_track_err") << " or gravity_ff_max_torque";
     }
     // Damp must damp, within the 12-bit kd field's 5.0 ceiling.
     if (s.mit_fault_action == MitFaultAction::Damp &&
@@ -417,18 +427,25 @@ bool JointCommandCore::validateGripper() {
            << "]). Calibrate it open, with direction so that closing is positive";
   }
   // A grasp leaves the gripper short of its target: that must not trip the tracking fault (which
-  // halts the whole arm). With the startup rule this also caps the squeeze at mit_max_torque.
-  if (s.mit_max_track_err < g.upper_limit - g.lower_limit) {
+  // halts the whole arm). Either mit_max_lead keeps the setpoint that close to the fingers (the
+  // squeeze is then kp x mit_max_lead), or the tracking limit covers the whole travel (the squeeze
+  // is then kp x mit_max_track_err). validateMitGains caps either at the peak, else the rated.
+  if (s.mit_max_lead.has_value()) {
+    if (!(*s.mit_max_lead > 0.0)) {
+      errors << "\n  gripper: mit_max_lead must be > 0 deg (got " << *s.mit_max_lead << ")";
+    }
+    if (!(s.mit_max_track_err > *s.mit_max_lead)) {
+      errors << "\n  gripper: mit_max_track_err " << s.mit_max_track_err
+             << " deg must exceed mit_max_lead " << *s.mit_max_lead
+             << " deg, or every grasp trips the tracking fault";
+    }
+  } else if (s.mit_max_track_err < g.upper_limit - g.lower_limit) {
     errors << "\n  gripper: mit_max_track_err " << s.mit_max_track_err
            << " deg must cover its full travel (" << g.upper_limit - g.lower_limit
            << " deg) so a grasp never faults";
   }
   if (s.gravity_ff_scale != 0.0) {
     errors << "\n  gripper: has no gravity model, gravity_ff_scale must be 0";
-  }
-  // The startup rule would then cap the squeeze at the peak instead of mit_max_torque.
-  if (s.mit_peak_torque.has_value()) {
-    errors << "\n  gripper: mit_peak_torque would raise the squeeze limit; set mit_max_torque";
   }
   const std::string text = errors.str();
   if (!text.empty()) {
@@ -673,7 +690,8 @@ JointCommandCore::checkMitFaults(const std::map<int, MotorFeedbackSample>& feedb
 
 std::vector<common_msgs::msg::MotorCmd>
 JointCommandCore::armPoseToMotorCmds(const common_msgs::msg::ArmPose& pose,
-                                     int8_t default_control_type) {
+                                     int8_t default_control_type,
+                                     const std::map<int, MotorFeedbackSample>& feedback) {
   if (joints_.size() != 6 && joints_.size() != 7) {
     throw std::runtime_error("JointCommandCore is not configured for 6 joints (+ gripper)");
   }
@@ -760,6 +778,20 @@ JointCommandCore::armPoseToMotorCmds(const common_msgs::msg::ArmPose& pose,
         target = std::isinf(max_step) ? clamped : clampStep(clamped, prev_targets_[i], max_step);
       } else {
         target = clamped;
+      }
+    }
+    if (safety.mit_max_lead.has_value()) {
+      // Squeeze limit: stay within mit_max_lead of where the fingers are, so the PD pulls at most
+      // kp x mit_max_lead however far the target is. Last, so nothing widens it. Without a fresh
+      // reading, hold rather than advance blind.
+      const auto it = feedback.find(static_cast<int>(joints_[i].motor_id));
+      if (it == feedback.end() || it->second.age_s > safety.mit_feedback_timeout) {
+        target = prev_targets_[i];
+      } else {
+        const double dir = joints_[i].direction == 0 ? 1.0 : joints_[i].direction;
+        const double measured = joints_[i].zero_offset + it->second.position_deg / dir;
+        target = std::clamp(target, measured - *safety.mit_max_lead,
+                            measured + *safety.mit_max_lead);
       }
     }
     next_targets[i] = target;

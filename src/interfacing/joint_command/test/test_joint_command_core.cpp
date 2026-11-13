@@ -25,10 +25,10 @@ std::string configPath(const std::string& name) {
 }
 
 common_msgs::msg::ArmPose makePose(double shoulder_pitch, double shoulder_roll, double shoulder_yaw,
-                                   double elbow_pitch, double elbow_roll, double wrist_pitch) {
+                                   double elbow_pitch, double elbow_yaw, double wrist_pitch) {
   common_msgs::msg::ArmPose pose;
   pose.shoulder.position = {shoulder_pitch, shoulder_roll, shoulder_yaw};
-  pose.elbow.position = {elbow_pitch, elbow_roll};
+  pose.elbow.position = {elbow_pitch, elbow_yaw};
   pose.wrist.position = {wrist_pitch};
   return pose;
 }
@@ -401,8 +401,9 @@ TEST_P(ShippedArm, ShippedMitGainsSatisfyTheStallTorqueRule) {
     const auto& s = core.safety(i);
     EXPECT_GT(s.mit_kp, 0.0) << core.jointName(i);
     EXPECT_GT(s.mit_kd, 0.0) << core.jointName(i) << ": kd = 0 makes a GL II oscillate";
-    const double worst =
-        JointCommandCore::quantiseKp(s.mit_kp) * s.mit_max_track_err * M_PI / 180.0;
+    const double err_deg = std::min(s.mit_max_lead.value_or(s.mit_max_track_err),
+                                    s.mit_max_track_err); // the lead clamp bounds the gripper
+    const double worst = JointCommandCore::quantiseKp(s.mit_kp) * err_deg * M_PI / 180.0;
     EXPECT_LE(worst, s.mit_peak_torque.value_or(s.mit_max_torque))
         << core.jointName(i) << ": a stalled joint would pull " << worst << " N.m";
   }
@@ -490,7 +491,7 @@ TEST_F(ShippedConfig, SafeMitCommandsHaveZeroStiffnessSoTheyCannotMoveAnything) 
 }
 
 // ---------------------------------------------------------------------------
-// MIT on an AK (gravity-loaded) joint. Elbow roll is pinned to known MIT values in a copy of the
+// MIT on an AK (gravity-loaded) joint. Elbow yaw is pinned to known MIT values in a copy of the
 // shipped config, so these don't depend on bench tuning.
 // ---------------------------------------------------------------------------
 
@@ -500,7 +501,7 @@ constexpr size_t kElbowRoll = 4;
 
 YAML::Node configWithAkElbowRollOnMit(bool with_fault_kd = true) {
   YAML::Node cfg = YAML::LoadFile(configPath("arm_actuators.yaml"))["safety"];
-  YAML::Node j = cfg["left"]["elbow"]["roll"];
+  YAML::Node j = cfg["left"]["elbow"]["yaw"];
   j["control_type"] = 0;
   j["mit_family"] = "ak";
   j["mit_kp"] = 8.0; // quantised 8.06 * 12 deg = 1.69 N.m <= 5
@@ -575,7 +576,7 @@ TEST_F(ShippedConfig, AkStatusOneIsOverTemperatureNotEnable) {
   fb[elbow].status = 1; // AK: motor over-temperature
   const auto fault = core.checkMitFaults(fb);
   ASSERT_TRUE(fault.has_value());
-  EXPECT_NE(fault->find("elbow.roll"), std::string::npos) << *fault;
+  EXPECT_NE(fault->find("elbow.yaw"), std::string::npos) << *fault;
   EXPECT_NE(fault->find("AK error code"), std::string::npos) << *fault;
 }
 
@@ -598,12 +599,12 @@ TEST_F(ShippedConfig, BlockedAkJointGetsDampingInsteadOfGoingLimp) {
 
 TEST_F(ShippedConfig, UnknownMitFamilyOrFaultActionIsRefused) {
   YAML::Node cfg = configWithAkElbowRollOnMit();
-  cfg["left"]["elbow"]["roll"]["mit_family"] = "ak80";
+  cfg["left"]["elbow"]["yaw"]["mit_family"] = "ak80";
   EXPECT_FALSE(core.loadSafetyFromYaml(cfg, kRateHz));
   EXPECT_NE(core.lastError().find("mit_family"), std::string::npos) << core.lastError();
 
   cfg = configWithAkElbowRollOnMit();
-  cfg["left"]["elbow"]["roll"]["mit_fault_action"] = "brake";
+  cfg["left"]["elbow"]["yaw"]["mit_fault_action"] = "brake";
   EXPECT_FALSE(core.loadSafetyFromYaml(cfg, kRateHz));
   EXPECT_NE(core.lastError().find("mit_fault_action"), std::string::npos) << core.lastError();
 }
@@ -920,12 +921,12 @@ TEST_F(ShippedConfig, GripperPositionMapsOpenToZeroAndClosedToTheUpperLimit) {
   const double closed = core.joint(kGripper).upper_limit;
   auto settle = [&](double position) {
     for (int tick = 0; tick < 2000; ++tick) {
-      core.armPoseToMotorCmds(poseWithGripper(position), kPositionLoop);
+      core.armPoseToMotorCmds(poseWithGripper(position), kPositionLoop, healthyMitFeedback());
     }
     return core.prevTargets()[kGripper];
   };
 
-  core.armPoseToMotorCmds(poseWithGripper(1.0), kPositionLoop);
+  core.armPoseToMotorCmds(poseWithGripper(1.0), kPositionLoop, healthyMitFeedback());
   EXPECT_LE(core.prevTargets()[kGripper], 60.0 / kRateHz + 1e-9) << "rate-limited like any joint";
 
   EXPECT_NEAR(settle(1.0), closed, 1e-6);
@@ -953,20 +954,116 @@ TEST_F(ShippedConfig, GripperHoldsWhereItIsUnlessThePoseIncludesIt) {
   EXPECT_DOUBLE_EQ(core.prevTargets()[kGripper], 30.0);
 }
 
-TEST_F(ShippedConfig, ClosingOnAnObjectDoesNotFaultTheArm) {
-  seedAtCommandZero();
-  for (int tick = 0; tick < 2000; ++tick) {
-    core.armPoseToMotorCmds(poseWithGripper(1.0), kPositionLoop);
-  }
-  // Fingers stopped by an object at the open end: the whole travel short of the target, at the
-  // stall torque kp * travel.
-  auto fb = healthyMitFeedback();
+namespace {
+
+// Motor-frame feedback putting the gripper's fingers at `cmd_deg` (command frame).
+double gripperMotorDeg(const JointCommandCore& core, double cmd_deg) {
   const JointConfig& g = core.joint(kGripper);
-  const double travel_rad = (g.upper_limit - g.lower_limit) * kDeg;
-  fb[core.motorId(kGripper)].position_deg = g.direction * (0.0 - g.zero_offset);
-  fb[core.motorId(kGripper)].torque_nm =
-      JointCommandCore::quantiseKp(core.safety(kGripper).mit_kp) * travel_rad;
+  return g.direction * (cmd_deg - g.zero_offset);
+}
+
+} // namespace
+
+TEST_F(ShippedConfig, ClosingOnAnObjectSqueezesAtKpTimesTheLeadWithoutFaulting) {
+  const JointSafetyConfig& s = core.safety(kGripper);
+  ASSERT_TRUE(s.mit_max_lead.has_value());
+  seedAtCommandZero();
+  const int id = static_cast<int>(core.motorId(kGripper));
+  // An object stops the fingers 10 deg in; the pose keeps asking for fully closed.
+  const double blocked = 10.0;
+  for (int tick = 0; tick < 2000; ++tick) {
+    auto fb = healthyMitFeedback();
+    fb[id].position_deg = gripperMotorDeg(core, std::min(blocked, core.prevTargets()[kGripper]));
+    core.armPoseToMotorCmds(poseWithGripper(1.0), kPositionLoop, fb);
+  }
+  EXPECT_NEAR(core.prevTargets()[kGripper], blocked + *s.mit_max_lead, 1e-9)
+      << "the setpoint leads the fingers by exactly mit_max_lead, not to fully closed";
+
+  // The drive then pushes kp x lead: at most the peak, and no fault while the temperature allows.
+  const double squeeze =
+      JointCommandCore::quantiseKp(s.mit_kp) * *s.mit_max_lead * kDeg;
+  EXPECT_LE(squeeze, *s.mit_peak_torque);
+  auto fb = healthyMitFeedback();
+  fb[id].position_deg = gripperMotorDeg(core, blocked);
+  fb[id].torque_nm = squeeze;
+  fb[id].temperature_c = 40.0;
   EXPECT_FALSE(core.checkMitFaults(fb).has_value()) << *core.checkMitFaults(fb);
+}
+
+TEST_F(ShippedConfig, OpeningAfterAGraspStartsAtOnce) {
+  // No windup: the setpoint sat at fingers + lead, not at fully closed, so opening moves it
+  // back from there on the first tick.
+  seedAtCommandZero();
+  const int id = static_cast<int>(core.motorId(kGripper));
+  const double blocked = 10.0;
+  auto at = [&](double fingers) {
+    auto fb = healthyMitFeedback();
+    fb[id].position_deg = gripperMotorDeg(core, fingers);
+    return fb;
+  };
+  for (int tick = 0; tick < 2000; ++tick) {
+    core.armPoseToMotorCmds(poseWithGripper(1.0), kPositionLoop,
+                            at(std::min(blocked, core.prevTargets()[kGripper])));
+  }
+  const double squeezing = core.prevTargets()[kGripper];
+  EXPECT_NEAR(squeezing, blocked + *core.safety(kGripper).mit_max_lead, 1e-9);
+  core.armPoseToMotorCmds(poseWithGripper(0.0), kPositionLoop, at(blocked));
+  EXPECT_LT(core.prevTargets()[kGripper], squeezing) << "the release starts on the first tick";
+  for (int tick = 0; tick < 2000; ++tick) {
+    core.armPoseToMotorCmds(poseWithGripper(0.0), kPositionLoop, healthyMitFeedback());
+  }
+  EXPECT_NEAR(core.prevTargets()[kGripper], 0.0, 1e-6);
+}
+
+TEST_F(ShippedConfig, GripperWithALeadHoldsWithoutFreshFeedback) {
+  seedAtCommandZero();
+  const int id = static_cast<int>(core.motorId(kGripper));
+  for (int tick = 0; tick < 50; ++tick) {
+    core.armPoseToMotorCmds(poseWithGripper(1.0), kPositionLoop, healthyMitFeedback());
+  }
+  const double moving = core.prevTargets()[kGripper];
+  ASSERT_GT(moving, 0.0);
+
+  auto missing = healthyMitFeedback();
+  missing.erase(id);
+  core.armPoseToMotorCmds(poseWithGripper(1.0), kPositionLoop, missing);
+  EXPECT_DOUBLE_EQ(core.prevTargets()[kGripper], moving) << "no reading: hold, never advance blind";
+
+  auto stale = healthyMitFeedback();
+  stale[id].age_s = core.safety(kGripper).mit_feedback_timeout + 0.01;
+  core.armPoseToMotorCmds(poseWithGripper(1.0), kPositionLoop, stale);
+  EXPECT_DOUBLE_EQ(core.prevTargets()[kGripper], moving);
+
+  core.armPoseToMotorCmds(poseWithGripper(1.0), kPositionLoop, healthyMitFeedback());
+  EXPECT_GT(core.prevTargets()[kGripper], moving) << "fresh again: moves on";
+}
+
+TEST_F(ShippedConfig, GripperSqueezesAboveRatedOnlyWhileTheTemperatureAllows) {
+  const JointSafetyConfig& s = core.safety(kGripper);
+  ASSERT_TRUE(s.mit_peak_torque.has_value() && s.mit_max_temperature.has_value());
+  seedAtCommandZero();
+  core.armPoseToMotorCmds(poseWithGripper(0.0), kPositionLoop);
+  const int id = static_cast<int>(core.motorId(kGripper));
+
+  auto faultAt = [&](double torque, double temperature) {
+    auto fb = healthyMitFeedback();
+    fb[id].torque_nm = torque;
+    fb[id].temperature_c = temperature;
+    return core.checkMitFaults(fb);
+  };
+  auto expectFault = [&](double torque, double temperature, const std::string& needle) {
+    const auto fault = faultAt(torque, temperature);
+    ASSERT_TRUE(fault.has_value()) << torque << " N.m at " << temperature << " C";
+    EXPECT_NE(fault->find("gripper.open_close"), std::string::npos) << *fault;
+    EXPECT_NE(fault->find(needle), std::string::npos) << *fault;
+  };
+
+  const double squeeze = (s.mit_max_torque + *s.mit_peak_torque) / 2; // above rated, below peak
+  EXPECT_FALSE(faultAt(squeeze, 40.0).has_value()) << *faultAt(squeeze, 40.0);
+  EXPECT_FALSE(faultAt(-squeeze, 40.0).has_value()) << *faultAt(-squeeze, 40.0);
+  expectFault(squeeze, 0.0, "no temperature reading");
+  expectFault(squeeze, *s.mit_max_temperature, "mit_max_temperature");
+  expectFault(*s.mit_peak_torque + 0.01, 40.0, "mit_peak_torque");
 }
 
 TEST_F(ShippedConfig, UnsafeGripperConfigIsRefused) {
@@ -980,19 +1077,48 @@ TEST_F(ShippedConfig, UnsafeGripperConfigIsRefused) {
   cfg["left"]["gripper"]["open_close"].remove("control_type"); // inherits POSITION_LOOP
   expectRefused(cfg, "MIT");
 
+  // Without a lead clamp the tracking limit must cover the whole travel (soft kp: room under the
+  // cap, so only this rule fires).
   cfg = shipped();
+  cfg["left"]["gripper"]["open_close"].remove("mit_max_lead");
+  cfg["left"]["gripper"]["open_close"]["mit_kp"] = 0.1221;
   cfg["left"]["gripper"]["open_close"]["mit_max_track_err"] = 50.0;
   expectRefused(cfg, "full travel");
 
+  // With one, the tracking limit must sit above the lead, or every grasp faults the arm.
   cfg = shipped();
+  cfg["left"]["gripper"]["open_close"]["mit_max_track_err"] = 30.0;
+  expectRefused(cfg, "must exceed mit_max_lead");
+
+  cfg = shipped();
+  cfg["left"]["gripper"]["open_close"]["mit_max_lead"] = 0.0;
+  expectRefused(cfg, "mit_max_lead must be > 0");
+
+  cfg = shipped();
+  cfg["left"]["wrist"]["pitch"]["mit_max_lead"] = 5.0;
+  EXPECT_FALSE(core.loadSafetyFromYaml(cfg, kRateHz));
+  EXPECT_NE(core.lastError().find("wrist.pitch: mit_max_lead applies only to the gripper"),
+            std::string::npos)
+      << core.lastError();
+
+  cfg = shipped();
+  cfg["left"]["gripper"]["open_close"]["mit_kp"] = 0.1221; // room under the cap for the ff
   cfg["left"]["gripper"]["open_close"]["gravity_ff_scale"] = 0.5;
   cfg["left"]["gripper"]["open_close"]["gravity_ff_max_torque"] = 0.01;
   expectRefused(cfg, "gravity model");
 
+  // One kp code stiffer than shipped: a grasp would squeeze past the peak
+  // (1.3428 N.m/rad x 30 deg lead = 0.70 N.m).
   cfg = shipped();
-  cfg["left"]["gripper"]["open_close"]["mit_peak_torque"] = 0.5;
-  cfg["left"]["gripper"]["open_close"]["mit_max_temperature"] = 60.0;
-  expectRefused(cfg, "squeeze limit");
+  cfg["left"]["gripper"]["open_close"]["mit_kp"] = 1.3428;
+  expectRefused(cfg, "exceeds mit_peak_torque");
+
+  // Above rated with no temperature limit: nothing would ever stop a long squeeze.
+  cfg = shipped();
+  cfg["left"]["gripper"]["open_close"]["mit_peak_torque"] = 0.65;
+  cfg["left"]["gripper"]["open_close"].remove("mit_max_temperature");
+  cfg["global"].remove("mit_max_temperature");
+  expectRefused(cfg, "gripper.open_close: mit_peak_torque needs mit_max_temperature");
 
   // Calibrated with closing negative: upper_limit is the open end.
   YAML::Node mapping = YAML::LoadFile(configPath("arm_calibration.yaml"));
@@ -1099,7 +1225,7 @@ TEST_F(ShippedConfig, MotorIdsMustBeUniqueAcrossArms) {
       << *findDuplicateMotorIds({&core, &right});
 
   // Within one arm too.
-  mapping["right"]["elbow"]["roll"]["can_id"] = mapping["right"]["elbow"]["pitch"]["can_id"];
+  mapping["right"]["elbow"]["yaw"]["can_id"] = mapping["right"]["elbow"]["pitch"]["can_id"];
   ASSERT_TRUE(right.loadFromYaml(mapping, "right"));
   ASSERT_TRUE(right.loadSafetyFromYaml(safety, kRateHz)) << right.lastError();
   EXPECT_TRUE(findDuplicateMotorIds({&right}).has_value());

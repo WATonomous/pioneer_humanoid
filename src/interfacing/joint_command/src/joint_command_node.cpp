@@ -391,7 +391,8 @@ void JointCommandNode::controlTimerCallback() {
 
   for (Limb* limb : ready) {
     try {
-      publishMotorCommands(*limb, limb->core.armPoseToMotorCmds(limb->latest_pose, control_type_));
+      publishMotorCommands(*limb,
+                           limb->core.armPoseToMotorCmds(limb->latest_pose, control_type_, feedback));
     } catch (const std::exception& e) {
       RCLCPP_ERROR_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
                             "[%s] Failed to process ArmPose: %s", limb->side.c_str(), e.what());

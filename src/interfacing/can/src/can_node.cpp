@@ -487,7 +487,7 @@ bool CanNode::handleMitFeedback(const CanMessage& message) {
   feedback_msg.velocity = static_cast<float>(fb.velocity);
   feedback_msg.current = 0.0f; // MIT feedback reports torque, not current
   feedback_msg.torque = static_cast<float>(fb.torque);
-  feedback_msg.temperature = static_cast<int8_t>(fb.drive_temp);
+  feedback_msg.temperature = static_cast<int8_t>(gl2ReportedTemperature(fb));
   feedback_msg.error_code = static_cast<int8_t>(fb.status);
 
   if (!mitStatusIsOk(fb.status, MitFamily::Gl2)) {
@@ -495,8 +495,10 @@ bool CanNode::handleMitFeedback(const CanMessage& message) {
                           "Motor %d reports MIT status 0x%X (%s)", motor_id, fb.status,
                           mitStatusName(fb.status));
   }
-  RCLCPP_DEBUG(this->get_logger(), "MIT feedback motor %d: pos=%.3f deg tau=%.3f Nm %dC (%s)",
-               motor_id, feedback_msg.position, fb.torque, fb.drive_temp, mitStatusName(fb.status));
+  RCLCPP_DEBUG(this->get_logger(),
+               "MIT feedback motor %d: pos=%.3f deg tau=%.3f Nm drive %dC motor %dC (%s)",
+               motor_id, feedback_msg.position, fb.torque, fb.drive_temp, fb.motor_temp,
+               mitStatusName(fb.status));
   publishFeedback(feedback_msg);
   return true;
 }

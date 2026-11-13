@@ -97,6 +97,10 @@ MitFeedback decodeGl2Feedback(const uint8_t* data, const MitProfile& profile) {
   return fb;
 }
 
+int gl2ReportedTemperature(const MitFeedback& fb) {
+  return std::max(fb.drive_temp, fb.motor_temp);
+}
+
 MitAkFeedback decodeAkFeedback(const uint8_t* data, const MitProfile& profile) {
   MitAkFeedback fb;
   if (data == nullptr) {

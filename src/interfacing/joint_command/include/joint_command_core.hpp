@@ -54,6 +54,9 @@ struct JointSafetyConfig {
   // mit_peak_torque. Unset peak = mit_max_torque is the hard cap; unset temperature = no check.
   std::optional<double> mit_peak_torque;     // N.m
   std::optional<double> mit_max_temperature; // deg C -- fault at or above this, at any torque
+  // Gripper only: its setpoint is kept within this many degrees of the MEASURED position, so a
+  // grasp squeezes at kp x mit_max_lead however far the target is. Unset = no clamp.
+  std::optional<double> mit_max_lead; // deg
 
   MitDriveFamily mit_family{MitDriveFamily::Gl2};
   // Defaults from mit_family (ak -> Damp, gl2 -> Limp) unless set in the YAML.
@@ -107,8 +110,11 @@ public:
   }
 
   // Advance ONE control tick toward `pose`. Call at control_rate_hz: velocity_max is per tick.
-  std::vector<common_msgs::msg::MotorCmd> armPoseToMotorCmds(const common_msgs::msg::ArmPose& pose,
-                                                             int8_t default_control_type);
+  // feedback (motor id -> latest sample) feeds mit_max_lead; a joint with a lead and no fresh
+  // sample holds its last target.
+  std::vector<common_msgs::msg::MotorCmd>
+  armPoseToMotorCmds(const common_msgs::msg::ArmPose& pose, int8_t default_control_type,
+                     const std::map<int, MotorFeedbackSample>& feedback = {});
 
   // Fault-action frame per MIT joint (kp = 0; kd = 0 Limp / mit_fault_kd Damp). Used to poke
   // drives before seeding and to hold joints after a fault. damped_only skips Limp joints.

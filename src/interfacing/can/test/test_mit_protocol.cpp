@@ -103,6 +103,16 @@ TEST(MitDecode, DecodesBenchFeedbackCapture) {
   EXPECT_NEAR(fb.torque, 0.0, 0.01);
   EXPECT_EQ(fb.drive_temp, 40);
   EXPECT_EQ(fb.motor_temp, 0);
+  EXPECT_EQ(gl2ReportedTemperature(fb), 40) << "winding byte unset: the drive temperature";
+}
+
+TEST(MitDecode, Gl2ReportsTheHotterOfDriveAndWinding) {
+  MitFeedback fb;
+  fb.drive_temp = 40;
+  fb.motor_temp = 65;
+  EXPECT_EQ(gl2ReportedTemperature(fb), 65) << "a hot winding must reach the watchdog";
+  fb.motor_temp = 35;
+  EXPECT_EQ(gl2ReportedTemperature(fb), 40);
 }
 
 TEST(MitDecode, ReportsFaultStatuses) {

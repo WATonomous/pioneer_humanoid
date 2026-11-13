@@ -10,6 +10,7 @@ float32 current
 # N.m. GL II MIT: from the drive. AK: current * kt (mit_profiles.yaml). 0 otherwise.
 float32 torque
 
+# deg C. GL II MIT: the hotter of drive and motor winding. AK MIT: motor. Servo: FbkTemperature.
 int8 temperature
 
 # Servo: FbkErrorCode (0 = no fault). GL II MIT: status nibble (0 Disable, 1 Enable, >= 8 fault).
