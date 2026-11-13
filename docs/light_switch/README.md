@@ -19,5 +19,16 @@ Wall light-switch scenes for the Pioneer 8dof arms, plus scripted demo plans.
   the lever passes between the two fingers.
 - Tests: `src/simulation/mujoco_scenes/tests/test_light_switch_scenes.py`.
 
-An earlier ACT baseline (50 scripted demos per scene, 20/20 on unseen layouts) was run on the old 6-DoF arm before the
-8dof default; it is not repeated here and should be redone on the 8dof arm.
+## ACT baseline on the 8dof arm (new gripper)
+
+100 scripted demos of `toggle_switch` (left arm, 640x480 `ego` + `wrist_left`, 25 fps, 14,528 frames) recorded on a WATcloud GPU
+node (`MUJOCO_GL=egl`, 6 workers, about 40 min). ACT: chunk_size 20, n_action_steps 20, 8000 steps, batch 8, one RTX 4090
+(about 11 min). Evaluated on 20 unseen layouts (seeds 1000-1019, `humanoid_robot_learning.sim.evaluate`):
+
+| Scene | Success | 95% CI |
+|---|---|---|
+| toggle_switch | 20/20 | 84-100% |
+
+Limits: demos are scripted (not human teleop), layout jitter is only +-3 cm, 20 episodes is a small sample, sim only.
+`evaluate.py` needs `--task "flip the light switch up to turn the light on"` when the training dataset is not on disk,
+and the `transformers` package (the policy registry imports the DiT policy).
