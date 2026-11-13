@@ -1,7 +1,7 @@
 # Angle benchmark through the teleop path (arm_roundtrip.py in the joint_command container),
 # then plot. See that script for the sequence.
 #
-#   tools/arm_roundtrip.sh --joints elbow.roll --offset "0,0,0,0,5,0"
+#   tools/arm_roundtrip.sh --joints elbow.yaw --offset "0,0,0,0,5,0"
 #   tools/arm_roundtrip.sh --pose "0,0,10,20,0,0" --label reach-a
 #
 # Needs can_node and joint_command_node running. Env: JC_SERVICE (default joint_command),

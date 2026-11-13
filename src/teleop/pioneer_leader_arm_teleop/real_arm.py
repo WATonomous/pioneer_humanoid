@@ -353,8 +353,8 @@ def self_test() -> None:
         board = LeaderBoard(side=side, port="", usb_serial="", signs=(1.0,) * len(SERVO_IDS), zeros={})
         arm = load_arm(side, board, mapping, actuators)
         assert [j["urdf_joint"] for j in arm.joints] == urdf_joints
-        assert [j["name"] for j in arm.joints] == ["shoulder.pitch", "shoulder.yaw", "shoulder.roll",
-                                                   "elbow.pitch", "elbow.roll", "wrist.pitch"], arm.joints
+        assert [j["name"] for j in arm.joints] == ["shoulder.pitch", "shoulder.roll", "shoulder.yaw",
+                                                   "elbow.pitch", "elbow.yaw", "wrist.pitch"], arm.joints
         for j in arm.joints:
             if j["limit_range"]:
                 assert j["limits_deg"] == (j["lower"], j["upper"]), j
