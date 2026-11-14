@@ -29,6 +29,11 @@ GRIPPER_STROKE = 0.041                           # m, each finger; 0 = open (the
 LEFT_GRIPPER_OPEN, LEFT_GRIPPER_CLOSED = {"left_gripper": 0.0}, {"left_gripper": GRIPPER_STROKE}
 RIGHT_GRIPPER_OPEN, RIGHT_GRIPPER_CLOSED = {"right_gripper": 0.0}, {"right_gripper": GRIPPER_STROKE}
 
+# End effector: the last link (link7, after wrist yaw). Tool point (TCP) in its frame: between the jaws, 25 mm up the
+# fingers from their tips (fingertips at z = -0.246, collision meshes), as the synthetic operator's TCP_ABOVE_TIPS.
+LEFT_EE_BODY, RIGHT_EE_BODY = "left_link7", "right_link7"
+TCP_LOCAL = (-0.0014, 0.0, -0.2214)
+
 # Home: the CAD pose (arms hanging, elbows at 90 deg, forearms forward), grippers open.
 DEFAULT_JOINT_POS = {**{j: 0.0 for j in LEFT_ARM_JOINTS + RIGHT_ARM_JOINTS},
                      "left_elbow": math.radians(90.0), "right_elbow": math.radians(90.0),
@@ -42,6 +47,7 @@ DEFAULT_JOINT_POS = {**{j: 0.0 for j in LEFT_ARM_JOINTS + RIGHT_ARM_JOINTS},
 # open a finger 21 mm (now 1.4 mm). 34 N is the 4.1 Nm peak through the linkage (old arm's notes; ratio not verified).
 # damping ~ critical for the two 40 g fingers coupled.
 _GRIPPER = dict(stiffness=7000.0, damping=50.0, effort_limit=34.0, velocity_limit=0.2)
+ARM_ARMATURE = 0.01         # kg m^2, reflected motor inertia of the arm joints (as the old arm's MuJoCo model)
 GRIPPER_FRICTIONLOSS = 25.0   # N: the linkage resists back-driving, so a push needs > 34 + 25 N to open the fingers
 ACTUATOR_GROUPS = {}
 for _s in ("left", "right"):
