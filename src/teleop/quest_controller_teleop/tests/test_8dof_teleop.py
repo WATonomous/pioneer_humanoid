@@ -76,7 +76,7 @@ class Arm8dofTeleopTests(unittest.TestCase):
     def test_sim_feedforward_removes_gravity_sag_and_tracking_lag(self):
         sys.path[:0] = [str(HERE/"mujoco"), str(HERE.parents[2]/"src/simulation/mujoco_scenes")]
         import mujoco
-        import mujoco_sim as ms
+        import session as ms
         from humanoid_mujoco_scenes import make_model
         from pioneer_humanoid.mujoco_bimanual_arm_8dof import set_home
         model = make_model("bimanual_sorting", robot="8dof")
