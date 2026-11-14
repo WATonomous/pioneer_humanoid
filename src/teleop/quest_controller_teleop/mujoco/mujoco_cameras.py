@@ -19,6 +19,8 @@ class CameraWindow:
     SIZE = (480, 640)         # (height, width) per camera: the dataset schema's
     HEAVY_GROUP = 5           # the 70k-vertex upper-arm meshes, hidden in the wrist views (out of their sight)
     DISPLAY_HEIGHT = 1710     # px; OpenCV draws 1 px per Retina pixel, so this fills a 14" MacBook's height
+    STATE_ARRAYS = ("qpos", "qvel", "act", "mocap_pos", "mocap_quat", "userdata", "eq_active")
+    MODEL_ARRAYS = ("body_pos", "body_quat", "geom_pos", "geom_quat", "geom_rgba", "eq_data")
 
     def __init__(self, model, sizes=None, recorder=None, on_saved=None):
         """`sizes`: {camera: (height, width)}; `recorder`: a SimLeRobotRecorder fed by push_sample();
@@ -30,6 +32,7 @@ class CameraWindow:
         self.sizes = {name: tuple((sizes or {}).get(name, self.SIZE)) for name in self.CAMERAS}
         self.recorder, self.on_saved = recorder, on_saved
         self.status = ""          # overlay text, e.g. the recording state
+        self.source_model = model
         # A private model copy, so regrouping meshes never touches the sim's model.
         self.model = copy.deepcopy(model)
         for i in range(self.model.ngeom):
@@ -40,12 +43,14 @@ class CameraWindow:
         self._samples = queue.Queue()
         self._frame, self._frame_id = None, 0
         self._stop = threading.Event()
+        self.error = None
         self._thread = threading.Thread(target=self._run, name="camera-window", daemon=True)
         self._thread.start()
 
-    @staticmethod
-    def _copy(data):
-        return tuple(np.copy(x) for x in (data.qpos, data.qvel, data.act, data.mocap_pos, data.mocap_quat))
+    # Include scene randomization so reset body poses and colors reach the camera copy.
+    def _copy(self, data):
+        return (float(data.time), tuple(np.copy(getattr(data, n)) for n in self.STATE_ARRAYS),
+                tuple(np.copy(getattr(self.source_model, n)) for n in self.MODEL_ARRAYS))
 
     def push(self, data) -> None:
         """The latest state, for display."""
@@ -57,6 +62,25 @@ class CameraWindow:
         """A recorded frame: rendered from this exact sim state, then given to the recorder."""
         self._samples.put((self._copy(data), action, state))
         self._ready.set()
+
+    # Render the exact pre-action state using the existing camera thread.
+    def capture(self, data, stop=None):
+        from concurrent.futures import Future, TimeoutError
+
+        result = Future()
+        self._samples.put((self._copy(data), None, None, result))
+        self._ready.set()
+        while True:
+            if self.error is not None:
+                raise RuntimeError("Camera rendering failed") from self.error
+            if self._stop.is_set() or (stop is not None and stop.is_set()):
+                raise InterruptedError("Camera capture stopped")
+            if not self._thread.is_alive():
+                raise RuntimeError("Camera thread stopped")
+            try:
+                return result.result(timeout=.1)
+            except TimeoutError:
+                continue
 
     def discard(self) -> None:
         """Drop the unsaved take (in order with the queued samples)."""
@@ -103,10 +127,12 @@ class CameraWindow:
         import mujoco
 
         data = mujoco.MjData(self.model)
-        renderers = {name: mujoco.Renderer(self.model, *size) for name, size in self.sizes.items()}
+        renderers = {}
         full, light = mujoco.MjvOption(), mujoco.MjvOption()
         full.geomgroup[self.HEAVY_GROUP] = 1
         try:
+            for name, size in self.sizes.items():
+                renderers[name] = mujoco.Renderer(self.model, *size)
             while True:
                 try:
                     item = self._samples.get_nowait()
@@ -124,11 +150,18 @@ class CameraWindow:
                     if item is None:   # discard
                         self.recorder.cancel_recording()
                         continue
-                state, action, recorded = item
-                data.qpos[:], data.qvel[:], data.act[:], data.mocap_pos[:], data.mocap_quat[:] = state
+                state, action, recorded, *requests = item
+                stamp, values, model_values = state
+                data.time = stamp
+                for name, value in zip(self.STATE_ARRAYS, values):
+                    getattr(data, name)[:] = value
+                for name, value in zip(self.MODEL_ARRAYS, model_values):
+                    getattr(self.model, name)[:] = value
                 mujoco.mj_forward(self.model, data)
                 images = {name: self._render(r, data, name, full if name == "ego" else light)
                           for name, r in renderers.items()}
+                if requests:
+                    requests[0].set_result({name: image.copy() for name, image in images.items()})
                 if action is not None and self.recorder.tick(action, recorded, images) and self.on_saved:
                     self.on_saved()
                 ego, left, right = (images[name] for name in self.CAMERAS)
@@ -136,6 +169,8 @@ class CameraWindow:
                 top = cv2_resize(ego, bottom.shape[1])
                 with self._lock:
                     self._frame, self._frame_id = np.vstack([top, bottom]), self._frame_id + 1
+        except Exception as error:
+            self.error = error
         finally:
             for renderer in renderers.values():
                 renderer.close()

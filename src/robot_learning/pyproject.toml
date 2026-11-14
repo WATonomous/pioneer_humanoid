@@ -21,6 +21,8 @@ hdf5 = ["h5py>=3.8"]
 record = ["lerobot[dataset]>=0.3.0", "pynput>=1.7", "h5py>=3.8"]
 sim = ["torch>=2.0", "tqdm>=4.0", "lerobot[dataset]>=0.3.0"]  # [dataset]: writing datasets (lerobot >= 0.7)
 dit = ["lerobot>=0.4,<0.5", "transformers>=4.40"]
+hg-dagger = ["lerobot>=0.4,<0.5", "torch>=2.0"]
+hg-dagger-mujoco = ["mujoco>=3.3,<4", "mink>=1,<2", "daqp>=0.6", "aiohttp>=3.9,<4", "opencv-python>=4.8"]
 
 [project.scripts]
 humanoid-record = "humanoid_robot_learning.recording.record:main"

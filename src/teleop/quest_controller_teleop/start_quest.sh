@@ -26,9 +26,22 @@ fi
 "$PY" src/teleop/quest_controller_teleop/mujoco/mujoco_sim.py "$@" &
 SIM=$!
 trap 'kill $SIM 2>/dev/null' INT TERM
-until curl -sf "localhost:$PORT/" >/dev/null; do sleep .5; done
+until curl -sf "localhost:$PORT/" >/dev/null; do
+  if ! kill -0 "$SIM" 2>/dev/null; then wait "$SIM"; exit 1; fi
+  sleep .5
+done
 sleep 1   # the first control ticks replace the startup status with "Tracking paused"
-streaming() { ! curl -s --max-time 2 "localhost:$PORT/status" | grep -q "Tracking paused"; }
+streaming() {
+  curl -sf --max-time 2 "localhost:$PORT/status" | python3 -c '
+import json, sys
+try:
+    status = json.load(sys.stdin)
+    ready = status.get("hg_ready", "Tracking paused" not in status.get("status", "Tracking paused"))
+    sys.exit(0 if ready else 1)
+except (ValueError, OSError):
+    sys.exit(1)
+'
+}
 
 # Closing the last tab quits the browser, and an `am start` sent while it is quitting is dropped: open, then click
 # until poses arrive. Taps go to a few spots in case the browser panel sits elsewhere.

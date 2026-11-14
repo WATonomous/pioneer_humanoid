@@ -51,6 +51,39 @@ Both arms, 25 fps of sim time, schema `pioneer_8dof_dataset_schema.yaml` (8 valu
 wrists at 640x480, into `datasets/pioneer_8dof_bimanual/sim` (later sessions append). The window shows `REC <s>` while
 recording. Train on it as in `src/robot_learning/README.md`.
 
+## HG-DAgger corrections
+
+Add `--hg-dagger` to run a compatible policy and intervene with the same controllers:
+
+```bash
+src/teleop/quest_controller_teleop/start_quest.sh --scene YOUR_SCENE --hg-dagger \
+  --policy outputs/bootstrap/checkpoints/last/pretrained_model \
+  --corrections datasets/round_001/corrections \
+  --task_description "your task instruction" --device cpu
+```
+
+Install `pip install -e 'src/robot_learning[hg-dagger,hg-dagger-mujoco]'` first.
+The checkpoint must match this scene and the current arm model, including its
+saved contract and processors. Its contract selects the controlled arm(s),
+observation cameras and policy frame rate. `--record` and `--hg-dagger` are
+mutually exclusive. Regular teleop without this flag keeps the controls above.
+
+| Input in HG-DAgger mode | Action |
+| --- | --- |
+| Hold right grip | Human takeover; motion/triggers control the selected arms/grippers |
+| Release right grip | Return to the policy without saving |
+| Right B or **8** | Accept pending human segments and reset |
+| Left Y or **6**/**9** | Discard pending human segments and reset |
+| Close window / Ctrl+C | Quit without saving pending segments |
+
+Physics waits for VR readiness and grip release, and holds on input loss or a
+full correction buffer. Only human actions become labels. Existing datasets and
+checkpoints can be bound without VR using the Python script's `--hg-dagger
+--policy PATH --bind-dataset DATASET --scene YOUR_SCENE` flags. See the
+[HG-DAgger guide](../../robot_learning/humanoid_robot_learning/hg_dagger/HG_DAGGER.md)
+for binding, validation, aggregation and refinement. Use `--device cuda` for GPU
+inference, and `--headless` to hide the desktop window while retaining policy cameras.
+
 ## How it works
 
 `index.html` → `transport.py` → `scene_driver.py` → `mink_control.py` → joint targets.
