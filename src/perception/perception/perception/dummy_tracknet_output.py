@@ -22,12 +22,21 @@ class DummyTrackNetOutput(Node):
         self.history_position = []
         self.noise = 0.04  # m
 
+        # Camera intrinsics (typical RealSense D455 at 640x480)
+        self.fx = 380.0
+        self.fy = 380.0
+        self.cx = 320.0
+        self.cy = 240.0
+        self.img_width = 640
+        self.img_height = 480
+
         # This is the L-value
         self.aerodynamic_characteristic_length = 3.4
 
+        # Publishes 2D pixel coordinates (like YOLO detector)
         self.pub = self.create_publisher(
             PointStamped,
-            '/shuttle_states',
+            '/perception/shuttlecock/detections_2d',
             10
         )
         self.true_pub = self.create_publisher(
@@ -38,6 +47,11 @@ class DummyTrackNetOutput(Node):
         self.new_spawn = self.create_publisher(
             Bool,
             '/shuttle_spawned',
+            10
+        )
+        self.visible_pub = self.create_publisher(
+            Bool,
+            '/perception/shuttlecock/detection_visible',
             10
         )
 
@@ -67,7 +81,7 @@ class DummyTrackNetOutput(Node):
 
         noisy_dir = noisy_dir / np.linalg.norm(noisy_dir)
 
-        velocity = np.random.uniform(70, 130) * noisy_dir
+        velocity = np.random.uniform(20, 70) * noisy_dir
 
         self.shuttle = Shuttle(velocity, position)
 
@@ -98,23 +112,45 @@ class DummyTrackNetOutput(Node):
         self.shuttle.velocity = new_vel
         self.shuttle.position = new_pos
         self.history_position.append(new_pos)
+
+        # Publish TRUE position (ground truth for debugging)
         true_msg = PointStamped()
         true_msg.header.stamp = self.get_clock().now().to_msg()
-        true_msg.header.frame_id = "robot_base_link"
+        true_msg.header.frame_id = "camera_link"
         true_msg.point.x = float(new_pos[0])
         true_msg.point.y = float(new_pos[1])
         true_msg.point.z = float(new_pos[2])
         self.true_pub.publish(true_msg)
 
+        # Add noise to position
         noise = np.random.uniform(-self.noise, self.noise, size=3)
+        noisy_pos = new_pos + noise
 
-        # publish noisy data
+        # Project 3D to 2D pixel coordinates
+        # Only visible if in front of camera (z > 0) and within image bounds
+        visible = False
+        u, v = 0.0, 0.0
+
+        if noisy_pos[2] > 0.1:  # Must be in front of camera
+            u = self.fx * (noisy_pos[0] / noisy_pos[2]) + self.cx
+            v = self.fy * (noisy_pos[1] / noisy_pos[2]) + self.cy
+
+            # Check if within image bounds
+            if 0 <= u < self.img_width and 0 <= v < self.img_height:
+                visible = True
+
+        # Publish visibility
+        vis_msg = Bool()
+        vis_msg.data = visible
+        self.visible_pub.publish(vis_msg)
+
+        # Publish 2D detection (pixel coordinates)
         msg = PointStamped()
         msg.header.stamp = self.get_clock().now().to_msg()
-        msg.header.frame_id = "robot_base_link"
-        msg.point.x = float(new_pos[0]+noise[0])
-        msg.point.y = float(new_pos[1]+noise[1])
-        msg.point.z = float(new_pos[2]+noise[2])
+        msg.header.frame_id = "camera_link"
+        msg.point.x = float(u)  # pixel u
+        msg.point.y = float(v)  # pixel v
+        msg.point.z = 0.0       # unused for 2D
 
         self.pub.publish(msg)
 

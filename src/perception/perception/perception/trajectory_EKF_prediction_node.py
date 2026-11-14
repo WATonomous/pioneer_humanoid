@@ -154,7 +154,7 @@ class EKFPredictionNode(Node):
             self.x[0:3] = z
 
             # guard: only seed if elapsed time is not like zero or too small
-            if dt_elapsed > 0.001:
+            if dt_elapsed > 0.005:
                 v_init = (z - self.prev_meas) / dt_elapsed
                 self.x[3:6] = v_init
                 self.velocity_initialized = True
