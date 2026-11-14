@@ -54,7 +54,7 @@ function controller(frame, source) {
   if (pose.emulatedPosition) return {tracked:false, reason:'emulated_position'};
   const p = pose.transform.position, q = pose.transform.orientation, b = source.gamepad.buttons;
   return {tracked:true, position:[p.x,p.y,p.z], orientation:[q.x,q.y,q.z,q.w],
-    trigger:b[0]?.value || 0, clutch:!!b[1]?.pressed,
+    trigger:b[0]?.value || 0,
     precision:!!b[4]?.pressed,
     calibrate:!!b[3]?.pressed,
     reset_scene:source.handedness === 'left' && !!b[5]?.pressed,
