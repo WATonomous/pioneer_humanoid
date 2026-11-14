@@ -9,6 +9,9 @@ the Hugging Face Hub want one dataset, so merge first:
 
 Inputs can be session folders (all their takes, in order) or single take folders. The takes are
 only read; the merged copy is written to --output, which must not exist yet.
+
+Any LeRobot datasets merge the same way, e.g. RECAP rollout shards, corrections and demos into one
+training set; their RECAP sidecars (recap/) are renumbered to the merged episodes (recap/merge.py).
 """
 
 from __future__ import annotations
@@ -77,6 +80,11 @@ def main(argv: list[str] | None = None) -> int:
     logger.info("Merging %d takes into %s", len(takes), args.output)
     merged = merge_datasets(datasets, output_repo_id=repo_id, output_dir=args.output)
     print(f"Merged {merged.meta.total_episodes} episodes ({merged.meta.total_frames} frames) into {args.output}")
+    if any((t / "recap").is_dir() for t in takes):
+        from humanoid_robot_learning.recap.merge import merge_sidecars
+
+        rows = merge_sidecars(takes, [d.meta.total_episodes for d in datasets], args.output)
+        print(f"Merged the RECAP sidecars: {rows} episode rows in {args.output / 'recap'}")
 
     if args.push_to_hub:
         logger.info("Uploading to https://huggingface.co/datasets/%s", repo_id)

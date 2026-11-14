@@ -132,6 +132,21 @@ python -m humanoid_robot_learning.recap.label --dataset datasets/recap/r1_all --
 
 Then fine-tune from the base checkpoint on `r1_train` and roll out with `evaluate --advantage positive`.
 
+### RECAP parallel rollouts and merging
+
+Roll a checkpoint out in parallel, then merge rollouts, corrections and demos into the one dataset the value function
+and labels read. `python -m humanoid_robot_learning.recap.shards` runs K `sim.evaluate --record` processes on one
+machine (one seed range each, keeping 5 GB of memory free; `--merge` merges them). On WATcloud:
+[`tools/slurm/rollouts.sbatch`](../../tools/slurm/README.md) (job array) or `eval.sbatch` (a run's checkpoints).
+`humanoid-merge-takes` renumbers the RECAP sidecars to the merged episodes (`recap/merge.py`).
+
+```bash
+python -m humanoid_robot_learning.recap.shards --out datasets/recap/r1_rollouts --shards 4 --episodes 40 --seed 1000 \
+  --round 1 --merge -- --scene drawer_stow --policy <run>/checkpoints/last/pretrained_model
+humanoid-merge-takes datasets/drawer_stow_train_v1/sim datasets/recap/r1_rollouts/merged datasets/recap/r1_corrections \
+  --output datasets/recap/r1_all
+```
+
 Sim rollout for a flow-matching policy (pi0 / pi0.5 / SmolVLA) on the push-block scene, driven with Real-Time Chunking (`humanoid_robot_learning/deploy/rtc_driver.py`): [`scripts/pioneer_push_eval_rtc.py`](scripts/pioneer_push_eval_rtc.py). It expects a checkpoint trained on `config/pioneer_humanoid_dataset_schema.yaml` (the old arms' format, recorded by the Isaac leader teleop); `--dry_run` runs it without one. **The VLA is not hooked up yet**: no real checkpoint has been run through it, and its schema, camera keys and action space (absolute vs delta) still need matching. See the `TODO(VLA)` block in the script.
 
 ```bash
