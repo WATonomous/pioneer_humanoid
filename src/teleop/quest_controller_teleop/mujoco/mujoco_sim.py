@@ -2,7 +2,8 @@
 
 The headset only tracks (index.html streams its poses): open http://localhost:8444/ in Meta Browser after
 `adb reverse tcp:8444 tcp:8444` (start_quest.sh does it all).
-Left Y (or 6 with the window focused) resets the arms and the scene. --record: right B starts / saves a take.
+Left Y (or 6 with the window focused) resets the arms and the scene. --record: right B starts / saves a take;
+--record_arms left|right records one arm (8 values) for single-arm tasks.
 
 This machine shows one camera window (ego on top, both wrist cameras below; plain ``python``);
 ``--headless`` shows nothing. Runs on a Mac without a GPU.
@@ -29,6 +30,7 @@ sys.path.insert(0, str(_THIS_DIR))
 
 from mujoco_cameras import CameraWindow  # noqa: E402
 from scene_driver import ControllerSceneDriver, add_controller_args, check_controller_args  # noqa: E402
+from humanoid_robot_learning.recording.schema import ARM_SETS  # noqa: E402
 from humanoid_robot_learning.sim.sim_teleop_record import (  # noqa: E402
     add_record_args, load_record_schema, make_sim_recorder)
 
@@ -55,21 +57,27 @@ def parse_args():
     parser.add_argument("--headless", action="store_true", help="no window (e.g. recording only)")
     add_controller_args(parser)
     add_record_args(parser, task_description="Quest VR teleop demonstration")
+    parser.add_argument("--record_arms", choices=tuple(ARM_SETS), default="bimanual",
+                        help="arms to record (both are always driven): left or right records that arm's 8 values "
+                             "and its wrist camera into datasets/pioneer_8dof_<arm>_arm, for single-arm tasks")
     # The ego camera looks 50 deg down, so its frame turns "hand up" into "wrist forward and up" and "hand back"
     # into "wrist back and up" (scripted-motion check). The upright base frame keeps up as up, forward as forward.
     parser.set_defaults(controller_frame="base")
     args = parser.parse_args()
     check_controller_args(parser, args)
+    sides = ARM_SETS[args.record_arms]
     if args.record and args.cameras is None:
-        args.cameras = ",".join(CameraWindow.CAMERAS)   # both arms move: record both wrists
-    return args, load_record_schema(parser, args, arms=["left", "right"], robot="8dof")
+        args.cameras = ",".join(["ego", *(f"wrist_{side}" for side in sides)])   # the recorded arms' wrists
+    return args, load_record_schema(parser, args, arms=list(sides), robot="8dof")
 
 
 class Recording:
-    """Right B (or 7) starts a take and saves it (or 8); left Y, 6 or 9 discards it. Frames: 25 Hz of sim time."""
+    """Right B (or 7) starts a take and saves it (or 8); left Y, 6 or 9 discards it. Frames: 25 Hz of sim time.
 
-    def __init__(self, recorder, window, every, driver):
-        self.recorder, self.window, self.every, self.driver = recorder, window, every, driver
+    `sides`: the recorded arms (--record_arms), left first as the schema."""
+
+    def __init__(self, recorder, window, every, driver, sides):
+        self.recorder, self.window, self.every, self.driver, self.sides = recorder, window, every, driver, sides
         self.flags = recorder.start_flags()
         self.presses = self.saved_takes = 0
 
@@ -186,7 +194,7 @@ def run() -> None:
     recorder, every = make_sim_recorder(args, record, device="cpu", sim_dt=dt, extra_features=extra)
     sizes = {name: (int(spec["height"]), int(spec["width"])) for name, spec in record.images.items()}
     window = None if args.headless and recorder is None else CameraWindow(model, sizes, recorder)
-    recording = Recording(recorder, window, every, driver) if recorder is not None else None
+    recording = Recording(recorder, window, every, driver, ARM_SETS[args.record_arms]) if recorder is not None else None
     keys = {"6": reset_key.set}
     if recording is not None:
         window.on_saved = lambda: (recording.saved(), reset_key.set())
@@ -269,7 +277,8 @@ def loop(model, data, driver, arms, window, recording, reset, reset_key, scene_h
         if recording is not None and recording.flags.start and tick % recording.every == 0:
             # Before the step: image, state and action are of the same instant. Left arm first, as the schema.
             action, state = [], []
-            for side, ids in arms.items():
+            for side in recording.sides:
+                ids = arms[side]
                 closure = (data.qpos[ids.grip_qpos] - ids.grip_open) / (ids.grip_closed - ids.grip_open)
                 action.extend([*commands[side], driver.grippers[side]])
                 state.extend([*data.qpos[ids.qpos], float(np.clip(closure.mean(), 0., 1.))])
