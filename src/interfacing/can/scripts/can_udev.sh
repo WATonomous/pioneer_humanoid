@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
 UDEV_RULE_FILE="/etc/udev/rules.d/99-canable.rules"
 UDEV_VENDOR_ID="16d0"
@@ -79,10 +79,10 @@ remove_rule() {
     fi
 }
 
-CMD="$1"
+CMD="${1:-}"
 case "$CMD" in
     install)
-        install_rule "$2"
+        install_rule "${2:-}"
         ;;
     remove)
         remove_rule

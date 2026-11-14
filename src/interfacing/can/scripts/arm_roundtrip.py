@@ -63,14 +63,12 @@ class RoundTripNode(TelemetryRecorder):
     def __init__(self, joint_map, log, rate_hz, arm_sides):
         super().__init__(joint_map, log, None, rate_hz, arm_sides)
         self.arm_sides = arm_sides
-        self.fb_time: Dict[int, float] = {}
         self.temp_c: Dict[int, List[int]] = {}  # [first, peak] drive reading; 0 = no reading
         self.pubs = [self.create_publisher(ArmPose, jc.arm_pose_topic(side), 10)
                      for side in arm_sides]
 
     def _on_feedback(self, msg: MotorFeedback) -> None:
-        super()._on_feedback(msg)
-        self.fb_time[int(msg.motor_id)] = time.monotonic()
+        super()._on_feedback(msg)  # also stamps fb_time
         temp = int(msg.temperature)
         if temp:
             first_peak = self.temp_c.setdefault(int(msg.motor_id), [temp, temp])
@@ -124,15 +122,13 @@ def profile_time(a: List[float], b: List[float], vel: List[float], floor: float)
 def resolve_config(args):
     """The configs joint_command_node enforces (its INSTALLED copy); refuse if the repo differs.
 
-    Explicit --calibration / --actuators skip the check.
+    Passing both --calibration and --actuators skips the check; otherwise it must run (ROS).
     """
-    installed = jc.installed_joint_command_config()
     live_mapping = jc.find_calibration(args.mapping)
     live_safety = jc.find_actuators(args.actuators)
-    if live_safety is None:
-        sys.exit("could not find arm_actuators.yaml; pass --actuators PATH")
-    if installed is None or (args.mapping and args.actuators):
+    if args.mapping and args.actuators:
         return live_mapping, live_safety
+    installed = jc.installed_joint_command_config()
     stale = []
     mapping, safety = live_mapping, live_safety
     if not args.mapping:

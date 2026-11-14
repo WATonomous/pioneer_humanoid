@@ -34,6 +34,7 @@ import csv
 import json
 import os
 import subprocess
+import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -102,8 +103,8 @@ def _chown_like_parent(path: Path) -> None:
             for name in dirs + files:
                 os.chown(os.path.join(root, name), stat.st_uid, stat.st_gid)
         os.chown(path, stat.st_uid, stat.st_gid)
-    except OSError:
-        pass  # best effort -- never fail a run over file ownership
+    except OSError as exc:  # never fail a run over file ownership, but say so
+        print(f"WARNING: could not chown {path} to its parent's owner: {exc}", file=sys.stderr)
 
 
 class RunFolder:
@@ -181,7 +182,6 @@ class RunFolder:
     def close(self, outcome: str = "completed", **extra: Any) -> Optional[Path]:
         if not self.enabled or self.path is None:
             return None
-        self.meta.setdefault("outcome", outcome)
         self.meta["outcome"] = outcome
         self.meta.update(extra)
         self.meta["rows"] = self._rows
@@ -211,7 +211,12 @@ def load_run(path: Path):
     """Read a run folder back: (meta dict, list of row dicts with floats parsed)."""
     path = Path(path)
     meta_file = path / "run.json"
-    meta = json.loads(meta_file.read_text(encoding="utf-8")) if meta_file.exists() else {}
+    if meta_file.exists():
+        meta = json.loads(meta_file.read_text(encoding="utf-8"))
+    else:
+        print(f"WARNING: {meta_file} missing (run killed before close?): no limits or labels, "
+              "so no pass/fail checks", file=sys.stderr)
+        meta = {}
     rows = []
     with (path / "telemetry.csv").open(newline="", encoding="utf-8") as f:
         for raw in csv.DictReader(f):
@@ -404,7 +409,6 @@ def motor_metrics(rows, meta: Optional[Dict[str, Any]] = None) -> Dict[str, Any]
                        f"[{m['min_pos_deg']:.1f}, {m['max_pos_deg']:.1f}] vs {soft} deg"))
     # ROS runs: commanded must sit exactly inside arm_calibration.yaml's range; measured gets
     # 2 deg for sag. Joints joint_command never commanded are not judged.
-    joint = next((r.get("joint") for r in rows if r.get("joint")), "")
     per_joint = (limits.get("per_joint_deg") or {}).get(joint)
     commanded = _finite([r["sp_deg"] for r in rows])  # the whole run, not the outbound cut
     if not soft and per_joint and commanded:
@@ -466,7 +470,7 @@ def format_metrics(meta: Dict[str, Any], per_motor: Dict[int, Dict[str, Any]]) -
                      f"kd={gains.get('kd_applied')} (raw {gains.get('kd_raw')})")
 
     for motor_id, m in sorted(per_motor.items()):
-        joint = next((r for r in [meta.get("joint")] if r), "")
+        joint = (meta.get("joints") or {}).get(str(motor_id), "")
         lines.append("")
         lines.append(f"## motor {motor_id}{f' ({joint})' if joint else ''}")
         lines.append("")
