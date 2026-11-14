@@ -15,14 +15,14 @@ The repo is bind-mounted at `/workspace/humanoid`. Shared arm config + IK helper
 | Folder | Input | Sim robot | Notes |
 |--------|-------|-----------|-------|
 | [`quest_controller_teleop/`](quest_controller_teleop/) | Quest 2 Touch controllers | pioneer_bimanual_arm_8dof (7-DoF + gripper), both arms, MuJoCo or Isaac (`isaac/isaac_sim.py`) | mink IK, URDF limits + elbow rule, 1-euro filter; `start_quest.sh`, `--record`; see its README |
-| **`keyboard_teleop/`** | keyboard + IK | pioneer bimanual, left arm | see below |
+| **`keyboard_teleop/`** | keyboard + mink IK (TCP target) | pioneer_bimanual_arm_8dof, left arm, Isaac | see below |
 | [`pioneer_leader_arm_teleop/`](pioneer_leader_arm_teleop/) | leader arm (8 servos; 7 for the old arms) | pioneer_bimanual_arm_8dof in MuJoCo (default); old arms in Isaac / real | any `--scene`, `--record`; see its README |
-| [`task_space_controller/`](task_space_controller/) | viewport pose gizmo + IK | pioneer bimanual, left arm | `--publish-real-left-arm` drives the real arm — **its README covers the CAN pipeline + e-stop** |
+| [`task_space_controller/`](task_space_controller/) | viewport pose gizmo + mink IK | pioneer_bimanual_arm_8dof, left arm, Isaac | sim only |
 | `humanoid-record` (CLI) | ROS topics | real pioneer arm | `src/robot_learning` |
 
 ## keyboard_teleop
 
-Left arm follows the keyboard via differential IK (absolute-pose target, DLS).
+Left arm follows the keyboard with the Quest teleop's mink IK (absolute TCP-pose target).
 
 ```bash
 # inside the simulation_isaac container:
@@ -33,7 +33,7 @@ PYTHONPATH=$(pwd) /workspace/isaaclab/isaaclab.sh -p keyboard_teleop.py [--scene
 Keys: see [Keyboard controls](#keyboard-controls) below.
 
 - **`--scene`:** any `humanoid_isaac_scenes` scene — `bare` (default, empty lightbox workcell), `push` (ramp-box + block), `vial_rack`, …
-- **`--record`** (image already has `humanoid-robot-learning`) → `<repo>/datasets/pioneer_v1_left_arm/sim/` · `--cameras ego,wrist_left` / `none`
+- **`--record`** (image already has `humanoid-robot-learning`) → `<repo>/datasets/pioneer_8dof_left_arm/sim/` · `--cameras ego,wrist_left` / `none`
 
 ## Keyboard controls
 

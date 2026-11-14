@@ -1,7 +1,7 @@
-# Old 6-DoF arm only (Isaac has no 8dof USD yet). 8dof is the default; the real arm moves to 8dof soon.
 """Minimal bimanual-arm keyboard teleoperation (left arm only).
 
-Robot: pioneer_bimanual_arm (see pioneer_humanoid.bimanual_arm)
+Robot: pioneer_bimanual_arm_8dof (see pioneer_humanoid.bimanual_arm_8dof); IK: the Quest teleop's mink IK
+(quest_controller_teleop/mink_control.py), the target being the tool point (TCP)
 Motor specs: https://watonomous.github.io/humanoid-docs/mechanical/index.html
 Teleop bindings: https://isaac-sim.github.io/IsaacLab/v2.0.1/source/overview/teleop_imitation.html
 
@@ -14,9 +14,9 @@ Teleop bindings: https://isaac-sim.github.io/IsaacLab/v2.0.1/source/overview/tel
   C/V     Rotate along z-axis
   R       Reset left arm to default pose
 
-Recording (--record, src/robot_learning/config/pioneer_humanoid_dataset_schema.yaml), 25 fps = every 4th physics step:
-  observation.state  6 joints (rad) + gripper closure (0 open .. 1 closed, mean of both fingers)
-  action             6 IK targets (rad) + gripper command (1 = K closed, 0 = open)
+Recording (--record, src/robot_learning/config/pioneer_8dof_dataset_schema.yaml), 25 fps = every 4th physics step:
+  observation.state  7 joints (rad) + gripper closure (0 open .. 1 closed)
+  action             7 IK targets (rad) + gripper command (1 = K closed, 0 = open)
   observation.images.<name>  cameras enabled in the schema, or --cameras ego,wrist_left / none
 """
 
@@ -30,6 +30,7 @@ from isaaclab.app import AppLauncher
 # in the image; this fallback keeps a bare bind-mounted checkout working.
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "pioneer_humanoid"))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "robot_learning"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "quest_controller_teleop"))   # mink_control
 
 from humanoid_robot_learning.sim.sim_teleop_record import (  # noqa: E402
     add_record_args,
@@ -48,48 +49,56 @@ parser.add_argument(
 add_record_args(parser, task_description="sim keyboard teleop demonstration")
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
-_record = load_record_schema(parser, args_cli, arms=["left"])
+_record = load_record_schema(parser, args_cli, arms=["left"], robot="8dof")
 
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
+import math
+from types import SimpleNamespace
+
 import carb
+import numpy as np
 import omni.appwindow
 import torch
 
 import isaaclab.sim as sim_utils
-from isaaclab.controllers import DifferentialIKController, DifferentialIKControllerCfg
 from isaaclab.devices import Se3Keyboard, Se3KeyboardCfg
-from isaaclab.managers import SceneEntityCfg
 from isaaclab.scene import InteractiveScene
-from isaaclab.utils.math import compute_pose_error, quat_from_angle_axis, quat_mul, subtract_frame_transforms
+from isaaclab.utils.math import (
+    compute_pose_error,
+    matrix_from_quat,
+    quat_apply,
+    quat_from_angle_axis,
+    quat_inv,
+    quat_mul,
+    subtract_frame_transforms,
+)
 
-# Uses canonical URDF-side names directly (formerly aliased LEFT_* as RIGHT_* from an old, since-fixed URDF flip).
-from pioneer_humanoid.bimanual_arm import (
-    BIMANUAL_ARM_CFG,
-    CAMERA_NAMES,
-    LEFT_GRIPPER_CLOSED,
-    LEFT_GRIPPER_OPEN,
+from mink_control import PioneerMinkIK
+from pioneer_humanoid.arm_8dof_params import (
+    CAMERAS,
     LEFT_ARM_JOINTS,
     LEFT_EE_BODY,
+    LEFT_GRIPPER_CLOSED,
     LEFT_GRIPPER_JOINTS,
-    LEFT_FINGER_TIP_BODIES,
+    LEFT_GRIPPER_OPEN,
     RIGHT_ARM_JOINTS,
     RIGHT_GRIPPER_JOINTS,
     RIGHT_GRIPPER_OPEN,
-    apply_joint_limits,
-    resolve_joint_name,
-    resolve_body_ids,
-    compute_gripper_tip_pose_b,
-    compute_tip_ik_jacobian,
-    make_camera_cfg,
 )
+from pioneer_humanoid.bimanual_arm_8dof import BIMANUAL_ARM_8DOF_CFG, make_camera_cfg, tcp_pose_w
 from humanoid_isaac_scenes import list_scenes, make_scene_cfg, scene_camera, scene_post_init
 
 
-def _joint_ids(robot, names: list[str]) -> list[int]:
-    name_to_id = {name: i for i, name in enumerate(robot.data.joint_names)}
-    return [name_to_id[resolve_joint_name(robot, name)] for name in names]
+def mink_target(robot, pivot_body_id, ee_body_id, tcp_pos_b, tcp_quat_b):
+    """PioneerMinkIK's target for a base-frame TCP pose: it tracks the wrist pivot (link6's origin) and the gripper's
+    rotation, so the pivot goes where it puts the TCP on target (the measured pivot -> TCP offset, gripper frame)."""
+    tcp_w, quat_w = tcp_pose_w(robot, ee_body_id)
+    offset = quat_apply(quat_inv(quat_w), tcp_w - robot.data.body_pos_w[:, pivot_body_id])
+    pivot_b = tcp_pos_b - quat_apply(tcp_quat_b, offset)
+    return SimpleNamespace(active=True, saturation=0.0, position=pivot_b[0].double().cpu().numpy(),
+                           rotation=matrix_from_quat(tcp_quat_b)[0].double().cpu().numpy())
 
 
 def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
@@ -99,47 +108,34 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     if recorder is not None:
         print("[RECORD] Keys: S=start, N=save episode, D=discard, Esc=stop")
 
-    import numpy as np
-
     if recorder is not None:
         recorder.start_keyboard()
 
-    # Ensure robot buffers are populated before reading limits / joint names
     scene.update(sim_dt)
-    apply_joint_limits(robot)
-
-    left_arm_names = [resolve_joint_name(robot, name) for name in LEFT_ARM_JOINTS]
-    left_gripper_names = [resolve_joint_name(robot, name) for name in LEFT_GRIPPER_JOINTS]
-    right_arm_names = [resolve_joint_name(robot, name) for name in RIGHT_ARM_JOINTS]
-
     print(f"[INFO] Robot joints: {robot.data.joint_names}")
-    print(f"[INFO] Left arm joints: {left_arm_names}")
-    print(f"[INFO] Right arm hold joints: {right_arm_names}")
 
     # Absolute-pose IK against a persistent target (like task_space_ik.py), NOT
-    # relative mode. Relative mode re-anchors to the measured tip every step, so a
-    # held key makes the arm chase a moving carrot -> laggy/mushy near limits. Here
-    # the target is integrated from the keyboard deltas and leashed to stay within
+    # relative to the measured tip each step, which makes a held key chase a moving carrot.
+    # The target is integrated from the keyboard deltas and leashed to stay within
     # _MAX_LEAD_* of the actual tip, so a held key = arm moves at the speed it can
     # sustain, no runaway, and releasing stops it immediately.
-    diff_ik_cfg = DifferentialIKControllerCfg(command_type="pose", use_relative_mode=False, ik_method="dls")
-    diff_ik_controller = DifferentialIKController(diff_ik_cfg, num_envs=scene.num_envs, device=sim.device)
+    # mink IK as the Quest teleop (scene_driver.py): its speed caps and the elbow >= 10 deg rule.
+    ik = PioneerMinkIK(LEFT_ARM_JOINTS, velocity=0.9, wrist_velocity=3.6)
+    limits = ik.physical_limits.copy()
+    limits[3, 0] = max(limits[3, 0], math.radians(10.0))
+    ik.set_teleop_limits(limits)
     _MAX_LEAD_M = 0.06
     _MAX_LEAD_RAD = 0.35
-    target = {"pos": None, "quat": None}  # persistent EE target in base frame
+    target = {"pos": None, "quat": None}  # persistent TCP target in base frame
 
-    robot_entity_cfg = SceneEntityCfg("robot", joint_names=left_arm_names, body_names=[LEFT_EE_BODY])
-    robot_entity_cfg.resolve(scene)
-
-    ee_jacobi_idx = robot_entity_cfg.body_ids[0] - 1 if robot.is_fixed_base else robot_entity_cfg.body_ids[0]
-    wrist_body_id = robot_entity_cfg.body_ids[0]
-    finger_body_ids = resolve_body_ids(robot, LEFT_FINGER_TIP_BODIES)
-
-    left_arm_ids = robot_entity_cfg.joint_ids
-    left_gripper_ids = _joint_ids(robot, LEFT_GRIPPER_JOINTS)
-    right_arm_ids = _joint_ids(robot, RIGHT_ARM_JOINTS)
-    right_gripper_ids = _joint_ids(robot, RIGHT_GRIPPER_JOINTS)
+    ee_body_id = robot.find_bodies(LEFT_EE_BODY)[0][0]
+    pivot_body_id = robot.find_bodies("left_link6")[0][0]
+    left_arm_ids = robot.find_joints(LEFT_ARM_JOINTS, preserve_order=True)[0]
+    left_gripper_ids = robot.find_joints(LEFT_GRIPPER_JOINTS, preserve_order=True)[0]
+    right_arm_ids = robot.find_joints(RIGHT_ARM_JOINTS, preserve_order=True)[0]
+    right_gripper_ids = robot.find_joints(RIGHT_GRIPPER_JOINTS, preserve_order=True)[0]
     right_default_pos = robot.data.default_joint_pos[:, right_arm_ids].clone()
+    left_default_pos = robot.data.default_joint_pos[0, left_arm_ids].double().cpu().numpy()
 
     joint_pos = robot.data.default_joint_pos.clone()
     joint_vel = robot.data.default_joint_vel.clone()
@@ -207,7 +203,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             joint_vel = robot.data.default_joint_vel.clone()
             robot.write_joint_state_to_sim(joint_pos, joint_vel)
             robot.reset()
-            diff_ik_controller.reset()
+            ik.command = left_default_pos.copy()
             teleop.reset()
             target["pos"] = None  # re-seed the persistent target from the tip
             should_reset = False
@@ -223,15 +219,10 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             print(f"[DEBUG] Keyboard command: {command[0].tolist()}")
             debug_steps += 1
 
-        ee_pose_w = robot.data.body_state_w[:, robot_entity_cfg.body_ids[0], 0:7]
         root_pose_w = robot.data.root_state_w[:, 0:7]
         joint_pos = robot.data.joint_pos[:, left_arm_ids]
-
-        ee_pos_b, _ = subtract_frame_transforms(
-            root_pose_w[:, 0:3], root_pose_w[:, 3:7], ee_pose_w[:, 0:3], ee_pose_w[:, 3:7]
-        )
-        tip_pos_b, tip_quat_b = compute_gripper_tip_pose_b(
-            robot, root_pose_w, wrist_body_id, finger_body_ids
+        tip_pos_b, tip_quat_b = subtract_frame_transforms(
+            root_pose_w[:, 0:3], root_pose_w[:, 3:7], *tcp_pose_w(robot, ee_body_id)
         )
 
         # Persistent absolute target: seed from the tip once, then integrate the
@@ -261,39 +252,26 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             c_axis = clamped / c_ang.unsqueeze(-1)
             target["quat"] = quat_mul(quat_from_angle_axis(c_ang, c_axis), tip_quat_b)
 
-        diff_ik_controller.set_command(
-            torch.cat([target["pos"], target["quat"]], dim=-1), ee_quat=tip_quat_b
-        )
-
-        jacobian = compute_tip_ik_jacobian(
-            robot,
-            robot.root_physx_view.get_jacobians()[:, ee_jacobi_idx, :, left_arm_ids],
-            ee_pos_b,
-            tip_pos_b,
-        )
-        joint_pos_des = diff_ik_controller.compute(tip_pos_b, tip_quat_b, jacobian, joint_pos)
+        q = ik.solve(joint_pos[0].double().cpu().numpy(),
+                     mink_target(robot, pivot_body_id, ee_body_id, target["pos"], target["quat"]), sim_dt)
+        joint_pos_des = torch.tensor(q, dtype=torch.float32, device=sim.device).unsqueeze(0)
         robot.set_joint_position_target(joint_pos_des, joint_ids=left_arm_ids)
 
         if recorder is not None and physics_step % record_every == 0:
             finger_q = robot.data.joint_pos[:, left_gripper_ids]
-            closure = (
-                ((finger_q - gripper_open_targets) / (gripper_closed_targets - gripper_open_targets))
-                .mean(dim=-1)
-                .clamp(0.0, 1.0)
-            )
+            closure = ((finger_q - gripper_open_targets) / (gripper_closed_targets - gripper_open_targets)).clamp(0.0, 1.0)[0]
             gripper_cmd = torch.full_like(closure, 1.0 if close_gripper else 0.0)
             state = torch.cat([joint_pos[0], closure]).detach().cpu().numpy().astype(np.float32)
             action = torch.cat([joint_pos_des[0], gripper_cmd]).detach().cpu().numpy().astype(np.float32)
             recorder.tick(action, state, read_images)
 
-        # Hold gripper fingers at synchronized open/closed pair (one GL40 motor on hardware).
-        # High stiffness in cfg + zero velocity target prevents bounce when the arm moves.
+        # Finger B follows by its mimic joint. Zero velocity target prevents bounce when the arm moves.
         gripper_targets = gripper_closed_targets if close_gripper else gripper_open_targets
         zero_gripper_vel = torch.zeros(1, len(left_gripper_ids), device=sim.device)
         robot.set_joint_position_target(gripper_targets, joint_ids=left_gripper_ids)
         robot.set_joint_velocity_target(zero_gripper_vel, joint_ids=left_gripper_ids)
 
-        # Keep right arm fixed at default pose, with its gripper fingers held open
+        # Keep right arm fixed at default pose, with its gripper held open
         robot.set_joint_position_target(right_default_pos, joint_ids=right_arm_ids)
         robot.set_joint_position_target(held_gripper_open_targets, joint_ids=right_gripper_ids)
         robot.set_joint_velocity_target(
@@ -319,11 +297,11 @@ def main():
     sim = sim_utils.SimulationContext(sim_cfg)
     sim.set_camera_view(*(scene_camera(args_cli.scene) or ([2.5, 2.5, 2.0], [0.0, 0.0, 0.8])))
 
-    scene_cfg = make_scene_cfg(args_cli.scene, BIMANUAL_ARM_CFG, num_envs=1, env_spacing=2.0)
+    scene_cfg = make_scene_cfg(args_cli.scene, BIMANUAL_ARM_8DOF_CFG, num_envs=1, env_spacing=2.0)
     # Added after the robot: cameras are parented under it, and entities are created in order.
-    unknown = sorted(set(_record.images) - set(CAMERA_NAMES))
+    unknown = sorted(set(_record.images) - set(CAMERAS))
     if unknown:
-        raise SystemExit(f"{_record.path}: unknown images {unknown}; available: {list(CAMERA_NAMES)}")
+        raise SystemExit(f"{_record.path}: unknown images {unknown}; available: {list(CAMERAS)}")
     for name, spec in _record.images.items():
         setattr(scene_cfg, f"record_cam_{name}", make_camera_cfg(name, int(spec["height"]), int(spec["width"])))
     scene = InteractiveScene(scene_cfg)
