@@ -1,0 +1,8 @@
+{
+  "description": "Grasp-correction fine-tuning (humanoid_robot_learning.phase_sampling): half of every batch from all earlier data (keeps transport/insertion), half from expert grasp corrections. Pass every earlier dataset as baseline.",
+  "quotas": {"baseline": 4, "grasp": 4},
+  "rules": [
+    {"pool": "grasp", "phases": ["approach", "descend_to_grasp", "close", "lift"]}
+  ],
+  "metric_phases": ["descend_to_grasp", "close"]
+}

@@ -1,0 +1,11 @@
+{
+  "description": "Peg-insert phase pools for humanoid_robot_learning.phase_sampling. Quotas are the final ACT/flow setting (3/2/2/1); earlier rounds used 4/2/1/1 and 3/1/3/1.",
+  "quotas": {"baseline": 3, "precision": 2, "recovery": 2, "completion": 1},
+  "rules": [
+    {"pool": "recovery", "phases": ["align", "recover_realign"], "condition_prefix": "tilt"},
+    {"pool": "precision", "phases": ["align"]},
+    {"pool": "recovery", "phases": ["recover_realign", "takeover_retract"]},
+    {"pool": "completion", "phases": ["insert", "verify_seating", "release", "retreat"]}
+  ],
+  "metric_phases": ["align", "recover_realign"]
+}
