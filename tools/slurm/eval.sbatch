@@ -6,8 +6,9 @@
 #
 # RUN_NAME         output folder name under $PERSIST/runs/ (the job id is appended)
 # CHECKPOINTS_DIR  a LeRobot run's train/checkpoints (one numbered folder per checkpoint, each with pretrained_model/)
-# Extra args go to evaluate.py for every checkpoint; --policy, --record and --device are set here. Per checkpoint:
-# <run>/eval_<step>.log and the rollouts (LeRobot dataset + RECAP sidecar) in <run>/rollouts_<step>; summary.txt
+# Extra args go to evaluate.py for every checkpoint; --policy, --record, --video_dir and --device are set here. Per
+# checkpoint: <run>/eval_<step>.log, the rollouts (LeRobot dataset + RECAP sidecar) in <run>/rollouts_<step> and an mp4
+# per episode in <run>/videos_<step>; summary.txt
 # collects the success lines. Environment: STEPS="006000 010000" evaluates only those checkpoints (default: all);
 # CODE_TGZ, PERSIST, LOGIN as in train.sbatch.
 #SBATCH --partition=compute
@@ -44,7 +45,7 @@ steps=${STEPS:-$(ls "$CHECKPOINTS" | grep -E '^[0-9]+$' | sort)}   # numbered fo
 for step in $steps; do
   ckpt="$CHECKPOINTS/$step"
   "$PY" -m humanoid_robot_learning.sim.evaluate --policy "$ckpt/pretrained_model" --device cuda \
-    --record "$RUN/rollouts_$step" "$@" 2>&1 | tee "$RUN/eval_$step.log"
+    --record "$RUN/rollouts_$step" --video_dir "$RUN/videos_$step" "$@" 2>&1 | tee "$RUN/eval_$step.log"
   printf '%s %s\n' "$step" "$(grep -E '^\[EVAL\] .*: success' "$RUN/eval_$step.log" | tail -1)" >> "$RUN/summary.txt"
 done
 cat "$RUN/summary.txt"
