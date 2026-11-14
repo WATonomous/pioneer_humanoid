@@ -7,8 +7,14 @@ name = "terrain_core"
 version = "0.0.0"
 description = "ROS-free terrain mapping core: preprocessing, elevation, traversability"
 requires-python = ">=3.10"
-# slam_core is not on PyPI: install it from this repo in the same pip command (see README)
-dependencies = ["numpy", "pyyaml", "slam_core"]
+dependencies = [
+    # numpy<2: the terrain and perception images pin numpy 1.26.4 for Humble's
+    # apt Python stack (cv_bridge needs numpy 1.x)
+    "numpy<2",
+    "pyyaml",
+    # slam_core is not on PyPI: install it from this repo in the same pip command (see README)
+    "slam_core",
+]
 
 [project.optional-dependencies]
 # pillow: only terrain_tools/tum.py (reading TUM PNGs) and its tests use it
