@@ -4,6 +4,7 @@
     simulation, rendering, recording and reset operations; this turns headset
     packets into joint commands and serves camera frames back.
 """
+import io
 import asyncio
 import math
 from dataclasses import replace
@@ -65,7 +66,7 @@ def check_controller_args(parser, args):
 
 class ControllerSceneDriver:
     def __init__(self, joint_names, gain, velocity, calibration, port=8444,
-                 wrist_velocity=3.6, rotation_gain=1., angular_lead=.6, frame_calibration=None,
+                 wrist_velocity=3.6, rotation_gain=1., angular_lead=.6, frame_calibration=None, scene="mujoco",
                  position_lead=.08, elbow_velocity=None, input_filter_factory=None, ik_orientation_weight=0.2,
                  body_keepout=False):
         """joint_names: {side: the 7 arm joints} of pioneer_bimanual_arm_8dof (arm_8dof_params)."""
@@ -102,19 +103,21 @@ class ControllerSceneDriver:
         self.record_presses = 0   # right-B presses so far (the scene backend toggles recording on each)
         self.status = "Tracked controllers move the arms. Left Y resets; stick-click pauses to calibrate."
         self.error = None
-        self.shared.feedback = {"status": self.status}
+        # index.html shows the stereo pov_left/pov_right pair only for "isaac"; any other scene shows "ego".
+        self.scene = scene
+        self.shared.feedback = {"scene": scene, "status": self.status}
         self.port = port
         self.server_task = None
         self.owner_thread = None
         self.io_pump = None
 
     @classmethod
-    def from_args(cls, args, joint_names, frame_calibration=None):
+    def from_args(cls, args, joint_names, frame_calibration=None, scene="mujoco"):
         """Build the driver from the add_controller_args flags."""
         return cls(
             joint_names, args.gain, args.joint_speed, args.controller_calibration, args.controller_port,
             wrist_velocity=args.wrist_speed, rotation_gain=args.rotation_gain, angular_lead=args.angular_lead,
-            frame_calibration=frame_calibration, position_lead=args.position_lead,
+            frame_calibration=frame_calibration, scene=scene, position_lead=args.position_lead,
             elbow_velocity=args.elbow_speed, input_filter_factory=input_filter.from_args(args),
             ik_orientation_weight=args.ik_orientation_weight, body_keepout=args.body_keepout,
         )
@@ -273,8 +276,10 @@ class ControllerSceneDriver:
                     self._drive(side, control, packet["head"], p, r, now)
         with self.shared.lock:
             self.shared.feedback = {
+                "scene": self.scene,
                 "status": self.status if fresh else "Tracking paused. Control resumes from the current arm pose.",
                 "active": {s: t.active for s, t in self.targets.items()},
+                "haptics": {s: self.solvers[s].warning if t.active else 0. for s, t in self.targets.items()},
             }
         return False
 
@@ -309,6 +314,27 @@ class ControllerSceneDriver:
     def solve(self, joint_positions, dt):
         self._check_thread()
         return {s: solver.solve(joint_positions[s], self.targets[s], dt) for s, solver in self.solvers.items()}
+
+    def publish_cameras(self, **frames):
+        """Serve RGB frames by the names index.html requests: ego, wrist_left, wrist_right, pov_left, pov_right."""
+        self._check_thread()
+        self.serve_frames(**frames)
+
+    def serve_frames(self, **frames):
+        """publish_cameras without the owner-thread check: it touches only Shared, under its lock.
+
+        For a camera thread that renders off the control loop (MuJoCo); Isaac keeps publish_cameras.
+        """
+        from PIL import Image
+        images = {}
+        for name, frame in frames.items():
+            output = io.BytesIO()
+            Image.fromarray(frame).save(output, format="JPEG", quality=80)
+            images[name] = output.getvalue()
+        if "ego" not in images and "pov_left" in images:
+            images["ego"] = images["pov_left"]
+        with self.shared.lock:
+            self.shared.images = images
 
     def close(self):
         self._check_thread()
