@@ -80,6 +80,36 @@ python -m humanoid_robot_learning.sim.evaluate --scene peg_insert --policy <run>
   --episodes 40 --seed 1000 --video_dir eval_videos
 ```
 
+### RECAP rollouts and corrections
+
+RECAP-style RL ([pi*0.6](https://arxiv.org/abs/2511.14759)) needs the policy's own rollouts with their outcomes, and
+operator corrections that resume where a rollout failed. `--record DIR` saves every evaluated episode as a LeRobot
+dataset in the Quest teleop's single-arm format (left arm, 8 values, `ego` + `wrist_left` 640x480, 25 fps, per-frame
+step instruction as `task`, `subtask_index`), so rollouts, corrections and demos merge into one training set. The printed
+success rate is unchanged. Beside the dataset, `recap/` (`humanoid_robot_learning/recap/sidecar.py`) holds:
+
+| File | One row per | Columns |
+|------|-------------|---------|
+| `recap/episodes.parquet` | episode | `source` (rollout / correction / demo), `round`, `scene`, `policy`, `advantage`, layout `seed`, `success`, `sim_seconds`, `num_frames`; corrections: `parent_episode`, `parent_root`, `resume_s` |
+| `recap/frames/episode_NNNNNN.parquet` | frame | `time`, `progress` (the scene's step index), `success`, `state` (`mj_getState(mjSTATE_INTEGRATION)`: includes `userdata`, where scenes latch their step) |
+
+Every frame is snapshotted: about 2.5 KB a frame for drawer_stow, small next to the videos. `--advantage positive`
+appends " Advantage: positive" to the prompt of an advantage-conditioned policy; the recorded `task` stays the plain
+instruction. `--round` tags the episodes with the RECAP iteration.
+
+Policies trained with LeRobot's `--rename_map` (pi0.5 expects `base_0_rgb`, `left_wrist_0_rgb`, `right_wrist_0_rgb`)
+are fed our `ego` / `wrist_left` renders under their names: the map comes from the checkpoint's `train_config.json`, or
+`--rename_map '{"observation.images.ego": "observation.images.base_0_rgb", ...}'`. Policy cameras with no sim camera
+(the right wrist) are left out for the policy to pad. The recorded rollouts keep our camera names.
+
+```bash
+python -m humanoid_robot_learning.sim.evaluate --scene drawer_stow --policy <run>/checkpoints/last/pretrained_model \
+  --episodes 40 --seed 1000 --record datasets/recap/drawer_stow --round 0
+```
+
+Corrections of the failed rollouts, with the Quest:
+[`resume_teleop.py`](../teleop/quest_controller_teleop/README.md#recap-corrections).
+
 Sim rollout for a flow-matching policy (pi0 / pi0.5 / SmolVLA) on the push-block scene, driven with Real-Time Chunking (`humanoid_robot_learning/deploy/rtc_driver.py`): [`scripts/pioneer_push_eval_rtc.py`](scripts/pioneer_push_eval_rtc.py). It expects a checkpoint trained on `config/pioneer_humanoid_dataset_schema.yaml` (the old arms' format, recorded by the Isaac leader teleop); `--dry_run` runs it without one. **The VLA is not hooked up yet**: no real checkpoint has been run through it, and its schema, camera keys and action space (absolute vs delta) still need matching. See the `TODO(VLA)` block in the script.
 
 ```bash

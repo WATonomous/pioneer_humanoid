@@ -64,6 +64,30 @@ current step; save the take once it says all steps are done.
 src/teleop/quest_controller_teleop/start_quest.sh --scene drawer_stow --record --record_arms left
 ```
 
+## RECAP corrections
+
+`mujoco/resume_teleop.py` takes a rollout recorded with `python -m humanoid_robot_learning.sim.evaluate --record DIR`
+(see `src/robot_learning/README.md`). It restores the rollout's sim state at a frame and lets you finish the task from
+there; each saved take is a correction episode. The arms re-anchor at the restored pose, so they never jump. The
+grippers keep their restored command until the controllers' next packet, then follow the triggers, so hold the trigger
+at the closure printed on restore (fully, for a held block). Right B starts and saves a take, which goes into the
+rollouts dataset as a `correction` episode with a `recap/episodes.parquet` row: parent episode, resume time, and success
+from the scene's progress. Left Y (or 6) restores the same snapshot again. The left arm is recorded, as the rollouts are.
+
+- `--episode N --t S`: rollout N at sim time S. Without `--t`, 1.5 s (`--before_s`) before the step counter last
+  advanced, which is just before the policy stalled.
+- `--auto`: every failed rollout in turn. A saved take moves on to the next; **N** in the window skips one. Pass
+  `--num_episodes` above the number of failures (default 10 takes).
+
+```bash
+ENTRY=resume_teleop src/teleop/quest_controller_teleop/start_quest.sh --rollouts datasets/recap/drawer_stow --auto
+```
+
+(`ENTRY=` makes the launcher run another entry point in `mujoco/`; by hand:
+`python src/teleop/quest_controller_teleop/mujoco/resume_teleop.py ...`.)
+
+`mujoco/session.py` holds what both entry points share: scene, arms, motor commands, snapshots, and the control loop.
+
 ## How it works
 
 `index.html` → `transport.py` → `scene_driver.py` → `mink_control.py` → joint targets.
@@ -73,7 +97,7 @@ src/teleop/quest_controller_teleop/start_quest.sh --scene drawer_stow --record -
 - **Between packets** (`scene_driver.py`): the 90 Hz headset vs 100 Hz ticks; empty ticks move on along the hand's
   last velocity, so motion never goes stop-go.
 - **IK** (`mink_control.py`): one mink QP per tick, position at the wrist pivot first, gripper orientation second (weight 0.2), a light pull toward home; each joint's URDF limit and speed cap (0.9 rad/s joints 1–4, 3.6 rad/s 5–7) are hard constraints.
-- **Motors** (`mujoco/mujoco_sim.py`): position PD plus velocity and gravity feedforward (the motors' MIT mode), so
+- **Motors** (`mujoco/session.py`): position PD plus velocity and gravity feedforward (the motors' MIT mode), so
   the sim arm doesn't trail its command.
 - **Window and recording** (`mujoco/mujoco_cameras.py`): one render thread draws the three cameras for the window
   and for the recorder, so they never compete for the GPU.
