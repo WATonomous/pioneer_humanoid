@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 import json
+import math
 from typing import Protocol
 
 import numpy as np
@@ -88,11 +89,9 @@ class Scene(Protocol):
     # Read the current state and camera images.
     def observe(self) -> dict: ...
     # Advance one tick and return the action actually sent after limits.
-    def execute(self, action: np.ndarray) -> np.ndarray:
-        ...
+    def execute(self, action: np.ndarray) -> np.ndarray: ...
     # Check task success or raise if the scene has no success rule.
-    def success(self) -> bool:
-        ...
+    def success(self) -> bool: ...
     # Release the scene resources.
     def close(self) -> None: ...
 
@@ -115,6 +114,32 @@ class Policy(Protocol):
     def reset(self) -> None: ...
     # Predict the next action from observations and the task instruction.
     def action(self, observation: dict, task: str) -> np.ndarray: ...
+
+
+# Compare policies on fixed seeds without involving human control.
+def evaluate(scene, policy, task, seeds, seconds=30):
+    seeds = list(seeds)
+    if not seeds or not math.isfinite(seconds) or seconds <= 0:
+        raise ValueError("Supply at least one seed and a positive, finite episode duration")
+    scene.reset(seeds[0])
+    scene.success()
+    rows = []
+    for seed in seeds:
+        scene.reset(seed)
+        policy.reset()
+        success = False
+        for step in range(max(1, math.ceil(seconds * scene.contract.fps))):
+            obs = scene.observe()
+            scene.contract.check_observation(obs)
+            scene.execute(scene.contract.action(policy.action(obs, task)))
+            if scene.success():
+                success = True
+                break
+        rows.append({"seed": seed, "success": success, "steps": step + 1})
+        print(f"[HG-DAgger eval] seed={seed} success={success}", flush=True)
+    successes = sum(row["success"] for row in rows)
+    return {"successes": successes, "episodes": len(rows), "success_rate": successes / len(rows),
+            "rollouts": rows, "contract": json.loads(scene.contract.json()), "seconds": seconds, "task": task}
 
 
 # Record human interventions and save them only when explicitly accepted.
@@ -156,9 +181,8 @@ class Session:
         self.teleop.seed()
         self.wait_release = True
 
-    # Handle control decisions, execute one action and record human labels.
-    def tick(self):
-        signal = self.teleop.poll()
+    # Apply authority and save/discard decisions before advancing the scene.
+    def decide(self, signal):
         if signal.quit:
             # Leave pending corrections unsaved when quitting.
             return False
@@ -168,11 +192,11 @@ class Session:
                 self.wait_release = False
                 self.teleop.seed()
             # Hold physics and recording until the controller is ready.
-            return True
+            return False
         if signal.discard:
             # Discard wins if accept and discard arrive together.
             self.reset()
-            return True
+            return False
         if signal.accept:
             self.stage()
             if self.segments:
@@ -182,19 +206,19 @@ class Session:
             else:
                 print("[HG-DAgger] No human frames to save; resetting", flush=True)
             self.reset()
-            return True
+            return False
         if self.wait_release:
             if signal.ready and not signal.takeover:
                 self.wait_release = False
                 self.teleop.seed()
-            return True
+            return False
         if not signal.ready:
             # End the segment and clear queued actions when controller input is lost.
             self.stage()
             self.policy.reset()
             self.teleop.seed()
             self.wait_release = True
-            return True
+            return False
         mode = "HUMAN" if signal.takeover else "POLICY"
         if mode != self.mode:
             self.stage()
@@ -203,6 +227,22 @@ class Session:
             self.mode = mode
         if self.pending_frames >= self.max_frames:
             # Hold until the operator accepts or discards the full buffer.
+            return False
+        return True
+
+    # Admit only human labels, with owned copies of the pre-action observations.
+    def record(self, obs, executed):
+        if self.mode == "HUMAN" and self.pending_frames < self.max_frames:
+            self.scene.contract.check_observation(obs)
+            self.frames.append({**{k: np.asarray(v).copy() for k, v in obs.items()},
+                                "action": self.scene.contract.action(executed)})
+
+    # Run one complete tick when the application does not own its control loop.
+    def tick(self):
+        signal = self.teleop.poll()
+        if signal.quit:
+            return False
+        if not self.decide(signal):
             return True
         obs = self.scene.observe()
         self.scene.contract.check_observation(obs)
@@ -212,6 +252,5 @@ class Session:
                   else self.policy.action(obs, self.task))
         executed = self.scene.contract.action(self.scene.execute(self.scene.contract.action(action)))
         if frame is not None:
-            frame["action"] = executed
-            self.frames.append(frame)
+            self.record(frame, executed)
         return True

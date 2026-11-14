@@ -127,8 +127,8 @@ def aggregate(base_roots, correction_roots, output):
     }
     # Write a fresh dataset to avoid append and merge indexing problems.
     writer = LeRobotDataset.create("local/hg_dagger", root=output, fps=contract.fps,
-                                  features=features, robot_type=contract.robot, use_videos=bool(contract.images),
-                                  image_writer_threads=2)
+                                   features=features, robot_type=contract.robot, use_videos=bool(contract.images),
+                                   image_writer_threads=2)
     manifest = []
 
     # Check one frame and pass it to the dataset writer.
@@ -170,3 +170,14 @@ def aggregate(base_roots, correction_roots, output):
     (output / "contract.json").write_text(contract.json() + "\n")
     (output / "aggregation.json").write_text(json.dumps(manifest, indent=2) + "\n")
     return {"episodes": len(manifest), "frames": sum(x["frames"] for x in manifest)}
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Combine original demos with accepted HG-DAgger corrections")
+    parser.add_argument("--base", nargs="+", required=True, help="Original LeRobot dataset directories")
+    parser.add_argument("--corrections", nargs="+", required=True, help="Accepted correction directories")
+    parser.add_argument("--output", required=True, help="New aggregate dataset directory")
+    args = parser.parse_args()
+    print(json.dumps(aggregate(args.base, args.corrections, args.output)))

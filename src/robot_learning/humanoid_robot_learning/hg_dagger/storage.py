@@ -91,3 +91,20 @@ class CorrectionStore:
 def open_store(root):
     root = Path(root)
     return CorrectionStore(root, Contract.from_json((root / "contract.json").read_text()))
+
+
+# Validate every saved frame and count accepted segments across collection sessions.
+def validate(root):
+    segments = frames = 0
+    for episode, _ in open_store(root).episodes():
+        segments += 1
+        frames += len(episode)
+    return {"segments": segments, "frames": frames}
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Validate and count saved HG-DAgger corrections")
+    parser.add_argument("root", help="Correction directory")
+    print(json.dumps(validate(parser.parse_args().root)))

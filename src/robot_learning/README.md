@@ -3,8 +3,8 @@
 Teleoperate the Pioneer arms, record the demos as a **LeRobot** dataset, train a policy (ACT, SmolVLA, pi0.5, …) on it and run evals.
 
 For human intervention collection, correction aggregation and policy refinement,
-see [HG-DAgger](humanoid_robot_learning/hg_dagger/HG_DAGGER.md). Connect your scene and controller through adapters;
-the optional MuJoCo/Quest adapter reuses the model and teleop already on main.
+see [HG-DAgger](humanoid_robot_learning/hg_dagger/HG_DAGGER.md). Connect your scene and controller through adapters,
+or add `--hg-dagger` to the existing Quest launcher for MuJoCo scenes.
 
 **The default robot is `pioneer_bimanual_arm_8dof`** (7-DoF + gripper per arm), recorded in MuJoCo. The old 6-DoF arms
 (armv2, `pioneer_v1_*` datasets) remain for Isaac, which has no 8dof USD yet, and for today's real arm; the real arm will

@@ -27,7 +27,6 @@ hg-dagger-mujoco = ["mujoco>=3.3,<4", "mink>=1,<2", "daqp>=0.6", "aiohttp>=3.9,<
 [project.scripts]
 humanoid-record = "humanoid_robot_learning.recording.record:main"
 humanoid-merge-takes = "humanoid_robot_learning.recording.merge_takes:main"
-humanoid-hg-dagger = "humanoid_robot_learning.hg_dagger.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
