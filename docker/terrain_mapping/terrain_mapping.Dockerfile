@@ -92,6 +92,11 @@ RUN src/terrain_mapping/third_party/vendor_elevation_mapping_cupy.sh && \
         --install-base ${WATONOMOUS_INSTALL} && \
     rm -rf build log install
 
+# terrain_core (ROS-free core) and slam_core for the terrain node and tools.
+# terrain_core has a COLCON_IGNORE, so colcon skips it and pip installs it here.
+COPY src/perception/slam/slam_core /opt/slam_core
+RUN python3 -m pip install --no-cache-dir src/terrain_mapping/terrain_core /opt/slam_core
+
 # `watod -t` opens a plain bash, which skips the entrypoint, so source the install from bashrc too.
 RUN printf '%s\n' \
       "source /opt/ros/${ROS_DISTRO}/setup.bash" \
