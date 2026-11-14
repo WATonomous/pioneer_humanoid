@@ -42,6 +42,7 @@ DEFAULT_JOINT_POS = {**{j: 0.0 for j in LEFT_ARM_JOINTS + RIGHT_ARM_JOINTS},
 # open a finger 21 mm (now 1.4 mm). 34 N is the 4.1 Nm peak through the linkage (old arm's notes; ratio not verified).
 # damping ~ critical for the two 40 g fingers coupled.
 _GRIPPER = dict(stiffness=7000.0, damping=50.0, effort_limit=34.0, velocity_limit=0.2)
+ARM_ARMATURE = 0.01         # kg m^2, reflected motor inertia of the arm joints (as the old arm's MuJoCo model)
 GRIPPER_FRICTIONLOSS = 25.0   # N: the linkage resists back-driving, so a push needs > 34 + 25 N to open the fingers
 ACTUATOR_GROUPS = {}
 for _s in ("left", "right"):

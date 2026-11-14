@@ -12,15 +12,14 @@ import mujoco
 
 from .arm_params import vertical_fov_deg
 from .mujoco_bimanual_arm import FINGER_CONDIM, FINGER_COUPLING_SOLREF, FINGER_FRICTION, FINGER_SOLIMP, FINGER_SOLREF
-from .arm_8dof_params import (ACTUATOR_GROUPS, CAMERAS, DEFAULT_JOINT_POS, GRIPPER_FRICTIONLOSS, MESH_DIR, URDF_PATH,
-                              urdf_limits)
+from .arm_8dof_params import (ACTUATOR_GROUPS, ARM_ARMATURE, CAMERAS, DEFAULT_JOINT_POS, GRIPPER_FRICTIONLOSS, MESH_DIR,
+                              URDF_PATH, urdf_limits)
 from .urdf_joint_limits import URDF_PATH as ARMV2_URDF_PATH
 
 ARMV2_MESH_DIR = str(Path(ARMV2_URDF_PATH).resolve().parents[1] / "meshes")
 
 ARM_CONTYPE = 2          # as mujoco_bimanual_arm: arm geoms touch the world, not each other
 ARM_CONAFFINITY = 1
-ARM_ARMATURE = 0.01      # reflected motor inertia, as mujoco_bimanual_arm
 
 
 def arm_spec(cameras: dict[str, tuple[int, int]] | None = None) -> mujoco.MjSpec:
