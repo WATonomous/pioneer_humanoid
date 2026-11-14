@@ -1,6 +1,6 @@
 # Push-Block Task (bimanual arm)
 
-The arm pushes a cube along a table, up a full-width ramp, and onto the flat
+The left arm of `pioneer_bimanual_arm_8dof` (`BIMANUAL_ARM_8DOF_CFG`) pushes a cube along a table, up a full-width ramp, and onto the flat
 elevated interior floor of an open box. The gripper is **not** actuated — it is
 held closed and used purely as a pushing tool, so the policy can only push, never
 grasp.
@@ -20,6 +20,8 @@ grasp.
 All positions are in the per-env frame with the robot base at the origin. The box
 is spawned yawed −90° so its up-the-ramp direction aligns with the env **+x** axis
 — i.e. "make progress" always means "increase the block's x".
+The robot stands 0.279 m to the right (`scene.ROBOT_BASE_POS`), so the task lies in front of
+its left shoulder: the left arm reaches only ~0.05 m past the robot's midline.
 
 | Landmark | Value | Meaning |
 |---|---|---|
@@ -102,14 +104,16 @@ and rely on `--load_run` alone.
 
 ## Observations & actions
 
-**Actions** (`ActionsCfg`): joint-position targets for the arm only —
-`shoulder_.*`, `elbow_flex`, `wrist_.*` (scale 0.5, default offset). The gripper
-joint has no action term, so its PD actuator holds it closed. 5 action dims.
+**Actions** (`ActionsCfg`): joint-position targets for the seven left-arm joints
+(`arm_8dof_params.LEFT_ARM_JOINTS`, scale 0.5, default offset). `left_gripper` has no
+action term: it starts closed and its PD actuator holds it there. 7 action dims.
 
 **Observations** (`ObservationsCfg.PolicyCfg`, concatenated, corruption on in
-training): joint pos/vel (relative), EE position in root frame, block center in
-root frame, block orientation, block linear velocity, constant ramp geometry
-(base x, top x, floor z, target xy, push-dir xy), and last action. 37 dims total.
+training): joint pos/vel (relative, all 18 joints), the left TCP position in the root
+frame (`TCP_LOCAL` on `left_link7`), block center in root frame, block orientation,
+block linear velocity, constant ramp geometry (base x, top x, floor z, target xy,
+push-dir xy), and last action. 63 dims total. Checkpoints trained on the old 6-DoF
+arm (58 obs, 6 actions, e.g. `models/push/model_1499.pt`) don't load.
 
 ---
 
