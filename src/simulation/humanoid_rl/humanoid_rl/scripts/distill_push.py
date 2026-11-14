@@ -92,6 +92,11 @@ def _load_teacher_actor(checkpoint: str, obs_dim: int, act_dim: int, device: str
         ).to(device)
     ckpt = torch.load(checkpoint, map_location=device, weights_only=False)
     state = ckpt["model_state_dict"] if isinstance(ckpt, dict) and "model_state_dict" in ckpt else ckpt
+    own = ac.state_dict()
+    mismatch = {k: (tuple(v.shape), tuple(own[k].shape)) for k, v in state.items() if k in own and v.shape != own[k].shape}
+    if mismatch:
+        raise SystemExit(f"{checkpoint}: teacher shapes {mismatch} (checkpoint, env) don't match the env's {obs_dim} obs / "
+                         f"{act_dim} actions: a teacher trained on the old 6-DoF arm can't drive pioneer_bimanual_arm_8dof")
     ac.load_state_dict(state, strict=False)
     ac.eval()
     for p in ac.parameters():

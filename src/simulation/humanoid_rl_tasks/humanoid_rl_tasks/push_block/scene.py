@@ -30,7 +30,6 @@ from isaaclab.utils import configclass
 
 from ..workcell import (  # noqa: F401  (grounding re-exported for push_env_cfg / teleop)
     GROUND_Z,
-    ROBOT_BASE_POS,
     ROBOT_BASE_X,
     ROBOT_STAND_LIFT_Z,
     TABLE_TOP_Z,
@@ -42,6 +41,10 @@ from .mdp.utils import BLOCK_HALF_SIZE
 _PROPS = Path(__file__).resolve().parents[5] / "assets" / "props"  # -> <repo>/assets/props
 BLOCK_USD = str(_PROPS / "block.usd")
 BOX_USD = str(_PROPS / "box.usd")
+
+# The left arm reaches only ~0.05 m past the robot's midline (shoulder roll stops at -20 deg), so the robot stands with its
+# left shoulder (y = 0.279 m in base_link) behind the task, which stays on y = 0 for every MDP term.
+ROBOT_BASE_POS = (ROBOT_BASE_X, -0.279, ROBOT_STAND_LIFT_Z)
 
 # ── block / ramp-box geometry (env frame; robot base at the origin) ──────────
 BLOCK_HALF = BLOCK_HALF_SIZE
