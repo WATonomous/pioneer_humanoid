@@ -1,9 +1,7 @@
 joint_command_node:
   ros__parameters:
-    # Every arm this node drives: its key in arm_calibration.yaml and arm_actuators.yaml. Each
-    # listens on /arm/<side>/joint_targets; arm_actuators.yaml `active` picks what moves this run.
-    # Motor ids must be unique across arms (the node refuses to start otherwise).
-    arms: ["left", "right"]
+    arm_side: "left"
     control_rate_hz: 50.0
+    input_topic: "/arm/joint_targets"
     motor_cmd_topic: "/interfacing/motorCMD"
-    control_type: 0  # MIT_CONTROL
+    control_type: 4  # POSITION_LOOP

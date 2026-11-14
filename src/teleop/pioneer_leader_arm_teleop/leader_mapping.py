@@ -21,10 +21,9 @@ from pathlib import Path
 from arm_limits import gripper_fraction, limited_target
 from servo_leader import ARM_SERVOS, GRIPPER_SERVO, SERVO_IDS, ServoLeader, calibration_zeros, parse_signs
 
-# Per-servo direction of each board, A..F then G, found by moving one joint at a time: what calibrate_leader.py writes
-# without --signs.
-SIDE_SIGNS = {"left": "1,1,-1,-1,1,-1,1", "right": "1,1,-1,1,1,1,1"}
-DEFAULT_SIGNS = SIDE_SIGNS["left"]
+# Per-servo direction of the left board, A..F then G (calibrate_leader.py --signs to change).
+DEFAULT_SIGNS = "1,1,-1,1,1,-1,1"
+DEFAULT_SIGNS = "1,1,-1,-1,1,-1,1"
 # The leader unit's two boards (one per arm): port, USB serial, signs and zeros, written by
 # calibrate_leader.py and committed: the numbers belong to the unit, which is found by USB serial.
 DEFAULT_LEADER_ARM = Path(__file__).resolve().parent / "leader_arm.json"
@@ -32,7 +31,7 @@ DEFAULT_LEADER_ARM = Path(__file__).resolve().parent / "leader_arm.json"
 OLD_CALIBRATION = Path(__file__).resolve().parent / "leader_calibration.json"
 SIDES = ("left", "right")
 # Follow the leader only once every arm joint is this close to home ...
-ENGAGE_TOL_DEG = 15.0  # wide enough to reach by eye; the filter then ramps the arm onto the leader in ~0.1 s
+ENGAGE_TOL_DEG = 3.0
 # ... and the gripper this close to open (closure fraction, 0 = open).
 ENGAGE_GRIP_TOL = 0.1
 # Stock wrist damping (18) caps joint6l near 2 deg/s at the GL40's 0.73 Nm, so the sim wrist
@@ -80,8 +79,8 @@ class LeaderBoard:
     """One board of the leader unit, as calibrated: where it is and how its servos map."""
 
     side: str
-    port: str  # where the board is on this machine: found from its usb_serial at load
-    usb_serial: str
+    port: str  # found from usb_serial when it has one
+    usb_serial: str | None
     signs: tuple[float, ...]
     zeros: dict[int, int]  # raw zero count per servo ID
 
@@ -108,18 +107,8 @@ def port_of(serial_number: str) -> str:
     return ports[0]
 
 
-def connected_port() -> str:
-    """The port of the one USB serial board plugged in, for calibrate_leader.py without --port."""
-    from serial.tools import list_ports
-
-    ports = [info.device for info in list_ports.comports() if info.vid is not None]  # USB only: skips Bluetooth, debug consoles
-    if len(ports) != 1:
-        raise ValueError(f"expected one USB serial board plugged in, found {ports or 'none'}: pass --port")
-    return ports[0]
-
-
 def calibrate_hint(side: str) -> str:
-    return f"python calibrate_leader.py --side {side}"
+    return f"python calibrate_leader.py --side {side} --port <port>"
 
 
 def load_leader_boards(path: Path, sides: list[str]) -> dict[str, LeaderBoard]:
@@ -139,19 +128,22 @@ def load_leader_boards(path: Path, sides: list[str]) -> dict[str, LeaderBoard]:
         if not entry.get("enabled"):
             raise ValueError(f"the {side} leader board is not enabled in {path}; calibrate it with\n"
                              f"  {calibrate_hint(side)}")
-        if entry.get("usb_serial") is None:
-            raise ValueError(f"the {side} board in {path} has no USB serial, so it can't be found; recalibrate it with\n"
-                             f"  {calibrate_hint(side)}")
+        serial_number = entry["usb_serial"]
+        if serial_number is None and len(sides) > 1:
+            raise ValueError(f"the {side} board in {path} has no USB serial, so the two boards can't be told "
+                             "apart; keep to one leader board")
         boards[side] = LeaderBoard(
             side=side,
-            port=port_of(entry["usb_serial"]),
-            usb_serial=entry["usb_serial"],
+            port=entry["port"] if serial_number is None else port_of(serial_number),
+            usb_serial=serial_number,
             signs=parse_signs(entry["signs"]),
             zeros=calibration_zeros(entry["servos"], f"{path} {side}"),
         )
-    serials = [board.usb_serial for board in boards.values()]
-    if len(set(serials)) < len(serials):
-        raise ValueError(f"the leader boards in {path} are the same board (USB serial {serials[0]})")
+    if len(boards) > 1:
+        serials = [board.usb_serial for board in boards.values()]
+        ports = [os.path.realpath(board.port) for board in boards.values()]
+        if len(set(serials)) < len(serials) or len(set(ports)) < len(ports):
+            raise ValueError(f"the leader boards in {path} resolve to the same board: {dict(zip(boards, ports))}")
     return boards
 
 
@@ -241,7 +233,7 @@ class LeaderInput:
                 + f" grip={mapping.grip:.2f}"
             )
         else:
-            line = f"move leader within {ENGAGE_TOL_DEG:g} deg of home (elbow 90, gripper open): " + " ".join(
+            line = "move leader to home (elbow 90, gripper open): " + " ".join(
                 f"{label} {err:+6.1f}deg" if label != GRIPPER_SERVO else f"{label} {err:4.2f}"
                 for label, err in mapping.home_errors
             )

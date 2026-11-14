@@ -21,12 +21,6 @@ ARM_POSE_JOINTS = [
 ]
 ARM_POSE_NAMES = [f"{group}.{joint}" for group, joint in ARM_POSE_JOINTS]
 
-
-def arm_pose_topic(arm_side: str) -> str:
-    """The ArmPose topic joint_command listens on for this arm (joint_command_node.cpp)."""
-    return f"/arm/{arm_side}/joint_targets"
-
-
 # The repo copy, found relative to this file (src/interfacing/can/scripts -> src/interfacing).
 _REPO_CONFIG = Path(__file__).resolve().parents[2] / "joint_command" / "config"
 
@@ -103,7 +97,7 @@ def same_yaml(a: Path, b: Path) -> bool:
 
 
 def load_joint_map(path: Path, arm_side: str) -> Dict[int, dict]:
-    """-> {motor_id: {"name", "side", "direction", "zero_offset", "lower", "upper", "slot"}}"""
+    """-> {motor_id: {"name", "direction", "zero_offset", "lower", "upper", "slot"}}"""
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
     if arm_side not in data:
         raise SystemExit(f"arm side '{arm_side}' not in {path} (have {list(data)})")
@@ -116,7 +110,6 @@ def load_joint_map(path: Path, arm_side: str) -> Dict[int, dict]:
         if "can_id" in node:
             out[int(node["can_id"])] = {
                 "name": prefix,
-                "side": arm_side,
                 "direction": float(node.get("direction", 1)) or 1.0,
                 "zero_offset": float(node.get("zero_offset", 0.0)),
                 "lower": float(node.get("lower_limit", float("-inf"))),
@@ -137,15 +130,14 @@ def load_joint_map(path: Path, arm_side: str) -> Dict[int, dict]:
     return out
 
 
-def load_joint_safety(path: Optional[Path],
-                      arm_side: str) -> Tuple[Dict[str, Any], Dict[str, Dict[str, Any]]]:
-    """-> (global block, {"group.joint": arm_side's joint block merged over global})."""
+def load_joint_safety(path: Optional[Path]) -> Tuple[Dict[str, Any], Dict[str, Dict[str, Any]]]:
+    """-> (global block, {"group.joint": joint block merged over global})."""
     if path is None:
         return {}, {}
     cfg = (yaml.safe_load(path.read_text(encoding="utf-8")) or {}).get("safety", {}) or {}
     default = cfg.get("global", {}) or {}
     joints: Dict[str, Dict[str, Any]] = {}
-    for group, members in (cfg.get(arm_side) or {}).items():
+    for group, members in (cfg.get("joints") or {}).items():
         for joint, node in (members or {}).items():
             node = node or {}
             joints[f"{group}.{joint}"] = {key: node.get(key, default.get(key))
@@ -153,17 +145,17 @@ def load_joint_safety(path: Optional[Path],
     return default, joints
 
 
-def joint_safety(path: Optional[Path], arm_side: str, name: str) -> Dict[str, Any]:
+def joint_safety(path: Optional[Path], name: str) -> Dict[str, Any]:
     """One joint's effective block; a joint with no entry (e.g. the gripper) gets global."""
-    default, joints = load_joint_safety(path, arm_side)
+    default, joints = load_joint_safety(path)
     if name in joints:
         return joints[name]
     return {key: default.get(key) for key in _SAFETY_KEYS}
 
 
-def load_actuator_limits(explicit: Optional[str], arm_side: str):
+def load_actuator_limits(explicit: Optional[str]):
     """({joint: velocity_max_dps}, {joint: mit thresholds}) for the plots; empty if missing."""
-    _, joints = load_joint_safety(find_actuators(explicit), arm_side)
+    _, joints = load_joint_safety(find_actuators(explicit))
     vmax, mit = {}, {}
     for name, block in joints.items():
         vmax[name] = float(block.get("velocity_max") or 0)
@@ -178,9 +170,9 @@ def load_actuator_limits(explicit: Optional[str], arm_side: str):
     return vmax, mit
 
 
-def max_torque_by_joint(explicit: Optional[str], arm_side: str) -> Dict[str, float]:
+def max_torque_by_joint(explicit: Optional[str]) -> Dict[str, float]:
     """Every joint's mit_max_torque, MIT or not -- the cap a run is judged against."""
-    _, joints = load_joint_safety(find_actuators(explicit), arm_side)
+    _, joints = load_joint_safety(find_actuators(explicit))
     return {name: float(block["mit_max_torque"]) for name, block in joints.items()
             if block.get("mit_max_torque") is not None}
 
