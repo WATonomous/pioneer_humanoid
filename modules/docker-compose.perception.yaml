@@ -11,7 +11,7 @@ services:
         BASE_IMAGE: ${BASE_IMAGE_OVERRIDE-}
       cache_from:
         - "${PERCEPTION_IMAGE:?}:${TAG}"
-        - "${PERCEPTION_IMAGE:?}:main"
+        - "${PERCEPTION_IMAGE:?}:build_main"
     image: "${PERCEPTION_IMAGE:?}:${TAG}"
     runtime: nvidia
     environment:
@@ -59,7 +59,7 @@ services:
         BASE_IMAGE: ${BASE_IMAGE_OVERRIDE-}
       cache_from:
         - "${PERCEPTION_VOXEL_IMAGE:?}:${TAG}"
-        - "${PERCEPTION_VOXEL_IMAGE:?}:main"
+        - "${PERCEPTION_VOXEL_IMAGE:?}:build_main"
     image: "${PERCEPTION_VOXEL_IMAGE:?}:${TAG}"
     runtime: nvidia
     environment:
