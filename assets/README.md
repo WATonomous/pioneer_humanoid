@@ -8,7 +8,7 @@ Code resolves these by repo-relative path; nothing here is shipped by `pip insta
 
 ```
 assets/
-├── pioneer_bimanual_arm/   # the previous bimanual arm (6-DoF arms) — urdf, usd, meshes; the 8dof rig reuses its base_link
+├── pioneer_bimanual_arm/   # the previous bimanual arm (6-DoF arms) — urdf, meshes; the 8dof rig reuses its base_link
 ├── pioneer_bimanual_arm_8dof/  # the bimanual arm (7-DoF arms + 1-DoF grippers) — urdf, meshes; USD converted on spawn (BIMANUAL_ARM_8DOF_CFG)
 ├── pioneer_hand/           # 20-DOF hand — urdf, usd, meshes        (HAND_CFG)
 ├── old_leg_only_humanoid/  # the old legs-only humanoid (placeholder upper body) — urdf, usd, meshes (WHOLE_BODY_HUMANOID_CFG)
