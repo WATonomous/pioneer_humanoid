@@ -53,9 +53,13 @@ class CameraWindow:
             self._state = self._copy(data)
         self._ready.set()
 
-    def push_sample(self, data, action, state) -> None:
-        """A recorded frame: rendered from this exact sim state, then given to the recorder."""
-        self._samples.put((self._copy(data), action, state))
+    def push_sample(self, data, action, state, task=None, extras=None) -> None:
+        """A recorded frame: rendered from this exact sim state, then given to the recorder.
+
+        `task`: this frame's instruction (a multi-step scene's current step; None: the session's task);
+        `extras`: the recorder's extra features. Both are read in the control loop: the render thread's state copy
+        has no userdata, where scenes keep their step counter."""
+        self._samples.put((self._copy(data), action, state, task, extras))
         self._ready.set()
 
     def discard(self) -> None:
@@ -119,17 +123,17 @@ class CameraWindow:
                         state, self._state = self._state, None
                     if state is None:
                         continue
-                    item = (state, None, None)
+                    item = (state, None, None, None, None)
                 else:
                     if item is None:   # discard
                         self.recorder.cancel_recording()
                         continue
-                state, action, recorded = item
+                state, action, recorded, task, extras = item
                 data.qpos[:], data.qvel[:], data.act[:], data.mocap_pos[:], data.mocap_quat[:] = state
                 mujoco.mj_forward(self.model, data)
                 images = {name: self._render(r, data, name, full if name == "ego" else light)
                           for name, r in renderers.items()}
-                if action is not None and self.recorder.tick(action, recorded, images) and self.on_saved:
+                if action is not None and self.recorder.tick(action, recorded, images, task=task, extras=extras) and self.on_saved:
                     self.on_saved()
                 ego, left, right = (images[name] for name in self.CAMERAS)
                 bottom = np.hstack([left, right])
