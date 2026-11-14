@@ -47,6 +47,7 @@ def actuator_configs(limb: str) -> List[str]:
         str(_REPO_CONFIG / filename)
     ]
 
+
 # can/config/mit_profiles.yaml: which protocol family each drive speaks (gl2 | ak).
 MIT_PROFILES = [
     str(Path(__file__).resolve().parent.parent / "config" / "mit_profiles.yaml"),

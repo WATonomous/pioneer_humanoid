@@ -389,7 +389,7 @@ def resolve_motor_id(
 def run(args: argparse.Namespace) -> int:
     mapping_path = Path(args.mapping).expanduser().resolve()
     if not mapping_path.exists():
-        print(f"Expected mapping path: {mapping_path} is not there. Pass --calibration PATH", file = sys.stderr)
+        print(f"Expected mapping path: {mapping_path} is not there. Pass --calibration PATH", file=sys.stderr)
         return 1
     mapping = load_mapping(mapping_path)
     joints = flatten_joints(
@@ -634,7 +634,8 @@ def default_mapping_path(limb: str) -> Path:
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--limb", default="arm", choices=["arm", "leg"], help="Which limb to calibrate, default is arm")
-    p.add_argument("--side", "--arm-side", dest="side", default="left", choices=["left", "right"], help="Side (left/right) in calibration YAML, default is left")
+    p.add_argument("--side", "--arm-side", dest="side", default="left",
+                   choices=["left", "right"], help="Side (left/right) in calibration YAML, default is left")
     p.add_argument("--calibration", "--mapping", dest="mapping", default=None,
                    help="Path to the calibration YAML (default chosen from --limb)")
     p.add_argument(
