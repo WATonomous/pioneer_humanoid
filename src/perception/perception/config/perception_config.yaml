@@ -54,3 +54,9 @@ pose_estimation_node:
     half: true
     imgsz: 640
     person_conf: 0.50
+
+trajectory_EKF_prediction_node:
+  ros__parameters:
+    # The localizer reports positions in the camera's optical frame (x right, y down, z forward)
+    gravity_frame: "optical"
+    camera_pitch_deg: 0.0  # how far the camera looks up from level: set to the camera's real mount angle

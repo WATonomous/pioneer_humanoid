@@ -144,6 +144,7 @@ def generate_launch_description():
             remappings=[
                 ('/shuttle_states', '/perception/shuttlecock/detections_3d'),
             ]
+            parameters=[config],
         ),
         Node(
             package='perception',
