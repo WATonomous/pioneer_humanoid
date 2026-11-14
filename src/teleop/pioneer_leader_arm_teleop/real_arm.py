@@ -1,3 +1,4 @@
+# Old 6-DoF arm only (today's real arm). 8dof is the default; the real arm moves to 8dof soon.
 """Real-arm backend of pioneer_leader_arm_teleop.py: leader vs real arm(s), side by side.
 
 --arms left (default), right or bimanual: each arm is driven by its own leader board (leader_arm.json).
@@ -352,8 +353,8 @@ def self_test() -> None:
         board = LeaderBoard(side=side, port="", usb_serial="", signs=(1.0,) * len(SERVO_IDS), zeros={})
         arm = load_arm(side, board, mapping, actuators)
         assert [j["urdf_joint"] for j in arm.joints] == urdf_joints
-        assert [j["name"] for j in arm.joints] == ["shoulder.pitch", "shoulder.yaw", "shoulder.roll",
-                                                   "elbow.pitch", "elbow.roll", "wrist.pitch"], arm.joints
+        assert [j["name"] for j in arm.joints] == ["shoulder.pitch", "shoulder.roll", "shoulder.yaw",
+                                                   "elbow.pitch", "elbow.yaw", "wrist.pitch"], arm.joints
         for j in arm.joints:
             if j["limit_range"]:
                 assert j["limits_deg"] == (j["lower"], j["upper"]), j

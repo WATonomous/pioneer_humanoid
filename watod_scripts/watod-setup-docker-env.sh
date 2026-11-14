@@ -34,6 +34,7 @@ TAG=${TAG/\//-}
 ##   - perception           :   perception nodes + voxel_grid
 ##   - simulation_isaac     :   Isaac Lab (SO101 IL, RL tasks, Quest teleop)
 ##   - simulation_mj        :   MuJoCo / mjlab
+##   - terrain_mapping      :   GPU elevation mapping (elevation_mapping_cupy) on D455 bags
 ACTIVE_MODULES=${ACTIVE_MODULES:-""}
 
 # Docker Registry to pull/push images
@@ -66,6 +67,8 @@ SIMULATION_MJ_IMAGE=${SIMULATION_MJ_IMAGE:-"$REGISTRY_URL/simulation/mjlabs"}
 ISAAC_SIM_CACHE_DIR=${ISAAC_SIM_CACHE_DIR:-"$HOME/docker/isaac-sim"}
 
 INTERFACING_IMAGE=${INTERFACING_IMAGE:-"$REGISTRY_URL/interfacing"}
+
+TERRAIN_MAPPING_IMAGE=${TERRAIN_MAPPING_IMAGE:-"$REGISTRY_URL/terrain_mapping/terrain_mapping"}
 
 ## --------------------------- Ports ------------------------------
 
@@ -105,6 +108,9 @@ echo "PERCEPTION_IMAGE=$PERCEPTION_IMAGE" >> "$MODULES_DIR/.env"
 echo "SIMULATION_ISAAC_IMAGE=$SIMULATION_ISAAC_IMAGE" >> "$MODULES_DIR/.env"
 echo "SIMULATION_ISAAC_GARMENT_IMAGE=$SIMULATION_ISAAC_GARMENT_IMAGE" >> "$MODULES_DIR/.env"
 echo "SIMULATION_MJ_IMAGE=$SIMULATION_MJ_IMAGE" >> "$MODULES_DIR/.env"
+echo "TERRAIN_MAPPING_IMAGE=$TERRAIN_MAPPING_IMAGE" >> "$MODULES_DIR/.env"
+# Recorded bags for terrain_mapping, mounted read-only at /bags. Override in watod-config.local.sh.
+echo "TERRAIN_BAGS_DIR=\"${TERRAIN_BAGS_DIR:-$MONO_DIR/Terrain Mapping Bags}\"" >> "$MODULES_DIR/.env"
 echo "ISAAC_SIM_CACHE_DIR=$ISAAC_SIM_CACHE_DIR" >> "$MODULES_DIR/.env"
 echo "HF_HOME=${HF_HOME:-$HOME/.cache/huggingface}" >> "$MODULES_DIR/.env"
 echo "XAUTHORITY=${XAUTHORITY:-$HOME/.Xauthority}" >> "$MODULES_DIR/.env"

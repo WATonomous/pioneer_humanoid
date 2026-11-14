@@ -1,5 +1,9 @@
 """MuJoCo leader teleop: one leader per arm, right arm by default (--arms right, left or bimanual).
 
+--robot 8dof (default): the pioneer_bimanual_arm_8dof arms (7-DoF + gripper), driven by the 8-servo leader
+(A..H: G = wrist yaw, H = gripper; leader_arm_8dof.json) and recorded with pioneer_8dof_dataset_schema.yaml.
+--robot armv2: the old 6-DoF arms with the 7-servo leader (leader_arm.json, pioneer_humanoid_dataset_schema.yaml).
+
 Same leader mapping as the Isaac backend (leader_mapping.py). Scenes: humanoid_mujoco_scenes.
 
   6   reset the arm and every object in the scene; bring the leader back to home to resume
@@ -157,7 +161,8 @@ def run() -> None:
     parser.add_argument("--arms", choices=tuple(ARM_SETS), default="right",
                         help="arms to drive and record, one leader board each (leader_arm.json)")
     parser.add_argument("--lock-wrist", action=argparse.BooleanOptionalAction, default=None,
-                        help="freeze the wrist (F) rigidly at home: no motor, no physics, leader's wrist ignored "
+                        help="freeze the wrist (F; F and G on the 8dof arms) rigidly at home: no motor, no physics, "
+                             "leader's wrist ignored "
                              "(default: each arm's lock_wrist in leader_arm.json)")
     add_record_args(parser, task_description="sim leader teleop demonstration")
     args = parser.parse_args()
@@ -165,23 +170,29 @@ def run() -> None:
     if args.record and args.cameras is None:
         # The schema enables only wrist_left; record the wrist of each arm being driven instead.
         args.cameras = ",".join(["ego"] + [f"wrist_{side}" for side in sides])
-    boards = check_leader_args(parser, args, sides)
-    record = load_record_schema(parser, args, arms=sides)
+    boards = check_leader_args(parser, args, sides)  # also resolves --robot and --leader-arm
+    record = load_record_schema(parser, args, arms=sides, robot=args.robot)
 
     import mujoco
     import mujoco.viewer
     import numpy as np
     from humanoid_mujoco_scenes import list_scenes, make_model, scene_camera, scene_progress, scene_reset, scene_step
-    from pioneer_humanoid import arm_params
-    from pioneer_humanoid.mujoco_bimanual_arm import set_home
+    from pioneer_humanoid import arm_8dof_params, arm_params
+    from pioneer_humanoid.mujoco_bimanual_arm import set_home as set_home_armv2
+    from pioneer_humanoid.mujoco_bimanual_arm_8dof import set_home as set_home_8dof
+
+    eight = args.robot == "8dof"
+    params = arm_8dof_params if eight else arm_params
+    set_home = set_home_8dof if eight else set_home_armv2
+    camera_names = tuple(params.CAMERAS)
 
     if args.scene not in list_scenes():
         raise SystemExit(f"unknown --scene {args.scene!r}; available: {list_scenes()}")
-    unknown = sorted(set(record.images) - set(arm_params.CAMERA_NAMES))
+    unknown = sorted(set(record.images) - set(camera_names))
     if unknown:
-        raise SystemExit(f"{record.path}: unknown images {unknown}; available: {list(arm_params.CAMERA_NAMES)}")
+        raise SystemExit(f"{record.path}: unknown images {unknown}; available: {list(camera_names)}")
     cameras = {name: (int(spec["height"]), int(spec["width"])) for name, spec in record.images.items()}
-    model = make_model(args.scene, cameras=cameras)
+    model = make_model(args.scene, cameras=cameras, robot=args.robot)
     scene_hook = scene_step(args.scene)  # per-step scene mechanics (e.g. zip_tie's ratchet), or None
     scene_randomise = scene_reset(args.scene)  # new layout per episode, or None
     scene_steps = scene_progress(args.scene)  # multi-step task: (index, total, instruction), or None
@@ -193,13 +204,13 @@ def run() -> None:
     mujoco.mj_forward(model, data)
     # side -> (arm joints, gripper fingers, finger positions open, closed)
     side_joints = {
-        "left": (arm_params.LEFT_ARM_JOINTS, arm_params.LEFT_GRIPPER_JOINTS,
-                 arm_params.LEFT_GRIPPER_OPEN, arm_params.LEFT_GRIPPER_CLOSED),
-        "right": (arm_params.RIGHT_ARM_JOINTS, arm_params.RIGHT_GRIPPER_JOINTS,
-                  arm_params.RIGHT_GRIPPER_OPEN, arm_params.RIGHT_GRIPPER_CLOSED),
+        "left": (params.LEFT_ARM_JOINTS, params.LEFT_GRIPPER_JOINTS,
+                 params.LEFT_GRIPPER_OPEN, params.LEFT_GRIPPER_CLOSED),
+        "right": (params.RIGHT_ARM_JOINTS, params.RIGHT_GRIPPER_JOINTS,
+                  params.RIGHT_GRIPPER_OPEN, params.RIGHT_GRIPPER_CLOSED),
     }
     arms: list[Arm] = []
-    frozen: list[tuple[int, int, float]] = []  # --lock-wrist: (qpos index, dof index, home angle) per wrist
+    frozen: list[tuple[int, int, float]] = []  # --lock-wrist: (qpos index, dof index, home angle) per wrist joint
     for side in sides:
         joints, fingers, grip_open, grip_closed = side_joints[side]
         lock_wrist = boards[side].lock_wrist if args.lock_wrist is None else args.lock_wrist
@@ -207,7 +218,8 @@ def run() -> None:
         mapping = LeaderMapping(
             boards[side].signs, args.filter_alpha, home_rad=[data.ctrl[a] for a in arm_acts],
             limits_rad=[tuple(model.joint(j).range) for j in joints],
-            locked=("F",) if lock_wrist else (),
+            locked=boards[side].layout.wrist_servos if lock_wrist else (),
+            layout=boards[side].layout,
         )
         arms.append(Arm(
             side=side, leader=None, board=boards[side], mapping=mapping, arm_acts=arm_acts,
@@ -217,14 +229,17 @@ def run() -> None:
             grip_open=np.array([grip_open[j] for j in fingers]),
             grip_closed=np.array([grip_closed[j] for j in fingers]),
         ))
+        wrist_joints = joints[len(joints) - len(boards[side].layout.wrist_servos):]
         if lock_wrist:
-            # Frozen wrist: its motor is off and the joint is pinned at home after every physics step.
-            wrist_act = model.actuator(joints[-1]).id
-            model.actuator_gainprm[wrist_act, :] = 0
-            model.actuator_biasprm[wrist_act, :] = 0
-            wrist = model.joint(joints[-1])
-            frozen.append((wrist.qposadr[0], wrist.dofadr[0], data.qpos[wrist.qposadr[0]]))
-        else:
+            # Frozen wrist: its motors are off and its joints are pinned at home after every physics step.
+            for name in wrist_joints:
+                wrist_act = model.actuator(name).id
+                model.actuator_gainprm[wrist_act, :] = 0
+                model.actuator_biasprm[wrist_act, :] = 0
+                wrist = model.joint(name)
+                frozen.append((wrist.qposadr[0], wrist.dofadr[0], data.qpos[wrist.qposadr[0]]))
+        elif not eight:
+            # The old arm's wrist (joint6l) only; the 8dof wrist (AK45-10 PD group) keeps its own damping.
             model.actuator_biasprm[model.actuator(joints[-1]).id, 2] = -WRIST_DAMPING
         print(f"[{side.upper()}] " * (len(sides) > 1) + mapping.describe(joints), flush=True)
 

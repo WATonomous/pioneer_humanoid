@@ -1,0 +1,126 @@
+{
+ "joints": {
+  "left_shoulder_pitch": {
+   "parent": "base_link",
+   "child": "left_link1",
+   "limit_deg": [
+    -90,
+    180
+   ]
+  },
+  "left_shoulder_roll": {
+   "parent": "left_link1",
+   "child": "left_link2",
+   "limit_deg": [
+    -20,
+    160
+   ]
+  },
+  "left_shoulder_yaw": {
+   "parent": "left_link2",
+   "child": "left_link3",
+   "limit_deg": [
+    -120,
+    120
+   ]
+  },
+  "left_elbow": {
+   "parent": "left_link3",
+   "child": "left_link4",
+   "limit_deg": [
+    -5,
+    130
+   ]
+  },
+  "left_forearm_roll": {
+   "parent": "left_link4",
+   "child": "left_link5",
+   "limit_deg": [
+    -110,
+    110
+   ]
+  },
+  "left_wrist_pitch": {
+   "parent": "left_link5",
+   "child": "left_link6",
+   "limit_deg": [
+    -60,
+    60
+   ]
+  },
+  "left_wrist_yaw": {
+   "parent": "left_link6",
+   "child": "left_link7",
+   "limit_deg": [
+    -90,
+    90
+   ]
+  },
+  "right_shoulder_pitch": {
+   "parent": "base_link",
+   "child": "right_link1",
+   "limit_deg": [
+    -90,
+    180
+   ]
+  },
+  "right_shoulder_roll": {
+   "parent": "right_link1",
+   "child": "right_link2",
+   "limit_deg": [
+    -20,
+    160
+   ]
+  },
+  "right_shoulder_yaw": {
+   "parent": "right_link2",
+   "child": "right_link3",
+   "limit_deg": [
+    -120,
+    120
+   ]
+  },
+  "right_elbow": {
+   "parent": "right_link3",
+   "child": "right_link4",
+   "limit_deg": [
+    -5,
+    130
+   ]
+  },
+  "right_forearm_roll": {
+   "parent": "right_link4",
+   "child": "right_link5",
+   "limit_deg": [
+    -110,
+    110
+   ]
+  },
+  "right_wrist_pitch": {
+   "parent": "right_link5",
+   "child": "right_link6",
+   "limit_deg": [
+    -60,
+    60
+   ]
+  },
+  "right_wrist_yaw": {
+   "parent": "right_link6",
+   "child": "right_link7",
+   "limit_deg": [
+    -90,
+    90
+   ]
+  }
+ },
+ "wrist_camera_left_link7": [
+  0.017000000000000032,
+  0.0,
+  -0.11599999999999994
+ ],
+ "gripper_forward_link7": [
+  1.1102230246251565e-16,
+  0.0,
+  -1.0
+ ]
+}

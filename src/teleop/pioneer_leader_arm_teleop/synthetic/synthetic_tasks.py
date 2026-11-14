@@ -14,7 +14,6 @@ from typing import Callable
 
 import numpy as np
 
-from human_operator import GRASP_PITCH, TCP_ABOVE_TIPS
 
 
 class TaskFailed(RuntimeError):
@@ -25,10 +24,15 @@ class TaskFailed(RuntimeError):
 class Task:
     plan: Callable          # plan(op, model, data, notes): notes collects what happened (retries, ...)
     instruction: str        # dataset task text (multi-step scenes label each frame with its step instead)
+    # How the operator holds the 8dof arm for this task (the old 6-DoF arm always grasps 20 deg down, no null space):
+    # grasp pitch (deg down) and the IK's null-space pull off the joint limits (0 = none). Picked per task from
+    # synthetic-demo runs, seeds 1-8; checked on fresh seeds.
+    grasp_pitch_deg_8dof: float = 20.0
+    limit_avoid_8dof: float = 0.05
 
 
-# The tool point is this far above the fingers' lowest point (their tips, tipped GRASP_PITCH down, plus the jaw's own depth).
-JAW_HALF = TCP_ABOVE_TIPS * math.sin(GRASP_PITCH) + 0.018
+# op.jaw_half: how far the tool point is above the fingers' lowest point in the grasp pose (their tips, tipped the
+# operator's grasp pitch down, plus the jaw's own depth); see human_operator.jaw_half.
 # peg_insert: tool point this far above the peg's bottom when held
 GRIP_Z = 0.08
 
@@ -56,7 +60,7 @@ def drawer_plan(op, model, data, notes) -> None:
 
     def grab_tab():
         x = front() - S.FRONT_T - jx
-        op.arc((x, tab_y, tab_top + JAW_HALF + 0.015), high, R=op.down(), grip=rng.uniform(0.3, 0.4), tol=0.005,
+        op.arc((x, tab_y, tab_top + op.jaw_half + 0.015), high, R=op.down(), grip=rng.uniform(0.3, 0.4), tol=0.005,
                axes=(1, 1, 0))                                                     # over the tab, lined up
         op.move((x, tab_y, tab_z), tol=0.004)
         op.set_grip(1.0)
@@ -93,9 +97,9 @@ def drawer_plan(op, model, data, notes) -> None:
         for attempt in range(3):
             b = op.see(body)
             yaw = op.see_yaw(body) * rng.uniform(0.4, 1.0)    # roughly lines the jaws up with the block
-            op.arc((b[0], b[1], T + S.BLOCK + JAW_HALF + 0.015), high, R=op.down(yaw), grip=rng.uniform(0.35, 0.45),
+            op.arc((b[0], b[1], T + S.BLOCK + op.jaw_half + 0.015), high, R=op.down(yaw), grip=rng.uniform(0.35, 0.45),
                    tol=0.005, axes=(1, 1, 0))                                     # over the block, lined up
-            op.move((b[0], b[1], T + JAW_HALF + 0.004), tol=0.004)
+            op.move((b[0], b[1], T + op.jaw_half + 0.004), tol=0.004)
             op.set_grip(1.0)
             op.move((b[0], b[1], T + 0.10), tol=0.02, corrections=0, axes=(0, 0, 1), via=True)   # up off the table
             if data.xpos[model.body(body).id][2] > T + 0.03:    # it came up with the gripper
@@ -170,7 +174,7 @@ def peg_plan(op, model, data, notes) -> None:
     def grasp():
         for attempt in range(3):
             p = op.see("peg")
-            op.arc((p[0], p[1], T + S.PEG_HEIGHT + JAW_HALF + 0.015), max(high, T + S.PEG_HEIGHT + JAW_HALF + 0.03),
+            op.arc((p[0], p[1], T + S.PEG_HEIGHT + op.jaw_half + 0.015), max(high, T + S.PEG_HEIGHT + op.jaw_half + 0.03),
                    R=op.down(jaw_yaw), grip=rng.uniform(0.0, 0.08), tol=0.004, axes=(1, 1, 0), via=True)   # on down, no stop above it
             op.move((p[0], p[1], T + grip_z), tol=0.003)
             op.set_grip(1.0)
@@ -256,8 +260,8 @@ def peg_plan(op, model, data, notes) -> None:
     if not S.is_inserted(model, data):
         notes.append("push peg home")
         p = op.see("peg")
-        op.move((p[0], p[1], p[2] + S.PEG_HEIGHT / 2 + JAW_HALF + 0.01), grip=1.0, tol=0.004, axes=(1, 1, 0))
-        op.move((p[0], p[1], block_top + JAW_HALF - 0.005), tol=0.004, corrections=0, speed=0.7)
+        op.move((p[0], p[1], p[2] + S.PEG_HEIGHT / 2 + op.jaw_half + 0.01), grip=1.0, tol=0.004, axes=(1, 1, 0))
+        op.move((p[0], p[1], block_top + op.jaw_half - 0.005), tol=0.004, corrections=0, speed=0.7)
         op.settle(limit=0.3)
         tcp = op.follower_tcp()
         op.move((tcp[0], tcp[1], high), grip=0.4, tol=0.02, via=True)
@@ -324,7 +328,7 @@ def duplo_plan(op, model, data, notes) -> None:
 
     rng, T = op.rng, S.T
     bz = S.BRICK[2]
-    grip_z = JAW_HALF + 0.008 + rng.uniform(-0.002, 0.002)   # tool point above a brick's bottom when held (jaw tips clear of the plate)
+    grip_z = op.jaw_half + 0.008 + rng.uniform(-0.002, 0.002)   # tool point above a brick's bottom when held (jaw tips clear of the plate)
     high = T + 0.14 + rng.uniform(-0.01, 0.01)
     plate_top = T + S.PLATE_T
 
@@ -339,7 +343,7 @@ def duplo_plan(op, model, data, notes) -> None:
         for attempt in range(3):
             b = op.see(brick)
             hand_yaw[0] = op.see_yaw(brick, symmetry=math.pi) * rng.uniform(0.5, 1.0)
-            op.arc((b[0], b[1], b[2] + bz + S.STUD_H + JAW_HALF + 0.012), high, R=op.down(hand_yaw[0]),
+            op.arc((b[0], b[1], b[2] + bz + S.STUD_H + op.jaw_half + 0.012), high, R=op.down(hand_yaw[0]),
                    grip=rng.uniform(0.35, 0.45), tol=0.004, axes=(1, 1, 0))
             op.move((b[0], b[1], b[2] + grip_z), tol=0.003)
             op.set_grip(1.0)
@@ -376,8 +380,8 @@ def duplo_plan(op, model, data, notes) -> None:
     def press(colour: str) -> None:
         """Didn't click but nearly there: press it down with the closed jaws on its studs."""
         b = op.see(f"brick_{colour}")
-        op.move((b[0], b[1], b[2] + bz + S.STUD_H + JAW_HALF + 0.01), grip=1.0, tol=0.004, axes=(1, 1, 0))
-        op.move((b[0], b[1], b[2] + bz + JAW_HALF - 0.004), tol=0.003, corrections=0, speed=0.5)
+        op.move((b[0], b[1], b[2] + bz + S.STUD_H + op.jaw_half + 0.01), grip=1.0, tol=0.004, axes=(1, 1, 0))
+        op.move((b[0], b[1], b[2] + bz + op.jaw_half - 0.004), tol=0.003, corrections=0, speed=0.5)
         op.settle()
         tcp = op.follower_tcp()
         op.move((tcp[0], tcp[1], tcp[2] + 0.04), grip=0.4, tol=0.01, via=True)
@@ -436,7 +440,7 @@ def matcha_plan(op, model, data, notes) -> None:
             yaw = op.see_yaw(body, symmetry=2 * math.pi)
             hx, hy = b[0] + post_x * math.cos(yaw), b[1] + post_x * math.sin(yaw)
             # jaws nearly closed on the way down: the ladle's and the pitcher's posts stand close to the cup
-            op.arc((hx, hy, b[2] + top + JAW_HALF + 0.015), high, R=op.down(yaw), grip=rng.uniform(0.5, 0.58), tol=0.004,
+            op.arc((hx, hy, b[2] + top + op.jaw_half + 0.015), high, R=op.down(yaw), grip=rng.uniform(0.5, 0.58), tol=0.004,
                    axes=(1, 1, 0))
             op.move((hx, hy, b[2] + grip_z), tol=0.004)
             op.set_grip(1.0)
@@ -524,7 +528,7 @@ def matcha_plan(op, model, data, notes) -> None:
     home = pose("pitcher")[0].copy()
     ph = S.PITCHER["wall"] + S.PITCHER["h"]
     outer = S.PITCHER["r"] + S.PITCHER["wall"]
-    take("pitcher", outer + S.HANDLE / 2, ph + JAW_HALF + 0.011, ph + S.PITCHER_HANDLE - 0.008, 0.04)
+    take("pitcher", outer + S.HANDLE / 2, ph + op.jaw_half + 0.011, ph + S.PITCHER_HANDLE - 0.008, 0.04)
     tip("pitcher", (-S.PITCHER["r"], 0, ph), (-outer, 0, 0), 0.03, (-35, -65, -90, -110, -125),
         lambda: S.balls_in_cup(model, data, "water") >= S.WATER_NEEDED + 3)
     put("pitcher", home[0] + rng.uniform(-0.01, 0.01), home[1] + rng.uniform(-0.01, 0.01), T)
@@ -558,7 +562,7 @@ def matcha_plan(op, model, data, notes) -> None:
     grip_z = 0.054 + rng.uniform(-0.004, 0.004)
     for attempt in range(3):
         c = op.see("cup")
-        op.arc((c[0], c[1], rim + JAW_HALF + 0.02), high, R=op.down(cup_yaw), grip=rng.uniform(0.1, 0.2), tol=0.005,
+        op.arc((c[0], c[1], rim + op.jaw_half + 0.02), high, R=op.down(cup_yaw), grip=rng.uniform(0.1, 0.2), tol=0.005,
                axes=(1, 1, 0))
         op.move((c[0], c[1], T + grip_z), tol=0.004)
         op.set_grip(1.0)
@@ -582,9 +586,9 @@ def matcha_plan(op, model, data, notes) -> None:
 
 
 TASKS: dict[str, Task] = {
-    "drawer_stow": Task(drawer_plan, "put the blocks in the drawer"),
-    "peg_insert": Task(peg_plan, "insert the peg into the hole"),
+    "drawer_stow": Task(drawer_plan, "put the blocks in the drawer", grasp_pitch_deg_8dof=30.0),
+    "peg_insert": Task(peg_plan, "insert the peg into the hole", limit_avoid_8dof=0.0),   # null space hurt the insert
     "zip_tie": Task(zip_plan, "pull the zip tie tight"),
-    "duplo": Task(duplo_plan, "stack the duplo bricks"),
+    "duplo": Task(duplo_plan, "stack the duplo bricks", grasp_pitch_deg_8dof=30.0, limit_avoid_8dof=0.02),
     "matcha": Task(matcha_plan, "make the matcha and serve it on the tray"),
 }

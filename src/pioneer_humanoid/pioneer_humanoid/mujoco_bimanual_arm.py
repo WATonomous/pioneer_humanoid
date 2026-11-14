@@ -1,3 +1,4 @@
+# Old 6-DoF arm model (--robot armv2); 8dof is the default. Its FINGER_* constants are shared with the 8dof.
 """pioneer_bimanual_arm for plain MuJoCo: the URDF plus joint limits and PD position actuators.
 
 Same numbers as the Isaac config (bimanual_arm.py), from arm_params.py and urdf_joint_limits.py.
@@ -27,7 +28,14 @@ FINGER_COUPLING_SOLREF = [0.002, 1.0]  # 2 x the scenes' 1 ms step: MuJoCo's def
 FINGER_SLABS = 16  # collision boxes per finger, 8.5 mm each along the 136 mm finger
 # TPU fingers: estimates, not measured. Rubber-like sliding friction, and contact twice as soft
 # as the scenes' stiff default (humanoid_mujoco_scenes CONTACT_SOLREF 0.004 s).
-FINGER_FRICTION = [1.0, 0.005, 0.0001]
+# Sliding 1.5: soft TPU grips better than plastic on plastic. MuJoCo takes the larger friction of a pair, and 1.0 was
+# its default for every object, so the old value gave the pads no extra grip. Still an estimate: a tilt test on the
+# real pads (mu = tan(slip angle)) would replace it.
+FINGER_FRICTION = [1.5, 0.005, 0.0001]
+# condim 4: sliding + torsional friction, so a held object can't spin about the axis through both fingers (a TPU pad's
+# contact patch resists twisting). MuJoCo takes the larger condim of a pair; at 3 (the default) torsion was off for
+# every default-condim object.
+FINGER_CONDIM = 4
 FINGER_SOLREF = [0.008, 1.0]
 FINGER_SOLIMP = [0.95, 0.99, 0.001, 0.5, 2.0]
 
@@ -98,7 +106,7 @@ def _box_fingers(spec: mujoco.MjSpec) -> None:
     rests on one curved point and slips out when the arm moves. Boxes aligned with the link
     frame (fingers travel along its Y) give flat, parallel jaw faces, and slicing follows the
     fin-ray wedge (thin at the tip) instead of one box filling it out to the wrist's width.
-    TPU contact: FINGER_FRICTION and the softer FINGER_SOLREF.
+    TPU contact: FINGER_FRICTION, FINGER_CONDIM and the softer FINGER_SOLREF.
     """
     model = spec.compile()
     for body in FINGER_BODIES:
@@ -134,6 +142,7 @@ def _box_fingers(spec: mujoco.MjSpec) -> None:
                 group=3,
                 density=0,
                 friction=FINGER_FRICTION,
+                condim=FINGER_CONDIM,
                 solref=FINGER_SOLREF,
                 solimp=FINGER_SOLIMP,
             )

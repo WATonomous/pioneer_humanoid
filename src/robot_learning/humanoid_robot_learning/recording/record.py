@@ -1,3 +1,4 @@
+# Old 6-DoF arm only (today's real arm). 8dof is the default; the real arm moves to 8dof soon.
 """Record teleoperation data from ROS 2 (real arm) or dry-run tests."""
 
 from __future__ import annotations

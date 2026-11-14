@@ -9,10 +9,10 @@ and --offset / --pose take twelve degrees, the left arm's six then the right's.
 Run (joint_command container; joint_command_node and can_node running; nothing else
 publishing that topic)::
 
-  python3 /opt/humanoid_scripts/arm_roundtrip.py --joints elbow.roll --offset "0,0,0,0,5,0"
+  python3 /opt/humanoid_scripts/arm_roundtrip.py --joints elbow.yaw --offset "0,0,0,0,5,0"
   python3 /opt/humanoid_scripts/arm_roundtrip.py --pose "0,0,10,20,0,0" --max-delta 25
   python3 /opt/humanoid_scripts/arm_roundtrip.py --arm-side both \
-      --joints left.elbow.roll,right.elbow.roll --offset "0,0,0,0,5,0,0,0,0,0,5,0"
+      --joints left.elbow.yaw,right.elbow.yaw --offset "0,0,0,0,5,0,0,0,0,0,5,0"
   tools/arm_roundtrip.sh ...        # the same from the host, plus plots
 
 Sequence (command-frame degrees):
@@ -29,7 +29,7 @@ Sequence (command-frame degrees):
 --exercise-limits sends the request as given (past limits, faster than velocity_max) over
 --duration; the summary checks joint_command clamped both::
 
-  arm_roundtrip.py --exercise-limits --joints elbow.roll --pose "0,0,0,0,200,0" --duration 2
+  arm_roundtrip.py --exercise-limits --joints elbow.yaw --pose "0,0,0,0,200,0" --duration 2
 
 Stopping: Ctrl-C or tracking error > --max-track-err ramps back to the origin; a second Ctrl-C
 stops streaming; lost feedback freezes in place. Then joint_command's stale-stream handling
@@ -160,8 +160,8 @@ def main(argv=None) -> int:
                                         "(shoulder p,y,r, elbow p,r, wrist p); twelve with "
                                         "--arm-side both, left then right")
     where.add_argument("--pose", help="six ABSOLUTE command-frame degrees (twelve with both)")
-    ap.add_argument("--joints", help="comma-separated joints to move, e.g. elbow.roll, or "
-                                     "left.elbow.roll with --arm-side both (default: every "
+    ap.add_argument("--joints", help="comma-separated joints to move, e.g. elbow.yaw, or "
+                                     "left.elbow.yaw with --arm-side both (default: every "
                                      "joint with a non-zero move)")
     ap.add_argument("--vel", type=float, default=5.0,
                     help="peak deg/s of the profile (default 5; capped per joint at its "

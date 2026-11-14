@@ -1,0 +1,42 @@
+# Map post-processing for the D455, adapted from upstream's config/core/plugin_config.yaml.
+# Upstream's file is tuned for an excavator; its near_base_height_filter deletes anything
+# taller than 0.5 m within 4 m (every desk), so it is left out here.
+# UNTUNED: values are upstream defaults unless noted.
+min_filter:
+  enable: True
+  fill_nan: False
+  is_height_layer: True
+  layer_name: "min_filter"
+  extra_params:
+    dilation_size: 1
+    iteration_n: 30
+smooth_filter:
+  enable: True
+  fill_nan: False
+  is_height_layer: True
+  layer_name: "smooth"
+  extra_params:
+    input_layer_name: "min_filter"
+# Clips isolated upward spikes, e.g. D455 flying pixels at depth edges.
+positive_spike_filter:
+  enable: True
+  fill_nan: False
+  is_height_layer: True
+  layer_name: "despiked"
+  extra_params:
+    input_layer_name: "elevation"
+    median_filter_size: 5
+    spike_height_diff_m: 0.35
+    support_height_tolerance_m: 0.12
+    max_support_neighbor_count: 1
+    max_component_cells: 4
+inpainting:
+  enable: True
+  fill_nan: False
+  is_height_layer: True
+  layer_name: "inpaint"
+  extra_params:
+    method: "telea"
+    input_layer_name: "despiked"
+    max_hole_area: 25                # cells; 0.2 m x 0.2 m at 0.04 m resolution
+    fill_border_holes: False
