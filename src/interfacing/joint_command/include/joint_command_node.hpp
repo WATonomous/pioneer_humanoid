@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "common_msgs/msg/arm_pose.hpp"
+#include "common_msgs/msg/leg_pose.hpp"
 #include "common_msgs/msg/motor_cmd.hpp"
 #include "common_msgs/msg/motor_feedback.hpp"
 #include "joint_command_core.hpp"
@@ -29,6 +30,10 @@ private:
     rclcpp::Subscription<common_msgs::msg::ArmPose>::SharedPtr arm_pose_sub;
     // Latest ArmPose; moderation runs on the control tick, so velocity_max is per second.
     common_msgs::msg::ArmPose latest_pose;
+    // TODO(legs): a leg limb listens on /leg/<side>/joint_targets instead of the ArmPose topic.
+    bool is_leg{false};
+    rclcpp::Subscription<common_msgs::msg::LegPose>::SharedPtr leg_pose_sub;
+    common_msgs::msg::LegPose latest_leg_pose;
     bool have_latest_pose{false};
     // Until every joint's real position has been seen and used to seed the rate-limiter,
     // ArmPose messages are ignored -- otherwise the limiter would ramp from an assumed 0
@@ -42,6 +47,7 @@ private:
   };
 
   void armPoseCallback(size_t limb, const common_msgs::msg::ArmPose::SharedPtr msg);
+  void legPoseCallback(size_t limb, const common_msgs::msg::LegPose::SharedPtr msg);
   void motorFeedbackCallback(const common_msgs::msg::MotorFeedback::SharedPtr msg);
   void controlTimerCallback();
   // Pokes, stale check and seeding for one arm; true when it should be commanded this tick.

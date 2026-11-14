@@ -43,3 +43,37 @@ motors:
   "22": {model: GL40-KV70, family: gl2, p_min: -12.5, p_max: 12.5, v_min: -200.0, v_max: 200.0, t_min: -10.0, t_max: 10.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0}
   "21": {model: GL40-KV70, family: gl2, p_min: -12.5, p_max: 12.5, v_min: -200.0, v_max: 200.0, t_min: -10.0, t_max: 10.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0}
 
+
+  # LEGS (#477). Ids are PLANNED, not yet set on the drives (#478). Right leg is 56-61, not 50-55:
+  # 53 (0x35) and 54 (0x36) end in the same hex digit as GL40s 21 (0x15) and 22 (0x16), and
+  # can_node drops an AK profile that does.
+  # AKH70-48, AK60-39: CubeMars V3 Drive Software User Manual V1.0.1, "Parameter Range".
+  # AK80-64: commented out, so can_node refuses MIT commands to it. CubeMars lists it as AK 2.0
+  # (driver manual V1.0.18: p +-12.5, v +-8, t +-144), and `family: ak` here means V3.0 frames.
+  # Before enabling: confirm its firmware and protocol family, and add kt (not in that table).
+  # LEFT LEG
+  # hip_pitch
+  "40": {model: AKH70-48, family: ak, p_min: -12.56, p_max: 12.56, v_min: -5.0, v_max: 5.0, t_min: -280.0, t_max: 280.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 8.8123}
+  # hip_roll
+  # "41": {model: AK80-64, family: ak, p_min: -12.5, p_max: 12.5, v_min: -8.0, v_max: 8.0, t_min: -144.0, t_max: 144.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0}
+  # hip_yaw
+  "42": {model: AK60-39, family: ak, p_min: -12.56, p_max: 12.56, v_min: -10.0, v_max: 10.0, t_min: -80.0, t_max: 80.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 3.4616}
+  # knee_pitch
+  "43": {model: AKH70-48, family: ak, p_min: -12.56, p_max: 12.56, v_min: -5.0, v_max: 5.0, t_min: -280.0, t_max: 280.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 8.8123}
+  # ankle_pitch
+  "44": {model: AK60-39, family: ak, p_min: -12.56, p_max: 12.56, v_min: -10.0, v_max: 10.0, t_min: -80.0, t_max: 80.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 3.4616}
+  # ankle_roll
+  "45": {model: AK60-39, family: ak, p_min: -12.56, p_max: 12.56, v_min: -10.0, v_max: 10.0, t_min: -80.0, t_max: 80.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 3.4616}
+  # RIGHT LEG
+  # hip_pitch
+  "56": {model: AKH70-48, family: ak, p_min: -12.56, p_max: 12.56, v_min: -5.0, v_max: 5.0, t_min: -280.0, t_max: 280.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 8.8123}
+  # hip_roll
+  # "57": {model: AK80-64, family: ak, p_min: -12.5, p_max: 12.5, v_min: -8.0, v_max: 8.0, t_min: -144.0, t_max: 144.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0}
+  # hip_yaw
+  "58": {model: AK60-39, family: ak, p_min: -12.56, p_max: 12.56, v_min: -10.0, v_max: 10.0, t_min: -80.0, t_max: 80.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 3.4616}
+  # knee_pitch
+  "59": {model: AKH70-48, family: ak, p_min: -12.56, p_max: 12.56, v_min: -5.0, v_max: 5.0, t_min: -280.0, t_max: 280.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 8.8123}
+  # ankle_pitch
+  "60": {model: AK60-39, family: ak, p_min: -12.56, p_max: 12.56, v_min: -10.0, v_max: 10.0, t_min: -80.0, t_max: 80.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 3.4616}
+  # ankle_roll
+  "61": {model: AK60-39, family: ak, p_min: -12.56, p_max: 12.56, v_min: -10.0, v_max: 10.0, t_min: -80.0, t_max: 80.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 3.4616}

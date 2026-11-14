@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "common_msgs/msg/arm_pose.hpp"
+#include "common_msgs/msg/leg_pose.hpp"
 #include "common_msgs/msg/motor_cmd.hpp"
 #include "yaml-cpp/yaml.h"
 
@@ -108,6 +109,11 @@ public:
 
   // Advance ONE control tick toward `pose`. Call at control_rate_hz: velocity_max is per tick.
   std::vector<common_msgs::msg::MotorCmd> armPoseToMotorCmds(const common_msgs::msg::ArmPose& pose,
+                                                             int8_t default_control_type);
+
+  // TODO(legs): skeleton only, returns no commands yet. Must run the same moderation layers as
+  // armPoseToMotorCmds (clamp, low-pass, velocity / delta limits, calibration).
+  std::vector<common_msgs::msg::MotorCmd> legPoseToMotorCmds(const common_msgs::msg::LegPose& pose,
                                                              int8_t default_control_type);
 
   // Fault-action frame per MIT joint (kp = 0; kd = 0 Limp / mit_fault_kd Damp). Used to poke
