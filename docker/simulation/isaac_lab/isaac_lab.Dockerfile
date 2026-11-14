@@ -90,6 +90,7 @@ RUN printf '%s\n' \
     "torch==2.7.0" \
     "torchvision==0.22.0" \
     "imageio==2.37.0" \
+    "pyarrow==21.0.0" \
     > /tmp/constraints.txt
 
 RUN $PYTHON -m pip install -c /tmp/constraints.txt \
@@ -133,7 +134,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # mink: the teleops' IK (quest_controller_teleop/mink_control.py); --no-deps keeps Isaac Lab's daqp/qpsolvers pins.
 RUN $PYTHON -m pip install --no-deps "rerun-sdk>=0.24.0,<0.27.0" && \
     $PYTHON -m pip install pyzmq && \
-    $PYTHON -m pip install mujoco && \
+    $PYTHON -m pip install "mujoco==4.0.1" && \
     $PYTHON -m pip install --no-deps "mink==1.4.0" && \
     $PYTHON -m pip install --upgrade pip
 
