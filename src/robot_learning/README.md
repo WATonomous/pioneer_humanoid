@@ -78,7 +78,7 @@ with the same entry point. Fine-tune from `lerobot/pi05_base`, training only the
 Works for any dataset in the schema's format (one arm or both); sim evaluation runs left-arm policies.
 
 Relative actions (optional, recommended; LeRobot's default is absolute) need relative action stats (first command); for absolute, skip it and drop `--policy.use_relative_actions=true`.
-`--steps`, `--batch_size` and `--save_freq` below are examples: pick them for your GPU (about 22 GB at `--batch_size=4`).
+`--steps`, `--batch_size` and `--save_freq` below are examples: pick them for your GPU.
 
 ```bash
 DATA=datasets/<dataset>/sim     # e.g. datasets/pioneer_8dof_left_arm/sim
