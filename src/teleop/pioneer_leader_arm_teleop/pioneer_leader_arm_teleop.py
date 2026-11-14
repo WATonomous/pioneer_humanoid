@@ -1,4 +1,4 @@
-"""Leader-arm teleop of the Pioneer arms (no IK): plain MuJoCo (default, the 8dof arms), Isaac Sim or the real arm.
+"""Leader-arm teleop of the Pioneer arms (no IK): plain MuJoCo (default) or Isaac Sim (the 8dof arms), or the real arm.
 
     isaaclab.sh -p pioneer_leader_arm_teleop.py --target isaac --scene push [--record]
     python pioneer_leader_arm_teleop.py --target mujoco --scene peg_insert

@@ -38,8 +38,8 @@ ROBOT_SIDE_SIGNS = {"armv2": SIDE_SIGNS, "8dof": SIDE_SIGNS_8DOF}
 DEFAULT_LEADER_ARM = Path(__file__).resolve().parent / "leader_arm.json"
 # The 8dof leader (one more servo, other signs) is calibrated into its own file, so the old arms' stays valid.
 DEFAULT_LEADER_ARMS = {"armv2": DEFAULT_LEADER_ARM, "8dof": DEFAULT_LEADER_ARM.with_name("leader_arm_8dof.json")}
-# The sim robot each --target drives by default; Isaac (no USD of the 8dof arms) and the real arm are the old arms.
-DEFAULT_ROBOT = {"mujoco": "8dof", "isaac": "armv2", "real": "armv2"}
+# The robot each --target drives by default; Isaac only has the 8dof arms, the real arm is still the old arms.
+DEFAULT_ROBOT = {"mujoco": "8dof", "isaac": "8dof", "real": "armv2"}
 # Before leader_arm.json: the left board's zeros alone (calibrate_leader.py --from converts it).
 OLD_CALIBRATION = Path(__file__).resolve().parent / "leader_calibration.json"
 SIDES = ("left", "right")
@@ -48,7 +48,7 @@ ENGAGE_TOL_DEG = 15.0  # wide enough to reach by eye; the filter then ramps the 
 # ... and the gripper this close to open (closure fraction, 0 = open).
 ENGAGE_GRIP_TOL = 0.1
 # Stock wrist damping (18) caps joint6l near 2 deg/s at the GL40's 0.73 Nm, so the sim wrist
-# lags the leader. Each backend lowers it for this teleop only; the shared arm config keeps 18.
+# lags the leader. mujoco_sim.py lowers it for this teleop only; the shared arm config keeps 18.
 WRIST_DAMPING = 2.5
 # Control rate: one leader read and target update per 10 ms of sim time.
 CONTROL_DT = 0.01
@@ -59,7 +59,7 @@ def add_leader_args(parser: argparse.ArgumentParser, *, scene_help: str) -> None
         "--target",
         choices=("isaac", "mujoco", "real"),
         default="mujoco",
-        help="what the leader drives: mujoco (default; the 8dof arms), isaac or real (the old 6-DoF arms; real: dry "
+        help="what the leader drives: mujoco (default) or isaac (the 8dof arms), or real (the old 6-DoF arms; dry "
              "run, read-only)",
     )
     parser.add_argument("--scene", type=str, default="bare", help=scene_help)
@@ -67,8 +67,8 @@ def add_leader_args(parser: argparse.ArgumentParser, *, scene_help: str) -> None
         "--robot",
         choices=tuple(LAYOUTS),
         default=None,
-        help="arms to drive: 8dof (7-DoF + gripper, leader servos A..H: G = wrist yaw, H = gripper; default for --target mujoco) or "
-             "armv2 (the old 6-DoF arms; Isaac and the real arm only have these)",
+        help="arms to drive: 8dof (7-DoF + gripper, leader servos A..H: G = wrist yaw, H = gripper; the default, and "
+             "the only one for --target isaac) or armv2 (the old 6-DoF arms; MuJoCo, and the only one for --target real)",
     )
     parser.add_argument("--baud", type=int, default=1_000_000, help="leader serial baud rate")
     parser.add_argument(
@@ -92,8 +92,8 @@ def check_leader_args(parser: argparse.ArgumentParser, args: argparse.Namespace,
         parser.error("--filter-alpha must be in (0, 1]")
     if args.robot is None:
         args.robot = DEFAULT_ROBOT[args.target]
-    if args.robot != "armv2" and args.target != "mujoco":
-        parser.error(f"--robot {args.robot} runs with --target mujoco only: the {args.target} backend has the old arms")
+    if args.target != "mujoco" and args.robot != DEFAULT_ROBOT[args.target]:
+        parser.error(f"--target {args.target} drives --robot {DEFAULT_ROBOT[args.target]} only")
     if args.leader_arm is None:
         args.leader_arm = DEFAULT_LEADER_ARMS[args.robot]
     try:
