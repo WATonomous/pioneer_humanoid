@@ -70,7 +70,7 @@ def _spawn_bimanual_arm_8dof(prim_path, cfg, translation=None, orientation=None)
 
 
 spawn_bimanual_arm_8dof = clone(_spawn_bimanual_arm_8dof)
-# as bimanual_arm.spawn_bimanual_arm_from_usd: config (de)serialization resolves a callable by module:__name__
+# config (de)serialization resolves a callable by module:__name__, and clone() copies the inner function's name
 spawn_bimanual_arm_8dof.__name__ = spawn_bimanual_arm_8dof.__qualname__ = "spawn_bimanual_arm_8dof"
 
 

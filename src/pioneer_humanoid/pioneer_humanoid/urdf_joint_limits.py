@@ -1,14 +1,7 @@
-"""Joint position limits for pioneer_bimanual_arm, parsed from the URDF.
+"""Joint position limits for pioneer_bimanual_arm (the old 6-DoF arms), parsed from the URDF.
 
-The URDF is the single source of truth for joint limits. pioneer_humanoid.bimanual_arm
-config imports JOINT_POS_LIMITS from here instead of carrying its own copy (it previously
-hardcoded a +/-2pi placeholder that overrode the real limits). Stdlib only -- no
-isaaclab, no numpy.
-
-Isaac Sim loads the pre-converted USD under usd/, never the URDF, and nothing
-regenerates that USD on a URDF edit. The bridge is pioneer_humanoid.bimanual_arm's
-patch_joint_pos_limits_on_prim() (at spawn) and apply_joint_limits() (post-init),
-which write these values onto the spawned prims -- keep both call sites.
+The URDF is the single source of truth for joint limits; the MuJoCo armv2 model and the real-arm stack read them
+from here. Stdlib only -- no isaaclab, no numpy.
 """
 import os
 import xml.etree.ElementTree as ET
@@ -20,7 +13,7 @@ URDF_PATH = os.path.join(_REPO_ROOT, "assets", "pioneer_bimanual_arm", "urdf", "
 # "continuous" joint has no limits by definition and "fixed" has no DOF.
 _LIMITED_JOINT_TYPES = ("revolute", "prismatic")
 
-# Gripper stroke pinned to match GRIPPER_OPEN/CLOSED in arm_params.py (the USD may lag the URDF).
+# Gripper stroke pinned to match GRIPPER_OPEN/CLOSED in arm_params.py.
 GRIPPER_LIMIT_OVERRIDES = {
     "joint7": (-0.041, 0.0),
     "joint8": (0.0, 0.041),
