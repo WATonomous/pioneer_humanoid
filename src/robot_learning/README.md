@@ -74,11 +74,19 @@ Flag pitfalls (`--steps`, not epochs; always `--policy.push_to_hub=false` for lo
 Our own policy, `humanoid_dit` ([`humanoid_robot_learning/policies/dit`](humanoid_robot_learning/policies/dit)), is a flow-matching diffusion transformer conditioned on CLIP image and text features. Install with `pip install -e .[dit]` and train with `python -m humanoid_robot_learning.train --policy.type=humanoid_dit` plus the arguments above and `--steps=70000 --batch_size=6`. On 540 synthetic peg-insertion demos it succeeds in 80% of 400 sim episodes. At 50k steps: 58-75% across two training seeds (180 demos: 60-64%). The learning rate decays over `--steps`, so set it up front: a finished run can't be extended.
 
 **pi0.5** trains through LeRobot's own pi0.5 (LeRobot 0.7, `pip install 'lerobot[pi,training]==0.7.0'`, Python ≥ 3.12)
-with the same entry point. Fine-tune from `lerobot/pi05_base`, training only the action expert (the VLM stays frozen),
-with actions relative to the state (the grippers stay absolute). The relative-action conversion lives in the
-checkpoint's pre/post-processors, so sim evaluation (below) needs nothing extra. Relative actions need the action
-stats in relative space too: recompute them into a copy of the dataset with LeRobot's own tool, then train on the
-copy. Works for any dataset in the schema's format (one arm or both); sim evaluation runs left-arm policies.
+with the same entry point. Fine-tune from `lerobot/pi05_base`, training only the action expert (the VLM stays frozen).
+Works for any dataset in the schema's format (one arm or both); sim evaluation runs left-arm policies.
+
+Relative actions are optional and recommended, not the default: LeRobot's pi0.5 predicts absolute joint targets unless
+`--policy.use_relative_actions=true`. With it, arm actions are relative to the state and the grippers stay absolute (as
+openpi's `DeltaActions` does for joint-space robots). The conversion lives in the checkpoint's pre/post-processors, so
+sim evaluation (below) needs nothing extra. Relative actions need the action stats in relative space too: recompute
+them into a copy of the dataset with LeRobot's own tool, then train on the copy. For absolute actions, drop the first
+command and `--policy.use_relative_actions=true`, and train on the dataset as is.
+
+`--steps`, `--batch_size` and `--save_freq` are ordinary `lerobot-train` arguments; the values below are examples, not
+requirements. Pick them for your GPU and dataset size (pi0.5 in fp32 with the VLM frozen needs about 22 GB at
+`--batch_size=4`, so on a 24 GB GPU use 4 or less).
 
 ```bash
 DATA=datasets/<dataset>/sim     # e.g. datasets/pioneer_8dof_left_arm/sim
