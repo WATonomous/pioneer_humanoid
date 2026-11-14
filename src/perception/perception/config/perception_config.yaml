@@ -24,3 +24,9 @@ perception_node:
     # Debug parameters
     debug_mode: false
     save_debug_images: false
+
+trajectory_EKF_prediction_node:
+  ros__parameters:
+    # The localizer reports positions in the camera's optical frame (x right, y down, z forward)
+    gravity_frame: "optical"
+    camera_pitch_deg: 0.0  # how far the camera looks up from level: set to the camera's real mount angle

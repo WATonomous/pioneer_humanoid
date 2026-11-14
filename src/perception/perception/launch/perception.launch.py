@@ -1,3 +1,6 @@
+import os
+
+from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch.actions import DeclareLaunchArgument
@@ -6,6 +9,7 @@ from launch.substitutions import LaunchConfiguration
 
 
 def generate_launch_description():
+    config = os.path.join(get_package_share_directory('perception'), 'config', 'perception_config.yaml')
     return LaunchDescription([
         DeclareLaunchArgument(
             'use_tracknet', default_value='false',
@@ -63,5 +67,6 @@ def generate_launch_description():
             executable='trajectory_EKF_prediction_node',
             name='trajectory_EKF_prediction_node',
             output='screen',
+            parameters=[config],
         ),
     ])
