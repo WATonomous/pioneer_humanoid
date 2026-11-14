@@ -32,6 +32,7 @@ from isaaclab.app import AppLauncher
 # in the image; this fallback keeps a bare bind-mounted checkout working.
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "pioneer_humanoid"))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "robot_learning"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "simulation" / "isaac_scenes"))   # humanoid_isaac_scenes, if the image predates its install
 
 from humanoid_robot_learning.sim.sim_teleop_record import (  # noqa: E402
     add_record_args,
@@ -84,6 +85,7 @@ from pioneer_humanoid.bimanual_arm import (
     resolve_joint_name,
 )
 from humanoid_isaac_scenes import list_scenes, make_scene_cfg, scene_camera, scene_post_init
+from humanoid_rl_tasks.workcell import RENDER_CARB_SETTINGS
 
 
 def _joint_ids(robot, names: list[str]) -> list[int]:
@@ -222,7 +224,11 @@ def main():
     if args_cli.scene not in list_scenes():
         raise SystemExit(f"unknown --scene {args_cli.scene!r}; available: {list_scenes()}")
 
-    sim = sim_utils.SimulationContext(sim_utils.SimulationCfg(dt=0.01, device=args_cli.device))
+    sim = sim_utils.SimulationContext(
+        sim_utils.SimulationCfg(
+            dt=0.01, device=args_cli.device, render=sim_utils.RenderCfg(rendering_mode="quality", carb_settings=RENDER_CARB_SETTINGS)
+        )
+    )
     sim.set_camera_view(*(scene_camera(args_cli.scene) or ([2.5, 2.5, 2.0], [0.0, 0.0, 0.8])))
 
     robot_cfg = BIMANUAL_ARM_CFG.replace(

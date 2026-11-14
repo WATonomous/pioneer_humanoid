@@ -35,6 +35,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 # Editable-installed in the image; fallbacks for a bare bind-mounted checkout.
 sys.path.insert(0, str(_SRC / "pioneer_humanoid"))
 sys.path.insert(0, str(_SRC / "robot_learning"))
+sys.path.insert(0, str(_SRC / "simulation" / "isaac_scenes"))   # humanoid_isaac_scenes, if the image predates its install
 
 parser = argparse.ArgumentParser(description="RTC rollout on the pioneer left arm, push-block scene.")
 parser.add_argument("--policy_path", type=str, default=None, help="checkpoint folder or Hub repo id")
@@ -69,6 +70,7 @@ from isaaclab.scene import InteractiveScene  # noqa: E402
 
 from humanoid_isaac_scenes import make_scene_cfg, scene_camera  # noqa: E402
 from humanoid_rl_tasks.push_block.push_env_cfg import RewardsCfg, TerminationsCfg  # noqa: E402
+from humanoid_rl_tasks.workcell import RENDER_CARB_SETTINGS  # noqa: E402
 from humanoid_robot_learning.deploy.pioneer_interface import (  # noqa: E402
     SIM_ACTION_JOINT_ORDER,
     SIM_STATE_JOINTS,
@@ -124,7 +126,12 @@ def _joint_ids(robot, names: list[str]) -> list[int]:
 
 def build_scene(camera_keys: list[str]) -> tuple[sim_utils.SimulationContext, InteractiveScene]:
     sim = sim_utils.SimulationContext(
-        sim_utils.SimulationCfg(dt=PHYSICS_DT, render_interval=DECIMATION, device=args_cli.device)
+        sim_utils.SimulationCfg(
+            dt=PHYSICS_DT,
+            render_interval=DECIMATION,
+            device=args_cli.device,
+            render=sim_utils.RenderCfg(rendering_mode="quality", carb_settings=RENDER_CARB_SETTINGS),
+        )
     )
     sim.set_camera_view(*scene_camera("push"))
 

@@ -2,16 +2,27 @@
 
 The real rig is the pioneer arm on its floor stand in front of a 30.5-inch
 table inside the lightbox (Onshape CAD, ``assets/props/lightbox``). This module
-owns that room -- floor, light, visible CAD lightbox, invisible table
-collision -- plus the arm pose and table-top height, so every manipulation
+owns the rig -- visible CAD lightbox and its light tube, glossy table top, invisible
+table collision -- plus the arm pose and table-top height, so every manipulation
 scene shares one grounding instead of each re-deriving it.
 
+There are two variants of the rig, the second built on the first:
+
+  * ``LightboxWorkcellCfg``  SIMPLE: table, lightbox (with its tube light) and the robot.
+  * ``LabWorkcellCfg``       FULL LAB: the simple one plus the lab around it -- concrete floor, black tiled left wall,
+                             glass back wall, the dim dome and the warm overhead room light. It inherits from the
+                             simple one, so a change to the rig shows up in both.
+
 A scene subclasses ``LightboxWorkcellCfg`` and adds only its own objects,
-placed on ``TABLE_TOP_Z``::
+placed on ``TABLE_TOP_Z``; mix in ``LabRoomCfg`` to get its full-lab twin::
 
     @configclass
     class MySceneCfg(LightboxWorkcellCfg):
         widget = RigidObjectCfg(..., init_state=...(pos=(0.5, 0.0, TABLE_TOP_Z)))
+
+    @configclass
+    class MyLabSceneCfg(MySceneCfg, LabRoomCfg):
+        pass
 
 Imported by the RL tasks (``push_block``) and by ``humanoid_isaac_scenes``
 (which already depends on this package), so the teleop ``--scene`` registry
@@ -31,6 +42,13 @@ from isaaclab.utils import configclass
 _PROPS = Path(__file__).resolve().parents[4] / "assets" / "props"  # -> <repo>/assets/props
 TABLE_USD = str(_PROPS / "table.usd")
 LIGHTBOX_USD = str(_PROPS / "lightbox.usd")
+LAB_ROOM_USD = str(_PROPS / "lab_room.usd")  # concrete floor, black tiled left wall, glass back wall (visual only)
+# Photos of the view through the lab's glass wall; the back wall shows one of them (picked at random by the vision DR).
+LAB_BACK_WALL_TEXTURES = tuple(str(_PROPS / "lab_room" / "textures" / f"glass_view_{i}.jpg") for i in range(3))
+LAB_BACK_WALL_TEXTURE_PRIM = "/LabRoom/Looks/GlassView/tex"   # under each env: every env has its own room
+# The room spans x -0.76..1.10, y -2.60..1.25 around its env's origin, so envs of a scene with a room are at least this far apart
+# (4 m) and each sees only its own room.
+LAB_ROOM_ENV_SPACING = 4.0
 
 # ── arm on its floor stand ───────────────────────────────────────────────────
 ROBOT_STAND_LIFT_Z = 1.1997   # base_link lift so the stand's feet reach floor level
@@ -76,17 +94,52 @@ BOTTOM_PANEL = 0.1875 * 0.0254 * 30.5 / 30.0   # the lightbox's white bottom pan
 TUBE_POS = (0.45, -0.06, 1.385)
 TUBE_HALF_LEN, TUBE_R = 0.48, 0.03
 
+# Kit's RTX texture streaming loads textures on several worker threads, and with the lab room's three textures it intermittently
+# aborts Kit with "unlock() called by non-owning thread" (a lock taken on one thread and released on another; headless or GUI).
+# Streaming only helps scenes with huge texture sets, so every sim that loads these scenes passes this as ``RenderCfg.carb_settings``.
+RENDER_CARB_SETTINGS = {"/rtx-transient/resourcemanager/enableTextureStreaming": False}
+
 # Teleop initial view: from the robot's front-right, looking at the table top.
 WORKCELL_CAMERA = ([1.6, -1.2, 1.5], [0.55, 0.0, TABLE_TOP_Z])
+# Same idea for the full-lab scenes, from inside the room (its back wall is at x = 1.10, so the camera above would be behind it).
+LAB_WORKCELL_CAMERA = ([-0.7, -1.8, 1.8], [0.8, 0.1, 0.9])
 
 
+# Warm room light on the ceiling outside the box, 1 m behind the cube (on the robot's side) and 1.5 m above it; its light
+# reaches the cube through the open front, partly shadowed by the robot.
+ROOM_LIGHT_POS = (0.48 - 1.0, LIGHTBOX_POS[1], TABLE_TOP_Z + 1.5)
+ROOM_LIGHT_COLOR = (1.0, 0.8, 0.6)
+ROOM_LIGHT_RADIUS = 0.3
+ROOM_LIGHT_INTENSITY = 60000.0
 DOME_INTENSITY = 400.0
-TUBE_INTENSITY = 140000.0
-_BOARD = sim_utils.PreviewSurfaceCfg(diffuse_color=(0.97, 0.97, 0.97), roughness=0.15)
+TUBE_INTENSITY = 80000.0
+
+
+@configclass
+class WhiteboardSurfaceCfg(sim_utils.MdlFileCfg):
+    """A glossy white dry-erase board, as an Omniverse OmniPBR material (the renderer's full reflection model).
+
+    A glossy dielectric-like board that reads as a whiteboard, not a mirror: a low reflection roughness for a smooth wiped
+    surface and a moderate ``metallic_constant`` (0.35) so the arm and lights show as a clear but faint reflection. Tried and
+    rejected: a plain dielectric (metallic ~0, roughness 0.12) and an ``OmniPBR_ClearCoat`` build (IOR 1.56-2.2) showed no
+    visible reflection in the camera; the old 0.5 was close to a mirror. Omniverse has no whiteboard preset."""
+
+    mdl_path: str = "OmniPBR.mdl"
+    diffuse_color_constant: tuple[float, float, float] = (0.9, 0.9, 0.91)
+    reflection_roughness_constant: float = 0.04
+    specular_level: float = 1.0
+    metallic_constant: float = 0.35
+
+
+_BOARD = WhiteboardSurfaceCfg()
 _HOUSING = sim_utils.PreviewSurfaceCfg(diffuse_color=(0.04, 0.04, 0.045), roughness=0.5)
-_SEAM_Y, _BOARD_HALF_Y = -0.01, 0.745
+_SEAM_Y, _BOARD_HALF_Y, _SEAM_HALF = -0.01, 0.745, 0.002   # the seam is 4 mm wide
 _BOARD_X, _BOARD_LEN_X = _TABLE_POS[0], 24 * 0.0254 - 0.008
 _BOARD_Z = TABLE_TOP_Z + BOTTOM_PANEL - 0.0003
+# The real table surface a block can sit on (the white boards inside the lightbox), env frame. The table's invisible collision
+# slab reaches past this (a block beyond the front edge is still held up in the sim but would hang in mid-air on the render
+# and fall on the real table), so anything that places objects uses these bounds, not the collision.
+TABLE_SURFACE = dict(x_min=_BOARD_X - _BOARD_LEN_X / 2, x_max=_BOARD_X + _BOARD_LEN_X / 2, y_abs=_BOARD_HALF_Y)
 _HANGER_H = (LIGHTBOX_TOP_Z - 0.02) - (TUBE_POS[2] + TUBE_R) + 0.004
 _HANGER_Z = (LIGHTBOX_TOP_Z - 0.02 + TUBE_POS[2] + TUBE_R) / 2
 
@@ -101,24 +154,14 @@ class LightboxWorkcellCfg(InteractiveSceneCfg):
 
     robot: ArticulationCfg = MISSING
 
-    # The lab around the box is dim: dark floor, faint dome; the tube light below lights the box.
+    # The box is lit by its own tube light; the lab around it is LabRoomCfg.
     plane = AssetBaseCfg(
         prim_path="/World/GroundPlane",
         init_state=AssetBaseCfg.InitialStateCfg(pos=(0.0, 0.0, GROUND_Z)),
         spawn=GroundPlaneCfg(visible=False),
     )
-    room_floor = AssetBaseCfg(
-        prim_path="/World/RoomFloor",
-        init_state=AssetBaseCfg.InitialStateCfg(pos=(0.0, 0.0, GROUND_Z - 0.01)),
-        spawn=sim_utils.CuboidCfg(size=(20.0, 20.0, 0.02),
-                                  visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.1, 0.1, 0.11), roughness=0.8)),
-    )
-    light = AssetBaseCfg(
-        prim_path="/World/light",
-        spawn=sim_utils.DomeLightCfg(color=(0.75, 0.75, 0.75), intensity=DOME_INTENSITY),
-    )
     tube_light = AssetBaseCfg(
-        prim_path="/World/tube_light",
+        prim_path="{ENV_REGEX_NS}/TubeLight",
         init_state=AssetBaseCfg.InitialStateCfg(pos=(TUBE_POS[0] + 0.004, TUBE_POS[1], TUBE_POS[2] - TUBE_R - 0.02),
                                                 rot=(0.70710678, 0.0, 0.0, 0.70710678)),   # its length (local X) along Y
         spawn=sim_utils.CylinderLightCfg(length=2 * TUBE_HALF_LEN, radius=0.012, intensity=TUBE_INTENSITY,
@@ -156,19 +199,19 @@ class LightboxWorkcellCfg(InteractiveSceneCfg):
     # Two glossy white boards on the bottom panel, meeting at a seam (visual only).
     floor_board_left = AssetBaseCfg(
         prim_path="{ENV_REGEX_NS}/FloorBoardLeft",
-        init_state=AssetBaseCfg.InitialStateCfg(pos=(_BOARD_X, (_SEAM_Y + 0.0008 + _BOARD_HALF_Y) / 2, _BOARD_Z)),
-        spawn=sim_utils.CuboidCfg(size=(_BOARD_LEN_X, _BOARD_HALF_Y - _SEAM_Y - 0.0008, 0.0008), visual_material=_BOARD),
+        init_state=AssetBaseCfg.InitialStateCfg(pos=(_BOARD_X, (_SEAM_Y + _SEAM_HALF + _BOARD_HALF_Y) / 2, _BOARD_Z)),
+        spawn=sim_utils.CuboidCfg(size=(_BOARD_LEN_X, _BOARD_HALF_Y - _SEAM_Y - _SEAM_HALF, 0.0008), visual_material=_BOARD),
     )
     floor_board_right = AssetBaseCfg(
         prim_path="{ENV_REGEX_NS}/FloorBoardRight",
-        init_state=AssetBaseCfg.InitialStateCfg(pos=(_BOARD_X, (_SEAM_Y - 0.0008 - _BOARD_HALF_Y) / 2, _BOARD_Z)),
-        spawn=sim_utils.CuboidCfg(size=(_BOARD_LEN_X, _BOARD_HALF_Y + _SEAM_Y - 0.0008, 0.0008), visual_material=_BOARD),
+        init_state=AssetBaseCfg.InitialStateCfg(pos=(_BOARD_X, (_SEAM_Y - _SEAM_HALF - _BOARD_HALF_Y) / 2, _BOARD_Z)),
+        spawn=sim_utils.CuboidCfg(size=(_BOARD_LEN_X, _BOARD_HALF_Y + _SEAM_Y - _SEAM_HALF, 0.0008), visual_material=_BOARD),
     )
     floor_seam = AssetBaseCfg(
         prim_path="{ENV_REGEX_NS}/FloorSeam",
         init_state=AssetBaseCfg.InitialStateCfg(pos=(_BOARD_X, _SEAM_Y, _BOARD_Z - 0.0001)),
-        spawn=sim_utils.CuboidCfg(size=(_BOARD_LEN_X, 0.0016, 0.0006),
-                                  visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.55, 0.55, 0.55))),
+        spawn=sim_utils.CuboidCfg(size=(_BOARD_LEN_X, 2 * _SEAM_HALF, 0.0006),
+                                  visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 0.0, 0.0), roughness=1.0)),   # black line
     )
 
     # The light tube's black housing with its glowing diffuser strip underneath, and two hangers up to the rail.
@@ -193,3 +236,28 @@ class LightboxWorkcellCfg(InteractiveSceneCfg):
         init_state=AssetBaseCfg.InitialStateCfg(pos=(TUBE_POS[0], TUBE_POS[1] - 0.33, _HANGER_Z)),
         spawn=sim_utils.CuboidCfg(size=(0.024, 0.06, _HANGER_H), visual_material=_HOUSING),
     )
+
+
+@configclass
+class LabRoomCfg:
+    """The lab around the box: concrete floor, black tiled wall on the robot's left (+y), the glass wall behind the box
+    (+x), the faint dome and the warm overhead room light. A mixin: add it to any scene class to get its full-lab twin.
+
+    The room and its light are per env (under ``{ENV_REGEX_NS}``), so parallel envs are isolated copies; only the faint dome
+    is global. Use ``env_spacing >= LAB_ROOM_ENV_SPACING`` with several envs."""
+
+    lab_room = AssetBaseCfg(prim_path="{ENV_REGEX_NS}/LabRoom", spawn=UsdFileCfg(usd_path=LAB_ROOM_USD))
+    light = AssetBaseCfg(
+        prim_path="/World/light",
+        spawn=sim_utils.DomeLightCfg(color=(0.75, 0.75, 0.75), intensity=DOME_INTENSITY),
+    )
+    room_light = AssetBaseCfg(
+        prim_path="{ENV_REGEX_NS}/RoomLight",
+        init_state=AssetBaseCfg.InitialStateCfg(pos=ROOM_LIGHT_POS),
+        spawn=sim_utils.DiskLightCfg(radius=ROOM_LIGHT_RADIUS, color=ROOM_LIGHT_COLOR, intensity=ROOM_LIGHT_INTENSITY),
+    )
+
+
+@configclass
+class LabWorkcellCfg(LightboxWorkcellCfg, LabRoomCfg):
+    """FULL LAB: the simple workcell (``LightboxWorkcellCfg``) plus the lab room and the overhead lighting."""
