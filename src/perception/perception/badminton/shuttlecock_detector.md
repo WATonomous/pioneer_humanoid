@@ -316,6 +316,33 @@ python benchmark_latency.py --engine path/to/best.engine --imgsz 960 --n_iters 2
 - Measures speed only, not accuracy. Re-check accuracy on the held-out eval set after exporting.
 - Model time is not the number that matters in the end. Measure camera frame to published detection.
 
+## Running the detector node (`/data/weights`)
+
+`shuttlecock_detector_node` loads its model from the `weights` parameter in `config/perception_config.yaml`, which defaults to `/data/weights/yolo26n.pt`. That path is not in the image. It comes from a volume mount of a folder on the host:
+
+| Host | Container |
+|---|---|
+| `~/shuttle_data/` | `/data/` |
+| `~/shuttle_data/weights/yolo26n.pt` | `/data/weights/yolo26n.pt` |
+
+The mount is in the shared modules/docker-compose.perception.yaml (${HOME}/shuttle_data:/data:ro), so it works on a fresh checkout and on the robot. ${HOME} is the home directory of whoever runs watod, so put the weights under that user's ~/shuttle_data.
+
+If your modules/docker-compose.perception.local.yaml replaces volumes with !override (the existing one does, to move the source mount to /home/bolty/ament_ws), it drops the shared /data mount, so keep a ${HOME}/shuttle_data:/data:ro line in it.
+
+Put the weights on the host:
+
+```
+mkdir -p ~/shuttle_data/weights
+# Shuttlecock checkpoint from #513 (single class: shuttlecock = class 0):
+cp <path/to/513/best.pt> ~/shuttle_data/weights/yolo26n_v2.pt
+# Stock COCO-pretrained YOLO26n, the current default in `weights`:
+cd ~/shuttle_data/weights && python3 -c "from ultralytics import YOLO; YOLO('yolo26n.pt')"
+```
+
+**Swapping to the #513 checkpoint.** `imgsz: 1280`, `conf_threshold: 0.60` and `class_ids: [0]` are already set for the #513 checkpoint, but `weights` still points at the stock `yolo26n.pt`. In COCO, class 0 is *person*, so until you swap, the detector finds people, not shuttlecocks. (The old stand-in was `class_ids: [32]`, COCO "sports ball", which only reached about 7% recall in #513.) To swap, set `weights: "/data/weights/yolo26n_v2.pt"` in `perception_config.yaml`. If you go back to stock weights, also restore `class_ids: [32]`.
+
+Then start it with `ros2 launch perception perception.launch.py use_detector:=true`. The detector is off by default (`use_detector:=false`), so the rest of the launch works without the weights. To use a different file, change `weights` in `perception_config.yaml` to any path under `/data/`. The same mount also holds recorded bags in `~/shuttle_data/bags`. The detector runs on cuda:0 by default (torch_device launch arg). On a machine without an NVIDIA GPU, launch with torch_device:=cpu, or set TORCH_DEVICE=cpu under environment: in your local compose override.
+
 ## Known issues
 
 - `auto_label.py` guesses whether Grounding DINO returns normalized center-width-height boxes or pixel corners, and the guess depends on the installed version. Overlay boxes on a few frames and check them by eye before labeling everything. It also needs to be confirmed to install on the 5070 Ti.

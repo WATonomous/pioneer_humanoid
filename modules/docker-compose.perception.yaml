@@ -28,6 +28,7 @@ services:
       - /dev/bus/usb:/dev/bus/usb
     volumes:
       - ${MONO_DIR}/src/perception/perception:/root/ament_ws/src/perception
+      - ${HOME}/shuttle_data:/data:ro
     command: /bin/bash -c "ros2 launch perception perception.launch.py"
 
   # Real wrist camera -> /wrist_cam/image_rect (src/perception/wrist_camera). Same image as

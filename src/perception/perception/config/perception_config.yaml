@@ -24,3 +24,33 @@ perception_node:
     # Debug parameters
     debug_mode: false
     save_debug_images: false
+
+shuttlecock_detector_node:
+  ros__parameters:
+    image_topic: "/camera/camera/color/image_raw"
+    point_topic: "/perception/shuttlecock/detections_2d"
+    visible_topic: "/perception/shuttlecock/detection_visible"
+    weights: "/data/weights/yolo26n.pt"   # update to "/data/weights/yolo26n_v2.pt"
+    imgsz: 1280
+    conf_threshold: 0.60
+    class_ids: [0]
+    half: true
+
+shuttlecock_localizer_node:
+  ros__parameters:
+    point_topic: "/perception/shuttlecock/detections_2d"
+    depth_topic: "/camera/camera/aligned_depth_to_color/image_raw"
+    camera_info_topic: "/camera/camera/aligned_depth_to_color/camera_info"
+    output_topic: "/perception/shuttlecock/detections_3d"
+    sync_slop: 0.015
+    sync_queue_size: 60   # 2 s of depth at 30 Hz
+
+pose_estimation_node:
+  ros__parameters:
+    image_topic: "/camera/color/image_raw"
+    output_topic: "/perception/pose_estimation"
+    person_weights: "/data/weights/yolo26n.pt"
+    pose_onnx: "/opt/models/rtmpose-s_body7.onnx"
+    half: true
+    imgsz: 640
+    person_conf: 0.50
