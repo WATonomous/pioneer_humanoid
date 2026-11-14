@@ -129,6 +129,7 @@ def generate_launch_description():
             executable='trajectory_EKF_prediction_node',
             name='trajectory_EKF_prediction_node',
             output='screen',
+            parameters=[config],
         ),
         Node(
             package='perception',
