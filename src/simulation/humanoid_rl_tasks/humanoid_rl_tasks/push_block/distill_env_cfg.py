@@ -80,7 +80,7 @@ class DistillObservationsCfg:
 
     @configclass
     class TeacherCfg(ObsGroup):
-        """Privileged observations matching the trained PPO teacher (37-D)."""
+        """Privileged observations matching the trained PPO teacher (63-D)."""
 
         joint_pos = ObsTerm(func=mdp.joint_pos_rel)
         joint_vel = ObsTerm(func=mdp.joint_vel_rel)
