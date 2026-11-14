@@ -1,14 +1,23 @@
 # Parameters for the CAN node
 can_node:
   ros__parameters:
-    # CAN Interface Configuration
-    can_interface: "can0"              # CAN interface name (can0, can1, etc.)
-    device_path: "/dev/canable"        # Serial device path for SLCAN
-    bustype: "slcan"                   # Bus type to create a CAN interface: "socketcan" or "slcan"
-    bitrate: 1000000                   # CAN bitrate in bps (125000, 250000, 500000, 1000000)
-    
     # Communication Settings
-    receive_poll_interval_ms: 10           # Interval for polling CAN messages in milliseconds
+    publish_rate_hz: 50                # Rate for checking incoming CAN messages
+    receive_poll_interval_ms: 10       # Interval for polling CAN messages in milliseconds
 
     # MIT: CAN id the GL II drives reply on ("master id", default 0x000).
     mit_master_id: 0
+
+    # CAN Interface Configuration
+    upper:
+      can_interface: "can0"  # CAN interface name (can0, can1, etc.)
+      device_path: "/dev/canable1"  # Serial device path for SLCAN
+      bustype: "slcan"  # Bus type to create a CAN interface: "socketcan" or "slcan"
+      bitrate: 1000000  # CAN bitrate in bps (125000, 250000, 500000, 1000000)
+      motor_ids: [11, 12, 13, 14, 21, 22, 30, 31, 32, 33, 34, 104]
+    lower:
+      can_interface: "can1"
+      device_path: "/dev/canable2"
+      bustype: "slcan"
+      bitrate: 1000000
+      motor_ids: [40, 41, 42, 43, 44, 45, 50, 51, 52, 53, 54, 55]
