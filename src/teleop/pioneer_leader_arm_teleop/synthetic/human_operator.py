@@ -99,15 +99,9 @@ class Style:
     overlap: float        # how early the next part of an arc starts (0: in sequence .. 1: all at once)
 
     @classmethod
-    def sample(cls, rng: np.random.Generator, pace: float = 1.0, clean: bool = False) -> "Style":
-        """A practised operator at ``pace`` 1; 0.5 is a slow, careful beginner, 1.5 brisk.
-
-        ``clean``: an idealised operator for smooth reference demos: no tremor, drift, wobble or misjudged positions,
-        near-perfect aim (few correction strokes) and short pauses; speed and path shape still vary per episode."""
+    def sample(cls, rng: np.random.Generator, pace: float = 1.0) -> "Style":
+        """A practised operator at ``pace`` 1; 0.5 is a slow, careful beginner, 1.5 brisk."""
         speed = rng.uniform(0.5, 0.8) / pace
-        if clean:
-            return cls(speed=speed, aim=0.005, react=0.15, tremor=0.0, drift=0.0, wobble_deg=0.0,
-                       hesitate=0.15 / pace, see=0.0, joint_blend=rng.uniform(0.25, 0.7), overlap=rng.uniform(0.35, 0.65))
         return cls(
             speed=speed,
             aim=min(0.1, rng.uniform(0.03, 0.06) * 0.8 / speed),   # speed-accuracy trade-off: hurried people aim worse
@@ -214,10 +208,9 @@ class HumanOperator:
         self.rot = _Channel(np.zeros(3))                 # rotation vector, world frame, applied to R_home
         self.grip = _Channel([0.0])
         s = self.style
-        quiet = s.tremor == 0.0 and s.drift == 0.0   # Style.sample(clean=True): no hand noise at all
         self.pos_noise = _Noise(rng, 3, s.tremor, s.drift, tau=1.5)
-        self.rot_noise = _Noise(rng, 3, 0.0 if quiet else math.radians(0.02), math.radians(s.wobble_deg), tau=2.0)
-        self.grip_noise = _Noise(rng, 1, 0.0 if quiet else 0.001, 0.0 if quiet else 0.005, tau=1.0)
+        self.rot_noise = _Noise(rng, 3, math.radians(0.02), math.radians(s.wobble_deg), tau=2.0)
+        self.grip_noise = _Noise(rng, 1, 0.001, 0.005, tau=1.0)
         self._pn, self._rn, self._gn = np.zeros(3), np.zeros(3), 0.0   # the noise as the hand last left it
         self.bends: list[tuple[float, float, np.ndarray]] = []   # (start, duration, path offsets at s = 0..1)
         self.trace: list[str] = []                       # one line per move, for debugging plans
