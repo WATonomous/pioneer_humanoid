@@ -18,11 +18,16 @@ class ShuttlecockLocalizer(Node):
         self.bridge = CvBridge()
         self.intrinsics = None
 
-        self.declare_parameter('point_topic', '/perception/shuttlecock/detections_2d')
-        self.declare_parameter('visible_topic', '/perception/shuttlecock/visible')
-        self.declare_parameter('depth_topic', '/camera/camera/aligned_depth_to_color/image_raw')
-        self.declare_parameter('camera_info_topic', '/camera/camera/aligned_depth_to_color/camera_info')
-        self.declare_parameter('output_topic', '/perception/shuttlecock/detections_3d')
+        self.declare_parameter(
+            'point_topic', '/perception/shuttlecock/detections_2d')
+        self.declare_parameter(
+            'visible_topic', '/perception/shuttlecock/visible')
+        self.declare_parameter(
+            'depth_topic', '/camera/camera/aligned_depth_to_color/image_raw')
+        self.declare_parameter(
+            'camera_info_topic', '/camera/camera/aligned_depth_to_color/camera_info')
+        self.declare_parameter(
+            'output_topic', '/perception/shuttlecock/detections_3d')
         self.declare_parameter('sync_slop', 0.015)
         self.declare_parameter('sync_queue_size', 60)
 
