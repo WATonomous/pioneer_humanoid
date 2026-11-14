@@ -1,4 +1,4 @@
-"""Controller input adapter for the scene backends (MuJoCo; Isaac once pioneer_bimanual_arm_8dof has a USD).
+"""Controller input adapter for the scene backends (mujoco/mujoco_sim.py, isaac/isaac_sim.py).
 
     No simulator launch or robot writes at import. The scene script owns all
     simulation, rendering, recording and reset operations; this turns headset
