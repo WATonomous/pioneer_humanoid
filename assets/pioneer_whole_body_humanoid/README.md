@@ -11,7 +11,7 @@ directions as the team's model (`python assets/old_leg_only_humanoid/check_leg_d
 ## Masses and joint limits
 
 - **Joint limits** (each joint's `effort` / `velocity`) are its motor's. **Exact** for the legs (Hip_F / Knee 222 Nm,
-  Hip_A 120 Nm, Hip_R 60 Nm, ankles 60 Nm) and the arms (from `pioneer_humanoid/bimanual_arm.py`: shoulder 53 Nm,
+  Hip_A 120 Nm, Hip_R 60 Nm, ankles 60 Nm) and the arms (from `pioneer_humanoid/arm_params.py`: shoulder 53 Nm,
   elbow / forearm 22 Nm, wrist 0.73 Nm, gripper jaws 30 N). **Estimates** (no motor chosen yet): waist 60 Nm, neck
   5 Nm, the hands' wrist 2 Nm and finger joints 0.5 Nm.
 - **Masses** are **estimates**: no part has been weighed. Each link's mass, centre of mass and inertia are summed from
