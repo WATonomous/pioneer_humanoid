@@ -41,12 +41,14 @@ BLOCK = 0.04                    # cube edge
 BLOCK_MASS = 0.05
 COLOURS = {"red": [0.85, 0.2, 0.2, 1], "green": [0.2, 0.7, 0.3, 1], "blue": [0.2, 0.4, 0.85, 1]}
 # x, y ranges the blocks are shuffled in, beside the drawer and all within the 8dof left arm's reach from above:
-# x from the table's front edge (0.235) plus half a block; x <= 0.32 and y >= 0.11 keep the gripper inside its
-# workspace (inverse kinematics on the finger body, 6 cm above a block); y <= 0.28 keeps clear of the cabinet side
-# (0.33) and of the open gripper pulling the tab.
-BLOCK_AREA = ((0.26, 0.32), (0.11, 0.28))
-# Centre-to-centre: the jaws are 61 mm long, so a closer neighbour gets clipped grasping its partner.
-BLOCK_SPACING = 0.07
+# x from the table's front edge (0.235) plus half a block; x <= 0.30 keeps the gripper inside its workspace down to
+# y = 0.06 (inverse kinematics on the finger body, 6 cm above a block: within 4 mm at the corners); y <= 0.29 keeps
+# clear of the cabinet side (0.33) and of the open gripper pulling the tab. The strip is narrow in x, so the blocks
+# spread along y.
+BLOCK_AREA = ((0.26, 0.30), (0.06, 0.29))
+# Centre-to-centre, at least: well apart for the operator (and above the 61 mm jaws, which clip a closer neighbour).
+# The most the strip allows: 11 cm needs y below 0.06, out of reach.
+BLOCK_SPACING = 0.10
 BLOCK_YAW = 0.2                 # rad, random turn of each block
 
 STEPS_TOTAL = 2 + len(COLOURS)
