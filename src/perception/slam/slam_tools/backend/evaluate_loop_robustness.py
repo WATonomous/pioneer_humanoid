@@ -38,7 +38,7 @@ def main():
     parser.add_argument("--points", type=int, default=61,
                         help="number of samples in each sweep")
     parser.add_argument("--output-dir", type=Path,
-                        default=Path(__file__).resolve().parent)
+                        default=Path(__file__).resolve().parents[2] / "docs" / "loop_robustness")
     args = parser.parse_args()
     if args.max_error <= 0 or args.max_rotation_deg <= 0 or args.points < 2:
         parser.error("both maximum errors must be positive and --points at least 2")

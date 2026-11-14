@@ -17,10 +17,16 @@ class PoseGraphBackend:
         self,
         prior_rot_sigma=1e-6,
         prior_trans_sigma=1e-6,
-        loop_kernel="huber",
+        loop_kernel="cauchy",
         loop_kernel_scale=1.345,
     ):
-        self._isam = gtsam.ISAM2(gtsam.ISAM2Params())
+        # add custom params
+        params = gtsam.ISAM2Params()
+        params.relinearizeSkip = 1
+        self.extra_updates = 20
+
+        
+        self._isam = gtsam.ISAM2(params)
         self._seen_ids = set()
         self._loop_pairs = set()
         self._estimate = gtsam.Values()
@@ -101,6 +107,8 @@ class PoseGraphBackend:
             )
         )
         self._isam.update(factors, gtsam.Values())
+        for _ in range(self.extra_updates):
+            self._isam.update(gtsam.NonlinearFactorGraph(), gtsam.Values()) # no new data, 
         self._estimate = self._isam.calculateEstimate()
         self._loop_pairs.add(pair)
         return self.optimized_poses()

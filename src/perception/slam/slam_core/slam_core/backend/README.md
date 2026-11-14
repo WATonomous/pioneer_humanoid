@@ -8,7 +8,7 @@ odometry pose is used as the initial estimate. A `LoopClosure` adds another betw
 factor, wrapped in a Huber or Cauchy robust noise model.
 
 ```python
-backend = PoseGraphBackend(loop_kernel="huber")
+backend = PoseGraphBackend(loop_kernel="cauchy")
 backend.add_keyframe(keyframe)
 poses = backend.add_loop_constraint(loop_closure)
 ```
@@ -21,5 +21,5 @@ This module currently handles pose-graph optimization only. It does not detect l
 consume ROS topics, publish TF, add IMU preintegration factors, or save and reload a
 graph. Those are separate backend tasks.
 
-The runtime needs NumPy and the GTSAM Python bindings. GTSAM is not currently listed
-in this package's `pyproject.toml`, so it must be provided by the environment.
+The runtime needs NumPy and the GTSAM Python bindings. GTSAM is an optional extra in
+this package's `pyproject.toml`; install it with `pip install -e ".[backend]"`.
