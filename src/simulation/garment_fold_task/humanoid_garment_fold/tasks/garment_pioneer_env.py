@@ -1,4 +1,4 @@
-"""Garment-fold env for the pioneer_bimanual_arm.
+"""Garment-fold env for the pioneer_bimanual_arm_8dof.
 
 NEW (WATonomous) -- not vendored. Subclasses the vendored `GarmentEnv`: inherits
 the particle-cloth garment object, distance reward, success checker and reset
@@ -21,6 +21,7 @@ from isaaclab.sensors import TiledCamera
 from humanoid_garment_fold.tasks.garment_env import GarmentEnv
 from humanoid_garment_fold.tasks.challenge_garment_loader import ChallengeGarmentLoader
 from humanoid_garment_fold.tasks.garment_pioneer_cfg import (
+    TABLE038_POS,
     GarmentPioneerEnvCfg,
     LEFT_ARM_JOINTS,
     RIGHT_ARM_JOINTS,
@@ -32,6 +33,7 @@ from humanoid_garment_fold.assets.scene import (
     TABLE038_USD_PATH,
 )
 from humanoid_garment_fold.utils.logger import get_logger
+from pioneer_humanoid.arm_8dof_params import GRIPPER_STROKE
 
 logger = get_logger(__name__)
 
@@ -149,9 +151,7 @@ class GarmentPioneerEnv(GarmentEnv):
                 rigid_props=sim_utils.RigidBodyPropertiesCfg(kinematic_enabled=True),
                 collision_props=sim_utils.CollisionPropertiesCfg(),
             )
-            # standalone Table038.usd is Y-up; rotate +90 deg about X to lay flat
-            t.func("/World/Table", t, translation=(0.0, 0.0, 0.0),
-                   orientation=(0.7071068, 0.7071068, 0.0, 0.0))
+            t.func("/World/Table", t, translation=TABLE038_POS)
         else:
             logger.warning(
                 "[GarmentPioneerEnv] no scene or table USD found -- garment will "
@@ -162,16 +162,16 @@ class GarmentPioneerEnv(GarmentEnv):
     # ------------------------------------------------------------------ actions
     def _apply_action(self) -> None:
         a = self.actions
-        self.robot.set_joint_position_target(a[:, :6], joint_ids=self._l_arm)
-        self.robot.set_joint_position_target(a[:, 6:12], joint_ids=self._r_arm)
-        open_t = torch.tensor([[-0.05, 0.05]], device=self.device).repeat(self.num_envs, 1)
-        self.robot.set_joint_position_target(open_t, joint_ids=self._l_grip)
-        self.robot.set_joint_position_target(open_t, joint_ids=self._r_grip)
+        self.robot.set_joint_position_target(a[:, :7], joint_ids=self._l_arm)
+        self.robot.set_joint_position_target(a[:, 7:8] * GRIPPER_STROKE, joint_ids=self._l_grip)
+        self.robot.set_joint_position_target(a[:, 8:15], joint_ids=self._r_arm)
+        self.robot.set_joint_position_target(a[:, 15:16] * GRIPPER_STROKE, joint_ids=self._r_grip)
 
     # --------------------------------------------------------------- observation
     def _get_observations(self) -> dict:
         jp = self.robot.data.joint_pos
-        state = torch.cat([jp[:, self._l_arm], jp[:, self._r_arm]], dim=-1).squeeze(0)
+        state = torch.cat([jp[:, self._l_arm], jp[:, self._l_grip] / GRIPPER_STROKE,
+                           jp[:, self._r_arm], jp[:, self._r_grip] / GRIPPER_STROKE], dim=-1).squeeze(0)
         top_rgb = self.top_camera.data.output["rgb"]
         top_depth = self.top_camera.data.output["depth"].squeeze()
         left_rgb = self.left_camera.data.output["rgb"]
@@ -180,7 +180,7 @@ class GarmentPioneerEnv(GarmentEnv):
             top_depth.cpu().detach().numpy().copy() * 1000, 0, 65535
         ).astype(np.uint16)
         act = self.actions.squeeze(0) if hasattr(self, "actions") \
-            else torch.zeros(12, device=self.device)
+            else torch.zeros(16, device=self.device)
         return {
             "action": act.cpu().detach().numpy(),
             "observation.state": state.cpu().detach().numpy(),

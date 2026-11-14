@@ -33,11 +33,11 @@ from isaaclab.sensors import TiledCameraCfg
 from isaaclab.sim.spawners.from_files.from_files_cfg import GroundPlaneCfg, UsdFileCfg
 from isaaclab.utils import configclass
 
-from pioneer_humanoid.arm_params import CAMERAS as _PIONEER_CAMERAS
+from pioneer_humanoid.arm_8dof_params import CAMERAS as _PIONEER_CAMERAS
 from pioneer_humanoid.arm_params import vertical_aperture as _pioneer_vertical_aperture
 
 from humanoid_garment_fold.assets.scene import MARBLE_BEDROOM_USD_PATH, TABLE038_USD_PATH
-from humanoid_garment_fold.tasks.garment_pioneer_cfg import GarmentPioneerEnvCfg
+from humanoid_garment_fold.tasks.garment_pioneer_cfg import TABLE038_POS, GarmentPioneerEnvCfg
 
 # Robot base pose that reaches the garment, from GarmentPioneerEnvCfg (see
 # that file's comment for how these were derived) -- one source of truth.
@@ -51,7 +51,7 @@ _WRIST_RES = (480, 640)  # height, width
 def _wrist_cam_cfg(name: str) -> TiledCameraCfg:
     """TiledCameraCfg for wrist camera `name` under `{ENV_REGEX_NS}/Robot`
     (not GarmentPioneerEnvCfg's `/World/Robot` -- the registry namespaces the
-    robot per-env). Deliberately not `pioneer_humanoid.bimanual_arm
+    robot per-env). Deliberately not `pioneer_humanoid.bimanual_arm_8dof
     .make_camera_cfg`, which builds a plain `Camera`: that fails the
     `/isaaclab/cameras_enabled` check under this InteractiveScene+sim.reset()
     flow even with --enable_cameras set (verified). TiledCamera doesn't hit
@@ -91,7 +91,7 @@ _GROUND_DEFAULT = (
 _TABLE_DEFAULT = (
     AssetBaseCfg(
         prim_path="/World/Table",
-        init_state=AssetBaseCfg.InitialStateCfg(rot=(0.7071068, 0.7071068, 0.0, 0.0)),
+        init_state=AssetBaseCfg.InitialStateCfg(pos=TABLE038_POS),
         spawn=UsdFileCfg(
             usd_path=TABLE038_USD_PATH,
             rigid_props=sim_utils.RigidBodyPropertiesCfg(kinematic_enabled=True),
