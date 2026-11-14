@@ -1,4 +1,4 @@
-"""WebXR transport for the always-on Isaac controller scene."""
+"""WebXR transport: the headset page, its pose WebSocket and a /status endpoint."""
 import asyncio
 import json
 from pathlib import Path
@@ -21,7 +21,6 @@ class Shared:
         self.reset_sequence = 0
         self.record_presses = 0
         self.feedback = {"status": "Enter VR; tracked controllers move the arms"}
-        self.images = {}
         self.stop = threading.Event()
 
     def clear(self):
@@ -69,13 +68,6 @@ async def serve(shared, args):
 
     async def index(request):
         return web.Response(body=page, content_type="text/html", headers={"Cache-Control": "no-store"})
-
-    async def camera(request):
-        with shared.lock:
-            image = shared.images.get(request.match_info["name"])
-        if image is None:
-            raise web.HTTPServiceUnavailable(text="Camera not ready")
-        return web.Response(body=image, content_type="image/jpeg", headers={"Cache-Control": "no-store"})
 
     async def status(request):
         with shared.lock:
@@ -168,7 +160,6 @@ async def serve(shared, args):
     app = web.Application()
     app.router.add_get("/", index)
     app.router.add_get("/ws", socket)
-    app.router.add_get("/camera/{name}.jpg", camera)
     app.router.add_get("/status", status)
     runner = web.AppRunner(app, access_log=None)
     await runner.setup()

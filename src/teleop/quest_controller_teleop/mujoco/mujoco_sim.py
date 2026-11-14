@@ -1,7 +1,7 @@
 """Quest Touch controller teleoperation in MuJoCo: both arms, any humanoid_mujoco_scenes scene.
 
-Open http://localhost:8444/ in Meta Browser after `adb reverse tcp:8444 tcp:8444` (start_quest.sh does it all).
-The headset shows the ego camera and both wrist cameras (mono); --no-headset-video makes it only track.
+The headset only tracks (index.html streams its poses): open http://localhost:8444/ in Meta Browser after
+`adb reverse tcp:8444 tcp:8444` (start_quest.sh does it all).
 Left Y (or 6 with the window focused) resets the arms and the scene. --record: right B starts / saves a take;
 --record_arms left|right records one arm (8 values) for single-arm tasks.
 
@@ -28,16 +28,13 @@ sys.path.insert(0, str(_SRC / "robot_learning"))
 sys.path.insert(0, str(_THIS_DIR.parent))  # the simulator-independent controller modules
 sys.path.insert(0, str(_THIS_DIR))
 
-from mujoco_cameras import CameraStream, CameraWindow  # noqa: E402
+from mujoco_cameras import CameraWindow  # noqa: E402
 from scene_driver import ControllerSceneDriver, add_controller_args, check_controller_args  # noqa: E402
 from humanoid_robot_learning.recording.schema import ARM_SETS  # noqa: E402
 from humanoid_robot_learning.sim.sim_teleop_record import (  # noqa: E402
     add_record_args, load_record_schema, make_sim_recorder)
 
 CONTROL_DT = 0.01        # s, IK solve and actuator command period
-CAMERA_PERIOD = 1 / 15   # s, headset camera refresh (rendered on its own thread, ~30 ms for all three)
-CAMERA_SIZE = (360, 480)  # (height, width) px, 4:3 like the real ego and wrist cameras
-HEADSET_CAMERAS = ("ego", "wrist_left", "wrist_right")
 
 
 @dataclass
@@ -57,9 +54,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Quest Touch controller teleoperation in MuJoCo (both arms).")
     parser.add_argument("--scene", default="bimanual_sorting",
                         help="scene registered in humanoid_mujoco_scenes (an unknown name lists them)")
-    parser.add_argument("--headless", action="store_true", help="no window on this machine; the headset is the only view")
-    parser.add_argument("--no-headset-video", action="store_true",
-                        help="headset only tracks the controllers: no camera rendering, so the GPU is the window's")
+    parser.add_argument("--headless", action="store_true", help="no window (e.g. recording only)")
     add_controller_args(parser)
     add_record_args(parser, task_description="Quest VR teleop demonstration")
     parser.add_argument("--record_arms", choices=tuple(ARM_SETS), default="bimanual",
@@ -160,7 +155,7 @@ def make_driver(args, model, data) -> ControllerSceneDriver:
 
     frame = ego_frame(model, data) if args.controller_frame == "camera" else None
     return ControllerSceneDriver.from_args(args, {"left": LEFT_ARM_JOINTS, "right": RIGHT_ARM_JOINTS},
-                                           frame_calibration=frame, scene="mujoco")
+                                           frame_calibration=frame)
 
 
 def run() -> None:
@@ -171,7 +166,6 @@ def run() -> None:
 
     if args.scene not in list_scenes():
         raise SystemExit(f"unknown --scene {args.scene!r}; available: {list_scenes()}")
-    # The model's offscreen buffer must fit the window's (and recording's) 640x480 renders; the headset's are smaller.
     model = make_model(args.scene, cameras={name: CameraWindow.SIZE for name in CameraWindow.CAMERAS}, robot="8dof")
     data = mujoco.MjData(model)
     scene_hook, randomise = scene_step(args.scene), scene_reset(args.scene)
@@ -190,9 +184,6 @@ def run() -> None:
     driver = make_driver(args, model, data)
     substeps = max(1, round(CONTROL_DT / model.opt.timestep))
     dt = substeps * model.opt.timestep
-    cameras = None if args.no_headset_video else CameraStream(model, driver, HEADSET_CAMERAS, CAMERA_SIZE)
-    if cameras is not None:
-        cameras.start()
     print(f"[Quest] MuJoCo scene {args.scene}: open http://localhost:{args.controller_port}/ in Meta Browser "
           f"(after adb reverse tcp:{args.controller_port} tcp:{args.controller_port}). Left Y or 6 in the window resets.", flush=True)
     reset_key = threading.Event()  # set by the window's key handler, consumed by the control loop
@@ -214,8 +205,8 @@ def run() -> None:
     def control() -> None:
         driver.start_thread()   # the driver is owned by the thread that starts it: start, loop and close here
         try:
-            loop(model, data, driver, arms, cameras, window, recording, reset, reset_key, scene_hook, steps, substeps,
-                 dt, stop)
+            loop(model, data, driver, arms, window, recording, reset, reset_key, scene_hook, steps, substeps, dt,
+                 stop)
         finally:
             stop.set()
             driver.close()
@@ -234,8 +225,6 @@ def run() -> None:
     finally:
         stop.set()
         worker.join(timeout=2.)
-        if cameras is not None:
-            cameras.close()
         if window is not None:
             window.close()   # renders any queued recorded frames first
         if recorder is not None:
@@ -252,7 +241,7 @@ def step_status(steps, model, data) -> str:
     return "all steps done: save the take" if index >= total else f"step {index + 1}/{total}: {instruction}"
 
 
-def loop(model, data, driver, arms, cameras, window, recording, reset, reset_key, scene_hook, steps, substeps, dt,
+def loop(model, data, driver, arms, window, recording, reset, reset_key, scene_hook, steps, substeps, dt,
          stop) -> None:
     """Control ticks at dt until `stop` is set (window closed, Ctrl+C): input, IK, physics, camera frames.
 
@@ -262,7 +251,7 @@ def loop(model, data, driver, arms, cameras, window, recording, reset, reset_key
     def joint_positions():
         return {side: data.qpos[ids.qpos].copy() for side, ids in arms.items()}
 
-    next_tick, next_camera, shown, shown_step, tick = time.monotonic(), 0., None, None, 0
+    next_tick, shown, shown_step, tick = time.monotonic(), None, None, 0
     previous = {side: data.qpos[ids.qpos].copy() for side, ids in arms.items()}
     while not stop.is_set():
         if recording is not None and recording.recorder.is_complete:
@@ -312,9 +301,6 @@ def loop(model, data, driver, arms, cameras, window, recording, reset, reset_key
         now = time.monotonic()
         if window is not None:
             window.push(data)
-        if cameras is not None and now >= next_camera:
-            cameras.push(data)
-            next_camera = now + CAMERA_PERIOD
         if driver.status != shown:
             shown = driver.status
             print(f"[Quest] {shown}", flush=True)

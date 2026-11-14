@@ -2,8 +2,7 @@
 
 Drive the Pioneer bimanual rig's **7-DoF + 1-DoF-gripper arms**
 ([`pioneer_bimanual_arm_8dof`](../../../assets/pioneer_bimanual_arm_8dof/README.md)) in MuJoCo with Meta Quest 2 Touch
-controllers. MuJoCo only (no Isaac: the arm has no USD yet). The headset shows the sim's cameras; the Mac shows them
-too.
+controllers. MuJoCo only (no Isaac: the arm has no USD yet). The headset only tracks; you watch the Mac's window.
 
 ## Run (no GPU, runs on a laptop)
 
@@ -18,8 +17,7 @@ too.
    until poses arrive), so the VR controllers never touch the page. If it gives up (headset asleep), wake the
    headset and rerun, or pull the trigger anywhere on the page.
 3. The Mac shows one camera window: ego on top, both wrist cameras below (~30 fps). **6** resets; closing it stops
-   the sim. The headset shows the ego and wrist cameras (mono, 480x360, ~15 fps). `--no-headset-video` makes it
-   tracking-only (a plain dark scene), which keeps the GPU for this window.
+   the sim. The headset shows a plain dark scene: it only streams poses.
 
 By hand: `python src/teleop/quest_controller_teleop/mujoco/mujoco_sim.py --scene bimanual_sorting`,
 `adb reverse tcp:8444 tcp:8444`, then open `http://localhost:8444/` in Meta Browser. Only Meta Browser can take
