@@ -12,8 +12,10 @@ Converts arm joint targets (`ArmPose`) into per-motor CAN commands (`MotorCmd`),
 1. Each `ArmPose` is cached.
 2. A timer at `control_rate_hz` runs moderation one step and publishes, so `velocity_max` is a
    true deg/s bound however fast `ArmPose` arrives.
-3. Nothing is published until the rate-limiter has been seeded from real feedback.
+3. Nothing is published until the rate-limiter has been seeded from real feedback (the core
+   refuses to run unseeded; there is no assumed starting pose).
 4. If no `ArmPose` arrives within `command_timeout_sec`, commands stop and the next one re-seeds.
+5. If processing an `ArmPose` fails, that latches the MIT fault (below), like a watchdog fault.
 
 Each arm is seeded, timed out and moderated on its own. They share the feedback topic (motor ids
 must be unique across arms; the node refuses to start otherwise), the control tick and the MIT
@@ -74,7 +76,7 @@ peak set, a stalled joint can push at up to the peak until the temperature check
 Lifecycle: `MIT_ENTER` at startup, zero-stiffness frames until seeded, then gains, then
 zero-stiffness frames again when the stream goes stale. A fault latches for every arm: `limp`
 joints get `MIT_EXIT`, `damp` joints keep getting damping frames (a silent AK trips its CAN timeout
-and drops the arm). On Ctrl-C, `damp` joints are damped for `mit_shutdown_damp_sec` (default 2 s), then every
+and drops the arm). On Ctrl-C, `damp` joints are damped for `mit_shutdown_damp_sec` (2 s shipped), then every
 MIT joint is exited. Stop `joint_command` **before** `can_node`, with the arm supported.
 
 ## Gravity feed-forward
@@ -135,17 +137,17 @@ a limit, and the rest of the arm keeps working.
 
 | File | Role |
 |------|------|
-| `config/joint_command.yaml` | ROS params: `arms`, topics, control rate, default control type |
-| `config/arm_calibration.yaml` | Per-joint `can_id`, limits, `direction`, `zero_offset` (written by `calibrate_arm.py`) |
-| `config/arm_actuators.yaml` | Hand-set, under `safety:` (`global` defaults, then one full block per arm: `left`, `right`); each value's reason is in its comment |
+| `config/joint_command.yaml` | ROS params: `arms`, topics, control rate, default control type, timeouts. All required: the node has no defaults |
+| `config/arm_calibration.yaml` | Per-joint `can_id`, limits, `direction`, `zero_offset` (written by `calibrate_arm.py`); `direction` must be 1 or -1 and `lower_limit < upper_limit` |
+| `config/arm_actuators.yaml` | Hand-set, under `safety:` (`global` defaults, then one full block per arm: `left`, `right`); each value's reason is in its comment. An unknown key is refused at startup |
 
 `arm_actuators.yaml` keys (degrees, deg/s; at 50 Hz `velocity_max: 100` is 2°/tick):
 
 | Key | Effect |
 |-----|--------|
 | `active` | Drive this joint this run (see Launch) |
-| `velocity_max` / `delta_max` | Max speed / max ° change per tick |
-| `low_pass_alpha` | Higher → smoother/slower (e.g. `0.85`) |
+| `velocity_max` / `delta_max` | Max speed / max ° change per tick; must be > 0 while its `enable_*` is on |
+| `low_pass_alpha` | Higher → smoother/slower (e.g. `0.85`); must be in [0, 1) |
 | `enable_*` | Toggle each moderation stage without recompiling |
 | `control_type` | `0` = MIT_CONTROL, `4` = POSITION_LOOP, `-1` = node default |
 | `mit_*`, `gravity_*` | MIT gains, fault thresholds and feed-forward (see above) |
@@ -172,4 +174,5 @@ refuses to start when no arm has one.
 in `arm_actuators.yaml`. The right arm's `arm_actuators.yaml` block ships all inactive with
 bring-up gains; add `right` to `arms` once its `arm_calibration.yaml` block (ids) exists.
 
-**Defaults:** `arms=[left]`, `control_rate_hz=50`, `control_type=POSITION_LOOP` (4), overridden per joint in `arm_actuators.yaml`.
+**Parameters:** all from `joint_command.yaml` (no code defaults; a missing one stops startup).
+`control_type` there is the default for joints with `control_type: -1` in `arm_actuators.yaml`.

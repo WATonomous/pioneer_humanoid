@@ -6,6 +6,7 @@
 #include <cmath>
 #include <limits>
 #include <map>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 
@@ -40,7 +41,8 @@ std::string SeedReport::describe() const {
   return os.str();
 }
 
-JointConfig JointCommandCore::loadJointConfig(const YAML::Node& joint_node) {
+JointConfig JointCommandCore::loadJointConfig(const YAML::Node& joint_node,
+                                              const std::string& name) {
   JointConfig joint;
   joint.motor_id = static_cast<int8_t>(joint_node["can_id"].as<int>());
   joint.lower_limit = joint_node["lower_limit"].as<double>();
@@ -48,6 +50,16 @@ JointConfig JointCommandCore::loadJointConfig(const YAML::Node& joint_node) {
   joint.direction = joint_node["direction"].as<int>();
   joint.zero_offset = joint_node["zero_offset"].as<double>();
   joint.limit_range = joint_node["limit_range"].as<bool>();
+  if (joint.direction != 1 && joint.direction != -1) {
+    throw std::runtime_error("arm_calibration.yaml " + name + ": direction must be 1 or -1 (got " +
+                             std::to_string(joint.direction) + ")");
+  }
+  if (!(joint.lower_limit < joint.upper_limit)) {
+    std::ostringstream os;
+    os << "arm_calibration.yaml " << name << ": lower_limit (" << joint.lower_limit
+       << ") must be below upper_limit (" << joint.upper_limit << ")";
+    throw std::runtime_error(os.str());
+  }
   return joint;
 }
 
@@ -65,7 +77,7 @@ bool JointCommandCore::loadFromYaml(const YAML::Node& config, const std::string&
     if (!joint_node) {
       return false;
     }
-    joints_.push_back(loadJointConfig(joint_node));
+    joints_.push_back(loadJointConfig(joint_node, arm_side + " " + group + "." + joint_name));
   }
 
   const bool ok = joints_.size() == 6;
@@ -74,25 +86,22 @@ bool JointCommandCore::loadFromYaml(const YAML::Node& config, const std::string&
   }
   gripper_mapping_.reset();
   if (arm["gripper"] && arm["gripper"]["open_close"]) {
-    gripper_mapping_ = loadJointConfig(arm["gripper"]["open_close"]);
+    gripper_mapping_ =
+        loadJointConfig(arm["gripper"]["open_close"], arm_side + " gripper.open_close");
   }
 
   safety_.assign(joints_.size(), JointSafetyConfig{});
-  // Seed at 0 (the assumed safe starting pose an operator positions the arm at before
-  // startup) and mark ready immediately, so the very first ArmPose message received is
-  // ALSO velocity/delta rate-limited relative to that pose, not just position-clamped.
-  // Previously this started false, letting the first command bypass all rate limiting
-  // and jump straight to its target -- visible as a sudden snap before smooth tracking.
+  // No assumed starting pose: armPoseToMotorCmds refuses until seedPrevTargetsFromFeedback.
   prev_targets_.assign(joints_.size(), 0.0);
   last_motor_cmd_deg_.assign(joints_.size(), 0.0);
   blocked_.assign(joints_.size(), false);
   unpowered_.assign(joints_.size(), false);
-  have_prev_targets_ = true;
+  seeded_ = false;
   return true;
 }
 
 bool JointCommandCore::isActive(size_t joint) const {
-  return joint >= safety_.size() || safety_[joint].active;
+  return safety_.at(joint).active;
 }
 
 bool JointCommandCore::anyActive() const {
@@ -147,9 +156,7 @@ JointCommandCore::seedPrevTargetsFromFeedback(const std::map<int, double>& motor
     }
     // Inverse of applyCalibration (motor = direction * (cmd - zero_offset)):
     //   cmd = zero_offset + motor / direction
-    const double dir =
-        (joints_[i].direction == 0) ? 1.0 : static_cast<double>(joints_[i].direction);
-    seeded[i] = joints_[i].zero_offset + it->second / dir;
+    seeded[i] = joints_[i].zero_offset + it->second / static_cast<double>(joints_[i].direction);
     // Start the watchdog's tracking error at zero, not at the distance from an unsent 0.
     last_motor_cmd_deg_[i] = it->second;
     ++report.matched;
@@ -162,7 +169,7 @@ JointCommandCore::seedPrevTargetsFromFeedback(const std::map<int, double>& motor
     }
   }
   prev_targets_ = std::move(seeded);
-  have_prev_targets_ = true;
+  seeded_ = true;
   gravity_ff_ramp_ = 0.0;
   return report;
 }
@@ -208,10 +215,53 @@ double JointCommandCore::quantiseKd(double kd, double kd_max) {
 }
 
 JointSafetyConfig JointCommandCore::loadJointSafetyConfig(const YAML::Node& joint_node,
-                                                          const JointSafetyConfig& base) {
+                                                          const JointSafetyConfig& base,
+                                                          const std::string& name) {
   JointSafetyConfig cfg = base;
   if (!joint_node) {
     return cfg;
+  }
+
+  // The command frame IS the URDF frame (arm_calibration.yaml's zero and direction match the
+  // URDF). Refuse the old cmd -> URDF keys rather than silently ignoring a -1 left in a config.
+  for (const char* removed : {"urdf_direction", "urdf_offset_deg"}) {
+    if (joint_node[removed]) {
+      throw std::runtime_error(std::string(removed) +
+                               " was removed: the command frame is the URDF frame. Fold it into "
+                               "arm_calibration.yaml's direction / zero_offset / limits instead");
+    }
+  }
+  // Every key parsed below. Anything else (a typo such as mit_max_torqe) would silently leave
+  // the default in place, so it is refused.
+  static const std::set<std::string> kKnownKeys = {
+      "active",
+      "enable_position_clamp",
+      "enable_velocity_limit",
+      "enable_delta_limit",
+      "enable_low_pass",
+      "velocity_max",
+      "delta_max",
+      "low_pass_alpha",
+      "control_type",
+      "mit_kp",
+      "mit_kd",
+      "mit_max_torque",
+      "mit_max_track_err",
+      "mit_feedback_timeout",
+      "mit_peak_torque",
+      "mit_max_temperature",
+      "mit_family",
+      "mit_fault_action",
+      "mit_fault_kd",
+      "gravity_ff_scale",
+      "gravity_ff_max_torque",
+      "gravity_assume_deg",
+  };
+  for (const auto& kv : joint_node) {
+    const std::string key = kv.first.as<std::string>();
+    if (kKnownKeys.count(key) == 0) {
+      throw std::runtime_error("arm_actuators.yaml " + name + ": unknown key '" + key + "'");
+    }
   }
 
   if (joint_node["active"]) {
@@ -238,7 +288,6 @@ JointSafetyConfig JointCommandCore::loadJointSafetyConfig(const YAML::Node& join
   if (joint_node["low_pass_alpha"]) {
     cfg.low_pass_alpha = joint_node["low_pass_alpha"].as<double>();
   }
-  cfg.low_pass_alpha = std::clamp(cfg.low_pass_alpha, 0.0, 1.0);
   if (joint_node["control_type"]) {
     cfg.control_type = joint_node["control_type"].as<int>();
   }
@@ -297,19 +346,35 @@ JointSafetyConfig JointCommandCore::loadJointSafetyConfig(const YAML::Node& join
   if (joint_node["gravity_ff_max_torque"]) {
     cfg.gravity_ff_max_torque = joint_node["gravity_ff_max_torque"].as<double>();
   }
-  // The command frame IS the URDF frame (arm_calibration.yaml's zero and direction match the
-  // URDF). Refuse the old cmd -> URDF keys rather than silently ignoring a -1 left in a config.
-  for (const char* removed : {"urdf_direction", "urdf_offset_deg"}) {
-    if (joint_node[removed]) {
-      throw std::runtime_error(std::string(removed) +
-                               " was removed: the command frame is the URDF frame. Fold it into "
-                               "arm_calibration.yaml's direction / zero_offset / limits instead");
-    }
-  }
   if (joint_node["gravity_assume_deg"]) {
     cfg.gravity_assume_deg = joint_node["gravity_assume_deg"].as<double>();
   }
   return cfg;
+}
+
+bool JointCommandCore::validateModeration() {
+  std::ostringstream errors;
+  for (size_t i = 0; i < joints_.size(); ++i) {
+    const JointSafetyConfig& s = safety_[i];
+    const std::string name = jointName(i);
+    // alpha is the weight on the PREVIOUS target: 1 would never move the joint.
+    if (!(s.low_pass_alpha >= 0.0 && s.low_pass_alpha < 1.0)) {
+      errors << "\n  " << name << ": low_pass_alpha must be in [0, 1) (got " << s.low_pass_alpha
+             << ")";
+    }
+    if (s.enable_velocity_limit && !(s.velocity_max > 0.0)) {
+      errors << "\n  " << name << ": velocity_max must be > 0 deg/s (got " << s.velocity_max << ")";
+    }
+    if (s.enable_delta_limit && !(s.delta_max > 0.0)) {
+      errors << "\n  " << name << ": delta_max must be > 0 deg (got " << s.delta_max << ")";
+    }
+  }
+  const std::string text = errors.str();
+  if (!text.empty()) {
+    last_error_ = "Moderation configuration is invalid:" + text;
+    return false;
+  }
+  return true;
 }
 
 bool JointCommandCore::validateMitGains() {
@@ -440,6 +505,8 @@ bool JointCommandCore::validateGripper() {
 
 bool JointCommandCore::loadSafetyFromYaml(const YAML::Node& safety_cfg, double control_rate_hz) {
   last_error_.clear();
+  // The joint set may change (gripper): commands wait for a fresh seed.
+  seeded_ = false;
   if (joints_.empty()) {
     last_error_ = "no joints loaded (call loadFromYaml first)";
     return false;
@@ -471,7 +538,7 @@ bool JointCommandCore::loadSafetyFromYaml(const YAML::Node& safety_cfg, double c
   try {
     JointSafetyConfig defaults;
     if (safety_cfg["global"]) {
-      defaults = loadJointSafetyConfig(safety_cfg["global"], defaults);
+      defaults = loadJointSafetyConfig(safety_cfg["global"], defaults, "global");
     }
     // Joints inherit mit_fault_action_explicit, so setting only mit_family: ak re-derives Damp.
 
@@ -479,17 +546,18 @@ bool JointCommandCore::loadSafetyFromYaml(const YAML::Node& safety_cfg, double c
     for (size_t i = 0; i < jointPaths().size(); ++i) {
       const auto& [group, joint_name] = jointPaths()[i];
       const YAML::Node joint_node = arm[group][joint_name];
-      safety_[i] = loadJointSafetyConfig(joint_node, defaults);
+      safety_[i] = loadJointSafetyConfig(joint_node, defaults, arm_side_ + " " + jointName(i));
     }
     if (hasGripper()) {
-      safety_[kGripperJoint] = loadJointSafetyConfig(arm["gripper"]["open_close"], defaults);
+      safety_[kGripperJoint] = loadJointSafetyConfig(arm["gripper"]["open_close"], defaults,
+                                                     arm_side_ + " " + jointName(kGripperJoint));
     }
   } catch (const std::exception& e) {
     last_error_ = e.what();
     return false;
   }
   // An arm with no active joint still loads (and is validated): the node skips it this run.
-  return validateMitGains() && validateGripper();
+  return validateModeration() && validateMitGains() && validateGripper();
 }
 
 double JointCommandCore::clampStep(double target, double previous, double delta_max) {
@@ -565,8 +633,7 @@ JointCommandCore::gravityTorqueMotor(const std::vector<double>& cmd_targets_deg)
       arm_side_ == "right" ? rightArmGravityHoldTorque(q_urdf) : leftArmGravityHoldTorque(q_urdf);
   for (size_t i = 0; i < q_urdf.size(); ++i) {
     // Torque follows the angle's sign mapping: urdf (= cmd) -> motor.
-    const double dir = joints_[i].direction == 0 ? 1.0 : joints_[i].direction;
-    out[i] = dir * tau[i];
+    out[i] = joints_[i].direction * tau[i];
   }
   return out;
 }
@@ -677,6 +744,15 @@ JointCommandCore::armPoseToMotorCmds(const common_msgs::msg::ArmPose& pose,
   if (joints_.size() != 6 && joints_.size() != 7) {
     throw std::runtime_error("JointCommandCore is not configured for 6 joints (+ gripper)");
   }
+  // Never ramp from an assumed pose: the rate limiter starts from measured feedback.
+  if (!seeded_) {
+    throw std::logic_error("armPoseToMotorCmds before seedPrevTargetsFromFeedback (since the last "
+                           "load): the arm's real pose is unknown");
+  }
+  if (safety_.size() != joints_.size() || prev_targets_.size() != joints_.size() ||
+      last_motor_cmd_deg_.size() != joints_.size()) {
+    throw std::logic_error("JointCommandCore per-joint state does not match its joint count");
+  }
 
   if (pose.shoulder.position.size() < 3 || pose.elbow.position.size() < 2 ||
       pose.wrist.position.size() < 1) {
@@ -700,18 +776,6 @@ JointCommandCore::armPoseToMotorCmds(const common_msgs::msg::ArmPose& pose,
   std::vector<std::pair<size_t, size_t>> mit_cmds; // (index in commands, joint)
   std::vector<double> next_targets = prev_targets_;
 
-  if (safety_.size() != joints_.size()) {
-    safety_.assign(joints_.size(), JointSafetyConfig{});
-  }
-  if (prev_targets_.size() != joints_.size()) {
-    prev_targets_.assign(joints_.size(), 0.0);
-    next_targets = prev_targets_;
-    have_prev_targets_ = true;
-  }
-  if (last_motor_cmd_deg_.size() != joints_.size()) {
-    last_motor_cmd_deg_.assign(joints_.size(), 0.0);
-  }
-
   for (size_t i = 0; i < joints_.size(); ++i) {
     const JointSafetyConfig& safety = safety_[i];
 
@@ -731,31 +795,29 @@ JointCommandCore::armPoseToMotorCmds(const common_msgs::msg::ArmPose& pose,
       target = clampAngle(target, joints_[i]);
     }
 
-    if (have_prev_targets_) {
-      // Smooth before rate-limiting (the reverse capped speed at (1 - alpha) * velocity_max).
-      if (safety.enable_low_pass) {
-        target = applyLowPass(target, prev_targets_[i], safety.low_pass_alpha);
-      }
-      if (safety.enable_velocity_limit && control_rate_hz_ > 0.0) {
-        const double velocity_step = std::abs(safety.velocity_max) / control_rate_hz_;
-        target = clampStep(target, prev_targets_[i], velocity_step);
-      }
-      if (safety.enable_delta_limit) {
-        target = clampStep(target, prev_targets_[i], std::abs(safety.delta_max));
-      }
+    // Smooth before rate-limiting (the reverse capped speed at (1 - alpha) * velocity_max).
+    if (safety.enable_low_pass) {
+      target = applyLowPass(target, prev_targets_[i], safety.low_pass_alpha);
+    }
+    if (safety.enable_velocity_limit && control_rate_hz_ > 0.0) {
+      const double velocity_step = safety.velocity_max / control_rate_hz_;
+      target = clampStep(target, prev_targets_[i], velocity_step);
+    }
+    if (safety.enable_delta_limit) {
+      target = clampStep(target, prev_targets_[i], safety.delta_max);
     }
 
     if (safety.enable_position_clamp) {
       // If the clamp bites (joint outside its limits), rate-limit the move back into range
       // instead of snapping to the limit in one tick.
       const double clamped = clampAngle(target, joints_[i]);
-      if (clamped != target && have_prev_targets_) {
+      if (clamped != target) {
         double max_step = std::numeric_limits<double>::infinity();
         if (safety.enable_velocity_limit && control_rate_hz_ > 0.0) {
-          max_step = std::abs(safety.velocity_max) / control_rate_hz_;
+          max_step = safety.velocity_max / control_rate_hz_;
         }
         if (safety.enable_delta_limit) {
-          max_step = std::min(max_step, std::abs(safety.delta_max));
+          max_step = std::min(max_step, safety.delta_max);
         }
         target = std::isinf(max_step) ? clamped : clampStep(clamped, prev_targets_[i], max_step);
       } else {
@@ -800,6 +862,5 @@ JointCommandCore::armPoseToMotorCmds(const common_msgs::msg::ArmPose& pose,
   }
 
   prev_targets_ = std::move(next_targets);
-  have_prev_targets_ = true;
   return commands;
 }

@@ -107,6 +107,7 @@ public:
   }
 
   // Advance ONE control tick toward `pose`. Call at control_rate_hz: velocity_max is per tick.
+  // Throws std::logic_error unless seedPrevTargetsFromFeedback ran since the last load.
   std::vector<common_msgs::msg::MotorCmd> armPoseToMotorCmds(const common_msgs::msg::ArmPose& pose,
                                                              int8_t default_control_type);
 
@@ -185,13 +186,16 @@ public:
   static double quantiseKd(double kd, double kd_max = 5.0);
 
 private:
-  static JointConfig loadJointConfig(const YAML::Node& joint_node);
+  // Both throw std::runtime_error naming `name` on an invalid value (or unknown key).
+  static JointConfig loadJointConfig(const YAML::Node& joint_node, const std::string& name);
   static JointSafetyConfig loadJointSafetyConfig(const YAML::Node& joint_node,
-                                                 const JointSafetyConfig& base);
+                                                 const JointSafetyConfig& base,
+                                                 const std::string& name);
   static double clampAngle(double angle, const JointConfig& joint);
   static double applyCalibration(double angle, const JointConfig& joint);
   static double clampStep(double target, double previous, double delta_max);
   static double applyLowPass(double target, double previous, double alpha);
+  bool validateModeration();
   bool validateMitGains();
   bool validateGripper();
   void resizeJointState();
@@ -210,7 +214,8 @@ private:
   // 0 -> 1 after every seed, so feed-forward never steps on.
   double gravity_ff_ramp_{0.0};
   std::string arm_side_;
-  bool have_prev_targets_{false};
+  // seedPrevTargetsFromFeedback ran since the last load; armPoseToMotorCmds refuses otherwise.
+  bool seeded_{false};
   double control_rate_hz_{50.0};
   std::string last_error_;
 };
