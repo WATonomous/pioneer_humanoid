@@ -59,12 +59,8 @@ from .scene import (  # noqa: F401  (BOX_* / FLOOR_TARGET re-exported for distil
 _PIONEER = Path(__file__).resolve().parents[4] / "pioneer_humanoid"
 if str(_PIONEER) not in sys.path:
     sys.path.insert(0, str(_PIONEER))
-# Uses canonical URDF-side names directly (formerly aliased LEFT_* as RIGHT_* from an old, since-fixed URDF flip).
-from pioneer_humanoid.bimanual_arm import (  # noqa: E402
-    BIMANUAL_ARM_CFG,
-    LEFT_ARM_JOINTS,
-    LEFT_EE_BODY,
-)
+from pioneer_humanoid.arm_8dof_params import GRIPPER_STROKE, LEFT_ARM_JOINTS, LEFT_EE_BODY, TCP_LOCAL  # noqa: E402
+from pioneer_humanoid.bimanual_arm_8dof import BIMANUAL_ARM_8DOF_CFG  # noqa: E402
 
 
 ##
@@ -77,9 +73,9 @@ class ActionsCfg:
     """Action specifications for the MDP.
 
     Only the arm is actuated. The gripper joint is intentionally excluded from
-    the action space: with no action term writing targets, the PD actuator
-    holds it at its default (closed) position, so the policy physically cannot
-    grasp the block - the closed gripper is the pushing tool.
+    the action space: it starts closed and EventCfg.hold_gripper keeps its PD
+    target there, so the policy physically cannot grasp the block - the closed
+    gripper is the pushing tool.
     """
 
     arm_action: mdp.JointPositionActionCfg = MISSING
@@ -123,6 +119,13 @@ class EventCfg:
     """Configuration for events."""
 
     reset_all = EventTerm(func=mdp.reset_scene_to_default, mode="reset")
+
+    # the closed left gripper (no action term) is the pushing tool
+    hold_gripper = EventTerm(
+        func=mdp.hold_default_joint_targets,
+        mode="reset",
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["left_gripper"])},
+    )
 
     reset_object_position = EventTerm(
         func=mdp.reset_block_center_uniform,
@@ -308,14 +311,7 @@ class CurriculumCfg:
 
 
 def _ee_frame_cfg(*, debug_vis: bool) -> FrameTransformerCfg:
-    """EE proxy at the left wrist link (LEFT_EE_BODY = link6l), zero offset.
-
-    No verified fingertip-center offset from link6l exists as a static frame (the
-    teleop code computes it dynamically from both finger tips at runtime, see
-    ``pioneer_humanoid.bimanual_arm.compute_gripper_tip_pose_b``). Zero offset is a
-    reasonable proxy for the push reward terms; refine with a measured offset if
-    pushing behavior looks visibly off from the wrist position.
-    """
+    """The left arm's tool point: TCP_LOCAL on LEFT_EE_BODY (as bimanual_arm_8dof.tcp_pose_w)."""
     marker_cfg = FRAME_MARKER_CFG.replace(prim_path="/Visuals/FrameTransformer/ee_tcp")
     marker_cfg.markers["frame"].scale = (0.03, 0.03, 0.03)
     return FrameTransformerCfg(
@@ -326,7 +322,7 @@ def _ee_frame_cfg(*, debug_vis: bool) -> FrameTransformerCfg:
             FrameTransformerCfg.FrameCfg(
                 prim_path="{ENV_REGEX_NS}/Robot/" + LEFT_EE_BODY,
                 name="end_effector",
-                offset=OffsetCfg(pos=(0.0, 0.0, 0.0), rot=(1.0, 0.0, 0.0, 0.0)),
+                offset=OffsetCfg(pos=TCP_LOCAL, rot=(1.0, 0.0, 0.0, 0.0)),
             ),
         ],
     )
@@ -367,9 +363,13 @@ class PushBlockEnvCfg(ManagerBasedRLEnvCfg):
 
         # ── bimanual arm ────────────────────────────────────────────────────
         self.scene.replicate_physics = True
-        self.scene.robot = BIMANUAL_ARM_CFG.replace(
+        self.scene.robot = BIMANUAL_ARM_8DOF_CFG.replace(
             prim_path="{ENV_REGEX_NS}/Robot",
-            init_state=BIMANUAL_ARM_CFG.init_state.replace(pos=ROBOT_BASE_POS),
+            init_state=BIMANUAL_ARM_8DOF_CFG.init_state.replace(
+                pos=ROBOT_BASE_POS,
+                joint_pos={**BIMANUAL_ARM_8DOF_CFG.init_state.joint_pos,
+                           "left_gripper": GRIPPER_STROKE, "left_gripper_mimic": GRIPPER_STROKE},
+            ),
         )
         self.scene.robot.spawn.articulation_props.enabled_self_collisions = False
 
