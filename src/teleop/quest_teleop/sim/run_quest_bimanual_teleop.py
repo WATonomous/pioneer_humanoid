@@ -90,7 +90,7 @@ parser.add_argument("--dataset_root", type=str, default=None,
 parser.add_argument("--num_episodes", type=int, default=10)
 parser.add_argument("--task_description", type=str, default="pick up box and place it in container")
 parser.add_argument("--publish-real-left-arm", action="store_true",
-                    help="Also publish the left arm's DLS-solved joint targets to /arm/joint_targets for "
+                    help="Also publish the left arm's DLS-solved joint targets to /arm/left/joint_targets for "
                          "joint_command_node to drive the REAL physical left arm over CAN. Off by default -- "
                          "sim-only unless explicitly requested. RIGHT ARM HAS NO REAL-HARDWARE CAN MAPPING YET "
                          "(arm_calibration.yaml only has a left: section) -- this flag does not and cannot "
@@ -786,6 +786,7 @@ def _publish_real_left_arm_pose(pub, clock_node, joint_pos_des_rad) -> None:
 
     msg = WatoArmPose()
     msg.header.stamp = clock_node.get_clock().now().to_msg()
+    msg.is_left = True  # joint_command ignores a pose whose side disagrees with its topic
 
     shoulder = WatoJointState()
     shoulder.position = [q[0], q[1], q[2]]
@@ -1247,8 +1248,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     if args_cli.publish_real_left_arm:
         from common_msgs.msg import ArmPose as WatoArmPose, JointState as WatoJointState
 
-        real_left_arm_pub = receiver.create_publisher(WatoArmPose, "/arm/joint_targets", 10)
-        print(f"[Quest][REAL HARDWARE] Left arm will start publishing to /arm/joint_targets in "
+        real_left_arm_pub = receiver.create_publisher(WatoArmPose, "/arm/left/joint_targets", 10)
+        print(f"[Quest][REAL HARDWARE] Left arm will start publishing to /arm/left/joint_targets in "
               f"{_REAL_ARM_PUBLISH_START_DELAY_S:.0f}s. Position the REAL left arm near the sim's "
               f"rest pose NOW. Right arm is NOT published (no hardware CAN mapping exists).", flush=True)
 
@@ -1666,7 +1667,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
                 real_left_arm_since_publish_s -= _REAL_ARM_PUBLISH_PERIOD_S
                 if not real_left_arm_started:
                     real_left_arm_started = True
-                    print("[Quest][REAL HARDWARE] Publishing left arm to /arm/joint_targets now.", flush=True)
+                    print("[Quest][REAL HARDWARE] Publishing left arm to /arm/left/joint_targets now.", flush=True)
                 _publish_real_left_arm_pose(real_left_arm_pub, receiver, left_arm.last_joint_pos_des)
 
         if pov_capture_frame % 100 == 0:

@@ -7,8 +7,6 @@ chain (joint1L..joint6l) = physical LEFT arm; RIGHT_* = unsuffixed.
 import math
 from typing import NamedTuple
 
-from .camera_info import CALIB_DIR, read_camera_info
-
 
 def _deg(degrees: float) -> float:
     return degrees * math.pi / 180.0
@@ -25,10 +23,8 @@ def _deg(degrees: float) -> float:
 # picks an elbow-bend direction at random. Flexing the elbows raises manipulability ~10,000x
 # and starts the arm in the flexion branch.
 #
-# Signs are OPPOSITE (joint4/joint4l axes are (0,-1,0)/(0,1,0)); both put the forearm forward
-# toward +X. Opposite-and-equal is what makes the pose mirror-symmetric. 90 holds the forearm
-# level (fingertip ~10cm higher than the previous 75); don't go below ~60 (tip nears the table).
-# Both inside the URDF limits (42.5 deg margin to joint4l's 132.5).
+# Signs are opposite (joint4/joint4l axes are (0,-1,0)/(0,1,0)): both put the forearm forward,
+# mirror-symmetric. 90 holds the forearm level; don't go below ~60 (the tip nears the table).
 DEFAULT_JOINT_POS = {
     "joint1": 0.0,
     "joint2": 0.0,
@@ -54,12 +50,11 @@ RIGHT_ARM_JOINTS = ["joint1", "joint2", "joint3", "joint4", "joint5", "joint6"]
 LEFT_GRIPPER_JOINTS = ["joint7l", "joint8l"]
 RIGHT_GRIPPER_JOINTS = ["joint7", "joint8"]
 
-# Gripper finger targets, verified empirically in headless Isaac sim: fingertip gap 0.074m
-# closed / ~0.16m open at these endpoints. This asset's joint7/8 axis is Y.
+# Gripper finger targets: open, and closed with the fingers touching (the URDF limits).
 LEFT_GRIPPER_OPEN = {"joint7l": 0.0, "joint8l": 0.0}
-LEFT_GRIPPER_CLOSED = {"joint7l": -0.05, "joint8l": 0.05}
+LEFT_GRIPPER_CLOSED = {"joint7l": -0.041, "joint8l": 0.041}
 RIGHT_GRIPPER_OPEN = {"joint7": 0.0, "joint8": 0.0}
-RIGHT_GRIPPER_CLOSED = {"joint7": -0.05, "joint8": 0.05}
+RIGHT_GRIPPER_CLOSED = {"joint7": -0.041, "joint8": 0.041}
 
 # Prismatic gripper PD — tuned for hold during arm motion (not from motor datasheet).
 # If fingers bounce when the shoulder moves, raise stiffness; if jittery, raise damping.
@@ -108,12 +103,11 @@ class CameraMount(NamedTuple):
 
 # ego          RealSense D455 colour at 640x480 (4:3), 50 deg down. ESTIMATE ~80 x 65 deg: native
 #              1280x800 lens with the sides cropped to 4:3. Replace with the real camera_info.
-# wrist_left   between the fingers. Sonix UVC webcam, MEASURED: real frames are remapped to the
-#              centred 640x480 pinhole in calib/wrist_cam_pinhole_640x480.yaml (723 px, 47.75 x
-#              36.73 deg), and the focal length below is read from that file. 4:3 to match it.
+# wrist_left   between the fingers. OV3660 USB module, 110 deg (listed, taken as diagonal: ~97.6 x 81.2 deg
+#              at 4:3), as a distortion-free pinhole; the real lens is barrel-distorted. 4:3.
 # wrist_right  mirror of wrist_left
-_WRIST_PINHOLE_SIZE, _WRIST_PINHOLE_K, _ = read_camera_info(CALIB_DIR / "wrist_cam_pinhole_640x480.yaml")
-WRIST_FOCAL_MM = _WRIST_PINHOLE_K[0][0] * 20.955 / _WRIST_PINHOLE_SIZE[0]   # px -> mm at 20.955 mm aperture
+WRIST_DIAG_FOV_DEG = 110.0
+WRIST_FOCAL_MM = (20.955 * 5 / 4) / 2 / math.tan(math.radians(WRIST_DIAG_FOV_DEG) / 2)   # 4:3 diagonal = 5/4 x width
 CAMERAS = {
     "ego": CameraMount(
         "base_link", "cam_ego",

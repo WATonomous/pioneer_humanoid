@@ -16,6 +16,7 @@ class EpisodeFlags:
     start: bool = False
     success: bool = False
     remove: bool = False
+    delete_last: bool = False
     abort: bool = False
 
 
@@ -25,13 +26,15 @@ class EpisodeKeyboard:
       S — start / resume logging frames for the current episode
       N — finish episode (save on next loop tick)
       D — discard buffered frames and re-record current episode
+      delete_last (off unless given a key) — delete the last saved take (humanoid-record uses D)
       ESC — stop session and finalize dataset (esc_aborts=False ignores it)
     """
 
-    def __init__(self, flags: EpisodeFlags, start: str = "s", save: str = "n", discard: str = "d",
-                 esc_aborts: bool = True) -> None:
+    def __init__(self, flags: EpisodeFlags, start: str = "s", save: str = "n", discard: str | None = "d",
+                 esc_aborts: bool = True, delete_last: str | None = None) -> None:
         self.flags = flags
-        self._keys = {start: "start", save: "success", discard: "remove"}
+        keys = {start: "start", save: "success", discard: "remove", delete_last: "delete_last"}
+        self._keys = {k: v for k, v in keys.items() if k is not None}
         self._esc_aborts = esc_aborts
         self._listener = None
         self._pynput = None

@@ -326,8 +326,8 @@ def mit_motor_ids(joints: List[Tuple[str, Dict[str, Any]]]) -> List[int]:
     ids = set()
     for name, joint in joints:
         motor_id = parse_can_id(joint["can_id"])
-        short = name.split(".", 1)[1] if "." in name else name  # drop the arm side
-        control_type = jc.joint_safety(safety, short).get("control_type")
+        side, short = name.split(".", 1)  # flatten_joints names are "<arm side>.<joint>"
+        control_type = jc.joint_safety(safety, side, short).get("control_type")
         if jc.drive_family(motor_id) == "gl2" or (control_type is not None and
                                                   int(control_type) == MotorCmd.MIT_CONTROL):
             ids.add(motor_id)

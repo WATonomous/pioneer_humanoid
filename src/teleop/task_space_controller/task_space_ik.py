@@ -6,9 +6,9 @@ viewport and the left arm (6 revolute joints) follows via Differential IK. The r
 and both grippers are held at their default poses.
 
 Default: sim only. Pass --publish-real-left-arm to also publish the DLS-solved left-arm
-joint targets to /arm/joint_targets (rclpy, direct):
+joint targets to /arm/left/joint_targets (rclpy, direct):
 
-    task_space_ik.py --publish-real-left-arm  ->  /arm/joint_targets  ->  joint_command_node
+    task_space_ik.py --publish-real-left-arm  ->  /arm/left/joint_targets  ->  joint_command_node
       (safety: seed-from-feedback + velocity/delta/low-pass)  ->  /interfacing/motorCMD
       ->  can_node  ->  AK motors (0x0A-0x0E, POSITION_LOOP frames)
 
@@ -26,7 +26,7 @@ parser = argparse.ArgumentParser(description="Pioneer bimanual-arm task-space IK
 parser.add_argument(
     "--publish-real-left-arm",
     action="store_true",
-    help="Also publish the left arm's joint targets to /arm/joint_targets to drive the REAL arm. Off by default.",
+    help="Also publish the left arm's joint targets to /arm/left/joint_targets to drive the REAL arm. Off by default.",
 )
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
@@ -83,7 +83,7 @@ _REAL_ARM_PUBLISH_START_DELAY_S = 3.0   # operator prep time (e-stop in hand); t
 
 
 class _RealLeftArm:
-    """Publishes IK-solved left-arm joint targets to /arm/joint_targets (rclpy, direct).
+    """Publishes IK-solved left-arm joint targets to /arm/left/joint_targets (rclpy, direct).
 
     Same field layout/units as run_quest_bimanual_teleop.py: LEFT_ARM_JOINTS order
     (joint1L..joint6l) -> shoulder(flexion, abduction, rotation) / elbow(flexion,
@@ -104,13 +104,13 @@ class _RealLeftArm:
         rclpy.init()
         self._rclpy = rclpy
         self._node = rclpy.create_node("task_space_left_arm")
-        self._pub = self._node.create_publisher(ArmPose, "/arm/joint_targets", 10)
+        self._pub = self._node.create_publisher(ArmPose, "/arm/left/joint_targets", 10)
         self._ArmPose = ArmPose
         threading.Thread(target=rclpy.spin, args=(self._node,), daemon=True).start()
         self._elapsed_s = 0.0
         self._since_publish_s = 0.0
         self._started = False
-        print(f"[REAL] Left arm publishes to /arm/joint_targets in "
+        print(f"[REAL] Left arm publishes to /arm/left/joint_targets in "
               f"{_REAL_ARM_PUBLISH_START_DELAY_S:.0f}s -- position the REAL arm near the sim pose now.")
 
     def tick(self, dt: float, joint_pos_des_rad) -> None:
@@ -123,7 +123,7 @@ class _RealLeftArm:
             return
         if not self._started:
             self._started = True
-            print("[REAL] Publishing left arm to /arm/joint_targets now.", flush=True)
+            print("[REAL] Publishing left arm to /arm/left/joint_targets now.", flush=True)
         self._since_publish_s += dt
         if self._since_publish_s < _REAL_ARM_PUBLISH_PERIOD_S:
             return

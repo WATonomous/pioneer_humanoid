@@ -46,7 +46,7 @@ images:
     topic: null
 
 ros:  # real only
-  action_topic: /arm/joint_targets
+  action_topic: /arm/left/joint_targets
   state_topic: null  # null: state mirrors action (no motor feedback yet)
   arm_pose_unit: deg
 

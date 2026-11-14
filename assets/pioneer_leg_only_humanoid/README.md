@@ -12,6 +12,6 @@ shoulder motors; the torso keeps its shoulder frame). Its soles stand at z = 0.
 | `pioneer_leg_only_humanoid.urdf` | The URDF, for Isaac Lab and other tools. |
 | `meshes/` | Only the torso's meshes (without the shoulder motors it differs from the whole-body robot's). Every other mesh is the whole-body robot's: the URDF points at `../pioneer_whole_body_humanoid/meshes/`, so keep the two folders side by side. |
 
-Rebuilt with `../pioneer_whole_body_humanoid/convert.py` (its third form) from the Prometheus export
-(`make_urdf.py` with `URDF_ARMS=none`). Checks: `python ../old_leg_only_humanoid/check_leg_directions.py`, and
+Rebuilt with `../pioneer_whole_body_humanoid/convert.py` (its third form) from the CAD export
+(no arms). Checks: `python ../old_leg_only_humanoid/check_leg_directions.py`, and
 `check_hold.py` / `check_motion.py` in the whole-body folder, given this URDF: all pass.

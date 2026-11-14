@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from humanoid_robot_learning.recording.record_utils import get_next_experiment_path_with_gap
 from humanoid_robot_learning.recording.sinks.hdf5 import Hdf5Sink
 from humanoid_robot_learning.recording.sinks.lerobot import LeRobotSink
 
@@ -33,14 +32,13 @@ def parse_sink_names(raw: str) -> list[str]:
 def create_sinks(
     cfg: dict[str, Any],
     *,
-    record_root: Path,
+    root: Path,
     sink_names: list[str],
-) -> tuple[Path, list]:
-    """Create writers under the next experiment folder (e.g. datasets/record/001/)."""
-    exp_path = get_next_experiment_path_with_gap(record_root)
+) -> list:
+    """Create the writers for one take folder `root` (it must not exist yet)."""
     sinks = []
     if "lerobot" in sink_names:
-        sinks.append(LeRobotSink(cfg, root=exp_path))
+        sinks.append(LeRobotSink(cfg, root=root))
     if "hdf5" in sink_names:
-        sinks.append(Hdf5Sink(cfg, path=exp_path / "trajectories.h5"))
-    return exp_path, sinks
+        sinks.append(Hdf5Sink(cfg, path=root / "trajectories.h5"))
+    return sinks

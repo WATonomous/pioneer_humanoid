@@ -83,9 +83,10 @@ void CanNode::createSubscribersPublishers() {
   _subscribers.clear();
   _publishers.clear();
 
-  // Create subscribers
+  // Create subscribers. Depth: joint_command publishes every arm's commands in one burst per tick
+  // (and MIT_EXIT 3x per joint on a fault); a shallow queue drops some before they are read.
   _subscribers["/interfacing/motorCMD"] = this->create_subscription<common_msgs::msg::MotorCmd>(
-      "/interfacing/motorCMD", rclcpp::QoS(10),
+      "/interfacing/motorCMD", rclcpp::QoS(100),
       std::bind(&CanNode::motorCMDCallback, this, std::placeholders::_1));
 
   // Create publishers

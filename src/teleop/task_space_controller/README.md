@@ -12,11 +12,11 @@ cd /workspace/humanoid/src/teleop/task_space_controller
 
 ## Sim-to-real (`--publish-real-left-arm`)
 
-Adds a direct rclpy publisher on `/arm/joint_targets`:
+Adds a direct rclpy publisher on `/arm/left/joint_targets`:
 
 ```
 task_space_ik.py --publish-real-left-arm
-  -> /arm/joint_targets
+  -> /arm/left/joint_targets
   -> joint_command_node   (seed-from-feedback + velocity/delta/low-pass; src/interfacing/joint_command)
   -> /interfacing/motorCMD
   -> can_node
@@ -37,7 +37,7 @@ the sim/cube target until a sim↔real calibration exists.
 
 Prereqs: CANable on `/dev/canable`, e-stop + arm power on. Terminals 1–2 run in the
 ROS 2 stack (`interfacing` watod module); terminal 3 in `simulation_isaac`
-(it has ROS 2 built for Isaac's Python, so it publishes `/arm/joint_targets` directly).
+(it has ROS 2 built for Isaac's Python, so it publishes `/arm/left/joint_targets` directly).
 
 ```bash
 # Terminal 1 — CAN
@@ -53,6 +53,6 @@ ros2 launch joint_command joint_command.launch.py
 ```
 
 (No UDP bridge — the old `--udp` path via `udp_to_ros_bridge.py` is gone; the sim publishes
-`/arm/joint_targets` directly.)
+`/arm/left/joint_targets` directly.)
 
 **Have a human on the e-stop for the first real run.**

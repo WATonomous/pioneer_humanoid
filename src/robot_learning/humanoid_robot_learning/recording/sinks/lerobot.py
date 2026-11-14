@@ -40,3 +40,5 @@ class LeRobotSink:
 
     def finalize(self) -> None:
         self._dataset.finalize()
+        # One dataset per take: stop its image-writer threads so they don't pile up.
+        self._dataset.stop_image_writer()

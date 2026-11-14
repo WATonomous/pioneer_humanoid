@@ -9,7 +9,7 @@
     G (servo ID 6) -> gripper (starts open at 41.5 deg, closes toward 0)
 
 Leader angles map 1:1 from its calibrated hanging pose (calibrate_leader.py), clamped to the URDF
-limits. The arm starts at home (elbow bent 90 deg) and follows once the leader is within 3 deg of
+limits. The arm starts at home (elbow bent 90 deg) and follows once the leader is within 15 deg of
 home (see leader_mapping.py). Leader torque is always off; it is an input device only.
 
   R   reset the arm and every object in the scene; bring the leader back to home to resume

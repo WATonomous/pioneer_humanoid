@@ -1,11 +1,11 @@
-"""Convert the Pioneer Whole Body Humanoid URDF (Prometheus repo, humanoid_urdf/pioneer_v2) for MuJoCo here: every visual mesh
+"""Convert the Pioneer Whole Body Humanoid URDF (the CAD export) for MuJoCo here: every visual mesh
 decimated to a binary STL (the CAD export is ~270 MB of OBJ; this is ~32 MB), the URDF rewritten to point at them.
 
-    python convert.py <Prometheus>/Backend/cad_bench/projects/humanoid_urdf/pioneer_v2/pioneer_humanoid_v2_mujoco.urdf
-    python convert.py <Prometheus>/.../pioneer_v2_gripper/pioneer_humanoid_v2_gripper_mujoco.urdf pioneer_whole_body_humanoid_gripper
+    python convert.py <export>/pioneer_v2/pioneer_humanoid_v2_mujoco.urdf
+    python convert.py <export>/.../pioneer_v2_gripper/pioneer_humanoid_v2_gripper_mujoco.urdf pioneer_whole_body_humanoid_gripper
 
-    python convert.py <Prometheus>/.../pioneer_v2_leg_only/pioneer_leg_only_humanoid_mujoco.urdf pioneer_leg_only_humanoid \
-        ../pioneer_leg_only_humanoid <Prometheus>/.../pioneer_v2/meshes
+    python convert.py <export>/.../pioneer_v2_leg_only/pioneer_leg_only_humanoid_mujoco.urdf pioneer_leg_only_humanoid \
+        ../pioneer_leg_only_humanoid <export>/.../pioneer_v2/meshes
 
 The second form writes another model beside the first (here: the arm's own gripper in place of the hands). A mesh
 already in meshes/ is kept, not decimated again: the two models share the head, torso and legs, and those come out of
@@ -59,7 +59,7 @@ def main(src, name="pioneer_whole_body_humanoid", out=None, ref=None):
         text = text.replace(f'"{f}"', f'"{out}"')
         print(f"{f}: {len(m.faces)} -> {len(fc)}")
     text = text.replace("<!-- written by make_urdf.py: edit that, not this file -->",
-                        "<!-- converted by convert.py from Prometheus' make_urdf.py output: rerun convert.py, don't edit -->")
+                        "<!-- written by convert.py -->")
     text = re.sub(r'<robot name="[^"]*">', f'<robot name="{name}">', text, count=1)
     open(os.path.join(HERE, f"{name}.urdf"), "w").write(text)
 
@@ -99,7 +99,7 @@ def _elsewhere(src, root, text, name, out, ref):
         text = text.replace(f'"{f}"', f'"{stl}"')
         print(f"{f}: {len(m.faces)} -> {len(fc)} (its own)")
     text = text.replace("<!-- written by make_urdf.py: edit that, not this file -->",
-                        "<!-- converted by convert.py from Prometheus' make_urdf.py output: rerun convert.py, don't edit -->")
+                        "<!-- written by convert.py -->")
     text = re.sub(r'<robot name="[^"]*">', f'<robot name="{name}">', text, count=1)
     open(os.path.join(out, f"{name}.urdf"), "w").write(text)
     print(len(files) - len(own), "meshes shared with this folder,", len(own), "its own")

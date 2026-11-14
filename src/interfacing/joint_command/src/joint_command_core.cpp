@@ -94,6 +94,30 @@ bool JointCommandCore::isActive(size_t joint) const {
   return joint >= safety_.size() || safety_[joint].active;
 }
 
+bool JointCommandCore::anyActive() const {
+  for (size_t i = 0; i < joints_.size(); ++i) {
+    if (isActive(i)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+std::optional<std::string> findDuplicateMotorIds(const std::vector<const JointCommandCore*>& arms) {
+  std::map<int, std::string> owner; // motor id -> "side joint"
+  for (const JointCommandCore* arm : arms) {
+    for (size_t i = 0; i < arm->jointCount(); ++i) {
+      const int id = static_cast<int>(arm->motorId(i));
+      const std::string name = arm->armSide() + " " + arm->jointName(i);
+      const auto [it, inserted] = owner.emplace(id, name);
+      if (!inserted) {
+        return "motor " + std::to_string(id) + " is " + it->second + " and " + name;
+      }
+    }
+  }
+  return std::nullopt;
+}
+
 void JointCommandCore::resizeJointState() {
   prev_targets_.resize(joints_.size(), 0.0);
   last_motor_cmd_deg_.resize(joints_.size(), 0.0);
@@ -304,7 +328,7 @@ bool JointCommandCore::validateMitGains() {
         errors << "\n  " << name << ": gravity_ff_scale > 0 needs control_type 0 (MIT) -- "
                << "POSITION_LOOP has no torque field";
       }
-      if (arm_side_ != "left") {
+      if (!hasGravityModel()) {
         errors << "\n  " << name << ": the gravity model is the LEFT arm (joint1L..joint6l); "
                << "arm_side is '" << arm_side_ << "'";
       }
@@ -423,11 +447,15 @@ bool JointCommandCore::loadSafetyFromYaml(const YAML::Node& safety_cfg, double c
   }
 
   control_rate_hz_ = control_rate_hz;
+  const YAML::Node arm = safety_cfg[arm_side_];
+  if (!arm) {
+    last_error_ = "safety config has no '" + arm_side_ + "' block for this arm";
+    return false;
+  }
   // The gripper is driven only if this config has a block for it.
   joints_.resize(jointPaths().size());
   // One level at a time: indexing through a missing key throws in yaml-cpp.
-  const bool drives_gripper = safety_cfg["joints"] && safety_cfg["joints"]["gripper"] &&
-                              safety_cfg["joints"]["gripper"]["open_close"];
+  const bool drives_gripper = arm["gripper"] && arm["gripper"]["open_close"];
   if (drives_gripper) {
     if (!gripper_mapping_) {
       last_error_ = "safety config has a gripper block but arm_calibration.yaml has no "
@@ -447,21 +475,17 @@ bool JointCommandCore::loadSafetyFromYaml(const YAML::Node& safety_cfg, double c
     safety_.assign(joints_.size(), defaults);
     for (size_t i = 0; i < jointPaths().size(); ++i) {
       const auto& [group, joint_name] = jointPaths()[i];
-      const YAML::Node joint_node = safety_cfg["joints"][group][joint_name];
+      const YAML::Node joint_node = arm[group][joint_name];
       safety_[i] = loadJointSafetyConfig(joint_node, defaults);
     }
     if (hasGripper()) {
-      safety_[kGripperJoint] =
-          loadJointSafetyConfig(safety_cfg["joints"]["gripper"]["open_close"], defaults);
+      safety_[kGripperJoint] = loadJointSafetyConfig(arm["gripper"]["open_close"], defaults);
     }
   } catch (const std::exception& e) {
     last_error_ = e.what();
     return false;
   }
-  if (std::none_of(safety_.begin(), safety_.end(), [](const auto& s) { return s.active; })) {
-    last_error_ = "no joint is active: set active: true on at least one joint";
-    return false;
-  }
+  // An arm with no active joint still loads (and is validated): the node skips it this run.
   return validateMitGains() && validateGripper();
 }
 
