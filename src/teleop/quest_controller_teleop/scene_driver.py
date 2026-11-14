@@ -102,7 +102,6 @@ class ControllerSceneDriver:
         self.reset_sequence = 0
         self.record_presses = 0   # right-B presses so far (the scene backend toggles recording on each)
         self.status = "Tracked controllers move the arms. Left Y resets; stick-click pauses to calibrate."
-        self.task = ""   # set by the scene backend: recording state and the current step, shown in the headset
         self.error = None
         # index.html shows the stereo pov_left/pov_right pair only for "isaac"; any other scene shows "ego".
         self.scene = scene
@@ -279,7 +278,6 @@ class ControllerSceneDriver:
             self.shared.feedback = {
                 "scene": self.scene,
                 "status": self.status if fresh else "Tracking paused. Control resumes from the current arm pose.",
-                "task": self.task,
                 "active": {s: t.active for s, t in self.targets.items()},
                 "haptics": {s: self.solvers[s].warning if t.active else 0. for s, t in self.targets.items()},
             }

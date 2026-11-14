@@ -302,10 +302,9 @@ def loop(model, data, driver, arms, cameras, window, recording, reset, reset_key
         if step != shown_step:
             shown_step = step
             print(f"[TASK] {step}", flush=True)
-        parts = [recording.status() if recording is not None else "", step]
-        driver.task = "  |  ".join(p for p in parts if p)   # the headset's overlay shows it too
         if window is not None:
-            window.status = driver.task
+            parts = [recording.status() if recording is not None else "", step]
+            window.status = "  |  ".join(p for p in parts if p)
         tick += 1
         if scene_hook is not None:
             scene_hook(model, data)
