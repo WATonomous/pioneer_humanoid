@@ -152,7 +152,10 @@ function draw(time, frame) {
   ctx.fillStyle='#111820'; ctx.fillRect(0,0,hud.width,hud.height);
   ctx.fillStyle='#86e2b8'; ctx.font='24px sans-serif';
   ctx.fillText(`Left ${feedback.active?.left?'MOVING':'HOLD'}   Right ${feedback.active?.right?'MOVING':'HOLD'}`,20,40);
-  ctx.fillStyle='white'; ctx.font='20px sans-serif'; ctx.fillText(status.textContent,20,85,980);
+  ctx.fillStyle='white'; ctx.font='20px sans-serif'; ctx.fillText(status.textContent,20,80,980);
+  // Recording state and the current step of a multi-step scene, e.g. "REC 3.2 s  |  step 2/5: put the ...".
+  ctx.fillStyle=feedback.task?.startsWith('REC')?'#ff6b6b':'#ffd479'; ctx.font='24px sans-serif';
+  ctx.fillText(feedback.task || '',20,116,980);
   gl.bindTexture(gl.TEXTURE_2D,textures.get('hud'));
   gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,hud);
   for (const view of viewer.views) {
