@@ -77,16 +77,8 @@ Our own policy, `humanoid_dit` ([`humanoid_robot_learning/policies/dit`](humanoi
 with the same entry point. Fine-tune from `lerobot/pi05_base`, training only the action expert (the VLM stays frozen).
 Works for any dataset in the schema's format (one arm or both); sim evaluation runs left-arm policies.
 
-Relative actions are optional and recommended, not the default: LeRobot's pi0.5 predicts absolute joint targets unless
-`--policy.use_relative_actions=true`. With it, arm actions are relative to the state and the grippers stay absolute (as
-openpi's `DeltaActions` does for joint-space robots). The conversion lives in the checkpoint's pre/post-processors, so
-sim evaluation (below) needs nothing extra. Relative actions need the action stats in relative space too: recompute
-them into a copy of the dataset with LeRobot's own tool, then train on the copy. For absolute actions, drop the first
-command and `--policy.use_relative_actions=true`, and train on the dataset as is.
-
-`--steps`, `--batch_size` and `--save_freq` are ordinary `lerobot-train` arguments; the values below are examples, not
-requirements. Pick them for your GPU and dataset size (pi0.5 in fp32 with the VLM frozen needs about 22 GB at
-`--batch_size=4`, so on a 24 GB GPU use 4 or less).
+Relative actions (optional, recommended; LeRobot's default is absolute) need relative action stats (first command); for absolute, skip it and drop `--policy.use_relative_actions=true`.
+`--steps`, `--batch_size` and `--save_freq` below are examples: pick them for your GPU (about 22 GB at `--batch_size=4`).
 
 ```bash
 DATA=datasets/<dataset>/sim     # e.g. datasets/pioneer_8dof_left_arm/sim
