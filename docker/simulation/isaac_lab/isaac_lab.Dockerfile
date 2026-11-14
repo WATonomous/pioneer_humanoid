@@ -130,8 +130,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxkbcommon0 libxkbcommon-x11-0 \
     && rm -rf /var/lib/apt/lists/*
 
+# mink: the teleops' IK (quest_controller_teleop/mink_control.py); --no-deps keeps Isaac Lab's daqp/qpsolvers pins.
 RUN $PYTHON -m pip install --no-deps "rerun-sdk>=0.24.0,<0.27.0" && \
     $PYTHON -m pip install pyzmq && \
+    $PYTHON -m pip install mujoco && \
+    $PYTHON -m pip install --no-deps "mink==1.4.0" && \
     $PYTHON -m pip install --upgrade pip
 
 # ── Humanoid packages (editable; repo bind-mounted at runtime) ────────────────
