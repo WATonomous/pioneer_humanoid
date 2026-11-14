@@ -18,7 +18,9 @@ recorded task stays the plain instruction).
 Policies trained with LeRobot's ``--rename_map`` (pi0.5: ``ego`` -> ``base_0_rgb``, ``wrist_left`` -> ``left_wrist_0_rgb``)
 see our cameras under their names: the map is read from the checkpoint's train_config.json (or ``--rename_map``), our
 cameras are rendered and fed under the policy's keys, and policy cameras with no sim camera are left out (pi0.5 pads
-them). Recorded rollouts keep our camera names, as the teleop data.
+them). Recorded rollouts keep our camera names, as the teleop data. A camera renders at the policy's image size when
+that has the camera's sensor aspect, else at the size the robot's dataset schema records (pi0.5 declares 224x224 and
+resizes internally: its 4:3 cameras render at 640x480).
 """
 from __future__ import annotations
 
@@ -33,6 +35,7 @@ import numpy as np
 # leader_mapping.py: the teleop's control period (scene step hooks run at this rate) and the wrist damping it adds.
 CONTROL_DT = 0.01
 WRIST_DAMPING = 2.5
+ASPECT_TOLERANCE = 0.02   # relative; pioneer_humanoid.arm_params.vertical_aperture's sensor-aspect check
 HOLD_S = 0.4    # success must last this long (a peg that drops in and bounces out is not inserted)
 # Left-arm action size (arm joints + gripper) per robot: how --robot is picked from the policy.
 ACTION_DIM = {"armv2": 7, "8dof": 8}
@@ -164,11 +167,31 @@ def checkpoint_rename_map(path: str) -> dict[str, str]:
     return (json.loads(config.read_text()).get("rename_map") or {}) if config.exists() else {}
 
 
-def policy_cameras(policy, rename_map: dict[str, str], sim_cameras) -> tuple[dict[str, tuple[int, int]], dict[str, str]]:
+def recorded_sizes(robot: str) -> dict[str, tuple[int, int]]:
+    """{camera: (height, width)} the robot's dataset schema records (what teleop and rollout datasets hold)."""
+    from humanoid_robot_learning.recording.schema import load_yaml
+    from humanoid_robot_learning.sim.sim_teleop_record import DEFAULT_SCHEMAS
+
+    images = load_yaml(DEFAULT_SCHEMAS[robot]).get("images") or {}
+    return {name: (int(spec["height"]), int(spec["width"])) for name, spec in images.items()}
+
+
+def render_size(mount, policy_size: tuple[int, int], recorded: tuple[int, int] | None) -> tuple[int, int]:
+    """The policy's (height, width) if it has the sensor's aspect (`mount.aspect`, w/h; None: any), else `recorded`:
+    a policy that resizes internally (pi0.5: 224x224) gets the camera as recorded and its preprocessor resizes it."""
+    height, width = policy_size
+    if mount.aspect is None or abs(width / height - mount.aspect) <= ASPECT_TOLERANCE * mount.aspect or recorded is None:
+        return policy_size
+    return recorded
+
+
+def policy_cameras(policy, rename_map: dict[str, str], sim_cameras,
+                   recorded: dict[str, tuple[int, int]]) -> tuple[dict[str, tuple[int, int]], dict[str, str]]:
     """({sim camera: (height, width)} to render, {our observation key: the policy's key}).
 
-    `rename_map`: {dataset key: policy key}, as LeRobot training's --rename_map; `sim_cameras`: the robot's camera
-    names. A policy camera with no sim camera behind it is skipped (pi0.5 pads views it does not get)."""
+    `rename_map`: {dataset key: policy key}, as LeRobot training's --rename_map; `sim_cameras`: the robot's
+    {camera: CameraMount}; `recorded`: recorded_sizes(). A policy camera with no sim camera behind it is skipped
+    (pi0.5 pads views it does not get)."""
     source = {policy_key: ours for ours, policy_key in rename_map.items()}
     cameras, to_policy = {}, {}
     for key, feature in policy.config.image_features.items():
@@ -177,7 +200,11 @@ def policy_cameras(policy, rename_map: dict[str, str], sim_cameras) -> tuple[dic
         if name not in sim_cameras:
             print(f"[EVAL] policy camera {key}: no sim camera, not fed (the policy pads it)", flush=True)
             continue
-        cameras[name], to_policy[ours] = tuple(feature.shape[1:]), key
+        cameras[name] = render_size(sim_cameras[name], tuple(feature.shape[1:]), recorded.get(name))
+        to_policy[ours] = key
+        if cameras[name] != tuple(feature.shape[1:]):
+            print(f"[EVAL] {name}: policy input {feature.shape[1]}x{feature.shape[2]} is not the sensor's aspect; "
+                  f"rendering {cameras[name][0]}x{cameras[name][1]} for the policy to resize", flush=True)
     if not cameras:
         raise ValueError(f"none of the policy's cameras {list(policy.config.image_features)} maps to a sim camera "
                          f"{sorted(sim_cameras)}; pass --rename_map")
@@ -268,7 +295,7 @@ def main() -> None:
     robot = pick_robot(p, args, policy)
     rename_map = checkpoint_rename_map(args.policy) if args.rename_map is None else args.rename_map
     try:
-        cameras, to_policy = policy_cameras(policy, rename_map, robot_params(robot)[0].CAMERAS)
+        cameras, to_policy = policy_cameras(policy, rename_map, robot_params(robot)[0].CAMERAS, recorded_sizes(robot))
     except ValueError as exc:
         p.error(str(exc))
     recorder = None
