@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interactive per-joint arm calibration.
+"""Interactive per-joint arm or leg calibration.
 
 Requires can_node running (feedback + motorCMD topics).
 
@@ -7,16 +7,20 @@ Typical flow per joint:
   1. Confirm / set motor id (Enter = yes, or type the correct id e.g. 14)
   2. Move joint to the pose you want as 0° → Enter  (records zero)
   3. Move to one range end → Enter, other end → Enter  (records min/max)
-  4. Results written to arm_calibration.yaml and/or a sidecar file
+  4. Results written to the limb's calibration YAML and/or a sidecar file
 
 MIT drives only answer when spoken to, so they are polled with zero-gain MIT frames: those
-joints are LIMP while you calibrate -- support the arm. Stop joint_command_node first.
+joints are LIMP while you calibrate -- support the limb. Stop joint_command_node first.
 
 Examples (inside interfacing container, ROS sourced)::
 
   python3 /root/ament_ws/src/interfacing/can/scripts/calibrate_arm.py \\
-    --arm-side left --write-mapping --calibration /calibration/arm_calibration.yaml
-  ros2 run can calibrate_arm.py --arm-side left --write-mapping
+    --side left --write-mapping --calibration /calibration/arm_calibration.yaml
+  ros2 run can calibrate_arm.py --side left --write-mapping
+
+  python3 /root/ament_ws/src/interfacing/can/scripts/calibrate_arm.py \\
+    --limb leg --side left --write-mapping --calibration /calibration/leg_calibration.yaml
+  ros2 run can calibrate_arm.py --limb leg --side left --write-mapping
 """
 
 from __future__ import annotations
@@ -57,13 +61,13 @@ def _qos() -> QoSProfile:
 
 def flatten_joints(
     mapping: Dict[str, Any],
-    arm_side: str,
+    side: str,
     include_hand: bool,
     include_gripper: bool,
 ) -> List[Tuple[str, Dict[str, Any]]]:
-    """Return [(dotted.name, joint_dict), ...] for one arm side."""
-    if arm_side not in mapping:
-        raise KeyError(f"arm side '{arm_side}' not in mapping (keys={list(mapping)})")
+    """Return [(dotted.name, joint_dict), ...] for one side."""
+    if side not in mapping:
+        raise KeyError(f"side '{side}' not in mapping (keys={list(mapping)})")
 
     out: List[Tuple[str, Dict[str, Any]]] = []
 
@@ -81,7 +85,7 @@ def flatten_joints(
                 continue
             walk(child, name)
 
-    walk(mapping[arm_side], arm_side)
+    walk(mapping[side], side)
     return out
 
 
@@ -319,14 +323,14 @@ def apply_result_to_joint(joint: Dict[str, Any], result: Dict[str, Any]) -> None
         joint["direction"] = int(result["direction"])
 
 
-def mit_motor_ids(joints: List[Tuple[str, Dict[str, Any]]]) -> List[int]:
-    """Drives that only answer MIT frames: every GL II, plus joints arm_actuators.yaml puts on
+def mit_motor_ids(joints: List[Tuple[str, Dict[str, Any]]], limb: str) -> List[int]:
+    """Drives that only answer MIT frames: every GL II, plus joints limb's actuators YAML puts on
     control_type 0 (an AK brought up in MIT)."""
-    safety = jc.find_actuators(None)
+    safety = jc.find_actuators(None, limb)
     ids = set()
     for name, joint in joints:
         motor_id = parse_can_id(joint["can_id"])
-        side, short = name.split(".", 1)  # flatten_joints names are "<arm side>.<joint>"
+        side, short = name.split(".", 1)  # flatten_joints names are "<side>.<joint>"
         control_type = jc.joint_safety(safety, side, short).get("control_type")
         if jc.drive_family(motor_id) == "gl2" or (control_type is not None and
                                                   int(control_type) == MotorCmd.MIT_CONTROL):
@@ -384,10 +388,13 @@ def resolve_motor_id(
 
 def run(args: argparse.Namespace) -> int:
     mapping_path = Path(args.mapping).expanduser().resolve()
+    if not mapping_path.exists():
+        print(f"Expected mapping path: {mapping_path} is not there. Pass --calibration PATH", file = sys.stderr)
+        return 1
     mapping = load_mapping(mapping_path)
     joints = flatten_joints(
         mapping,
-        args.arm_side,
+        args.side,
         include_hand=args.include_hand,
         include_gripper=not args.arm_only,
     )
@@ -395,9 +402,41 @@ def run(args: argparse.Namespace) -> int:
         print("No joints found in mapping.", file=sys.stderr)
         return 1
 
+    # read flags
     skip_motors = parse_id_list(args.skip_motors)
     only_motors = parse_id_list(args.only_motors)
     skip_joints = parse_name_list(args.skip_joints)
+
+    # CLI filters only; per-joint skip / motor-id remap is interactive
+    selected: List[Tuple[str, Dict[str, Any]]] = []
+    for name, joint in joints:
+        mid = parse_can_id(joint["can_id"])
+        if only_motors and mid not in only_motors:
+            print(f"Skip {name} (not in --only-motors)")
+            continue
+        if joint_matches_skip(name, mid, skip_motors, skip_joints):
+            print(f"Skip {name} motor_id={mid} (0x{mid:02X})")
+            continue
+        selected.append((name, joint))
+
+    if not selected:
+        print("Nothing to calibrate after filters.", file=sys.stderr)
+        return 1
+
+    bad_joints = []
+    for name, joint in selected:
+        direction = joint.get("direction")
+        if direction not in (1, -1):
+            bad_joints.append((name, direction))
+    if bad_joints:
+        for name, direction in bad_joints:
+            print(f"Joint {name} with direction {direction} is not valid; set to 1 or -1 (motor vs URDF positive direction) in {mapping_path}",
+                  file=sys.stderr)
+        return 1
+
+    if jc.find_actuators(None, args.limb) is None:
+        print(f"File for {args.limb}_actuators.yaml is missing; (looked in: {', '.join(jc.actuator_configs(args.limb))})", file=sys.stderr)
+        return 1
 
     rclpy.init()
     node = CalibrateNode()
@@ -413,10 +452,10 @@ def run(args: argparse.Namespace) -> int:
         rclpy.shutdown()  # stops the spin thread; destroying a node mid-spin aborts the process
         spin_thread.join(timeout=2.0)
         return 1
-    mit_ids = mit_motor_ids(joints)
+    mit_ids = mit_motor_ids(selected, args.limb)  # builds the list of selected motor IDs for MIT polling, only selected motors get polled (go limp)
     if mit_ids:
         print(f"MIT drives {mit_ids}: polling with zero-gain frames so they report. They are "
-              f"LIMP (zero torque) until this exits -- support the arm.")
+              f"LIMP (zero torque) until this exits -- support the limb.")
         node.start_mit_poke(mit_ids)
 
     print("Waiting for /interfacing/motorFeedback ...")
@@ -427,7 +466,7 @@ def run(args: argparse.Namespace) -> int:
     if args.skip_missing:
         missing = [
             (name, parse_can_id(joint["can_id"]))
-            for name, joint in joints
+            for name, joint in selected
             if parse_can_id(joint["can_id"]) not in seen
         ]
         if missing:
@@ -435,35 +474,17 @@ def run(args: argparse.Namespace) -> int:
             for name, mid in missing:
                 print(f"  {name}  mapped={mid} (0x{mid:02X})")
 
-    # CLI filters only; per-joint skip / motor-id remap is interactive
-    selected: List[Tuple[str, Dict[str, Any]]] = []
-    for name, joint in joints:
-        mid = parse_can_id(joint["can_id"])
-        if only_motors and mid not in only_motors:
-            print(f"Skip {name} (not in --only-motors)")
-            continue
-        if joint_matches_skip(name, mid, skip_motors, skip_joints):
-            print(f"Skip {name} motor_id={mid} (0x{mid:02X})")
-            continue
-        selected.append((name, joint))
-
     print()
-    print("Arm joint calibration")
+    print(f"{args.limb.capitalize()} joint calibration")
     print("  zero-mode:", args.zero_mode)
     print("  mapping:  ", mapping_path)
     print("  joints:   ", len(selected), f"(of {len(joints)} in file)")
     print("  Per joint: Enter=yes that id is correct  |  type new id  |  s=skip  |  q=quit")
     print()
 
-    if not selected:
-        print("Nothing to calibrate after filters.", file=sys.stderr)
-        node.stop_mit_poke()
-        node.destroy_node()
-        rclpy.shutdown()
-        return 1
-
     results: Dict[str, Any] = {
-        "arm_side": args.arm_side,
+        "limb": args.limb,
+        "side": args.side,
         "zero_mode": args.zero_mode,
         "joints": {},
     }
@@ -592,29 +613,34 @@ def run(args: argparse.Namespace) -> int:
     return 0
 
 
-def build_parser() -> argparse.ArgumentParser:
+def default_mapping_path(limb: str) -> Path:
+    filename = f"{limb}_calibration.yaml"
     default_mapping = (
         Path(__file__).resolve().parents[3]
         / "interfacing"
         / "joint_command"
         / "config"
-        / "arm_calibration.yaml"
+        / filename
     )
     # In-container mount path used by docker-compose.interfacing.yaml
-    container_mapping = Path("/calibration/arm_calibration.yaml")
+    container_mapping = Path("/calibration/") / filename
     if container_mapping.exists():
         default_mapping = container_mapping
     elif not default_mapping.exists():
-        default_mapping = Path("arm_calibration.yaml")
+        default_mapping = Path(filename)
+    return default_mapping
 
+
+def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--arm-side", default="left", choices=["left", "right"], help="Side in arm_calibration.yaml")
-    p.add_argument("--calibration", "--mapping", dest="mapping", default=str(default_mapping),
-                   help="Path to arm_calibration.yaml")
+    p.add_argument("--limb", default="arm", choices=["arm", "leg"], help="Which limb to calibrate, default is arm")
+    p.add_argument("--side", "--arm-side", dest="side", default="left", choices=["left", "right"], help="Side (left/right) in calibration YAML, default is left")
+    p.add_argument("--calibration", "--mapping", dest="mapping", default=None,
+                   help="Path to the calibration YAML (default chosen from --limb)")
     p.add_argument(
         "--sidecar",
-        default=str(Path.home() / ".cache" / "humanoid" / "calibration" / "last_calibration.yaml"),
-        help="Always write results here too",
+        default=None,
+        help="Always write results here too (default: ~/.cache/humanoid/calibration/last_<limb>_calibration.yaml)",
     )
     p.add_argument(
         "--zero-mode",
@@ -655,13 +681,17 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--write-mapping",
         action="store_true",
-        help="Update arm_calibration.yaml in place (creates .bak once)",
+        help="Update calibration YAML in place (creates .bak once)",
     )
     return p
 
 
 def main() -> int:
     args = build_parser().parse_args()
+    if args.mapping is None:
+        args.mapping = default_mapping_path(args.limb)
+    if args.sidecar is None:
+        args.sidecar = str(Path.home() / ".cache" / "humanoid" / "calibration" / f"last_{args.limb}_calibration.yaml")
     if yaml is None:
         print("Missing PyYAML. In the container: apt-get update && apt-get install -y python3-yaml", file=sys.stderr)
         return 1
