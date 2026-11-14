@@ -23,6 +23,24 @@ directions as the team's model (`python assets/old_leg_only_humanoid/check_leg_d
   `check_motion.py` (each joint swept through most of its range, then all at once: does it track, does anything blow
   up). Both pass on both models. They run in MuJoCo, which forgives more than PhysX (Isaac Sim).
 
+## Arm range of motion (design chart)
+
+The range of motion each arm joint is designed for (the 1107 arm draft: AK10 shoulder pitch / roll, AK80 upper-arm
+yaw / elbow / forearm roll, a 2-DOF wrist), in degrees. It is the target for the arm and its exterior shell; the
+URDF limits above are the model's and may still differ.
+
+| joint | range (deg) | span |
+|-------|-------------|------|
+| Shoulder pitch | -90 to +180 | 270 |
+| Shoulder roll | -20 to +160 | 180 |
+| Upper-arm yaw | -120 to +120 | 240 |
+| Elbow | 0 to 130 (bend) | 130 |
+| Forearm roll | -110 to +110 | 220 |
+| Wrist pitch | -60 to +60 | 120 |
+| Wrist yaw | -90 to +90 | 180 |
+
+Shoulder roll below about -8 deg (arm inward) is limited by the arm's own parts meeting the torso, not by the shell.
+
 | file | what it is |
 |------|------------|
 | `pioneer_whole_body_humanoid.xml` | **Open this one** in MuJoCo's viewer (`python -m mujoco.viewer --mjcf pioneer_whole_body_humanoid.xml`, or drag it in): the robot standing on a floor in its CAD colours, the collision boxes hidden (group 3), a fixed base and one position actuator a joint, to move the joints from the viewer's control panel. Written by `to_mjcf.py`. |
