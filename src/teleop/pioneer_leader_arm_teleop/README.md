@@ -125,13 +125,13 @@ Scenes: `bare`, `peg_insert`, `zip_tie`, `drawer_stow`, `matcha`, `duplo`, or an
   `SAVED` / `take discarded` for 3 s after 8 / 9. Until the arm follows (with or without `--record`) it also lists each
   joint's offset from home (the gripper as % open) under `bring to position`, `<` marking the ones still out of range.
 - **Arm:** the right arm by default (`--arms right`): the leader's left arm doesn't register its servos. `--arms left` once it does.
-- **`--record`** → `<repo>/datasets/pioneer_v1_right_arm/sim/` · cameras `ego` + the driven arm's wrist (`--cameras` to change, `none` for none).
+- **`--record`** → `<repo>/datasets/pioneer_8dof_right_arm/sim/` · cameras `ego` + the driven arm's wrist (`--cameras` to change, `none` for none).
 - **Multi-step scenes** (`drawer_stow`, `matcha`, `duplo`): the terminal prints `[TASK] step k/n: <instruction>` as each step is done and
   `all steps done -- 8 to save` at the end. Recorded frames carry the current step's instruction as their `task` and a
   `subtask_index`, so a take is labelled step by step with no hand annotation.
 - **Both arms:** `--arms bimanual`, once both boards are calibrated (`calibrate_leader.py --side left` / `right`).
   Recording waits for every leader at home; frames are the left arm's 7 values then the right's, into
-  `<repo>/datasets/pioneer_v1_bimanual/sim/` (`pioneer_v1_left_arm` for the left arm alone), with both wrist cameras.
+  `<repo>/datasets/pioneer_8dof_bimanual/sim/` (`pioneer_8dof_left_arm` for the left arm alone), with both wrist cameras.
 - Other flags: `--baud`, `--leader-arm` (default `leader_arm.json` here), `--filter-alpha` (target smoothing, default 0.35).
   `"lock_wrist": true` under an arm in `leader_arm.json` freezes that arm's wrist (F) rigidly at home (MuJoCo: motor off, joint pinned every physics step; Isaac: its joint limits closed onto home) and ignores the leader's wrist; `false` lets it follow the leader. `--lock-wrist` / `--no-lock-wrist` override it for one run. Recalibrating keeps the setting.
 
