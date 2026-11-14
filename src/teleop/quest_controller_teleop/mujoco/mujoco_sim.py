@@ -153,7 +153,7 @@ def make_driver(args, model, data) -> ControllerSceneDriver:
 def run() -> None:
     args, record = parse_args()
     import mujoco
-    from humanoid_mujoco_scenes import list_scenes, make_model, scene_reset, scene_step
+    from humanoid_mujoco_scenes import list_scenes, make_model, scene_progress, scene_reset, scene_step
     from pioneer_humanoid.mujoco_bimanual_arm_8dof import set_home
 
     if args.scene not in list_scenes():
@@ -161,6 +161,7 @@ def run() -> None:
     model = make_model(args.scene, cameras={name: CameraWindow.SIZE for name in CameraWindow.CAMERAS}, robot="8dof")
     data = mujoco.MjData(model)
     scene_hook, randomise = scene_step(args.scene), scene_reset(args.scene)
+    steps = scene_progress(args.scene)   # multi-step task: (index, total, instruction), or None
     rng = np.random.default_rng()
     arms = {side: arm_ids(model, side) for side in ("left", "right")}
 
@@ -179,7 +180,10 @@ def run() -> None:
           f"(after adb reverse tcp:{args.controller_port} tcp:{args.controller_port}). Left Y or 6 in the window resets.", flush=True)
     reset_key = threading.Event()  # set by the window's key handler, consumed by the control loop
     stop = threading.Event()
-    recorder, every = make_sim_recorder(args, record, device="cpu", sim_dt=dt)
+    # Multi-step scenes record the current step's instruction as each frame's task, plus its index (as the leader
+    # teleop does): sim evaluation prompts the policy with the same per-step instruction.
+    extra = {"subtask_index": ["subtask_index"]} if steps is not None else None
+    recorder, every = make_sim_recorder(args, record, device="cpu", sim_dt=dt, extra_features=extra)
     sizes = {name: (int(spec["height"]), int(spec["width"])) for name, spec in record.images.items()}
     window = None if args.headless and recorder is None else CameraWindow(model, sizes, recorder)
     recording = Recording(recorder, window, every, driver) if recorder is not None else None
@@ -193,7 +197,7 @@ def run() -> None:
     def control() -> None:
         driver.start_thread()   # the driver is owned by the thread that starts it: start, loop and close here
         try:
-            loop(model, data, driver, arms, window, recording, reset, reset_key, scene_hook, substeps, dt,
+            loop(model, data, driver, arms, window, recording, reset, reset_key, scene_hook, steps, substeps, dt,
                  stop)
         finally:
             stop.set()
@@ -221,15 +225,25 @@ def run() -> None:
         print("\n[Quest] Stopped.", flush=True)
 
 
-def loop(model, data, driver, arms, window, recording, reset, reset_key, scene_hook, substeps, dt,
+def step_status(steps, model, data) -> str:
+    """The operator's view of a multi-step task: the current step, or that all are done."""
+    if steps is None:
+        return ""
+    index, total, instruction = steps(model, data)
+    return "all steps done: save the take" if index >= total else f"step {index + 1}/{total}: {instruction}"
+
+
+def loop(model, data, driver, arms, window, recording, reset, reset_key, scene_hook, steps, substeps, dt,
          stop) -> None:
-    """Control ticks at dt until `stop` is set (window closed, Ctrl+C): input, IK, physics, camera frames."""
+    """Control ticks at dt until `stop` is set (window closed, Ctrl+C): input, IK, physics, camera frames.
+
+    `steps`: the scene's progress function (multi-step tasks), or None."""
     import mujoco
 
     def joint_positions():
         return {side: data.qpos[ids.qpos].copy() for side, ids in arms.items()}
 
-    next_tick, shown, tick = time.monotonic(), None, 0
+    next_tick, shown, shown_step, tick = time.monotonic(), None, None, 0
     previous = {side: data.qpos[ids.qpos].copy() for side, ids in arms.items()}
     while not stop.is_set():
         if recording is not None and recording.recorder.is_complete:
@@ -259,9 +273,18 @@ def loop(model, data, driver, arms, window, recording, reset, reset_key, scene_h
                 closure = (data.qpos[ids.grip_qpos] - ids.grip_open) / (ids.grip_closed - ids.grip_open)
                 action.extend([*commands[side], driver.grippers[side]])
                 state.extend([*data.qpos[ids.qpos], float(np.clip(closure.mean(), 0., 1.))])
-            window.push_sample(data, np.asarray(action, np.float32), np.asarray(state, np.float32))
-        if recording is not None:
-            window.status = recording.status()
+            task, extras = None, None
+            if steps is not None:
+                index, _, task = steps(model, data)
+                extras = {"subtask_index": np.array([index], np.float32)}
+            window.push_sample(data, np.asarray(action, np.float32), np.asarray(state, np.float32), task, extras)
+        step = step_status(steps, model, data)
+        if step != shown_step:
+            shown_step = step
+            print(f"[TASK] {step}", flush=True)
+        if window is not None:
+            parts = [recording.status() if recording is not None else "", step]
+            window.status = "  |  ".join(p for p in parts if p)
         tick += 1
         if scene_hook is not None:
             scene_hook(model, data)

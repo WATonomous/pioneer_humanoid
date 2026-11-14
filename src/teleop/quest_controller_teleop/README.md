@@ -51,6 +51,18 @@ Both arms, 25 fps of sim time, schema `pioneer_8dof_dataset_schema.yaml` (8 valu
 wrists at 640x480, into `datasets/pioneer_8dof_bimanual/sim` (later sessions append). The window shows `REC <s>` while
 recording. Train on it as in `src/robot_learning/README.md`.
 
+Multi-step scenes (those with a `progress` function, e.g. `drawer_stow`) record the current step's instruction as each
+frame's task ("open the drawer", "put the red block in the drawer", ...) plus a `subtask_index` feature, as the leader
+teleop does: sim evaluation prompts the policy with the same per-step instruction. The window and the terminal show the
+current step; save the take once it says all steps are done.
+
+```bash
+src/teleop/quest_controller_teleop/start_quest.sh --scene drawer_stow --record
+```
+
+`drawer_stow` is a left-arm task: train on the left arm with `humanoid_robot_learning.select_arm`
+([robot_learning README](../../robot_learning/README.md)).
+
 ## How it works
 
 `index.html` → `transport.py` → `scene_driver.py` → `mink_control.py` → joint targets.
