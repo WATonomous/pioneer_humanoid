@@ -15,7 +15,7 @@ class Pioneer1Config(PreTrainedConfig):
 
     n_obs_steps: int = 1
     horizon: int = 32
-    n_action_steps: int = 32
+    n_action_steps: int = 16
 
     hidden_dim: int = 768
     num_layers: int = 6
@@ -55,6 +55,9 @@ class Pioneer1Config(PreTrainedConfig):
     color_jitter: tuple[float, float, float, float] = (0.3, 0.4, 0.5, 0.08)
 
     flow_steps: int = 10
+    # replanning after n_action_steps < horizon actions: the next replan_prefix planned actions are held fixed at the start
+    # of the new chunk (real-time chunking prefix), so consecutive chunks join up
+    replan_prefix: int = 6
     time_beta_alpha: float = 1.5
     time_beta_beta: float = 1.0
     time_max: float = 0.999
@@ -81,6 +84,10 @@ class Pioneer1Config(PreTrainedConfig):
             raise ValueError("hidden_dim / num_heads must be an even integer (rotary embeddings)")
         if not 0 <= self.rtc_max_prefix < self.horizon:
             raise ValueError(f"rtc_max_prefix ({self.rtc_max_prefix}) must be in [0, horizon)")
+        if not 0 <= self.replan_prefix <= self.rtc_max_prefix:
+            raise ValueError(f"replan_prefix ({self.replan_prefix}) must be in [0, rtc_max_prefix = {self.rtc_max_prefix}]")
+        if self.replan_prefix and (self.n_action_steps + self.replan_prefix > self.horizon or self.n_obs_steps != 1):
+            raise ValueError("replan_prefix needs n_obs_steps = 1 and n_action_steps + replan_prefix <= horizon")
 
     def get_optimizer_preset(self) -> AdamWConfig:
         return AdamWConfig(lr=self.optimizer_lr, betas=self.optimizer_betas, weight_decay=self.optimizer_weight_decay,

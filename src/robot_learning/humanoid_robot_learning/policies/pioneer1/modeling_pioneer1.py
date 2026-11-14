@@ -244,6 +244,7 @@ class Pioneer1Policy(PreTrainedPolicy):
     def reset(self):
         self._queues = {OBS_STATE: deque(maxlen=self.config.n_obs_steps), OBS_IMAGES: deque(maxlen=self.config.n_obs_steps),
                         ACTION: deque(maxlen=self.config.n_action_steps)}
+        self._plan = None
 
     def _prepare(self, images: Tensor, size: int) -> Tensor:
         """(N, 3, H, W) in [0, 1] -> (N, 3, size, size). Training: random resized crop, small rotation and colour jitter
@@ -374,12 +375,16 @@ class Pioneer1Policy(PreTrainedPolicy):
         if prefix is not None and start:
             raise ValueError("prefix needs n_obs_steps = 1 (the chunk must start at the current step)")
         context, mask = self.encode(history)
-        return self.sample(context, prefix=prefix, mask=mask)[:, start:start + self.config.n_action_steps]
+        self._plan = self.sample(context, prefix=prefix, mask=mask)
+        return self._plan[:, start:start + self.config.n_action_steps]
 
     @torch.no_grad()
     def select_action(self, batch: dict[str, Tensor], **kwargs) -> Tensor:
         if not self._queues[ACTION]:
-            self._queues[ACTION].extend(self.predict_action_chunk(batch).transpose(0, 1))
+            n, d = self.config.n_action_steps, self.config.replan_prefix
+            # the actions the last chunk planned next, held fixed at the start of the new one
+            prefix = self._plan[:, n:n + d] if d and self._plan is not None else None
+            self._queues[ACTION].extend(self.predict_action_chunk(batch, prefix=prefix).transpose(0, 1))
         else:
             batch = self._stack_images(batch)
             keys = (OBS_STATE, OBS_IMAGES) if self.config.use_state else (OBS_IMAGES,)
