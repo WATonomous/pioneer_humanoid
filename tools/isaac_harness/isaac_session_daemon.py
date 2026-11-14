@@ -97,6 +97,17 @@ sim.reset()
 # name -> RigidObject | Articulation
 objects: dict = {}
 _object_is_dynamic: dict = {}  # name -> bool, for the bbox staleness warning
+_home_arms: set = set()  # spawn_bimanual_arm names
+
+
+def _reset_sim():
+    """sim.reset(), then the arms back to their home pose: every reset (PLAY) restarts them at the URDF zero."""
+    sim.reset()
+    for name in _home_arms & objects.keys():
+        robot = objects[name]
+        robot.write_joint_state_to_sim(robot.data.default_joint_pos, robot.data.default_joint_vel)
+        robot.set_joint_position_target(robot.data.default_joint_pos)
+        robot.write_data_to_sim()
 
 _PRIMITIVE_SPAWNERS = {
     "cuboid": sim_utils.CuboidCfg,
@@ -120,7 +131,7 @@ def _get_camera() -> Camera:
             spawn=sim_utils.PinholeCameraCfg(focal_length=18.0, clipping_range=(0.05, 20.0)),
         )
         _camera = Camera(cfg=cam_cfg)
-        sim.reset()
+        _reset_sim()
         for _ in range(5):
             sim.step()
             simulation_app.update()
@@ -167,7 +178,7 @@ def handle_spawn_primitive(cmd: dict) -> dict:
     try:
         objects[name] = RigidObject(cfg=obj_cfg)
         _object_is_dynamic[name] = dynamic
-        sim.reset()
+        _reset_sim()
     except Exception:
         # don't leave a half-initialized object in the registry — a broken
         # entry there crashes every later command that touches it (query,
@@ -256,7 +267,7 @@ def handle_spawn_usd(cmd: dict) -> dict:
         # conservatively assume dynamic (i.e. bbox may go stale) unless
         # proven otherwise.
         _object_is_dynamic[name] = True
-        sim.reset()
+        _reset_sim()
     except Exception:
         objects.pop(name, None)
         _object_is_dynamic.pop(name, None)
@@ -265,8 +276,8 @@ def handle_spawn_usd(cmd: dict) -> dict:
 
 
 def handle_spawn_bimanual_arm(cmd: dict) -> dict:
-    """Spawn the repo's actual pioneer_bimanual_arm robot with its real,
-    pre-built actuator config (BIMANUAL_ARM_CFG from
+    """Spawn the repo's actual pioneer_bimanual_arm_8dof robot with its real,
+    pre-built actuator config (BIMANUAL_ARM_8DOF_CFG from
     the pioneer_humanoid package) — generic
     spawn_usd --articulation builds a bare ArticulationCfg with no actuators
     and fails outright for this robot:
@@ -283,23 +294,25 @@ def handle_spawn_bimanual_arm(cmd: dict) -> dict:
 
     import sys
 
-    pioneer_humanoid_dir = "/workspace/humanoid/src/pioneer_humanoid"
+    pioneer_humanoid_dir = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../src/pioneer_humanoid"))
     if pioneer_humanoid_dir not in sys.path:
         sys.path.insert(0, pioneer_humanoid_dir)
-    from pioneer_humanoid.bimanual_arm import BIMANUAL_ARM_CFG
+    from pioneer_humanoid.bimanual_arm_8dof import BIMANUAL_ARM_8DOF_CFG
 
     pos = tuple(cmd.get("pos", [0, 0, 0]))
     rot = tuple(cmd.get("rot", [1, 0, 0, 0]))
-    obj_cfg = BIMANUAL_ARM_CFG.replace(prim_path=f"/World/{name}")
+    obj_cfg = BIMANUAL_ARM_8DOF_CFG.replace(prim_path=f"/World/{name}")
     obj_cfg.init_state.pos = pos
     obj_cfg.init_state.rot = rot
     try:
         objects[name] = Articulation(cfg=obj_cfg)
         _object_is_dynamic[name] = True
-        sim.reset()
+        _home_arms.add(name)
+        _reset_sim()
     except Exception:
         objects.pop(name, None)
         _object_is_dynamic.pop(name, None)
+        _home_arms.discard(name)
         raise
     return {"ok": True}
 
@@ -391,7 +404,7 @@ def handle_remove(cmd: dict) -> dict:
     del objects[name]
     _object_is_dynamic.pop(name, None)
     gc.collect()
-    sim.reset()
+    _reset_sim()
     return {"ok": True}
 
 

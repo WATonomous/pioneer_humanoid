@@ -188,15 +188,14 @@ approach depth) — not just that the two boxes don't intersect.
 
 ## Robot-specific
 
-- **This repo's robot is `pioneer_bimanual_arm.usd`.** If it looks like a single
-  6-DOF arm rather than two arms, or looks like an old/wrong model, `git pull` — the
-  canonical asset and its config (`Teleop/keyboard_based_teleoperation/bimanual_arm_cfg.py`)
-  have moved before (deleted+replaced in commit `950b86b8`, "Adding the new URDF and
-  USD files... Removing unused USD/URDF files").
+- **This repo's robot is `pioneer_bimanual_arm_8dof`** (two 7-DoF arms + 1-DoF grippers on the rig's stand;
+  config `BIMANUAL_ARM_8DOF_CFG` in `src/pioneer_humanoid/pioneer_humanoid/bimanual_arm_8dof.py`). There is no
+  committed USD: the URDF is converted on the first spawn (~1 min) and cached in
+  `assets/pioneer_bimanual_arm_8dof/usd/`. If it looks like two 6-DoF arms, that's the old `pioneer_bimanual_arm`.
 - **Spawn it with `spawn_bimanual_arm`, not generic `spawn_usd --articulation`.**
   The generic command builds a bare `ArticulationCfg` with no actuators and throws
   `TypeError: Missing values detected ... - actuators`. `spawn_bimanual_arm` uses the
-  real, actuator-complete `BIMANUAL_ARM_CFG` instead.
+  real, actuator-complete `BIMANUAL_ARM_8DOF_CFG` instead.
 
 ## Object-spawning gotchas
 

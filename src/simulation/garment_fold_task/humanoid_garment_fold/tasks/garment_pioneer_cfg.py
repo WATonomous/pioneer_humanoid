@@ -1,7 +1,7 @@
-"""Garment-fold env config for the WATonomous pioneer_bimanual_arm.
+"""Garment-fold env config for the WATonomous pioneer_bimanual_arm_8dof.
 
 NEW (WATonomous) -- not vendored. Subclasses the robot-agnostic `GarmentEnvCfg`
-and plugs in a single `pioneer_bimanual_arm` articulation in place of upstream's
+and plugs in a single `pioneer_bimanual_arm_8dof` articulation in place of upstream's
 two SO101 follower arms.
 """
 from __future__ import annotations
@@ -12,17 +12,17 @@ from isaaclab.sensors import TiledCameraCfg
 from isaaclab.utils import configclass
 
 from humanoid_garment_fold.tasks.garment_env_cfg import GarmentEnvCfg
-from pioneer_humanoid.bimanual_arm import (
-    BIMANUAL_ARM_CFG,
+from pioneer_humanoid.arm_8dof_params import (
     LEFT_ARM_JOINTS,
     RIGHT_ARM_JOINTS,
     LEFT_GRIPPER_JOINTS,
     RIGHT_GRIPPER_JOINTS,
 )
-# CAD-sourced wrist-camera mount (arm_params.py), not the SO101 offset this
+from pioneer_humanoid.bimanual_arm_8dof import BIMANUAL_ARM_8DOF_CFG
+# CAD-sourced wrist-camera mount (arm_8dof_params.py), not the SO101 offset this
 # file originally carried (aimed left_wrist into empty space, buried
 # right_wrist in the gripper housing -- see scripts/smoke_test.py).
-from pioneer_humanoid.arm_params import CAMERAS as _PIONEER_CAMERAS
+from pioneer_humanoid.arm_8dof_params import CAMERAS as _PIONEER_CAMERAS
 from pioneer_humanoid.arm_params import vertical_aperture as _pioneer_vertical_aperture
 
 __all__ = [
@@ -30,6 +30,9 @@ __all__ = [
     "LEFT_ARM_JOINTS", "RIGHT_ARM_JOINTS",
     "LEFT_GRIPPER_JOINTS", "RIGHT_GRIPPER_JOINTS",
 ]
+
+# Fallback Table038 (1.1 x 1.0 m, top at 0.52 m): its near edge 0.2 m in front of the arm base, under the garment.
+TABLE038_POS = (0.0, 0.30, 0.0)
 
 _WRIST_RES = (480, 640)  # height, width -- matches the rest of this task's cameras
 
@@ -52,13 +55,13 @@ _TOP_OPTICS = sim_utils.PinholeCameraCfg(
 
 @configclass
 class GarmentPioneerEnvCfg(GarmentEnvCfg):
-    # 12-dim action: 6 left-arm revolute + 6 right-arm revolute joint-position
-    # targets. Grippers are held open (see GarmentPioneerEnv._apply_action).
-    action_space = 12
-    observation_space = 12
+    # 16-dim action, the pioneer_8dof dataset layout: [left 7 arm joints, left gripper,
+    # right 7 arm joints, right gripper]; joint-position targets (rad), grippers 0 = open, 1 = closed.
+    action_space = 16
+    observation_space = 16
 
     # one articulation, replaces upstream left_robot + right_robot
-    robot: ArticulationCfg = BIMANUAL_ARM_CFG.replace(prim_path="/World/Robot")
+    robot: ArticulationCfg = BIMANUAL_ARM_8DOF_CFG.replace(prim_path="/World/Robot")
 
     # Front axis is +X (see bimanual_vial_rack.sh); rotated +90deg about Z to
     # face the garment at world ~(0,0,0.73).
@@ -81,7 +84,7 @@ class GarmentPioneerEnvCfg(GarmentEnvCfg):
 
     # --- cameras: wrist cams on the pioneer wrist links, top cam world-fixed ---
     left_wrist: TiledCameraCfg = TiledCameraCfg(
-        prim_path="/World/Robot/link6l/left_wrist_camera",
+        prim_path="/World/Robot/left_link7/left_wrist_camera",
         offset=TiledCameraCfg.OffsetCfg(
             pos=_PIONEER_CAMERAS["wrist_left"].pos,
             rot=_PIONEER_CAMERAS["wrist_left"].rot,
@@ -91,7 +94,7 @@ class GarmentPioneerEnvCfg(GarmentEnvCfg):
         width=_WRIST_RES[1], height=_WRIST_RES[0], update_period=1 / 30.0,
     )
     right_wrist: TiledCameraCfg = TiledCameraCfg(
-        prim_path="/World/Robot/link6/right_wrist_camera",
+        prim_path="/World/Robot/right_link7/right_wrist_camera",
         offset=TiledCameraCfg.OffsetCfg(
             pos=_PIONEER_CAMERAS["wrist_right"].pos,
             rot=_PIONEER_CAMERAS["wrist_right"].rot,
