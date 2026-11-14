@@ -3,10 +3,12 @@
 # MuJoCo sim and clicks into VR (the browser needs a user gesture; index.html takes a click anywhere). The click is
 # retried until the headset streams poses, so the VR controllers never have to touch the page.
 # Usage: start_quest.sh [mujoco_sim.py flags, e.g. --scene bimanual_sorting]   PY=<python> to override
+#        ENTRY=resume_teleop start_quest.sh [resume_teleop.py flags]   another entry point in mujoco/
 set -euo pipefail
 cd "$(dirname "$0")/../../.."
 PORT=8444
 PY=${PY:-.venv/bin/python}
+ENTRY=${ENTRY:-mujoco_sim}
 
 adb wait-for-device
 adb reverse tcp:$PORT tcp:$PORT >/dev/null
@@ -23,7 +25,7 @@ except ValueError:
   done
 fi
 
-"$PY" src/teleop/quest_controller_teleop/mujoco/mujoco_sim.py "$@" &
+"$PY" "src/teleop/quest_controller_teleop/mujoco/$ENTRY.py" "$@" &
 SIM=$!
 trap 'kill $SIM 2>/dev/null' INT TERM
 until curl -sf "localhost:$PORT/" >/dev/null; do sleep .5; done
