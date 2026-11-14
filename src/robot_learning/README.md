@@ -76,19 +76,18 @@ Our own policy, `humanoid_dit` ([`humanoid_robot_learning/policies/dit`](humanoi
 **pi0.5** trains through LeRobot's own pi0.5 (LeRobot 0.7, `pip install 'lerobot[pi,training]==0.7.0'`, Python ≥ 3.12)
 with the same entry point. Fine-tune from `lerobot/pi05_base`, training only the action expert (the VLM stays frozen),
 with actions relative to the state (the grippers stay absolute). The relative-action conversion lives in the
-checkpoint's pre/post-processors, so sim evaluation (below) needs nothing extra. Record single-arm tasks such as
-`drawer_stow` with the Quest teleop's `--record_arms left` (8 values, ego + left wrist camera). Relative actions need
-the action stats in relative space too: recompute them into a copy with LeRobot's own tool, then train on the copy.
+checkpoint's pre/post-processors, so sim evaluation (below) needs nothing extra. Relative actions need the action
+stats in relative space too: recompute them into a copy of the dataset with LeRobot's own tool, then train on the
+copy. Works for any dataset in the schema's format (one arm or both); sim evaluation runs left-arm policies.
 
 ```bash
-lerobot-edit-dataset --repo_id humanoid/pioneer_8dof_left_arm --root datasets/pioneer_8dof_left_arm/sim \
-  --new_root datasets/pioneer_8dof_left_arm_relstats/sim --operation.type recompute_stats \
-  --operation.relative_action true --operation.chunk_size 50
-python -m humanoid_robot_learning.train --dataset.repo_id=humanoid/pioneer_8dof_left_arm \
-  --dataset.root=datasets/pioneer_8dof_left_arm_relstats/sim --policy.path=lerobot/pi05_base \
-  --policy.train_expert_only=true --policy.use_relative_actions=true --policy.gradient_checkpointing=true \
-  --policy.push_to_hub=false --policy.device=cuda --steps=6000 --batch_size=8 --save_freq=2000 \
-  --output_dir=outputs/train/pi05_drawer_stow
+DATA=datasets/<dataset>/sim     # e.g. datasets/pioneer_8dof_left_arm/sim
+lerobot-edit-dataset --repo_id humanoid/<dataset> --root $DATA --new_root ${DATA}_relstats \
+  --operation.type recompute_stats --operation.relative_action true --operation.chunk_size 50
+python -m humanoid_robot_learning.train --dataset.repo_id=humanoid/<dataset> --dataset.root=${DATA}_relstats \
+  --policy.path=lerobot/pi05_base --policy.train_expert_only=true --policy.use_relative_actions=true \
+  --policy.gradient_checkpointing=true --policy.push_to_hub=false --policy.device=cuda \
+  --steps=6000 --batch_size=8 --save_freq=2000 --output_dir=outputs/train/pi05_<task>
 ```
 
 Success rate of any checkpoint on a MuJoCo scene that defines `success` (or multi-step `progress`), left arm, as recorded by the leader-arm teleop. It prints a 95% interval: 40 episodes tell 35% from 65% (about ±15 points); comparing 60% with 70% needs about 400. Use layout seeds the training demos did not (`--seed`; the synthetic demos start at 0).
