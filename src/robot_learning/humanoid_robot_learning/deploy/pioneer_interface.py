@@ -1,3 +1,4 @@
+# Old 6-DoF arm only (today's real arm). 8dof is the default; the real arm moves to 8dof soon.
 """Adapter between Isaac Sim's pioneer_bimanual_arm (left chain) and RTCDrivenPolicy.
 
 Mirrors humanoid_so101_vial_task.utils.lerobot_interface.LeRobotSO101Interface's
@@ -207,7 +208,7 @@ class PioneerLeftArmInterface:
         clampedActions = torch.clamp(action_values, self.joint_mins, self.joint_maxs)
 
         # One gripper motor drives both fingers with opposite sign (LEFT_GRIPPER_OPEN/CLOSED:
-        # joint7l closed is -0.05, joint8l closed is +0.05), so one closure sets both.
+        # joint7l closed is -0.041, joint8l closed is +0.041), so one closure sets both.
         fingers = self._grip_open + clampedActions[-1] * (self._grip_closed - self._grip_open)
 
         sim_action = torch.cat([clampedActions[:-1], fingers])  # (8,)

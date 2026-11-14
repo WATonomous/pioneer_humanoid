@@ -15,12 +15,13 @@ constexpr double kDegToRad = 3.14159265358979323846 / 180.0;
 // 12-bit gain fields (every CubeMars MIT drive).
 constexpr double kMitGainCodes = 4096.0;
 constexpr double kGravityFfRampSec = 1.0;
+constexpr double kMaxGravityFfScale = 5.0;
 
 // ArmPose joint order, shared by both config files.
 const std::vector<std::pair<std::string, std::string>>& jointPaths() {
   static const std::vector<std::pair<std::string, std::string>> paths = {
-      {"shoulder", "pitch"}, {"shoulder", "yaw"}, {"shoulder", "roll"},
-      {"elbow", "pitch"},    {"elbow", "roll"},   {"wrist", "pitch"},
+      {"shoulder", "pitch"}, {"shoulder", "roll"}, {"shoulder", "yaw"},
+      {"elbow", "pitch"},    {"elbow", "yaw"},     {"wrist", "pitch"},
   };
   return paths;
 }
@@ -92,6 +93,30 @@ bool JointCommandCore::loadFromYaml(const YAML::Node& config, const std::string&
 
 bool JointCommandCore::isActive(size_t joint) const {
   return joint >= safety_.size() || safety_[joint].active;
+}
+
+bool JointCommandCore::anyActive() const {
+  for (size_t i = 0; i < joints_.size(); ++i) {
+    if (isActive(i)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+std::optional<std::string> findDuplicateMotorIds(const std::vector<const JointCommandCore*>& arms) {
+  std::map<int, std::string> owner; // motor id -> "side joint"
+  for (const JointCommandCore* arm : arms) {
+    for (size_t i = 0; i < arm->jointCount(); ++i) {
+      const int id = static_cast<int>(arm->motorId(i));
+      const std::string name = arm->armSide() + " " + arm->jointName(i);
+      const auto [it, inserted] = owner.emplace(id, name);
+      if (!inserted) {
+        return "motor " + std::to_string(id) + " is " + it->second + " and " + name;
+      }
+    }
+  }
+  return std::nullopt;
 }
 
 void JointCommandCore::resizeJointState() {
@@ -295,17 +320,19 @@ bool JointCommandCore::validateMitGains() {
     if (s.gravity_assume_deg.has_value() && !std::isfinite(*s.gravity_assume_deg)) {
       errors << "\n  " << name << ": gravity_assume_deg must be finite";
     }
-    if (s.gravity_ff_scale < 0.0 || s.gravity_ff_scale > 2.0) {
-      errors << "\n  " << name << ": gravity_ff_scale must be in [0, 2] (got " << s.gravity_ff_scale
-             << ")";
+    // Up to 5x the model: the torque itself is still capped by gravity_ff_max_torque and the
+    // stall rule below (kp x track_err + gravity_ff_max_torque <= cap).
+    if (s.gravity_ff_scale < 0.0 || s.gravity_ff_scale > kMaxGravityFfScale) {
+      errors << "\n  " << name << ": gravity_ff_scale must be in [0, " << kMaxGravityFfScale
+             << "] (got " << s.gravity_ff_scale << ")";
     }
     if (s.gravity_ff_scale > 0.0) {
       if (!isMitJoint(i)) {
         errors << "\n  " << name << ": gravity_ff_scale > 0 needs control_type 0 (MIT) -- "
                << "POSITION_LOOP has no torque field";
       }
-      if (arm_side_ != "left") {
-        errors << "\n  " << name << ": the gravity model is the LEFT arm (joint1L..joint6l); "
+      if (!hasGravityModel()) {
+        errors << "\n  " << name << ": gravity_model.hpp has only the left and right arms; "
                << "arm_side is '" << arm_side_ << "'";
       }
       if (s.gravity_ff_max_torque <= 0.0) {
@@ -423,11 +450,15 @@ bool JointCommandCore::loadSafetyFromYaml(const YAML::Node& safety_cfg, double c
   }
 
   control_rate_hz_ = control_rate_hz;
+  const YAML::Node arm = safety_cfg[arm_side_];
+  if (!arm) {
+    last_error_ = "safety config has no '" + arm_side_ + "' block for this arm";
+    return false;
+  }
   // The gripper is driven only if this config has a block for it.
   joints_.resize(jointPaths().size());
   // One level at a time: indexing through a missing key throws in yaml-cpp.
-  const bool drives_gripper = safety_cfg["joints"] && safety_cfg["joints"]["gripper"] &&
-                              safety_cfg["joints"]["gripper"]["open_close"];
+  const bool drives_gripper = arm["gripper"] && arm["gripper"]["open_close"];
   if (drives_gripper) {
     if (!gripper_mapping_) {
       last_error_ = "safety config has a gripper block but arm_calibration.yaml has no "
@@ -447,21 +478,17 @@ bool JointCommandCore::loadSafetyFromYaml(const YAML::Node& safety_cfg, double c
     safety_.assign(joints_.size(), defaults);
     for (size_t i = 0; i < jointPaths().size(); ++i) {
       const auto& [group, joint_name] = jointPaths()[i];
-      const YAML::Node joint_node = safety_cfg["joints"][group][joint_name];
+      const YAML::Node joint_node = arm[group][joint_name];
       safety_[i] = loadJointSafetyConfig(joint_node, defaults);
     }
     if (hasGripper()) {
-      safety_[kGripperJoint] =
-          loadJointSafetyConfig(safety_cfg["joints"]["gripper"]["open_close"], defaults);
+      safety_[kGripperJoint] = loadJointSafetyConfig(arm["gripper"]["open_close"], defaults);
     }
   } catch (const std::exception& e) {
     last_error_ = e.what();
     return false;
   }
-  if (std::none_of(safety_.begin(), safety_.end(), [](const auto& s) { return s.active; })) {
-    last_error_ = "no joint is active: set active: true on at least one joint";
-    return false;
-  }
+  // An arm with no active joint still loads (and is validated): the node skips it this run.
   return validateMitGains() && validateGripper();
 }
 
@@ -534,7 +561,8 @@ JointCommandCore::gravityTorqueMotor(const std::vector<double>& cmd_targets_deg)
     }
     q_urdf[i] = q_cmd * kDegToRad; // the command frame is the URDF frame
   }
-  const std::array<double, 6> tau = leftArmGravityHoldTorque(q_urdf);
+  const std::array<double, 6> tau =
+      arm_side_ == "right" ? rightArmGravityHoldTorque(q_urdf) : leftArmGravityHoldTorque(q_urdf);
   for (size_t i = 0; i < q_urdf.size(); ++i) {
     // Torque follows the angle's sign mapping: urdf (= cmd) -> motor.
     const double dir = joints_[i].direction == 0 ? 1.0 : joints_[i].direction;

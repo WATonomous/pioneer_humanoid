@@ -50,6 +50,10 @@ def generate_launch_description():
             description='true when replaying a bag with --clock'
         ),
         DeclareLaunchArgument(
+            'use_tracknet', default_value='false',
+            description='Start the TrackNet detector node (needs a GPU and models/TrackNet_best.pt)'
+        ),
+        DeclareLaunchArgument(
             'log_level',
             default_value='info',
             description='Log level for the detector and dummy publisher node'
@@ -105,6 +109,13 @@ def generate_launch_description():
                 # Add any topic remappings here if needed
             ],
             condition=IfCondition(use_dummy),
+        ),
+        Node(
+            package='perception',
+            executable='tracknet_node',
+            name='tracknet_node',
+            output='screen',
+            condition=IfCondition(LaunchConfiguration('use_tracknet')),
         ),
         Node(
             package='perception',

@@ -111,7 +111,8 @@ def create_dataset(cfg: dict[str, Any], *, root: Path):
             "pip install -e 'src/robot_learning[lerobot]'"
         ) from exc
 
-    root.mkdir(parents=True, exist_ok=True)
+    # Parent only: LeRobotDataset.create makes `root` itself and refuses one that already exists.
+    root.parent.mkdir(parents=True, exist_ok=True)
     record_cfg = cfg.get("record") or {}
     return LeRobotDataset.create(
         repo_id=str(cfg.get("repo_id", "humanoid/local")),

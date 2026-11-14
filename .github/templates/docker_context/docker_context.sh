@@ -25,7 +25,7 @@ while read -r module; do
 
     # Skip GPU / non-CI modules
     # TODO: Add custom handling for embedded testing
-    if [[ 'simulation' = $module_out || 'simulation_isaac' = $module_out || 'simulation_isaac_garment' = $module_out || 'simulation_mj' = $module_out || 'embedded' = $module_out ]]; then
+    if [[ 'simulation' = $module_out || 'simulation_isaac' = $module_out || 'simulation_isaac_garment' = $module_out || 'simulation_mj' = $module_out || 'embedded' = $module_out || 'terrain_mapping' = $module_out ]]; then
         continue
     fi
 
@@ -47,6 +47,10 @@ while read -r module; do
 
         # TODO: Expose whole profile object to env
         dockerfile=$(docker compose -f "$module" config | yq ".services.$service_out.build.dockerfile")
+        # Services that reuse another service's image (no build section) have nothing to build
+        if [[ "$dockerfile" == "null" ]]; then
+            continue
+        fi
         json_object=$(jq -nc --arg module_out "$module_out" --arg service_out "$service_out" --arg dockerfile "$dockerfile" \
         '{module: $module_out, service: $service_out, dockerfile: $dockerfile}')
         # Append JSON object to the array

@@ -1,3 +1,4 @@
+# Old 6-DoF arm only (today's real arm). 8dof is the default; the real arm moves to 8dof soon.
 """Record teleoperation data from ROS 2 (real arm) or dry-run tests."""
 
 from __future__ import annotations
@@ -13,6 +14,7 @@ from humanoid_robot_learning.recording.record_loop import run_record_loop
 from humanoid_robot_learning.recording.recorder import RecordSettings
 from humanoid_robot_learning.recording.record_utils import resolve_config_path, resolve_dataset_root
 from humanoid_robot_learning.recording.arm_pose_io import ARM_POSE_JOINT_NAMES
+from humanoid_robot_learning.recording.record_gripper import GRIPPER_JOINT_NAME
 from humanoid_robot_learning.recording.schema import enabled_images, load_yaml, select_arms, select_cameras
 from humanoid_robot_learning.recording.sinks import parse_sink_names
 from humanoid_robot_learning.recording.snapshot import ObservationSnapshot
@@ -25,7 +27,9 @@ _DEFAULT_SCHEMA = _PKG_ROOT / "config" / "pioneer_humanoid_dataset_schema.yaml"
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Record demonstrations to LeRobot and/or HDF5 (WATO humanoid arm, ROS 2)."
+        description="Record demonstrations to LeRobot and/or HDF5 (WATO humanoid arm, ROS 2). "
+        "Keys: S start a take, N stop and save it, D delete the last saved take, ESC quit. "
+        "Each take is its own dataset folder; combine them with humanoid-merge-takes."
     )
     parser.add_argument(
         "--schema",
@@ -43,7 +47,8 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--dataset_root",
         type=str,
         default=None,
-        help="Output directory (default: <repo>/<schema record.root>/real)",
+        help="Output directory; each run adds a session folder NNN/ of take_NNN/ datasets "
+        "(default: <repo>/<schema record.root>/real)",
     )
     parser.add_argument(
         "--sink",
@@ -51,30 +56,44 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default="lerobot",
         help="Output sinks: lerobot, hdf5, or comma-separated (e.g. lerobot,hdf5)",
     )
-    parser.add_argument("--num_episodes", type=int, default=10)
+    parser.add_argument("--num_episodes", type=int, default=10,
+                        help="Takes to save this session (deleted takes don't count)")
     parser.add_argument("--task_description", type=str, default="humanoid demonstration")
     parser.add_argument(
         "--episode_time_s",
         type=float,
         default=None,
-        help="Auto-finish each episode after N seconds (keyboard optional)",
+        help="Auto-stop and save each take after N seconds (as if N were pressed)",
     )
     parser.add_argument(
         "--reset_time_s",
         type=float,
         default=5.0,
-        help="Pause between saved episodes",
+        help="Pause between takes, --auto_start only",
     )
     parser.add_argument(
         "--auto_start",
         action=argparse.BooleanOptionalAction,
-        default=True,
-        help="Log frames immediately when an episode begins",
+        default=False,
+        help="Start each take without pressing S (on automatically when no keyboard is available)",
     )
     parser.add_argument(
         "--dry_run",
         action="store_true",
         help="Synthetic data only; no ROS (tests write path)",
+    )
+    parser.add_argument(
+        "--gripper_state",
+        choices=("feedback", "action"),
+        default="feedback",
+        help="left_gripper state: the gripper motor's measured closure (default; frames without a "
+        "fresh reading are skipped), or a copy of the commanded closure (gripper unpowered)",
+    )
+    parser.add_argument(
+        "--gripper_calibration",
+        type=str,
+        default=None,
+        help="arm_calibration.yaml for the gripper feedback (default: same lookup as joint_command)",
     )
     parser.add_argument("-v", "--verbose", action="store_true")
     return parser.parse_args(argv)
@@ -84,11 +103,10 @@ def _check_real_support(cfg: dict[str, Any]) -> None:
     """Fail fast on schema fields the real arm cannot supply yet."""
     problems = []
     names = list(cfg["joint_names"])
-    if names != list(ARM_POSE_JOINT_NAMES):
-        missing = [n for n in names if n not in ARM_POSE_JOINT_NAMES]
-        problems.append(
-            f"joint_names {missing or names} have no ROS source (ArmPose supplies {list(ARM_POSE_JOINT_NAMES)})"
-        )
+    supplied = [*ARM_POSE_JOINT_NAMES, GRIPPER_JOINT_NAME]  # GripperRecordBuffer's 7 values
+    if names != supplied:
+        missing = [n for n in names if n not in supplied]
+        problems.append(f"joint_names {missing or names} have no ROS source (the recorder supplies {supplied})")
     no_topic = [k for k, spec in enabled_images(cfg).items() if not spec.get("topic")]
     if no_topic:
         problems.append(f"cameras {no_topic} have no ROS topic (use --cameras to pick others)")
@@ -117,16 +135,18 @@ class _DryRunSource(_SnapshotSource):
 
 
 class _RosSource(_SnapshotSource):
-    def __init__(self, cfg: dict[str, Any]) -> None:
+    def __init__(self, cfg: dict[str, Any], *, gripper_state: str, gripper_calibration: str | None) -> None:
         import rclpy
         from rclpy.node import Node
 
-        from humanoid_robot_learning.recording.ros_buffer import RosRecordBuffer
+        from humanoid_robot_learning.recording.record_gripper import GripperRecordBuffer
 
         self._rclpy = rclpy
         rclpy.init()
         self._node = Node("humanoid_record")
-        self._buffer = RosRecordBuffer(self._node, cfg)
+        self._buffer = GripperRecordBuffer(
+            self._node, cfg, gripper_state=gripper_state, calibration=gripper_calibration
+        )
 
     def maybe_spin(self) -> None:
         self._rclpy.spin_once(self._node, timeout_sec=0.0)
@@ -171,7 +191,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.dry_run:
         source: _SnapshotSource = _DryRunSource(image_shapes, dim)
     else:
-        source = _RosSource(cfg)
+        source = _RosSource(cfg, gripper_state=args.gripper_state, gripper_calibration=args.gripper_calibration)
 
     output_dir = run_record_loop(
         cfg,
@@ -181,7 +201,7 @@ def main(argv: list[str] | None = None) -> int:
         sink_names=sink_names,
         dry_run=args.dry_run,
     )
-    print(f"Dataset saved under: {output_dir}")
+    print(f"Takes saved under: {output_dir} (combine them with humanoid-merge-takes)")
     return 0
 
 

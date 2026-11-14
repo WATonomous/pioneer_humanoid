@@ -1,41 +1,74 @@
 {
   "left": {
-    "enabled": true,
-    "port": "/dev/ttyACM1",
+    "enabled": false,
     "usb_serial": "5970073136",
     "signs": "1,1,-1,-1,1,-1,1",
+    "lock_wrist": true,
     "servos": {
       "A": {
         "id": 2,
-        "zero": 636
+        "zero": 587
       },
       "B": {
         "id": 3,
-        "zero": 926
+        "zero": 979
       },
       "C": {
         "id": 1,
-        "zero": 3756
+        "zero": 1382
       },
       "D": {
         "id": 5,
-        "zero": 725
+        "zero": 573
       },
       "E": {
         "id": 4,
-        "zero": 3069
+        "zero": 3122
       },
       "F": {
         "id": 7,
-        "zero": 2034
+        "zero": 2273
       },
       "G": {
         "id": 6,
-        "zero": 3131
+        "zero": 330
       }
     }
   },
   "right": {
-    "enabled": false
+    "enabled": true,
+    "usb_serial": "5970073136",
+    "signs": "1,1,-1,1,1,1,1",
+    "lock_wrist": true,
+    "servos": {
+      "A": {
+        "id": 2,
+        "zero": 2678
+      },
+      "B": {
+        "id": 3,
+        "zero": 2927
+      },
+      "C": {
+        "id": 1,
+        "zero": 3494
+      },
+      "D": {
+        "id": 5,
+        "zero": 564
+      },
+      "E": {
+        "id": 4,
+        "zero": 3001
+      },
+      "F": {
+        "id": 7,
+        "zero": 2207
+      },
+      "G": {
+        "id": 6,
+        "zero": 2299
+      }
+    }
   }
 }

@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
 """Angle benchmark for the real arm: ramp out to a pose, dwell, ramp back, settle.
 
-Publishes ArmPose on /arm/joint_targets exactly like teleop, so joint_command's clamp, velocity
-limits and MIT watchdog all apply. Nothing here bypasses them.
+Publishes ArmPose on /arm/<side>/joint_targets (--arm-side) exactly like teleop, so
+joint_command's clamp, velocity limits and MIT watchdog all apply. Nothing here bypasses them.
+--arm-side both drives the two arms in one run: joints are named left.<joint> / right.<joint>
+and --offset / --pose take twelve degrees, the left arm's six then the right's.
 
 Run (joint_command container; joint_command_node and can_node running; nothing else
-publishing /arm/joint_targets)::
+publishing that topic)::
 
-  python3 /opt/humanoid_scripts/arm_roundtrip.py --joints elbow.roll --offset "0,0,0,0,5,0"
+  python3 /opt/humanoid_scripts/arm_roundtrip.py --joints elbow.yaw --offset "0,0,0,0,5,0"
   python3 /opt/humanoid_scripts/arm_roundtrip.py --pose "0,0,10,20,0,0" --max-delta 25
+  python3 /opt/humanoid_scripts/arm_roundtrip.py --arm-side both \
+      --joints left.elbow.yaw,right.elbow.yaw --offset "0,0,0,0,5,0,0,0,0,0,5,0"
   tools/arm_roundtrip.sh ...        # the same from the host, plus plots
 
 Sequence (command-frame degrees):
@@ -25,12 +29,12 @@ Sequence (command-frame degrees):
 --exercise-limits sends the request as given (past limits, faster than velocity_max) over
 --duration; the summary checks joint_command clamped both::
 
-  arm_roundtrip.py --exercise-limits --joints elbow.roll --pose "0,0,0,0,200,0" --duration 2
+  arm_roundtrip.py --exercise-limits --joints elbow.yaw --pose "0,0,0,0,200,0" --duration 2
 
 Stopping: Ctrl-C or tracking error > --max-track-err ramps back to the origin; a second Ctrl-C
 stops streaming; lost feedback freezes in place. Then joint_command's stale-stream handling
 applies. The node's installed configs must match the repo's. Recalibrate the AK80-9s after every
-power-on (src/interfacing/README.md).
+power-on (src/interfacing/ARM_BRINGUP.md).
 
 HARDWARE E-STOP within reach for every run.
 """
@@ -52,17 +56,17 @@ import joint_config as jc
 from telemetry import RunFolder
 from telemetry_record import TelemetryRecorder
 
-N = len(jc.ARM_POSE_JOINTS)
-
 
 class RoundTripNode(TelemetryRecorder):
     """The telemetry recorder, plus the ArmPose publisher and feedback timestamps."""
 
-    def __init__(self, joint_map, log, rate_hz):
-        super().__init__(joint_map, log, None, rate_hz)
+    def __init__(self, joint_map, log, rate_hz, arm_sides):
+        super().__init__(joint_map, log, None, rate_hz, arm_sides)
+        self.arm_sides = arm_sides
         self.fb_time: Dict[int, float] = {}
         self.temp_c: Dict[int, List[int]] = {}  # [first, peak] drive reading; 0 = no reading
-        self.pub = self.create_publisher(ArmPose, "/arm/joint_targets", 10)
+        self.pubs = [self.create_publisher(ArmPose, jc.arm_pose_topic(side), 10)
+                     for side in arm_sides]
 
     def _on_feedback(self, msg: MotorFeedback) -> None:
         super()._on_feedback(msg)
@@ -73,15 +77,19 @@ class RoundTripNode(TelemetryRecorder):
             first_peak[1] = max(first_peak[1], temp)
 
     def publish_pose(self, pose: List[float]) -> None:
-        msg = ArmPose()
-        msg.header.stamp = self.get_clock().now().to_msg()
-        msg.name = "arm_roundtrip"
-        msg.is_left = True
-        msg.shoulder.position = [float(v) for v in pose[0:3]]
-        msg.elbow.position = [float(v) for v in pose[3:5]]
-        msg.wrist.position = [float(v) for v in pose[5:6]]
-        msg.include_hand_pose = False
-        self.pub.publish(msg)
+        """pose: six degrees per arm, in arm_sides order; one ArmPose per arm."""
+        stamp = self.get_clock().now().to_msg()
+        for k, (side, pub) in enumerate(zip(self.arm_sides, self.pubs)):
+            arm = pose[6 * k:6 * k + 6]
+            msg = ArmPose()
+            msg.header.stamp = stamp
+            msg.name = "arm_roundtrip"
+            msg.is_left = side == "left"  # joint_command ignores a pose for the other arm
+            msg.shoulder.position = [float(v) for v in arm[0:3]]
+            msg.elbow.position = [float(v) for v in arm[3:5]]
+            msg.wrist.position = [float(v) for v in arm[5:6]]
+            msg.include_hand_pose = False
+            pub.publish(msg)
 
     def measured(self, motor_id: int) -> Optional[float]:
         fb = self.feedback.get(motor_id)
@@ -94,11 +102,11 @@ class Stop(Exception):
     pass
 
 
-def parse_six(text: str, flag: str) -> List[float]:
+def parse_pose(text: str, flag: str, names: List[str]) -> List[float]:
     parts = [p.strip() for p in text.split(",")]
-    if len(parts) != N:
-        raise SystemExit(f"{flag} wants {N} comma-separated degrees "
-                         f"({','.join(jc.ARM_POSE_NAMES)}), got {text!r}")
+    if len(parts) != len(names):
+        raise SystemExit(f"{flag} wants {len(names)} comma-separated degrees "
+                         f"({','.join(names)}), got {text!r}")
     return [float(p) for p in parts]
 
 
@@ -149,10 +157,12 @@ def main(argv=None) -> int:
                                  epilog=__doc__)
     where = ap.add_mutually_exclusive_group(required=True)
     where.add_argument("--offset", help="six degrees RELATIVE to the current pose "
-                                        "(shoulder p,r,y, elbow p,r, wrist p)")
-    where.add_argument("--pose", help="six ABSOLUTE command-frame degrees")
-    ap.add_argument("--joints", help="comma-separated joints to move, e.g. elbow.roll "
-                                     "(default: every joint with a non-zero move)")
+                                        "(shoulder p,y,r, elbow p,r, wrist p); twelve with "
+                                        "--arm-side both, left then right")
+    where.add_argument("--pose", help="six ABSOLUTE command-frame degrees (twelve with both)")
+    ap.add_argument("--joints", help="comma-separated joints to move, e.g. elbow.yaw, or "
+                                     "left.elbow.yaw with --arm-side both (default: every "
+                                     "joint with a non-zero move)")
     ap.add_argument("--vel", type=float, default=5.0,
                     help="peak deg/s of the profile (default 5; capped per joint at its "
                          "velocity_max)")
@@ -187,23 +197,41 @@ def main(argv=None) -> int:
                     help="arm_calibration.yaml (default: joint_command's)")
     ap.add_argument("--actuators", "--safety-limits", dest="actuators",
                     help="arm_actuators.yaml (default: joint_command's)")
-    ap.add_argument("--arm-side", default="left")
+    ap.add_argument("--arm-side", default="left", choices=["left", "right", "both"],
+                    help="arm to move; both = both arms in one run (default left)")
     ap.add_argument("--no-log", action="store_true")
     args = ap.parse_args(argv)
 
     mapping, safety_path = resolve_config(args)
-    joint_map = jc.load_joint_map(mapping, args.arm_side)
-    slot_motor: List[int] = []
-    for slot, name in enumerate(jc.ARM_POSE_NAMES):
-        mid = next((m for m, info in joint_map.items() if info["slot"] == slot), None)
-        if mid is None:
-            sys.exit(f"{name} has no can_id in {mapping}")
-        slot_motor.append(mid)
-    infos = [joint_map[m] for m in slot_motor]
+    sides = ["left", "right"] if args.arm_side == "both" else [args.arm_side]
 
-    blocks = [jc.joint_safety(safety_path, name) for name in jc.ARM_POSE_NAMES]
+    def side_name(side: str, name: str) -> str:
+        """With both arms every joint is "<side>.<group>.<joint>"."""
+        return f"{side}.{name}" if len(sides) > 1 else name
+
+    # One entry per ArmPose slot: each arm's six, in `sides` order (publish_pose's layout).
+    joint_map: Dict[int, dict] = {}
+    names: List[str] = []
+    slot_motor: List[int] = []
+    blocks = []
+    for side in sides:
+        side_map = jc.load_joint_map(mapping, side)
+        for mid, info in side_map.items():
+            if mid in joint_map:
+                sys.exit(f"motor {mid} is in both arms in {mapping}")
+            joint_map[mid] = dict(info, name=side_name(side, info["name"]))
+        for slot, name in enumerate(jc.ARM_POSE_NAMES):
+            mid = next((m for m, info in side_map.items() if info["slot"] == slot), None)
+            if mid is None:
+                sys.exit(f"{side_name(side, name)} has no can_id in {mapping}")
+            names.append(side_name(side, name))
+            slot_motor.append(mid)
+            blocks.append(jc.joint_safety(safety_path, side, name))
+    infos = [joint_map[m] for m in slot_motor]
+    w = max(16, max(map(len, names)) + 2)  # joint column of the printed tables
+
     vel = []
-    for name, blk in zip(jc.ARM_POSE_NAMES, blocks):
+    for name, blk in zip(names, blocks):
         vmax = float(blk.get("velocity_max") or 0.0)
         if vmax <= 0.0:
             sys.exit(f"{name} has no velocity_max in {safety_path}; refusing to guess a speed")
@@ -214,20 +242,31 @@ def main(argv=None) -> int:
         sys.exit("--exercise-limits needs --duration S: how long the request takes to go out")
     vmax_joint = [float(blk.get("velocity_max")) for blk in blocks]
 
-    rel = parse_six(args.offset, "--offset") if args.offset else None
-    absolute = parse_six(args.pose, "--pose") if args.pose else None
-    moving = set(jc.ARM_POSE_NAMES)
+    rel = parse_pose(args.offset, "--offset", names) if args.offset else None
+    absolute = parse_pose(args.pose, "--pose", names) if args.pose else None
+    moving = set(names)
     if args.joints:
         moving = {j.strip() for j in args.joints.split(",") if j.strip()}
-        unknown = moving - set(jc.ARM_POSE_NAMES)
+        unknown = moving - set(names)
         if unknown:
-            sys.exit(f"unknown joint(s) {sorted(unknown)}; choose from {jc.ARM_POSE_NAMES}")
+            sys.exit(f"unknown joint(s) {sorted(unknown)}; choose from {names}")
+
+    def short(i: int) -> str:
+        """Label piece: "elbowr", or "lelbowr" with both arms."""
+        side = infos[i]["side"][0] if len(sides) > 1 else ""
+        return side + jc.ARM_POSE_NAMES[i % len(jc.ARM_POSE_NAMES)].replace(".", "")[:6]
 
     label = args.label or "rt-" + "-".join(
-        f"{n.replace('.', '')[:6]}{v:+g}".replace("+", "p").replace("-", "m")
-        for n, v in zip(jc.ARM_POSE_NAMES, rel or absolute) if n in moving and v)
+        f"{short(i)}{v:+g}".replace("+", "p").replace("-", "m")
+        for i, (n, v) in enumerate(zip(names, rel or absolute)) if n in moving and v)
 
-    velocity_max, mit_limits = jc.load_actuator_limits(str(safety_path))
+    velocity_max, mit_limits, max_torque = {}, {}, {}
+    for side in sides:
+        side_vmax, side_mit = jc.load_actuator_limits(str(safety_path), side)
+        velocity_max.update({side_name(side, k): v for k, v in side_vmax.items()})
+        mit_limits.update({side_name(side, k): v for k, v in side_mit.items()})
+        max_torque.update({side_name(side, k): v for k, v in
+                           jc.max_torque_by_joint(str(safety_path), side).items()})
     log = RunFolder(
         label=label or "rt", source="ros", enabled=not args.no_log,
         meta={
@@ -245,7 +284,7 @@ def main(argv=None) -> int:
                 "mit": mit_limits,
                 "max_torque_nm": min((v["max_torque_nm"] for v in mit_limits.values()
                                       if v.get("max_torque_nm") is not None), default=None),
-                "max_torque_nm_by_joint": jc.max_torque_by_joint(str(safety_path)),
+                "max_torque_nm_by_joint": max_torque,
                 "max_track_err_deg": args.max_track_err,
             },
         },
@@ -262,7 +301,7 @@ def main(argv=None) -> int:
             print("\n[stop] stopping the stream now", flush=True)
 
     rclpy.init()
-    node = RoundTripNode(joint_map, log, args.rate)
+    node = RoundTripNode(joint_map, log, args.rate, sides)
     period = 1.0 / args.rate
     outcome, reason = "completed", None
     try:
@@ -270,17 +309,19 @@ def main(argv=None) -> int:
         t_end = time.monotonic() + 2.0
         while time.monotonic() < t_end and not all(m in node.feedback for m in slot_motor):
             rclpy.spin_once(node, timeout_sec=0.05)
-        others = [i for i in node.get_publishers_info_by_topic("/arm/joint_targets")
-                  if i.node_name != node.get_name()]
-        if others:
-            raise SystemExit("something else is publishing /arm/joint_targets ("
-                             + ", ".join(sorted({i.node_name for i in others}))
-                             + "); stop it (teleop, ros2 topic pub) first")
-        consumers = [i for i in node.get_subscriptions_info_by_topic("/arm/joint_targets")
-                     if i.node_name != node.get_name()]
-        if not consumers:
-            raise SystemExit("nobody subscribes to /arm/joint_targets -- start joint_command: "
-                             "ros2 launch joint_command joint_command.launch.py")
+        for topic in map(jc.arm_pose_topic, sides):
+            others = [i for i in node.get_publishers_info_by_topic(topic)
+                      if i.node_name != node.get_name()]
+            if others:
+                raise SystemExit(f"something else is publishing {topic} ("
+                                 + ", ".join(sorted({i.node_name for i in others}))
+                                 + "); stop it (teleop, ros2 topic pub) first")
+            consumers = [i for i in node.get_subscriptions_info_by_topic(topic)
+                         if i.node_name != node.get_name()]
+            if not consumers:
+                raise SystemExit(f"nobody subscribes to {topic} -- start joint_command "
+                                 "(ros2 launch joint_command joint_command.launch.py) with this "
+                                 "arm in `arms` and at least one of its joints active")
         silent = {i for i, m in enumerate(slot_motor) if m not in node.feedback}
         silent_moving = [f"{infos[i]['name']} (motor {slot_motor[i]})" for i in sorted(silent)
                          if infos[i]["name"] in moving]
@@ -299,7 +340,7 @@ def main(argv=None) -> int:
         target = list(origin)    # what is requested
         expected = list(origin)  # where joint_command should put it (target, clamped)
         refused, warned = [], []
-        for i, name in enumerate(jc.ARM_POSE_NAMES):
+        for i, name in enumerate(names):
             if i in silent:
                 continue
             info = infos[i]
@@ -346,24 +387,24 @@ def main(argv=None) -> int:
             abs(e - o) / v for e, o, v in zip(expected, origin, vmax_joint))
         print(f"mapping: {mapping}\nsafety:  {safety_path}\n{log.describe()}")
         if args.exercise_limits:
-            print(f"{'joint':<16}{'origin':>9}{'request':>9}{'expect':>9}{'req peak':>10}"
+            print(f"{'joint':<{w}}{'origin':>9}{'request':>9}{'expect':>9}{'req peak':>10}"
                   f"{'vel max':>9}")
-            for i, name in enumerate(jc.ARM_POSE_NAMES):
+            for i, name in enumerate(names):
                 if i in silent:
-                    print(f"{name:<16}{'unpowered':>9}")
+                    print(f"{name:<{w}}{'unpowered':>9}")
                     continue
                 peak = math.pi / 2 * abs(target[i] - origin[i]) / t_ramp
-                print(f"{name:<16}{origin[i]:>+9.2f}{target[i]:>+9.2f}{expected[i]:>+9.2f}"
+                print(f"{name:<{w}}{origin[i]:>+9.2f}{target[i]:>+9.2f}{expected[i]:>+9.2f}"
                       f"{peak:>10.1f}{vmax_joint[i]:>9.1f}")
             print(f"request ramps over {t_ramp:g} s each way (deg/s above: the request's peak; "
                   f"joint_command caps the motion at vel max), dwell {args.dwell:g} s\n")
         else:
-            print(f"{'joint':<16}{'origin':>9}{'target':>9}{'delta':>8}{'vel cap':>9}")
-            for i, name in enumerate(jc.ARM_POSE_NAMES):
+            print(f"{'joint':<{w}}{'origin':>9}{'target':>9}{'delta':>8}{'vel cap':>9}")
+            for i, name in enumerate(names):
                 if i in silent:
-                    print(f"{name:<16}{'unpowered':>9}")
+                    print(f"{name:<{w}}{'unpowered':>9}")
                     continue
-                print(f"{name:<16}{origin[i]:>+9.2f}{target[i]:>+9.2f}"
+                print(f"{name:<{w}}{origin[i]:>+9.2f}{target[i]:>+9.2f}"
                       f"{target[i] - origin[i]:>+8.2f}{vel[i]:>9.1f}")
             print(f"ramp {t_ramp:.1f} s each way, dwell {args.dwell:g} s\n")
         print("  HARDWARE E-STOP: physical cutoff on the motor supply within reach.\n")
@@ -569,7 +610,7 @@ def main(argv=None) -> int:
             for name, t in temps.items():
                 limit = t["fault_at"]
                 hot = limit is not None and t["peak"] >= limit
-                print(f"  {name:<16}{t['start']:>4} -> {t['end']:<4}({t['peak']}) / "
+                print(f"  {name:<{w}}{t['start']:>4} -> {t['end']:<4}({t['peak']}) / "
                       f"{'-' if limit is None else f'{limit:g}'}"
                       f"{'   <- AT OR ABOVE THE LIMIT' if hot else ''}")
         run_dir = log.close(outcome, **({"abort_reason": reason} if reason else {}))

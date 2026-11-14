@@ -12,6 +12,12 @@ from humanoid_robot_learning.recording.schema import enabled_images, load_yaml, 
 
 PKG_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_SCHEMA = PKG_ROOT / "config" / "pioneer_humanoid_dataset_schema.yaml"
+# Schema per sim robot (humanoid_mujoco_scenes.make_model(robot=)): the old 6-DoF arms and the 8dof arms record
+# different joints, so each has its own dataset contract.
+DEFAULT_SCHEMAS = {
+    "armv2": DEFAULT_SCHEMA,
+    "8dof": PKG_ROOT / "config" / "pioneer_8dof_dataset_schema.yaml",
+}
 
 
 @dataclass
@@ -32,8 +38,9 @@ def add_record_args(parser: argparse.ArgumentParser, *, task_description: str) -
     parser.add_argument(
         "--schema",
         type=str,
-        default=str(DEFAULT_SCHEMA),
-        help="dataset_schema YAML (default: src/robot_learning/config/pioneer_humanoid_dataset_schema.yaml)",
+        default=None,
+        help="dataset_schema YAML (default: the robot's, src/robot_learning/config/: pioneer_8dof_dataset_schema.yaml "
+        "for the 8dof arms, pioneer_humanoid_dataset_schema.yaml for the old arms)",
     )
     parser.add_argument(
         "--dataset_root",
@@ -58,9 +65,15 @@ def add_record_args(parser: argparse.ArgumentParser, *, task_description: str) -
     )
 
 
-def load_record_schema(parser: argparse.ArgumentParser, args: argparse.Namespace, *, arms: list[str]) -> RecordSchema:
+def load_record_schema(parser: argparse.ArgumentParser, args: argparse.Namespace, *, arms: list[str],
+                       robot: str = "armv2") -> RecordSchema:
     """Call before AppLauncher: recording cameras need --enable_cameras. `arms`: the arms this teleop drives
-    and records (schema `arms` keys); they set the joint list and the dataset (select_arms)."""
+    and records (schema `arms` keys); they set the joint list and the dataset (select_arms). `robot`: the sim robot
+    (DEFAULT_SCHEMAS key), whose schema is used when --schema is not given."""
+    if robot not in DEFAULT_SCHEMAS:
+        raise ValueError(f"unknown robot {robot!r}; known: {list(DEFAULT_SCHEMAS)}")
+    if args.schema is None:
+        args.schema = str(DEFAULT_SCHEMAS[robot])
     if args.cameras is not None and not args.record:
         parser.error("--cameras requires --record")
     if args.image_size is not None and not args.record:

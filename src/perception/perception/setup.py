@@ -26,6 +26,11 @@ setup(
             os.path.join("share", package_name, "config"),
             glob(os.path.join("config", "*.yaml")),
         ),
+        # Model weights (downloaded, not in git; see models/README.md)
+        (
+            os.path.join("share", package_name, "models"),
+            glob(os.path.join("models", "*.pt")),
+        ),
     ],
     install_requires=["setuptools"],
     zip_safe=True,
@@ -47,6 +52,7 @@ setup(
             "perception.shuttlecock_localizer_node:main",
             "shuttlecock_detector_node = "
             "perception.shuttlecock_detector_node:main",
+            "tracknet_node = perception.tracknet_node:main",
         ],
     },
 )

@@ -1,3 +1,4 @@
+# Old 6-DoF arm schema. 8dof is the default (pioneer_8dof_dataset_schema.yaml); the real arm moves to 8dof soon.
 # Pioneer v1 arms: one data contract for sim (keyboard, leader and Quest teleop) and real (humanoid-record).
 # Each recording picks the arms it records (leader teleop: --arms; the others record the left arm).
 # select_arms() builds joint_names from them, left first, and adds _left_arm, _right_arm or
@@ -38,7 +39,7 @@ images:
     height: 480
     width: 640
     enabled: true
-    topic: /camera/color/image_raw
+    topic: /wrist_cam/image_rect  # wrist_camera node: already the sim's 640x480 pinhole
   wrist_right:  # not on the real arm yet
     height: 480
     width: 640
@@ -46,7 +47,7 @@ images:
     topic: null
 
 ros:  # real only
-  action_topic: /arm/joint_targets
+  action_topic: /arm/left/joint_targets
   state_topic: null  # null: state mirrors action (no motor feedback yet)
   arm_pose_unit: deg
 

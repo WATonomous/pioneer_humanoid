@@ -37,8 +37,45 @@ FITTS_A = 0.25
 FITTS_B = 0.25
 # rad/s: fastest a hand turns a leader joint (a brisk human reach peaks around 2 rad/s at the elbow).
 LEADER_MAX_SPEED = 3.0
-# The leader's down-facing gripper, from its home orientation: fingers toward -Z, jaws closing along Y.
-R_DOWN_FROM_HOME = np.array([[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [-1.0, 0.0, 0.0]])
+# Null-space step toward mid-range per IK iteration on a redundant (7-joint) arm, per unit of (offset / half range)^2.
+LIMIT_AVOID_GAIN = 0.05   # default; HumanOperator(limit_avoid=) per task
+# The gripper as it takes things, as near its home pose as a grasp gets: fingers forward, tipped GRASP_PITCH down,
+# jaws closing across the table: 20 deg by default (HumanOperator(grasp_pitch=) sets another per task; 30 and 45 deg
+# failed more grasps with most task plans' jaw heights).
+# The operator aims a point between the jaws this far up the fingers from their tips (where a grip holds).
+TCP_ABOVE_TIPS = 0.025
+GRASP_PITCH = math.radians(20)
+GRASP_JAWS = np.array([0.0, -1.0, 0.0])
+# Below the tool point, how far the jaws reach down past their tips' tool-point offset: half a jaw's depth.
+JAW_DEPTH_HALF = 0.018
+
+
+def grasp_fingers(pitch: float) -> np.ndarray:
+    """World direction of the fingers in the grasp pose: forward, tipped `pitch` down."""
+    return np.array([math.cos(pitch), 0.0, -math.sin(pitch)])
+
+
+GRASP_FINGERS = grasp_fingers(GRASP_PITCH)
+
+
+def jaw_half(pitch: float) -> float:
+    """How far the tool point sits above the fingers' lowest point (their tips, tipped `pitch` down, plus the jaw)."""
+    return TCP_ABOVE_TIPS * math.sin(pitch) + JAW_DEPTH_HALF
+
+
+def _geom_points(model: mujoco.MjModel, data: mujoco.MjData, g: int) -> np.ndarray:
+    """World points bounding collision geom g: a box's 8 corners, a mesh's vertices, else its bounding box's corners."""
+    pos, rot = data.geom_xpos[g], data.geom_xmat[g].reshape(3, 3)
+    if model.geom_type[g] == mujoco.mjtGeom.mjGEOM_MESH:
+        mesh = model.geom_dataid[g]
+        start, count = model.mesh_vertadr[mesh], model.mesh_vertnum[mesh]
+        return pos + model.mesh_vert[start:start + count] @ rot.T
+    if model.geom_type[g] == mujoco.mjtGeom.mjGEOM_BOX:
+        centre, half = np.zeros(3), model.geom_size[g]
+    else:
+        centre, half = model.geom_aabb[g, :3], model.geom_aabb[g, 3:]
+    corners = np.array([[sx, sy, sz] for sx in (-1, 1) for sy in (-1, 1) for sz in (-1, 1)]) * half + centre
+    return pos + corners @ rot.T
 
 
 def minimum_jerk(s):
@@ -64,7 +101,7 @@ class Style:
     @classmethod
     def sample(cls, rng: np.random.Generator, pace: float = 1.0) -> "Style":
         """A practised operator at ``pace`` 1; 0.5 is a slow, careful beginner, 1.5 brisk."""
-        speed = rng.uniform(0.65, 1.0) / pace
+        speed = rng.uniform(0.5, 0.8) / pace
         return cls(
             speed=speed,
             aim=min(0.1, rng.uniform(0.03, 0.06) * 0.8 / speed),   # speed-accuracy trade-off: hurried people aim worse
@@ -130,7 +167,9 @@ class HumanOperator:
 
     def __init__(self, model: mujoco.MjModel, observe: Callable[[], mujoco.MjData], tick: Callable[[np.ndarray, float], None],
                  joints: list[str], q_home, dt: float, rng: np.random.Generator, style: Style | None = None,
-                 fingers: tuple[str, str] = ("link7l", "link8l"), hand: str = "link6l"):
+                 fingers: tuple[str, str] = ("left_finger_a", "left_finger_b"), hand: str = "left_link7",
+                 grasp_pitch: float = GRASP_PITCH,
+                 limit_avoid: float = LIMIT_AVOID_GAIN):
         self.m, self.observe, self._tick, self.dt, self.rng = model, observe, tick, dt, rng
         self.style = style or Style.sample(rng)
         self.hand = model.body(hand).id
@@ -142,12 +181,28 @@ class HumanOperator:
         self.q_home = self.q.copy()
         self.kin.qpos[self.qadr] = self.q
         mujoco.mj_kinematics(model, self.kin)
-        jaws = [next(g for g in range(model.ngeom) if model.geom_bodyid[g] == model.body(b).id and model.geom_contype[g])
-                for b in fingers]
         R = self.kin.xmat[self.hand].reshape(3, 3).copy()
-        self.tcp_off = R.T @ (self.kin.geom_xpos[jaws].mean(0) - self.kin.xpos[self.hand])
+        # Each finger's collision geometry as points in the hand frame (its convex hull's vertices). Their mean is
+        # between the jaws.
+        pts = [np.vstack([_geom_points(model, self.kin, g) for g in range(model.ngeom)
+                          if model.geom_contype[g] and model.geom_bodyid[g] == model.body(b).id])
+               @ R - R.T @ self.kin.xpos[self.hand] for b in fingers]
+        centre = np.vstack(pts).mean(0)
+        f = centre / np.linalg.norm(centre)              # along the fingers, hand frame
+        # the tool point is TCP_ABOVE_TIPS up the fingers from their tips, between the jaws
+        tips = max(float((p @ f).max()) for p in pts)
+        self.tcp_off = centre + (tips - TCP_ABOVE_TIPS - centre @ f) * f
         self.R_home = R
-        self.R_down = R_DOWN_FROM_HOME @ R
+        # hand frame -> world for the grasp pose: map the fingers' and the jaws' closing directions (hand frame) onto it
+        a = pts[1].mean(0) - pts[0].mean(0)
+        a = a - (a @ f) * f
+        a /= np.linalg.norm(a)
+        fingers_down = grasp_fingers(grasp_pitch)
+        self.grasp_pitch = grasp_pitch
+        self.limit_avoid = limit_avoid                   # redundant arm only: null-space pull off the joint limits
+        self.jaw_half = jaw_half(grasp_pitch)            # tool point above the jaws' lowest point, in the grasp pose
+        self.R_down = (np.column_stack([fingers_down, GRASP_JAWS, np.cross(fingers_down, GRASP_JAWS)])
+                       @ np.column_stack([f, a, np.cross(f, a)]).T)
         self.t = 0.0
         self.pos = _Channel(self._tcp(self.kin))
         self.rot = _Channel(np.zeros(3))                 # rotation vector, world frame, applied to R_home
@@ -156,6 +211,7 @@ class HumanOperator:
         self.pos_noise = _Noise(rng, 3, s.tremor, s.drift, tau=1.5)
         self.rot_noise = _Noise(rng, 3, math.radians(0.02), math.radians(s.wobble_deg), tau=2.0)
         self.grip_noise = _Noise(rng, 1, 0.001, 0.005, tau=1.0)
+        self._pn, self._rn, self._gn = np.zeros(3), np.zeros(3), 0.0   # the noise as the hand last left it
         self.bends: list[tuple[float, float, np.ndarray]] = []   # (start, duration, path offsets at s = 0..1)
         self.trace: list[str] = []                       # one line per move, for debugging plans
 
@@ -186,7 +242,7 @@ class HumanOperator:
         return yaw + math.radians(self.rng.normal(0.0, 2.0))
 
     def down(self, yaw: float = 0.0, tilt_y_deg: float = 0.0) -> np.ndarray:
-        """Gripper pointing down, turned ``yaw`` about Z and tilted about world Y."""
+        """The grasp pose, turned ``yaw`` about Z and tilted about world Y."""
         return (Rotation.from_euler("z", yaw).as_matrix() @ Rotation.from_euler("y", tilt_y_deg, degrees=True).as_matrix()
                 @ self.R_down)
 
@@ -212,7 +268,9 @@ class HumanOperator:
             ang = np.linalg.norm(self._rotvec(R) - self.rot.goal())
             dur = max(dur, self.style.speed * (0.4 + 0.6 * ang / (math.pi / 4)))
         if dist > 1e-3:
-            self._reach(self.t, dur, start, self._aim(start, target, axes), bow, R)
+            aim = self._aim(start, target, axes)
+            dur = max(dur, self._joint_time(start, aim, R))
+            self._reach(self.t, dur, start, aim, bow, R)
         if R is not None:
             self.rot.add(self.t + 0.05 * dur, 0.9 * dur, self._rotvec(R) - self.rot.goal())
         if grip is not None:
@@ -235,7 +293,8 @@ class HumanOperator:
         down = target[2] - max(clear_z, start[2])          # negative: lowering at the end
         flat = np.array([target[0] - start[0], target[1] - start[1], 0.0])
         t_up = self.fitts(up, 0.02) / speed if up > 0.005 else 0.0
-        t_across = self.fitts(float(np.linalg.norm(flat)), tol) / speed
+        t_across = max(self.fitts(float(np.linalg.norm(flat)), tol) / speed,
+                       self._joint_time(start + (0.0, 0.0, up), np.array([target[0], target[1], start[2] + up]), R))
         t_down = self.fitts(abs(down), tol) / speed if abs(down) > 0.005 else 0.0
         if R is not None:
             ang = np.linalg.norm(self._rotvec(R) - self.rot.goal())
@@ -263,6 +322,18 @@ class HumanOperator:
             return float(np.linalg.norm(target - self.follower_tcp()))
         self.run(end - self.t)
         return self._correct(target, tol, corrections, axes, end - t0)
+
+    def _joint_time(self, start, aim, R=None) -> float:
+        """Shortest stroke (s) that keeps the leader's fastest joint under the speed cap (a minimum-jerk stroke peaks
+        at 1.875 x its mean speed): a person slows a big swing down instead of hitting a hard speed limit."""
+        if R is None:
+            R = Rotation.from_rotvec(self.rot.goal()).as_matrix() @ self.R_home
+        q0, e0 = self._solve(self.q, np.asarray(start, float), R, 40)
+        q1, e1 = self._solve(q0, np.asarray(aim, float), R, 40)
+        self.kin.qpos[self.qadr] = self.q
+        if max(e0, e1) > 5e-3:
+            return 0.0
+        return 1.875 * float(np.abs(q1 - q0).max()) / (0.8 * LEADER_MAX_SPEED)
 
     def _aim(self, start, target, axes) -> np.ndarray:
         """Where a first stroke actually goes: a little short, scattered ~aim x distance (only along ``axes``)."""
@@ -398,11 +469,19 @@ class HumanOperator:
     def run(self, sec: float) -> None:
         for _ in range(max(1, int(round(sec / self.dt)))):
             self.t += self.dt
-            p = self.pos.at(self.t) + self._bend_at(self.t) + self.pos_noise(self.t, self.dt)
-            rv = self.rot.at(self.t) + self.rot_noise(self.t, self.dt)
+            if self._moving():   # a let-go leader stays put: drift and tremor only while the hand moves it
+                self._pn, self._rn = self.pos_noise(self.t, self.dt), self.rot_noise(self.t, self.dt)
+            if self.t < self.grip.end_time() + 0.15:   # a held trigger sits still (human leader data: flat between squeezes)
+                self._gn = self.grip_noise(self.t, self.dt)[0]
+            p = self.pos.at(self.t) + self._bend_at(self.t) + self._pn
+            rv = self.rot.at(self.t) + self._rn
             R = Rotation.from_rotvec(rv).as_matrix() @ self.R_home
-            g = float(np.clip(self.grip.at(self.t)[0] + self.grip_noise(self.t, self.dt)[0], 0.0, 1.0))
+            g = float(np.clip(self.grip.at(self.t)[0] + self._gn, 0.0, 1.0))
             self._tick(self._ik(p, R), g)
+
+    def _moving(self) -> bool:
+        """The hand is on the leader: a stroke is under way or just ended."""
+        return self.t < max(self.pos.end_time(), self.rot.end_time(), self.grip.end_time()) + 0.15
 
     # ------------------------------------------------------------------ leader kinematics
     def _rotvec(self, R) -> np.ndarray:
@@ -432,9 +511,17 @@ class HumanOperator:
             tcp = self._tcp(kin)
             e = np.concatenate([target - tcp, 0.5 * sum(np.cross(Rc[:, i], R[:, i]) for i in range(3))])
             err = float(np.linalg.norm(e))
-            if err < 1e-5:
+            if err < 1e-5 and (len(q) <= 6 or self.limit_avoid <= 0):   # else keep iterating: the null-space step runs
                 break
             mujoco.mj_jac(m, kin, jp, jr, tcp, self.hand)
             J = np.vstack([jp[:, self.vadr], jr[:, self.vadr]])
-            q = np.clip(q + J.T @ np.linalg.solve(J @ J.T + 1e-4 * np.eye(6), e), self.lim[:, 0], self.lim[:, 1])
+            Jp = J.T @ np.linalg.inv(J @ J.T + 1e-4 * np.eye(6))
+            dq = Jp @ e
+            if len(q) > 6 and self.limit_avoid > 0:
+                # A redundant arm (the 8dof's 7 joints): spend the spare joint keeping every joint off its limits, the
+                # way a person holds a 7-DoF leader (elbow out of the way, wrist mid-range), in J's null space so the
+                # hand pose is untouched.
+                mid, half = self.lim.mean(1), (self.lim[:, 1] - self.lim[:, 0]) / 2
+                dq = dq + (np.eye(len(q)) - Jp @ J) @ (-self.limit_avoid * (q - mid) / half ** 2)
+            q = np.clip(q + dq, self.lim[:, 0], self.lim[:, 1])
         return q, err

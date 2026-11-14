@@ -1,3 +1,4 @@
+# Old 6-DoF arm only (Isaac has no 8dof USD yet). 8dof is the default; the real arm moves to 8dof soon.
 """Isaac Sim backend of pioneer_leader_arm_teleop.py: the 7-servo leader arm drives the Pioneer left arm (no IK).
 
     A (servo ID 2) -> joint1L (shoulder flexion)
@@ -9,7 +10,7 @@
     G (servo ID 6) -> gripper (starts open at 41.5 deg, closes toward 0)
 
 Leader angles map 1:1 from its calibrated hanging pose (calibrate_leader.py), clamped to the URDF
-limits. The arm starts at home (elbow bent 90 deg) and follows once the leader is within 3 deg of
+limits. The arm starts at home (elbow bent 90 deg) and follows once the leader is within 15 deg of
 home (see leader_mapping.py). Leader torque is always off; it is an input device only.
 
   R   reset the arm and every object in the scene; bring the leader back to home to resume

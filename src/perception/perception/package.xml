@@ -18,6 +18,7 @@
   <depend>vision_msgs</depend>
   <depend>cv_bridge</depend>
   <depend>message_filters</depend>
+  <depend>ament_index_python</depend>
 
   <exec_depend>realsense2_camera</exec_depend>
 

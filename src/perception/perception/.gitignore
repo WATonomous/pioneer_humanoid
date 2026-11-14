@@ -1,0 +1,2 @@
+# Large model weights are downloaded, not committed (see models/README.md)
+models/*.pt

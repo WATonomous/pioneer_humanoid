@@ -38,7 +38,6 @@ CanNode::CanNode() : Node("can_node"), can_core(this->get_logger()) {
   this->declare_parameter("bustype", "slcan");
   this->declare_parameter("bitrate", 500000);
   this->declare_parameter("receive_poll_interval_ms", 10);
-  this->declare_parameter("receive_timeout_ms", 10000);
   this->declare_parameter("mit_master_id", 0);
 
   // Get parameter values
@@ -60,20 +59,14 @@ CanNode::CanNode() : Node("can_node"), can_core(this->get_logger()) {
   config.interface_name = can_interface;
   config.device_path = device_path;
   config.bustype = bustype;
-  config.bitrate = bitrate;
-  config.receive_timeout_ms = 10000;
+  config.bitrate = static_cast<uint32_t>(bitrate);
 
-  // Initialize the CAN interface
-  if (can_core.initialize(config)) {
-    RCLCPP_INFO(this->get_logger(), "CAN Core interface initialized successfully");
+  // Throws on failure: a CAN node without a bus must not keep running and accept commands.
+  can_core.initialize(config);
+  RCLCPP_INFO(this->get_logger(), "CAN Core interface initialized successfully");
 
-    // Setup a timer to periodically call receiveCanMessages
-    receive_timer_ = this->create_wall_timer(std::chrono::milliseconds(receive_poll_interval_ms),
-                                             [this]() { receiveCanMessages(); });
-
-  } else {
-    RCLCPP_ERROR(this->get_logger(), "Failed to initialize CAN Core");
-  }
+  receive_timer_ = this->create_wall_timer(std::chrono::milliseconds(receive_poll_interval_ms),
+                                           [this]() { receiveCanMessages(); });
 
   // Load topic configurations and create subscribers
   createSubscribersPublishers();
@@ -83,9 +76,10 @@ void CanNode::createSubscribersPublishers() {
   _subscribers.clear();
   _publishers.clear();
 
-  // Create subscribers
+  // Create subscribers. Depth: joint_command publishes every arm's commands in one burst per tick
+  // (and MIT_EXIT 3x per joint on a fault); a shallow queue drops some before they are read.
   _subscribers["/interfacing/motorCMD"] = this->create_subscription<common_msgs::msg::MotorCmd>(
-      "/interfacing/motorCMD", rclcpp::QoS(10),
+      "/interfacing/motorCMD", rclcpp::QoS(100),
       std::bind(&CanNode::motorCMDCallback, this, std::placeholders::_1));
 
   // Create publishers
@@ -149,7 +143,7 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
 
     case common_msgs::msg::MotorCmd::DUTY_CYCLE: {
       dbc_msg = can_messages["DutyCycleCmd"];
-      CanMessage can_msg(getMessageId(dbc_msg, msg->motor_id), dbc_msg->MessageSize());
+      CanMessage can_msg = dbcCanMessage(dbc_msg, msg->motor_id);
       encodeSignal(findSignalByName(dbc_msg, "DutyCycle"), static_cast<double>(msg->duty_cycle),
                    can_msg);
       publishCanMessage(can_msg);
@@ -158,7 +152,7 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
 
     case common_msgs::msg::MotorCmd::CURRENT_LOOP: {
       dbc_msg = can_messages["CurrentLoopCmd"];
-      CanMessage can_msg(getMessageId(dbc_msg, msg->motor_id), dbc_msg->MessageSize());
+      CanMessage can_msg = dbcCanMessage(dbc_msg, msg->motor_id);
       encodeSignal(findSignalByName(dbc_msg, "IqCurrent"), static_cast<double>(msg->current),
                    can_msg);
       publishCanMessage(can_msg);
@@ -167,7 +161,7 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
 
     case common_msgs::msg::MotorCmd::CURRENT_BRAKE: {
       dbc_msg = can_messages["CurrentBrakeCmd"];
-      CanMessage can_msg(getMessageId(dbc_msg, msg->motor_id), dbc_msg->MessageSize());
+      CanMessage can_msg = dbcCanMessage(dbc_msg, msg->motor_id);
       encodeSignal(findSignalByName(dbc_msg, "BrakeCurrent"), static_cast<double>(msg->current),
                    can_msg);
       publishCanMessage(can_msg);
@@ -176,7 +170,7 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
 
     case common_msgs::msg::MotorCmd::VELOCITY_LOOP: {
       dbc_msg = can_messages["VelocityLoopCmd"];
-      CanMessage can_msg(getMessageId(dbc_msg, msg->motor_id), dbc_msg->MessageSize());
+      CanMessage can_msg = dbcCanMessage(dbc_msg, msg->motor_id);
       encodeSignal(findSignalByName(dbc_msg, "VelocityERPM"), static_cast<double>(msg->velocity),
                    can_msg);
       publishCanMessage(can_msg);
@@ -185,7 +179,7 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
 
     case common_msgs::msg::MotorCmd::POSITION_LOOP: {
       dbc_msg = can_messages["PositionLoopCmd"];
-      CanMessage can_msg(getMessageId(dbc_msg, msg->motor_id), dbc_msg->MessageSize());
+      CanMessage can_msg = dbcCanMessage(dbc_msg, msg->motor_id);
       encodeSignal(findSignalByName(dbc_msg, "PositionDeg"), static_cast<double>(msg->position),
                    can_msg);
       publishCanMessage(can_msg);
@@ -194,7 +188,7 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
 
     case common_msgs::msg::MotorCmd::SET_ORIGIN: {
       dbc_msg = can_messages["SetOriginCmd"];
-      CanMessage can_msg(getMessageId(dbc_msg, msg->motor_id), dbc_msg->MessageSize());
+      CanMessage can_msg = dbcCanMessage(dbc_msg, msg->motor_id);
       // 0 = Temporary Origin, 1 = Permanent Origin (from DBC VAL_)
       double origin_mode = msg->temporary ? 0.0 : 1.0;
       encodeSignal(findSignalByName(dbc_msg, "OriginMode"), origin_mode, can_msg);
@@ -204,7 +198,7 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
 
     case common_msgs::msg::MotorCmd::POSITION_VELOCITY: {
       dbc_msg = can_messages["PositionVelocityCmd"];
-      CanMessage can_msg(getMessageId(dbc_msg, msg->motor_id), dbc_msg->MessageSize());
+      CanMessage can_msg = dbcCanMessage(dbc_msg, msg->motor_id);
       encodeSignal(findSignalByName(dbc_msg, "PosVelPosition"), static_cast<double>(msg->position),
                    can_msg);
       encodeSignal(findSignalByName(dbc_msg, "PosVelSpeed"), static_cast<double>(msg->velocity),
@@ -250,7 +244,7 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
         break;
       }
       dbc_msg = can_messages["MITControlCmd"];
-      CanMessage can_msg(getMessageId(dbc_msg, msg->motor_id), dbc_msg->MessageSize());
+      CanMessage can_msg = dbcCanMessage(dbc_msg, msg->motor_id);
       // Nearest code for gains: truncation would apply kp 0.61 as 0.488.
       encodeSignal(findSignalByName(dbc_msg, "MIT_KP"),
                    static_cast<int64_t>(packMitGain(msg->kp, p.kp_max, 12)), can_msg);
@@ -297,7 +291,7 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
     case common_msgs::msg::MotorCmd::DISABLE: {
       dbc_msg = can_messages["MotorDisableCmd"];
       // MotorDisableCmd has no signals, just send the CAN ID
-      CanMessage can_msg(getMessageId(dbc_msg, msg->motor_id), dbc_msg->MessageSize());
+      CanMessage can_msg = dbcCanMessage(dbc_msg, msg->motor_id);
       publishCanMessage(can_msg);
       break;
     }
@@ -405,9 +399,14 @@ void CanNode::encodeSignal(const dbcppp::ISignal* signal, double phys_value, Can
   signal->Encode(raw, can_msg.data.data());
 }
 
-int32_t CanNode::getMessageId(const dbcppp::IMessage* msg, int device_id) const {
-  // CAN ID format: base_id | device_id (lower 2 bits)
-  return (msg->Id() & 0xFFFFFF00) | (device_id & 0xFF);
+CanMessage CanNode::dbcCanMessage(const dbcppp::IMessage* msg, int device_id) const {
+  // DBC ids carry bit 31 for an extended frame; CanMessage takes the bare id plus a flag.
+  constexpr uint64_t kDbcExtendedFlag = 0x80000000;
+  CanMessage can_msg(
+      static_cast<uint32_t>((msg->Id() & ~kDbcExtendedFlag & 0xFFFFFF00) | (device_id & 0xFF)),
+      msg->MessageSize());
+  can_msg.is_extended_id = (msg->Id() & kDbcExtendedFlag) != 0;
+  return can_msg;
 }
 
 void CanNode::sendMitSpecialFrame(int motor_id, uint8_t code, const char* what) {
