@@ -40,8 +40,9 @@ class Pioneer1Config(PreTrainedConfig):
     image_size: int = 224
     # the other cameras also give their patch grid average-pooled to pooled_patch_grid x pooled_patch_grid tokens (0: none)
     pooled_patch_grid: int = 7
-    # exponential moving average of the trained weights, used in eval mode (0: off); decay warms up as (1 + n) / (10 + n)
-    ema_decay: float = 0.999
+    # exponential moving average of the trained weights, used in eval mode (0: off, eval runs on the trained weights);
+    # decay warms up as (1 + n) / (10 + n). Off by default: on tabletop_pick the raw weights do better than a 0.999 EMA
+    ema_decay: float = 0.0
     vision_lr_scale: float = 0.1
     max_text_tokens: int = 77
     use_state: bool = True

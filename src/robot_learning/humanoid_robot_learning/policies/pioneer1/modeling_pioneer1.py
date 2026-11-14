@@ -10,7 +10,7 @@ Action generator: the noisy chunk is ``horizon`` action tokens. Each block appli
 attention from the action tokens to the context and a feed-forward layer; the flow time drives adaptive layer norm with zero-
 initialised gates (adaLN-Zero). Trained with flow matching (Lipman et al. 2023) and real-time chunking built in: the first
 0..``rtc_max_prefix`` actions are given clean (flow time 1), so at run time the chunk can continue the actions still being
-executed. Eval mode runs on an exponential moving average of the weights (``ema_decay``).
+executed. With ``ema_decay`` > 0, eval mode runs on an exponential moving average of the weights.
 """
 from __future__ import annotations
 
