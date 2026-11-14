@@ -1,4 +1,4 @@
-# Old 6-DoF arm only (Isaac has no 8dof USD yet). 8dof is the default; the real arm moves to 8dof soon.
+# Old 6-DoF arm only: trains/evaluates on its Hub dataset notmaxxx/pioneer_vla_pick_place (6 joints + 2 fingers).
 """Offline evaluation: the policy's predicted actions vs. the recorded ones, on dataset episodes.
 
 No Isaac Sim needed -- recorded camera frames + joint states go in, predicted 50-step action

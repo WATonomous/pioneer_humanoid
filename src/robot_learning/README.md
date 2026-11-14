@@ -2,9 +2,9 @@
 
 Teleoperate the Pioneer arms, record the demos as a **LeRobot** dataset, train a policy (ACT, SmolVLA, pi0.5, …) on it and run evals.
 
-**The default robot is `pioneer_bimanual_arm_8dof`** (7-DoF + gripper per arm), recorded in MuJoCo. The old 6-DoF arms
-(armv2, `pioneer_v1_*` datasets) remain for Isaac, which has no 8dof USD yet, and for today's real arm; the real arm will
-soon be 8dof too. The Quest VR teleop (`src/teleop/quest_controller_teleop`) records both 8dof arms with `--record`
+**The robot is `pioneer_bimanual_arm_8dof`** (7-DoF + gripper per arm), recorded in MuJoCo or Isaac. The old 6-DoF arms
+(armv2, `pioneer_v1_*` datasets) remain only for today's real arm (and MuJoCo's `--robot armv2`); the real arm will soon be
+8dof too. The Quest VR teleop (`src/teleop/quest_controller_teleop`) records both 8dof arms with `--record`
 (right B starts / saves a take): see its README.
 
 ## 1. Collect demos
@@ -20,9 +20,9 @@ python3 src/teleop/pioneer_leader_arm_teleop/pioneer_leader_arm_teleop.py --scen
 |--------|--------------|------------------------|---------|
 | Quest | right B (or 7) | right B (or 8) | left Y (or 9) |
 | Leader, MuJoCo | 7 | 8 | 9 |
-| Leader, Isaac (old arms) | S | N | D (R resets) |
+| Leader, Isaac | S | N | D (R resets) |
 
-Old 6-DoF arms in Isaac (simulation_isaac container):
+Isaac (simulation_isaac container):
 
 ```bash
 /workspace/isaaclab/isaaclab.sh -p pioneer_leader_arm_teleop.py --target isaac --scene vial_rack --record \
@@ -48,11 +48,11 @@ sessions append).
 `shoulder_pitch`, `shoulder_roll`, `shoulder_yaw`, `elbow`, `forearm_roll`, `wrist_pitch`, `wrist_yaw` (rad),
 `gripper`. Datasets `pioneer_8dof_left_arm` / `_right_arm` / `_bimanual` (the Quest records `_bimanual`).
 
-**Old 6-DoF arms**, `config/pioneer_humanoid_dataset_schema.yaml` (Isaac and today's real arm): **7 values** per arm,
+**Old 6-DoF arms**, `config/pioneer_humanoid_dataset_schema.yaml` (today's real arm): **7 values** per arm,
 `shoulder_pitch`, `shoulder_roll`, `shoulder_yaw`, `elbow_pitch`, `elbow_roll`, `wrist_pitch` (rad), `gripper`.
 Datasets `pioneer_v1_*`, never mixed with 8dof.
 
-`evaluate.py` picks the robot from the policy's action size (8 = 8dof, 7 = old arms) or `--robot`. Camera poses:
+`evaluate.py` (MuJoCo) picks the robot from the policy's action size (8 = 8dof, 7 = old arms) or `--robot`. Camera poses:
 `pioneer_humanoid/arm_8dof_params.py` (8dof), `arm_params.py` (old arms).
 
 ## 3. Train
@@ -61,8 +61,8 @@ In the `simulation_isaac` container, you can train a end2end policy with methods
 
 ```bash
 train-policy \
-  --dataset.repo_id=humanoid/pioneer_v1_left_arm \
-  --dataset.root=/workspace/humanoid/datasets/pioneer_v1_left_arm/sim \
+  --dataset.repo_id=humanoid/pioneer_8dof_left_arm \
+  --dataset.root=/workspace/humanoid/datasets/pioneer_8dof_left_arm/sim \
   --policy.type=act \
   --policy.push_to_hub=false \
   --policy.device=cuda \
@@ -80,7 +80,7 @@ python -m humanoid_robot_learning.sim.evaluate --scene peg_insert --policy <run>
   --episodes 40 --seed 1000 --video_dir eval_videos
 ```
 
-Sim rollout for a flow-matching policy (pi0 / pi0.5 / SmolVLA) on the push-block scene, driven with Real-Time Chunking (`humanoid_robot_learning/deploy/rtc_driver.py`): [`scripts/pioneer_push_eval_rtc.py`](scripts/pioneer_push_eval_rtc.py). It expects a checkpoint trained on `config/pioneer_humanoid_dataset_schema.yaml` (the old arms' format, recorded by the Isaac leader teleop); `--dry_run` runs it without one. **The VLA is not hooked up yet**: no real checkpoint has been run through it, and its schema, camera keys and action space (absolute vs delta) still need matching. See the `TODO(VLA)` block in the script.
+Sim rollout for a flow-matching policy (pi0 / pi0.5 / SmolVLA) on the push-block scene, driven with Real-Time Chunking (`humanoid_robot_learning/deploy/rtc_driver.py`): [`scripts/pioneer_push_eval_rtc.py`](scripts/pioneer_push_eval_rtc.py). It drives the 8dof left arm and expects a checkpoint trained on `config/pioneer_8dof_dataset_schema.yaml` (8 values: 7 joints + gripper; an old 6-DoF arm checkpoint is refused); `--dry_run` runs it without one. **The VLA is not hooked up yet**: no real checkpoint has been run through it, and its schema, camera keys and action space (absolute vs delta) still need matching. See the `TODO(VLA)` block in the script.
 
 ```bash
 /workspace/isaaclab/isaaclab.sh -p /workspace/humanoid/src/robot_learning/scripts/pioneer_push_eval_rtc.py \

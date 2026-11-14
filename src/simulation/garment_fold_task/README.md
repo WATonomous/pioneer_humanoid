@@ -1,6 +1,6 @@
 # humanoid-garment-fold
 
-Bimanual **garment-folding** Isaac Lab task for the WATonomous `pioneer_bimanual_arm`,
+Bimanual **garment-folding** Isaac Lab task for the WATonomous `pioneer_bimanual_arm_8dof`,
 ported from the LeHome Challenge. Fold long/short tops and long/short pants
 on a table; success is judged on the cloth's particle geometry.
 
@@ -11,8 +11,6 @@ Runs end-to-end: scene + garment load, a full episode runs clean, and
 the garment live (see "Interactive teleop" below).
 
 Known gaps:
-* **Default/idle pose droops** -- not fold-ready at rest (reach while
-  actively driven works fine; see `garment_pioneer_cfg.py`).
 * **Grasping/pinching untuned** -- the gripper hasn't been tuned against fabric.
 * **Arm base pose is a trade-off**: `(0, -0.40, 0.95)` was picked for reach,
   which re-sinks the stand ~25cm into the floor -- see `garment_pioneer_cfg.py`.
@@ -48,15 +46,17 @@ garment_fold_task/
 ## The retarget
 
 Upstream drives two SO101 follower arms (`left_arm`/`right_arm`, 12-dim action).
-This drives **one `pioneer_bimanual_arm`** instead: left chain `joint1L..joint6l`
-+ gripper, EE `link6l`; right chain `joint1..joint6` + gripper, EE `link6`.
-Action stays 12-dim (`[left ×6, right ×6]` joint-position targets); grippers
-held open. Names/cfg come from `pioneer_humanoid` (see `bimanual_arm.py`).
+This drives **one `pioneer_bimanual_arm_8dof`** instead: per arm 7 joints
+`{side}_shoulder_pitch .. {side}_wrist_yaw` + `{side}_gripper`, EE `{side}_link7`.
+Action is 16-dim, the `pioneer_8dof` dataset layout: `[left ×7, left gripper,
+right ×7, right gripper]` joint-position targets, grippers 0 = open, 1 = closed;
+`observation.state` the same. Names/cfg come from `pioneer_humanoid`
+(`arm_8dof_params.py`, `bimanual_arm_8dof.py`).
 
 The pioneer arm's front axis is `+X`; the garment sits at world `~(0,0,0.63)`,
 so the base is rotated +90° about Z. `_build_worksurface()` tries, in order:
 optional NuRec backdrop, `Scene_00_Apartment.usd` (default — gitignored,
-~19MB, copy it in), ground + vendored `Table038.usd`, ground only.
+~19MB, copy it in), ground + vendored `Table038.usd` (in front of the arm), ground only.
 
 ## Run it
 
@@ -100,10 +100,10 @@ source of truth.
 
 ## To finish
 
-1. **Reach works (within ~1-5mm, IK-driven); grasping/pinching doesn't.** The
-   4 gripper prismatic joints still need tuning to actually pinch fabric, and
-   the *default/idle* pose droops (separate from reach, which works fine
-   when actively driven).
+1. **Reach works, grasping/pinching doesn't.** IK on the Table038 fallback: each
+   arm puts its tool point on its half of the garment (< 1 mm), top-down only
+   near the robot (the centre and far corners need the gripper tilted). The
+   grippers still need tuning to actually pinch fabric.
 2. **Full garment set**: `hf download lehome/asset_challenge` → `garment_cfg_base_path`.
 3. **Data + training**: pioneer teleop → record demos → `lerobot-train` with
    LeHome's ACT / DP / SmolVLA configs.

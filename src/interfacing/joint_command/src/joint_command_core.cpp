@@ -26,6 +26,16 @@ const std::vector<std::pair<std::string, std::string>>& jointPaths() {
   return paths;
 }
 
+// LegPose joint order (LegPose.msg). TODO(legs): key leg_calibration.yaml / leg_actuators.yaml
+// by these, as jointPaths() keys the arm configs.
+const std::vector<std::pair<std::string, std::string>>& legJointPaths() {
+  static const std::vector<std::pair<std::string, std::string>> paths = {
+      {"hip", "pitch"},  {"hip", "roll"},    {"hip", "yaw"},
+      {"knee", "pitch"}, {"ankle", "pitch"}, {"ankle", "roll"},
+  };
+  return paths;
+}
+
 } // namespace
 
 std::string SeedReport::describe() const {
@@ -802,4 +812,25 @@ JointCommandCore::armPoseToMotorCmds(const common_msgs::msg::ArmPose& pose,
   prev_targets_ = std::move(next_targets);
   have_prev_targets_ = true;
   return commands;
+}
+std::vector<common_msgs::msg::MotorCmd>
+JointCommandCore::legPoseToMotorCmds(const common_msgs::msg::LegPose& pose,
+                                     int8_t default_control_type) {
+  if (pose.hip.position.size() < 3 || pose.knee.position.size() < 1 ||
+      pose.ankle.position.size() < 2) {
+    throw std::runtime_error("LegPose must contain 3 hip, 1 knee, and 2 ankle positions");
+  }
+  // legJointPaths() order.
+  const std::vector<double> source_angles = {
+      pose.hip.position[0],  pose.hip.position[1],   pose.hip.position[2],
+      pose.knee.position[0], pose.ankle.position[0], pose.ankle.position[1],
+  };
+  if (source_angles.size() != legJointPaths().size()) {
+    throw std::runtime_error("LegPose slot count does not match legJointPaths()");
+  }
+  // TODO(legs): run source_angles through the same layers as armPoseToMotorCmds:
+  // clamp -> low-pass -> velocity / delta limit -> clamp -> calibration -> MotorCmd.
+  // Simplest: move armPoseToMotorCmds' per-joint loop into a shared helper and call it here.
+  (void)default_control_type;
+  return {};
 }
