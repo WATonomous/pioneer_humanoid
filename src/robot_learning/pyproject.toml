@@ -20,7 +20,8 @@ ros = ["opencv-python-headless>=4.8"]
 hdf5 = ["h5py>=3.8"]
 record = ["lerobot[dataset]>=0.3.0", "pynput>=1.7", "h5py>=3.8"]
 sim = ["torch>=2.0", "tqdm>=4.0", "lerobot[dataset]>=0.3.0"]  # [dataset]: writing datasets (lerobot >= 0.7)
-dit = ["lerobot>=0.4,<0.5", "transformers>=4.40"]
+# DINOv3 needs transformers 4.56+
+pioneer1 = ["lerobot>=0.4,<0.5", "transformers>=4.56"]
 
 [project.scripts]
 humanoid-record = "humanoid_robot_learning.recording.record:main"

@@ -1,4 +1,4 @@
-"""``lerobot-train`` with our policies registered. Same arguments, e.g. ``--policy.type=humanoid_dit``."""
+"""``lerobot-train`` with our policies registered. Same arguments, e.g. ``--policy.type=pioneer1``."""
 from humanoid_robot_learning.policies import register
 
 
