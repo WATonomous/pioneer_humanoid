@@ -1,0 +1,8 @@
+traversability:
+  robot_limits:
+    max_slope_deg: 7.0
+    max_step_m: 0.08
+    max_roughness_m: 0.03    # tune on course bags (TR-8)
+  max_variance: null         # m^2; set (e.g. 0.001) to treat uncertain cells as unknown
+  plane_radius_cells: 1      # window half-size for plane fit (1 -> 3x3; use 2 for 5 cm cells if the map is noisy)
+  step_radius_cells: 1       # neighbourhood for step height (1 -> 8 neighbours)
