@@ -91,16 +91,18 @@ class Layout8dofTests(unittest.TestCase):
 
     def test_robot_defaults_per_target(self):
         import argparse
-        for target, robot, file in (("mujoco", "8dof", "leader_arm_8dof.json"), ("real", "armv2", "leader_arm.json")):
+        for target, robot, file in (("mujoco", "8dof", "leader_arm_8dof.json"), ("isaac", "8dof", "leader_arm_8dof.json"),
+                                    ("real", "armv2", "leader_arm.json")):
             args = argparse.Namespace(filter_alpha=0.35, robot=None, target=target, leader_arm=None)
             with mock.patch.object(lm, "load_leader_boards", return_value={}) as load:
                 lm.check_leader_args(argparse.ArgumentParser(), args, ["right"])
             self.assertEqual(args.robot, robot)
             self.assertEqual(args.leader_arm.name, file)
             self.assertEqual(load.call_args.args[2], LAYOUTS[robot])
-        args = argparse.Namespace(filter_alpha=0.35, robot="8dof", target="real", leader_arm=None)
-        with self.assertRaises(SystemExit):                 # the real arm is the old arm: refused
-            lm.check_leader_args(argparse.ArgumentParser(), args, ["right"])
+        for target, robot in (("real", "8dof"), ("isaac", "armv2")):   # the real arm is the old arm, Isaac the 8dof
+            args = argparse.Namespace(filter_alpha=0.35, robot=robot, target=target, leader_arm=None)
+            with self.assertRaises(SystemExit):
+                lm.check_leader_args(argparse.ArgumentParser(), args, ["right"])
 
 
 class Schema8dofTests(unittest.TestCase):
