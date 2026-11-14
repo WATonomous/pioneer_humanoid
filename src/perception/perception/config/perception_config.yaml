@@ -44,3 +44,13 @@ shuttlecock_localizer_node:
     output_topic: "/perception/shuttlecock/detections_3d"
     sync_slop: 0.015
     sync_queue_size: 60   # 2 s of depth at 30 Hz
+
+pose_estimation_node:
+  ros__parameters:
+    image_topic: "/camera/color/image_raw"
+    output_topic: "/perception/pose_estimation"
+    person_weights: "/data/weights/yolo26n.pt"
+    pose_onnx: "/opt/models/rtmpose-s_body7.onnx"
+    half: true
+    imgsz: 640
+    person_conf: 0.50

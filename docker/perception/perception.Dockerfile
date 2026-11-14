@@ -59,6 +59,7 @@ RUN apt-get update && \
       lsb-release \
       libssl-dev \
       usbutils \
+      unzip \
       libusb-1.0-0-dev \
       pkg-config \
       libgtk-3-dev \
@@ -78,48 +79,28 @@ RUN python3 -m pip install --no-cache-dir \
       "pybind11>=2.6.0" \
       numpy==1.26.4 \
       fire \
-      "opencv-python<4.12"
+      "opencv-python<4.12" \
+      "setuptools==65.5.0"
 
-# Install PyTorch CPU
-RUN pip install torch==2.1.0 torchvision==0.16.0 \
-    --index-url https://download.pytorch.org/whl/cpu
+# Install PyTorch (CUDA 12.8 build, required for 5070 Ti)
+RUN pip install torch==2.7.1 torchvision==0.22.1 \
+    --index-url https://download.pytorch.org/whl/cu128
 RUN pip install --no-cache-dir "ultralytics>=8.4"
 
-# Install mmcv built for torch2.1.0
-RUN pip install mmcv==2.1.0 \
-    -f https://download.openmmlab.com/mmcv/dist/cpu/torch2.1.0/index.html
-
-# Install mmpose and dependencies
-RUN pip install --no-cache-dir mmpose==1.3.2 --no-deps && \
-    pip install --no-cache-dir mmdet==3.3.0 --no-deps && \
-    pip install --no-cache-dir \
-      scipy \
-      pycocotools \
-      shapely \
-      terminaltables \
-      munkres \
-      json_tricks \
-      tqdm \
-      setuptools==65.5.0
+# RTMPose-s via ONNX; --no-deps keeps opencv-contrib and numpy 2 out
+RUN pip install --no-cache-dir --no-deps rtmlib==0.0.16 && \
+    pip install --no-cache-dir onnxruntime==1.23.2
+RUN mkdir -p /opt/models && \
+    wget -q https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/onnx_sdk/rtmpose-s_simcc-body7_pt-body7_420e-256x192-acd4a1ef_20230504.zip -O /tmp/rtm.zip && \
+    unzip -j /tmp/rtm.zip '*/end2end.onnx' -d /opt/models && mv /opt/models/end2end.onnx /opt/models/rtmpose-s_body7.onnx && rm /tmp/rtm.zip
 
 # Pin numpy to 1.x for cv_bridge compatibility
 RUN pip install numpy==1.26.4 --force-reinstall
-
-# Patch xtcocotools references to use pycocotools
-RUN find /usr/local/lib/python3.10/dist-packages/mmpose/ \
-    -name "*.py" \
-    -exec sed -i \
-    's/from xtcocotools/from pycocotools/g;s/import xtcocotools/import pycocotools/g' {} +
 
 # Dependency Cleanup
 WORKDIR /
 RUN apt-get -qq autoremove -y && apt-get -qq autoclean && apt-get -qq clean && \
     rm -rf /root/.ros /tmp/* /var/lib/apt/lists/* /usr/share/doc/*
-
-# Download RTMPose model
-RUN mkdir -p /root/models && \
-    wget -q https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-s_simcc-body7_pt-body7_420e-256x192-acd4a1ef_20230504.pth \
-    -O /root/models/rtmpose-s.pth
 
 ################################ Build ################################
 FROM dependencies AS build

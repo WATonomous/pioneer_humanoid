@@ -15,13 +15,18 @@ def generate_launch_description():
     config = os.path.join(get_package_share_directory('perception'), 'config', 'perception_config.yaml')
     realsense_launch = PathJoinSubstitution([FindPackageShare('realsense2_camera'), 'launch', 'rs_launch.py'])
 
+    use_pose = LaunchConfiguration('use_pose')
     use_detector = LaunchConfiguration('use_detector')
     use_dummy = LaunchConfiguration('use_dummy')
     use_camera = LaunchConfiguration('use_camera')
-    detector_device = LaunchConfiguration('detector_device')
+    torch_device = LaunchConfiguration('torch_device')
     sim_time = {'use_sim_time': ParameterValue(LaunchConfiguration('use_sim_time'), value_type=bool)}
 
     return LaunchDescription([
+        DeclareLaunchArgument(
+            'use_pose', default_value='false',
+            description='Start the pose estimation for humanoid boxing project'
+        ),
         DeclareLaunchArgument(
             'use_detector', default_value='false',
             description='Start the YOLO shuttlecock detector (needs ultralytics and /data/weights)'
@@ -35,8 +40,10 @@ def generate_launch_description():
             description='Start the D455 driver; false when replaying a bag'
         ),
         DeclareLaunchArgument(
-            'detector_device', default_value=EnvironmentVariable('DETECTOR_DEVICE', default_value='cuda:0'),
-            description="Torch device for the YOLO detector: 'cuda:0' on the robot, 'cpu' without an NVIDIA GPU"
+            'torch_device',
+            default_value=EnvironmentVariable('TORCH_DEVICE', default_value='cuda:0'),
+            description="Torch device for the YOLO detector and pose estimator: "
+                        "'cuda:0' on the robot, 'cpu' without an NVIDIA GPU"
         ),
         DeclareLaunchArgument(
             'use_sim_time', default_value='false',
@@ -68,7 +75,7 @@ def generate_launch_description():
             parameters=[
                 config,
                 sim_time,
-                {'device': ParameterValue(detector_device, value_type=str)},
+                {'device': ParameterValue(torch_device, value_type=str)},
             ],
             arguments=[
                 '--ros-args',
@@ -111,5 +118,22 @@ def generate_launch_description():
             executable='trajectory_EKF_prediction_node',
             name='trajectory_EKF_prediction_node',
             output='screen',
+        ),
+        Node(
+            package='perception',
+            executable='pose_estimation_node',
+            name='pose_estimation_node',
+            output='screen',
+            parameters=[
+                config,
+                sim_time,
+                {'device': ParameterValue(torch_device, value_type=str)}
+            ],
+            arguments=[
+                '--ros-args',
+                '--log-level',
+                LaunchConfiguration('log_level')
+            ],
+            condition=IfCondition(use_pose),
         ),
     ])
