@@ -1,8 +1,8 @@
 # pioneer_leader_arm_teleop
 
 The leader arm (STS3215 servos, torque always off: 8 for the default 8dof arms, 7 for the old arms) drives the Pioneer
-arms joint to joint, with no IK, in any registered scene: plain MuJoCo (default, CPU, the 8dof arms) or Isaac Sim
-(`--target isaac`, the old 6-DoF arms).
+arms joint to joint, with no IK, in any registered scene: plain MuJoCo (default, CPU) or Isaac Sim (`--target isaac`),
+both the 8dof arms by default.
 `--target real` compares the leader with the real arm (dry run, publishes nothing); `--live` then drives it (#327).
 Optional recording (`--record`) in the robot's schema: `pioneer_8dof_dataset_schema.yaml` by default.
 
@@ -21,10 +21,10 @@ Old arms (`--robot armv2`, 7 servos):
 | F | 7 | `joint6l` wrist | −1 |
 | G | 6 | gripper (41.5° open → 0° closed) | +1 |
 
-### The 8dof arms (`--robot 8dof`, MuJoCo)
+### The 8dof arms (`--robot 8dof`, MuJoCo and Isaac)
 
-`--target mujoco` drives `pioneer_bimanual_arm_8dof` (7-DoF + gripper per arm) by default; `--robot armv2` keeps the
-old arms. Isaac and the real arm only have the old arms. The 8dof arms add a 7th joint, wrist yaw, after wrist pitch:
+`--target mujoco` and `--target isaac` drive `pioneer_bimanual_arm_8dof` (7-DoF + gripper per arm) by default; MuJoCo
+keeps the old arms with `--robot armv2`. Isaac has only the 8dof arms, the real arm only the old arms. The 8dof arms add a 7th joint, wrist yaw, after wrist pitch:
 the leader drives it with an **eighth servo on bus ID 8**. Labels follow joint order: **G = wrist yaw (new), H = gripper**
 (the old leader's G, same bus ID 6).
 
@@ -77,11 +77,11 @@ The leader plugs in over USB (`/dev/ttyACM0`); the `simulation_isaac` container 
 
 # inside the container
 cd /workspace/humanoid/src/teleop/pioneer_leader_arm_teleop
-$PYTHON encoder_test.py                   # first time: all 7 servos respond? (--ids 2,3 --raw for a subset)
-$PYTHON calibrate_leader.py --side left   # first time: store the hanging-pose zero
+$PYTHON encoder_test.py                    # first time: all 8 servos respond? (--ids 2,3 --raw for a subset)
+$PYTHON calibrate_leader.py --side right   # first time: store the hanging-pose zero (leader_arm_8dof.json)
 
 /workspace/isaaclab/isaaclab.sh -p pioneer_leader_arm_teleop.py --target isaac --scene push
-/workspace/isaaclab/isaaclab.sh -p pioneer_leader_arm_teleop.py --target isaac --scene vial_rack --record
+/workspace/isaaclab/isaaclab.sh -p pioneer_leader_arm_teleop.py --target isaac --scene vial_rack --arms bimanual --record
 ```
 
 Scenes: `bare` (default), `push`, `vial_rack`, or any scene registered in `humanoid_isaac_scenes` (an unknown name lists them).
@@ -125,17 +125,17 @@ Scenes: `bare`, `peg_insert`, `zip_tie`, `drawer_stow`, `matcha`, `duplo`, or an
   `SAVED` / `take discarded` for 3 s after 8 / 9. Until the arm follows (with or without `--record`) it also lists each
   joint's offset from home (the gripper as % open) under `bring to position`, `<` marking the ones still out of range.
 - **Arm:** the right arm by default (`--arms right`): the leader's left arm doesn't register its servos. `--arms left` once it does.
-- **`--record`** → `<repo>/datasets/pioneer_v1_right_arm/sim/` · cameras `ego` + the driven arm's wrist (`--cameras` to change, `none` for none).
+- **`--record`** → `<repo>/datasets/pioneer_8dof_right_arm/sim/` · cameras `ego` + the driven arm's wrist (`--cameras` to change, `none` for none).
 - **Multi-step scenes** (`drawer_stow`, `matcha`, `duplo`): the terminal prints `[TASK] step k/n: <instruction>` as each step is done and
   `all steps done -- 8 to save` at the end. Recorded frames carry the current step's instruction as their `task` and a
   `subtask_index`, so a take is labelled step by step with no hand annotation.
-- **Both arms (MuJoCo):** `--arms bimanual`, once both boards are calibrated (`calibrate_leader.py --side left` / `right`).
+- **Both arms:** `--arms bimanual`, once both boards are calibrated (`calibrate_leader.py --side left` / `right`).
   Recording waits for every leader at home; frames are the left arm's 7 values then the right's, into
-  `<repo>/datasets/pioneer_v1_bimanual/sim/` (`pioneer_v1_left_arm` for the left arm alone), with both wrist cameras.
+  `<repo>/datasets/pioneer_8dof_bimanual/sim/` (`pioneer_8dof_left_arm` for the left arm alone), with both wrist cameras.
 - Other flags: `--baud`, `--leader-arm` (default `leader_arm.json` here), `--filter-alpha` (target smoothing, default 0.35).
-  MuJoCo only: `"lock_wrist": true` under an arm in `leader_arm.json` freezes that arm's wrist (F) rigidly at home (motor off, joint pinned every physics step) and ignores the leader's wrist; `false` lets it follow the leader. `--lock-wrist` / `--no-lock-wrist` override it for one run. Recalibrating keeps the setting.
+  `"lock_wrist": true` under an arm in `leader_arm.json` freezes that arm's wrist (F) rigidly at home (MuJoCo: motor off, joint pinned every physics step; Isaac: its joint limits closed onto home) and ignores the leader's wrist; `false` lets it follow the leader. `--lock-wrist` / `--no-lock-wrist` override it for one run. Recalibrating keeps the setting.
 
-Targets are clamped to the arm's URDF limits. Wrist damping is lowered to 2.5 in this teleop only, so the sim wrist keeps up with the leader.
+Targets are clamped to the arm's URDF limits. The old arm's wrist damping is lowered to 2.5 in this teleop only (MuJoCo `--robot armv2`), so the sim wrist keeps up with the leader.
 
 ## Synthetic demos (MuJoCo, no leader)
 
