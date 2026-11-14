@@ -50,6 +50,8 @@ setup(
             "perception.dummy_shuttlecock_publisher:main",
             "shuttlecock_localizer_node = "
             "perception.shuttlecock_localizer_node:main",
+            "shuttlecock_detector_node = "
+            "perception.shuttlecock_detector_node:main",
             "tracknet_node = perception.tracknet_node:main",
         ],
     },
