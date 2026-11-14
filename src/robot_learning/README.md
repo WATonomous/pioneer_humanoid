@@ -110,6 +110,28 @@ python -m humanoid_robot_learning.sim.evaluate --scene drawer_stow --policy <run
 Corrections of the failed rollouts, with the Quest:
 [`resume_teleop.py`](../teleop/quest_controller_teleop/README.md#recap-corrections).
 
+### RECAP value function and advantage labels
+
+Task-agnostic (`--scene` names the scene), under `humanoid_robot_learning/recap/`. Input: one LeRobot dataset with its
+`recap/` sidecar holding all data so far (demos, every round's rollouts and corrections).
+
+| Step | Command | Writes |
+|------|---------|--------|
+| Value | `python -m humanoid_robot_learning.recap.value` | `value.pt`: 201-bin distribution over the return normalised to [-1, 0], Monte Carlo targets, privileged sim state |
+| Labels | `python -m humanoid_robot_learning.recap.label` | `recap/labels_r<k>.parquet` (value, advantage, positive); `--training_copy`: the dataset with " Advantage: positive/negative" in `task` |
+
+Returns: -1 per step, normalised by the time limit in steps (`--max_s` x fps), failures clipped to -1. Advantage
+over `--horizon 50` steps (2 s), ε at the 30th percentile (70% positive), corrections forced positive, the token
+dropped on 30% of frames. Demos have no sim snapshot: the value sees their arm state, step index and time only.
+
+```bash
+python -m humanoid_robot_learning.recap.value --dataset datasets/recap/r1_all --scene drawer_stow --out outputs/recap/value_r1
+python -m humanoid_robot_learning.recap.label --dataset datasets/recap/r1_all --value outputs/recap/value_r1/value.pt \
+  --round 1 --training_copy datasets/recap/r1_train
+```
+
+Then fine-tune from the base checkpoint on `r1_train` and roll out with `evaluate --advantage positive`.
+
 Sim rollout for a flow-matching policy (pi0 / pi0.5 / SmolVLA) on the push-block scene, driven with Real-Time Chunking (`humanoid_robot_learning/deploy/rtc_driver.py`): [`scripts/pioneer_push_eval_rtc.py`](scripts/pioneer_push_eval_rtc.py). It expects a checkpoint trained on `config/pioneer_humanoid_dataset_schema.yaml` (the old arms' format, recorded by the Isaac leader teleop); `--dry_run` runs it without one. **The VLA is not hooked up yet**: no real checkpoint has been run through it, and its schema, camera keys and action space (absolute vs delta) still need matching. See the `TODO(VLA)` block in the script.
 
 ```bash
