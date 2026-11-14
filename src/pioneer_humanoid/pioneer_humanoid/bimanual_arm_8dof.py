@@ -15,10 +15,12 @@ from isaaclab.sensors import CameraCfg
 from isaaclab.sim.converters import UrdfConverterCfg
 from isaaclab.sim.utils import clone
 
-from .arm_8dof_params import ACTUATOR_GROUPS, ARM_ARMATURE, CAMERAS, DEFAULT_JOINT_POS, GRIPPER_STROKE, URDF_PATH
+from .arm_8dof_params import ACTUATOR_GROUPS, ARM_ARMATURE, CAMERAS, DEFAULT_JOINT_POS, GRIPPER_STROKE, TCP_LOCAL, URDF_PATH
 from .arm_params import vertical_aperture
-from .bimanual_arm import FINGER_MATERIAL
 
+# TPU fingers: estimates, not measured (as mujoco_bimanual_arm's FINGER_FRICTION). "max" so the TPU's friction holds
+# against any object, not its average with the object's (PhysX default 0.5).
+FINGER_MATERIAL = sim_utils.RigidBodyMaterialCfg(static_friction=1.0, dynamic_friction=1.0, friction_combine_mode="max")
 USD_DIR = URDF_PATH.rsplit("/urdf/", 1)[0] + "/usd"
 FINGER_LINKS = [f"{s}_finger_{f}" for s in ("left", "right") for f in ("a", "b")]
 
@@ -102,6 +104,32 @@ BIMANUAL_ARM_8DOF_CFG = ArticulationCfg(
         for name, group in ACTUATOR_GROUPS.items()
     } | {"gripper_mimic": ImplicitActuatorCfg(joint_names_expr=[".*_gripper_mimic"], stiffness=0.0, damping=0.0)},
 )
+
+
+def tcp_pose_w(robot, ee_body_id: int):
+    """World pose (pos, wxyz quat) of the tool point (arm_8dof_params.TCP_LOCAL on the EE body), all envs."""
+    import torch
+    from isaaclab.utils.math import quat_apply
+
+    pos, quat = robot.data.body_pos_w[:, ee_body_id], robot.data.body_quat_w[:, ee_body_id]
+    local = torch.tensor(TCP_LOCAL, device=pos.device, dtype=pos.dtype).expand_as(pos)
+    return pos + quat_apply(quat, local), quat
+
+
+def tcp_jacobian_b(robot, ee_body_id: int, joint_ids: list[int]):
+    """(N, 6, len(joint_ids)) Jacobian of the tool point in the robot root frame (fixed base: no root DOFs).
+
+    PhysX's linear rows are the velocity of the link's centre of mass: shifted here to the tool point.
+    """
+    import torch
+    from isaaclab.utils.math import matrix_from_quat, quat_inv, skew_symmetric_matrix
+
+    jac = robot.root_physx_view.get_jacobians()[:, ee_body_id - 1, :, joint_ids].clone()   # fixed base: body i -> row i-1
+    offset_w = tcp_pose_w(robot, ee_body_id)[0] - robot.data.body_com_pos_w[:, ee_body_id]
+    jac[:, :3] += torch.bmm(-skew_symmetric_matrix(offset_w), jac[:, 3:])
+    rot = matrix_from_quat(quat_inv(robot.data.root_quat_w))
+    jac[:, :3], jac[:, 3:] = torch.bmm(rot, jac[:, :3]), torch.bmm(rot, jac[:, 3:])
+    return jac
 
 
 def make_camera_cfg(name: str, height: int, width: int) -> CameraCfg:
