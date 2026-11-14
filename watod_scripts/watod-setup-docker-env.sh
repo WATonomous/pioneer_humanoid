@@ -117,3 +117,5 @@ echo "XAUTHORITY=${XAUTHORITY:-$HOME/.Xauthority}" >> "$MODULES_DIR/.env"
 # Host user for Isaac bind-mount ownership fix (see docker/simulation/isaac_lab/entrypoint.sh)
 echo "HOST_UID=$(id -u)" >> "$MODULES_DIR/.env"
 echo "HOST_GID=$(id -g)" >> "$MODULES_DIR/.env"
+# ROS 2 domain for the ROS containers (set ROS_DOMAIN_ID in watod-config.local.sh; default 0)
+echo "ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}" >> "$MODULES_DIR/.env"

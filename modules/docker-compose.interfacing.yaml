@@ -21,7 +21,7 @@ services:
       # Avoid FastDDS SHM isolation between can_node and docker-exec shells
       - FASTDDS_BUILTIN_TRANSPORTS=UDPv4
       - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
-      - ROS_DOMAIN_ID=0
+      - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
     volumes:
       - /dev:/dev # Allow access to host devices
       - ${MONO_DIR}/src/interfacing:/root/ament_ws/src/interfacing
@@ -55,7 +55,7 @@ services:
       # UDP only: shared-memory discovery fails across users (docker exec)
       - FASTDDS_BUILTIN_TRANSPORTS=UDPv4
       - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
-      - ROS_DOMAIN_ID=0
+      - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
     # editable src is bind-mounted; launch it yourself:
     #   watod -t joint_command  ->  ros2 launch joint_command joint_command.launch.py
     command: tail -F anything
