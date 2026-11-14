@@ -14,7 +14,7 @@ The repo is bind-mounted at `/workspace/humanoid`. Shared arm config + IK helper
 
 | Folder | Input | Sim robot | Notes |
 |--------|-------|-----------|-------|
-| [`quest_controller_teleop/`](quest_controller_teleop/) | Quest 2 Touch controllers | pioneer_bimanual_arm_8dof (7-DoF + gripper), both arms, MuJoCo | mink IK, URDF limits + elbow rule, 1-euro filter; `start_quest.sh`, `--record`; see its README |
+| [`quest_controller_teleop/`](quest_controller_teleop/) | Quest 2 Touch controllers | pioneer_bimanual_arm_8dof (7-DoF + gripper), both arms, MuJoCo or Isaac (`isaac/isaac_sim.py`) | mink IK, URDF limits + elbow rule, 1-euro filter; `start_quest.sh`, `--record`; see its README |
 | **`keyboard_teleop/`** | keyboard + mink IK (TCP target) | pioneer_bimanual_arm_8dof, left arm, Isaac | see below |
 | [`pioneer_leader_arm_teleop/`](pioneer_leader_arm_teleop/) | leader arm (8 servos; 7 for the old arms) | pioneer_bimanual_arm_8dof in MuJoCo (default); old arms in Isaac / real | any `--scene`, `--record`; see its README |
 | [`task_space_controller/`](task_space_controller/) | viewport pose gizmo + mink IK | pioneer_bimanual_arm_8dof, left arm, Isaac | sim only |
@@ -40,18 +40,18 @@ Keys: see [Keyboard controls](#keyboard-controls) below.
 Every key of every teleop in one place. Isaac Sim keys need the Isaac Sim window focused; MuJoCo keys need the
 MuJoCo viewer focused. Recording keys only do something with `--record`. **If you change a binding, update this table.**
 
-| Action | `keyboard_teleop` (Isaac) | leader arm, Isaac | leader arm, MuJoCo | Quest (Isaac) |
+| Action | `keyboard_teleop` (Isaac) | leader arm, Isaac | leader arm, MuJoCo | Quest (MuJoCo or Isaac) |
 |--------|---------------------------|-------------------|--------------------|---------------|
-| Move end effector x / y / z | `W`/`S` · `A`/`D` · `Q`/`E` | leader arm | leader arm | wrists |
-| Rotate roll / pitch / yaw | `Z`/`X` · `T`/`G` · `C`/`V` | leader arm | leader arm | wrists |
+| Move end effector x / y / z | `W`/`S` · `A`/`D` · `Q`/`E` | leader arm | leader arm | controllers |
+| Rotate roll / pitch / yaw | `Z`/`X` · `T`/`G` · `C`/`V` | leader arm | leader arm | controllers |
 | Fine motion (hold) | `Shift` | — | — | — |
-| Gripper | `K` toggle | leader gripper | leader gripper | thumb–index pinch |
-| Reset | `R` (arm only) | `R` (arm + scene; discards a take in progress) | `6` (arm + scene; discards a take in progress) | `T` (objects + arms to rest) |
-| Re-home to current wrist pose | — | — | — | `R` |
-| Start recording | `S` ¹ | `S` | `7` | automatic when the headset connects |
-| Save episode | `N` | `N` | `8` (then auto-reset) | `S` (keeps recording) |
-| Discard episode | `D` ¹ | `D` | `9` | `D` (keeps recording) |
-| Stop session, finalize dataset | `Esc` | `Esc` | close the window (`Esc` is the viewer's free camera) | close Isaac Sim |
+| Gripper | `K` toggle | leader gripper | leader gripper | index trigger |
+| Reset | `R` (arm only) | `R` (arm + scene; discards a take in progress) | `6` (arm + scene; discards a take in progress) | left `Y`, or `6` (arm + scene; discards a take in progress) |
+| Wrist-pivot calibration | — | — | — | hold thumbstick click |
+| Start recording | `S` ¹ | `S` | `7` | right `B`, or `7` |
+| Save episode | `N` | `N` | `8` (then auto-reset) | right `B` again, or `8` (then auto-reset) |
+| Discard episode | `D` ¹ | `D` | `9` | `9` |
+| Stop session, finalize dataset | `Esc` | `Esc` | close the window (`Esc` is the viewer's free camera) | close the window (MuJoCo) / Ctrl+C (Isaac) |
 
 ¹ `S` and `D` are also move keys in `keyboard_teleop`: pressing them to start / discard also nudges the arm.
 

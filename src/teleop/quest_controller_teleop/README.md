@@ -2,7 +2,7 @@
 
 Drive the Pioneer bimanual rig's **7-DoF + 1-DoF-gripper arms**
 ([`pioneer_bimanual_arm_8dof`](../../../assets/pioneer_bimanual_arm_8dof/README.md)) in MuJoCo with Meta Quest 2 Touch
-controllers. MuJoCo only (no Isaac: the arm has no USD yet). The headset only tracks; you watch the Mac's window.
+controllers, in MuJoCo or Isaac Sim. The headset only tracks; you watch the Mac's window (or Isaac's viewport).
 
 ## Run (no GPU, runs on a laptop)
 
@@ -24,6 +24,25 @@ By hand: `python src/teleop/quest_controller_teleop/mujoco/mujoco_sim.py --scene
 control, and of several open tabs the one in VR has it.
 
 Any scene in `humanoid_mujoco_scenes` works. `--help` lists the tuning flags (gains, speed caps, lead limits, IK, input filter) and their defaults.
+
+## Run in Isaac Sim
+
+The same controller, buttons and recording on any `humanoid_isaac_scenes` scene (default `bare`), inside the
+`simulation_isaac` container (see [`../README.md`](../README.md)). The container shares the host network, so
+`adb reverse tcp:8444 tcp:8444` on the host reaches it; then open `http://localhost:8444/` in Meta Browser.
+
+```bash
+# inside the simulation_isaac container:
+cd /workspace/humanoid
+/workspace/isaaclab/isaaclab.sh -p src/teleop/quest_controller_teleop/isaac/isaac_sim.py --scene bare [--record]
+```
+
+The window is Isaac's viewport; status lines print on the terminal. The viewport takes **6** (reset) and, with
+`--record`, **7** / **8** / **9** as the MuJoCo window does. `start_quest.sh` launches the MuJoCo sim only.
+
+Recording three 640x480 cameras on a laptop RTX 4060, Isaac runs slower than real time: 0.56x by default, 0.72x with
+`--device cpu --rendering_mode performance` (CPU physics; scenes with GPU-only assets such as cloth need the GPU).
+Takes stay at 25 fps of sim time either way.
 
 ## Controls
 
@@ -60,8 +79,9 @@ recording. Train on it as in `src/robot_learning/README.md`.
 - **Between packets** (`scene_driver.py`): the 90 Hz headset vs 100 Hz ticks; empty ticks move on along the hand's
   last velocity, so motion never goes stop-go.
 - **IK** (`mink_control.py`): one mink QP per tick, position at the wrist pivot first, gripper orientation second (weight 0.2), a light pull toward home; each joint's URDF limit and speed cap (0.9 rad/s joints 1–4, 3.6 rad/s 5–7) are hard constraints.
-- **Motors** (`mujoco/mujoco_sim.py`): position PD plus velocity and gravity feedforward (the motors' MIT mode), so
-  the sim arm doesn't trail its command.
+- **Motors** (`mujoco/mujoco_sim.py`, `isaac/isaac_sim.py`): position PD plus velocity and gravity feedforward (the
+  motors' MIT mode), so the sim arm doesn't trail its command. MuJoCo shifts the position target to get it; Isaac's
+  PD takes the velocity target directly and the gravity/Coriolis torques as the effort target.
 - **Window and recording** (`mujoco/mujoco_cameras.py`): one render thread draws the three cameras for the window
   and for the recorder, so they never compete for the GPU.
 - **Joint limits:** the URDF's, plus one rule: the elbow stays at least 10° bent (away from the straight-arm singularity). `--body-keepout` adds an approximate torso keep-out (off: the stand has no torso).
