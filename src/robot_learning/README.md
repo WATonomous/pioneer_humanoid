@@ -73,6 +73,28 @@ Flag pitfalls (`--steps`, not epochs; always `--policy.push_to_hub=false` for lo
 
 Our own policy, `humanoid_dit` ([`humanoid_robot_learning/policies/dit`](humanoid_robot_learning/policies/dit)), is a flow-matching diffusion transformer conditioned on CLIP image and text features. Install with `pip install -e .[dit]` and train with `python -m humanoid_robot_learning.train --policy.type=humanoid_dit` plus the arguments above and `--steps=70000 --batch_size=6`. On 540 synthetic peg-insertion demos it succeeds in 80% of 400 sim episodes. At 50k steps: 58-75% across two training seeds (180 demos: 60-64%). The learning rate decays over `--steps`, so set it up front: a finished run can't be extended.
 
+**pi0.5** trains through LeRobot's own pi0.5 (LeRobot 0.7, `pip install 'lerobot[pi,training]==0.7.0'`, Python ≥ 3.12)
+with the same entry point. Fine-tune from `lerobot/pi05_base`, training only the action expert (the VLM stays frozen),
+with actions relative to the state (the grippers stay absolute). The relative-action conversion lives in the
+checkpoint's pre/post-processors, so sim evaluation (below) needs nothing extra:
+
+```bash
+python -m humanoid_robot_learning.train --dataset.repo_id=humanoid/drawer_stow_left \
+  --dataset.root=datasets/drawer_stow_left/sim --policy.path=lerobot/pi05_base \
+  --policy.train_expert_only=true --policy.use_relative_actions=true --policy.gradient_checkpointing=true \
+  --policy.push_to_hub=false --policy.device=cuda --steps=6000 --batch_size=8 --save_freq=2000 \
+  --output_dir=outputs/train/pi05_drawer_stow
+```
+
+Single-arm task recorded with a bimanual teleop (the Quest teleop records both arms)? Convert to that arm first:
+keeps its joints of `action` and `observation.state`, drops the other wrist camera, keeps the per-frame task. With
+`--policy.use_relative_actions=true`, add `--relative_action_stats` so the action stats are relative too.
+
+```bash
+python -m humanoid_robot_learning.select_arm --src datasets/pioneer_8dof_bimanual/sim \
+  --out datasets/drawer_stow_left/sim --arm left --relative_action_stats
+```
+
 Success rate of any checkpoint on a MuJoCo scene that defines `success` (or multi-step `progress`), left arm, as recorded by the leader-arm teleop. It prints a 95% interval: 40 episodes tell 35% from 65% (about ±15 points); comparing 60% with 70% needs about 400. Use layout seeds the training demos did not (`--seed`; the synthetic demos start at 0).
 
 ```bash
