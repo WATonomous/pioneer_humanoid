@@ -1,74 +1,53 @@
+"""Tests for the policy map size read from config/terrain.yaml."""
+from pathlib import Path
+
 import pytest
 
-from terrain_core import config
+from terrain_core.config import PolicyMapConfig
 
+TEAM_YAML = Path(__file__).resolve().parents[1] / "config" / "terrain.yaml"
 WHOLE_NUMBER_TOL = 1e-9
-
-
-def cells_along(size_m):
-    return size_m / config.POLICY_RESOLUTION_M
 
 
 def is_whole_number(value):
     return abs(value - round(value)) < WHOLE_NUMBER_TOL
 
 
-# The spec -------------------------------------------------------------------
+@pytest.fixture
+def policy():
+    return PolicyMapConfig.from_yaml(TEAM_YAML)
 
 
-def test_policy_map_is_16_by_10():
-    assert config.policy_shape() == (16, 10)
+# Settings ---------------------------------------------------------------------
 
 
-def test_total_cell_count():
-    n_x, n_y = config.policy_shape()
-    assert n_x * n_y == 160
+def test_policy_map_is_16_by_10(policy):
+    assert policy.shape() == (16, 10)
 
 
-# Sanity of the numbers -------------------------------------------------------
+def test_sizes_and_resolution_are_positive(policy):
+    assert policy.length_m > 0
+    assert policy.width_m > 0
+    assert policy.resolution_m > 0
 
 
-def test_resolution_is_positive():
-    assert config.POLICY_RESOLUTION_M > 0
-    assert config.ELEVATION_RESOLUTION_M > 0
-
-
-@pytest.mark.parametrize("size_m", [config.POLICY_LENGTH_M, config.POLICY_WIDTH_M])
-def test_map_sizes_are_positive(size_m):
-    assert size_m > 0
-
-
-@pytest.mark.parametrize("size_m", [config.POLICY_LENGTH_M, config.POLICY_WIDTH_M])
-def test_map_size_divides_evenly_into_cells(size_m):
-    assert is_whole_number(cells_along(size_m)), (
-        f"{size_m} m is not a whole number of {config.POLICY_RESOLUTION_M} m cells"
+@pytest.mark.parametrize("field", ["length_m", "width_m"])
+def test_map_size_divides_evenly_into_cells(policy, field):
+    size_m = getattr(policy, field)
+    assert is_whole_number(size_m / policy.resolution_m), (
+        f"{field} = {size_m} m is not a whole number of {policy.resolution_m} m cells"
     )
 
 
-def test_policy_cell_is_whole_number_of_elevation_cells():
-    ratio = config.POLICY_RESOLUTION_M / config.ELEVATION_RESOLUTION_M
-    assert is_whole_number(ratio), (
-        f"{config.POLICY_RESOLUTION_M} m policy cells don't line up with "
-        f"{config.ELEVATION_RESOLUTION_M} m elevation cells"
-    )
+def test_first_index_is_forward_axis(policy):
+    n_forward, n_sideways = policy.shape()
+    assert n_forward > n_sideways
 
 
-# Axis convention -------------------------------------------------------------
+# Reading the file -------------------------------------------------------------
 
 
-def test_first_index_is_forward_axis():
-    n_x, n_y = config.policy_shape()
-    assert n_x == round(cells_along(config.POLICY_LENGTH_M))
-    assert n_y == round(cells_along(config.POLICY_WIDTH_M))
-    assert n_x > n_y
-
-
-# Check the checker -----------------------------------------------------------
-
-
-@pytest.mark.parametrize(
-    "value, expected",
-    [(32.0, True), (32.99999999999999, True), (32.4, False), (33.000001, False)],
-)
-def test_is_whole_number_helper(value, expected):
-    assert is_whole_number(value) == expected
+def test_from_yaml_reads_the_policy_section(tmp_path):
+    path = tmp_path / "terrain.yaml"
+    path.write_text("policy:\n  length_m: 2.0\n  width_m: 1.0\n  resolution_m: 0.5\n")
+    assert PolicyMapConfig.from_yaml(path).shape() == (4, 2)

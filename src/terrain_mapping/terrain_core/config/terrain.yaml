@@ -25,3 +25,8 @@ traversability:
     noise_sigma_m: null      # per-cell elevation noise; null = estimate from the map's median roughness
     planar_floor_m: 0.01     # a cell is "planar" (slope enforced) if roughness <= max(floor, factor * noise)
     planar_noise_factor: 1.5
+
+policy:               # height map sent to the locomotion policy
+  length_m: 1.6       # forward
+  width_m: 1.0        # side to side
+  resolution_m: 0.1   # cell size: 16 x 10 cells
