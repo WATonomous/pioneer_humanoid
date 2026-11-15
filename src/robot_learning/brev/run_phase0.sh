@@ -6,7 +6,8 @@
 #   hf auth login                                   # once, so the private dataset and the upload work
 #   AUTO_SHUTDOWN=1 bash run_phase0.sh              # or run it inside tmux; logs to ~/phase0/phase0.log
 #
-# Env vars: STEPS (default 25000), EPISODES (eval, default 40), HF_MODEL_REPO (default zabsy/dit_peg_40),
+# Env vars: STEPS (default 25000), SAVE_FREQ (checkpoint every N steps, default 5000), EVAL_STEPS (earlier
+# checkpoints to eval besides the last, default 10000), EPISODES (eval, default 40), HF_MODEL_REPO (default zabsy/dit_peg_40),
 # AUTO_SHUTDOWN=1 powers off at the end, success or failure (a stopped box may still bill a little for disk).
 # Rerunnable: a finished training run is reused, so a failed eval does not retrain.
 set -euo pipefail
@@ -53,7 +54,8 @@ hf auth whoami || { echo "[phase0] not logged in to Hugging Face: run 'hf auth l
 train() {  # train <steps> <output dir>
   python -m humanoid_robot_learning.train \
     --policy.type=humanoid_dit --dataset.repo_id="$DATASET" \
-    --steps="$1" --batch_size=6 --policy.device=cuda --policy.push_to_hub=false --output_dir="$2"
+    --steps="$1" --batch_size=6 --save_freq="${SAVE_FREQ:-5000}" \
+    --policy.device=cuda --policy.push_to_hub=false --output_dir="$2"
 }
 
 cd "$REPO/src/robot_learning"
@@ -66,10 +68,15 @@ else
   rm -rf "$OUT"; time train "$STEPS" "$OUT"
 fi
 
-step "eval: $EPISODES episodes on held-out seeds 1000+"
-MUJOCO_GL=egl python -m humanoid_robot_learning.sim.evaluate --scene peg_insert \
-  --policy "$OUT/checkpoints/last/pretrained_model" --episodes "$EPISODES" --seed 1000 \
-  --video_dir "$OUT/eval_videos" 2>&1 | tee "$OUT/eval.txt"
+# Eval the final checkpoint and an earlier one (EVAL_STEPS), to see whether more training helped or overfit.
+for s in ${EVAL_STEPS:-10000} last; do
+  if [ "$s" = last ]; then ckpt="$OUT/checkpoints/last"; else ckpt=$(ls -d "$OUT"/checkpoints/*"$s" 2>/dev/null | head -1 || true); fi
+  [ -n "$ckpt" ] && [ -d "$ckpt/pretrained_model" ] || { echo "[phase0] no checkpoint for step $s, skipping"; continue; }
+  step "eval step $s: $EPISODES episodes on held-out seeds 1000+"
+  MUJOCO_GL=egl python -m humanoid_robot_learning.sim.evaluate --scene peg_insert \
+    --policy "$ckpt/pretrained_model" --episodes "$EPISODES" --seed 1000 \
+    --video_dir "$OUT/eval_videos_$s" 2>&1 | tee "$OUT/eval_$s.txt"
+done
 
 step "upload checkpoint + results to $HF_MODEL_REPO (private)"
 cp "$WORK/phase0.log" "$OUT/phase0.log"
@@ -81,10 +88,10 @@ api = HfApi()
 api.create_repo(repo, private=True, exist_ok=True)
 api.upload_folder(folder_path=f"{out}/checkpoints/last/pretrained_model", path_in_repo="pretrained_model", repo_id=repo,
                   commit_message="humanoid_dit on 40 synthetic peg_insert demos")
-api.upload_folder(folder_path=out, repo_id=repo, allow_patterns=["eval.txt", "phase0.log", "eval_videos/*"],
+api.upload_folder(folder_path=out, repo_id=repo, allow_patterns=["eval_*.txt", "phase0.log", "eval_videos_*/*"],
                   commit_message="Phase 0 eval results")
 print(f"uploaded to https://huggingface.co/{repo}")
 EOF
 
 step "done"
-tail -n 5 "$OUT/eval.txt"
+for f in "$OUT"/eval_*.txt; do echo "--- $f"; tail -n 3 "$f"; done
