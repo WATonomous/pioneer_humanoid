@@ -17,7 +17,7 @@ def raw_sample(sequence=0, stamp=0., angle=0., tracked=True, epoch=0):
     q = [np.sin(angle/2), 0., 0., np.cos(angle/2)]
     return {"version": 1, "head": [0., 0., 0., 1.],
             "left": {"tracked": True, "position": [0., 1., 0.], "orientation": q,
-                     "trigger": 0., "clutch": True} if tracked else None,
+                     "trigger": 0.} if tracked else None,
             "right": None, "sample": {"sequence": sequence, "time_ms": stamp,
             "epoch": epoch}}
 
@@ -163,7 +163,7 @@ class BrowserPacketTests(unittest.TestCase):
         self.assertEqual(packet["left"]["orientation"], [.1, .2, .3, .9])
         self.assertEqual(packet["left"]["position"], [1, 2, 3])
         self.assertEqual(packet["left"]["trigger"], .4)
-        self.assertFalse(packet["left"]["clutch"])
+        self.assertNotIn("clutch", packet["left"])
         self.assertTrue(packet["left"]["precision"])
         self.assertTrue(packet["left"]["calibrate"])
         self.assertTrue(packet["left"]["reset_scene"])

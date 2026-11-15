@@ -1,7 +1,7 @@
 """Quest controller mapping and pioneer_bimanual_arm_8dof kinematics (no ROS/Isaac dependency)."""
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import math
 
 import numpy as np
@@ -74,7 +74,6 @@ def fit_pivot(samples):
 class Input:
     position: np.ndarray
     rotation: np.ndarray
-    clutch: bool
     trigger: float
     precision: bool
     calibrate: bool
@@ -92,102 +91,9 @@ class Input:
         if not math.isfinite(trigger) or not 0 <= trigger <= 1:
             raise ValueError("Invalid trigger")
         return cls(p, quaternion_matrix(value.get("orientation")),
-                   value.get("clutch") is True, trigger,
+                   trigger,
                    value.get("precision") is True, value.get("calibrate") is True,
                    value.get("reset_scene") is True, value.get("record") is True)
-
-
-@dataclass
-class Target:
-    gain: float = 1.5
-    max_position_error: float = .08
-    max_angle_error: float = .6
-    rotation_gain: float = 1.
-    # Fixed Quest-world -> robot-base calibration. Isaac supplies the original
-    # stereo camera's calibrated basis, instead of silently assuming it is level.
-    calibration: np.ndarray = field(default_factory=lambda: np.array(
-        [[0., 0., -1.], [-1., 0., 0.], [0., 1., 0.]]))
-    pivot: np.ndarray = field(default_factory=lambda: np.zeros(3))
-    active: bool = False
-    armed: bool = False
-    position: np.ndarray | None = None
-    rotation: np.ndarray | None = None
-    requested_rotation: np.ndarray | None = None
-    previous_position: np.ndarray | None = None
-    previous_rotation: np.ndarray | None = None
-    mapping: np.ndarray = field(default_factory=lambda: np.eye(3))
-    saturation: float = 0.
-    position_limited: bool = False
-    orientation_limited: bool = False
-    controller_rotation_delta_deg: float = 0.
-    engagement_count: int = 0
-
-    def __post_init__(self):
-        self.set_calibration(self.calibration)
-
-    def set_calibration(self, matrix):
-        matrix = np.asarray(matrix, dtype=float)
-        if (matrix.shape != (3, 3) or not np.isfinite(matrix).all() or
-                not np.allclose(matrix.T @ matrix, np.eye(3), atol=1e-5) or
-                not np.isclose(np.linalg.det(matrix), 1., atol=1e-5)):
-            raise ValueError("Controller calibration must be a proper rotation (no reflection/scaling)")
-        self.calibration = matrix.copy()
-
-    def lose_tracking(self):
-        # A held grip after a disconnect MUST NOT reengage until released first.
-        self.active = self.armed = False
-
-    def update(self, controller, head_rotation, actual_position, actual_rotation):
-        if controller is None or head_rotation is None:
-            self.lose_tracking()
-            return
-        if not controller.clutch:
-            self.active = False
-            self.armed = True
-            return
-        if not self.armed:
-            return
-        position = controller.position + controller.rotation @ self.pivot
-        if not self.active:
-            # Horizontal headset forward; pitch/roll never tilt the control axes.
-            forward = head_rotation @ np.array([0., 0., -1.])
-            if np.linalg.norm(forward[[0, 2]]) < .1:
-                self.lose_tracking()
-                return
-            yaw = math.atan2(-forward[0], -forward[2])
-            self.mapping = self.calibration @ rotation_exp(np.array([0., -yaw, 0.]))
-            self.position = actual_position.copy()
-            self.rotation = actual_rotation.copy()
-            self.requested_rotation = actual_rotation.copy()
-            self.saturation = 0.
-            self.position_limited = self.orientation_limited = False
-            self.controller_rotation_delta_deg = 0.
-            self.engagement_count += 1
-            self.active = True
-        else:
-            scale = .25 if controller.precision else 1.
-            delta = self.mapping @ (position-self.previous_position) * self.gain * scale
-            dr = self.mapping @ (controller.rotation @ self.previous_rotation.T) @ self.mapping.T
-            controller_angle = rotation_vector(dr)
-            self.controller_rotation_delta_deg = float(np.degrees(np.linalg.norm(controller_angle)))
-            proposed_position = self.position + delta
-            # Preserve the requested orientation independently of the lead-
-            # limited IK goal. Integrating onto a clipped goal loses angles:
-            # fast outward and slow return gestures then end at different poses.
-            reference = self.requested_rotation if self.requested_rotation is not None else self.rotation
-            self.requested_rotation = rotation_exp(controller_angle*self.rotation_gain*scale) @ reference
-            error = proposed_position-actual_position
-            angle = rotation_vector(self.requested_rotation @ actual_rotation.T)
-            self.position_limited = bool(np.linalg.norm(error) > self.max_position_error)
-            self.orientation_limited = bool(np.linalg.norm(angle) > self.max_angle_error)
-            self.saturation = float(max(np.linalg.norm(error)/self.max_position_error,
-                                        np.linalg.norm(angle)/self.max_angle_error))
-            self.position = actual_position + cap_vector(error, self.max_position_error)
-            self.rotation = rotation_exp(cap_vector(angle, self.max_angle_error)) @ actual_rotation
-        # Position overshoot is consumed. Orientation keeps its reference so
-        # holding/reversing the controller preserves the requested pose.
-        self.previous_position = position.copy()
-        self.previous_rotation = controller.rotation.copy()
 
 
 class PioneerKinematics:
