@@ -22,7 +22,7 @@ class CameraWindow:
 
     def __init__(self, model, sizes=None, recorder=None, on_saved=None):
         """`sizes`: {camera: (height, width)}; `recorder`: a SimLeRobotRecorder fed by push_sample();
-        `on_saved()`: called after the recorder saves a take."""
+        `on_saved(take)`: called after the recorder saves a take, with the `meta` of each of its frames, in order."""
         import copy
         import queue
         import mujoco
@@ -38,6 +38,7 @@ class CameraWindow:
                 self.model.geom_group[i] = self.HEAVY_GROUP
         self._lock, self._state, self._ready = threading.Lock(), None, threading.Event()
         self._samples = queue.Queue()
+        self._take = []           # push_sample `meta` of the frames the recorder holds for the take being recorded
         self._frame, self._frame_id = None, 0
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._run, name="camera-window", daemon=True)
@@ -53,13 +54,14 @@ class CameraWindow:
             self._state = self._copy(data)
         self._ready.set()
 
-    def push_sample(self, data, action, state, task=None, extras=None) -> None:
+    def push_sample(self, data, action, state, task=None, extras=None, meta=None) -> None:
         """A recorded frame: rendered from this exact sim state, then given to the recorder.
 
         `task`: this frame's instruction (a multi-step scene's current step; None: the session's task);
         `extras`: the recorder's extra features. Both are read in the control loop: the render thread's state copy
-        has no userdata, where scenes keep their step counter."""
-        self._samples.put((self._copy(data), action, state, task, extras))
+        has no userdata, where scenes keep their step counter. `meta`: anything to hand back through on_saved for
+        this frame if the recorder keeps it (the RECAP sidecar's snapshot)."""
+        self._samples.put((self._copy(data), action, state, task, extras, meta))
         self._ready.set()
 
     def discard(self) -> None:
@@ -123,18 +125,19 @@ class CameraWindow:
                         state, self._state = self._state, None
                     if state is None:
                         continue
-                    item = (state, None, None, None, None)
+                    item = (state, None, None, None, None, None)
                 else:
                     if item is None:   # discard
                         self.recorder.cancel_recording()
+                        self._take = []
                         continue
-                state, action, recorded, task, extras = item
+                state, action, recorded, task, extras, meta = item
                 data.qpos[:], data.qvel[:], data.act[:], data.mocap_pos[:], data.mocap_quat[:] = state
                 mujoco.mj_forward(self.model, data)
                 images = {name: self._render(r, data, name, full if name == "ego" else light)
                           for name, r in renderers.items()}
-                if action is not None and self.recorder.tick(action, recorded, images, task=task, extras=extras) and self.on_saved:
-                    self.on_saved()
+                if action is not None:
+                    self._record(action, recorded, images, task, extras, meta)
                 ego, left, right = (images[name] for name in self.CAMERAS)
                 bottom = np.hstack([left, right])
                 top = cv2_resize(ego, bottom.shape[1])
@@ -143,6 +146,16 @@ class CameraWindow:
         finally:
             for renderer in renderers.values():
                 renderer.close()
+
+    def _record(self, action, state, images, task, extras, meta) -> None:
+        """Hand a sample to the recorder; keep its meta when the recorder buffered it, hand the take over when saved."""
+        before = self.recorder.num_buffered_frames
+        if self.recorder.tick(action, state, images, task=task, extras=extras):
+            take, self._take = self._take, []
+            if self.on_saved:
+                self.on_saved(take)
+        elif self.recorder.num_buffered_frames > before:
+            self._take.append(meta)
 
     @staticmethod
     def _render(renderer, data, name, option):
