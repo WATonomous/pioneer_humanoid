@@ -16,6 +16,7 @@ Masses are the URDFs' estimates. Robot configs: `pioneer_humanoid/leg_only.py` a
 |---|---|
 | `Isaac-Locomotion-Flat-PioneerLegOnly-v0` | leg-only humanoid |
 | `Isaac-Locomotion-Flat-PioneerWholeBody-v0` | whole-body humanoid, scripted arm swing, fists closed |
+| `Isaac-Locomotion-Flat-PioneerLegOnlyMotors-v0` | leg-only humanoid with models of the real motors (below) |
 
 Each has a `-Play-v0` variant. In the `simulation_isaac` container, from `$HUMANOID_ROOT`:
 
@@ -33,6 +34,16 @@ rl-play --task=Isaac-Locomotion-Flat-PioneerWholeBody-Play-v0 --num_envs 1 --vid
 ```
 
 A whole-body run can start from a leg-only checkpoint (same observations and actions): `--resume True --load_run <run> --checkpoint <ckpt>`.
+
+## Motor models (`-Motors` task)
+
+`Flat-PioneerLegOnlyMotors` is the leg-only task with the actuators modelled as the real CubeMars motors
+(`LEG_ONLY_HUMANOID_MOTORS_CFG` in `leg_only.py`): explicit DC motors whose torque falls with speed, the rotors' inertia
+through the gearbox (0.27 kg.m^2 at the hip pitch and knee, against 0.01 in the default config), and gearbox friction,
+measured on the bench for the AKH70-48 ([`docs/sysid/akh70-48_bench.md`](../../../../../../../docs/sysid/akh70-48_bench.md)).
+It also delays every joint target by 0 or 1 policy steps (the latency to the motor drivers, `delayed_action.py`) and
+randomises the joint friction by +-50 %. The PD gains are the default task's. It is opt-in: train it and compare before
+switching other tasks over.
 
 ## Rewards
 
