@@ -25,15 +25,19 @@ public:
 
 private:
   struct Limb {
-    std::string side; // arm_calibration.yaml / arm_actuators.yaml key
+    std::string side; // arm_calibration.yaml / arm_actuators.yaml key (leg_*.yaml for a leg)
     JointCommandCore core;
     rclcpp::Subscription<common_msgs::msg::ArmPose>::SharedPtr arm_pose_sub;
     // Latest ArmPose; moderation runs on the control tick, so velocity_max is per second.
     common_msgs::msg::ArmPose latest_pose;
-    // TODO(legs): a leg limb listens on /leg/<side>/joint_targets instead of the ArmPose topic.
+    // A leg limb listens on /leg/<side>/joint_targets for a LegPose instead of the ArmPose topic.
     bool is_leg{false};
     rclcpp::Subscription<common_msgs::msg::LegPose>::SharedPtr leg_pose_sub;
     common_msgs::msg::LegPose latest_leg_pose;
+    // `left` alone is ambiguous (arm or leg): the name logs and faults use.
+    std::string label() const {
+      return is_leg ? side + " leg" : side;
+    }
     bool have_latest_pose{false};
     // Until every joint's real position has been seen and used to seed the rate-limiter,
     // ArmPose messages are ignored -- otherwise the limiter would ramp from an assumed 0

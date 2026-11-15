@@ -18,7 +18,7 @@ constexpr double kGravityFfRampSec = 1.0;
 constexpr double kMaxGravityFfScale = 5.0;
 
 // ArmPose joint order, shared by both config files.
-const std::vector<std::pair<std::string, std::string>>& jointPaths() {
+const std::vector<std::pair<std::string, std::string>>& armJointPaths() {
   static const std::vector<std::pair<std::string, std::string>> paths = {
       {"shoulder", "pitch"}, {"shoulder", "roll"}, {"shoulder", "yaw"},
       {"elbow", "pitch"},    {"elbow", "yaw"},     {"wrist", "pitch"},
@@ -26,8 +26,8 @@ const std::vector<std::pair<std::string, std::string>>& jointPaths() {
   return paths;
 }
 
-// LegPose joint order (LegPose.msg). TODO(legs): key leg_calibration.yaml / leg_actuators.yaml
-// by these, as jointPaths() keys the arm configs.
+// LegPose joint order (LegPose.msg), keying leg_calibration.yaml / leg_actuators.yaml as
+// armJointPaths() keys the arm configs.
 const std::vector<std::pair<std::string, std::string>>& legJointPaths() {
   static const std::vector<std::pair<std::string, std::string>> paths = {
       {"hip", "pitch"},  {"hip", "roll"},    {"hip", "yaw"},
@@ -37,6 +37,10 @@ const std::vector<std::pair<std::string, std::string>>& legJointPaths() {
 }
 
 } // namespace
+
+const std::vector<std::pair<std::string, std::string>>& JointCommandCore::jointLayout() const {
+  return kind_ == LimbKind::Leg ? legJointPaths() : armJointPaths();
+}
 
 std::string SeedReport::describe() const {
   std::ostringstream os;
@@ -61,16 +65,18 @@ JointConfig JointCommandCore::loadJointConfig(const YAML::Node& joint_node) {
   return joint;
 }
 
-bool JointCommandCore::loadFromYaml(const YAML::Node& config, const std::string& arm_side) {
+bool JointCommandCore::loadFromYaml(const YAML::Node& config, const std::string& arm_side,
+                                    LimbKind kind) {
   joints_.clear();
   arm_side_ = arm_side;
+  kind_ = kind;
 
   if (!config[arm_side]) {
     return false;
   }
 
   const YAML::Node arm = config[arm_side];
-  for (const auto& [group, joint_name] : jointPaths()) {
+  for (const auto& [group, joint_name] : jointLayout()) {
     const YAML::Node joint_node = arm[group][joint_name];
     if (!joint_node) {
       return false;
@@ -78,12 +84,13 @@ bool JointCommandCore::loadFromYaml(const YAML::Node& config, const std::string&
     joints_.push_back(loadJointConfig(joint_node));
   }
 
-  const bool ok = joints_.size() == 6;
+  const bool ok = joints_.size() == jointLayout().size();
   if (!ok) {
     return false;
   }
   gripper_mapping_.reset();
-  if (arm["gripper"] && arm["gripper"]["open_close"]) {
+  // Only an arm has a gripper; a leg never reads one, even if its file had a block for it.
+  if (kind_ == LimbKind::Arm && arm["gripper"] && arm["gripper"]["open_close"]) {
     gripper_mapping_ = loadJointConfig(arm["gripper"]["open_close"]);
   }
 
@@ -342,8 +349,8 @@ bool JointCommandCore::validateMitGains() {
                << "POSITION_LOOP has no torque field";
       }
       if (!hasGravityModel()) {
-        errors << "\n  " << name << ": gravity_model.hpp has only the left and right arms; "
-               << "arm_side is '" << arm_side_ << "'";
+        errors << "\n  " << name << ": gravity_model.hpp has only the left and right arms; this is "
+               << (kind_ == LimbKind::Leg ? "a leg" : "arm_side '" + arm_side_ + "'");
       }
       if (s.gravity_ff_max_torque <= 0.0) {
         errors << "\n  " << name << ": gravity_ff_scale > 0 needs gravity_ff_max_torque > 0";
@@ -465,10 +472,11 @@ bool JointCommandCore::loadSafetyFromYaml(const YAML::Node& safety_cfg, double c
     last_error_ = "safety config has no '" + arm_side_ + "' block for this arm";
     return false;
   }
-  // The gripper is driven only if this config has a block for it.
-  joints_.resize(jointPaths().size());
+  // The gripper is driven only if this config has a block for it (an arm only).
+  joints_.resize(jointLayout().size());
   // One level at a time: indexing through a missing key throws in yaml-cpp.
-  const bool drives_gripper = arm["gripper"] && arm["gripper"]["open_close"];
+  const bool drives_gripper =
+      kind_ == LimbKind::Arm && arm["gripper"] && arm["gripper"]["open_close"];
   if (drives_gripper) {
     if (!gripper_mapping_) {
       last_error_ = "safety config has a gripper block but arm_calibration.yaml has no "
@@ -486,8 +494,8 @@ bool JointCommandCore::loadSafetyFromYaml(const YAML::Node& safety_cfg, double c
     // Joints inherit mit_fault_action_explicit, so setting only mit_family: ak re-derives Damp.
 
     safety_.assign(joints_.size(), defaults);
-    for (size_t i = 0; i < jointPaths().size(); ++i) {
-      const auto& [group, joint_name] = jointPaths()[i];
+    for (size_t i = 0; i < jointLayout().size(); ++i) {
+      const auto& [group, joint_name] = jointLayout()[i];
       const YAML::Node joint_node = arm[group][joint_name];
       safety_[i] = loadJointSafetyConfig(joint_node, defaults);
     }
@@ -530,13 +538,13 @@ int8_t JointCommandCore::motorId(size_t joint) const {
 }
 
 std::string JointCommandCore::jointName(size_t joint) const {
-  if (joint == kGripperJoint) {
+  if (kind_ == LimbKind::Arm && joint == kGripperJoint) {
     return "gripper.open_close";
   }
-  if (joint >= jointPaths().size()) {
+  if (joint >= jointLayout().size()) {
     return "joint" + std::to_string(joint);
   }
-  return jointPaths()[joint].first + "." + jointPaths()[joint].second;
+  return jointLayout()[joint].first + "." + jointLayout()[joint].second;
 }
 
 common_msgs::msg::MotorCmd JointCommandCore::mitSafeCommand(size_t joint) const {
@@ -684,6 +692,10 @@ JointCommandCore::checkMitFaults(const std::map<int, MotorFeedbackSample>& feedb
 std::vector<common_msgs::msg::MotorCmd>
 JointCommandCore::armPoseToMotorCmds(const common_msgs::msg::ArmPose& pose,
                                      int8_t default_control_type) {
+  // A leg has six joints too, so the count check below would let an ArmPose drive leg motors.
+  if (kind_ != LimbKind::Arm) {
+    throw std::runtime_error("armPoseToMotorCmds called on a limb loaded as a leg");
+  }
   if (joints_.size() != 6 && joints_.size() != 7) {
     throw std::runtime_error("JointCommandCore is not configured for 6 joints (+ gripper)");
   }
@@ -703,6 +715,20 @@ JointCommandCore::armPoseToMotorCmds(const common_msgs::msg::ArmPose& pose,
     source_angles.push_back(driven ? std::clamp(pose.gripper_position, 0.0, 1.0) *
                                          joints_[kGripperJoint].upper_limit
                                    : prev_targets_[kGripperJoint]);
+  }
+
+  return stepToMotorCmds(source_angles, default_control_type);
+}
+
+// The per-joint pipeline shared by arms and legs: clamp -> low-pass -> velocity / delta limit ->
+// clamp -> calibration -> MotorCmd. source_angles is in joint order (jointLayout()), degrees,
+// command frame. ONE control tick, so velocity_max is per tick.
+std::vector<common_msgs::msg::MotorCmd>
+JointCommandCore::stepToMotorCmds(const std::vector<double>& source_angles,
+                                  int8_t default_control_type) {
+  if (source_angles.size() != joints_.size()) {
+    throw std::runtime_error("expected " + std::to_string(joints_.size()) + " target angles, got " +
+                             std::to_string(source_angles.size()));
   }
 
   std::vector<common_msgs::msg::MotorCmd> commands;
@@ -800,7 +826,10 @@ JointCommandCore::armPoseToMotorCmds(const common_msgs::msg::ArmPose& pose,
   }
 
   // After the loop: each load depends on every joint. Uses commanded targets, not feedback.
-  last_gravity_torque_motor_ = gravityTorqueMotor(next_targets);
+  // A leg has no gravity model (gravity_ff_scale is refused above 0 for it), and the arm's model
+  // must never be applied to leg joints: zero torque, whatever the config says.
+  last_gravity_torque_motor_ = kind_ == LimbKind::Arm ? gravityTorqueMotor(next_targets)
+                                                      : std::vector<double>(joints_.size(), 0.0);
   gravity_ff_ramp_ = std::min(1.0, gravity_ff_ramp_ + 1.0 / (control_rate_hz_ * kGravityFfRampSec));
   for (const auto& [k, i] : mit_cmds) {
     const JointSafetyConfig& s = safety_[i];
@@ -816,6 +845,9 @@ JointCommandCore::armPoseToMotorCmds(const common_msgs::msg::ArmPose& pose,
 std::vector<common_msgs::msg::MotorCmd>
 JointCommandCore::legPoseToMotorCmds(const common_msgs::msg::LegPose& pose,
                                      int8_t default_control_type) {
+  if (kind_ != LimbKind::Leg) {
+    throw std::runtime_error("legPoseToMotorCmds called on a limb loaded as an arm");
+  }
   if (pose.hip.position.size() < 3 || pose.knee.position.size() < 1 ||
       pose.ankle.position.size() < 2) {
     throw std::runtime_error("LegPose must contain 3 hip, 1 knee, and 2 ankle positions");
@@ -828,9 +860,5 @@ JointCommandCore::legPoseToMotorCmds(const common_msgs::msg::LegPose& pose,
   if (source_angles.size() != legJointPaths().size()) {
     throw std::runtime_error("LegPose slot count does not match legJointPaths()");
   }
-  // TODO(legs): run source_angles through the same layers as armPoseToMotorCmds:
-  // clamp -> low-pass -> velocity / delta limit -> clamp -> calibration -> MotorCmd.
-  // Simplest: move armPoseToMotorCmds' per-joint loop into a shared helper and call it here.
-  (void)default_control_type;
-  return {};
+  return stepToMotorCmds(source_angles, default_control_type);
 }

@@ -88,9 +88,15 @@ struct SeedReport {
 
 class JointCommandCore {
 public:
-  bool loadFromYaml(const YAML::Node& config, const std::string& arm_side);
-  // safety_cfg is arm_actuators.yaml's `safety`: `global` fallbacks, then this arm's block
-  // (`safety.<arm_side>`). Call loadFromYaml first.
+  // Which joint list (and config files) this limb uses: the arm's shoulder / elbow / wrist, or the
+  // leg's hip / knee / ankle. Arm by default, so every existing arm caller is unchanged.
+  enum class LimbKind { Arm, Leg };
+
+  // `config` is arm_calibration.yaml or leg_calibration.yaml; `arm_side` keys it (left / right).
+  bool loadFromYaml(const YAML::Node& config, const std::string& arm_side,
+                    LimbKind kind = LimbKind::Arm);
+  // safety_cfg is arm_actuators.yaml's (or leg_actuators.yaml's) `safety`: `global` fallbacks,
+  // then this limb's block (`safety.<arm_side>`). Call loadFromYaml first.
   bool loadSafetyFromYaml(const YAML::Node& safety_cfg, double control_rate_hz);
 
   const std::string& armSide() const {
@@ -99,7 +105,7 @@ public:
 
   // gravity_model.hpp models the left and right arms; elsewhere gravity_ff_scale must stay 0.
   bool hasGravityModel() const {
-    return arm_side_ == "left" || arm_side_ == "right";
+    return kind_ == LimbKind::Arm && (arm_side_ == "left" || arm_side_ == "right");
   }
 
   // Why loadSafetyFromYaml refused; empty on success.
@@ -111,8 +117,9 @@ public:
   std::vector<common_msgs::msg::MotorCmd> armPoseToMotorCmds(const common_msgs::msg::ArmPose& pose,
                                                              int8_t default_control_type);
 
-  // TODO(legs): skeleton only, returns no commands yet. Must run the same moderation layers as
-  // armPoseToMotorCmds (clamp, low-pass, velocity / delta limits, calibration).
+  // The leg's armPoseToMotorCmds: the same layers (clamp, low-pass, velocity / delta limits,
+  // calibration), through the same helper. Only for a limb loaded as LimbKind::Leg; each of the two
+  // throws on the other kind, because a leg also has six joints.
   std::vector<common_msgs::msg::MotorCmd> legPoseToMotorCmds(const common_msgs::msg::LegPose& pose,
                                                              int8_t default_control_type);
 
@@ -201,6 +208,9 @@ private:
   bool validateMitGains();
   bool validateGripper();
   void resizeJointState();
+  // One control tick of the shared pipeline, from angles already in joint order (jointLayout()).
+  std::vector<common_msgs::msg::MotorCmd> stepToMotorCmds(const std::vector<double>& source_angles,
+                                                          int8_t default_control_type);
   common_msgs::msg::MotorCmd mitSafeCommand(size_t joint) const;
   std::vector<double> gravityTorqueMotor(const std::vector<double>& cmd_targets_deg) const;
 
@@ -219,6 +229,9 @@ private:
   bool have_prev_targets_{false};
   double control_rate_hz_{50.0};
   std::string last_error_;
+  LimbKind kind_{LimbKind::Arm};
+  // The (group, joint) keys of this limb's YAML files, in pose order.
+  const std::vector<std::pair<std::string, std::string>>& jointLayout() const;
 };
 
 // Feedback and commands are matched by motor id alone, so every arm's motors need their own ids.

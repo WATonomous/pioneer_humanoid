@@ -7,7 +7,10 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <map>
+#include <stdexcept>
 #include <string>
+#include <vector>
 
 #include "gravity_model.hpp"
 #include "joint_command_core.hpp"
@@ -1241,4 +1244,261 @@ TEST_F(ShippedConfig, StartupRuleChecksAgainstThePeakWhenOneIsSet) {
   j.remove("mit_peak_torque");
   EXPECT_FALSE(core.loadSafetyFromYaml(cfg, kRateHz));
   EXPECT_NE(core.lastError().find("exceeds mit_max_torque"), std::string::npos) << core.lastError();
+}
+
+// ---------------------------------------------------------------------------
+// Legs: the same core, loaded as LimbKind::Leg
+//
+// These use their own YAML, not the shipped leg_calibration.yaml / leg_actuators.yaml: the shipped
+// files cannot load yet on purpose (direction / zero_offset are null until calibrated, and the
+// MIT gains are 0 until #483), so a test against them would only test that gate.
+// ---------------------------------------------------------------------------
+
+namespace {
+
+constexpr auto kLeg = JointCommandCore::LimbKind::Leg;
+
+// A calibrated left leg: ids 40-45, a nonzero zero_offset and both directions on purpose, and
+// command-frame 0 inside every limit (the knee's upper limit is 0).
+const char* kLegCalibrationYaml = R"(
+left:
+  hip:
+    pitch: {can_id: 40, lower_limit: -20.0, upper_limit: 90.0, direction: -1, zero_offset: 5.0, limit_range: true}
+    roll:  {can_id: 41, lower_limit: -10.0, upper_limit: 60.0, direction: 1, zero_offset: 0.0, limit_range: true}
+    yaw:   {can_id: 42, lower_limit: -30.0, upper_limit: 90.0, direction: 1, zero_offset: 0.0, limit_range: true}
+  knee:
+    pitch: {can_id: 43, lower_limit: -140.0, upper_limit: 0.0, direction: -1, zero_offset: 10.0, limit_range: true}
+  ankle:
+    pitch: {can_id: 44, lower_limit: -30.0, upper_limit: 50.0, direction: 1, zero_offset: 0.0, limit_range: true}
+    roll:  {can_id: 45, lower_limit: -15.0, upper_limit: 15.0, direction: -1, zero_offset: 0.0, limit_range: true}
+)";
+
+// The shipped leg file's shape (global fallbacks, then one block per leg), with gains set so the
+// stall rule holds: 20.02 N.m/rad x 10 deg = 3.5 N.m, under the 18 N.m cap.
+const char* kLegSafetyYaml = R"(
+safety:
+  global:
+    velocity_max: 30.0
+    delta_max: 0.6
+    low_pass_alpha: 0.85
+    control_type: 0
+    mit_family: ak
+    mit_kp: 20.0
+    mit_kd: 0.5
+    mit_max_torque: 18.0
+    mit_max_track_err: 10.0
+    mit_feedback_timeout: 0.2
+    mit_fault_kd: 2.0
+  left:
+    hip:
+      pitch: {active: true}
+      roll: {active: true}
+      yaw: {active: true}
+    knee:
+      pitch: {active: true}
+    ankle:
+      pitch: {active: true}
+      roll: {active: true}
+)";
+
+const std::vector<std::string> kLegJointNames = {"hip.pitch",   "hip.roll",     "hip.yaw",
+                                                 "knee.pitch",  "ankle.pitch", "ankle.roll"};
+const std::vector<int> kLegMotorIds = {40, 41, 42, 43, 44, 45};
+
+common_msgs::msg::LegPose makeLegPose(double hip_pitch, double hip_roll, double hip_yaw,
+                                      double knee_pitch, double ankle_pitch, double ankle_roll) {
+  common_msgs::msg::LegPose pose;
+  pose.hip.position = {hip_pitch, hip_roll, hip_yaw};
+  pose.knee.position = {knee_pitch};
+  pose.ankle.position = {ankle_pitch, ankle_roll};
+  return pose;
+}
+
+class LegConfig : public ::testing::Test {
+protected:
+  void SetUp() override {
+    calibration = YAML::Load(kLegCalibrationYaml);
+    safety = YAML::Load(kLegSafetyYaml)["safety"];
+  }
+
+  bool load() {
+    return core.loadFromYaml(calibration, "left", kLeg) &&
+           core.loadSafetyFromYaml(safety, kRateHz);
+  }
+
+  // Motor-frame feedback for a COMMAND-frame angle (inverse calibration).
+  std::map<int, double> feedbackAtCommandFrame(double cmd_deg) {
+    std::map<int, double> feedback;
+    for (size_t i = 0; i < core.jointCount(); ++i) {
+      const double dir = core.joint(i).direction == 0 ? 1.0 : core.joint(i).direction;
+      feedback[static_cast<int>(core.motorId(i))] = dir * (cmd_deg - core.joint(i).zero_offset);
+    }
+    return feedback;
+  }
+
+  YAML::Node calibration;
+  YAML::Node safety;
+  JointCommandCore core;
+};
+
+} // namespace
+
+TEST_F(LegConfig, LoadsInLegPoseOrderWithoutAGripperOrAGravityModel) {
+  ASSERT_TRUE(load()) << core.lastError();
+  ASSERT_EQ(core.jointCount(), kLegJointNames.size());
+  for (size_t i = 0; i < kLegJointNames.size(); ++i) {
+    EXPECT_EQ(core.jointName(i), kLegJointNames[i]);
+    EXPECT_EQ(static_cast<int>(core.motorId(i)), kLegMotorIds[i]);
+    EXPECT_TRUE(core.isMitJoint(i)) << core.jointName(i);
+  }
+  EXPECT_FALSE(core.hasGripper());
+  // A leg called "left" must not borrow the left ARM's gravity model.
+  EXPECT_FALSE(core.hasGravityModel());
+}
+
+TEST_F(LegConfig, AGripperBlockInTheLegFilesIsIgnored) {
+  calibration["left"]["gripper"]["open_close"] = calibration["left"]["knee"]["pitch"];
+  safety["left"]["gripper"]["open_close"] = YAML::Load("{active: true}");
+  ASSERT_TRUE(load()) << core.lastError();
+  EXPECT_EQ(core.jointCount(), 6u);
+  EXPECT_FALSE(core.hasGripper());
+}
+
+TEST_F(LegConfig, UncalibratedLegIsRefusedAtLoad) {
+  // The shipped leg_calibration.yaml has null direction / zero_offset until calibrate_arm.py
+  // --limb leg writes them. A made-up value would drive the joint the wrong way, so the loader
+  // must refuse a null rather than default it.
+  for (const char* key : {"direction", "zero_offset"}) {
+    YAML::Node cfg = YAML::Load(kLegCalibrationYaml);
+    cfg["left"]["hip"]["pitch"][key] = YAML::Node(YAML::NodeType::Null);
+    JointCommandCore leg;
+    EXPECT_ANY_THROW(leg.loadFromYaml(cfg, "left", kLeg)) << key;
+  }
+}
+
+TEST_F(LegConfig, MissingSideOrJointBlockIsRefused) {
+  EXPECT_FALSE(core.loadFromYaml(calibration, "right", kLeg)); // only `left` is in the file
+
+  calibration["left"]["knee"].remove("pitch");
+  EXPECT_FALSE(core.loadFromYaml(calibration, "left", kLeg));
+}
+
+TEST_F(LegConfig, ZeroGainsAreRefusedLikeTheArm) {
+  // The shipped leg_actuators.yaml has mit_kp = mit_kd = 0 until #483: the leg loader must refuse
+  // an MIT joint with zero gains, exactly as it does for the arm.
+  safety["global"]["mit_kp"] = 0.0;
+  ASSERT_TRUE(core.loadFromYaml(calibration, "left", kLeg));
+  EXPECT_FALSE(core.loadSafetyFromYaml(safety, kRateHz));
+  EXPECT_NE(core.lastError().find("mit_kp > 0"), std::string::npos) << core.lastError();
+}
+
+TEST_F(LegConfig, StallRuleAppliesToLegs) {
+  safety["global"]["mit_kp"] = 200.0; // 200 x 10 deg = 34.9 N.m, over the 18 N.m cap
+  ASSERT_TRUE(core.loadFromYaml(calibration, "left", kLeg));
+  EXPECT_FALSE(core.loadSafetyFromYaml(safety, kRateHz));
+  EXPECT_NE(core.lastError().find("exceeds mit_max_torque"), std::string::npos)
+      << core.lastError();
+}
+
+TEST_F(LegConfig, GravityFeedForwardIsRefusedForALeg) {
+  // There is no leg gravity model. Without LimbKind this leg ("left") would pass the arm check and
+  // the arm's torques would be sent to leg motors.
+  safety["left"]["hip"]["pitch"]["gravity_ff_scale"] = 1.0;
+  safety["left"]["hip"]["pitch"]["gravity_ff_max_torque"] = 5.0;
+  ASSERT_TRUE(core.loadFromYaml(calibration, "left", kLeg));
+  EXPECT_FALSE(core.loadSafetyFromYaml(safety, kRateHz));
+  EXPECT_NE(core.lastError().find("a leg"), std::string::npos) << core.lastError();
+}
+
+TEST_F(LegConfig, SeedingInvertsTheLegCalibration) {
+  ASSERT_TRUE(load()) << core.lastError();
+  const SeedReport report = core.seedPrevTargetsFromFeedback(feedbackAtCommandFrame(-5.0));
+  EXPECT_EQ(report.matched, 6u);
+  EXPECT_TRUE(report.unmatched.empty());
+  EXPECT_TRUE(report.out_of_range.empty());
+  for (size_t i = 0; i < core.jointCount(); ++i) {
+    EXPECT_NEAR(core.prevTargets()[i], -5.0, 1e-9) << core.jointName(i);
+  }
+}
+
+TEST_F(LegConfig, LegPoseIsClampedRateLimitedAndCalibratedLikeAnArm) {
+  ASSERT_TRUE(load()) << core.lastError();
+  const SeedReport report = core.seedPrevTargetsFromFeedback(feedbackAtCommandFrame(0.0));
+  ASSERT_EQ(report.matched, 6u);
+  ASSERT_TRUE(report.out_of_range.empty());
+
+  // Every angle far past its upper limit.
+  const auto pose = makeLegPose(1000, 1000, 1000, 1000, 1000, 1000);
+  const double step = 30.0 / kRateHz; // velocity_max / rate = 0.6 deg per tick (delta_max too)
+
+  auto cmds = core.legPoseToMotorCmds(pose, kMit);
+  ASSERT_EQ(cmds.size(), 6u);
+  for (size_t i = 0; i < cmds.size(); ++i) {
+    const std::string name = core.jointName(i);
+    EXPECT_EQ(static_cast<int>(cmds[i].motor_id), kLegMotorIds[i]) << name;
+    EXPECT_EQ(cmds[i].control_type, kMit) << name;
+    // First tick: clamp to the limit, low-pass, then at most one step. The knee's limit is 0.
+    const double alpha = core.safety(i).low_pass_alpha;
+    const double expected = std::min(step, (1.0 - alpha) * core.joint(i).upper_limit);
+    EXPECT_NEAR(core.prevTargets()[i], expected, 1e-9) << name;
+    // MIT position is radians in the MOTOR frame: direction * (target - zero_offset).
+    const double motor_deg =
+        core.joint(i).direction * (core.prevTargets()[i] - core.joint(i).zero_offset);
+    EXPECT_NEAR(cmds[i].position, motor_deg * kDeg, 1e-5) << name;
+    EXPECT_NEAR(cmds[i].kp, 20.0, 1e-5) << name;
+    EXPECT_NEAR(cmds[i].kd, 0.5, 1e-5) << name;
+    EXPECT_FLOAT_EQ(cmds[i].torque, 0.0f) << name; // no gravity feed-forward for a leg
+  }
+
+  // Then keep pushing: never faster than one step per tick, never outside the limits.
+  std::vector<double> prev = core.prevTargets();
+  for (int tick = 0; tick < 1000; ++tick) {
+    core.legPoseToMotorCmds(pose, kMit);
+    for (size_t i = 0; i < core.jointCount(); ++i) {
+      const double now = core.prevTargets()[i];
+      EXPECT_LE(std::abs(now - prev[i]), step + 1e-9) << core.jointName(i);
+      EXPECT_LE(now, core.joint(i).upper_limit + 1e-9) << core.jointName(i);
+      EXPECT_GE(now, core.joint(i).lower_limit - 1e-9) << core.jointName(i);
+    }
+    prev = core.prevTargets();
+  }
+  EXPECT_NEAR(core.prevTargets()[0], core.joint(0).upper_limit, 1e-6); // hip pitch got there
+}
+
+TEST_F(LegConfig, LegPoseWithTooFewAnglesIsRejected) {
+  ASSERT_TRUE(load()) << core.lastError();
+  core.seedPrevTargetsFromFeedback(feedbackAtCommandFrame(0.0));
+  auto pose = makeLegPose(0, 0, 0, 0, 0, 0);
+  pose.hip.position.pop_back();
+  EXPECT_THROW(core.legPoseToMotorCmds(pose, kMit), std::runtime_error);
+}
+
+TEST_F(LegConfig, ALegCoreRefusesAnArmPose) {
+  // A leg has six joints too: without the kind check an ArmPose would pass the arm's joint count
+  // check and drive leg motors with arm angles.
+  ASSERT_TRUE(load()) << core.lastError();
+  core.seedPrevTargetsFromFeedback(feedbackAtCommandFrame(0.0));
+  EXPECT_THROW(core.armPoseToMotorCmds(uniformPose(0.0), kMit), std::runtime_error);
+}
+
+TEST_F(ShippedConfig, AnArmCoreRefusesALegPose) {
+  seedAtCommandZero();
+  EXPECT_THROW(core.legPoseToMotorCmds(makeLegPose(0, 0, 0, 0, 0, 0), kMit), std::runtime_error);
+}
+
+TEST_F(ShippedConfig, LegMotorIdsAreCheckedAgainstTheArms) {
+  JointCommandCore leg;
+  YAML::Node cal = YAML::Load(kLegCalibrationYaml);
+  ASSERT_TRUE(leg.loadFromYaml(cal, "left", kLeg));
+  ASSERT_TRUE(leg.loadSafetyFromYaml(YAML::Load(kLegSafetyYaml)["safety"], kRateHz));
+  EXPECT_FALSE(findDuplicateMotorIds({&core, &leg}).has_value());
+
+  // A leg joint wired to an id the arm already uses is caught, naming both.
+  cal["left"]["hip"]["pitch"]["can_id"] = static_cast<int>(core.motorId(0));
+  JointCommandCore clashing;
+  ASSERT_TRUE(clashing.loadFromYaml(cal, "left", kLeg));
+  ASSERT_TRUE(clashing.loadSafetyFromYaml(YAML::Load(kLegSafetyYaml)["safety"], kRateHz));
+  const auto clash = findDuplicateMotorIds({&core, &clashing});
+  ASSERT_TRUE(clash.has_value());
+  EXPECT_NE(clash->find("hip.pitch"), std::string::npos) << *clash;
 }
