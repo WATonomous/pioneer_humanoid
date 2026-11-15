@@ -16,7 +16,7 @@ STEPS=${STEPS:-25000}
 EPISODES=${EPISODES:-40}
 HF_MODEL_REPO=${HF_MODEL_REPO:-zabsy/dit_peg_40}
 DATASET=zabsy/pioneer_8dof_peg_insert_synthetic
-BRANCH=claude/lucid-fermi-fl708u
+BRANCH=rlt-peg-insert
 WORK=$HOME/phase0
 REPO=$WORK/pioneer_humanoid
 VENV=$WORK/venv
@@ -41,7 +41,7 @@ sudo apt-get install -y -qq git python3-venv python3-dev libegl1 libgl1 libosmes
 
 step "code ($BRANCH)"
 if [ -d "$REPO/.git" ]; then git -C "$REPO" fetch -q origin "$BRANCH" && git -C "$REPO" checkout -q "$BRANCH" && git -C "$REPO" pull -q
-else git clone -q -b "$BRANCH" https://github.com/WATonomous/pioneer_humanoid.git "$REPO"; fi
+else git clone -q -b "$BRANCH" https://github.com/WATonomous/humanoid.git "$REPO"; fi
 
 step "python env"
 [ -x "$VENV/bin/python" ] || python3 -m venv "$VENV"
