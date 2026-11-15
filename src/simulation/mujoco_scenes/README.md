@@ -91,7 +91,7 @@ def build(spec: mujoco.MjSpec) -> None:
 ### Color-sorting workcell migration
 
 The scene uses the shared 0.780 m work surface. The two-colour layout uses pickup slots at Y = −0.24/−0.12 m and samples two distinct colours per reset;
-the horizontal bin row is at x = 0.405 m (1.5 cm farther from the robot) to clear pickup approaches.
+the horizontal bin row is at x = 0.455 m and the pickups at x = 0.330/0.325 m, after moving all props 5 cm farther back on the table.
 The former 0.705 m table's reach rectangle and recordings do not directly apply to this geometry.
 Robot camera mounts are unchanged; only the initial free-camera overview was moved inside the lightbox.
 

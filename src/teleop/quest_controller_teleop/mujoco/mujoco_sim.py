@@ -58,8 +58,8 @@ def parse_args():
     add_controller_args(parser)
     add_record_args(parser, task_description="Quest VR teleop demonstration")
     parser.add_argument("--record_arms", choices=tuple(ARM_SETS), default="bimanual",
-                        help="arms to record (both are always driven): left or right records that arm's 8 values "
-                             "and its wrist camera into datasets/pioneer_8dof_<arm>_arm, for single-arm tasks")
+                        help="arms to control and record, including practice without --record; unused arm actuator "
+                             "targets remain at their reset values (default: bimanual)")
     # The ego camera looks 50 deg down, so its frame turns "hand up" into "wrist forward and up" and "hand back"
     # into "wrist back and up" (scripted-motion check). The upright base frame keeps up as up, forward as forward.
     parser.set_defaults(controller_frame="base")
@@ -154,7 +154,8 @@ def make_driver(args, model, data) -> ControllerSceneDriver:
     from pioneer_humanoid.arm_8dof_params import LEFT_ARM_JOINTS, RIGHT_ARM_JOINTS
 
     frame = ego_frame(model, data) if args.controller_frame == "camera" else None
-    return ControllerSceneDriver.from_args(args, {"left": LEFT_ARM_JOINTS, "right": RIGHT_ARM_JOINTS},
+    joints = {"left": LEFT_ARM_JOINTS, "right": RIGHT_ARM_JOINTS}
+    return ControllerSceneDriver.from_args(args, {side: joints[side] for side in ARM_SETS[args.record_arms]},
                                            frame_calibration=frame)
 
 
@@ -171,7 +172,7 @@ def run() -> None:
     scene_hook, randomise = scene_step(args.scene), scene_reset(args.scene)
     steps = scene_progress(args.scene)   # multi-step task: (index, total, instruction), or None
     rng = np.random.default_rng()
-    arms = {side: arm_ids(model, side) for side in ("left", "right")}
+    arms = {side: arm_ids(model, side) for side in ARM_SETS[args.record_arms]}
 
     def reset() -> None:
         mujoco.mj_resetData(model, data)

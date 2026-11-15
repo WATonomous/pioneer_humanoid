@@ -31,12 +31,12 @@ BIN_WALL_H = 0.01         # 1 cm rims leave clearance for the hand approaching c
 # Layout mirrored across Y=0 for the right arm (negative Y).
 # Compact bins run horizontally behind the cubes in the ego view.
 # Outer size is 9.6 x 9.6 x 1.3 cm; bases sit directly on the table.
-# Shift the row 1.5 cm away from the robot to clear pickup approaches on the raised table.
+# Both rows are shifted 5 cm farther back for the current camera layout.
 # The old table's sampled reach rectangle does not apply at the new workcell height.
 # 12 cm centre spacing leaves 2.4 cm between the bin exteriors.
 # Both pairs remain on the robot's right, including reset jitter.
-BIN_POSITIONS = ((0.405, -0.24), (0.405, -0.12))
-CUBE_POSITIONS = ((0.280, -0.12), (0.275, -0.24))
+BIN_POSITIONS = ((0.455, -0.24), (0.455, -0.12))
+CUBE_POSITIONS = ((0.330, -0.12), (0.325, -0.24))
 CUBE_JITTER = 0.004
 INSTRUCTION = "put each coloured cube in the bin of the same colour"
 
