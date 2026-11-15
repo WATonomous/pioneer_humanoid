@@ -10,7 +10,7 @@ services:
         USERNAME: "${USERNAME}"
       cache_from:
         - "${INTERFACING_IMAGE:?}:${TAG}"
-        - "${INTERFACING_IMAGE:?}:main"
+        - "${INTERFACING_IMAGE:?}:build_main"
     image: "${INTERFACING_IMAGE:?}:${TAG}"
     command: /bin/bash -c "ros2 launch can can.launch.py"
     privileged: true
@@ -48,7 +48,7 @@ services:
         BASE_IMAGE: ${BASE_IMAGE_OVERRIDE-}
       cache_from:
         - "${INTERFACING_JOINT_COMMAND_IMAGE:?}:${TAG}"
-        - "${INTERFACING_JOINT_COMMAND_IMAGE:?}:main"
+        - "${INTERFACING_JOINT_COMMAND_IMAGE:?}:build_main"
     image: "${INTERFACING_JOINT_COMMAND_IMAGE:?}:${TAG}"
     network_mode: host
     environment:
