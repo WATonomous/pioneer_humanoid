@@ -14,6 +14,6 @@ OUT=${OUT:-$HOME/outputs/dit_peg_40}
 python -m humanoid_robot_learning.train \
   --policy.type=humanoid_dit \
   --dataset.repo_id=zabsy/pioneer_8dof_peg_insert_synthetic \
-  --steps=${STEPS:-25000} --batch_size=6 \
+  --steps=${STEPS:-25000} --batch_size=6 --save_freq=${SAVE_FREQ:-5000} \
   --policy.device=cuda --policy.push_to_hub=false \
   --output_dir=$OUT
