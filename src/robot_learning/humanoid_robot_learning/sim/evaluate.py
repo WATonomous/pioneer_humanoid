@@ -110,7 +110,7 @@ class SceneEnv:
             renderer.close()
 
 
-def load_policy(path: str, device: str):
+def load_policy(path: str, device: str, overrides: list[str] = ()):
     from lerobot.configs.policies import PreTrainedConfig
     from lerobot.policies.factory import get_policy_class, make_pre_post_processors
 
@@ -119,6 +119,15 @@ def load_policy(path: str, device: str):
     register()
     cfg = PreTrainedConfig.from_pretrained(path)
     cfg.device = device
+    for item in overrides:   # --set key=value: change a config field before the policy is built (inference options)
+        key, sep, value = item.partition("=")
+        if not sep or not hasattr(cfg, key):
+            raise SystemExit(f"--set {item!r}: expected key=value with key a field of {type(cfg).__name__}")
+        old = getattr(cfg, key)
+        setattr(cfg, key, value.lower() in ("1", "true") if isinstance(old, bool) else type(old)(value))
+        print(f"[EVAL] config {key}: {old} -> {getattr(cfg, key)}", flush=True)
+    if overrides:
+        cfg.__post_init__()   # re-run the config's own checks on the new values
     policy = get_policy_class(cfg.type).from_pretrained(path, config=cfg).eval()
     pre, post = make_pre_post_processors(cfg, pretrained_path=path, preprocessor_overrides={"device_processor": {"device": device}})
     return policy, pre, post
@@ -157,6 +166,7 @@ def main() -> None:
     p.add_argument("--fps", type=int, default=25, help="the training dataset's frame rate")
     p.add_argument("--task", default=None, help="task text (default: the scene's step instruction, else the training dataset's task)")
     p.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    p.add_argument("--set", action="append", default=[], metavar="KEY=VALUE", help="override a policy config field, e.g. n_action_steps=16 (repeatable)")
     p.add_argument("--video_dir", default=None, help="write an mp4 per episode (cameras side by side)")
     p.add_argument("--robot", choices=tuple(ACTION_DIM), default=None,
                    help="sim arm (default: from the policy's action size: 8 = 8dof, 7 = armv2)")
@@ -165,7 +175,7 @@ def main() -> None:
     control_steps = round(1 / (args.fps * CONTROL_DT))
     if abs(control_steps * args.fps * CONTROL_DT - 1) > 1e-9:
         p.error(f"--fps {args.fps} must divide {1 / CONTROL_DT:g} Hz")
-    policy, pre, post = load_policy(args.policy, args.device)
+    policy, pre, post = load_policy(args.policy, args.device, args.set)
     cameras = {key.removeprefix("observation.images."): tuple(ft.shape[1:]) for key, ft in policy.config.image_features.items()}
     action_dim = int(policy.config.output_features["action"].shape[0])
     try:
