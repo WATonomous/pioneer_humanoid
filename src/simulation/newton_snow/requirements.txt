@@ -1,0 +1,10 @@
+newton==1.7.0
+warp-lang==1.18.0  # the +cu12 build on a CUDA 12 driver
+ovrtx==0.5.1.385782
+ovstage==0.2.1.385922
+usd-core==26.8
+mujoco==3.15.0
+mujoco-warp==3.15.0
+torch==2.15.0  # CPU build is enough (the policy runs on CPU)
+imageio[ffmpeg]==2.38.1
+trimesh
