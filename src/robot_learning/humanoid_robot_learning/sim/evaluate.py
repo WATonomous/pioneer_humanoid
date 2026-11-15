@@ -166,7 +166,8 @@ def main() -> None:
     p.add_argument("--fps", type=int, default=25, help="the training dataset's frame rate")
     p.add_argument("--task", default=None, help="task text (default: the scene's step instruction, else the training dataset's task)")
     p.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
-    p.add_argument("--set", action="append", default=[], metavar="KEY=VALUE", help="override a policy config field, e.g. n_action_steps=16 (repeatable)")
+    p.add_argument("--set", action="append", default=[], metavar="KEY=VALUE",
+                   help="override a policy config field, e.g. n_action_steps=16 (repeatable)")
     p.add_argument("--video_dir", default=None, help="write an mp4 per episode (cameras side by side)")
     p.add_argument("--robot", choices=tuple(ACTION_DIM), default=None,
                    help="sim arm (default: from the policy's action size: 8 = 8dof, 7 = armv2)")
