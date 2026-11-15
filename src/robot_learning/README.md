@@ -79,12 +79,12 @@ python -m humanoid_robot_learning.train --policy.type=pioneer1 --policy.device=c
   --batch_size=32 --steps=60000 --save_freq=10000 --output_dir=<run>
 ```
 
-On 600 synthetic tabletop-pick demos (two objects on the table, "put the <object> in the bowl"; the scene comes in a follow-up PR) it succeeds in **70% of sim episodes on unseen layouts** (140/200 at 40k steps with the defaults; 60k is no better; 0.37 s/step on an L40S, batch 32). Two inference defaults get it there:
+On 600 synthetic tabletop-pick demos (two objects on the table, "put the <object> in the bowl"; the scene comes in a follow-up PR) it succeeds in **70% of sim episodes on unseen layouts** (140/200 at 40k steps with the defaults; 60k is no better; 0.37 s/step on an L40S, batch 32); checkpoint [`wilsonchenghy/pioneer1-tabletop-pick`](https://huggingface.co/wilsonchenghy/pioneer1-tabletop-pick), private for now). Two inference defaults get it there:
 
 - **Replan every 16 actions, keeping the next 6 planned actions** (`n_action_steps=16`, `replan_prefix=6`): 165/300 vs 136/300 for whole 32-action chunks. It reacts to what it sees twice as often, and the kept actions make each new chunk continue the motion already under way (the model is trained for this with real-time chunking). Replanning without them breaks the motion: 12/100 every 8 actions.
 - **Trained weights, no EMA** (`ema_decay=0`): 140/200 vs 111/200 (better on 34 layouts, worse on 5). Most likely the averaged weights blur the choice between options (which object, when to close), so the arm hesitates.
 
-**vs π0.5:** a full π0.5 fine-tune (3.6B, pretrained) on the same demos scores 154/200 on the same layouts (better on 37, worse on 23, p≈0.09, so not clearly better). Pioneer-1 is 14× smaller: it trains on a 16 GB GPU and fits onboard (Jetson-class); π0.5 needs an 80 GB GPU to fine-tune.
+**vs π0.5:** a full π0.5 fine-tune (3.6B, pretrained; [`wilsonchenghy/pi05-full-finetune-tabletop-pick`](https://huggingface.co/wilsonchenghy/pi05-full-finetune-tabletop-pick), private) on the same demos scores 154/200 on the same layouts (better on 37, worse on 23, p≈0.09, so not clearly better). Pioneer-1 is 14× smaller: it trains on a 16 GB GPU and fits onboard (Jetson-class); π0.5 needs an 80 GB GPU to fine-tune.
 
 Most failures never grasp (the arm stalls near its start) or take the other object; few drop it on the way. The CLIP-encoder version picks the named object in 99.6% of paired layouts. The likely limit is the data: the scripted-expert demos never retry or correct, and longer training doesn't help. If memory is short, `--policy.grad_checkpoint=true` recomputes the encoder and fusion layers in the backward pass (same result, about half the memory).
 
