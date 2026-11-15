@@ -16,17 +16,17 @@ from lerobot.processor import (
 from lerobot.processor.converters import policy_action_to_transition, transition_to_policy_action
 from lerobot.utils.constants import POLICY_POSTPROCESSOR_DEFAULT_NAME, POLICY_PREPROCESSOR_DEFAULT_NAME
 
-from .configuration_dit import DiTConfig
+from .configuration_pioneer1 import Pioneer1Config
 
 
-def make_dit_pre_post_processors(config: DiTConfig, dataset_stats: dict[str, dict[str, torch.Tensor]] | None = None):
-    """Batch, tokenize the task with the CLIP tokenizer, move to the device and normalize; unnormalize actions on the way out."""
+def make_pioneer1_pre_post_processors(config: Pioneer1Config, dataset_stats: dict[str, dict[str, torch.Tensor]] | None = None):
+    """Batch, tokenize the task with the text encoder's tokenizer, move to the device and normalize; unnormalize actions on the way out."""
     features = {**config.input_features, **config.output_features}
     pre = PolicyProcessorPipeline[dict[str, Any], dict[str, Any]](
         steps=[
             RenameObservationsProcessorStep(rename_map={}),
             AddBatchDimensionProcessorStep(),
-            TokenizerProcessorStep(tokenizer_name=config.clip_name, max_length=config.max_text_tokens, padding="max_length",
+            TokenizerProcessorStep(tokenizer_name=config.text_name, max_length=config.max_text_tokens, padding="max_length",
                                    padding_side="right", truncation=True),
             DeviceProcessorStep(device=config.device),
             NormalizerProcessorStep(features=features, norm_map=config.normalization_mapping, stats=dataset_stats),
