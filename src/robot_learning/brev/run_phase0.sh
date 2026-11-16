@@ -10,7 +10,8 @@
 # (checkpoint every N steps, default 2500), EVAL_STEPS (earlier checkpoints to eval besides the last, default 5000),
 # EPISODES (eval, default 40), GRAD_CKPT=true (about half the GPU memory, if the smoke test runs out),
 # HF_MODEL_REPO (default zabsy/pioneer1_peg_40),
-# AUTO_SHUTDOWN=1 powers off at the end, success or failure (a stopped box may still bill a little for disk).
+# EVAL_STEPS=none evals only the last checkpoint. AUTO_SHUTDOWN=1 powers off at the end, success or failure (a stopped
+# box may still bill a little for disk); leave it off when someone will stop the box by hand after more work.
 # Rerunnable: a finished training run is reused, so a failed eval does not retrain.
 set -euo pipefail
 
@@ -41,6 +42,13 @@ step "system packages"
 nvidia-smi --query-gpu=name,memory.total --format=csv
 sudo apt-get update -qq
 sudo apt-get install -y -qq git python3-venv python3-dev libegl1 libgl1 libosmesa6 ffmpeg >/dev/null
+# GPU rendering: Brev's GCP images ship only the compute half of the NVIDIA driver (libnvidia-compute-*), so EGL falls
+# back to Mesa on the CPU and an eval episode takes minutes instead of seconds. Add the GL/EGL half at the same version.
+if [ ! -e /usr/share/glvnd/egl_vendor.d/10_nvidia.json ]; then
+  compute=$(dpkg-query -W -f '${Package}=${Version}\n' 'libnvidia-compute-*' | head -1)
+  [ -n "$compute" ] || { echo "[phase0] no libnvidia-compute package: install the NVIDIA GL libraries by hand"; exit 1; }
+  sudo apt-get install -y -qq "${compute/libnvidia-compute-/libnvidia-gl-}" >/dev/null
+fi
 
 step "code ($BRANCH)"
 if [ -d "$REPO/.git" ]; then git -C "$REPO" fetch -q origin "$BRANCH" && git -C "$REPO" checkout -q "$BRANCH" && git -C "$REPO" pull -q
