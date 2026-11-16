@@ -1,10 +1,13 @@
 """Peg insertion: a square peg on the table and a block with a matching square hole, in front of the LEFT arm.
 
 All primitives (boxes), so the fit is exact: the hole is ``PEG_SIZE + CLEARANCE`` wide and runs
-down to the table top. Change CLEARANCE to make it harder or easier. Every reset shifts the peg and
-the block a little. ``is_inserted``: the peg is in the hole, at least INSERT_DEPTH deep.
+down to the table top. Change CLEARANCE (or set PEG_CLEARANCE, in metres, before import) to make it harder or
+easier. Every reset shifts the peg and the block a little. ``is_inserted``: the peg is in the hole, at least
+INSERT_DEPTH deep.
 """
 from __future__ import annotations
+
+import os
 
 import mujoco
 import numpy as np
@@ -16,7 +19,8 @@ PEG_HEIGHT = 0.10
 PEG_MASS = 0.05
 PEG_POS = (0.32, 0.26)          # xy on the table; both inside the left arm's gripper-down reach
 
-CLEARANCE = 0.004               # hole width minus peg width (m): 2 mm a side, about what a person manages by teleop
+# hole width minus peg width (m): 4 mm = 2 mm a side, about what a person manages by teleop
+CLEARANCE = float(os.environ.get("PEG_CLEARANCE", "0.004"))
 BLOCK_SIZE = 0.12
 BLOCK_HEIGHT = 0.06
 BLOCK_POS = (0.43, 0.32)
