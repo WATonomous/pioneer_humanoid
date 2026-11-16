@@ -1,0 +1,17 @@
+# Versions the paper's results were produced with (Python 3.11, CUDA 12.8).
+torch==2.11.0
+torchvision==0.26.0
+timm==1.0.31
+transformers==4.57.6
+huggingface_hub==0.36.2
+open_clip_torch==4.2.2
+defm==1.1.0            # DeFM depth encoder (github.com/leggedrobotics/defm)
+mujoco==4.0.0
+numpy==1.26.4
+scipy==1.17.1
+einops==0.8.2
+safetensors==0.8.0
+opencv-python-headless==4.14.0.94
+matplotlib==3.11.2
+imageio==2.38.1
+imageio-ffmpeg==0.8.1

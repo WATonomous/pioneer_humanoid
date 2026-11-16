@@ -1,7 +1,7 @@
 """Shared plumbing for the encoder benchmark: repo paths, MuJoCo rendering, label extraction.
 
-Every script in this folder imports this first. Run with the bench venv:
-    scratch/encoder_bench/.venv/bin/python scratch/encoder_bench/<script>.py
+Every script in this folder imports this first. Run from this folder with the bench env (see README):
+    .venv/bin/python <script>.py
 """
 from __future__ import annotations
 
@@ -12,12 +12,11 @@ from pathlib import Path
 os.environ.setdefault("MUJOCO_GL", "egl")
 
 BENCH = Path(__file__).resolve().parent
-REPO = BENCH.parents[1]
-# The robot / scene / teleop code the benchmark runs on is PINNED to its own git worktree (commit ca66cb70, defm-depth),
-# not the shared checkout: on 2026-11-14 the shared checkout moved to a newer main mid-queue (#565 dropped TeleopSim's
-# robot argument, #555 changed the gripper physics) and every job failed. BENCH_SRC overrides it.
-PINNED_SRC = Path("/home/wato/Desktop/pioneer_humanoid/bench_src_ca66cb70/src")
-SRC = Path(os.environ.get("BENCH_SRC", PINNED_SRC if PINNED_SRC.exists() else REPO / "src"))
+REPO = BENCH.parents[2]   # src/robot_learning/encoder_bench -> repo root
+# The robot / scene / teleop code the benchmark runs on. The paper's results were produced against commit ca66cb70
+# (a separate git worktree): later main changed TeleopSim's robot argument (#565) and the gripper physics (#555).
+# To reproduce them, point BENCH_SRC at a checkout of that commit's src/; by default this repo's src/ is used.
+SRC = Path(os.environ.get("BENCH_SRC", REPO / "src"))
 SYNTH = SRC / "teleop" / "pioneer_leader_arm_teleop" / "synthetic"
 for p in (SRC / "pioneer_humanoid", SRC / "simulation" / "mujoco_scenes", SRC / "robot_learning",
           SYNTH.parent, SYNTH):

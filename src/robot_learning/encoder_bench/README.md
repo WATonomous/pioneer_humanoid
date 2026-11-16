@@ -6,8 +6,38 @@ Claude doc "PioneerNet: A Robust RGB-D Encoder for Robot Manipulation" (https://
 This file covers running the bench.
 
 Everything runs on the shared workstation (16 GB GPU, 62 GB RAM, other users' jobs on it), from this directory, with
-`.venv/bin/python` (a link to the `vipe` conda env). Main robot: the 8-DoF bimanual arm (`BENCH_ROBOT=8dof`), peg
-insertion task. Other scenes: `BENCH_SCENE=zip_tie` and `BENCH_SCENE=drawer_stow`.
+`.venv/bin/python`. Main robot: the 8-DoF bimanual arm (`BENCH_ROBOT=8dof`), peg insertion task. Other scenes:
+`BENCH_SCENE=zip_tie` and `BENCH_SCENE=drawer_stow`.
+
+## Setup
+
+```bash
+cd src/robot_learning/encoder_bench
+python3.11 -m venv .venv && .venv/bin/pip install -r requirements.txt
+```
+
+On the workstation the env already exists: `.venv` there is built on the `vipe` conda env
+(`python -m venv --system-site-packages`) plus `defm`, `mujoco` and `open_clip_torch`. C-RADIO and SigLino load
+remote code from Hugging Face on first use.
+
+The bench imports the robot, scene and teleop code from this repo's `src/`. The paper's results were produced against
+commit `ca66cb70`. Later main changed TeleopSim's robot argument (#565) and the gripper physics (#555), so to reproduce
+them exactly, check out that commit somewhere and set `BENCH_SRC=<that checkout>/src`. Generated data, results and
+figures go in `data*/`, `results*/` and `figures*/` here, which are git-ignored.
+
+## Using the encoder
+
+The paper's encoder, PioneerNet v5, is committed at `models/pioneernet_v5/pioneernet_v5.pt` (47 MB). `encoders.py`
+loads it, preferring `models/<name>/<name>.pt` over the bench's own results folder:
+
+```python
+import encoders as E
+enc = E.load("pioneernet_v5")                  # frozen, on cuda; RGB-D ResNet-18, 12M parameters
+g, tok = E.run(enc, rgb_u8, depth_m)           # rgb (B,H,W,3) uint8, depth (B,H,W) metres -> global (B,C), tokens (B,C,h,w)
+```
+
+Use it frozen. Fine-tuning it on clean demos keeps clean success (85% vs 84%) but loses most of its robustness
+(light 71% → 14%).
 
 ## Pipeline
 

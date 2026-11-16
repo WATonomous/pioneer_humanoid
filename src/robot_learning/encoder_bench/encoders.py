@@ -10,12 +10,14 @@ All encoders see ~224 px high, 4:3-ish inputs: ViT/14 at 224x294 (16x21 patches)
 from __future__ import annotations
 
 import math
+from pathlib import Path
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 DEV = "cuda"
+REPO_MODELS = Path(__file__).resolve().parents[3] / "models"   # repo-level checkpoints, e.g. models/pioneernet_v5/
 IMNET = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 CLIPN = ([0.48145466, 0.4578275, 0.40821073], [0.26862954, 0.26130258, 0.27577711])
 HALF = ([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
@@ -256,7 +258,10 @@ def load(name: str, ckpt: str | None = None):
         return enc
     if name.startswith("pioneernet"):
         from distill import CKPT, PioneerNet
-        path = ckpt or (str(CKPT) if name == "pioneernet" else str(CKPT).replace("pioneernet", name))
+        # A checkpoint committed to the repo (models/<name>/<name>.pt) wins over the bench's own results folder.
+        committed = REPO_MODELS / name / f"{name}.pt"
+        path = ckpt or (str(committed) if committed.exists() else
+                        str(CKPT) if name == "pioneernet" else str(CKPT).replace("pioneernet", name))
         sd = torch.load(path, map_location="cpu")
         enc = PioneerNet(sd["rgb_dim"], sd["depth_dim"], init=False, **sd.get("arch", {}))
         enc.load_state_dict(sd["state"])
