@@ -47,7 +47,7 @@ step "python env"
 [ -x "$VENV/bin/python" ] || python3 -m venv "$VENV"
 source "$VENV/bin/activate"
 pip install -q -U pip
-pip install -q -e "$REPO/src/robot_learning[dit,sim]" -e "$REPO/src/simulation/mujoco_scenes" mujoco scipy
+pip install -q -e "$REPO/src/robot_learning[dit,sim]" -e "$REPO/src/simulation/mujoco_scenes" -e "$REPO/src/pioneer_humanoid" mujoco scipy
 python -c "import torch; assert torch.cuda.is_available(), 'no CUDA'; print('torch', torch.__version__, torch.cuda.get_device_name(0))"
 hf auth whoami || { echo "[phase0] not logged in to Hugging Face: run 'hf auth login' and rerun"; exit 1; }
 
