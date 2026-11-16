@@ -11,13 +11,17 @@ point (retarget.py) and tracked with IK on the 8dof arm; their gripper open/clos
   isaac_run.sh NAME run_retarget.py --episodes 0:25 --out /lehome/out/top_short [--video N] [--no_record]
 """
 import argparse
+import os
+from pathlib import Path
 
 from isaaclab.app import AppLauncher
+
+LEHOME = os.environ.get("LEHOME_ROOT", "/lehome")   # /lehome in the container (isaac_run.sh), fetch.py's folder natively
 
 p = argparse.ArgumentParser()
 p.add_argument("--kind", default="top_short")
 p.add_argument("--episodes", default="0:25", help="LeHome episode range a:b (one garment = 25 episodes)")
-p.add_argument("--out", default="/lehome/out/top_short")
+p.add_argument("--out", default=f"{LEHOME}/out/top_short")
 p.add_argument("--stretch", type=int, default=3, help="physics steps (1/90 s) per demo frame")
 p.add_argument("--video", type=int, default=0, help="also write an mp4 (top + external view) for the first N episodes")
 p.add_argument("--no_record", action="store_true")
@@ -27,7 +31,6 @@ args.headless, args.enable_cameras = True, True
 app = AppLauncher(args).app
 
 import json  # noqa: E402
-import os  # noqa: E402
 import time  # noqa: E402
 import traceback  # noqa: E402
 
@@ -36,8 +39,8 @@ import imageio  # noqa: E402
 import numpy as np  # noqa: E402
 import torch  # noqa: E402
 
-os.environ.setdefault("PIONEER_SRC", "/workspace/humanoid/src/pioneer_humanoid")
-os.environ.setdefault("LEHOME_DATA", "/lehome/data")
+os.environ.setdefault("PIONEER_SRC", str(Path(__file__).resolve().parents[3] / "pioneer_humanoid"))
+os.environ.setdefault("LEHOME_DATA", f"{LEHOME}/data")
 import humanoid_garment_fold.tasks  # noqa: E402,F401
 from humanoid_garment_fold.tasks.garment_pioneer_cfg import GarmentPioneerEnvCfg  # noqa: E402
 from pioneer_humanoid.arm_8dof_params import GRIPPER_STROKE, LEFT_ARM_JOINTS, RIGHT_ARM_JOINTS, TCP_LOCAL  # noqa: E402
@@ -62,7 +65,7 @@ LOG = open(os.path.join(args.out, f"log_{a0}_{a1}.jsonl"), "a")
 
 cfg = GarmentPioneerEnvCfg()
 cfg.garment_name = GARMENT
-cfg.garment_cfg_base_path = "/lehome/assets/objects/Challenge_Garment"
+cfg.garment_cfg_base_path = f"{LEHOME}/assets/objects/Challenge_Garment"
 cfg.sim.use_fabric = True   # with False the headless cameras never see the physics move (frozen frames)
 cfg.decimation = 1          # we step physics ourselves (the grasp acts every physics step), render once per frame
 cfg.sim.render_interval = args.stretch
