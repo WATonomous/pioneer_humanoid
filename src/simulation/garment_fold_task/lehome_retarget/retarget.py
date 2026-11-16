@@ -191,9 +191,9 @@ def fold_goal(kind, k, kp):
     xy = kp[:, :2]
     if kind == "top_short":
         mid = xy[[0, 1, 4, 5]].mean(0)
-        # sleeves to the middle, 4 cm down toward the hem (straight across pulls the shoulders together), hem corners
-        # 2.5 cm past the shoulders
-        goals = {2: mid + [-0.005, -0.04], 3: mid + [0.005, -0.04], 4: xy[0] + [0.0, 0.025], 5: xy[1] + [0.0, 0.025]}
+        # sleeves 3 cm past the middle (they spring back ~7 cm) and 4 cm down toward the hem (straight across pulls the
+        # shoulders together), hem corners 2.5 cm past the shoulders
+        goals = {2: mid + [0.03, -0.04], 3: mid + [-0.03, -0.04], 4: xy[0] + [0.0, 0.025], 5: xy[1] + [0.0, 0.025]}
     elif kind == "top_long":
         hem = xy[[4, 5]].mean(0) + [0.0, 0.03]
         goals = {2: hem + [OVERSHOOT, 0.0], 3: hem - [OVERSHOOT, 0.0], 4: xy[0] + [0.0, 0.025], 5: xy[1] + [0.0, 0.025]}

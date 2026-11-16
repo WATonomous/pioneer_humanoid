@@ -64,6 +64,8 @@ GARMENT = garments.pop()
 NAMES = LEFT_ARM_JOINTS + ["left_gripper"] + RIGHT_ARM_JOINTS + ["right_gripper"]
 CAMS = {"top": "observation.images.top_rgb", "wrist_left": "observation.images.left_rgb",
         "wrist_right": "observation.images.right_rgb"}
+TASK = {"top_short": "fold the short-sleeve top", "top_long": "fold the long-sleeve top", "pant_short": "fold the shorts",
+        "pant_long": "fold the trousers"}[args.kind]
 ARRIVE, MAX_WAIT, GRASP_DWELL, RELEASE_DWELL = 0.008, 45, 8, 8
 PIN_RADIUS = 0.018          # m around the fingertip midpoint
 TIP_LOCAL = np.array([TCP_LOCAL[0], TCP_LOCAL[1], -0.240])   # fingertip midpoint, 6 mm up from the tips (link7 frame)
@@ -219,7 +221,7 @@ for ep in EPS:
             obs = get_obs()
             if ds is not None:
                 fr = {"observation.state": obs["observation.state"].astype(np.float32),
-                      "action": act[0].cpu().numpy().astype(np.float32), "task": "fold the garment"}
+                      "action": act[0].cpu().numpy().astype(np.float32), "task": TASK}
                 for k, src in CAMS.items():
                     fr[f"observation.images.{k}"] = obs[src][..., :3]
                 ds.add_frame(fr)
