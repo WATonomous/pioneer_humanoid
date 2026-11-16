@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <limits>
 #include <string>
 
 #include "gravity_model.hpp"
@@ -1241,4 +1242,145 @@ TEST_F(ShippedConfig, StartupRuleChecksAgainstThePeakWhenOneIsSet) {
   j.remove("mit_peak_torque");
   EXPECT_FALSE(core.loadSafetyFromYaml(cfg, kRateHz));
   EXPECT_NE(core.lastError().find("exceeds mit_max_torque"), std::string::npos) << core.lastError();
+}
+
+namespace {
+class LegConfig : public ::testing::Test {
+protected:
+  void SetUp() override {
+    mapping = YAML::LoadFile(configPath("leg_calibration.yaml"));
+    safety = YAML::LoadFile(configPath("leg_actuators.yaml"))["safety"];
+    for (const auto& group : mapping["left"]) {
+      for (const auto& joint : group.second) {
+        auto node = joint.second;
+        node["direction"] = -1;
+        node["zero_offset"] = 5.0;
+      }
+    }
+    for (const auto& group : safety["left"]) {
+      for (const auto& joint : group.second) {
+        auto node = joint.second;
+        node["active"] = true;
+        node["mit_kp"] = 1.0;
+        node["mit_kd"] = 0.1;
+      }
+    }
+    ASSERT_TRUE(core.loadFromYaml(mapping, "left", true));
+    ASSERT_TRUE(core.loadSafetyFromYaml(safety, kRateHz)) << core.lastError();
+  }
+  YAML::Node mapping, safety;
+  JointCommandCore core;
+};
+
+common_msgs::msg::LegPose legPose(double angle) {
+  common_msgs::msg::LegPose pose;
+  pose.hip.position = {angle, angle, angle};
+  pose.knee.position = {angle};
+  pose.ankle.position = {angle, angle};
+  return pose;
+}
+} // namespace
+
+TEST_F(LegConfig, LoadsLegOrderAndProducesCalibratedMitCommands) {
+  const std::vector<std::string> names = {"hip.pitch",  "hip.roll",    "hip.yaw",
+                                          "knee.pitch", "ankle.pitch", "ankle.roll"};
+  EXPECT_FALSE(core.hasGripper());
+  EXPECT_FALSE(core.hasGravityModel());
+  const auto cmds = core.legPoseToMotorCmds(legPose(10.0), kMit);
+  ASSERT_EQ(cmds.size(), 6u);
+  for (size_t i = 0; i < cmds.size(); ++i) {
+    EXPECT_EQ(core.jointName(i), names[i]);
+    EXPECT_EQ(cmds[i].motor_id, 40 + i);
+    EXPECT_EQ(cmds[i].control_type, kMit);
+    // Knee cannot move above zero; other joints are limited to 0.6 deg per tick.
+    const double target = i == 3 ? 0.0 : 0.6;
+    EXPECT_NEAR(core.prevTargets()[i], target, 1e-9);
+    EXPECT_NEAR(cmds[i].position, (5.0 - target) * M_PI / 180.0, 1e-6);
+    EXPECT_FLOAT_EQ(cmds[i].kp, 1.0f);
+    EXPECT_FLOAT_EQ(cmds[i].kd, 0.1f);
+    EXPECT_FLOAT_EQ(cmds[i].torque, 0.0f);
+  }
+}
+
+TEST_F(LegConfig, SmoothingAndLimitsMatchArmProcessing) {
+  auto arm_mapping = YAML::LoadFile(configPath("arm_calibration.yaml"));
+  YAML::Node arm_safety = YAML::Clone(safety);
+  arm_safety.remove("left");
+  const std::vector<std::pair<std::string, std::string>> arms = {
+      {"shoulder", "pitch"}, {"shoulder", "roll"}, {"shoulder", "yaw"},
+      {"elbow", "pitch"},    {"elbow", "yaw"},     {"wrist", "pitch"}};
+  const std::vector<std::pair<std::string, std::string>> legs = {
+      {"hip", "pitch"},  {"hip", "roll"},    {"hip", "yaw"},
+      {"knee", "pitch"}, {"ankle", "pitch"}, {"ankle", "roll"}};
+  for (size_t i = 0; i < arms.size(); ++i) {
+    arm_mapping["left"][arms[i].first][arms[i].second] =
+        YAML::Clone(mapping["left"][legs[i].first][legs[i].second]);
+    arm_safety["left"][arms[i].first][arms[i].second] =
+        YAML::Clone(safety["left"][legs[i].first][legs[i].second]);
+  }
+  JointCommandCore arm;
+  ASSERT_TRUE(arm.loadFromYaml(arm_mapping, "left"));
+  ASSERT_TRUE(arm.loadSafetyFromYaml(arm_safety, kRateHz)) << arm.lastError();
+  for (const double angle : {0.1, 1000.0, -1000.0, 2.0, 0.0}) {
+    for (int tick = 0; tick < 200; ++tick) {
+      const auto arm_cmds = arm.armPoseToMotorCmds(uniformPose(angle), kMit);
+      const auto leg_cmds = core.legPoseToMotorCmds(legPose(angle), kMit);
+      ASSERT_EQ(arm_cmds.size(), leg_cmds.size());
+      for (size_t i = 0; i < leg_cmds.size(); ++i) {
+        EXPECT_FLOAT_EQ(arm_cmds[i].position, leg_cmds[i].position);
+      }
+    }
+  }
+}
+
+TEST_F(LegConfig, RejectsPlaceholderCalibrationGainsAndGravity) {
+  JointCommandCore uncalibrated;
+  EXPECT_THROW(
+      uncalibrated.loadFromYaml(YAML::LoadFile(configPath("leg_calibration.yaml")), "left", true),
+      YAML::Exception);
+  EXPECT_FALSE(
+      core.loadSafetyFromYaml(YAML::LoadFile(configPath("leg_actuators.yaml"))["safety"], kRateHz));
+  safety["global"]["gravity_ff_scale"] = 1.0;
+  safety["global"]["gravity_ff_max_torque"] = 0.1;
+  EXPECT_FALSE(core.loadSafetyFromYaml(safety, kRateHz));
+}
+
+TEST_F(LegConfig, ExcludesUnpoweredJointsAndRejectsMalformedPoses) {
+  const auto report = core.seedPrevTargetsFromFeedback({{40, 5.0}});
+  EXPECT_EQ(report.unmatched.size(), 5u);
+  const auto cmds = core.legPoseToMotorCmds(legPose(10.0), kMit);
+  ASSERT_EQ(cmds.size(), 6u);
+  EXPECT_GT(cmds[0].kp, 0.0f);
+  for (size_t i = 1; i < cmds.size(); ++i) {
+    EXPECT_FLOAT_EQ(cmds[i].kp, 0.0f);
+  }
+  auto pose = legPose(0.0);
+  pose.ankle.position.clear();
+  EXPECT_THROW(core.legPoseToMotorCmds(pose, kMit), std::runtime_error);
+  pose = legPose(std::numeric_limits<double>::quiet_NaN());
+  EXPECT_THROW(core.legPoseToMotorCmds(pose, kMit), std::runtime_error);
+}
+
+TEST_F(LegConfig, InactiveLegProducesNoCommands) {
+  for (const auto& group : safety["left"]) {
+    for (const auto& joint : group.second) {
+      auto node = joint.second;
+      node["active"] = false;
+    }
+  }
+  ASSERT_TRUE(core.loadSafetyFromYaml(safety, kRateHz));
+  EXPECT_FALSE(core.anyActive());
+  EXPECT_TRUE(core.legPoseToMotorCmds(legPose(10.0), kMit).empty());
+  EXPECT_TRUE(core.mitMotorIds().empty());
+}
+
+TEST_F(LegConfig, DetectsMotorIdsSharedWithAnArm) {
+  auto arm_mapping = YAML::LoadFile(configPath("arm_calibration.yaml"));
+  arm_mapping["left"]["shoulder"]["pitch"]["can_id"] = 40;
+  JointCommandCore arm;
+  ASSERT_TRUE(arm.loadFromYaml(arm_mapping, "left"));
+  const auto clash = findDuplicateMotorIds({&arm, &core});
+  ASSERT_TRUE(clash.has_value());
+  EXPECT_NE(clash->find("hip.pitch"), std::string::npos);
+  EXPECT_NE(clash->find("shoulder.pitch"), std::string::npos);
 }

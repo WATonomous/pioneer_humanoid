@@ -116,7 +116,7 @@ Leave it out of a run with its `active: false` (see Launch).
   `include_gripper` is true. Position 0 → command 0° (its calibrated zero), 1 → `upper_limit`, then
   the same clamp / low-pass / rate limit as any joint. Without `include_gripper` (or with a
   non-finite position) it **holds where it is**, so a publisher that omits it never drops an object.
-- **Calibrate it open** with `calibrate_arm.py`, `direction` so that closing is positive, limits
+- **Calibrate it open** with `calibrate_actuators.py`, `direction` so that closing is positive, limits
   open (≈ 0) .. closed. The node refuses limits that are not `[<= 0, > 0]`.
 - **Grasping never faults:** closing on an object leaves it short of its target, so
   `mit_max_track_err` must cover the full travel (enforced). With the startup rule, that also caps
@@ -127,7 +127,7 @@ Leave it out of a run with its `active: false` (see Launch).
 ## Excluded joints
 
 At seeding, a joint with no feedback in the last 0.5 s, or physically outside its limits (stale
-calibration: re-run `calibrate_arm.py`), is **excluded** until the next seed. Servo joints get no
+calibration: re-run `calibrate_actuators.py`), is **excluded** until the next seed. Servo joints get no
 command and MIT joints get their fault action. It is never ramped from an assumed 0 or clamped to
 a limit, and the rest of the arm keeps working.
 
@@ -136,7 +136,7 @@ a limit, and the rest of the arm keeps working.
 | File | Role |
 |------|------|
 | `config/joint_command.yaml` | ROS params: `arms`, topics, control rate, default control type |
-| `config/arm_calibration.yaml` | Per-joint `can_id`, limits, `direction`, `zero_offset` (written by `calibrate_arm.py`) |
+| `config/arm_calibration.yaml` | Per-joint `can_id`, limits, `direction`, `zero_offset` (written by `calibrate_actuators.py`) |
 | `config/arm_actuators.yaml` | Hand-set, under `safety:` (`global` defaults, then one full block per arm: `left`, `right`); each value's reason is in its comment |
 
 `arm_actuators.yaml` keys (degrees, deg/s; at 50 Hz `velocity_max: 100` is 2°/tick):

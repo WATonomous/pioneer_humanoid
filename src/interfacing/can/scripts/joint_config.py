@@ -1,5 +1,5 @@
 """The arm's limits (arm_calibration.yaml, arm_actuators.yaml), read the way joint_command reads
-them. Used by arm_roundtrip.py, telemetry_record.py and calibrate_arm.py. No ROS imports.
+them. Used by arm_roundtrip.py, telemetry_record.py and calibrate_actuators.py. No ROS imports.
 
 Frames (see joint_command_core.cpp applyCalibration):
   command frame  degrees, what ArmPose carries and what the limits are written in. It IS the

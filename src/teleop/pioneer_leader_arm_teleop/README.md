@@ -222,7 +222,7 @@ python3 pioneer_leader_arm_teleop.py --target real --self-test           # angle
   limits for a joint without `limit_range`; the sim backends keep the URDF limits).
   Real: `zero_offset + motor / direction` from `arm_calibration.yaml`. Same frame, compared directly.
 - Check: pose both arms the same, motors off; every joint should agree within 10° across its range.
-  Fix the leader's signs (`calibrate_leader.py --signs`) or the real arm's `direction` / calibration (`calibrate_arm.py`) until it does.
+  Fix the leader's signs (`calibrate_leader.py --signs`) or the real arm's `direction` / calibration (`calibrate_actuators.py`) until it does.
 - Warnings (end of each row): `>10` (disagreement), `NO FEEDBACK` (none for 0.5 s), `limit-clamp` (the leader was cut to those
   limits), `real outside hw [lo,hi]` (the real arm is outside `arm_calibration.yaml`'s limits: stale calibration).
 - Gripper: compared as position (0 open .. 1 closed), leader vs the real GL40 (`gripper.open_close` in
@@ -233,7 +233,7 @@ python3 pioneer_leader_arm_teleop.py --target real --self-test           # angle
    - `y`: every `active` joint ramps from its measured angle to home (shoulders 0°, elbow.pitch −90° left /
      +90° right) at `--home-rate` deg/s (default 5, at most every active joint's `velocity_max`), then holds
      there. Put the leader at home by hand. Refused, nothing moves, if an active joint's home is outside its
-     `arm_calibration.yaml` limits (re-run `calibrate_arm.py` sweeping past home); it then carries on as `n`.
+     `arm_calibration.yaml` limits (re-run `calibrate_actuators.py` sweeping past home); it then carries on as `n`.
    - `n`: no homing; start from wherever the arm is.
 1. Shows the dry run until the gate passes: on every joint `active` in `arm_actuators.yaml`, the real arm is
    inside its `arm_calibration.yaml` limits and the leader is within 15° of the real arm (and within 15° of
@@ -257,7 +257,7 @@ python3 real_arm_teleop.py --self-test                      # logic only, no ROS
 
 0. **ZERO** (read-only): hang the leader and the real arm straight down (leader gripper open), Enter: the
    leader's reading becomes its zero for this run. Refuses if an active real joint reads more than 5° from 0
-   (recalibrate with `calibrate_arm.py`); the real arm's zero is never changed here. `--skip-zero` skips it.
+   (recalibrate with `calibrate_actuators.py`); the real arm's zero is never changed here. `--skip-zero` skips it.
 1. **CHECK** (read-only, publishes nothing): leader / real per joint. Enter starts HOME (`y`) or SLOW
    (`n`) once every `active` joint has feedback and is inside its `arm_calibration.yaml` limits.
    - **HOME** (`y` only): every `active` joint ramps from its measured angle to home at `--home-rate` deg/s

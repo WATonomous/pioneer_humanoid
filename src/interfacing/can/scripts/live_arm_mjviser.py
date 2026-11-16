@@ -2,7 +2,7 @@
 """Live browser view (MuJoCo + mjviser) of the real arm, driven by CAN feedback.
 
 READ-ONLY: subscribes to /interfacing/motorFeedback and never publishes, so it cannot move
-the arm. Use it after calibrate_arm.py to check the calibration looks right before commanding
+the arm. Use it after calibrate_actuators.py to check the calibration looks right before commanding
 anything (src/interfacing/ARM_BRINGUP.md step 2).
 
 Run in the `simulation_mj` container while `interfacing` is up and the arm is powered:
@@ -18,8 +18,8 @@ Angle shown for each joint, in degrees -- the command frame IS the URDF frame:
 Check the calibration against pioneer_bimanual_arm.urdf: move each joint by hand and confirm
 the on-screen joint turns the same way and stops at the same angle. Try corrections with
 --flip / --offset (viewer-only). A joint that needs --flip has the wrong `direction` in
-arm_calibration.yaml: flip it and re-run calibrate_arm.py (zero_offset and the limits depend on
-it). One that needs --offset was not zeroed hanging: re-run calibrate_arm.py.
+arm_calibration.yaml: flip it and re-run calibrate_actuators.py (zero_offset and the limits depend on
+it). One that needs --offset was not zeroed hanging: re-run calibrate_actuators.py.
 
 The gripper's fingers follow its position, as joint_command maps it: 0 = open (its calibrated
 zero) .. 1 = closed (arm_calibration.yaml upper_limit). Open and close it by hand: the fingers
@@ -127,7 +127,7 @@ def main() -> None:
                              "arm_calibration.yaml's direction")
     parser.add_argument("--offset", nargs="*", default=[], metavar="JOINT=DEG",
                         help="viewer-only: degrees added to these joints (e.g. shoulder.yaw=90); a fix "
-                             "is a re-run of calibrate_arm.py")
+                             "is a re-run of calibrate_actuators.py")
     parser.add_argument("--calibration", "--mapping", dest="mapping", default=None,
                         help="arm_calibration.yaml (default: auto)")
     parser.add_argument("--port", type=int, default=8080)

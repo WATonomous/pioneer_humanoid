@@ -350,7 +350,7 @@ def main(argv=None) -> int:
                 # Excluded by joint_command; only matters if this run moves it.
                 (refused if name in moving and (rel is None or rel[i]) else warned).append(
                     f"{name} is at {origin[i]:+.1f}, outside its limits [{lo:g}, {hi:g}]: "
-                    f"joint_command excludes it -- recalibrate it (calibrate_arm.py)")
+                    f"joint_command excludes it -- recalibrate it (calibrate_actuators.py)")
                 continue
             if name not in moving:
                 continue

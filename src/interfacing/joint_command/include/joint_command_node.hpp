@@ -29,9 +29,11 @@ private:
     JointCommandCore core;
     rclcpp::Subscription<common_msgs::msg::ArmPose>::SharedPtr arm_pose_sub;
     // Latest ArmPose; moderation runs on the control tick, so velocity_max is per second.
-    common_msgs::msg::ArmPose latest_pose;
-    // TODO(legs): a leg limb listens on /leg/<side>/joint_targets instead of the ArmPose topic.
+    common_msgs::msg::ArmPose latest_arm_pose;
     bool is_leg{false};
+    std::string label() const {
+      return side + (is_leg ? " leg" : " arm");
+    }
     rclcpp::Subscription<common_msgs::msg::LegPose>::SharedPtr leg_pose_sub;
     common_msgs::msg::LegPose latest_leg_pose;
     bool have_latest_pose{false};
@@ -42,8 +44,8 @@ private:
     bool logged_publish_count{false};
     int unseeded_ticks{0}; // paces the MIT_ENTER re-send while unseeded
     // See command_timeout_sec_.
-    rclcpp::Time last_armpose_time;
-    bool have_armpose_time{false};
+    rclcpp::Time last_pose_time;
+    bool have_pose_time{false};
   };
 
   void armPoseCallback(size_t limb, const common_msgs::msg::ArmPose::SharedPtr msg);
