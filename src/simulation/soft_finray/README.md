@@ -29,14 +29,17 @@ step    = 10 ms, implicitfast, Newton                                   # 5x rea
 
 ## Checked against the finite-element model
 
+`reference_fem.py cyl|box` (about 4 min each) is that FEM model: the profile on a 0.75 mm pixel mesh as a MuJoCo flex
+(plane-stress TPU), 1 ms steps. It is only the validation reference, not a second finger.
+
 Squeeze to about 10.6 mm carriage travel, then hold. "Face pushed back" is the contact face's motion relative to the
 carriage, at heights from the tip (-65 mm) up to the clamp.
 
 | object | model | grip | face pushed back (mm), z = -65 / -50 / -35 / -20 / -5 / 10 / 25 / 40 mm | speed |
 |---|---|---|---|---|
-| cylinder (fitted) | FEM | 3.66 N | 3.6 / 7.2 / 9.9 / 10.7 / 6.9 / 3.8 / 1.6 / 0.2 | 0.014x |
+| cylinder (fitted) | FEM | 3.65 N | 3.4 / 7.0 / 9.8 / 10.7 / 6.9 / 3.8 / 1.7 / 0.2 | 0.014x |
 | | beam network | 3.65 N | 3.3 / 7.0 / 9.5 / 10.1 / 7.0 / 4.2 / 1.9 / 0.3 | 5.5x |
-| box (not fitted) | FEM | 4.57 N | 4.2 / 7.6 / 10.2 / 11.0 / 8.3 / 4.8 / 2.0 / 0.2 | 0.013x |
+| box (not fitted) | FEM | 4.57 N | 4.2 / 7.6 / 10.2 / 11.1 / 8.5 / 4.8 / 2.1 / 0.3 | 0.013x |
 | | beam network | 4.77 N | 3.8 / 7.3 / 9.8 / 10.6 / 8.9 / 5.5 / 2.6 / 0.4 | 5.0x |
 
 The FEM's thin card case isn't a valid check: its contact nodes pass through the 0.8 mm card.
