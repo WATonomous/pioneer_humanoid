@@ -28,7 +28,7 @@ for cam in C.CAMS:
         nod = E.run(enc, r, torch.zeros_like(d))[1].float()
         norgb = E.run(enc, torch.zeros_like(r), d)[1].float()
     mu = a.mean((0, 2, 3), keepdim=True)
-    cc = lambda b: float(F.cosine_similarity(a - mu, b - mu, dim=1).mean())
+    def cc(b): return float(F.cosine_similarity(a - mu, b - mu, dim=1).mean())
     out[cam] = {"depth_zeroed": cc(nod), "rgb_zeroed": cc(norgb)}
     clean = feats(enc, z, cam, "clean")
     mu = clean.mean((0, 2, 3), keepdim=True)

@@ -20,7 +20,8 @@ def main():
     ytr, yte = P.stack_targets(tr), P.stack_targets(te)
     pred = np.repeat(ytr.mean(0, keepdims=True), len(yte), 0)
     hist = np.bincount(tr["phase"], minlength=5)
-    logits = np.zeros((len(yte), 5)); logits[:, hist.argmax()] = 1   # always the most common phase
+    logits = np.zeros((len(yte), 5))
+    logits[:, hist.argmax()] = 1   # always the most common phase
     out = P.metrics(pred, logits, yte, te["phase"])
     out = {k: v for k, v in out.items() if not k.startswith("peg_hole_")}
     out["phase_acc"] = float(np.mean(te["phase"] == hist.argmax()))

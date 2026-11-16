@@ -127,7 +127,7 @@ def main():
     status = "All runs finished."
     jobs = B / "results" / "jobs"
     pending = [t for t, *_ in ROBOT if any(robot_cells(t)[c] is None and (t, c) not in NOT_PLANNED
-                                            for c in ["clean", "light", "color", "camera"] + SCN)]
+                                           for c in ["clean", "light", "color", "camera"] + SCN)]
     if pending:
         status = f"Cells marked … are running or queued ({len(pending)} rows); the page is rebuilt as they finish. — = not tested."
     tpl = (B / "summary_template.html").read_text()

@@ -82,7 +82,7 @@ class PioneerNet(nn.Module):
         f3 = self.l3(f2)
         f4 = self.l4(f3)
         ref = f2 if self.stride == 8 else f3
-        up = lambda f: F.interpolate(f, size=ref.shape[2:], mode="bilinear", align_corners=False)
+        def up(f): return F.interpolate(f, size=ref.shape[2:], mode="bilinear", align_corners=False)
         parts = [f2, up(f3), up(f4)] if self.stride == 8 else [f3, up(f4)]
         return self.fuse(torch.cat(parts, 1))
 
@@ -341,6 +341,7 @@ def main():
                 x = torch.cat([x[:, :3] * (u >= args.moddrop / 2), x[:, 3:] * ((u < args.moddrop / 2) | (u >= args.moddrop))], 1)
             f = student.trunk(x)
             pr, pd, pgr, pgd = student.heads(f)
+
         def tok_loss(p, t):
             p = F.interpolate(p.float(), size=t.shape[2:], mode="bilinear", align_corners=False)
             p, t = p.flatten(2), t.float().flatten(2)

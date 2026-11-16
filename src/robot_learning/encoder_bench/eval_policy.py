@@ -31,7 +31,8 @@ def main():
                     help="first eval layout: 7000 = the test layouts bc.py reports on; 8000 = validation layouts, "
                          "for choosing execution settings without touching the test set")
     ap.add_argument("--eval_batch", type=int, default=25)
-    ap.add_argument("--variant", default="clean", choices=("clean", "light", "color", "camera", "fog", "glare", "lens", "shadow", "clutter", "background", "table"))
+    ap.add_argument("--variant", default="clean", choices=("clean", "light", "color", "camera",
+                    "fog", "glare", "lens", "shadow", "clutter", "background", "table"))
     args = ap.parse_args()
     C.contract_check()
     t0 = time.time()

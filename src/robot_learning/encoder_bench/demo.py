@@ -38,7 +38,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--tag", required=True)
     ap.add_argument("--seeds", default="7000:7004", help="a:b, eval layouts (bc.py evaluates 7000:7100)")
-    ap.add_argument("--variant", default="clean", choices=("clean", "light", "color", "camera", "fog", "glare", "lens", "shadow", "clutter", "background", "table"))
+    ap.add_argument("--variant", default="clean", choices=("clean", "light", "color", "camera",
+                    "fog", "glare", "lens", "shadow", "clutter", "background", "table"))
     ap.add_argument("--dark", action="store_true", help="colour camera dead")
     ap.add_argument("--noise", action="store_true", help="sensor-noised depth")
     ap.add_argument("--ens_m", type=float, default=0.6, help="temporal ensembling, as bc.py (0.6; the Nov 11 armv2 runs used 0.1)")

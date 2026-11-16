@@ -5,9 +5,14 @@ similarity between the clean and the shifted tokens (1 = unchanged). No policy i
     BENCH_ROBOT=8dof MUJOCO_GL=egl .venv/bin/python feature_stability.py --encoders pioneernet_v5 pioneernet_v6
 """
 from __future__ import annotations
-import argparse, json
-import numpy as np, torch, torch.nn.functional as F
-import common as C, encoders as E, scenarios as S
+import argparse
+import json
+import numpy as np
+import torch
+import torch.nn.functional as F
+import common as C
+import encoders as E
+import scenarios as S
 from scenario_examples import render_all
 
 
@@ -40,13 +45,16 @@ def main():
         for sc in S.SCENARIOS:
             sims = []
             for cam in C.CAMS:
-                cr = [o["clean", cam][0] for o in shots]; cd = [o["clean", cam][1] for o in shots]
-                sr = [o[sc, cam][0] for o in shots]; sd = [o[sc, cam][1] for o in shots]
+                cr = [o["clean", cam][0] for o in shots]
+                cd = [o["clean", cam][1] for o in shots]
+                sr = [o[sc, cam][0] for o in shots]
+                sd = [o[sc, cam][1] for o in shots]
                 tc, ts = tokens(enc, cr, cd), tokens(enc, sr, sd)
                 sims.append(F.cosine_similarity(tc, ts, dim=1).mean().item())
             res[name][sc] = float(np.mean(sims))
         print(name, " ".join(f"{k} {v:.3f}" for k, v in res[name].items()), flush=True)
-        del enc; torch.cuda.empty_cache()
+        del enc
+        torch.cuda.empty_cache()
     out = a.out or str(C.OUT / "feature_stability.json")
     json.dump(res, open(out, "w"), indent=1)
     print("saved", out)

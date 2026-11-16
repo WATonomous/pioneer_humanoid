@@ -579,7 +579,7 @@ def evaluate(args, vision, policy, norm, seeds, max_s=25.0, test_noise=False, vi
                 pred = pred + st_raw[:, None, :] * torch.tensor(norm["joint_mask"], device=pred.device)
             pred = pred.cpu().numpy()
             n_vid = min(video_n, len(envs)) if video is not None and b0 == 0 else 0
-            status = lambda e: dict(grasped=e.grasped, aligned=e.aligned, success=e.success, t=e.d.time)
+            def status(e): return dict(grasped=e.grasped, aligned=e.aligned, success=e.success, t=e.d.time)
             for vi in range(n_vid):
                 if vi in live:
                     e = envs[vi]
@@ -588,6 +588,7 @@ def evaluate(args, vision, policy, norm, seeds, max_s=25.0, test_noise=False, vi
                 t_now = it * ACTS_PER_IMG
                 hist[i].append((t_now, pred[j]))
                 hist[i] = [(t0, c) for t0, c in hist[i] if t0 + K > t_now]
+
                 def ens(t):
                     cand = [c[t - t0] for t0, c in hist[i] if 0 <= t - t0 < K]   # oldest first
                     if exec_mode == "newest":   # receding horizon: follow only the latest chunk
@@ -759,7 +760,8 @@ def main():
     (C.OUT / "bc").mkdir(exist_ok=True)
     with open(C.OUT / "bc" / f"{args.tag}.json", "w") as f:
         json.dump(rec, f, indent=1, default=float)
-    half = lambda sd: {k: (v.half() if v.is_floating_point() else v) for k, v in sd.items()}   # disk is nearly full
+
+    def half(sd): return {k: (v.half() if v.is_floating_point() else v) for k, v in sd.items()}   # disk is nearly full
     torch.save(dict(policy=half(policy.state_dict()), norm=norm, streams=args.streams, dim=len(norm["a_mu"]), robot=C.ROBOT, cvae=args.cvae,
                     pool=args.pool,
                     vision={k: half(v.state_dict()) for k, v in vision.encs.items()} if args.finetune else None),
