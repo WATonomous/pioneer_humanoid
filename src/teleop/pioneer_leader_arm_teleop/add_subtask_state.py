@@ -12,7 +12,7 @@ chunk that runs past a step boundary already knows what comes next.
 Multi-step scenes (drawer_stow, duplo) announce a new order every episode; the recorder stores it as each frame's
 task. ACT does not read the task, so without this it cannot know which block or brick comes next.
 The instruction list is written to ``meta/subtask_state.json`` (index = one-hot position); rollouts read it
-(qplan.Proposer / sim_policy_eval) and append the same one-hot from the scene's current instruction.
+(sim_policy_eval) and append the same one-hot from the scene's current instruction.
 """
 from __future__ import annotations
 

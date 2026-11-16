@@ -168,7 +168,6 @@ python3 pioneer_leader_arm_teleop.py --target real --self-test           # angle
 | `sim_policy_eval.py` | roll a trained LeRobot policy out in a scene, report success on unseen layouts (videos) |
 | `downscale_dataset.py` / `add_subtask_state.py` | 320×240 copy of a dataset / put the current instruction into the state (multi-step scenes) |
 | `dagger_collect.py` | DAgger: the policy drives, the synthetic operator takes over, its segment is recorded |
-| `qplan*.py` | Q-Planning experiments on a frozen ACT policy; `qplan_collect.py` is also the fast evaluator |
 | `patch_backbone.py` / `train_patch_act.py` | ACT with DINOv2 patch tokens as its vision backbone |
 
 Training recipe, results and findings: `docs/research/synthetic_teleop_policy_learning.md`.

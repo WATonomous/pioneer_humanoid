@@ -4,7 +4,7 @@ Importing this module registers ``torchvision.models.resnet_dinov2s``: a DINOv2 
 returned as a (B, 384, h, w) feature map, shaped so LeRobot's ACT can use it in place of ResNet-18's layer4
 (``--policy.vision_backbone=resnet_dinov2s``; the name keeps the "resnet" prefix ACTConfig insists on).
 Images are resized to 168 x 224 (12 x 16 = 192 patch tokens per camera). Train with ``train_patch_act.py``;
-sim_policy_eval.py / qplan.py import this module so such checkpoints load.
+sim_policy_eval.py imports this module so such checkpoints load.
 """
 from __future__ import annotations
 
