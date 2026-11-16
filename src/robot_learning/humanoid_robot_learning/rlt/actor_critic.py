@@ -47,7 +47,11 @@ class Critic(nn.Module):
 class TD3:
     def __init__(self, z_dim: int, s_dim: int, a_dim: int, device, beta: float = 1.0, gamma: float = 0.98,
                  lr: float = 3e-4, tau: float = 0.005, policy_noise: float = 0.1, noise_clip: float = 0.2,
-                 ref_dropout: float = 0.5, actor_every: int = 2, hidden: int = 256, layers: int = 2):
+                 ref_dropout: float = 0.5, actor_every: int = 2, hidden: int = 256, layers: int = 2,
+                 fixed: torch.Tensor | None = None):
+        """``fixed``: bool mask over the a_dim action values the actor may not change (they always equal the
+        reference), e.g. the gripper command during insertion."""
+        self.fixed = None if fixed is None else fixed.to(device)
         self.actor = Actor(z_dim, s_dim, a_dim, hidden, layers).to(device)
         self.critic = Critic(z_dim, s_dim, a_dim, hidden, layers).to(device)
         self.actor_t, self.critic_t = copy.deepcopy(self.actor), copy.deepcopy(self.critic)
@@ -61,15 +65,19 @@ class TD3:
         keep = (torch.rand(a_ref.shape[0], 1, device=a_ref.device) >= self.ref_dropout).float()
         return a_ref * keep
 
+    def fix(self, a: Tensor, a_ref: Tensor) -> Tensor:
+        return a if self.fixed is None else torch.where(self.fixed, a_ref, a)
+
     @torch.no_grad()
     def act(self, z: Tensor, s: Tensor, a_ref: Tensor, noise: float = 0.0) -> Tensor:
         a = self.actor(z, s, a_ref)
-        return (a + noise * torch.randn_like(a)).clamp(-1, 1) if noise else a
+        a = (a + noise * torch.randn_like(a)).clamp(-1, 1) if noise else a
+        return self.fix(a, a_ref)
 
     def update(self, b: dict[str, Tensor]) -> dict[str, float]:
         with torch.no_grad():
             n = (self.policy_noise * torch.randn_like(b["a"])).clamp(-self.noise_clip, self.noise_clip)
-            a2 = (self.actor_t(b["z2"], b["s2"], b["ref2"]) + n).clamp(-1, 1)   # acting always sees the reference
+            a2 = self.fix((self.actor_t(b["z2"], b["s2"], b["ref2"]) + n).clamp(-1, 1), b["ref2"])  # acting sees the reference
             q1t, q2t = self.critic_t(b["z2"], b["s2"], a2)
             y = b["r"] + self.gamma * (1 - b["d"]) * torch.min(q1t, q2t)
         q1, q2 = self.critic(b["z"], b["s"], b["a"])
@@ -80,7 +88,7 @@ class TD3:
         out = {"critic": lc.item(), "q": q1.mean().item()}
         self.updates += 1
         if self.updates % self.actor_every == 0:
-            a = self.actor(b["z"], b["s"], self._drop(b["ref"]))
+            a = self.fix(self.actor(b["z"], b["s"], self._drop(b["ref"])), b["ref"])
             bc = (a - b["ref"]).pow(2).mean(-1)
             la = (-self.critic(b["z"], b["s"], a)[0] + self.beta * bc).mean()
             self.opt_a.zero_grad(set_to_none=True)
