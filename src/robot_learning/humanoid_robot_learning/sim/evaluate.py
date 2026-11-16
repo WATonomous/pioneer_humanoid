@@ -125,6 +125,12 @@ def load_policy(path: str, device: str):
     cfg.device = device
     policy = get_policy_class(cfg.type).from_pretrained(path, config=cfg).eval()
     pre, post = make_pre_post_processors(cfg, pretrained_path=path, preprocessor_overrides={"device_processor": {"device": device}})
+    try:   # lerobot >= 0.7: a relative-action policy keeps its chunk's anchor state until the chunk is used up
+        from lerobot.processor.relative_action_processor import bind_relative_anchor
+    except ImportError:
+        pass
+    else:
+        bind_relative_anchor(policy, pre)
     return policy, pre, post
 
 
