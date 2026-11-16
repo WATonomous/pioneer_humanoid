@@ -25,10 +25,10 @@ std::string configPath(const std::string& name) {
 }
 
 common_msgs::msg::ArmPose makePose(double shoulder_pitch, double shoulder_roll, double shoulder_yaw,
-                                   double elbow_pitch, double elbow_roll, double wrist_pitch) {
+                                   double elbow_pitch, double elbow_yaw, double wrist_pitch) {
   common_msgs::msg::ArmPose pose;
   pose.shoulder.position = {shoulder_pitch, shoulder_roll, shoulder_yaw};
-  pose.elbow.position = {elbow_pitch, elbow_roll};
+  pose.elbow.position = {elbow_pitch, elbow_yaw};
   pose.wrist.position = {wrist_pitch};
   return pose;
 }
@@ -490,7 +490,7 @@ TEST_F(ShippedConfig, SafeMitCommandsHaveZeroStiffnessSoTheyCannotMoveAnything) 
 }
 
 // ---------------------------------------------------------------------------
-// MIT on an AK (gravity-loaded) joint. Elbow roll is pinned to known MIT values in a copy of the
+// MIT on an AK (gravity-loaded) joint. Elbow yaw is pinned to known MIT values in a copy of the
 // shipped config, so these don't depend on bench tuning.
 // ---------------------------------------------------------------------------
 
@@ -500,7 +500,7 @@ constexpr size_t kElbowRoll = 4;
 
 YAML::Node configWithAkElbowRollOnMit(bool with_fault_kd = true) {
   YAML::Node cfg = YAML::LoadFile(configPath("arm_actuators.yaml"))["safety"];
-  YAML::Node j = cfg["left"]["elbow"]["roll"];
+  YAML::Node j = cfg["left"]["elbow"]["yaw"];
   j["control_type"] = 0;
   j["mit_family"] = "ak";
   j["mit_kp"] = 8.0; // quantised 8.06 * 12 deg = 1.69 N.m <= 5
@@ -575,7 +575,7 @@ TEST_F(ShippedConfig, AkStatusOneIsOverTemperatureNotEnable) {
   fb[elbow].status = 1; // AK: motor over-temperature
   const auto fault = core.checkMitFaults(fb);
   ASSERT_TRUE(fault.has_value());
-  EXPECT_NE(fault->find("elbow.roll"), std::string::npos) << *fault;
+  EXPECT_NE(fault->find("elbow.yaw"), std::string::npos) << *fault;
   EXPECT_NE(fault->find("AK error code"), std::string::npos) << *fault;
 }
 
@@ -598,12 +598,12 @@ TEST_F(ShippedConfig, BlockedAkJointGetsDampingInsteadOfGoingLimp) {
 
 TEST_F(ShippedConfig, UnknownMitFamilyOrFaultActionIsRefused) {
   YAML::Node cfg = configWithAkElbowRollOnMit();
-  cfg["left"]["elbow"]["roll"]["mit_family"] = "ak80";
+  cfg["left"]["elbow"]["yaw"]["mit_family"] = "ak80";
   EXPECT_FALSE(core.loadSafetyFromYaml(cfg, kRateHz));
   EXPECT_NE(core.lastError().find("mit_family"), std::string::npos) << core.lastError();
 
   cfg = configWithAkElbowRollOnMit();
-  cfg["left"]["elbow"]["roll"]["mit_fault_action"] = "brake";
+  cfg["left"]["elbow"]["yaw"]["mit_fault_action"] = "brake";
   EXPECT_FALSE(core.loadSafetyFromYaml(cfg, kRateHz));
   EXPECT_NE(core.lastError().find("mit_fault_action"), std::string::npos) << core.lastError();
 }
@@ -1099,7 +1099,7 @@ TEST_F(ShippedConfig, MotorIdsMustBeUniqueAcrossArms) {
       << *findDuplicateMotorIds({&core, &right});
 
   // Within one arm too.
-  mapping["right"]["elbow"]["roll"]["can_id"] = mapping["right"]["elbow"]["pitch"]["can_id"];
+  mapping["right"]["elbow"]["yaw"]["can_id"] = mapping["right"]["elbow"]["pitch"]["can_id"];
   ASSERT_TRUE(right.loadFromYaml(mapping, "right"));
   ASSERT_TRUE(right.loadSafetyFromYaml(safety, kRateHz)) << right.lastError();
   EXPECT_TRUE(findDuplicateMotorIds({&right}).has_value());

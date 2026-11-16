@@ -24,11 +24,10 @@ class TaskFailed(RuntimeError):
 class Task:
     plan: Callable          # plan(op, model, data, notes): notes collects what happened (retries, ...)
     instruction: str        # dataset task text (multi-step scenes label each frame with its step instead)
-    # How the operator holds the 8dof arm for this task (the old 6-DoF arm always grasps 20 deg down, no null space):
-    # grasp pitch (deg down) and the IK's null-space pull off the joint limits (0 = none). Picked per task from
-    # synthetic-demo runs, seeds 1-8; checked on fresh seeds.
-    grasp_pitch_deg_8dof: float = 20.0
-    limit_avoid_8dof: float = 0.05
+    # How the operator holds the 8dof arm for this task: grasp pitch (deg down) and the IK's null-space pull off the
+    # joint limits (0 = none). Picked per task from synthetic-demo runs, seeds 1-8; checked on fresh seeds.
+    grasp_pitch_deg: float = 20.0
+    limit_avoid: float = 0.05
 
 
 # op.jaw_half: how far the tool point is above the fingers' lowest point in the grasp pose (their tips, tipped the
@@ -586,9 +585,9 @@ def matcha_plan(op, model, data, notes) -> None:
 
 
 TASKS: dict[str, Task] = {
-    "drawer_stow": Task(drawer_plan, "put the blocks in the drawer", grasp_pitch_deg_8dof=30.0),
-    "peg_insert": Task(peg_plan, "insert the peg into the hole", limit_avoid_8dof=0.0),   # null space hurt the insert
+    "drawer_stow": Task(drawer_plan, "put the blocks in the drawer", grasp_pitch_deg=30.0),
+    "peg_insert": Task(peg_plan, "insert the peg into the hole", limit_avoid=0.0),   # null space hurt the insert
     "zip_tie": Task(zip_plan, "pull the zip tie tight"),
-    "duplo": Task(duplo_plan, "stack the duplo bricks", grasp_pitch_deg_8dof=30.0, limit_avoid_8dof=0.02),
+    "duplo": Task(duplo_plan, "stack the duplo bricks", grasp_pitch_deg=30.0, limit_avoid=0.02),
     "matcha": Task(matcha_plan, "make the matcha and serve it on the tray"),
 }

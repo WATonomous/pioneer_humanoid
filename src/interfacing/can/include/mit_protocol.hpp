@@ -73,14 +73,22 @@ struct MitAkFeedback {
   int motor_temp{0};    // degC
 };
 
-// CubeMars AK-series manual (V3.2.0) section 4.2 float_to_uint: clamp phys to [min, max],
-// then raw = (phys - min) * (2^bits / (max - min)). NOT (phys-min)/(max-min)*(2^bits - 1) --
+// CubeMars AK-series manual (V3.2.0) section 4.2 float_to_uint:
+// raw = (phys - min) * (2^bits / (max - min)). NOT (phys-min)/(max-min)*(2^bits - 1) --
 // matches the manual's example code exactly (verified against its C reference impl).
-// Also clamped to 2^bits - 1: at phys == max the formula overflows and wraps to the minimum.
+// Unlike the manual, phys outside [min, max] (or NaN) throws std::out_of_range instead of being
+// clamped: a clamped command moves the motor somewhere it was not told to go. At phys == max the
+// formula gives 2^bits, which is clamped to 2^bits - 1 (it would otherwise wrap to the minimum).
 uint32_t packMitValue(double phys, double min, double max, unsigned bits);
 
-// Gains use the NEAREST code: truncation would send kp 0.61 as 0.488. Range [0, max].
+// Gains use the NEAREST code: truncation would send kp 0.61 as 0.488. Range [0, max]; outside
+// (or NaN) throws std::out_of_range.
 uint32_t packMitGain(double phys, double max, unsigned bits);
+
+// Name of the first command field outside the profile's range (NaN counts), or nullptr if all
+// fit. Lets can_node refuse a command with a reason instead of throwing.
+const char* mitCommandOutOfRange(double p, double v, double kp, double kd, double t,
+                                 const MitProfile& profile);
 
 // Manual uint_to_float: code * span / (2^bits - 1) + min.
 double unpackMitValue(uint32_t code, double min, double max, unsigned bits);
@@ -99,10 +107,10 @@ uint32_t akMitCanId(int drive_id);
 std::array<uint8_t, 8> packAkMitCommand(double p, double v, double kp, double kd, double t,
                                         const MitProfile& profile);
 
-// GL II feedback -> physical units. `data` must hold at least 8 bytes.
+// GL II feedback -> physical units. `data` must hold at least 8 bytes (null throws).
 MitFeedback decodeGl2Feedback(const uint8_t* data, const MitProfile& profile);
 
-// AK feedback -> physical units. `data` must hold at least 8 bytes.
+// AK feedback -> physical units. `data` must hold at least 8 bytes (null throws).
 MitAkFeedback decodeAkFeedback(const uint8_t* data, const MitProfile& profile);
 
 std::array<uint8_t, 8> mitSpecialFrame(uint8_t code);

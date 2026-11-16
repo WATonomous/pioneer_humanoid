@@ -11,7 +11,7 @@ services:
         BASE_IMAGE: ${BASE_IMAGE_OVERRIDE-}
       cache_from:
         - "${PERCEPTION_IMAGE:?}:${TAG}"
-        - "${PERCEPTION_IMAGE:?}:main"
+        - "${PERCEPTION_IMAGE:?}:build_main"
     image: "${PERCEPTION_IMAGE:?}:${TAG}"
     runtime: nvidia
     environment:
@@ -28,6 +28,7 @@ services:
       - /dev/bus/usb:/dev/bus/usb
     volumes:
       - ${MONO_DIR}/src/perception/perception:/root/ament_ws/src/perception
+      - ${HOME}/shuttle_data:/data:ro
     command: /bin/bash -c "ros2 launch perception perception.launch.py"
 
   # Real wrist camera -> /wrist_cam/image_rect (src/perception/wrist_camera). Same image as
@@ -58,7 +59,7 @@ services:
         BASE_IMAGE: ${BASE_IMAGE_OVERRIDE-}
       cache_from:
         - "${PERCEPTION_VOXEL_IMAGE:?}:${TAG}"
-        - "${PERCEPTION_VOXEL_IMAGE:?}:main"
+        - "${PERCEPTION_VOXEL_IMAGE:?}:build_main"
     image: "${PERCEPTION_VOXEL_IMAGE:?}:${TAG}"
     runtime: nvidia
     environment:

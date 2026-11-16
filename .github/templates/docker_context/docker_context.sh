@@ -25,7 +25,7 @@ while read -r module; do
 
     # Skip GPU / non-CI modules
     # TODO: Add custom handling for embedded testing
-    if [[ 'simulation' = $module_out || 'simulation_isaac' = $module_out || 'simulation_isaac_garment' = $module_out || 'simulation_mj' = $module_out || 'embedded' = $module_out ]]; then
+    if [[ 'simulation' = $module_out || 'simulation_isaac' = $module_out || 'simulation_isaac_garment' = $module_out || 'simulation_mj' = $module_out || 'embedded' = $module_out || 'terrain_mapping' = $module_out ]]; then
         continue
     fi
 

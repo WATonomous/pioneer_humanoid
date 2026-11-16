@@ -145,9 +145,9 @@ python3 /opt/humanoid_scripts/arm_angles.py [--ids 14,11] [--raw]   # in the joi
 publishes `ArmPose` like teleop, so the clamp, `velocity_max` and MIT watchdog all apply.
 
 ```bash
-tools/arm_roundtrip.sh --joints elbow.roll --offset "0,0,0,0,5,0"    # one joint, +5 deg
+tools/arm_roundtrip.sh --joints elbow.yaw --offset "0,0,0,0,5,0"    # one joint, +5 deg
 tools/arm_roundtrip.sh --offset "3,1.5,5,5,5,10" --dwell 5            # all six at once
-tools/arm_roundtrip.sh --arm-side both --joints left.elbow.roll,right.elbow.roll \
+tools/arm_roundtrip.sh --arm-side both --joints left.elbow.yaw,right.elbow.yaw \
   --offset "0,0,0,0,5,0,0,0,0,0,5,0"                                  # both arms, one run
 ```
 

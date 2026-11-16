@@ -4,6 +4,7 @@
 
 #include <cmath>
 #include <fstream>
+#include <stdexcept>
 
 #include <dbcppp/Network.h>
 
@@ -68,10 +69,9 @@ TEST(MitPacking, MatchesGlManualExample) {
 
 // phys == max produces exactly 2^bits, which does not fit the field: unclamped it wraps to 0,
 // i.e. a "go to maximum" command silently becomes "go to minimum".
-TEST(MitPacking, ClampsAtTopOfRangeInsteadOfWrapping) {
+TEST(MitPacking, TopOfRangeDoesNotWrap) {
   const auto p = gl40Profile();
   EXPECT_EQ(packMitValue(p.p_max, p.p_min, p.p_max, 16), 65535u);
-  EXPECT_EQ(packMitValue(p.p_max * 10.0, p.p_min, p.p_max, 16), 65535u); // and beyond
   EXPECT_EQ(packMitValue(p.p_min, p.p_min, p.p_max, 16), 0u);
   EXPECT_EQ(packMitValue(p.t_max, p.t_min, p.t_max, 12), 4095u);
   EXPECT_EQ(packMitGain(p.kp_max, p.kp_max, 12), 4095u);
@@ -86,7 +86,35 @@ TEST(MitPacking, GainsSnapToNearestCode) {
   EXPECT_EQ(packMitGain(1.22, p.kp_max, 12), 10u);
   EXPECT_EQ(packMitGain(0.0098, p.kd_max, 12), 8u);
   EXPECT_EQ(packMitGain(0.0, p.kp_max, 12), 0u) << "zero gain must stay zero (limp)";
-  EXPECT_EQ(packMitGain(-5.0, p.kp_max, 12), 0u) << "negative gain clamps to zero";
+}
+
+// Out of range is a caller bug: refuse rather than clamp to a pose nobody commanded.
+TEST(MitPacking, RejectsValuesOutsideTheRange) {
+  const auto p = gl40Profile();
+  EXPECT_THROW(packMitValue(p.p_max * 10.0, p.p_min, p.p_max, 16), std::out_of_range);
+  EXPECT_THROW(packMitValue(p.p_min - 0.01, p.p_min, p.p_max, 16), std::out_of_range);
+  EXPECT_THROW(packMitValue(std::nan(""), p.p_min, p.p_max, 16), std::out_of_range);
+  EXPECT_THROW(packMitValue(0.0, 1.0, 1.0, 16), std::invalid_argument);
+  EXPECT_THROW(packMitGain(-5.0, p.kp_max, 12), std::out_of_range);
+  EXPECT_THROW(packMitGain(p.kp_max + 1.0, p.kp_max, 12), std::out_of_range);
+  EXPECT_THROW(packMitGain(std::nan(""), p.kp_max, 12), std::out_of_range);
+  EXPECT_THROW(packMitGain(1.0, 0.0, 12), std::invalid_argument);
+}
+
+TEST(MitPacking, NamesTheFirstOutOfRangeField) {
+  const auto p = gl40Profile();
+  EXPECT_EQ(mitCommandOutOfRange(0.0, 0.0, 1.0, 0.1, 0.0, p), nullptr);
+  EXPECT_STREQ(mitCommandOutOfRange(13.0, 0.0, 1.0, 0.1, 0.0, p), "position");
+  EXPECT_STREQ(mitCommandOutOfRange(0.0, std::nan(""), 1.0, 0.1, 0.0, p), "velocity");
+  EXPECT_STREQ(mitCommandOutOfRange(0.0, 0.0, -1.0, 0.1, 0.0, p), "kp");
+  EXPECT_STREQ(mitCommandOutOfRange(0.0, 0.0, 1.0, 6.0, 0.0, p), "kd");
+  EXPECT_STREQ(mitCommandOutOfRange(0.0, 0.0, 1.0, 0.1, -11.0, p), "torque");
+}
+
+TEST(MitDecode, NullDataThrows) {
+  const auto p = gl40Profile();
+  EXPECT_THROW(decodeGl2Feedback(nullptr, p), std::invalid_argument);
+  EXPECT_THROW(decodeAkFeedback(nullptr, p), std::invalid_argument);
 }
 
 // Captured from the real GL40 at CAN id 22 on 2026-09-19.

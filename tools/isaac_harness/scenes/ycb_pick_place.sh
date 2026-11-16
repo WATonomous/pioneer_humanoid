@@ -63,7 +63,7 @@ TABLE="$ISAAC_NUCLEUS_DIR/Props/PackingTable/packing_table.usd"
 KLT="$ISAAC_NUCLEUS_DIR/Props/KLT_Bin/small_KLT.usd"
 YCB="$ISAAC_NUCLEUS_DIR/Props/YCB/Axis_Aligned"
 
-echo "[scene] robot (pioneer_bimanual_arm, real actuator config)"
+echo "[scene] robot (pioneer_bimanual_arm_8dof, real actuator config)"
 $C spawn_bimanual_arm --name Robot --pos=0,0,0
 
 echo "[scene] packing table (scaled 0.6x uniform, rotated 90deg so its wide side faces the robot)"

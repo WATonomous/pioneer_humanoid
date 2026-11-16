@@ -1,0 +1,27 @@
+semantic_sensor is not vendored (it pulls in torchvision and scikit-learn). Drop the test that
+loads its example launch files, and its exec_depend so rosdep resolves the package.
+
+--- a/elevation_mapping_cupy/CMakeLists.txt	2026-11-05 23:04:01.973390977 -0600
++++ b/elevation_mapping_cupy/CMakeLists.txt	2026-11-05 23:04:01.975391050 -0600
+@@ -123,11 +123,6 @@
+     TIMEOUT 120
+     ENV PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
+   )
+-  ament_add_pytest_test(test_semantic_launch_descriptions
+-    ${CMAKE_CURRENT_SOURCE_DIR}/test/test_semantic_launch_descriptions.py
+-    TIMEOUT 120
+-    ENV PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
+-  )
+ 
+   # Define isolated launch test function for unique ROS_DOMAIN_ID per test
+   # See: https://docs.ros.org/en/jazzy/Tutorials/Intermediate/Testing/Integration.html
+--- a/elevation_mapping_cupy/package.xml	2026-11-05 23:04:01.972390941 -0600
++++ b/elevation_mapping_cupy/package.xml	2026-11-05 23:04:01.979391196 -0600
+@@ -27,7 +27,6 @@
+     <depend>ros2_numpy</depend>
+     <depend>ament_index_python</depend>
+     <depend>tf_transformations</depend>
+-    <exec_depend>semantic_sensor</exec_depend>
+ 
+ 
+     <!-- Additional dependencies -->

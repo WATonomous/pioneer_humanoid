@@ -87,7 +87,7 @@ class DriverWiringTests(unittest.TestCase):
         home = {side: solver.rest.copy() for side, solver in driver.solvers.items()}
 
         def send(position, at):
-            control = Input(np.asarray(position, float), np.eye(3), False, 0., False, False)
+            control = Input(np.asarray(position, float), np.eye(3), 0., False, False)
             with driver.shared.lock:
                 driver.shared.packet = {"head": np.eye(3), "left": control, "right": None}
                 driver.shared.received = at

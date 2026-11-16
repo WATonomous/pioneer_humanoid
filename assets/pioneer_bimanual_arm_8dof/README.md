@@ -50,4 +50,5 @@ python tools/bimanual_arm_8dof/build_bimanual_arm_8dof.py arm_draft_1107.step as
 ## Used by
 - **MuJoCo:** `humanoid_mujoco_scenes.make_model(scene)`, where it is the default robot (`robot="armv2"` gives the old arms), and `pioneer_humanoid.mujoco_bimanual_arm_8dof`.
 - **Quest teleop in MuJoCo:** `--robot 8dof`, the default.
-- **Not yet ported:** Isaac (it needs a USD), the leader-arm teleop, policy evaluation, and the real-arm stack. These stay on `pioneer_bimanual_arm`.
+- **Isaac:** `pioneer_humanoid.bimanual_arm_8dof.BIMANUAL_ARM_8DOF_CFG`. It converts the URDF to USD on first spawn (about 1 min) and caches it in `usd/` (gitignored: the USD is 114 MB, over GitHub's file limit), with the URDF colours. Link poses, limits, masses and PD gains match the MuJoCo model; the gripper's back-drive friction (`GRIPPER_FRICTIONLOSS`) is MuJoCo only.
+- **Not yet ported:** the leader-arm teleop, policy evaluation, and the real-arm stack. These stay on `pioneer_bimanual_arm`.

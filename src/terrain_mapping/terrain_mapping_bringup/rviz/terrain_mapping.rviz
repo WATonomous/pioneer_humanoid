@@ -1,0 +1,120 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+    Tree Height: 400
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Class: rviz_default_plugins/Grid
+      Name: Grid
+      Enabled: true
+      Cell Size: 1
+      Plane Cell Count: 10
+      Color: 160; 160; 164
+      Alpha: 0.3
+      Reference Frame: <Fixed Frame>
+      Value: true
+    - Class: rviz_default_plugins/TF
+      Name: TF
+      Enabled: true
+      Show Names: false
+      Show Axes: true
+      Show Arrows: false
+      Marker Scale: 0.5
+      Frames:
+        All Enabled: false
+        odom:
+          Value: true
+        camera_link:
+          Value: true
+        base_link:
+          Value: true
+      Value: true
+    - Class: grid_map_rviz_plugin/GridMap
+      Name: ElevationMap
+      Enabled: true
+      Topic:
+        Value: /elevation_mapping_node/elevation_map_filter
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+      Height Layer: inpaint
+      Height Transformer: GridMapLayer
+      Color Layer: inpaint
+      Color Transformer: IntensityLayer
+      Use Rainbow: true
+      Invert Rainbow: false
+      Autocompute Intensity Bounds: true
+      History Length: 1
+      Show Grid Lines: false
+      Alpha: 1
+      Value: true
+    - Class: grid_map_rviz_plugin/GridMap
+      Name: ElevationMapRaw
+      Enabled: false
+      Topic:
+        Value: /elevation_mapping_node/elevation_map_raw
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+      Height Layer: elevation
+      Height Transformer: GridMapLayer
+      Color Layer: elevation
+      Color Transformer: IntensityLayer
+      Use Rainbow: true
+      Autocompute Intensity Bounds: true
+      History Length: 1
+      Show Grid Lines: false
+      Alpha: 1
+      Value: false
+    - Class: rviz_default_plugins/PointCloud2
+      Name: DepthPoints
+      Enabled: true
+      Topic:
+        Value: /camera/depth/points
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+      Style: Points
+      Size (Pixels): 1
+      Alpha: 0.4
+      Color Transformer: FlatColor
+      Color: 255; 255; 255
+      Decay Time: 0
+      Selectable: false
+      Value: true
+  Enabled: true
+  Global Options:
+    Background Color: 48; 48; 48
+    Fixed Frame: odom
+    Frame Rate: 30
+  Name: root
+  Tools:
+    - Class: rviz_default_plugins/Interact
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/Select
+    - Class: rviz_default_plugins/FocusCamera
+    - Class: rviz_default_plugins/Measure
+  Value: true
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Name: Current View
+      Target Frame: <Fixed Frame>
+      Focal Point:
+        X: 0
+        Y: 0
+        Z: -1
+      Distance: 9
+      Pitch: 1.0
+      Yaw: 0.8
+      Near Clip Distance: 0.01
+      Value: Orbit (rviz)
+Window Geometry:
+  Height: 900
+  Width: 1500
+  X: 50
+  Y: 50

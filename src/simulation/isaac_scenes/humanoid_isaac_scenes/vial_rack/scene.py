@@ -9,10 +9,9 @@ are the so101 vial task's assets.
 ``robot`` / ``ee_frame`` are ``MISSING`` -- ``humanoid_isaac_scenes.make_scene_cfg``
 plugs in the caller's arm.
 
-FIRST PASS: the vials sit ~0.30 m in front of the arm base -- the same reach
-as the push task's block -- with the rack just behind them. It should get a
-reach-tuning pass against the arm that actually drives it (keyboard_teleop
-drives the LEFT / L-suffix chain) -- driving the scene once is that loop.
+The vials sit ~0.30 m in front of the arm base -- the same reach as the push
+task's block -- with the rack just behind them, on the RIGHT arm's side (-y):
+the right arm reaches every vial and the rack top-down (IK-checked).
 """
 from __future__ import annotations
 
@@ -31,8 +30,8 @@ _ASSETS = Path(__file__).resolve().parents[5] / "assets" / "lerobot" / "so101_vi
 VIAL_RACK_USD = str(_ASSETS / "Vial_rack_simple.usda")
 VIAL_USD = str(_ASSETS / "Vial_opaque.usda")
 
-# ── rack + vials (first pass; reach-tune against the LEFT arm) ────────────────
-# Offsets from the arm base in x; y is negative = the LEFT arm's side.
+# ── rack + vials ─────────────────────────────────────────────────────────────
+# Offsets from the arm base in x; y is negative = the RIGHT arm's side.
 RACK_POS = (ROBOT_BASE_X + 0.37, -0.32, TABLE_TOP_Z)
 VIAL_INIT_POS = [
     (ROBOT_BASE_X + 0.30, -0.05, TABLE_TOP_Z + 0.03),

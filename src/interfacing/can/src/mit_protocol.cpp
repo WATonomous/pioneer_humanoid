@@ -2,19 +2,34 @@
 
 #include <algorithm>
 #include <cmath>
+#include <stdexcept>
+#include <string>
 
 namespace {
 constexpr uint32_t maxCode(unsigned bits) {
   return (1u << bits) - 1u;
 }
+
+// NaN fails both comparisons, so it is rejected too.
+bool inRange(double v, double min, double max) {
+  return v >= min && v <= max;
+}
+
+void requireInRange(double phys, double min, double max) {
+  if (!inRange(phys, min, max)) {
+    throw std::out_of_range("MIT value " + std::to_string(phys) + " outside [" +
+                            std::to_string(min) + ", " + std::to_string(max) + "]");
+  }
+}
 } // namespace
 
 uint32_t packMitValue(double phys, double min, double max, unsigned bits) {
-  phys = std::clamp(phys, min, max);
   const double span = max - min;
-  if (span <= 0.0) {
-    return 0;
+  if (!(span > 0.0)) {
+    throw std::invalid_argument("MIT range [" + std::to_string(min) + ", " + std::to_string(max) +
+                                "] is empty");
   }
+  requireInRange(phys, min, max);
   const double scale = static_cast<double>(1u << bits) / span;
   const double raw = (phys - min) * scale;
   // Truncate (manual parity), then clamp: phys == max yields exactly 2^bits, which does not
@@ -23,13 +38,33 @@ uint32_t packMitValue(double phys, double min, double max, unsigned bits) {
 }
 
 uint32_t packMitGain(double phys, double max, unsigned bits) {
-  if (max <= 0.0) {
-    return 0;
+  if (!(max > 0.0)) {
+    throw std::invalid_argument("MIT gain range max " + std::to_string(max) + " must be > 0");
   }
-  phys = std::clamp(phys, 0.0, max);
+  requireInRange(phys, 0.0, max);
   const double scale = static_cast<double>(1u << bits) / max;
-  const double raw = std::lround(phys * scale);
-  return static_cast<uint32_t>(std::min(std::max(raw, 0.0), static_cast<double>(maxCode(bits))));
+  // phys == max rounds to 2^bits, one past the field: clamp to the top code.
+  return std::min(static_cast<uint32_t>(std::lround(phys * scale)), maxCode(bits));
+}
+
+const char* mitCommandOutOfRange(double p, double v, double kp, double kd, double t,
+                                 const MitProfile& profile) {
+  if (!inRange(p, profile.p_min, profile.p_max)) {
+    return "position";
+  }
+  if (!inRange(v, profile.v_min, profile.v_max)) {
+    return "velocity";
+  }
+  if (!inRange(kp, 0.0, profile.kp_max)) {
+    return "kp";
+  }
+  if (!inRange(kd, 0.0, profile.kd_max)) {
+    return "kd";
+  }
+  if (!inRange(t, profile.t_min, profile.t_max)) {
+    return "torque";
+  }
+  return nullptr;
 }
 
 double unpackMitValue(uint32_t code, double min, double max, unsigned bits) {
@@ -82,7 +117,7 @@ std::array<uint8_t, 8> packAkMitCommand(double p, double v, double kp, double kd
 MitFeedback decodeGl2Feedback(const uint8_t* data, const MitProfile& profile) {
   MitFeedback fb;
   if (data == nullptr) {
-    return fb;
+    throw std::invalid_argument("MIT feedback decode: null data");
   }
   fb.status = static_cast<uint8_t>(data[0] >> 4);
   fb.id_nibble = static_cast<uint8_t>(data[0] & 0xF);
@@ -100,7 +135,7 @@ MitFeedback decodeGl2Feedback(const uint8_t* data, const MitProfile& profile) {
 MitAkFeedback decodeAkFeedback(const uint8_t* data, const MitProfile& profile) {
   MitAkFeedback fb;
   if (data == nullptr) {
-    return fb;
+    throw std::invalid_argument("MIT feedback decode: null data");
   }
   fb.motor_id = data[0];
   const uint32_t pos_i = (static_cast<uint32_t>(data[1]) << 8) | data[2];

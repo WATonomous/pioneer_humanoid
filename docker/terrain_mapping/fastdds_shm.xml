@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Fast DDS transport for the terrain_mapping container. Every node runs in this one container,
+  so large messages (2.7 MB color frames, 6.5 MB point clouds) go through a shared-memory
+  transport with 32 MB segments. Over the default transports they stall: the 512 KB default
+  segment is too small, so they fall back to UDP, where the host's net.core.rmem_max (208 KB here)
+  drops fragments and replayed images arrived at under 1 Hz instead of 30 Hz.
+  ROS_LOCALHOST_ONLY=1 (compose file) makes rmw_fastrtps add a 127.0.0.1-only UDP transport and a
+  default shared-memory transport on top of this one; same-host traffic still prefers shared memory.
+  Needs shm_size in modules/docker-compose.terrain_mapping.yaml (each participant maps one segment).
+-->
+<profiles xmlns="http://www.eprosima.com/XMLSchemas/fastRTPS_Profiles">
+  <transport_descriptors>
+    <transport_descriptor>
+      <transport_id>shm_large</transport_id>
+      <type>SHM</type>
+      <segment_size>33554432</segment_size>
+    </transport_descriptor>
+  </transport_descriptors>
+  <participant profile_name="shm_large_participant" is_default_profile="true">
+    <rtps>
+      <userTransports>
+        <transport_id>shm_large</transport_id>
+      </userTransports>
+      <useBuiltinTransports>false</useBuiltinTransports>
+    </rtps>
+  </participant>
+</profiles>

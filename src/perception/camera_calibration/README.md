@@ -35,8 +35,8 @@ real:  1920x1080 frame -> wrist_cam.rectify() -> 640x480 pinhole ─┘
 
 `rectify()` undistorts the frame, crops it to 4:3, scales it down and moves the optical centre to the
 middle of the image, all in one remap. In the sim, the lens is `WRIST_FOCAL_MM` in `arm_params.py`,
-read from `calib/wrist_cam_pinhole_640x480.yaml` and used by the Pioneer wrist cameras and by
-`src/robot_learning/scripts/pioneer_isaac_cameras.py`. Changing the pinhole YAML changes the sim, with no code edit.
+read from `calib/wrist_cam_pinhole_640x480.yaml` and used by the Pioneer wrist cameras
+(`arm_8dof_params.CAMERAS`). Changing the pinhole YAML changes the sim, with no code edit.
 
 ## Using the wrist camera in code
 

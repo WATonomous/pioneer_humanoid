@@ -1,8 +1,8 @@
-# Old 6-DoF arm only (Isaac has no 8dof USD yet). 8dof is the default; the real arm moves to 8dof soon.
+# Old 6-DoF arm only: MuJoCo --robot armv2 and today's real arm. Isaac uses the 8dof arm (arm_8dof_params).
 """Simulator-neutral pioneer_bimanual_arm parameters: joints, default pose, gripper, actuator gains, cameras.
 
-Plain Python (no Isaac / MuJoCo imports) so both bimanual_arm.py (Isaac Lab) and
-mujoco_bimanual_arm.py (MuJoCo) build from the same numbers. Naming: LEFT_* = the L-suffixed
+Plain Python (no Isaac / MuJoCo imports) so mujoco_bimanual_arm.py (MuJoCo) and the
+real-arm stack build from the same numbers. Naming: LEFT_* = the L-suffixed
 chain (joint1L..joint6l) = physical LEFT arm; RIGHT_* = unsuffixed.
 """
 import math

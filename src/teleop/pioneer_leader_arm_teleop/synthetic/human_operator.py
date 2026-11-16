@@ -40,8 +40,8 @@ LEADER_MAX_SPEED = 3.0
 # Null-space step toward mid-range per IK iteration on a redundant (7-joint) arm, per unit of (offset / half range)^2.
 LIMIT_AVOID_GAIN = 0.05   # default; HumanOperator(limit_avoid=) per task
 # The gripper as it takes things, as near its home pose as a grasp gets: fingers forward, tipped GRASP_PITCH down,
-# jaws closing across the table: 20 deg on both arms (HumanOperator(grasp_pitch=) sets another; on the 8dof arm 30 and
-# 45 deg failed more grasps with the task plans' jaw heights).
+# jaws closing across the table: 20 deg by default (HumanOperator(grasp_pitch=) sets another per task; 30 and 45 deg
+# failed more grasps with most task plans' jaw heights).
 # The operator aims a point between the jaws this far up the fingers from their tips (where a grip holds).
 TCP_ABOVE_TIPS = 0.025
 GRASP_PITCH = math.radians(20)
@@ -167,7 +167,8 @@ class HumanOperator:
 
     def __init__(self, model: mujoco.MjModel, observe: Callable[[], mujoco.MjData], tick: Callable[[np.ndarray, float], None],
                  joints: list[str], q_home, dt: float, rng: np.random.Generator, style: Style | None = None,
-                 fingers: tuple[str, str] = ("link7l", "link8l"), hand: str = "link6l", grasp_pitch: float = GRASP_PITCH,
+                 fingers: tuple[str, str] = ("left_finger_a", "left_finger_b"), hand: str = "left_link7",
+                 grasp_pitch: float = GRASP_PITCH,
                  limit_avoid: float = LIMIT_AVOID_GAIN):
         self.m, self.observe, self._tick, self.dt, self.rng = model, observe, tick, dt, rng
         self.style = style or Style.sample(rng)
@@ -181,22 +182,15 @@ class HumanOperator:
         self.kin.qpos[self.qadr] = self.q
         mujoco.mj_kinematics(model, self.kin)
         R = self.kin.xmat[self.hand].reshape(3, 3).copy()
-        # Each finger's collision geometry as points in the hand frame: box corners (the old arm's slab pads) or the
-        # convex hull's vertices (the 8dof arm's fingers). Their mean is between the jaws.
+        # Each finger's collision geometry as points in the hand frame (its convex hull's vertices). Their mean is
+        # between the jaws.
         pts = [np.vstack([_geom_points(model, self.kin, g) for g in range(model.ngeom)
                           if model.geom_contype[g] and model.geom_bodyid[g] == model.body(b).id])
                @ R - R.T @ self.kin.xpos[self.hand] for b in fingers]
         centre = np.vstack(pts).mean(0)
         f = centre / np.linalg.norm(centre)              # along the fingers, hand frame
         # the tool point is TCP_ABOVE_TIPS up the fingers from their tips, between the jaws
-        jaws = [g for g in range(model.ngeom) if model.geom_contype[g] and model.geom_bodyid[g] in [model.body(b).id for b in fingers]]
-        if all(model.geom_type[g] == mujoco.mjtGeom.mjGEOM_BOX for g in jaws):
-            # The old arm's box pads: the tips as its synthetic demos were tuned with (each box's half-extents along the
-            # hand axes, projected on f), kept so its takes stay reproducible.
-            tips = max(float((R.T @ (self.kin.geom_xpos[g] - self.kin.xpos[self.hand]) + np.abs(
-                R.T @ self.kin.geom_xmat[g].reshape(3, 3)) @ model.geom_size[g]) @ f) for g in jaws)
-        else:
-            tips = max(float((p @ f).max()) for p in pts)
+        tips = max(float((p @ f).max()) for p in pts)
         self.tcp_off = centre + (tips - TCP_ABOVE_TIPS - centre @ f) * f
         self.R_home = R
         # hand frame -> world for the grasp pose: map the fingers' and the jaws' closing directions (hand frame) onto it
@@ -526,7 +520,7 @@ class HumanOperator:
             if len(q) > 6 and self.limit_avoid > 0:
                 # A redundant arm (the 8dof's 7 joints): spend the spare joint keeping every joint off its limits, the
                 # way a person holds a 7-DoF leader (elbow out of the way, wrist mid-range), in J's null space so the
-                # hand pose is untouched. The 6-DoF arm has no null space, so its solutions are unchanged.
+                # hand pose is untouched.
                 mid, half = self.lim.mean(1), (self.lim[:, 1] - self.lim[:, 0]) / 2
                 dq = dq + (np.eye(len(q)) - Jp @ J) @ (-self.limit_avoid * (q - mid) / half ** 2)
             q = np.clip(q + dq, self.lim[:, 0], self.lim[:, 1])

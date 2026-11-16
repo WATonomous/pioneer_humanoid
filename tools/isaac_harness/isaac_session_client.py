@@ -99,7 +99,7 @@ def main() -> None:
     p.add_argument("--mass", type=float, default=0.2)
 
     p = sub.add_parser("spawn_bimanual_arm",
-                       help="spawn this repo's pioneer_bimanual_arm robot with its real actuator config")
+                       help="spawn this repo's pioneer_bimanual_arm_8dof robot with its real actuator config")
     p.add_argument("--name", required=True)
     p.add_argument("--pos", type=_floats, default=[0, 0, 0])
     p.add_argument("--rot", type=_floats, default=[1, 0, 0, 0])

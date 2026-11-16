@@ -1,4 +1,4 @@
-"""Controller input adapter for the scene backends (MuJoCo; Isaac once pioneer_bimanual_arm_8dof has a USD).
+"""Controller input adapter for the scene backends (mujoco/mujoco_sim.py, isaac/isaac_sim.py).
 
     No simulator launch or robot writes at import. The scene script owns all
     simulation, rendering, recording and reset operations; this turns headset
@@ -186,7 +186,6 @@ class ControllerSceneDriver:
             solver.command = np.array(joint_positions[side], dtype=float).copy()
             self.targets[side].lose_tracking()
             self.targets[side].position = self.targets[side].rotation = None
-            self.targets[side].requested_rotation = None
             self.samples[side].clear()
             self.history[side].clear()
             self.calibrating[side] = False
@@ -297,11 +296,6 @@ class ControllerSceneDriver:
             # control tick, not packet arrival: every tick now carries a pose, so the filter sees an even rate.
             position, rotation = self.filters[side](control.position, control.rotation, now)
             control = replace(control, position=position, rotation=rotation)
-        if control is not None and head is not None:
-            # Reuse the same incremental target mapping. The first tracked frame anchors to measured FK, including
-            # after loss/reset/calibration. Never mutate the shared packet.
-            target.armed = True
-            control = replace(control, clutch=True)
         target.update(control, head, p, r)
         if target.active:
             self.grippers[side] = control.trigger

@@ -27,7 +27,7 @@ command list, through leader-arm teleop.
    Reading `candump`:
    - **AK status frames** are extended ids `0x2900 | can_id` (`ServoStatusFeedback` in
      [`dbc/humanoid.dbc`](dbc/humanoid.dbc)). Left arm today: `0000290B`–`0000290E` (ids 11–14)
-     and `00002968` (id 104, elbow roll).
+     and `00002968` (id 104, elbow yaw).
    - **GL40s (wrist 22, gripper 21) are silent here, and that is normal.** They only answer MIT
      frames, so they appear once `calibrate_arm.py` or `joint_command` sends `MIT_ENTER`: standard
      id `000` (the master id), byte 0 = status nibble + the last hex digit of the motor id.
@@ -39,7 +39,7 @@ command list, through leader-arm teleop.
 
 ## 1. Calibrate
 Per-joint zero + limits, from live motor feedback, with the arm **hanging** (the URDF zero).
-**Re-run after every power-on** for elbow.pitch, elbow.roll, and shoulder.yaw (AK80-9 motors) —
+**Re-run after every power-on** for elbow.pitch, elbow.yaw, and shoulder.yaw (AK80-9 motors) —
 their single-turn absolute encoders don't reliably survive a power cycle; shoulder.pitch/roll
 (AK10-9) have so far.
 
