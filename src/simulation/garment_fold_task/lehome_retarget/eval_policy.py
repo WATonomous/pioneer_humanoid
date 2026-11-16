@@ -23,6 +23,9 @@ args = p.parse_args()
 args.headless, args.enable_cameras = True, True
 app = AppLauncher(args).app
 
+import os as _os, sys as _sys, traceback as _tb  # noqa: E402
+_sys.excepthook = lambda t, v, tb: (_tb.print_exception(t, v, tb), _os._exit(1))   # an uncaught error exits instead of waiting on Isaac's error dialog
+
 import json  # noqa: E402
 import os  # noqa: E402
 import time  # noqa: E402
@@ -71,7 +74,27 @@ if args.video:
 ids = torch.cat([env._l_arm, env._l_grip, env._r_arm, env._r_grip])
 SCALE = torch.tensor([1.0] * 7 + [GRIPPER_STROKE] + [1.0] * 7 + [GRIPPER_STROKE], device=env.device)
 cloth = env.object._cloth_prim_view
-CHECK = list(env.object.check_points)
+# LeHome's check points index the garment mesh's vertices; on the GPU the cloth is PhysX's particles, which merge
+# duplicate vertices on some garments. Map each check vertex to its particle (same rest position) once.
+def _check_particles():
+    from pxr import Usd, UsdGeom
+    st = Usd.Stage.Open(env.garment_config.asset_path)
+    mesh = next(p_ for p_ in st.Traverse() if p_.GetTypeName() == "Mesh")
+    pts = np.array(UsdGeom.Mesh(mesh).GetPointsAttr().Get(), dtype=np.float64)
+    o = env.object
+    world = o.transform_points(pts, np.asarray(o.init_pos, float), np.asarray(o.init_ori, float), np.asarray(o.init_scale, float))
+    part = np.asarray(o.initial_points_positions.cpu() if hasattr(o.initial_points_positions, "cpu") else o.initial_points_positions).reshape(-1, 3)
+    idx, gap = [], []
+    for c in o.check_points:
+        d = np.linalg.norm(part - world[c], axis=1)
+        idx.append(int(np.argmin(d)))
+        gap.append(float(d.min()))
+    print("CHECK_MAP", len(pts), "vertices ->", len(part), "particles, max gap", round(max(gap), 5), flush=True)
+    return idx
+
+
+CHECK = _check_particles()
+env.object.check_points = CHECK   # the vendored success checker reads these
 DT = env.physics_dt
 policy, pre, post = load_policy(args.policy, "cuda")
 ik = IK()

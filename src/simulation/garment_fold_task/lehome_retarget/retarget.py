@@ -103,6 +103,18 @@ def load_episode(ep, kind="top_short"):
         for f, v in enumerate(s[:, sl][:, 5]):
             state = False if v > OPEN_ABOVE else True if v < CLOSE_BELOW else state
             closed[f] = state
+        # LeHome's operators also close the gripper in the air after letting go; ours would pinch the cloth still between
+        # the fingers and carry it off. Keep it open until the next close at the table.
+        tool = fk(s[:, sl], side)[0][:, 2] + DZ
+        f = 1
+        while f < len(closed):
+            if closed[f] and not closed[f - 1] and tool[f] > TCP_GRASP_Z + 0.015:
+                e = f
+                while e < len(closed) and closed[e]:
+                    e += 1
+                closed[f:e] = False
+                f = e
+            f += 1
         # frames to the next close: descend over the last 10 frames before it, hover otherwise while open
         to_close = np.full(len(closed), 99.0)
         nxt = 99.0
@@ -194,7 +206,8 @@ def fold_goal(kind, k, kp):
     return goals.get(k)
 
 
-LAY_Z, LAY_FRAMES = 0.03, 8   # release this high over the table, lowering over the last frames
+LIFT, LIFT_FRAMES = 0.08, 10   # straight up after a release
+LAY_Z, LAY_FRAMES = 0.008, 8   # lay the held cloth down this high over the table before letting go (higher, it springs back)
 
 
 def snap_grasps(E, keypoints, kind, radius=0.15, blend=10):
@@ -230,5 +243,15 @@ def snap_grasps(E, keypoints, kind, radius=0.15, blend=10):
                 P[b, :2] = P[b - 1, :2]
                 lay = np.clip((np.arange(f, b + 1) - (b - LAY_FRAMES)) / LAY_FRAMES, 0.0, 1.0)
                 P[f:b + 1, 2] = P[f:b + 1, 2] + lay * (np.minimum(P[f:b + 1, 2], TCP_GRASP_Z + LAY_Z) - P[f:b + 1, 2])
+                # after letting go, lift straight up before following the demo again (moving off sideways from the
+                # cloth drags the fold back open), then blend back into the demo path
+                e = min(b + 1 + LIFT_FRAMES, len(P))
+                up = np.linspace(0.0, LIFT, LIFT_FRAMES + 1)[1:e - b]
+                P[b + 1:e, :2] = P[b, :2]
+                P[b + 1:e, 2] = P[b, 2] + up
+                e2 = min(e + LIFT_FRAMES, len(P))
+                if e2 > e:
+                    w = np.linspace(0.0, 1.0, e2 - e + 1)[1:, None]
+                    P[e:e2] = (1 - w) * P[e - 1] + w * P[e:e2]
             shifts.append((side, int(f), k, np.round(off, 3).tolist()))
     return shifts

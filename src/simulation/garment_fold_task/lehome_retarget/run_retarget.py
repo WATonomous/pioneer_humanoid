@@ -30,6 +30,9 @@ args = p.parse_args()
 args.headless, args.enable_cameras = True, True
 app = AppLauncher(args).app
 
+import os as _os, sys as _sys, traceback as _tb  # noqa: E402
+_sys.excepthook = lambda t, v, tb: (_tb.print_exception(t, v, tb), _os._exit(1))   # an uncaught error exits instead of waiting on Isaac's error dialog
+
 import json  # noqa: E402
 import time  # noqa: E402
 import traceback  # noqa: E402
@@ -87,7 +90,32 @@ if args.video:
 ids = torch.cat([env._l_arm, env._l_grip, env._r_arm, env._r_grip])
 SCALE = torch.tensor([1.0] * 7 + [GRIPPER_STROKE] + [1.0] * 7 + [GRIPPER_STROKE], device=env.device)
 cloth = env.object._cloth_prim_view
-CHECK = list(env.object.check_points)
+# LeHome's check points index the garment mesh's vertices; on the GPU the cloth is PhysX's particles, which merge
+# duplicate vertices on some garments. Map each check vertex to its particle (same rest position) once.
+def _check_particles():
+    from pxr import Usd, UsdGeom
+    st = Usd.Stage.Open(env.garment_config.asset_path)
+    mesh = next(p_ for p_ in st.Traverse() if p_.GetTypeName() == "Mesh")
+    pts = np.array(UsdGeom.Mesh(mesh).GetPointsAttr().Get(), dtype=np.float64)
+    o = env.object
+    world = o.transform_points(pts, np.asarray(o.init_pos, float), np.asarray(o.init_ori, float), np.asarray(o.init_scale, float))
+    part = np.asarray(o.initial_points_positions.cpu() if hasattr(o.initial_points_positions, "cpu") else o.initial_points_positions).reshape(-1, 3)
+    idx, gap = [], []
+    for c in o.check_points:
+        d = np.linalg.norm(part - world[c], axis=1)
+        idx.append(int(np.argmin(d)))
+        gap.append(float(d.min()))
+    print("CHECK_MAP", len(pts), "vertices ->", len(part), "particles, max gap", round(max(gap), 5), flush=True)
+    return idx
+
+
+CHECK = _check_particles()
+env.object.check_points = CHECK   # the vendored success checker reads these
+
+
+def keypoints():
+    x = env.object.get_current_mesh_points()[0]
+    return (x.cpu().numpy() if hasattr(x, "cpu") else np.asarray(x))[CHECK]
 DT = env.physics_dt
 
 ds = None
@@ -97,6 +125,9 @@ if not args.no_record:
     for k in CAMS:
         feats[f"observation.images.{k}"] = {"dtype": "video", "shape": (480, 640, 3), "names": ["height", "width", "channels"]}
     root = os.path.join(args.out, "dataset", GARMENT)
+    if os.path.isdir(root) and not os.path.isfile(os.path.join(root, "meta", "tasks.parquet")):
+        import shutil
+        shutil.rmtree(root)   # a run stopped before its first saved episode: only buffered frames, nothing to keep
     if os.path.isdir(root):
         ds = LeRobotDataset(repo_id=f"humanoid/pioneer_8dof_lehome_{args.kind}", root=root)
     else:
@@ -168,7 +199,7 @@ for ep in EPS:
             env.step(hold)
         for _ in range(60 * args.stretch):  # our grasps aim at the settled cloth: let it land first (not recorded)
             env.step(hold)
-        shifts = snap_grasps(E, cloth.get_world_positions()[0].cpu().numpy()[CHECK], args.kind)
+        shifts = snap_grasps(E, keypoints(), args.kind)
         plan = {a: plan_track(ik, a, E[a], w_down=E[a + "_wdown"]) for a in ("left", "right")}
         qL, qR = plan["left"][0], plan["right"][0]
         ik_err = max(plan[a][1].max() for a in plan)
@@ -178,9 +209,13 @@ for ep in EPS:
         closed_on = {"left": False, "right": False}
         off = {"left": np.zeros(3), "right": np.zeros(3)}
         held_since = {"left": False, "right": False}
-        rdwell = 0
+        rdwell, rwait = 0, 0
         while f < len(qL):
-            act = action_row(qL[f], g["left"][f], qR[f], g["right"][f])
+            # a held cloth is let go only once the arm has carried it to the release point
+            carrying = [side for side, gg in g.items() if f >= 1 and gg[f] < gg[f - 1] and held_since[side] and rdwell == 0
+                        and rwait < MAX_WAIT and np.linalg.norm(tcp_world(side) - E[side][f]) > 2 * ARRIVE]
+            cmd = {side: 1.0 if side in carrying else g[side][f] for side in g}
+            act = action_row(qL[f], cmd["left"], qR[f], cmd["right"])
             obs = get_obs()
             if ds is not None:
                 fr = {"observation.state": obs["observation.state"].astype(np.float32),
@@ -197,7 +232,7 @@ for ep in EPS:
             # grasp / release
             for side in ("left", "right"):
                 grip = float(robot.data.joint_pos[0, env._l_grip if side == "left" else env._r_grip].item()) / GRIPPER_STROKE
-                if g[side][f] > 0.5 and side not in pins and grip > 0.6:
+                if cmd[side] > 0.5 and side not in pins and grip > 0.6:
                     pw, R = link7(side)
                     tip = pw + R @ TIP_LOCAL
                     x = cloth.get_world_positions()[0].cpu().numpy()
@@ -210,17 +245,17 @@ for ep in EPS:
                         pins[side] = (torch.as_tensor(idx, device=env.device), (x[idx] - pw) @ R)
                         held_since[side] = True
                         grasps += 1
-                        glog.append([side, f, int(len(idx)), np.round(tip, 3).tolist(), np.round(x[CHECK][:, :2], 3).tolist()])
+                        glog.append([side, f, int(len(idx)), np.round(tip, 3).tolist(), np.round(keypoints()[:, :2], 3).tolist()])
                     if ep - a0 < args.video and closed_on[side]:
                         print("CLOSE", side, f, "n", len(idx), "tip", np.round(tip, 3).tolist(), "target", np.round(E[side][f], 3).tolist(),
                               "tcp", np.round(tcp_world(side), 3).tolist(), "nearest", round(float(dist.min()), 3), "waited", waited, flush=True)
                     closed_on[side] = False
-                elif g[side][f] < 0.5 and side in pins:
+                elif cmd[side] < 0.5 and side in pins:
                     idx_rel = pins.pop(side)[0]
                     v = cloth.get_velocities()
                     v[0, idx_rel] = 0.0       # let go without flinging the held patch
                     cloth.set_velocities(v)
-                    cp = cloth.get_world_positions()[0].cpu().numpy()[CHECK]
+                    cp = keypoints()
                     glog.append([side, f, "release", np.round(tcp_world(side), 3).tolist(), np.round(cp[:, :2], 3).tolist()])
             if n % 10 == 0:
                 lift = max(lift, float(cloth.get_world_positions()[0, :, 2].max()))
@@ -238,12 +273,20 @@ for ep in EPS:
                     q_plan[f] = ik.solve(side, E[side][f] + off[side], iters=30, w_down=float(E[side + "_wdown"][f]), w_home=0.0)[0]
             grasping = any(closed_on[s_] for s_ in closing)
             releasing = [side for side, gg in g.items() if f >= 1 and gg[f] < gg[f - 1] and held_since[side]]
+            if carrying:
+                rwait += 1
+                for side in carrying:   # same sag correction as before a grasp
+                    off[side] += 0.6 * (E[side][f] - tcp_world(side))
+                    q_plan = qL if side == "left" else qR
+                    ik.d.qpos[ik.qadr[side]] = q_plan[f]
+                    q_plan[f] = ik.solve(side, E[side][f] + off[side], iters=30, w_down=float(E[side + "_wdown"][f]), w_home=0.0)[0]
+                continue
             if releasing and rdwell < RELEASE_DWELL:   # hold still while the gripper opens: moving off drags the cloth back
                 rdwell += 1
                 continue
             for side in releasing:
                 held_since[side] = False
-            rdwell = 0
+            rdwell, rwait = 0, 0
             if arrived and not (grasping and dwell < GRASP_DWELL):
                 f, waited, dwell = f + 1, 0, 0
                 off = {"left": np.zeros(3), "right": np.zeros(3)}
