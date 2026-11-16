@@ -20,7 +20,7 @@ LEHOME = os.environ.get("LEHOME_ROOT", "/lehome")   # /lehome in the container (
 
 p = argparse.ArgumentParser()
 p.add_argument("--kind", default="top_short")
-p.add_argument("--episodes", default="0:25", help="LeHome episode range a:b (one garment = 25 episodes)")
+p.add_argument("--episodes", default="0:25", help="LeHome episode range a:b (one garment = 25 episodes), or a comma list")
 p.add_argument("--out", default=f"{LEHOME}/out/top_short")
 p.add_argument("--stretch", type=int, default=3, help="physics steps (1/90 s) per demo frame")
 p.add_argument("--video", type=int, default=0, help="also write an mp4 (top + external view) for the first N episodes")
@@ -49,8 +49,12 @@ from humanoid_garment_fold.utils.success_checker_garment import success_checker_
 
 from retarget import IK, TCP_GRASP_Z, load_episode, plan_track, snap_grasps  # noqa: E402
 
-a0, a1 = map(int, args.episodes.split(":"))
-EPS = list(range(a0, a1))
+if ":" in args.episodes:
+    a0, a1 = map(int, args.episodes.split(":"))
+    EPS = list(range(a0, a1))
+else:
+    EPS = [int(e) for e in args.episodes.split(",")]
+    a0, a1 = EPS[0], EPS[-1] + 1
 garments = {load_episode(e, args.kind)["garment"] for e in EPS}
 assert len(garments) == 1, f"one garment per process, got {garments}"
 GARMENT = garments.pop()
@@ -58,7 +62,7 @@ NAMES = LEFT_ARM_JOINTS + ["left_gripper"] + RIGHT_ARM_JOINTS + ["right_gripper"
 CAMS = {"top": "observation.images.top_rgb", "wrist_left": "observation.images.left_rgb",
         "wrist_right": "observation.images.right_rgb"}
 ARRIVE, MAX_WAIT, GRASP_DWELL, RELEASE_DWELL = 0.008, 45, 8, 8
-PIN_RADIUS = 0.025          # m around the fingertip midpoint
+PIN_RADIUS = 0.018          # m around the fingertip midpoint
 TIP_LOCAL = np.array([TCP_LOCAL[0], TCP_LOCAL[1], -0.240])   # fingertip midpoint, 6 mm up from the tips (link7 frame)
 os.makedirs(args.out, exist_ok=True)
 LOG = open(os.path.join(args.out, f"log_{a0}_{a1}.jsonl"), "a")

@@ -18,5 +18,5 @@ docker run --rm --name "$NAME" --gpus all --network host \
   -v $C/cache/glcache:/root/.cache/nvidia/GLCache:rw -v $C/cache/computecache:/root/.nv/ComputeCache:rw \
   -v $C/logs:/root/.nvidia-omniverse/logs:rw -v $C/data:/root/.local/share/ov/data:rw \
   --entrypoint /entrypoint.sh humanoid_isaac_garment:local \
-  bash -c "cd /workspace/humanoid && /workspace/isaaclab/_isaac_sim/python.sh -m pip install -q -e src/pioneer_humanoid -e src/simulation/garment_fold_task --no-deps --no-build-isolation >/dev/null 2>&1; \
+  bash -c "cd /workspace/humanoid && /workspace/isaaclab/_isaac_sim/python.sh -m pip install -q -e src/pioneer_humanoid -e src/simulation/garment_fold_task -e src/robot_learning --no-deps --no-build-isolation >/dev/null 2>&1; \
            cd /workspace/humanoid/src/simulation/garment_fold_task/lehome_retarget && /workspace/isaaclab/isaaclab.sh -p $SCRIPT $*; st=\$?; chown -R 1000:1000 /lehome /workspace/humanoid/src; exit \$st"
