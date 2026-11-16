@@ -6,6 +6,7 @@ __pycache__
 
 *.pkl
 *.html
+!src/interfacing/can/scripts/dashboard/index.html
 *.egg-info/
 
 watod-config.local.sh
