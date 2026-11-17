@@ -53,6 +53,17 @@ safety:
         active: true   # BENCH: first knee roundtrip; was false
         control_type: 0
         mit_family: ak
+        # First gains, by the arm's rule (#327). Not bench-tested.
+        # Gravity: shank + foot ~6.0 kg (URDF l_shank_foot 4.86 + ankle/foot 1.18) at ~0.25 m,
+        # so ~15 N.m at worst (shank horizontal). mit_max_torque = 2 x 15. kp = 30 / 15 deg
+        # (0.2618 rad) = 115, rounded down to 110 so the stall rule holds after quantisation
+        # (110 x 0.2618 = 28.8 <= 30). kd = 0.015 x kp. Worst-case sag ~7.8 deg.
+        # TODO: check mit_max_torque against the AKH70-48 datasheet's rated torque.
+        mit_kp: 110.0
+        mit_kd: 1.65
+        mit_max_torque: 30.0
+        mit_max_track_err: 15.0
+        mit_fault_action: damp   # a hanging shank sinks instead of swinging free
         # Gain-ladder START (explainers/KNEE_RUNAWAY_DEBUG.md, T5/T6), after the 2026-11-17
         # runaway at kp 110. mit_profiles.yaml now uses this drive's kd range (0-50), so kd means
         # what it says: the old kd 1.65 was really applied as 16.5, and 1.65 now would give

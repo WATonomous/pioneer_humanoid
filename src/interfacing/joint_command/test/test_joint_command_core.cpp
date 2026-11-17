@@ -1260,6 +1260,9 @@ protected:
     // The URDF knee range, independent of whatever calibration the repo holds.
     mapping["left"]["knee"]["pitch"]["lower_limit"] = -140.0;
     mapping["left"]["knee"]["pitch"]["upper_limit"] = 0.0;
+    // The URDF knee range, independent of whatever calibration the repo holds.
+    mapping["left"]["knee"]["pitch"]["lower_limit"] = -140.0;
+    mapping["left"]["knee"]["pitch"]["upper_limit"] = 0.0;
     for (const auto& group : safety["left"]) {
       for (const auto& joint : group.second) {
         auto node = joint.second;
@@ -1294,9 +1297,9 @@ TEST_F(LegConfig, LoadsLegOrderAndProducesCalibratedMitCommands) {
   for (size_t i = 0; i < cmds.size(); ++i) {
     EXPECT_EQ(core.jointName(i), names[i]);
     const auto dot = names[i].find('.');
-    EXPECT_EQ(
-        cmds[i].motor_id,
-        mapping["left"][names[i].substr(0, dot)][names[i].substr(dot + 1)]["can_id"].as<int>());
+    EXPECT_EQ(cmds[i].motor_id, mapping["left"][names[i].substr(0, dot)][names[i].substr(dot + 1)]
+                                       ["can_id"]
+                                           .as<int>());
     EXPECT_EQ(cmds[i].control_type, kMit);
     // Knee cannot move above zero; other joints are limited to 0.6 deg per tick.
     const double target = i == 3 ? 0.0 : 0.6;
