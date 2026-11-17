@@ -49,14 +49,22 @@ std::string SeedReport::describe() const {
   return os.str();
 }
 
-JointConfig JointCommandCore::loadJointConfig(const YAML::Node& joint_node) {
+JointConfig JointCommandCore::loadJointConfig(const YAML::Node& joint_node,
+                                              bool allow_uncalibrated) {
   JointConfig joint;
   joint.motor_id = static_cast<int8_t>(joint_node["can_id"].as<int>());
   joint.lower_limit = joint_node["lower_limit"].as<double>();
   joint.upper_limit = joint_node["upper_limit"].as<double>();
+  joint.limit_range = joint_node["limit_range"].as<bool>();
+  // An explicit null (not a missing key) marks a joint not calibrated yet. Its direction and
+  // zero_offset keep their defaults; loadSafetyFromYaml refuses the joint if it is active.
+  if (allow_uncalibrated &&
+      (joint_node["direction"].IsNull() || joint_node["zero_offset"].IsNull())) {
+    joint.calibrated = false;
+    return joint;
+  }
   joint.direction = joint_node["direction"].as<int>();
   joint.zero_offset = joint_node["zero_offset"].as<double>();
-  joint.limit_range = joint_node["limit_range"].as<bool>();
   return joint;
 }
 
@@ -78,7 +86,7 @@ bool JointCommandCore::loadFromYaml(const YAML::Node& config, const std::string&
       if (!joint_node) {
         return false;
       }
-      joints_.push_back(loadJointConfig(joint_node));
+      joints_.push_back(loadJointConfig(joint_node, /*allow_uncalibrated=*/true));
     }
   } else {
     const YAML::Node arm = config[side];
@@ -359,7 +367,9 @@ bool JointCommandCore::validateMitGains() {
     }
   }
   for (size_t i = 0; i < joints_.size(); ++i) {
-    if (!isMitJoint(i)) {
+    // An inactive leg joint is never entered, commanded or watched; it is checked when activated
+    // (active is read at startup, so that is a restart through this check).
+    if (!isMitJoint(i) || (is_leg_ && !isActive(i))) {
       continue;
     }
     const JointSafetyConfig& s = safety_[i];
@@ -517,6 +527,20 @@ bool JointCommandCore::loadSafetyFromYaml(const YAML::Node& safety_cfg, double c
   } catch (const std::exception& e) {
     last_error_ = e.what();
     return false;
+  }
+  if (is_leg_) {
+    std::ostringstream errors;
+    for (size_t i = 0; i < joints_.size(); ++i) {
+      if (isActive(i) && !joints_[i].calibrated) {
+        errors << "\n  " << jointName(i) << " (motor " << static_cast<int>(joints_[i].motor_id)
+               << "): direction / zero_offset are null in leg_calibration.yaml -- calibrate it "
+               << "(calibrate_actuators.py) or set active: false";
+      }
+    }
+    if (!errors.str().empty()) {
+      last_error_ = "Active leg joint is not calibrated:" + errors.str();
+      return false;
+    }
   }
   // An arm with no active joint still loads (and is validated): the node skips it this run.
   return validateMitGains() && validateGripper();

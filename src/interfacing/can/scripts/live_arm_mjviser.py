@@ -26,7 +26,7 @@ zero) .. 1 = closed (arm_calibration.yaml upper_limit). Open and close it by han
 must open and close with it (calibrate it open, direction so that closing is positive).
 
 The side panel plots each joint's angle over the last --plot-window seconds (default 20): the
-calibrated command-frame angle, the same numbers arm_roundtrip and joint_command use (the
+calibrated command-frame angle, the same numbers roundtrip and joint_command use (the
 viewer-only --flip / --offset only change the 3D view). Dashed red lines are the joint limits;
 they appear once the angle comes near them. Below them, each motor's current draw (A, as the drive
 reports it in MotorFeedback.current; signed) over the same window.
