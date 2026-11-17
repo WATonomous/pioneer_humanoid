@@ -1,0 +1,59 @@
+{
+    "id": 0,
+    "asset_path": "/Assets/objects/Challenge_Garment/Release/Pant_Short/Pant_Short_Seen_0/PS_049_obj_exp.usd",
+    "visual_usd_paths": [
+        "/Assets/objects/Challenge_Garment/Release/Color_Texture/Fabric071_1K_JPG.usd",
+        "/Assets/objects/Challenge_Garment/Release/Color_Texture/Fabric022_1K_JPG.usd"
+    ],
+    "scale": [
+        0.45,
+        0.45,
+        0.45
+    ],
+    "check_point": [
+        3524,
+        1758,
+        1940,
+        742,
+        2188,
+        653
+    ],
+    "initial_pos_range": [
+        -0.08,
+        -0.04,
+        0.63,
+        0.04,
+        0.04,
+        0.63
+    ],
+    "initial_rot_range": [
+        0,
+        0,
+        90,
+        0,
+        0,
+        90
+    ],
+    "soft_reset_pos_range": [
+        -0.08,
+        -0.04,
+        0.67,
+        0.04,
+        0.04,
+        0.67
+    ],
+    "soft_reset_rot_range": [
+        -20,
+        -26,
+        90,
+        20,
+        26,
+        90
+    ],
+    "success_distance": [
+        19,
+        19,
+        49,
+        49
+    ]
+}
