@@ -467,7 +467,7 @@ class GarmentObject(SingleClothPrim):
             ]
             logger.debug(f"[GarmentObject] Using global random module for reset")
 
-        self.set_world_pose(pos, euler_angles_to_quat(ori, degrees=True))
+        self._set_pose(pos, euler_angles_to_quat(ori, degrees=True))
         self.reset_pose = np.concatenate(
             [np.array(pos, dtype=np.float32), np.array(ori, dtype=np.float32)]
         )
@@ -709,6 +709,19 @@ class GarmentObject(SingleClothPrim):
         original_points = rotated_points / scale
         return original_points
 
+    def _set_pose(self, pos, ori):
+        # MODIFIED (WATonomous): on the GPU the particles are the cloth. Moving only the prim transform (upstream)
+        # moved the rendered mesh but left the physics cloth at its spawn pose, so place the particles instead.
+        if self._device == "cpu":
+            self.set_world_pose(pos, ori)
+            return
+        x0 = self.initial_points_positions
+        local = self.inverse_transform_points(x0.reshape(-1, 3).cpu().numpy(), np.asarray(self.init_pos, float),
+                                              np.asarray(self.init_ori, float), np.asarray(self.init_scale, float))
+        x = self.transform_points(local, np.asarray(pos, float), np.asarray(ori, float), np.asarray(self.init_scale, float))
+        self._cloth_prim_view.set_world_positions(torch.as_tensor(x, dtype=x0.dtype, device=x0.device).reshape(x0.shape))
+        self._cloth_prim_view.set_velocities(torch.zeros_like(x0))
+
     def get_all_pose(self):
         return {"Garment": self.reset_pose}
 
@@ -717,16 +730,14 @@ class GarmentObject(SingleClothPrim):
             pose = pose_dict["Garment"]
             pos = pose[:3]
             ori = pose[3:]
-            self.set_world_pose(
-                [0.0, 0.0, 0.0], euler_angles_to_quat([0.0, 0.0, 0.0], degrees=True)
-            )
             if self._device == "cpu":
+                self.set_world_pose(
+                    [0.0, 0.0, 0.0], euler_angles_to_quat([0.0, 0.0, 0.0], degrees=True)
+                )
                 self._prim.GetAttribute("points").Set(
                     Vt.Vec3fArray.FromNumpy(self.initial_points_positions)
                 )
-            else:
-                self._cloth_prim_view.set_world_positions(self.initial_points_positions)
-            self.set_world_pose(pos, euler_angles_to_quat(ori, degrees=True))
+            self._set_pose(pos, euler_angles_to_quat(ori, degrees=True))
             self.reset_pose = np.array(pose, dtype=np.float32)
 
             logger.info(

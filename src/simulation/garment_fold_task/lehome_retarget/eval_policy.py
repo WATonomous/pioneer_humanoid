@@ -17,11 +17,15 @@ p.add_argument("--out", required=True)
 p.add_argument("--max_frames", type=int, default=600)
 p.add_argument("--stretch", type=int, default=3)
 p.add_argument("--video", type=int, default=0)
-p.add_argument("--task", default="fold the garment")
+p.add_argument("--task", help="language instruction (default: the one the data recorded for --kind)")
+p.add_argument("--garment", help="evaluate on this garment (e.g. Pant_Short_Unseen_0) instead of the episodes' own")
+p.add_argument("--random_pose", action="store_true", help="the env's own random garment layout, not the recorded episode's (held out)")
 p.add_argument("--flat_cloth", action="store_true", help="no garment textures (data recorded before they loaded)")
 AppLauncher.add_app_launcher_args(p)
 args = p.parse_args()
 args.headless, args.enable_cameras = True, True
+args.task = args.task or {"top_short": "fold the short-sleeve top", "top_long": "fold the long-sleeve top",
+                          "pant_short": "fold the shorts", "pant_long": "fold the trousers"}[args.kind]
 app = AppLauncher(args).app
 
 import os as _os, sys as _sys, traceback as _tb  # noqa: E402
@@ -49,7 +53,7 @@ from retarget import IK, TCP_GRASP_Z, load_episode, plan_track  # noqa: E402
 
 a0, a1 = map(int, args.episodes.split(":"))
 EPS = list(range(a0, a1))
-GARMENT = load_episode(EPS[0], args.kind)["garment"]
+GARMENT = args.garment or load_episode(EPS[0], args.kind)["garment"]
 PIN_RADIUS = 0.018
 TIP_LOCAL = np.array([TCP_LOCAL[0], TCP_LOCAL[1], -0.240])
 os.makedirs(args.out, exist_ok=True)
@@ -135,7 +139,8 @@ for ep in EPS:
     E = load_episode(ep, args.kind)
     start = {a: plan_track(ik, a, E[a][:1], w_down=E[a + "_wdown"][:1])[0][0] for a in ("left", "right")}
     env.reset()
-    env.object.set_all_pose({"Garment": np.array(E["pose"], dtype=np.float32)})
+    if not args.random_pose:
+        env.object.set_all_pose({"Garment": np.array(E["pose"], dtype=np.float32)})
     jp = robot.data.default_joint_pos.clone()
     a_start = torch.tensor(np.concatenate([start["left"], [0.0], start["right"], [0.0]]), dtype=torch.float32, device=env.device)
     jp[0, ids] = a_start * SCALE

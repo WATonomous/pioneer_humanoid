@@ -9,7 +9,7 @@ C=${ISAAC_SIM_CACHE_DIR:-$HOME/docker/isaac-sim}
 REPO=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
 LEHOME=${LEHOME_ROOT:-$HOME/Desktop/lehome_ref}   # fetch.py downloads LeHome data/assets here
 docker run --rm --name "$NAME" --gpus all --network host \
-  -e ACCEPT_EULA=Y -e PRIVACY_CONSENT=Y -e NVIDIA_DRIVER_CAPABILITIES=all -e OMNI_KIT_ACCEPT_EULA=YES -e FABRIC=${FABRIC:-0} -e CLOSE_FRAMES=${CLOSE_FRAMES:-10} -e CLOTH_CFG=${CLOTH_CFG:-} \
+  -e ACCEPT_EULA=Y -e PRIVACY_CONSENT=Y -e NVIDIA_DRIVER_CAPABILITIES=all -e OMNI_KIT_ACCEPT_EULA=YES -e FABRIC=${FABRIC:-0} -e CLOSE_FRAMES=${CLOSE_FRAMES:-10} -e CLOTH_CFG=${CLOTH_CFG:-} -e NO_RESET=${NO_RESET:-} \
   -e HUMANOID_ROOT=/workspace/humanoid -e HOST_UID=1000 -e HOST_GID=1000 -e OWNERSHIP_FIX_INTERVAL=100000 \
   -v "$REPO":/workspace/humanoid:rw \
   -v "$LEHOME":/lehome:rw \

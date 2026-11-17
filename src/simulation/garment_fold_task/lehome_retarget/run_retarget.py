@@ -25,6 +25,7 @@ p.add_argument("--out", default=f"{LEHOME}/out/top_short")
 p.add_argument("--stretch", type=int, default=3, help="physics steps (1/90 s) per demo frame")
 p.add_argument("--video", type=int, default=0, help="also write an mp4 (top + external view) for the first N episodes")
 p.add_argument("--no_record", action="store_true")
+p.add_argument("--no_pin", action="store_true", help="friction grasp only (no particles attached to the fingers)")
 AppLauncher.add_app_launcher_args(p)
 args = p.parse_args()
 args.headless, args.enable_cameras = True, True
@@ -77,6 +78,7 @@ cfg.garment_name = GARMENT
 cfg.particle_cfg_path = os.environ.get("CLOTH_CFG") or cfg.particle_cfg_path
 cfg.garment_cfg_base_path = f"{LEHOME}/assets/objects/Challenge_Garment"
 cfg.sim.use_fabric = True   # with False the headless cameras never see the physics move (frozen frames)
+cfg.sim.dt = 1 / (30 * args.stretch)   # --stretch physics steps per 1/30 s demo frame
 cfg.decimation = 1          # we step physics ourselves (the grasp acts every physics step), render once per frame
 cfg.sim.render_interval = args.stretch
 cfg.episode_length_s = 1e4
@@ -237,6 +239,8 @@ for ep in EPS:
             env.step(hold)
         for _ in range(60 * args.stretch):  # our grasps aim at the settled cloth: let it land first (not recorded)
             env.step(hold)
+        _x = cloth.get_world_positions()[0]
+        print("SETTLED", ep, [round(float(v), 3) for v in _x.mean(0)], [round(float(v), 3) for v in (_x.max(0).values - _x.min(0).values)], flush=True)
         shifts = snap_grasps(E, keypoints(), args.kind)
         plan = {a: plan_track(ik, a, E[a], w_down=E[a + "_wdown"]) for a in ("left", "right")}
         qL, qR = plan["left"][0], plan["right"][0]
@@ -245,6 +249,7 @@ for ep in EPS:
 
         frames, f, waited, dwell, n, pins, lift, grasps, glog = [], 0, 0, 0, 0, {}, 0.0, 0, []
         strain0 = strain = stretch_p99()
+        released, springback = [], []
         closed_on = {"left": False, "right": False}
         off = {"left": np.zeros(3), "right": np.zeros(3)}
         held_since = {"left": False, "right": False}
@@ -273,7 +278,7 @@ for ep in EPS:
             # grasp / release
             for side in ("left", "right"):
                 grip = float(robot.data.joint_pos[0, env._l_grip if side == "left" else env._r_grip].item()) / GRIPPER_STROKE
-                if cmd[side] > 0.5 and side not in pins and grip > 0.6:
+                if cmd[side] > 0.5 and side not in pins and grip > 0.6 and not args.no_pin:
                     pw, R = link7(side)
                     tip = pw + R @ TIP_LOCAL
                     x = cloth.get_world_positions()[0].cpu().numpy()
@@ -296,8 +301,13 @@ for ep in EPS:
                     v = cloth.get_velocities()
                     v[0, idx_rel] = 0.0       # let go without flinging the held patch
                     cloth.set_velocities(v)
+                    x = cloth.get_world_positions()[0]
+                    near = torch.nonzero((x - x[idx_rel].mean(0)).norm(dim=1) < 0.06)[:, 0]
+                    released.append((n, near, x[near].clone()))
                     cp = keypoints()
                     glog.append([side, f, "release", np.round(tcp_world(side), 3).tolist(), np.round(cp[:, :2], 3).tolist()])
+            for r in [r for r in released if n - r[0] == 30]:   # how far the let-go cloth moves on its own in 1 s
+                springback.append(round(float((cloth.get_world_positions()[0, r[1]] - r[2]).norm(dim=1).mean()) * 100, 2))
             if n % 10 == 0:
                 lift = max(lift, float(cloth.get_world_positions()[0, :, 2].max()))
             # the demo clock waits, before a gripper closes, for that arm to arrive and then for the gripper to close
@@ -354,7 +364,7 @@ for ep in EPS:
         rec = dict(ep=ep, garment=E["garment"], success=success, frames=n, demo_frames=len(qL), grasps=grasps,
                    lift=round(lift, 3), ik_err_mm=round(ik_err * 1000, 1), plan_s=round(t_plan, 1),
                    total_s=round(time.time() - t0, 1), shifts=shifts, grasp_log=glog,
-                   checks=checks, stretch_p99=round(strain, 3), stretch0=round(strain0, 3))
+                   checks=checks, stretch_p99=round(strain, 3), stretch0=round(strain0, 3), springback_cm=springback)
     except Exception as exc:  # keep going: one bad episode must not stop the night's run
         traceback.print_exc()
         if ds is not None:
