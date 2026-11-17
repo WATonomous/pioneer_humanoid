@@ -79,14 +79,14 @@ install(PROGRAMS
   scripts/can_udev.sh
   scripts/calibrate_actuators.py
   scripts/telemetry_record.py
-  scripts/arm_roundtrip.py
+  scripts/roundtrip.py
   DESTINATION share/${PROJECT_NAME}/scripts
 )
 # Also expose the operator-facing scripts on PATH via lib/<pkg>
 install(PROGRAMS
   scripts/calibrate_actuators.py
   scripts/telemetry_record.py
-  scripts/arm_roundtrip.py
+  scripts/roundtrip.py
   DESTINATION lib/${PROJECT_NAME}
 )
 # Modules the scripts above import from their own directory

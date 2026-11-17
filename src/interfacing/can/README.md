@@ -128,7 +128,7 @@ That only works with:
 3. Hold with low gains (kp 2, kd 0.3) first, watching torque, tracking error and temperature.
 4. Stop `joint_command` and record what the drive does on stream loss (the V3 manual documents
    no CAN timeout).
-5. Hold 30 s, then ±5°: `tools/arm_roundtrip.sh --joints shoulder.pitch --offset "5,0,0,0,0,0"`.
+5. Hold 30 s, then ±5°: `tools/roundtrip.sh --joints shoulder.pitch --offset "5,0,0,0,0,0"`.
 
 ## Live joint angles (`arm_angles.py`)
 
@@ -139,17 +139,30 @@ the leader's `encoder_test.py`. It publishes nothing, so it is safe next to anyt
 python3 /opt/humanoid_scripts/arm_angles.py [--ids 14,11] [--raw]   # in the joint_command container
 ```
 
-## Angle benchmarks (`arm_roundtrip.py`)
+## Angle benchmarks (`roundtrip.py`)
 
-`tools/arm_roundtrip.sh` runs `scripts/arm_roundtrip.py` in the `joint_command` container. It
-publishes `ArmPose` like teleop, so the clamp, `velocity_max` and MIT watchdog all apply.
+`tools/roundtrip.sh` runs `scripts/roundtrip.py` in the `joint_command` container. It
+publishes `ArmPose` (or `LegPose` with `--limb leg`) like teleop, so the clamp, `velocity_max`
+and MIT watchdog all apply.
 
 ```bash
-tools/arm_roundtrip.sh --joints elbow.yaw --offset "0,0,0,0,5,0"    # one joint, +5 deg
-tools/arm_roundtrip.sh --offset "3,1.5,5,5,5,10" --dwell 5            # all six at once
-tools/arm_roundtrip.sh --arm-side both --joints left.elbow.yaw,right.elbow.yaw \
+tools/roundtrip.sh --joints elbow.yaw --offset "0,0,0,0,5,0"    # one joint, +5 deg
+tools/roundtrip.sh --offset "3,1.5,5,5,5,10" --dwell 5            # all six at once
+tools/roundtrip.sh --arm-side both --joints left.elbow.yaw,right.elbow.yaw \
   --offset "0,0,0,0,5,0,0,0,0,0,5,0"                                  # both arms, one run
+tools/roundtrip.sh --limb leg --joints knee.pitch --offset "0,0,0,5,0,0" --vel 5   # left knee
 ```
+
+`--limb leg` reads `leg_calibration.yaml` / `leg_actuators.yaml` and needs the leg in
+`joint_command`'s `legs`. With both arms listed it refuses to start (the right wrist's dummy id 42
+is the left hip yaw's), so for a leg bench start it with
+`ros2 run joint_command joint_command_node --ros-args --params-file
+$(ros2 pkg prefix joint_command)/share/joint_command/config/joint_command.yaml
+-p "legs:=['left']" -p "arms:=['left']"`.
+Leg slots: hip pitch, roll, yaw, knee pitch, ankle pitch, roll.
+Uncalibrated leg joints (null `zero_offset`) are never moved. For a dry run, start
+`joint_command` with `motor_cmd_topic:=/dry_run/motorCMD` and pass
+`--motor-cmd-topic /dry_run/motorCMD`.
 
 It holds at the origin, ramps out (cosine, ≤ `--vel` and `velocity_max`), dwells, returns and
 rests. `--arm-side` (default `left`) picks the arm and its topic, `/arm/<side>/joint_targets`.
