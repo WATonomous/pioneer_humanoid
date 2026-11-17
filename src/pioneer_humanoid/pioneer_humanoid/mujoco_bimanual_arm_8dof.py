@@ -9,9 +9,10 @@ import re
 from pathlib import Path
 
 import mujoco
+import numpy as np
 
 from .arm_params import vertical_fov_deg
-from .mujoco_bimanual_arm import FINGER_CONDIM, FINGER_COUPLING_SOLREF, FINGER_FRICTION, FINGER_SOLIMP, FINGER_SOLREF
+from .mujoco_bimanual_arm import FINGER_CONDIM, FINGER_FRICTION, FINGER_SOLIMP
 from .arm_8dof_params import (ACTUATOR_GROUPS, ARM_ARMATURE, CAMERAS, DEFAULT_JOINT_POS, GRIPPER_FRICTIONLOSS, MESH_DIR,
                               URDF_PATH, urdf_limits)
 from .urdf_joint_limits import URDF_PATH as ARMV2_URDF_PATH
@@ -20,6 +21,12 @@ ARMV2_MESH_DIR = str(Path(ARMV2_URDF_PATH).resolve().parents[1] / "meshes")
 
 ARM_CONTYPE = 2          # as mujoco_bimanual_arm: arm geoms touch the world, not each other
 ARM_CONAFFINITY = 1
+FINGER_PAD_SLABS = 16
+FINGER_PAD_MARGIN = 0.001  # catch a closing handle within one 1 ms step; visually sub-millimetre after compliance
+# The shared older-arm value is intentionally soft (8 ms).  These jaws have a
+# high-force 41 mm closing stroke around 24 mm task handles; use the scene's
+# stiffer 4 ms contact so the actuator cannot visibly bury a pad in the handle.
+FINGER_CONTACT_SOLREF = [0.004, 1.0]
 
 
 def arm_spec(cameras: dict[str, tuple[int, int]] | None = None) -> mujoco.MjSpec:
@@ -34,6 +41,13 @@ def arm_spec(cameras: dict[str, tuple[int, int]] | None = None) -> mujoco.MjSpec
     urdf = urdf.replace(
         "</robot>", '<mujoco><compiler discardvisual="false" fusestatic="false"/></mujoco></robot>')
     spec = mujoco.MjSpec.from_string(urdf)
+    # The URDF importer turns <mimic> into a rigid joint equality.  Delete it:
+    # the differential tendon below is the physical coupling, and retaining
+    # this hidden equality prevents the unblocked jaw from moving at all.
+    mimic_joints = {"left_gripper_mimic", "right_gripper_mimic"}
+    for equality in list(spec.equalities):
+        if equality.type == mujoco.mjtEq.mjEQ_JOINT and equality.name1 in mimic_joints:
+            spec.delete(equality)
     limits = urdf_limits()
     for joint in spec.joints:
         if joint.name in limits:
@@ -44,37 +58,134 @@ def arm_spec(cameras: dict[str, tuple[int, int]] | None = None) -> mujoco.MjSpec
         if geom.contype or geom.conaffinity:
             geom.contype, geom.conaffinity = ARM_CONTYPE, ARM_CONAFFINITY
             geom.group = 3
-    for side in ("left", "right"):   # TPU finger contact, as mujoco_bimanual_arm (else held objects slip out)
-        for finger in ("finger_a", "finger_b"):
-            for geom in spec.body(f"{side}_{finger}").geoms:
-                if geom.contype or geom.conaffinity:
-                    geom.friction, geom.solref, geom.solimp = FINGER_FRICTION, FINGER_SOLREF, FINGER_SOLIMP
-                    geom.condim = FINGER_CONDIM
     for group_name, group in ACTUATOR_GROUPS.items():
         for name in group["joints"]:
             act = spec.add_actuator()
-            act.name, act.target = name, name
-            act.trntype = mujoco.mjtTrn.mjTRN_JOINT
+            act.name = name
+            if "gripper" in group_name:
+                # A single motor drives a differential linkage: command the
+                # average finger travel, but let either slider stop on an
+                # off-centre object while the opposite slider keeps closing.
+                # A rigid mimic equality made both jaws stop as soon as the
+                # first one touched, leaving the other visibly open.
+                side = name.removesuffix("_gripper")
+                tendon = spec.add_tendon(name=f"{side}_gripper_differential")
+                tendon.wrap_joint(f"{side}_gripper", 0.5)
+                tendon.wrap_joint(f"{side}_gripper_mimic", 0.5)
+                act.target = tendon.name
+                act.trntype = mujoco.mjtTrn.mjTRN_TENDON
+            else:
+                act.target = name
+                act.trntype = mujoco.mjtTrn.mjTRN_JOINT
             act.set_to_position(kp=group["stiffness"], kv=group["damping"])
             act.forcelimited = mujoco.mjtLimited.mjLIMITED_TRUE
-            act.forcerange = [-group["effort_limit"], group["effort_limit"]]
+            effort = 2 * group["effort_limit"] if "gripper" in group_name else group["effort_limit"]
+            act.forcerange = [-effort, effort]
             if "gripper" not in group_name:
                 spec.joint(name).armature = ARM_ARMATURE
-            else:   # near-rigid friction: MuJoCo's default (20 ms, 0.9-0.95) lets a pushed finger creep ~5 cm/s
-                joint = spec.joint(name)
-                joint.frictionloss = GRIPPER_FRICTIONLOSS
-                joint.solref_friction, joint.solimp_friction = [0.002, 1.0], [0.999, 0.9999, 0.001, 0.5, 2.0]
-    for side in ("left", "right"):   # the URDF <mimic>: finger B follows finger A (one motor drives both)
-        eq = spec.add_equality()
-        eq.type = mujoco.mjtEq.mjEQ_JOINT
-        eq.name1, eq.name2 = f"{side}_gripper_mimic", f"{side}_gripper"
-        eq.data[:5] = [0, 1, 0, 0, 0]
-        eq.solref = FINGER_COUPLING_SOLREF
+            else:   # split the linkage's back-drive resistance across its two rails
+                for joint_name in (name, f"{side}_gripper_mimic"):
+                    joint = spec.joint(joint_name)
+                    joint.frictionloss = GRIPPER_FRICTIONLOSS / 2
+                    joint.solref_friction = [0.002, 1.0]
+                    joint.solimp_friction = [0.999, 0.9999, 0.001, 0.5, 2.0]
+    _box_fingers(spec)
     for name, (height, width) in (cameras or {}).items():
         cam = CAMERAS[name]
         spec.body(cam.body).add_camera(name=name, pos=list(cam.pos), quat=list(cam.rot),
                                        fovy=vertical_fov_deg(name, height, width), resolution=[width, height])
     return spec
+
+
+def _box_fingers(spec: mujoco.MjSpec) -> None:
+    """Make contact follow the visible jaws instead of their combined convex hull.
+
+    The generated URDF historically used one convex hull for the orange fin-ray
+    jaw and its grey carriage.  MuJoCo convexifies mesh collisions, so that hull
+    bridges the concavity between those parts and reaches roughly 9 mm inside
+    the visible gripping surface.  It can therefore move an object while the
+    rendered claw is still visibly clear of it.
+
+    Build thin boxes from slices of the *visible orange pad* and a separate box
+    for the carriage.  The slice AABBs preserve the pad's actual inner face and
+    follow its taper; separating the carriage prevents either part from filling
+    the open jaw gap.
+    """
+    model = spec.compile()
+    for side in ("left", "right"):
+        for finger in ("finger_a", "finger_b"):
+            body_name = f"{side}_{finger}"
+            body_id = model.body(body_name).id
+
+            visual_geoms = {}
+            for geom_id in range(model.ngeom):
+                if model.geom_bodyid[geom_id] != body_id or model.geom_type[geom_id] != mujoco.mjtGeom.mjGEOM_MESH:
+                    continue
+                mesh_id = model.geom_dataid[geom_id]
+                mesh_name = model.mesh(mesh_id).name
+                if model.geom_contype[geom_id] == 0 and mesh_name in (f"{body_name}_c0", f"{body_name}_c1"):
+                    visual_geoms[mesh_name.rsplit("_", 1)[1]] = geom_id
+            if set(visual_geoms) != {"c0", "c1"}:
+                raise RuntimeError(f"could not locate both visible contact meshes for {body_name}")
+
+            # Remove every imported finger collision.  With the corrected URDF
+            # there are two, while older generated assets have one combined hull.
+            for geom in list(spec.body(body_name).geoms):
+                if geom.contype or geom.conaffinity:
+                    spec.delete(geom)
+
+            def vertices(geom_id: int) -> tuple[np.ndarray, np.ndarray]:
+                mesh_id = model.geom_dataid[geom_id]
+                start, count = model.mesh_vertadr[mesh_id], model.mesh_vertnum[mesh_id]
+                verts = model.mesh_vert[start:start + count].copy()
+                fstart, fcount = model.mesh_faceadr[mesh_id], model.mesh_facenum[mesh_id]
+                faces = model.mesh_face[fstart:fstart + fcount]
+                rot = np.empty(9)
+                mujoco.mju_quat2Mat(rot, model.geom_quat[geom_id])
+                return verts @ rot.reshape(3, 3).T + model.geom_pos[geom_id], faces
+
+            def add_box(name: str, lo: np.ndarray, hi: np.ndarray, margin: float = 0.0) -> None:
+                spec.body(body_name).add_geom(
+                    name=name,
+                    type=mujoco.mjtGeom.mjGEOM_BOX,
+                    size=(hi - lo) / 2,
+                    pos=(hi + lo) / 2,
+                    contype=ARM_CONTYPE,
+                    conaffinity=ARM_CONAFFINITY,
+                    group=3,
+                    density=0,
+                    friction=FINGER_FRICTION,
+                    condim=FINGER_CONDIM,
+                    solref=FINGER_CONTACT_SOLREF,
+                    solimp=FINGER_SOLIMP,
+                    margin=margin,
+                )
+
+            # c0 is the long orange contact jaw.  Use exact mesh-edge
+            # intersections at each slice boundary so no box extends inward
+            # farther than the visible pad in that section.
+            verts, faces = vertices(visual_geoms["c0"])
+            edges = np.concatenate((faces[:, (0, 1)], faces[:, (1, 2)], faces[:, (2, 0)]))
+            edge_a, edge_b = verts[edges[:, 0]], verts[edges[:, 1]]
+            cuts = np.linspace(verts[:, 2].min(), verts[:, 2].max(), FINGER_PAD_SLABS + 1)
+            for i, (z0, z1) in enumerate(zip(cuts[:-1], cuts[1:])):
+                points = [verts[(verts[:, 2] >= z0) & (verts[:, 2] <= z1)]]
+                for z in (z0, z1):
+                    crosses = (edge_a[:, 2] - z) * (edge_b[:, 2] - z) < 0
+                    t = (z - edge_a[crosses, 2]) / (edge_b[crosses, 2] - edge_a[crosses, 2])
+                    points.append(edge_a[crosses] + t[:, None] * (edge_b[crosses] - edge_a[crosses]))
+                points = np.concatenate(points)
+                add_box(
+                    f"{body_name}_contact_pad_{i:02d}",
+                    points.min(axis=0),
+                    points.max(axis=0),
+                    FINGER_PAD_MARGIN,
+                )
+
+            # c1 is the small grey carriage at the palm.  It must collide too,
+            # but as its own box so it cannot bridge into the orange jaw.
+            verts, _ = vertices(visual_geoms["c1"])
+            add_box(f"{body_name}_contact_carriage", verts.min(axis=0), verts.max(axis=0))
 
 
 def set_home(model: mujoco.MjModel, data: mujoco.MjData, prefix: str = "") -> None:

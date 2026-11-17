@@ -5,6 +5,8 @@ import threading
 
 import numpy as np
 
+_SAVE = object()
+
 
 class CameraWindow:
     """The operator's window: ego camera on top, both wrist cameras below; also the recorder's camera.
@@ -67,6 +69,11 @@ class CameraWindow:
         self._samples.put(None)
         self._ready.set()
 
+    def save(self) -> None:
+        """Save after every already-queued episode frame has been rendered."""
+        self._samples.put(_SAVE)
+        self._ready.set()
+
     @property
     def backlog(self) -> int:
         return self._samples.qsize()
@@ -127,6 +134,11 @@ class CameraWindow:
                 else:
                     if item is None:   # discard
                         self.recorder.cancel_recording()
+                        continue
+                    if item is _SAVE:
+                        committed = self.recorder.finish_recording()
+                        if self.on_saved:
+                            self.on_saved(committed)
                         continue
                 state, action, recorded, task, extras = item
                 data.qpos[:], data.qvel[:], data.act[:], data.mocap_pos[:], data.mocap_quat[:] = state

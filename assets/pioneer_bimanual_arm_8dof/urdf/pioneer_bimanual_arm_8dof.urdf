@@ -95,12 +95,14 @@
   <link name="left_link5">
     <inertial><origin xyz="-0.000737 0.000250 -0.038096" rpy="0 0 0"/><mass value="0.4500"/><inertia ixx="3.354e-04" ixy="1.588e-12" ixz="-1.729e-11" iyy="3.150e-04" iyz="1.107e-15" izz="2.164e-04"/></inertial>
     <visual><geometry><mesh filename="package://pioneer_bimanual_arm_8dof/meshes/left_link5_c0.stl"/></geometry><material name="left_link5_m0"><color rgba="0.900 0.900 0.920 1"/></material></visual>
+    <visual><origin xyz="-0.001000 0.000000 -0.054000" rpy="0 0 0"/><geometry><mesh filename="package://pioneer_bimanual_arm_8dof/meshes/ak45_10_visual.stl"/></geometry><material name="left_link5_ak45"><color rgba="0.055 0.055 0.060 1"/></material></visual>
     <collision><geometry><mesh filename="package://pioneer_bimanual_arm_8dof/meshes/left_link5_collision.stl"/></geometry></collision>
   </link>
   <joint name="left_forearm_roll" type="revolute"><parent link="left_link4"/><child link="left_link5"/><origin xyz="0.001000 0.000000 -0.107000" rpy="0 0 0"/><axis xyz="0.000000 0.000000 -1.000000"/><limit lower="-1.919862" upper="1.919862" effort="22.0" velocity="6.0"/></joint>
   <link name="left_link6">
     <inertial><origin xyz="0.000637 0.000325 -0.038447" rpy="0 0 0"/><mass value="0.4000"/><inertia ixx="4.588e-04" ixy="7.780e-11" ixz="1.703e-06" iyy="3.867e-04" iyz="1.144e-09" izz="2.471e-04"/></inertial>
     <visual><geometry><mesh filename="package://pioneer_bimanual_arm_8dof/meshes/left_link6_c0.stl"/></geometry><material name="left_link6_m0"><color rgba="0.900 0.900 0.920 1"/></material></visual>
+    <visual><origin xyz="0.000000 0.000000 -0.060000" rpy="0 0 -1.570796"/><geometry><mesh filename="package://pioneer_bimanual_arm_8dof/meshes/ak45_10_visual.stl"/></geometry><material name="left_link6_ak45"><color rgba="0.055 0.055 0.060 1"/></material></visual>
     <collision><geometry><mesh filename="package://pioneer_bimanual_arm_8dof/meshes/left_link6_collision.stl"/></geometry></collision>
   </link>
   <joint name="left_wrist_pitch" type="revolute"><parent link="left_link5"/><child link="left_link6"/><origin xyz="-0.001000 0.000000 -0.054000" rpy="0 0 0"/><axis xyz="0.000000 -1.000000 0.000000"/><limit lower="-1.047198" upper="1.047198" effort="7.0" velocity="6.0"/></joint>
@@ -119,14 +121,16 @@
     <inertial><origin xyz="-0.003840 0.056321 -0.161044" rpy="0 0 0"/><mass value="0.0400"/><inertia ixx="4.628e-05" ixy="2.738e-08" ixz="1.327e-06" iyy="4.441e-05" iyz="-3.039e-06" izz="9.780e-06"/></inertial>
     <visual><geometry><mesh filename="package://pioneer_bimanual_arm_8dof/meshes/left_finger_a_c0.stl"/></geometry><material name="left_finger_a_m0"><color rgba="0.910 0.455 0.173 1"/></material></visual>
     <visual><geometry><mesh filename="package://pioneer_bimanual_arm_8dof/meshes/left_finger_a_c1.stl"/></geometry><material name="left_finger_a_m1"><color rgba="0.597 0.597 0.597 1"/></material></visual>
-    <collision><geometry><mesh filename="package://pioneer_bimanual_arm_8dof/meshes/left_finger_a_collision.stl"/></geometry></collision>
+    <collision><geometry><mesh filename="package://pioneer_bimanual_arm_8dof/meshes/left_finger_a_c0.stl"/></geometry></collision>
+    <collision><geometry><mesh filename="package://pioneer_bimanual_arm_8dof/meshes/left_finger_a_c1.stl"/></geometry></collision>
   </link>
   <joint name="left_gripper" type="prismatic"><parent link="left_link7"/><child link="left_finger_a"/><origin xyz="0 0 0" rpy="0 0 0"/><axis xyz="0.000000 -1.000000 0.000000"/><limit lower="0" upper="0.041" effort="34" velocity="0.2"/></joint>
   <link name="left_finger_b">
     <inertial><origin xyz="0.000927 -0.055673 -0.161051" rpy="0 0 0"/><mass value="0.0400"/><inertia ixx="4.625e-05" ixy="1.684e-08" ixz="-1.267e-06" iyy="4.440e-05" iyz="3.037e-06" izz="9.786e-06"/></inertial>
     <visual><geometry><mesh filename="package://pioneer_bimanual_arm_8dof/meshes/left_finger_b_c0.stl"/></geometry><material name="left_finger_b_m0"><color rgba="0.910 0.455 0.173 1"/></material></visual>
     <visual><geometry><mesh filename="package://pioneer_bimanual_arm_8dof/meshes/left_finger_b_c1.stl"/></geometry><material name="left_finger_b_m1"><color rgba="0.597 0.597 0.597 1"/></material></visual>
-    <collision><geometry><mesh filename="package://pioneer_bimanual_arm_8dof/meshes/left_finger_b_collision.stl"/></geometry></collision>
+    <collision><geometry><mesh filename="package://pioneer_bimanual_arm_8dof/meshes/left_finger_b_c0.stl"/></geometry></collision>
+    <collision><geometry><mesh filename="package://pioneer_bimanual_arm_8dof/meshes/left_finger_b_c1.stl"/></geometry></collision>
   </link>
   <joint name="left_gripper_mimic" type="prismatic"><parent link="left_link7"/><child link="left_finger_b"/><origin xyz="0 0 0" rpy="0 0 0"/><axis xyz="-0.000000 1.000000 -0.000000"/><limit lower="0" upper="0.041" effort="34" velocity="0.2"/><mimic joint="left_gripper" multiplier="1" offset="0"/></joint>
   <link name="right_link1">
@@ -164,12 +168,14 @@
   <link name="right_link5">
     <inertial><origin xyz="-0.000737 -0.000250 -0.038096" rpy="0 0 0"/><mass value="0.4500"/><inertia ixx="3.354e-04" ixy="-1.588e-12" ixz="-1.729e-11" iyy="3.150e-04" iyz="-1.107e-15" izz="2.164e-04"/></inertial>
     <visual><geometry><mesh filename="package://pioneer_bimanual_arm_8dof/meshes/right_link5_c0.stl"/></geometry><material name="right_link5_m0"><color rgba="0.900 0.900 0.920 1"/></material></visual>
+    <visual><origin xyz="-0.001000 0.000000 -0.054000" rpy="0 0 0"/><geometry><mesh filename="package://pioneer_bimanual_arm_8dof/meshes/ak45_10_visual.stl"/></geometry><material name="right_link5_ak45"><color rgba="0.055 0.055 0.060 1"/></material></visual>
     <collision><geometry><mesh filename="package://pioneer_bimanual_arm_8dof/meshes/right_link5_collision.stl"/></geometry></collision>
   </link>
   <joint name="right_forearm_roll" type="revolute"><parent link="right_link4"/><child link="right_link5"/><origin xyz="0.001000 0.000000 -0.107000" rpy="0 0 0"/><axis xyz="-0.000000 0.000000 1.000000"/><limit lower="-1.919862" upper="1.919862" effort="22.0" velocity="6.0"/></joint>
   <link name="right_link6">
     <inertial><origin xyz="0.000637 -0.000325 -0.038447" rpy="0 0 0"/><mass value="0.4000"/><inertia ixx="4.588e-04" ixy="-7.780e-11" ixz="1.703e-06" iyy="3.867e-04" iyz="-1.144e-09" izz="2.471e-04"/></inertial>
     <visual><geometry><mesh filename="package://pioneer_bimanual_arm_8dof/meshes/right_link6_c0.stl"/></geometry><material name="right_link6_m0"><color rgba="0.900 0.900 0.920 1"/></material></visual>
+    <visual><origin xyz="0.000000 0.000000 -0.060000" rpy="0 0 -1.570796"/><geometry><mesh filename="package://pioneer_bimanual_arm_8dof/meshes/ak45_10_visual.stl"/></geometry><material name="right_link6_ak45"><color rgba="0.055 0.055 0.060 1"/></material></visual>
     <collision><geometry><mesh filename="package://pioneer_bimanual_arm_8dof/meshes/right_link6_collision.stl"/></geometry></collision>
   </link>
   <joint name="right_wrist_pitch" type="revolute"><parent link="right_link5"/><child link="right_link6"/><origin xyz="-0.001000 0.000000 -0.054000" rpy="0 0 0"/><axis xyz="-0.000000 -1.000000 -0.000000"/><limit lower="-1.047198" upper="1.047198" effort="7.0" velocity="6.0"/></joint>
@@ -188,14 +194,16 @@
     <inertial><origin xyz="-0.003840 -0.056321 -0.161044" rpy="0 0 0"/><mass value="0.0400"/><inertia ixx="4.628e-05" ixy="-2.738e-08" ixz="1.327e-06" iyy="4.441e-05" iyz="3.039e-06" izz="9.780e-06"/></inertial>
     <visual><geometry><mesh filename="package://pioneer_bimanual_arm_8dof/meshes/right_finger_a_c0.stl"/></geometry><material name="right_finger_a_m0"><color rgba="0.910 0.455 0.173 1"/></material></visual>
     <visual><geometry><mesh filename="package://pioneer_bimanual_arm_8dof/meshes/right_finger_a_c1.stl"/></geometry><material name="right_finger_a_m1"><color rgba="0.597 0.597 0.597 1"/></material></visual>
-    <collision><geometry><mesh filename="package://pioneer_bimanual_arm_8dof/meshes/right_finger_a_collision.stl"/></geometry></collision>
+    <collision><geometry><mesh filename="package://pioneer_bimanual_arm_8dof/meshes/right_finger_a_c0.stl"/></geometry></collision>
+    <collision><geometry><mesh filename="package://pioneer_bimanual_arm_8dof/meshes/right_finger_a_c1.stl"/></geometry></collision>
   </link>
   <joint name="right_gripper" type="prismatic"><parent link="right_link7"/><child link="right_finger_a"/><origin xyz="0 0 0" rpy="0 0 0"/><axis xyz="0.000000 1.000000 0.000000"/><limit lower="0" upper="0.041" effort="34" velocity="0.2"/></joint>
   <link name="right_finger_b">
     <inertial><origin xyz="0.000927 0.055673 -0.161051" rpy="0 0 0"/><mass value="0.0400"/><inertia ixx="4.625e-05" ixy="-1.684e-08" ixz="-1.267e-06" iyy="4.440e-05" iyz="-3.037e-06" izz="9.786e-06"/></inertial>
     <visual><geometry><mesh filename="package://pioneer_bimanual_arm_8dof/meshes/right_finger_b_c0.stl"/></geometry><material name="right_finger_b_m0"><color rgba="0.910 0.455 0.173 1"/></material></visual>
     <visual><geometry><mesh filename="package://pioneer_bimanual_arm_8dof/meshes/right_finger_b_c1.stl"/></geometry><material name="right_finger_b_m1"><color rgba="0.597 0.597 0.597 1"/></material></visual>
-    <collision><geometry><mesh filename="package://pioneer_bimanual_arm_8dof/meshes/right_finger_b_collision.stl"/></geometry></collision>
+    <collision><geometry><mesh filename="package://pioneer_bimanual_arm_8dof/meshes/right_finger_b_c0.stl"/></geometry></collision>
+    <collision><geometry><mesh filename="package://pioneer_bimanual_arm_8dof/meshes/right_finger_b_c1.stl"/></geometry></collision>
   </link>
   <joint name="right_gripper_mimic" type="prismatic"><parent link="right_link7"/><child link="right_finger_b"/><origin xyz="0 0 0" rpy="0 0 0"/><axis xyz="-0.000000 -1.000000 -0.000000"/><limit lower="0" upper="0.041" effort="34" velocity="0.2"/><mimic joint="right_gripper" multiplier="1" offset="0"/></joint>
 </robot>
