@@ -18,6 +18,7 @@ p.add_argument("--max_frames", type=int, default=600)
 p.add_argument("--stretch", type=int, default=3)
 p.add_argument("--video", type=int, default=0)
 p.add_argument("--task", default="fold the garment")
+p.add_argument("--flat_cloth", action="store_true", help="no garment textures (data recorded before they loaded)")
 AppLauncher.add_app_launcher_args(p)
 args = p.parse_args()
 args.headless, args.enable_cameras = True, True
@@ -56,6 +57,11 @@ LOG = open(os.path.join(args.out, f"eval_{a0}_{a1}.jsonl"), "a")
 
 cfg = GarmentPioneerEnvCfg()
 cfg.garment_name = GARMENT
+cfg.particle_cfg_path = os.environ.get("CLOTH_CFG") or cfg.particle_cfg_path
+if args.flat_cloth:
+    import humanoid_garment_fold.tasks.garment_pioneer_env as gpe
+    _fix = gpe.fix_garment_asset_paths
+    gpe.fix_garment_asset_paths = lambda *a: (_fix(*a), a[1].__setattr__("visual_usd_paths", []))[0]
 cfg.garment_cfg_base_path = f"{LEHOME}/assets/objects/Challenge_Garment"
 cfg.sim.use_fabric = True
 cfg.decimation = 1

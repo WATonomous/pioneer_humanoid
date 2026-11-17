@@ -53,7 +53,7 @@ def fix_garment_asset_paths(garment_loader, garment_config, garment_name, garmen
     raw = garment_config.get("asset_path", "")
     if raw:
         garment_config.asset_path = os.path.join(gdir, os.path.basename(raw))
-    fixed = [os.path.join(gdir, os.path.basename(v))
+    fixed = [os.path.join(garment_cfg_base_path, garment_version, "Color_Texture", os.path.basename(v))
              for v in (garment_config.get("visual_usd_paths", []) or []) if v]
     garment_config.visual_usd_paths = fixed
 

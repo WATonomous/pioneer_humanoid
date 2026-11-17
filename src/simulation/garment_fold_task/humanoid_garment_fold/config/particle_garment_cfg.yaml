@@ -24,7 +24,7 @@ objects:
   particle_system:
     particle_system_enabled: True
     enable_ccd: True
-    solver_position_iteration_count: 32
+    solver_position_iteration_count: 64
     max_depenetration_velocity: null
     global_self_collision_enabled: True
     non_particle_collision_enabled: True

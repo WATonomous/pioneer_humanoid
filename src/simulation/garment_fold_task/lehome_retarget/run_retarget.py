@@ -74,6 +74,7 @@ LOG = open(os.path.join(args.out, f"log_{a0}_{a1}.jsonl"), "a")
 
 cfg = GarmentPioneerEnvCfg()
 cfg.garment_name = GARMENT
+cfg.particle_cfg_path = os.environ.get("CLOTH_CFG") or cfg.particle_cfg_path
 cfg.garment_cfg_base_path = f"{LEHOME}/assets/objects/Challenge_Garment"
 cfg.sim.use_fabric = True   # with False the headless cameras never see the physics move (frozen frames)
 cfg.decimation = 1          # we step physics ourselves (the grasp acts every physics step), render once per frame
@@ -112,7 +113,42 @@ def _check_particles():
 
 
 CHECK = _check_particles()
-env.object.check_points = CHECK   # the vendored success checker reads these
+
+
+def _rest_edges():
+    """The garment mesh's triangle edges, as particle pairs (vertex -> particle at the same rest position): their
+    length change is the cloth's stretch."""
+    from pxr import Usd, UsdGeom
+    st = Usd.Stage.Open(env.garment_config.asset_path)
+    m = UsdGeom.Mesh(next(p_ for p_ in st.Traverse() if p_.GetTypeName() == "Mesh"))
+    o = env.object
+    world = o.transform_points(np.array(m.GetPointsAttr().Get(), dtype=np.float64), np.asarray(o.init_pos, float),
+                               np.asarray(o.init_ori, float), np.asarray(o.init_scale, float))
+    part = o.initial_points_positions
+    x = torch.as_tensor(np.asarray(part.cpu() if hasattr(part, "cpu") else part).reshape(-1, 3), dtype=torch.float32, device=env.device)
+    w = torch.as_tensor(world, dtype=torch.float32, device=env.device)
+    v2p = torch.cat([torch.cdist(w[i:i + 2048], x).argmin(1) for i in range(0, len(w), 2048)])
+    e, k = [], 0
+    for c, idx in zip(m.GetFaceVertexCountsAttr().Get(), np.split(np.array(m.GetFaceVertexIndicesAttr().Get()),
+                                                                  np.cumsum(m.GetFaceVertexCountsAttr().Get())[:-1])):
+        e += [(idx[t], idx[(t + 1) % c]) for t in range(c)]
+    e = v2p[torch.as_tensor(np.array(e), device=env.device)]
+    e = torch.unique(torch.sort(e, 1).values, dim=0)
+    e = e[e[:, 0] != e[:, 1]]
+    return e, (x[e[:, 0]] - x[e[:, 1]]).norm(dim=1)
+
+
+EDGES, REST = _rest_edges()
+
+
+def stretch_p99(pins=None):
+    """99th-percentile edge strain, leaving out edges that touch a grasped (attached) particle."""
+    x = cloth.get_world_positions()[0]
+    keep = torch.ones(len(EDGES), dtype=torch.bool, device=EDGES.device)
+    for idx, _ in (pins or {}).values():
+        keep &= ~torch.isin(EDGES, idx.to(EDGES.device)).any(1)
+    e = EDGES[keep]
+    return float(torch.quantile((x[e[:, 0]] - x[e[:, 1]]).norm(dim=1) / REST[keep] - 1, 0.99))
 
 
 def keypoints():
@@ -208,6 +244,7 @@ for ep in EPS:
         t_plan = time.time() - t0
 
         frames, f, waited, dwell, n, pins, lift, grasps, glog = [], 0, 0, 0, 0, {}, 0.0, 0, []
+        strain0 = strain = stretch_p99()
         closed_on = {"left": False, "right": False}
         off = {"left": np.zeros(3), "right": np.zeros(3)}
         held_since = {"left": False, "right": False}
@@ -231,6 +268,8 @@ for ep in EPS:
             for _ in range(args.stretch):
                 physics_step(act, pins)
             n += 1
+            if n % 10 == 0:
+                strain = max(strain, stretch_p99(pins))
             # grasp / release
             for side in ("left", "right"):
                 grip = float(robot.data.joint_pos[0, env._l_grip if side == "left" else env._r_grip].item()) / GRIPPER_STROKE
@@ -315,7 +354,7 @@ for ep in EPS:
         rec = dict(ep=ep, garment=E["garment"], success=success, frames=n, demo_frames=len(qL), grasps=grasps,
                    lift=round(lift, 3), ik_err_mm=round(ik_err * 1000, 1), plan_s=round(t_plan, 1),
                    total_s=round(time.time() - t0, 1), shifts=shifts, grasp_log=glog,
-                   checks=checks)
+                   checks=checks, stretch_p99=round(strain, 3), stretch0=round(strain0, 3))
     except Exception as exc:  # keep going: one bad episode must not stop the night's run
         traceback.print_exc()
         if ds is not None:
