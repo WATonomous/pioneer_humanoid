@@ -121,7 +121,35 @@ def load_policy(path: str, device: str):
     cfg.device = device
     policy = get_policy_class(cfg.type).from_pretrained(path, config=cfg).eval()
     pre, post = make_pre_post_processors(cfg, pretrained_path=path, preprocessor_overrides={"device_processor": {"device": device}})
-    return policy, pre, post
+    return policy, anchored(policy, pre), post
+
+
+def anchored(policy, pre):
+    """Keep a relative-action policy's actions relative to the state its chunk was predicted from.
+
+    The preprocessor stores the current state as the anchor that the postprocessor adds back to
+    relative actions. Run every step, it would re-anchor actions still queued from an older chunk.
+    LeRobot >= 0.7 holds the anchor itself once bound to the policy's action queue. LeRobot 0.5.1-0.6.1
+    (pi0 / pi0.5) has no binding: preprocess only when the queue is empty and the policy reads the
+    observation, and reuse that batch while queued actions are popped. Other policies are unchanged.
+    """
+    try:   # lerobot >= 0.7
+        from lerobot.processor.relative_action_processor import bind_relative_anchor
+    except ImportError:
+        pass
+    else:
+        bind_relative_anchor(policy, pre)
+        return pre
+    if not getattr(policy.config, "use_relative_actions", False) or not hasattr(policy, "_action_queue"):
+        return pre   # lerobot < 0.5.1 has no relative actions
+    batch = None
+
+    def hold(observation):
+        nonlocal batch
+        if batch is None or len(policy._action_queue) == 0:
+            batch = pre(observation)
+        return batch
+    return hold
 
 
 def training_task(path: str) -> str | None:
@@ -146,7 +174,10 @@ def wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
 
 def main() -> None:
     import torch
-    from lerobot.utils.control_utils import predict_action
+    try:
+        from lerobot.common.control_utils import predict_action   # lerobot >= 0.6
+    except ImportError:
+        from lerobot.utils.control_utils import predict_action
 
     p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     p.add_argument("--scene", required=True)
