@@ -7,9 +7,12 @@ Works for any scene that registers ``success`` or a multi-step ``progress``. Epi
 driven like the recorded teleop: state is the arm joints plus gripper closure, the action the joint targets plus the
 gripper command, held for one frame (1 / ``--fps``); cameras are rendered at the size the policy was trained on.
 
-Cameras are rendered and the preprocessor runs only when the policy computes a new action chunk: a policy with one
-observation step ignores the observation while it pops queued actions, so those steps give the same actions without it.
-Every frame is still rendered with ``--video_dir``, and ``--render_every_step`` restores the original loop.
+A step's cameras are rendered and preprocessed only if the policy will read that frame. With ``q`` actions queued, the
+policy plans its next chunk ``q`` steps later, from the frames a fixed number of steps before that (its ``lookback``):
+the frame is needed only if ``q`` is in the lookback. On other steps the previous observation is passed again as a
+placeholder; it lands in history slots the model never reads, so the actions are the same. A policy that plans every
+step (``q`` always 0) or keeps no readable queue renders every step. Every frame is still rendered for ``--video_dir``,
+and ``--render_every_step`` restores the original loop.
 
 Robot (``--robot``, default from the policy's action size): ``8dof`` = pioneer_bimanual_arm_8dof's left arm (7 joints +
 gripper, pioneer_8dof_dataset_schema.yaml), ``armv2`` = the old 6-DoF left arm (6 + gripper).
@@ -157,19 +160,34 @@ def queued_actions(policy) -> int | None:
     return len(queue) if queue is not None else None
 
 
-def skips_queued_observations(policy) -> bool:
-    """Whether the policy ignores the observation while it pops a queued action: it has a readable action queue and
-    keeps one observation step (a longer history records every step's frame)."""
-    return queued_actions(policy) is not None and getattr(policy.config, "n_obs_steps", 1) == 1
+def lookback(policy) -> set[int]:
+    """How many steps before a replan each frame the policy reads is: the past training frame offsets
+    (``observation_delta_indices``; positive ones are future targets, not inputs) and, to be safe, the
+    ``n_obs_steps`` latest frames. ``{0}``: the replan frame only."""
+    offsets = getattr(policy.config, "observation_delta_indices", None) or [0]
+    return {-d for d in offsets if d <= 0} | set(range(getattr(policy.config, "n_obs_steps", 1)))
 
 
-def queued_action(policy, post):
-    """Pop the policy's next queued action without an observation, postprocessed as ``predict_action`` does."""
-    try:   # lerobot >= 0.7 wraps the action in a transition between policy and postprocessor
-        from lerobot.processor.converters import policy_output_to_transition, transition_to_policy_action
-    except ImportError:
-        return post(policy.select_action({}))
-    return post(transition_to_policy_action(policy_output_to_transition(policy.select_action({}))))
+def observe(obs: dict[str, np.ndarray], pre, device: str, task: str | None):
+    """The policy's input batch for an observation, as ``predict_action`` makes it."""
+    import torch
+    from lerobot.policies.utils import prepare_observation_for_inference
+
+    with torch.inference_mode():
+        return pre(prepare_observation_for_inference(dict(obs), torch.device(device), task))
+
+
+def act(policy, post, batch):
+    """The policy's next action for an input batch, postprocessed as ``predict_action`` does."""
+    import torch
+
+    with torch.inference_mode():
+        action = policy.select_action(batch)
+        try:   # lerobot >= 0.7 wraps the action in a transition between policy and postprocessor
+            from lerobot.processor.converters import policy_output_to_transition, transition_to_policy_action
+        except ImportError:
+            return post(action)
+        return post(transition_to_policy_action(policy_output_to_transition(action)))
 
 
 def wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
@@ -181,10 +199,6 @@ def wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
 
 def main() -> None:
     import torch
-    try:
-        from lerobot.common.control_utils import predict_action   # lerobot >= 0.7
-    except ImportError:
-        from lerobot.utils.control_utils import predict_action
 
     p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     p.add_argument("--scene", required=True)
@@ -219,25 +233,25 @@ def main() -> None:
     task = args.task or training_task(args.policy)
     if task is None and env.progress is None:
         p.error("pass --task: the scene has no step instructions and the training dataset's task was not found")
-    skip_queued = not args.render_every_step and skips_queued_observations(policy)
+    needed = lookback(policy)
+    print(f"[EVAL] rendering {'every step' if args.render_every_step else f'steps {sorted(needed)} before a replan'}",
+          flush=True)
 
     successes = 0
     for i in range(args.episodes):
         seed = args.seed + i
         env.reset(seed)
         policy.reset()
-        frames, held, ok = [], 0.0, False
+        frames, held, ok, batch = [], 0.0, False, None
         for _ in range(int(args.max_s * args.fps)):
-            replan = not skip_queued or queued_actions(policy) == 0
-            obs = env.observe() if replan or args.video_dir else None
+            q = queued_actions(policy)   # steps until the policy plans its next chunk
+            render = args.render_every_step or batch is None or q is None or q in needed
+            obs = env.observe() if render or args.video_dir else None
             if args.video_dir:
                 frames.append(np.concatenate([obs[f"observation.images.{c}"] for c in cameras], axis=1))
-            if replan:
-                action = predict_action(obs, policy, torch.device(args.device), pre, post, use_amp=False,
-                                        task=env.instruction() or task)
-            else:
-                with torch.inference_mode():
-                    action = queued_action(policy, post)
+            if render:
+                batch = observe(obs, pre, args.device, env.instruction() or task)
+            action = act(policy, post, batch)   # not rendered: the last batch again, a placeholder the model never reads
             env.step(action.reshape(-1).cpu().numpy(), control_steps)
             held = held + 1 / args.fps if env.success(env.model, env.data) else 0.0
             if held >= HOLD_S:
