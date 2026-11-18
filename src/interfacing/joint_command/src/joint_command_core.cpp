@@ -771,8 +771,8 @@ void JointCommandCore::recordFeedback(int motor_id, double position_deg, double 
     }
     const double vel = (position_deg - tr.position_deg) / (t_s - tr.t_s);
     const double away = err > 0.0 ? -vel : (err < 0.0 ? vel : 0.0);
-    const bool counts = std::abs(err) >= kRunawayMinErrDeg && away >= kRunawaySpeedDps &&
-                        away > tr.away_dps;
+    const bool counts =
+        std::abs(err) >= kRunawayMinErrDeg && away >= kRunawaySpeedDps && away > tr.away_dps;
     tr.count = counts ? tr.count + 1 : 0;
     tr.position_deg = position_deg;
     tr.t_s = t_s;
