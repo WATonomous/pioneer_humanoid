@@ -24,7 +24,8 @@
   <exec_depend>sensor_msgs</exec_depend>
   <exec_depend>tf2_msgs</exec_depend>
   <exec_depend>tf2_ros</exec_depend>
-    <exec_depend>foxglove_bridge</exec_depend>
+  <exec_depend>foxglove_bridge</exec_depend>
+  <exec_depend>rosidl_runtime_py</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>
