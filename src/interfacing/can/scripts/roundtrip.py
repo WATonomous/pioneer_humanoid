@@ -1,19 +1,30 @@
 #!/usr/bin/env python3
-"""Angle benchmark for the real arm: ramp out to a pose, dwell, ramp back, settle.
+"""Angle benchmark for a real arm or leg: ramp out to a pose, dwell, ramp back, settle.
 
-Publishes ArmPose on /arm/<side>/joint_targets (--arm-side) exactly like teleop, so
-joint_command's clamp, velocity limits and MIT watchdog all apply. Nothing here bypasses them.
---arm-side both drives the two arms in one run: joints are named left.<joint> / right.<joint>
-and --offset / --pose take twelve degrees, the left arm's six then the right's.
+Publishes ArmPose on /arm/<side>/joint_targets (--limb arm, the default) or LegPose on
+/leg/<side>/joint_targets (--limb leg) exactly like teleop, so joint_command's clamp, velocity
+limits and MIT watchdog all apply. Nothing here bypasses them.
+--side both drives both sides in one run: joints are named left.<joint> / right.<joint>
+and --offset / --pose take twelve degrees, the left side's six then the right's.
+Slot order: arm shoulder p,r,y, elbow p,y, wrist p; leg hip p,r,y, knee p, ankle p,r.
 
 Run (joint_command container; joint_command_node and can_node running; nothing else
 publishing that topic)::
 
-  python3 /opt/humanoid_scripts/arm_roundtrip.py --joints elbow.yaw --offset "0,0,0,0,5,0"
-  python3 /opt/humanoid_scripts/arm_roundtrip.py --pose "0,0,10,20,0,0" --max-delta 25
-  python3 /opt/humanoid_scripts/arm_roundtrip.py --arm-side both \
+  python3 /opt/humanoid_scripts/roundtrip.py --joints elbow.yaw --offset "0,0,0,0,5,0"
+  python3 /opt/humanoid_scripts/roundtrip.py --pose "0,0,10,20,0,0" --max-delta 25
+  python3 /opt/humanoid_scripts/roundtrip.py --side both \
       --joints left.elbow.yaw,right.elbow.yaw --offset "0,0,0,0,5,0,0,0,0,0,5,0"
-  tools/arm_roundtrip.sh ...        # the same from the host, plus plots
+  python3 /opt/humanoid_scripts/roundtrip.py --limb leg --joints knee.pitch \
+      --offset "0,0,0,5,0,0" --vel 5
+  tools/roundtrip.sh ...        # the same from the host, plus plots
+
+Dry run first: start joint_command with motor_cmd_topic:=/dry_run/motorCMD (can_node does not
+listen there, so nothing moves) and pass --motor-cmd-topic /dry_run/motorCMD here. The seed
+check and the setpoints then run against the real feedback.
+
+Uncalibrated joints (null direction / zero_offset, legs only) are never moved; listing one in
+--joints, or giving it a non-zero --offset, is refused.
 
 Sequence (command-frame degrees):
   1. read the origin from feedback; refuse if a --joints joint is silent or any joint is outside
@@ -29,7 +40,7 @@ Sequence (command-frame degrees):
 --exercise-limits sends the request as given (past limits, faster than velocity_max) over
 --duration; the summary checks joint_command clamped both::
 
-  arm_roundtrip.py --exercise-limits --joints elbow.yaw --pose "0,0,0,0,200,0" --duration 2
+  roundtrip.py --exercise-limits --joints elbow.yaw --pose "0,0,0,0,200,0" --duration 2
 
 Stopping: Ctrl-C or tracking error > --max-track-err ramps back to the origin; a second Ctrl-C
 stops streaming; lost feedback freezes in place. Then joint_command's stale-stream handling
@@ -50,7 +61,7 @@ from typing import Dict, List, Optional
 
 import rclpy
 
-from common_msgs.msg import ArmPose, MotorFeedback
+from common_msgs.msg import ArmPose, LegPose, MotorFeedback
 
 import joint_config as jc
 from telemetry import RunFolder
@@ -58,14 +69,16 @@ from telemetry_record import TelemetryRecorder
 
 
 class RoundTripNode(TelemetryRecorder):
-    """The telemetry recorder, plus the ArmPose publisher and feedback timestamps."""
+    """The telemetry recorder, plus the ArmPose / LegPose publisher and feedback timestamps."""
 
-    def __init__(self, joint_map, log, rate_hz, arm_sides):
-        super().__init__(joint_map, log, None, rate_hz, arm_sides)
+    def __init__(self, joint_map, log, rate_hz, arm_sides, limb, motor_cmd_topic):
+        super().__init__(joint_map, log, None, rate_hz, arm_sides, limb, motor_cmd_topic)
         self.arm_sides = arm_sides
+        self.limb = limb
         self.fb_time: Dict[int, float] = {}
         self.temp_c: Dict[int, List[int]] = {}  # [first, peak] drive reading; 0 = no reading
-        self.pubs = [self.create_publisher(ArmPose, jc.arm_pose_topic(side), 10)
+        msg_type = LegPose if limb == "leg" else ArmPose
+        self.pubs = [self.create_publisher(msg_type, jc.pose_topic(limb, side), 10)
                      for side in arm_sides]
 
     def _on_feedback(self, msg: MotorFeedback) -> None:
@@ -77,18 +90,24 @@ class RoundTripNode(TelemetryRecorder):
             first_peak[1] = max(first_peak[1], temp)
 
     def publish_pose(self, pose: List[float]) -> None:
-        """pose: six degrees per arm, in arm_sides order; one ArmPose per arm."""
+        """pose: six degrees per limb, in arm_sides order; one ArmPose / LegPose per limb."""
         stamp = self.get_clock().now().to_msg()
         for k, (side, pub) in enumerate(zip(self.arm_sides, self.pubs)):
-            arm = pose[6 * k:6 * k + 6]
-            msg = ArmPose()
+            q = [float(v) for v in pose[6 * k:6 * k + 6]]
+            if self.limb == "leg":
+                msg = LegPose()
+                msg.hip.position = q[0:3]
+                msg.knee.position = q[3:4]
+                msg.ankle.position = q[4:6]
+            else:
+                msg = ArmPose()
+                msg.shoulder.position = q[0:3]
+                msg.elbow.position = q[3:5]
+                msg.wrist.position = q[5:6]
+                msg.include_hand_pose = False
             msg.header.stamp = stamp
-            msg.name = "arm_roundtrip"
-            msg.is_left = side == "left"  # joint_command ignores a pose for the other arm
-            msg.shoulder.position = [float(v) for v in arm[0:3]]
-            msg.elbow.position = [float(v) for v in arm[3:5]]
-            msg.wrist.position = [float(v) for v in arm[5:6]]
-            msg.include_hand_pose = False
+            msg.name = "roundtrip"
+            msg.is_left = side == "left"  # joint_command ignores a pose for the other side
             pub.publish(msg)
 
     def measured(self, motor_id: int) -> Optional[float]:
@@ -127,20 +146,20 @@ def resolve_config(args):
     Explicit --calibration / --actuators skip the check.
     """
     installed = jc.installed_joint_command_config()
-    live_mapping = jc.find_calibration(args.mapping)
-    live_safety = jc.find_actuators(args.actuators)
+    live_mapping = jc.find_calibration(args.mapping, args.limb)
+    live_safety = jc.find_actuators(args.actuators, args.limb)
     if live_safety is None:
-        sys.exit("could not find arm_actuators.yaml; pass --actuators PATH")
+        sys.exit(f"could not find {args.limb}_actuators.yaml; pass --actuators PATH")
     if installed is None or (args.mapping and args.actuators):
         return live_mapping, live_safety
     stale = []
     mapping, safety = live_mapping, live_safety
     if not args.mapping:
-        mapping = installed / "arm_calibration.yaml"
+        mapping = installed / f"{args.limb}_calibration.yaml"
         if not jc.same_yaml(mapping, live_mapping):
             stale.append(f"{mapping} != {live_mapping}")
     if not args.actuators:
-        safety = installed / "arm_actuators.yaml"
+        safety = installed / f"{args.limb}_actuators.yaml"
         if not jc.same_yaml(safety, live_safety):
             stale.append(f"{safety} != {live_safety}")
     if stale:
@@ -156,9 +175,10 @@ def main(argv=None) -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter,
                                  epilog=__doc__)
     where = ap.add_mutually_exclusive_group(required=True)
-    where.add_argument("--offset", help="six degrees RELATIVE to the current pose "
-                                        "(shoulder p,y,r, elbow p,r, wrist p); twelve with "
-                                        "--arm-side both, left then right")
+    where.add_argument("--offset", help="six degrees RELATIVE to the current pose (arm: "
+                                        "shoulder p,r,y, elbow p,y, wrist p; leg: hip p,r,y, "
+                                        "knee p, ankle p,r); twelve with --side both, left "
+                                        "then right")
     where.add_argument("--pose", help="six ABSOLUTE command-frame degrees (twelve with both)")
     ap.add_argument("--joints", help="comma-separated joints to move, e.g. elbow.yaw, or "
                                      "left.elbow.yaw with --arm-side both (default: every "
@@ -193,34 +213,41 @@ def main(argv=None) -> int:
                     help="keep streaming the origin after the run until Ctrl-C")
     ap.add_argument("--rate", type=float, default=50.0, help="ArmPose / sampling rate, Hz")
     ap.add_argument("--label", default="", help="run folder name (default: derived)")
+    ap.add_argument("--limb", default="arm", choices=["arm", "leg"],
+                    help="arm (ArmPose) or leg (LegPose) (default arm)")
     ap.add_argument("--calibration", "--mapping", dest="mapping",
-                    help="arm_calibration.yaml (default: joint_command's)")
+                    help="<limb>_calibration.yaml (default: joint_command's)")
     ap.add_argument("--actuators", "--safety-limits", dest="actuators",
-                    help="arm_actuators.yaml (default: joint_command's)")
-    ap.add_argument("--arm-side", default="left", choices=["left", "right", "both"],
-                    help="arm to move; both = both arms in one run (default left)")
+                    help="<limb>_actuators.yaml (default: joint_command's)")
+    ap.add_argument("--side", "--arm-side", dest="arm_side", default="left",
+                    choices=["left", "right", "both"],
+                    help="side to move; both = both sides in one run (default left)")
+    ap.add_argument("--motor-cmd-topic", default="/interfacing/motorCMD",
+                    help="where joint_command publishes MotorCmd (default /interfacing/motorCMD); "
+                         "a dry-run topic for a dry run")
     ap.add_argument("--no-log", action="store_true")
     args = ap.parse_args(argv)
 
     mapping, safety_path = resolve_config(args)
     sides = ["left", "right"] if args.arm_side == "both" else [args.arm_side]
+    pose_names = [f"{group}.{joint}" for group, joint in jc.pose_joints(args.limb)]
 
     def side_name(side: str, name: str) -> str:
         """With both arms every joint is "<side>.<group>.<joint>"."""
         return f"{side}.{name}" if len(sides) > 1 else name
 
-    # One entry per ArmPose slot: each arm's six, in `sides` order (publish_pose's layout).
+    # One entry per pose slot: each side's six, in `sides` order (publish_pose's layout).
     joint_map: Dict[int, dict] = {}
     names: List[str] = []
     slot_motor: List[int] = []
     blocks = []
     for side in sides:
-        side_map = jc.load_joint_map(mapping, side)
+        side_map = jc.load_joint_map(mapping, side, args.limb)
         for mid, info in side_map.items():
             if mid in joint_map:
-                sys.exit(f"motor {mid} is in both arms in {mapping}")
+                sys.exit(f"motor {mid} is on both sides in {mapping}")
             joint_map[mid] = dict(info, name=side_name(side, info["name"]))
-        for slot, name in enumerate(jc.ARM_POSE_NAMES):
+        for slot, name in enumerate(pose_names):
             mid = next((m for m, info in side_map.items() if info["slot"] == slot), None)
             if mid is None:
                 sys.exit(f"{side_name(side, name)} has no can_id in {mapping}")
@@ -254,7 +281,7 @@ def main(argv=None) -> int:
     def short(i: int) -> str:
         """Label piece: "elbowr", or "lelbowr" with both arms."""
         side = infos[i]["side"][0] if len(sides) > 1 else ""
-        return side + jc.ARM_POSE_NAMES[i % len(jc.ARM_POSE_NAMES)].replace(".", "")[:6]
+        return side + pose_names[i % len(pose_names)].replace(".", "")[:6]
 
     label = args.label or "rt-" + "-".join(
         f"{short(i)}{v:+g}".replace("+", "p").replace("-", "m")
@@ -270,7 +297,8 @@ def main(argv=None) -> int:
     log = RunFolder(
         label=label or "rt", source="ros", enabled=not args.no_log,
         meta={
-            "tool": "arm_roundtrip.py", "arm_side": args.arm_side, "mapping": str(mapping),
+            "tool": "roundtrip.py", "limb": args.limb, "arm_side": args.arm_side,
+            "mapping": str(mapping), "motor_cmd_topic": args.motor_cmd_topic,
             "actuators": str(safety_path), "rate_hz": args.rate,
             "frame": "command frame (degrees) for both sp_deg and pos_deg",
             "joints": {str(mid): info["name"] for mid, info in sorted(joint_map.items())},
@@ -301,7 +329,7 @@ def main(argv=None) -> int:
             print("\n[stop] stopping the stream now", flush=True)
 
     rclpy.init()
-    node = RoundTripNode(joint_map, log, args.rate, sides)
+    node = RoundTripNode(joint_map, log, args.rate, sides, args.limb, args.motor_cmd_topic)
     period = 1.0 / args.rate
     outcome, reason = "completed", None
     try:
@@ -309,7 +337,7 @@ def main(argv=None) -> int:
         t_end = time.monotonic() + 2.0
         while time.monotonic() < t_end and not all(m in node.feedback for m in slot_motor):
             rclpy.spin_once(node, timeout_sec=0.05)
-        for topic in map(jc.arm_pose_topic, sides):
+        for topic in (jc.pose_topic(args.limb, side) for side in sides):
             others = [i for i in node.get_publishers_info_by_topic(topic)
                       if i.node_name != node.get_name()]
             if others:
@@ -321,8 +349,20 @@ def main(argv=None) -> int:
             if not consumers:
                 raise SystemExit(f"nobody subscribes to {topic} -- start joint_command "
                                  "(ros2 launch joint_command joint_command.launch.py) with this "
-                                 "arm in `arms` and at least one of its joints active")
-        silent = {i for i, m in enumerate(slot_motor) if m not in node.feedback}
+                                 f"side in `{args.limb}s` and at least one of its joints active")
+        # Uncalibrated (null zero_offset): joint_command refuses it active, so never move it.
+        uncalibrated = {i for i, m in enumerate(slot_motor) if not joint_map[m]["calibrated"]}
+        uncal_moving = [f"{infos[i]['name']} (motor {slot_motor[i]})" for i in sorted(uncalibrated)
+                        if infos[i]["name"] in moving and (rel is None or rel[i])]
+        if uncal_moving:
+            raise SystemExit(f"not calibrated (null zero_offset in {mapping}): "
+                             + ", ".join(uncal_moving) + " -- calibrate it first, or leave it "
+                             "out of --joints / give it a 0 offset.")
+        for i in sorted(uncalibrated):
+            print(f"note: {infos[i]['name']} (motor {slot_motor[i]}) is not calibrated -- "
+                  f"not moved.")
+        silent = {i for i, m in enumerate(slot_motor)
+                  if m not in node.feedback and i not in uncalibrated}
         silent_moving = [f"{infos[i]['name']} (motor {slot_motor[i]})" for i in sorted(silent)
                          if infos[i]["name"] in moving]
         if silent_moving:
@@ -332,6 +372,8 @@ def main(argv=None) -> int:
         for i in sorted(silent):
             print(f"WARNING: {infos[i]['name']} (motor {slot_motor[i]}) is not reporting -- "
                   f"joint_command excludes it; it is not moved.")
+        # From here an uncalibrated joint is handled like a silent one: a placeholder, not moved.
+        silent |= uncalibrated
         powered = [m for i, m in enumerate(slot_motor) if i not in silent]
 
         # --- origin and target -------------------------------------------------------------

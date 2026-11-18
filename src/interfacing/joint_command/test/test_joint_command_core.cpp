@@ -1257,6 +1257,9 @@ protected:
         node["zero_offset"] = 5.0;
       }
     }
+    // The URDF knee range, independent of whatever calibration the repo holds.
+    mapping["left"]["knee"]["pitch"]["lower_limit"] = -140.0;
+    mapping["left"]["knee"]["pitch"]["upper_limit"] = 0.0;
     for (const auto& group : safety["left"]) {
       for (const auto& joint : group.second) {
         auto node = joint.second;
@@ -1290,7 +1293,10 @@ TEST_F(LegConfig, LoadsLegOrderAndProducesCalibratedMitCommands) {
   ASSERT_EQ(cmds.size(), 6u);
   for (size_t i = 0; i < cmds.size(); ++i) {
     EXPECT_EQ(core.jointName(i), names[i]);
-    EXPECT_EQ(cmds[i].motor_id, 40 + i);
+    const auto dot = names[i].find('.');
+    EXPECT_EQ(cmds[i].motor_id, mapping["left"][names[i].substr(0, dot)][names[i].substr(dot + 1)]
+                                       ["can_id"]
+                                           .as<int>());
     EXPECT_EQ(cmds[i].control_type, kMit);
     // Knee cannot move above zero; other joints are limited to 0.6 deg per tick.
     const double target = i == 3 ? 0.0 : 0.6;
@@ -1333,16 +1339,63 @@ TEST_F(LegConfig, SmoothingAndLimitsMatchArmProcessing) {
   }
 }
 
-TEST_F(LegConfig, RejectsPlaceholderCalibrationGainsAndGravity) {
-  JointCommandCore uncalibrated;
-  EXPECT_THROW(
-      uncalibrated.loadFromYaml(YAML::LoadFile(configPath("leg_calibration.yaml")), "left", true),
-      YAML::Exception);
-  EXPECT_FALSE(
-      core.loadSafetyFromYaml(YAML::LoadFile(configPath("leg_actuators.yaml"))["safety"], kRateHz));
+TEST_F(LegConfig, ShippedConfigLoadsAndGravityIsRejected) {
+  // Inactive joints may be uncalibrated (null) and have zero MIT gains.
+  JointCommandCore shipped;
+  ASSERT_TRUE(
+      shipped.loadFromYaml(YAML::LoadFile(configPath("leg_calibration.yaml")), "left", true));
+  EXPECT_TRUE(shipped.loadSafetyFromYaml(YAML::LoadFile(configPath("leg_actuators.yaml"))["safety"],
+                                         kRateHz))
+      << shipped.lastError();
   safety["global"]["gravity_ff_scale"] = 1.0;
   safety["global"]["gravity_ff_max_torque"] = 0.1;
   EXPECT_FALSE(core.loadSafetyFromYaml(safety, kRateHz));
+}
+
+TEST_F(LegConfig, UncalibratedJointOnlyAllowedInactive) {
+  mapping["left"]["hip"]["pitch"]["zero_offset"] = YAML::Node(YAML::NodeType::Null);
+  mapping["left"]["ankle"]["roll"]["direction"] = YAML::Node(YAML::NodeType::Null);
+  JointCommandCore leg;
+  ASSERT_TRUE(leg.loadFromYaml(mapping, "left", true));
+  EXPECT_FALSE(leg.loadSafetyFromYaml(safety, kRateHz));
+  EXPECT_NE(leg.lastError().find("hip.pitch"), std::string::npos) << leg.lastError();
+  EXPECT_NE(leg.lastError().find("ankle.roll"), std::string::npos) << leg.lastError();
+
+  safety["left"]["hip"]["pitch"]["active"] = false;
+  safety["left"]["ankle"]["roll"]["active"] = false;
+  // Zero gains are fine on an inactive joint: it is never entered or commanded.
+  safety["left"]["hip"]["pitch"]["mit_kp"] = 0.0;
+  safety["left"]["hip"]["pitch"]["mit_kd"] = 0.0;
+  ASSERT_TRUE(leg.loadSafetyFromYaml(safety, kRateHz)) << leg.lastError();
+  const std::vector<int> mit = leg.mitMotorIds();
+  EXPECT_EQ(mit.size(), 4u);
+  const auto cmds = leg.legPoseToMotorCmds(legPose(10.0), kMit);
+  ASSERT_EQ(cmds.size(), 4u);
+  for (const auto& cmd : cmds) {
+    EXPECT_NE(cmd.motor_id, leg.motorId(0));
+    EXPECT_NE(cmd.motor_id, leg.motorId(5));
+  }
+  for (const auto& cmd : leg.mitModeCommands(common_msgs::msg::MotorCmd::MIT_ENTER)) {
+    EXPECT_NE(cmd.motor_id, leg.motorId(0));
+    EXPECT_NE(cmd.motor_id, leg.motorId(5));
+  }
+
+  // An active MIT joint with zero gains is still refused.
+  safety["left"]["knee"]["pitch"]["mit_kp"] = 0.0;
+  EXPECT_FALSE(leg.loadSafetyFromYaml(safety, kRateHz));
+  EXPECT_NE(leg.lastError().find("mit_kp"), std::string::npos) << leg.lastError();
+
+  // A missing key is not "uncalibrated": it still throws.
+  mapping["left"]["hip"]["yaw"].remove("zero_offset");
+  JointCommandCore missing;
+  EXPECT_THROW(missing.loadFromYaml(mapping, "left", true), YAML::Exception);
+}
+
+TEST_F(LegConfig, ArmStillRejectsNullCalibration) {
+  auto arm_mapping = YAML::LoadFile(configPath("arm_calibration.yaml"));
+  arm_mapping["left"]["shoulder"]["pitch"]["zero_offset"] = YAML::Node(YAML::NodeType::Null);
+  JointCommandCore arm;
+  EXPECT_THROW(arm.loadFromYaml(arm_mapping, "left"), YAML::Exception);
 }
 
 TEST_F(LegConfig, ExcludesUnpoweredJointsAndRejectsMalformedPoses) {

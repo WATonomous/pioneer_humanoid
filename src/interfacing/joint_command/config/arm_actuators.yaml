@@ -54,7 +54,7 @@ safety:
     # load a joint then sags 7.5 deg, half the tracking limit, leaving the rest for motion.
     shoulder:
       pitch:   # AK10-9, id 14
-        active: true
+        active: false
         delta_max: 2.0
         control_type: 0
         mit_family: ak
@@ -66,7 +66,7 @@ safety:
         gravity_ff_max_torque: 7.0   # model max 4.7 N.m
         gravity_ff_scale: 0.0
       roll:    # AK10-9, id 31 (URDF joint2l)
-        active: true
+        active: false
         delta_max: 2.0
         control_type: 0
         mit_family: ak
@@ -79,7 +79,7 @@ safety:
         gravity_ff_max_torque: 12.5    # model max 1.2 N.m
         gravity_ff_scale: 0.0
       yaw:     # AK80-9, id 32 (URDF joint3l)
-        active: true
+        active: false
         delta_max: 4.0
         control_type: 0
         mit_family: ak
@@ -92,7 +92,7 @@ safety:
         gravity_ff_scale: 0.0
     elbow:
       pitch:   # AK80-9, id 11
-        active: true
+        active: false
         delta_max: 1.6
         control_type: 0
         mit_family: ak
@@ -104,7 +104,7 @@ safety:
         gravity_ff_max_torque: 3.59
         gravity_ff_scale: 0.0
       yaw:     # AK80-9, id 34 (URDF joint5l)
-        active: true
+        active: false
         velocity_max: 120
         delta_max: 2
         control_type: 0
@@ -125,7 +125,7 @@ safety:
     # of sag; gravity feed-forward barely helps (0.044 N.m headroom at these gains).
     wrist:
       pitch:   # GL40, id 36
-        active: true   # BENCH: wrist torque-capacity run; was false
+        active: false   # BENCH: wrist torque-capacity run; was false
         delta_max: 2.4
         control_type: 0        # MIT_CONTROL
         mit_family: gl2        # fault action defaults to limp: unloaded, safe to free
@@ -141,7 +141,7 @@ safety:
         gravity_assume_deg: 0.0
     gripper:
       open_close:   # GL40, id 22
-        active: true
+        active: false
         delta_max: 2.4
         control_type: 0        # MIT_CONTROL
         mit_family: gl2        # fault action limp
@@ -154,7 +154,7 @@ safety:
   right:
     shoulder:
       pitch:   # AK10-9
-        active: true
+        active: false
         control_type: 0
         mit_family: ak
         # Highest kp inside these margins (2026-11-05), not yet run at this gain:
@@ -173,7 +173,7 @@ safety:
         gravity_ff_scale: 5
         gravity_ff_max_torque: 5.0
       roll:    # AK10-9, id 12 (URDF joint2)
-        active: true
+        active: false
         delta_max: 2.0
         control_type: 0
         mit_family: ak
@@ -192,7 +192,7 @@ safety:
         gravity_ff_max_torque: 1.5
         gravity_ff_scale: 1.0
       yaw:     # AK80-9, id 13 (URDF joint3)
-        active: true
+        active: false
         control_type: 0
         mit_family: ak
         # kp 12 stick-slipped (45 deg move: 4.8 deg lag, 44 deg/s jumps); kp 50 lagged 1.3 deg

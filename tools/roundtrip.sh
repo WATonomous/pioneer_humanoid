@@ -1,8 +1,9 @@
-# Angle benchmark through the teleop path (arm_roundtrip.py in the joint_command container),
+# Angle benchmark through the teleop path (roundtrip.py in the joint_command container),
 # then plot. See that script for the sequence.
 #
-#   tools/arm_roundtrip.sh --joints elbow.yaw --offset "0,0,0,0,5,0"
-#   tools/arm_roundtrip.sh --pose "0,0,10,20,0,0" --label reach-a
+#   tools/roundtrip.sh --joints elbow.yaw --offset "0,0,0,0,5,0"
+#   tools/roundtrip.sh --pose "0,0,10,20,0,0" --label reach-a
+#   tools/roundtrip.sh --limb leg --joints knee.pitch --offset "0,0,0,5,0,0" --vel 5
 #
 # Needs can_node and joint_command_node running. Env: JC_SERVICE (default joint_command),
 # GL40_NO_PLOT=1 to skip plotting.
@@ -26,7 +27,7 @@ TTY_FLAGS=()
 ARGS="$(printf '%q ' "$@")"
 # /opt/humanoid_scripts, not /root/...: this container runs as the host user.
 docker exec "${TTY_FLAGS[@]}" "$CONTAINER" bash -lc "source /opt/watonomous/setup.bash; \
-  exec python3 /opt/humanoid_scripts/arm_roundtrip.py ${ARGS}" || RC=$?
+  exec python3 /opt/humanoid_scripts/roundtrip.py ${ARGS}" || RC=$?
 
 AFTER="$(ls -1 "${REPO}/outputs/gl40_bench" 2>/dev/null | wc -l)"
 if [[ "${GL40_NO_PLOT:-0}" == "1" || "$AFTER" == "$BEFORE" ]]; then
