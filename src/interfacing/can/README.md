@@ -170,6 +170,35 @@ the host:
 uv run --with matplotlib --with numpy tools/gl40_telemetry_plot.py outputs/gl40_bench/<run>
 ```
 
+## Live dashboard
+
+`telemetry_dashboard.py` serves one web page with every joint (active, idle, warning, fault or
+offline state; position in range; angle headroom; setpoint; tracking error; torque; temperature;
+drive status word; and feedback rate). The primary view highlights warnings and faults, thermal
+headroom, joint-angle headroom, an event log, and a 3D comparison of the measured pose against a
+translucent commanded-pose overlay. Selecting a joint opens its history charts and detailed values.
+Host, CAN bus and ROS diagnostics remain lower on the page for troubleshooting.
+
+It is **read-only**: it subscribes and has no publisher, so it cannot move a motor. Its warnings
+mirror the limits in `arm_actuators.yaml` for display only; `joint_command`'s watchdog and the
+hardware E-stop are what stop the arm.
+
+```bash
+# interfacing or joint_command container, ROS sourced
+python3 src/interfacing/can/scripts/telemetry_dashboard.py            # http://127.0.0.1:8765
+python3 src/interfacing/can/scripts/telemetry_dashboard.py --host 0.0.0.0   # from another machine (no login)
+python3 src/interfacing/can/scripts/telemetry_dashboard.py --camera ego=/<compressed jpeg topic>
+
+# anywhere, no ROS: simulated data to look at the page
+python3 src/interfacing/can/scripts/telemetry_dashboard.py --demo
+```
+
+Standard library + PyYAML, no JavaScript dependencies (works offline). Joints come from
+`arm_calibration.yaml` (and `leg_calibration.yaml` if it sits next to it), limits from
+`arm_actuators.yaml`. Run it where `can0` lives to get the bus counters. "Export CSV" downloads
+the buffered history (up to 15 min) of every joint. Tests:
+`python3 -m unittest src/interfacing/can/test/test_telemetry_dashboard.py`.
+
 ---
 
 ## Topics / config
