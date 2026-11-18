@@ -118,7 +118,7 @@ That only works with:
   one end unterminated).
 - **Ids:** every motor's id unique and ≤ 127 (`motor_id` is `int8`). The GL40s all reply on master
   id 0 with only their id's last hex digit, so every GL40 needs a different last hex digit, and no
-  AK may end in the same hex digit as a GL40 (`can_node` drops that AK's profile). Set the GL40
+  AK may end in the same hex digit as a GL40 (`can_node` refuses to start). Set the GL40
   master id to 0 and keep the drives' MIT ranges as in `mit_profiles.yaml`.
 - Every motor listed in `config/mit_profiles.yaml`.
 
@@ -176,7 +176,9 @@ uv run --with matplotlib --with numpy tools/gl40_telemetry_plot.py outputs/gl40_
 
 `/interfacing/motorCMD` (`MotorCmd`, ROS→CAN) · `/interfacing/motorFeedback` (`MotorFeedback`, CAN→ROS)
 
-`config/params.yaml` defaults: `can_interface=can0` `device_path=/dev/canable` `bustype=slcan` `bitrate=1000000`
+`config/params.yaml` (required: `can_node` has no built-in defaults): `can_interface=can0` `device_path=/dev/canable` `bustype=slcan` `bitrate=1000000`
+
+`can_node` refuses to start on a missing or broken DBC, `mit_profiles.yaml` (every key is required, `kt` for AK drives) or parameter. At runtime it refuses (logs, sends nothing) a command with a value that is non-finite or outside its DBC signal range or the drive's MIT range, rather than clamping or wrapping it.
 
 DBC: `src/interfacing/dbc/humanoid.dbc` · Debug: `candump can0`
 
