@@ -67,6 +67,7 @@ CAMS = {"top": "observation.images.top_rgb", "wrist_left": "observation.images.l
 TASK = {"top_short": "fold the short-sleeve top", "top_long": "fold the long-sleeve top", "pant_short": "fold the shorts",
         "pant_long": "fold the trousers"}[args.kind]
 ARRIVE, MAX_WAIT, GRASP_DWELL, RELEASE_DWELL = 0.008, 45, 8, 8
+TAIL = 15                   # frames recorded after the last release (~0.5 s, as long as LeHome's recordings run on)
 PIN_RADIUS = 0.018          # m around the fingertip midpoint
 FOLDED_AREA = 0.7           # a fold must leave the cloth covering less than this share of its flat area
 TIP_LOCAL = np.array([TCP_LOCAL[0], TCP_LOCAL[1], -0.240])   # fingertip midpoint, 6 mm up from the tips (link7 frame)
@@ -308,6 +309,8 @@ for ep in EPS:
                     released.append((n, near, x[near].clone()))
                     cp = keypoints()
                     glog.append([side, f, "release", np.round(tcp_world(side), 3).tolist(), np.round(cp[:, :2], 3).tolist()])
+            if released and not pins and n - released[-1][0] >= TAIL and all(max(g[side][f:], default=0) < 0.5 for side in g):
+                break   # stop recording once the fold is done, like LeHome: the cloth's slow post-fold creep stays out of the data
             for r in [r for r in released if n - r[0] == 30]:   # how far the let-go cloth moves on its own in 1 s
                 springback.append(round(float((cloth.get_world_positions()[0, r[1]] - r[2]).norm(dim=1).mean()) * 100, 2))
             if n % 10 == 0:
