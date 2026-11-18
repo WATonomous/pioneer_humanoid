@@ -13,6 +13,7 @@ from slam_core.backend.imu_fusion.imu import imu_between
 from slam_core.backend.imu_fusion.preintegration import make_params, preintegrate
 from slam_core.backend.imu_fusion.preintegration import (
     ACCEL_RANDOM_WALK, GYRO_RANDOM_WALK)
+from slam_core.backend.imu_fusion.gravity import gravity_in_frame, level_rotation
 
 from slam_core.types import Keyframe, LoopClosure
 
@@ -31,6 +32,20 @@ T_CAM_IMU = np.array([
 PRIOR_VEL_SIGMA = 0.5          # m/s
 PRIOR_ACCEL_BIAS_SIGMA = 0.2   # m/s^2
 PRIOR_GYRO_BIAS_SIGMA = 0.02   # rad/s
+PRIOR_TILT_SIGMA = np.radians(3.0)   # rad, roll/pitch of keyframe 0 (the leveling can be a few degrees off)
+PRIOR_PINNED_SIGMA = 1e-4            # rad and m, yaw and position of keyframe 0
+
+
+# Keyframe 0 pose prior: tight for yaw and position, loose for tilt (as imu_fusion/vio_graph.py's kf0_prior_noise).
+# Pinned at 1e-4, not 1e-6: with 1e-6 iSAM2 raised IndeterminateSystemException once the leveling
+# axis was not aligned with a coordinate axis (tested on a synthetic 10 degree tilt).
+def kf0_prior_noise(R_level):
+    up = R_level.T @ np.array([0.0, 1.0, 0.0])
+    rot_cov = PRIOR_TILT_SIGMA**2 * np.eye(3) + (PRIOR_PINNED_SIGMA**2 - PRIOR_TILT_SIGMA**2) * np.outer(up, up)
+    cov = np.zeros((6, 6))
+    cov[:3, :3] = rot_cov
+    cov[3:, 3:] = PRIOR_PINNED_SIGMA**2 * np.eye(3)
+    return gtsam.noiseModel.Gaussian.Covariance(cov)
 
 
 class PoseGraphBackend:
@@ -40,6 +55,8 @@ class PoseGraphBackend:
         prior_trans_sigma=1e-6,
         loop_kernel="cauchy",
         loop_kernel_scale=1.345,
+        R_odom_kf0=None,
+        gravity_keyframes=4,
     ):
         # add custom params
         params = gtsam.ISAM2Params()
@@ -49,6 +66,18 @@ class PoseGraphBackend:
         # imu preintergration
         self._params = make_params(T_CAM_IMU)
         self._bias = gtsam.imuBias.ConstantBias()
+
+        # gravity leveling: rotation that makes +y point down in the graph's frame (None = VO frame as is).
+        # Pass it in, or leave it None and give add_keyframe imu data: the first gravity_keyframes keyframes are then
+        # held back, gravity is estimated from them (gravity.gravity_in_frame), and they are inserted leveled.
+        self._R_level = None if R_odom_kf0 is None else np.asarray(R_odom_kf0, dtype=float)
+        self._T_level = np.eye(4)
+        if self._R_level is not None:
+            self._T_level[:3, :3] = self._R_level
+        if gravity_keyframes < 3:
+            raise ValueError("gravity_keyframes must be at least 3")
+        self._gravity_keyframes = gravity_keyframes
+        self._pending = []   # (keyframe, imu) held back until gravity is known
 
         self._isam = gtsam.ISAM2(params)
         self._seen_ids = set()
@@ -68,6 +97,43 @@ class PoseGraphBackend:
         return gtsam.noiseModel.Diagonal.Sigmas(np.array([accel] * 3 + [gyro] * 3))
 
     def add_keyframe(self, keyframe: Keyframe, imu=None):
+        # No IMU data, or the leveling is already known: insert right away.
+        if imu is None or self._R_level is not None:
+            if imu is None and self._pending:
+                raise ValueError("imu must be given for every keyframe once buffering has started")
+            return self._insert_keyframe(keyframe, imu)
+        return self._buffer_keyframe(keyframe, imu)
+
+    # Hold the first keyframes back until gravity can be estimated, then insert them all leveled.
+    def _buffer_keyframe(self, keyframe: Keyframe, imu):
+        pending_ids = {kf.id for kf, _ in self._pending}
+        if keyframe.id in pending_ids:
+            raise ValueError(f"keyframe {keyframe.id} was already added")
+        if not keyframe.is_first and keyframe.prev_id not in pending_ids:
+            raise ValueError(
+                f"keyframe {keyframe.id} refers to unseen previous keyframe "
+                f"{keyframe.prev_id}"
+            )
+        self._pending.append((keyframe, imu))
+        if len(self._pending) < self._gravity_keyframes:
+            return gtsam.Pose3(keyframe.T_odom_kf)   # provisional: VO's own pose, not optimized yet
+
+        # Enough keyframes: gravity in the first keyframe's frame, turned into the odom frame, then the leveling rotation.
+        kfs = [kf for kf, _ in self._pending]
+        stamp, gyro, accel = self._pending[0][1]   # the same IMU recording for every keyframe
+        T0_inv = np.linalg.inv(kfs[0].T_odom_kf)
+        g_kf0 = gravity_in_frame(stamp, gyro, accel, np.array([kf.stamp for kf in kfs]),
+                                 [T0_inv @ kf.T_odom_kf for kf in kfs], self._params)
+        self._R_level = level_rotation(kfs[0].T_odom_kf[:3, :3] @ g_kf0)
+        self._T_level[:3, :3] = self._R_level
+
+        # Insert the held-back keyframes through the normal path, now leveled.
+        for kf, kf_imu in self._pending:
+            pose = self._insert_keyframe(kf, kf_imu)
+        self._pending = []
+        return pose
+
+    def _insert_keyframe(self, keyframe: Keyframe, imu=None):
         if keyframe.id in self._seen_ids:
             raise ValueError(f"keyframe {keyframe.id} was already added")
         if not keyframe.is_first and keyframe.prev_id not in self._seen_ids:
@@ -79,7 +145,7 @@ class PoseGraphBackend:
         factors = gtsam.NonlinearFactorGraph()
         initial = gtsam.Values()
         key = X(keyframe.id)
-        pose_guess = gtsam.Pose3(keyframe.T_odom_kf)
+        pose_guess = gtsam.Pose3(self._T_level @ keyframe.T_odom_kf)
         initial.insert(key, pose_guess)
 
         #imu: starting guesses for this keyframe's velocity and bias
@@ -94,7 +160,10 @@ class PoseGraphBackend:
             initial.insert(B(keyframe.id), self._bias)
 
         if keyframe.is_first:
-            prior_noise = gtsam.noiseModel.Diagonal.Sigmas(self._prior_sigmas)
+            if imu is not None and self._R_level is not None:
+                prior_noise = kf0_prior_noise(self._R_level)   # tight yaw and position, loose tilt
+            else:
+                prior_noise = gtsam.noiseModel.Diagonal.Sigmas(self._prior_sigmas)
             factors.add(gtsam.PriorFactorPose3(key, pose_guess, prior_noise))
 
             if imu is not None:
@@ -124,11 +193,14 @@ class PoseGraphBackend:
             # imu stuff
             gyro_seg, accel_seg, dt = imu_between(stamp, gyro, accel, t0, t1)
             pim = preintegrate(gyro_seg, accel_seg, dt, self._params, self._bias)
-            factors.add(gtsam.ImuFactor(X(keyframe.prev_id), V(keyframe.prev_id),
-                            key, V(keyframe.id), B(keyframe.prev_id), pim))
+            factors.add(gtsam.ImuFactor(X(keyframe.prev_id), V(keyframe.prev_id), key, V(keyframe.id), B(keyframe.prev_id), pim))
             sq = np.sqrt(t1 - t0)
-            factors.add(gtsam.BetweenFactorConstantBias(B(keyframe.prev_id), B(keyframe.id), self._bias,
-                        self.bias_sigmas(ACCEL_RANDOM_WALK * sq, GYRO_RANDOM_WALK * sq)))
+            factors.add(gtsam.BetweenFactorConstantBias(
+                B(keyframe.prev_id),
+                B(keyframe.id),
+                self._bias,
+                self.bias_sigmas(ACCEL_RANDOM_WALK * sq, GYRO_RANDOM_WALK * sq),
+            ))
 
         self._isam.update(factors, initial)
         self._estimate = self._isam.calculateEstimate()
