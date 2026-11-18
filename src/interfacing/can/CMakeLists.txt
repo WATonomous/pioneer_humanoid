@@ -87,6 +87,7 @@ install(PROGRAMS
   scripts/calibrate_actuators.py
   scripts/telemetry_record.py
   scripts/roundtrip.py
+  scripts/leg_angles.py
   DESTINATION lib/${PROJECT_NAME}
 )
 # Modules the scripts above import from their own directory

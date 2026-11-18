@@ -176,11 +176,11 @@ over-limit request and checks that `joint_command` clamped it.
 
 ## Telemetry
 
-Runs write `outputs/gl40_bench/<run>/` (`telemetry.csv`, `run.json`; `--no-log` opts out). Plot on
-the host:
+`roundtrip.py` runs write `outputs/roundtrip/<run>/`, other recorders `outputs/<run>/`
+(`telemetry.csv`, `run.json`; `--no-log` opts out). Plot on the host:
 
 ```bash
-uv run --with matplotlib --with numpy tools/gl40_telemetry_plot.py outputs/gl40_bench/<run>
+uv run --with matplotlib --with numpy tools/gl40_telemetry_plot.py outputs/roundtrip/<run>
 ```
 
 ---

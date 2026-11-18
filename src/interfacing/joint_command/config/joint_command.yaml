@@ -10,4 +10,6 @@ joint_command_node:
     legs: ["left"] # Right leg not applied for now
     control_rate_hz: 50.0
     motor_cmd_topic: "/interfacing/motorCMD"
+    # motor_cmd_topic: "/dry_run/motorCMD"   # dry run: can_node doesn't listen here, nothing moves
+
     control_type: 0  # MIT_CONTROL
