@@ -7,7 +7,7 @@ joint_command_node:
     # Legs: off while this stays commented out. Each leg would listen on /leg/<side>/joint_targets,
     # configured by leg_calibration.yaml and leg_actuators.yaml. Don't write `legs: []`: ROS 2
     # param files can reject empty lists, which could stop this node from starting.
-    # legs: ["left", "right"]
+    legs: ["left"] # Right leg not applied for now
     control_rate_hz: 50.0
     motor_cmd_topic: "/interfacing/motorCMD"
     control_type: 0  # MIT_CONTROL
