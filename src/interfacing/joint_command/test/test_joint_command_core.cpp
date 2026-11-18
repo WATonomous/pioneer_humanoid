@@ -1257,6 +1257,9 @@ protected:
         node["zero_offset"] = 5.0;
       }
     }
+    // The URDF knee range, independent of whatever calibration the repo holds.
+    mapping["left"]["knee"]["pitch"]["lower_limit"] = -140.0;
+    mapping["left"]["knee"]["pitch"]["upper_limit"] = 0.0;
     for (const auto& group : safety["left"]) {
       for (const auto& joint : group.second) {
         auto node = joint.second;
@@ -1290,7 +1293,10 @@ TEST_F(LegConfig, LoadsLegOrderAndProducesCalibratedMitCommands) {
   ASSERT_EQ(cmds.size(), 6u);
   for (size_t i = 0; i < cmds.size(); ++i) {
     EXPECT_EQ(core.jointName(i), names[i]);
-    EXPECT_EQ(cmds[i].motor_id, 40 + i);
+    const auto dot = names[i].find('.');
+    EXPECT_EQ(
+        cmds[i].motor_id,
+        mapping["left"][names[i].substr(0, dot)][names[i].substr(dot + 1)]["can_id"].as<int>());
     EXPECT_EQ(cmds[i].control_type, kMit);
     // Knee cannot move above zero; other joints are limited to 0.6 deg per tick.
     const double target = i == 3 ? 0.0 : 0.6;
@@ -1333,16 +1339,63 @@ TEST_F(LegConfig, SmoothingAndLimitsMatchArmProcessing) {
   }
 }
 
-TEST_F(LegConfig, RejectsPlaceholderCalibrationGainsAndGravity) {
-  JointCommandCore uncalibrated;
-  EXPECT_THROW(
-      uncalibrated.loadFromYaml(YAML::LoadFile(configPath("leg_calibration.yaml")), "left", true),
-      YAML::Exception);
-  EXPECT_FALSE(
-      core.loadSafetyFromYaml(YAML::LoadFile(configPath("leg_actuators.yaml"))["safety"], kRateHz));
+TEST_F(LegConfig, ShippedConfigLoadsAndGravityIsRejected) {
+  // Inactive joints may be uncalibrated (null) and have zero MIT gains.
+  JointCommandCore shipped;
+  ASSERT_TRUE(
+      shipped.loadFromYaml(YAML::LoadFile(configPath("leg_calibration.yaml")), "left", true));
+  EXPECT_TRUE(shipped.loadSafetyFromYaml(YAML::LoadFile(configPath("leg_actuators.yaml"))["safety"],
+                                         kRateHz))
+      << shipped.lastError();
   safety["global"]["gravity_ff_scale"] = 1.0;
   safety["global"]["gravity_ff_max_torque"] = 0.1;
   EXPECT_FALSE(core.loadSafetyFromYaml(safety, kRateHz));
+}
+
+TEST_F(LegConfig, UncalibratedJointOnlyAllowedInactive) {
+  mapping["left"]["hip"]["pitch"]["zero_offset"] = YAML::Node(YAML::NodeType::Null);
+  mapping["left"]["ankle"]["roll"]["direction"] = YAML::Node(YAML::NodeType::Null);
+  JointCommandCore leg;
+  ASSERT_TRUE(leg.loadFromYaml(mapping, "left", true));
+  EXPECT_FALSE(leg.loadSafetyFromYaml(safety, kRateHz));
+  EXPECT_NE(leg.lastError().find("hip.pitch"), std::string::npos) << leg.lastError();
+  EXPECT_NE(leg.lastError().find("ankle.roll"), std::string::npos) << leg.lastError();
+
+  safety["left"]["hip"]["pitch"]["active"] = false;
+  safety["left"]["ankle"]["roll"]["active"] = false;
+  // Zero gains are fine on an inactive joint: it is never entered or commanded.
+  safety["left"]["hip"]["pitch"]["mit_kp"] = 0.0;
+  safety["left"]["hip"]["pitch"]["mit_kd"] = 0.0;
+  ASSERT_TRUE(leg.loadSafetyFromYaml(safety, kRateHz)) << leg.lastError();
+  const std::vector<int> mit = leg.mitMotorIds();
+  EXPECT_EQ(mit.size(), 4u);
+  const auto cmds = leg.legPoseToMotorCmds(legPose(10.0), kMit);
+  ASSERT_EQ(cmds.size(), 4u);
+  for (const auto& cmd : cmds) {
+    EXPECT_NE(cmd.motor_id, leg.motorId(0));
+    EXPECT_NE(cmd.motor_id, leg.motorId(5));
+  }
+  for (const auto& cmd : leg.mitModeCommands(common_msgs::msg::MotorCmd::MIT_ENTER)) {
+    EXPECT_NE(cmd.motor_id, leg.motorId(0));
+    EXPECT_NE(cmd.motor_id, leg.motorId(5));
+  }
+
+  // An active MIT joint with zero gains is still refused.
+  safety["left"]["knee"]["pitch"]["mit_kp"] = 0.0;
+  EXPECT_FALSE(leg.loadSafetyFromYaml(safety, kRateHz));
+  EXPECT_NE(leg.lastError().find("mit_kp"), std::string::npos) << leg.lastError();
+
+  // A missing key is not "uncalibrated": it still throws.
+  mapping["left"]["hip"]["yaw"].remove("zero_offset");
+  JointCommandCore missing;
+  EXPECT_THROW(missing.loadFromYaml(mapping, "left", true), YAML::Exception);
+}
+
+TEST_F(LegConfig, ArmStillRejectsNullCalibration) {
+  auto arm_mapping = YAML::LoadFile(configPath("arm_calibration.yaml"));
+  arm_mapping["left"]["shoulder"]["pitch"]["zero_offset"] = YAML::Node(YAML::NodeType::Null);
+  JointCommandCore arm;
+  EXPECT_THROW(arm.loadFromYaml(arm_mapping, "left"), YAML::Exception);
 }
 
 TEST_F(LegConfig, ExcludesUnpoweredJointsAndRejectsMalformedPoses) {
@@ -1383,4 +1436,132 @@ TEST_F(LegConfig, DetectsMotorIdsSharedWithAnArm) {
   ASSERT_TRUE(clash.has_value());
   EXPECT_NE(clash->find("hip.pitch"), std::string::npos);
   EXPECT_NE(clash->find("shoulder.pitch"), std::string::npos);
+}
+
+// ---------------------------------------------------------------------------
+// Runaway watch: a drive with a bad encoder calibration pushes its joint AWAY from the target,
+// faster and faster. Positions are motor-frame degrees; the
+// numbers replay runaway #2 (2026-11-18), shifted into this fixture's calibrated range.
+// ---------------------------------------------------------------------------
+
+namespace {
+constexpr size_t kKnee = 3;
+constexpr double kKneeTarget = 30.0; // motor deg; runaway #2's target was -3.3, the knee at -5.1
+
+// Seed every leg joint (motor 0, the knee at kKneeTarget) so the knee's target is kKneeTarget.
+void seedLeg(JointCommandCore& core) {
+  std::map<int, double> positions;
+  for (size_t i = 0; i < core.jointCount(); ++i) {
+    positions[core.motorId(i)] = i == kKnee ? kKneeTarget : 0.0;
+  }
+  const SeedReport report = core.seedPrevTargetsFromFeedback(positions);
+  ASSERT_EQ(report.matched, core.jointCount());
+}
+
+// Feed knee samples 20 ms apart, as the drive's 50 Hz status frames arrive.
+void feedKnee(JointCommandCore& core, const std::vector<double>& positions, double t0 = 0.0) {
+  for (size_t k = 0; k < positions.size(); ++k) {
+    core.recordFeedback(core.motorId(kKnee), positions[k], t0 + 0.02 * k);
+  }
+}
+} // namespace
+
+TEST_F(LegConfig, RunawayAwayFromTheTargetIsCaughtAndHeldLimp) {
+  seedLeg(core);
+  // Away from the target at 5, 25, 100 deg/s: counts at 25 and 100.
+  feedKnee(core, {28.2, 28.1, 27.6});
+  EXPECT_FALSE(core.checkMitRunaway().has_value()) << "one sample is not enough";
+  core.recordFeedback(core.motorId(kKnee), 25.6, 0.06);
+  const auto runaway = core.checkMitRunaway();
+  ASSERT_TRUE(runaway.has_value());
+  EXPECT_NE(runaway->find("knee.pitch"), std::string::npos) << *runaway;
+  EXPECT_NE(runaway->find("RUNAWAY"), std::string::npos) << *runaway;
+  EXPECT_NE(runaway->find("upper computer"), std::string::npos) << *runaway;
+  EXPECT_TRUE(core.isRunaway(kKnee));
+  EXPECT_FALSE(core.checkMitRunaway().has_value()) << "each joint is reported once";
+
+  // The knee is held limp; every other joint keeps its own fault action (damped, for AK).
+  bool saw_knee = false;
+  for (const auto& cmd : core.mitSafeCommands(/*damped_only=*/true)) {
+    EXPECT_FLOAT_EQ(cmd.kp, 0.0f);
+    if (cmd.motor_id == core.motorId(kKnee)) {
+      saw_knee = true;
+      EXPECT_FLOAT_EQ(cmd.kd, 0.0f);
+    } else {
+      size_t j = 0;
+      while (core.motorId(j) != cmd.motor_id) {
+        ++j;
+      }
+      EXPECT_FLOAT_EQ(cmd.kd, static_cast<float>(core.safety(j).mit_fault_kd));
+    }
+  }
+  EXPECT_TRUE(saw_knee);
+}
+
+TEST_F(LegConfig, OvershootThatSlowsDownIsNotARunaway) {
+  seedLeg(core);
+  // Past the target, moving away at 40, 30, 20, 10 deg/s: the restoring push is winning.
+  feedKnee(core, {31.0, 31.8, 32.4, 32.8, 33.0});
+  EXPECT_FALSE(core.checkMitRunaway().has_value());
+}
+
+TEST_F(LegConfig, MovingFastTowardTheTargetIsNotARunaway) {
+  seedLeg(core);
+  feedKnee(core, {20.0, 22.0, 25.0, 29.0});
+  EXPECT_FALSE(core.checkMitRunaway().has_value());
+}
+
+TEST_F(LegConfig, DriftingAwayBelowTheSpeedThresholdIsNotARunaway) {
+  seedLeg(core);
+  // 10, 12, 14, 16, 18 deg/s away: speeding up, but slower than a runaway.
+  feedKnee(core, {28.0, 27.8, 27.56, 27.28, 26.96, 26.6});
+  EXPECT_FALSE(core.checkMitRunaway().has_value());
+}
+
+TEST_F(LegConfig, RunawaySamplesNeedTheirTimeToAdvance) {
+  seedLeg(core);
+  feedKnee(core, {28.2, 28.1, 27.6});
+  // Same timestamp as the last sample: not a new reading, so no velocity from it.
+  core.recordFeedback(core.motorId(kKnee), 25.6, 0.04);
+  EXPECT_FALSE(core.checkMitRunaway().has_value());
+  core.recordFeedback(core.motorId(kKnee), 25.6, 0.06);
+  EXPECT_TRUE(core.checkMitRunaway().has_value());
+}
+
+TEST_F(LegConfig, RunawayWatchStartsOnlyAfterASeedAndRestartsOnReseed) {
+  // Unseeded: no real target yet, so nothing counts.
+  feedKnee(core, {28.2, 28.1, 27.6, 25.6});
+  EXPECT_FALSE(core.checkMitRunaway().has_value());
+
+  seedLeg(core);
+  feedKnee(core, {28.2, 28.1, 27.6}); // one counting sample
+  seedLeg(core);                      // new targets: history cleared
+  core.recordFeedback(core.motorId(kKnee), 25.6, 0.06);
+  EXPECT_FALSE(core.checkMitRunaway().has_value());
+}
+
+TEST_F(ShippedConfig, RunawayLimpsALimpActionJointWithExplicitFrames) {
+  // The GL40 wrist is a Limp joint: normally it gets no frames after a fault. A runaway one must,
+  // because a drive keeps running its last frame.
+  seedAtCommandZero();
+  const int id = static_cast<int>(core.motorId(kWrist));
+  ASSERT_EQ(core.safety(kWrist).mit_fault_action, MitFaultAction::Limp);
+  const double target = core.lastMotorCmdDeg()[kWrist];
+  for (const auto& cmd : core.mitSafeCommands(/*damped_only=*/true)) {
+    EXPECT_NE(cmd.motor_id, id) << "a Limp joint gets no frames after an ordinary fault";
+  }
+  const std::vector<double> away = {-1.8, -1.9, -2.4, -4.4}; // 5, 25, 100 deg/s
+  for (size_t k = 0; k < away.size(); ++k) {
+    core.recordFeedback(id, target + away[k], 0.02 * k);
+  }
+  ASSERT_TRUE(core.checkMitRunaway().has_value());
+  bool saw_wrist = false;
+  for (const auto& cmd : core.mitSafeCommands(/*damped_only=*/true)) {
+    if (cmd.motor_id == id) {
+      saw_wrist = true;
+      EXPECT_FLOAT_EQ(cmd.kp, 0.0f);
+      EXPECT_FLOAT_EQ(cmd.kd, 0.0f);
+    }
+  }
+  EXPECT_TRUE(saw_wrist);
 }

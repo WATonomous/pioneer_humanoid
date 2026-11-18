@@ -18,6 +18,9 @@ struct JointConfig {
   int direction{1};
   double zero_offset{0.0};
   bool limit_range{false};
+  // false: direction / zero_offset are null in the YAML (legs only). Allowed while the joint is
+  // inactive; loadSafetyFromYaml refuses it active.
+  bool calibrated{true};
 };
 
 // CubeMars MIT dialect. GL II and AK disagree on the status byte (see mit_protocol.hpp).
@@ -147,6 +150,15 @@ public:
   std::optional<std::string>
   checkMitFaults(const std::map<int, MotorFeedbackSample>& feedback) const;
 
+  // Runaway watch: call for every feedback message (any motor id; others are ignored), with the
+  // time it arrived. Tracks how fast each seeded MIT joint moves away from its last command.
+  void recordFeedback(int motor_id, double position_deg, double t_s);
+  // A joint that ran away from its target, speeding up (positive feedback inside the drive), or
+  // nullopt. The joint is marked runaway: from then on mitSafeCommands() holds it LIMP (kd 0),
+  // whatever its mit_fault_action. Each joint is reported once. Safe to call after a fault.
+  std::optional<std::string> checkMitRunaway();
+  bool isRunaway(size_t joint) const;
+
   bool isMitJoint(size_t joint) const;
   std::vector<int> mitMotorIds() const;
   int8_t motorId(size_t joint) const;
@@ -190,7 +202,7 @@ public:
   static double quantiseKd(double kd, double kd_max = 5.0);
 
 private:
-  static JointConfig loadJointConfig(const YAML::Node& joint_node);
+  static JointConfig loadJointConfig(const YAML::Node& joint_node, bool allow_uncalibrated = false);
   static JointSafetyConfig loadJointSafetyConfig(const YAML::Node& joint_node,
                                                  const JointSafetyConfig& base);
   static double clampAngle(double angle, const JointConfig& joint);
@@ -212,6 +224,18 @@ private:
   std::vector<bool> blocked_;
   std::vector<bool> unpowered_; // no feedback at the last seed; recomputed every seed
   std::vector<double> last_gravity_torque_motor_;
+  // Runaway watch, per joint (recordFeedback / checkMitRunaway).
+  struct RunawayTrack {
+    bool armed{false}; // seeded from feedback, so last_motor_cmd_deg_ is a real target
+    bool have_sample{false};
+    double position_deg{0.0};
+    double t_s{0.0};
+    double away_dps{0.0}; // speed away from the target at the last sample (negative = toward)
+    double err_deg{0.0};
+    int count{0}; // consecutive samples moving away, faster each time
+  };
+  std::vector<RunawayTrack> runaway_track_;
+  std::vector<bool> runaway_; // sticky: held limp until the node restarts
   // 0 -> 1 after every seed, so feed-forward never steps on.
   double gravity_ff_ramp_{0.0};
   std::string side_;

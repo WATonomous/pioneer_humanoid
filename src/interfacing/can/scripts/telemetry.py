@@ -5,7 +5,7 @@ Standard library only: it runs in the interfacing container, which has no numpy/
 
 One run = one folder::
 
-    outputs/gl40_bench/20260921-174455_wrist-40deg/
+    outputs/<subdir>/20260921-174455_wrist-40deg/
         telemetry.csv   one row per tick, per motor
         run.json        gains, limits, rates, motor model, git sha, abort reason
         *.png           written later by the host-side plotter
@@ -63,14 +63,13 @@ CSV_FIELDS = [
 _CONTAINER_OUTPUTS = Path("/outputs")
 
 
-def default_run_root() -> Path:
-    """Where run folders go, honouring $HUMANOID_TELEMETRY_DIR."""
+def default_run_root(subdir: Optional[str] = None) -> Path:
+    """Where run folders go: outputs/, or outputs/<subdir> if given. Honours $HUMANOID_TELEMETRY_DIR."""
     env = os.environ.get("HUMANOID_TELEMETRY_DIR")
     if env:
         return Path(env)
-    if _CONTAINER_OUTPUTS.is_dir():
-        return _CONTAINER_OUTPUTS / "gl40_bench"
-    return Path.cwd() / "outputs" / "gl40_bench"
+    base = _CONTAINER_OUTPUTS if _CONTAINER_OUTPUTS.is_dir() else Path.cwd() / "outputs"
+    return base / subdir if subdir else base
 
 
 def _git_sha() -> str:

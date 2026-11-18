@@ -232,6 +232,27 @@ void JointCommandNode::motorFeedbackCallback(const common_msgs::msg::MotorFeedba
   sample.status = static_cast<int>(msg->error_code);
   latest_feedback_full_[id] = sample;
   latest_feedback_time_[id] = this->get_clock()->now();
+  // Every sample, not once per tick: the runaway watch needs each step of the motion.
+  const double t_s = latest_feedback_time_[id].seconds();
+  for (Limb& limb : limbs_) {
+    limb.core.recordFeedback(id, sample.position_deg, t_s);
+  }
+}
+
+void JointCommandNode::checkRunaways() {
+  for (Limb& limb : limbs_) {
+    const auto runaway = limb.core.checkMitRunaway();
+    if (!runaway.has_value()) {
+      continue;
+    }
+    if (!mit_faulted_) {
+      mitFault("[" + limb.label() + "] " + *runaway);
+    } else {
+      // Already halted by another fault, and this joint was being damped: it's limp from now.
+      RCLCPP_ERROR(this->get_logger(), "MIT FAULT (after the first fault): [%s] %s.",
+                   limb.label().c_str(), runaway->c_str());
+    }
+  }
 }
 
 std::map<int, MotorFeedbackSample> JointCommandNode::mitFeedbackSamples() {
@@ -420,7 +441,10 @@ bool JointCommandNode::readyToCommand(Limb& limb) {
 
 void JointCommandNode::controlTimerCallback() {
   if (mit_faulted_) {
-    // Keep damping Damp joints: a silent AK trips its CAN timeout and drops the arm.
+    // Still watch for a runaway: on a drive that pushes the wrong way, damping accelerates it.
+    checkRunaways();
+    // Keep damping Damp joints: a silent AK trips its CAN timeout and drops the arm. Runaway
+    // joints get explicit limp frames instead.
     for (const Limb& limb : limbs_) {
       publish(limb.core.mitSafeCommands(/*damped_only=*/true));
     }
@@ -438,6 +462,12 @@ void JointCommandNode::controlTimerCallback() {
   }
 
   // Watchdog runs before the next command is generated, so a fault stops every arm this tick.
+  // Runaway first: it names the cause (the drive's calibration) and limps the joint, where the
+  // torque or tracking check that trips on the same motion would only damp it.
+  checkRunaways();
+  if (mit_faulted_) {
+    return;
+  }
   const auto feedback = mitFeedbackSamples();
   for (const Limb* limb : ready) {
     if (limb->core.mitMotorIds().empty()) {
