@@ -49,16 +49,29 @@ safety:
         control_type: 0
         mit_family: ak
     knee:
-      pitch:   # AKH70-48, id 43 (planned)
-        active: false
+      pitch:   # AKH70-48, id 44
+        active: true   # BENCH: first knee roundtrip; was false
         control_type: 0
         mit_family: ak
+        # Gain-ladder START (explainers/KNEE_RUNAWAY_DEBUG.md, T5/T6), after the 2026-11-17
+        # runaway at kp 110. mit_profiles.yaml now uses this drive's kd range (0-50), so kd means
+        # what it says: the old kd 1.65 was really applied as 16.5, and 1.65 now would give
+        # damping ratio ~0.1. Stall rule: 10 x 0.2618 = 2.6 <= 10. Step kp up only per T6.
+        # Gravity: shank + foot ~6.0 kg at ~0.25 m, ~15 N.m worst case (shank horizontal), so
+        # these gains will sag: that is expected at this step.
+        # Was: kp 110, kd 1.65, mit_max_torque 74 (raised from 30 without bench data).
+        # TODO: check mit_max_torque against the AKH70-48 datasheet's rated torque.
+        mit_kp: 10.0
+        mit_kd: 3.4
+        mit_max_torque: 30.0
+        mit_max_track_err: 15.0
+        mit_fault_action: damp   # a hanging shank sinks instead of swinging free
     ankle:
-      pitch:   # AK60-39, id 44 (planned)
+      pitch:   # AK60-39, id 45
         active: false
         control_type: 0
         mit_family: ak
-      roll:   # AK60-39, id 45 (planned)
+      roll:   # AK60-39, id 46
         active: false
         control_type: 0
         mit_family: ak
