@@ -1,0 +1,62 @@
+name: Python unit tests
+
+# The ROS build/test workflow (build_and_unitest.yml) only covers the dockerised ROS modules, so
+# these pure-Python suites (teleop IK and leader mapping, MuJoCo scene limits, RL reward terms,
+# terrain alignment, perception gating) never ran in CI: they could break without anyone noticing.
+# They need no GPU, no Isaac Sim and no ROS.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: python-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pytest:
+    name: pytest
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Each suite imports its package by path, as in the dev containers.
+      PYTHONPATH: >-
+        src/pioneer_humanoid:src/robot_learning:src/teleop:src/teleop/quest_controller_teleop:src/teleop/pioneer_leader_arm_teleop:src/simulation/mujoco_scenes:src/terrain_mapping/terrain_core:src/perception/slam/slam_core:src/perception/perception:src/simulation/humanoid_rl_tasks
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      # Pinned to the versions these suites were verified with, so an upstream release can't turn
+      # main red overnight. Bump deliberately. CPU-only torch for the RL reward/numerics tests.
+      - name: Install test dependencies
+        run: |
+          pip install numpy==2.5.5 scipy==1.18.1 pyyaml==6.0.3 pillow==13.0.0 \
+            mujoco==4.0.1 mink==1.4.0 pytest==9.2.0
+          pip install torch==2.15.0 --index-url https://download.pytorch.org/whl/cpu
+
+      # One pytest process per suite: some tests stub sys.modules (test_terrain_contact_sensor.py),
+      # which must not leak into another suite, and every suite still runs if an earlier one fails.
+      - name: quest_controller_teleop
+        if: success() || failure()
+        run: python -m pytest -q -rfEs src/teleop/quest_controller_teleop/tests
+      - name: pioneer_leader_arm_teleop
+        if: success() || failure()
+        run: python -m pytest -q -rfEs src/teleop/pioneer_leader_arm_teleop/tests
+      - name: mujoco_scenes
+        if: success() || failure()
+        run: python -m pytest -q -rfEs src/simulation/mujoco_scenes/tests
+      - name: humanoid_rl_tasks
+        if: success() || failure()
+        run: python -m pytest -q -rfEs src/simulation/humanoid_rl_tasks/tests
+      - name: terrain_core
+        if: success() || failure()
+        run: python -m pytest -q -rfEs src/terrain_mapping/terrain_core/tests
+      - name: perception
+        if: success() || failure()
+        run: python -m pytest -q -rfEs src/perception/perception/test
