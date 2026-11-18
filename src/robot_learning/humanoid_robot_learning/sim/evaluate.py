@@ -6,6 +6,8 @@ Works for any scene that registers ``success`` or a multi-step ``progress``. Epi
 ``reset`` seeded by ``--seed + i``, as the synthetic demos are, so pick seeds the training data did not use. The arm is
 driven like the recorded teleop: state is the arm joints plus gripper closure, the action the joint targets plus the
 gripper command, held for one frame (1 / ``--fps``); cameras are rendered at the size the policy was trained on.
+The policy's sampling noise is seeded from the same seed (``SeededNoise``): rerunning an episode draws the same noise,
+so two runs of the same layouts (another checkpoint, inference setting or runtime) can be compared episode by episode.
 
 Robot (``--robot``, default from the policy's action size): ``8dof`` = pioneer_bimanual_arm_8dof's left arm (7 joints +
 gripper, pioneer_8dof_dataset_schema.yaml), ``armv2`` = the old 6-DoF left arm (6 + gripper).
@@ -124,6 +126,52 @@ def load_policy(path: str, device: str):
     return policy, pre, post
 
 
+class SeededNoise:
+    """The policy, with its sampling noise drawn from the episode's seed: a rerun of an episode draws the same noise.
+
+    Every policy: torch's generators are reseeded at each episode (Pioneer-1 and others draw their own noise).
+    pi0 / pi0.5 / SmolVLA-style policies (``select_action`` takes ``noise``, a ``chunk_size`` x ``max_action_dim``
+    sample) are also handed each chunk's starting noise, drawn on the CPU in float32, so runs that compute the network
+    differently (another dtype, kernel or runtime) still start every chunk from the same draw.
+
+    Reruns come out close, not bit-identical: the EGL renderer flips a few pixels by one level between renders of the
+    same scene, and GPU kernels can round differently between processes. A closed-loop episode amplifies both, so
+    success times can differ by a second or two while outcomes mostly agree.
+    """
+
+    def __init__(self, policy):
+        import inspect
+
+        self.policy, self.rng = policy, None
+        cfg = policy.config
+        takes_noise = "noise" in inspect.signature(policy.select_action).parameters
+        self.shape = ((1, cfg.chunk_size, cfg.max_action_dim)
+                      if takes_noise and hasattr(cfg, "chunk_size") and hasattr(cfg, "max_action_dim") else None)
+
+    def __getattr__(self, name):
+        return getattr(self.policy, name)
+
+    def reset(self, seed: int) -> None:
+        import torch
+
+        self.policy.reset()
+        self.rng = np.random.default_rng([seed, 2])   # [seed, 0]: the layout; [seed, 1]: the synthetic operator
+        torch.manual_seed(int(self.rng.integers(2**63)))
+
+    def select_action(self, batch: dict):
+        import torch
+
+        if self.shape is None or _queued_actions(self.policy) > 0:
+            return self.policy.select_action(batch)
+        noise = torch.from_numpy(self.rng.standard_normal(self.shape, dtype=np.float32))
+        return self.policy.select_action(batch, noise=noise.to(batch["observation.state"].device))
+
+
+def _queued_actions(policy) -> int:
+    count = getattr(policy, "count_queued_actions", None)   # lerobot >= 0.7; earlier pi0 / pi0.5 keep _action_queue
+    return count() if count is not None else len(policy._action_queue)
+
+
 def training_task(path: str) -> str | None:
     """The task text of the policy's training dataset, if it has exactly one."""
     import pandas as pd
@@ -179,12 +227,15 @@ def main() -> None:
     task = args.task or training_task(args.policy)
     if task is None and env.progress is None:
         p.error("pass --task: the scene has no step instructions and the training dataset's task was not found")
+    policy = SeededNoise(policy)
+    print(f"[EVAL] policy noise seeded per episode ({'each chunk starts from given noise' if policy.shape else 'torch generators reseeded'})",
+          flush=True)
 
     successes = 0
     for i in range(args.episodes):
         seed = args.seed + i
         env.reset(seed)
-        policy.reset()
+        policy.reset(seed)
         frames, held, ok = [], 0.0, False
         for _ in range(int(args.max_s * args.fps)):
             obs = env.observe()
