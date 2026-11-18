@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pioneer telemetry</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <span class="logo" aria-hidden="true"></span>
+    <div>
+      <div class="brand-name" id="robot-name">Pioneer humanoid</div>
+      <div class="brand-sub">Telemetry · read-only</div>
+    </div>
+  </div>
+  <div class="overall" id="overall" data-state="offline" role="status" aria-live="polite">
+    <span class="overall-icon" id="overall-icon">○</span>
+    <div>
+      <div class="overall-label" id="overall-label">Connecting</div>
+      <div class="overall-text" id="overall-text">Waiting for the dashboard server</div>
+    </div>
+  </div>
+  <div class="top-right">
+    <div class="link" id="link" data-state="down" title="Browser to dashboard server">
+      <span class="dot"></span><span id="link-text">No link</span>
+    </div>
+    <div class="clock"><span id="clock">--:--:--</span><span class="muted" id="uptime"></span></div>
+    <button id="btn-pause" type="button" title="Freeze the charts and table (data keeps arriving)">Pause</button>
+    <button id="btn-csv" type="button" title="Download the buffered history of every joint as CSV">Export CSV</button>
+    <button id="btn-theme" type="button" title="Switch light / dark">Theme</button>
+  </div>
+</header>
+
+<div class="banner" id="demo-banner" hidden>
+  ▲ Demo data. These numbers are simulated and do not come from the robot.
+</div>
+
+<main>
+  <section class="tiles" id="tiles" aria-label="Summary"></section>
+
+  <section class="grid-3">
+    <article class="card">
+      <h2>Kinematic view <span class="hint">measured pose, drag to orbit</span></h2>
+      <canvas id="skeleton" height="300"></canvas>
+      <div class="legend" id="skeleton-legend"></div>
+    </article>
+
+    <article class="card">
+      <h2>Command pipeline <span class="hint">where the data stops, if it stops</span></h2>
+      <ol class="pipeline" id="pipeline"></ol>
+      <h2 class="sub">Thermal headroom <span class="hint">drive temperature against its limit</span></h2>
+      <div id="thermal" class="thermal"></div>
+    </article>
+
+    <article class="card">
+      <h2>Events <span class="hint">faults, warnings, mode changes, ROS log</span>
+        <label class="check"><input type="checkbox" id="ev-important"> warnings and faults only</label>
+      </h2>
+      <ul class="events" id="events"></ul>
+    </article>
+  </section>
+
+  <section class="card">
+    <h2>Joints <span class="hint">command frame, degrees · click a row for its charts</span></h2>
+    <div class="table-wrap">
+      <table class="joints" id="joint-table">
+        <thead>
+          <tr>
+            <th>Status</th><th>Joint</th><th class="num">ID</th>
+            <th>Position in range</th><th class="num">Measured</th><th class="num">Setpoint</th>
+            <th class="num">Error</th><th class="num">Velocity</th>
+            <th>Torque vs rated</th><th class="num">Torque</th><th class="num">Current</th>
+            <th>Temperature</th><th>Mode</th><th class="num">Feedback</th>
+          </tr>
+        </thead>
+        <tbody id="joint-rows"></tbody>
+      </table>
+    </div>
+    <div class="unknown" id="unknown-ids" hidden></div>
+  </section>
+
+  <section class="card">
+    <h2><span id="detail-title">Joint detail</span>
+      <span class="hint" id="detail-sub"></span>
+      <span class="range" id="range" role="group" aria-label="Time range">
+        <button type="button" data-s="30">30 s</button>
+        <button type="button" data-s="120" class="on">2 min</button>
+        <button type="button" data-s="600">10 min</button>
+      </span>
+    </h2>
+    <div class="detail-stats" id="detail-stats"></div>
+    <div class="charts">
+      <figure><figcaption>Position <span class="unit">deg</span><span class="legend" id="lg-pos"></span></figcaption>
+        <canvas id="ch-pos" height="190"></canvas></figure>
+      <figure><figcaption>Tracking error <span class="unit">deg, measured − setpoint</span></figcaption>
+        <canvas id="ch-err" height="190"></canvas></figure>
+      <figure><figcaption>Torque <span class="unit">N·m</span><span class="legend" id="lg-tau"></span></figcaption>
+        <canvas id="ch-tau" height="190"></canvas></figure>
+      <figure><figcaption>Drive temperature <span class="unit">°C</span></figcaption>
+        <canvas id="ch-temp" height="190"></canvas></figure>
+    </div>
+  </section>
+
+  <section class="grid-3" id="system">
+    <article class="card"><h2>Host computer</h2><dl class="kv" id="sys-host"></dl></article>
+    <article class="card"><h2>CAN bus</h2><dl class="kv" id="sys-can"></dl></article>
+    <article class="card"><h2>ROS graph</h2><div id="sys-ros"></div></article>
+  </section>
+
+  <section class="card" id="camera-card" hidden>
+    <h2>Cameras</h2>
+    <div class="cameras" id="cameras"></div>
+  </section>
+
+  <footer>
+    <span id="foot-files"></span>
+    <span>Display only: joint_command's watchdog and the hardware E-stop are what stop the robot.</span>
+  </footer>
+</main>
+
+<div class="tooltip" id="tooltip" hidden></div>
+<script src="app.js"></script>
+</body>
+</html>

@@ -80,6 +80,7 @@ install(PROGRAMS
   scripts/calibrate_actuators.py
   scripts/telemetry_record.py
   scripts/arm_roundtrip.py
+  scripts/telemetry_dashboard.py
   DESTINATION share/${PROJECT_NAME}/scripts
 )
 # Also expose the operator-facing scripts on PATH via lib/<pkg>
@@ -87,6 +88,7 @@ install(PROGRAMS
   scripts/calibrate_actuators.py
   scripts/telemetry_record.py
   scripts/arm_roundtrip.py
+  scripts/telemetry_dashboard.py
   DESTINATION lib/${PROJECT_NAME}
 )
 # Modules the scripts above import from their own directory
@@ -100,6 +102,9 @@ install(FILES
   scripts/telemetry.py
   DESTINATION lib/${PROJECT_NAME}
 )
+# telemetry_dashboard.py serves its page from the dashboard/ directory next to it
+install(DIRECTORY scripts/dashboard DESTINATION share/${PROJECT_NAME}/scripts)
+install(DIRECTORY scripts/dashboard DESTINATION lib/${PROJECT_NAME})
 
 # Testing and Development
 find_package(ament_lint_auto REQUIRED)
