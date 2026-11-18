@@ -38,7 +38,7 @@ right:
       limit_range: true
   wrist:
     pitch:
-      can_id: 92 # dummy id: not actually set
+      can_id: 3 # dummy id: not actually set
       lower_limit: -80.31322860717773
       upper_limit: 83.83219909667969
       direction: -1
