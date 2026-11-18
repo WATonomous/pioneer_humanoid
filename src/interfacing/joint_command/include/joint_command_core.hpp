@@ -88,18 +88,18 @@ struct SeedReport {
 
 class JointCommandCore {
 public:
-  bool loadFromYaml(const YAML::Node& config, const std::string& arm_side);
+  bool loadFromYaml(const YAML::Node& config, const std::string& side, bool is_leg = false);
   // safety_cfg is arm_actuators.yaml's `safety`: `global` fallbacks, then this arm's block
   // (`safety.<arm_side>`). Call loadFromYaml first.
   bool loadSafetyFromYaml(const YAML::Node& safety_cfg, double control_rate_hz);
 
-  const std::string& armSide() const {
-    return arm_side_;
+  const std::string& side() const {
+    return side_;
   }
 
   // gravity_model.hpp models the left and right arms; elsewhere gravity_ff_scale must stay 0.
   bool hasGravityModel() const {
-    return arm_side_ == "left" || arm_side_ == "right";
+    return !is_leg_ && (side_ == "left" || side_ == "right");
   }
 
   // Why loadSafetyFromYaml refused; empty on success.
@@ -111,8 +111,7 @@ public:
   std::vector<common_msgs::msg::MotorCmd> armPoseToMotorCmds(const common_msgs::msg::ArmPose& pose,
                                                              int8_t default_control_type);
 
-  // TODO(legs): skeleton only, returns no commands yet. Must run the same moderation layers as
-  // armPoseToMotorCmds (clamp, low-pass, velocity / delta limits, calibration).
+  // Leg processing has no gripper or gravity feed-forward.
   std::vector<common_msgs::msg::MotorCmd> legPoseToMotorCmds(const common_msgs::msg::LegPose& pose,
                                                              int8_t default_control_type);
 
@@ -175,7 +174,7 @@ public:
   // arm_actuators.yaml has a block for it. gripper_position 0 (open) -> cmd 0, 1 -> upper_limit.
   static constexpr size_t kGripperJoint = 6;
   bool hasGripper() const {
-    return joints_.size() > kGripperJoint;
+    return !is_leg_ && joints_.size() > kGripperJoint;
   }
 
   const JointSafetyConfig& safety(size_t joint) const {
@@ -215,7 +214,8 @@ private:
   std::vector<double> last_gravity_torque_motor_;
   // 0 -> 1 after every seed, so feed-forward never steps on.
   double gravity_ff_ramp_{0.0};
-  std::string arm_side_;
+  std::string side_;
+  bool is_leg_{false};
   bool have_prev_targets_{false};
   double control_rate_hz_{50.0};
   std::string last_error_;
@@ -223,4 +223,4 @@ private:
 
 // Feedback and commands are matched by motor id alone, so every arm's motors need their own ids.
 // Returns the first clash ("motor 14 is left shoulder.pitch and right shoulder.pitch"), or nullopt.
-std::optional<std::string> findDuplicateMotorIds(const std::vector<const JointCommandCore*>& arms);
+std::optional<std::string> findDuplicateMotorIds(const std::vector<const JointCommandCore*>& limbs);

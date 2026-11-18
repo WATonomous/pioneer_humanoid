@@ -14,13 +14,13 @@ joints are LIMP while you calibrate -- support the limb. Stop joint_command_node
 
 Examples (inside interfacing container, ROS sourced)::
 
-  python3 /root/ament_ws/src/interfacing/can/scripts/calibrate_arm.py \\
+  python3 /root/ament_ws/src/interfacing/can/scripts/calibrate_actuators.py \\
     --side left --write-mapping --calibration /calibration/arm_calibration.yaml
-  ros2 run can calibrate_arm.py --side left --write-mapping
+  ros2 run can calibrate_actuators.py --side left --write-mapping
 
-  python3 /root/ament_ws/src/interfacing/can/scripts/calibrate_arm.py \\
+  python3 /root/ament_ws/src/interfacing/can/scripts/calibrate_actuators.py \\
     --limb leg --side left --write-mapping --calibration /calibration/leg_calibration.yaml
-  ros2 run can calibrate_arm.py --limb leg --side left --write-mapping
+  ros2 run can calibrate_actuators.py --limb leg --side left --write-mapping
 """
 
 from __future__ import annotations
@@ -125,7 +125,7 @@ def joint_matches_skip(name: str, motor_id: int, skip_motors: set, skip_joints: 
 
 class CalibrateNode(Node):
     def __init__(self) -> None:
-        super().__init__("calibrate_arm")
+        super().__init__("calibrate_actuators")
         self._lock = threading.Lock()
         self._latest: Dict[int, MotorFeedback] = {}
 

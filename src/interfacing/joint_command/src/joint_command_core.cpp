@@ -18,7 +18,7 @@ constexpr double kGravityFfRampSec = 1.0;
 constexpr double kMaxGravityFfScale = 5.0;
 
 // ArmPose joint order, shared by both config files.
-const std::vector<std::pair<std::string, std::string>>& jointPaths() {
+const std::vector<std::pair<std::string, std::string>>& armJointPaths() {
   static const std::vector<std::pair<std::string, std::string>> paths = {
       {"shoulder", "pitch"}, {"shoulder", "roll"}, {"shoulder", "yaw"},
       {"elbow", "pitch"},    {"elbow", "yaw"},     {"wrist", "pitch"},
@@ -26,8 +26,7 @@ const std::vector<std::pair<std::string, std::string>>& jointPaths() {
   return paths;
 }
 
-// LegPose joint order (LegPose.msg). TODO(legs): key leg_calibration.yaml / leg_actuators.yaml
-// by these, as jointPaths() keys the arm configs.
+// LegPose joint order.
 const std::vector<std::pair<std::string, std::string>>& legJointPaths() {
   static const std::vector<std::pair<std::string, std::string>> paths = {
       {"hip", "pitch"},  {"hip", "roll"},    {"hip", "yaw"},
@@ -61,30 +60,38 @@ JointConfig JointCommandCore::loadJointConfig(const YAML::Node& joint_node) {
   return joint;
 }
 
-bool JointCommandCore::loadFromYaml(const YAML::Node& config, const std::string& arm_side) {
+bool JointCommandCore::loadFromYaml(const YAML::Node& config, const std::string& side,
+                                    bool is_leg) {
+  is_leg_ = is_leg;
+  side_ = side;
   joints_.clear();
-  arm_side_ = arm_side;
-
-  if (!config[arm_side]) {
-    return false;
-  }
-
-  const YAML::Node arm = config[arm_side];
-  for (const auto& [group, joint_name] : jointPaths()) {
-    const YAML::Node joint_node = arm[group][joint_name];
-    if (!joint_node) {
-      return false;
-    }
-    joints_.push_back(loadJointConfig(joint_node));
-  }
-
-  const bool ok = joints_.size() == 6;
-  if (!ok) {
-    return false;
-  }
   gripper_mapping_.reset();
-  if (arm["gripper"] && arm["gripper"]["open_close"]) {
-    gripper_mapping_ = loadJointConfig(arm["gripper"]["open_close"]);
+
+  if (!config[side]) {
+    return false;
+  }
+
+  if (is_leg_) {
+    const YAML::Node leg = config[side];
+    for (const auto& [group, joint_name] : legJointPaths()) {
+      const YAML::Node joint_node = leg[group][joint_name];
+      if (!joint_node) {
+        return false;
+      }
+      joints_.push_back(loadJointConfig(joint_node));
+    }
+  } else {
+    const YAML::Node arm = config[side];
+    for (const auto& [group, joint_name] : armJointPaths()) {
+      const YAML::Node joint_node = arm[group][joint_name];
+      if (!joint_node) {
+        return false;
+      }
+      joints_.push_back(loadJointConfig(joint_node));
+    }
+    if (arm["gripper"] && arm["gripper"]["open_close"]) {
+      gripper_mapping_ = loadJointConfig(arm["gripper"]["open_close"]);
+    }
   }
 
   safety_.assign(joints_.size(), JointSafetyConfig{});
@@ -114,12 +121,13 @@ bool JointCommandCore::anyActive() const {
   return false;
 }
 
-std::optional<std::string> findDuplicateMotorIds(const std::vector<const JointCommandCore*>& arms) {
+std::optional<std::string>
+findDuplicateMotorIds(const std::vector<const JointCommandCore*>& limbs) {
   std::map<int, std::string> owner; // motor id -> "side joint"
-  for (const JointCommandCore* arm : arms) {
-    for (size_t i = 0; i < arm->jointCount(); ++i) {
-      const int id = static_cast<int>(arm->motorId(i));
-      const std::string name = arm->armSide() + " " + arm->jointName(i);
+  for (const JointCommandCore* limb : limbs) {
+    for (size_t i = 0; i < limb->jointCount(); ++i) {
+      const int id = static_cast<int>(limb->motorId(i));
+      const std::string name = limb->side() + " " + limb->jointName(i);
       const auto [it, inserted] = owner.emplace(id, name);
       if (!inserted) {
         return "motor " + std::to_string(id) + " is " + it->second + " and " + name;
@@ -343,7 +351,7 @@ bool JointCommandCore::validateMitGains() {
       }
       if (!hasGravityModel()) {
         errors << "\n  " << name << ": gravity_model.hpp has only the left and right arms; "
-               << "arm_side is '" << arm_side_ << "'";
+               << "arm_side is '" << side_ << "'";
       }
       if (s.gravity_ff_max_torque <= 0.0) {
         errors << "\n  " << name << ": gravity_ff_scale > 0 needs gravity_ff_max_torque > 0";
@@ -460,22 +468,26 @@ bool JointCommandCore::loadSafetyFromYaml(const YAML::Node& safety_cfg, double c
   }
 
   control_rate_hz_ = control_rate_hz;
-  const YAML::Node arm = safety_cfg[arm_side_];
-  if (!arm) {
-    last_error_ = "safety config has no '" + arm_side_ + "' block for this arm";
+  if (!safety_cfg[side_]) {
+    last_error_ = "safety config has no '" + side_ + "' block for this limb";
     return false;
   }
-  // The gripper is driven only if this config has a block for it.
-  joints_.resize(jointPaths().size());
-  // One level at a time: indexing through a missing key throws in yaml-cpp.
-  const bool drives_gripper = arm["gripper"] && arm["gripper"]["open_close"];
-  if (drives_gripper) {
-    if (!gripper_mapping_) {
-      last_error_ = "safety config has a gripper block but arm_calibration.yaml has no "
-                    "gripper.open_close for this arm";
-      return false;
+  if (is_leg_) {
+    joints_.resize(legJointPaths().size());
+  } else {
+    joints_.resize(armJointPaths().size());
+    const YAML::Node arm = safety_cfg[side_];
+    // The gripper is driven only if this config has a block for it.
+    // One level at a time: indexing through a missing key throws in yaml-cpp.
+    const bool drives_gripper = arm["gripper"] && arm["gripper"]["open_close"];
+    if (drives_gripper) {
+      if (!gripper_mapping_) {
+        last_error_ = "safety config has a gripper block but arm_calibration.yaml has no "
+                      "gripper.open_close for this arm";
+        return false;
+      }
+      joints_.push_back(*gripper_mapping_);
     }
-    joints_.push_back(*gripper_mapping_);
   }
   resizeJointState();
   try {
@@ -486,13 +498,21 @@ bool JointCommandCore::loadSafetyFromYaml(const YAML::Node& safety_cfg, double c
     // Joints inherit mit_fault_action_explicit, so setting only mit_family: ak re-derives Damp.
 
     safety_.assign(joints_.size(), defaults);
-    for (size_t i = 0; i < jointPaths().size(); ++i) {
-      const auto& [group, joint_name] = jointPaths()[i];
-      const YAML::Node joint_node = arm[group][joint_name];
-      safety_[i] = loadJointSafetyConfig(joint_node, defaults);
-    }
-    if (hasGripper()) {
-      safety_[kGripperJoint] = loadJointSafetyConfig(arm["gripper"]["open_close"], defaults);
+    if (is_leg_) {
+      const YAML::Node leg = safety_cfg[side_];
+      for (size_t i = 0; i < legJointPaths().size(); ++i) {
+        const auto& [group, joint_name] = legJointPaths()[i];
+        safety_[i] = loadJointSafetyConfig(leg[group][joint_name], defaults);
+      }
+    } else {
+      const YAML::Node arm = safety_cfg[side_];
+      for (size_t i = 0; i < armJointPaths().size(); ++i) {
+        const auto& [group, joint_name] = armJointPaths()[i];
+        safety_[i] = loadJointSafetyConfig(arm[group][joint_name], defaults);
+      }
+      if (hasGripper()) {
+        safety_[kGripperJoint] = loadJointSafetyConfig(arm["gripper"]["open_close"], defaults);
+      }
     }
   } catch (const std::exception& e) {
     last_error_ = e.what();
@@ -530,13 +550,19 @@ int8_t JointCommandCore::motorId(size_t joint) const {
 }
 
 std::string JointCommandCore::jointName(size_t joint) const {
-  if (joint == kGripperJoint) {
-    return "gripper.open_close";
+  if (is_leg_) {
+    if (joint < legJointPaths().size()) {
+      return legJointPaths()[joint].first + "." + legJointPaths()[joint].second;
+    }
+  } else {
+    if (joint == kGripperJoint) {
+      return "gripper.open_close";
+    }
+    if (joint < armJointPaths().size()) {
+      return armJointPaths()[joint].first + "." + armJointPaths()[joint].second;
+    }
   }
-  if (joint >= jointPaths().size()) {
-    return "joint" + std::to_string(joint);
-  }
-  return jointPaths()[joint].first + "." + jointPaths()[joint].second;
+  return "joint" + std::to_string(joint);
 }
 
 common_msgs::msg::MotorCmd JointCommandCore::mitSafeCommand(size_t joint) const {
@@ -572,7 +598,7 @@ JointCommandCore::gravityTorqueMotor(const std::vector<double>& cmd_targets_deg)
     q_urdf[i] = q_cmd * kDegToRad; // the command frame is the URDF frame
   }
   const std::array<double, 6> tau =
-      arm_side_ == "right" ? rightArmGravityHoldTorque(q_urdf) : leftArmGravityHoldTorque(q_urdf);
+      side_ == "right" ? rightArmGravityHoldTorque(q_urdf) : leftArmGravityHoldTorque(q_urdf);
   for (size_t i = 0; i < q_urdf.size(); ++i) {
     // Torque follows the angle's sign mapping: urdf (= cmd) -> motor.
     const double dir = joints_[i].direction == 0 ? 1.0 : joints_[i].direction;
@@ -825,12 +851,100 @@ JointCommandCore::legPoseToMotorCmds(const common_msgs::msg::LegPose& pose,
       pose.hip.position[0],  pose.hip.position[1],   pose.hip.position[2],
       pose.knee.position[0], pose.ankle.position[0], pose.ankle.position[1],
   };
-  if (source_angles.size() != legJointPaths().size()) {
-    throw std::runtime_error("LegPose slot count does not match legJointPaths()");
+  if (!is_leg_ || joints_.size() != legJointPaths().size()) {
+    throw std::runtime_error("JointCommandCore is not configured for a leg");
   }
-  // TODO(legs): run source_angles through the same layers as armPoseToMotorCmds:
-  // clamp -> low-pass -> velocity / delta limit -> clamp -> calibration -> MotorCmd.
-  // Simplest: move armPoseToMotorCmds' per-joint loop into a shared helper and call it here.
-  (void)default_control_type;
-  return {};
+  for (const double angle : source_angles) {
+    if (!std::isfinite(angle)) {
+      throw std::runtime_error("LegPose contains a non-finite angle");
+    }
+  }
+  std::vector<common_msgs::msg::MotorCmd> commands;
+  commands.reserve(joints_.size());
+  std::vector<double> next_targets = prev_targets_;
+
+  if (safety_.size() != joints_.size()) {
+    safety_.assign(joints_.size(), JointSafetyConfig{});
+  }
+  if (prev_targets_.size() != joints_.size()) {
+    prev_targets_.assign(joints_.size(), 0.0);
+    next_targets = prev_targets_;
+    have_prev_targets_ = true;
+  }
+  if (last_motor_cmd_deg_.size() != joints_.size()) {
+    last_motor_cmd_deg_.assign(joints_.size(), 0.0);
+  }
+
+  for (size_t i = 0; i < joints_.size(); ++i) {
+    const JointSafetyConfig& safety = safety_[i];
+
+    if (!isActive(i)) {
+      continue;
+    }
+    if (isBlocked(i)) {
+      if (isMitJoint(i)) {
+        commands.push_back(mitSafeCommand(i));
+      }
+      continue;
+    }
+
+    double target = source_angles[i];
+    if (safety.enable_position_clamp) {
+      target = clampAngle(target, joints_[i]);
+    }
+
+    if (have_prev_targets_) {
+      if (safety.enable_low_pass) {
+        target = applyLowPass(target, prev_targets_[i], safety.low_pass_alpha);
+      }
+      if (safety.enable_velocity_limit && control_rate_hz_ > 0.0) {
+        const double velocity_step = std::abs(safety.velocity_max) / control_rate_hz_;
+        target = clampStep(target, prev_targets_[i], velocity_step);
+      }
+      if (safety.enable_delta_limit) {
+        target = clampStep(target, prev_targets_[i], std::abs(safety.delta_max));
+      }
+    }
+
+    if (safety.enable_position_clamp) {
+      const double clamped = clampAngle(target, joints_[i]);
+      if (clamped != target && have_prev_targets_) {
+        double max_step = std::numeric_limits<double>::infinity();
+        if (safety.enable_velocity_limit && control_rate_hz_ > 0.0) {
+          max_step = std::abs(safety.velocity_max) / control_rate_hz_;
+        }
+        if (safety.enable_delta_limit) {
+          max_step = std::min(max_step, std::abs(safety.delta_max));
+        }
+        target = std::isinf(max_step) ? clamped : clampStep(clamped, prev_targets_[i], max_step);
+      } else {
+        target = clamped;
+      }
+    }
+    next_targets[i] = target;
+
+    const double calibrated_deg = applyCalibration(target, joints_[i]);
+    last_motor_cmd_deg_[i] = calibrated_deg;
+
+    const int8_t control_type =
+        safety.control_type >= 0 ? static_cast<int8_t>(safety.control_type) : default_control_type;
+
+    common_msgs::msg::MotorCmd cmd;
+    cmd.motor_id = joints_[i].motor_id;
+    cmd.control_type = control_type;
+    if (control_type == common_msgs::msg::MotorCmd::MIT_CONTROL) {
+      cmd.position = static_cast<float>(calibrated_deg * kDegToRad);
+      cmd.velocity = 0.0f;
+      cmd.torque = 0.0f;
+      cmd.kp = static_cast<float>(safety.mit_kp);
+      cmd.kd = static_cast<float>(safety.mit_kd);
+    } else {
+      cmd.position = static_cast<float>(calibrated_deg);
+    }
+    commands.push_back(cmd);
+  }
+
+  prev_targets_ = std::move(next_targets);
+  have_prev_targets_ = true;
+  return commands;
 }

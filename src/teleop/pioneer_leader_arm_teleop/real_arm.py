@@ -31,7 +31,7 @@ The gripper is compared as its position, 0 open .. 1 closed, as joint_command ma
 
 Pose both arms the same (motors off) and check every joint agrees within 10 deg across its range;
 fix the leader's signs (calibrate_leader.py --signs) or the real arm's direction / calibration
-(calibrate_arm.py) until it does.
+(calibrate_actuators.py) until it does.
 
 Check the math without ROS or the leader:  python3 pioneer_leader_arm_teleop.py --target real --self-test
 """
@@ -509,7 +509,7 @@ def run() -> None:
                     for arm in arms for r in home_refusals(arm.joints, arm.home, arm.active)]
         if refusals:
             print("[INFO] Not homing, nothing moved: " + "; ".join(refusals) + " (joint_command would clamp it; "
-                  "re-run calibrate_arm.py sweeping past home). Starting from where the arm is.", flush=True)
+                  "re-run calibrate_actuators.py sweeping past home). Starting from where the arm is.", flush=True)
             return
         # Start from where each arm is NOW (measured), never from an assumed pose.
         plans = []  # (arm, publisher, q, {slot: start deg}, {slot: home deg})
