@@ -11,6 +11,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import humanoid_boxing  # noqa: E402,F401  (registers the arena and fight tasks)
 import humanoid_tracking  # noqa: E402,F401  (registers the tasks)
 from mjlab.scripts.train import main  # noqa: E402
 
