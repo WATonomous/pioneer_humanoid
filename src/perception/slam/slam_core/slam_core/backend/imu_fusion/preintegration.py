@@ -4,14 +4,14 @@ import gtsam
 from slam_core.types.pose import quat_to_rot, rotation_angle
 from .imu import read_extrinsics
 
-# IMU noise, from OpenVINS rs_d455 config (config/rs_d455/kalibr_imu_chain.yaml),
-# Allan-variance values already inflated x2 (white noise) and x10 (random walk).
-# D455 chip/datasheet values NOT confirmed.
+# IMU noise, from our Kalibr run's imu yaml (d455_imu_calibration/kalibr_output/imu-datad455_imu_kalibr_mono.yaml,
+# update_rate 200 Hz). Used as given, with no inflation factor.
+# Previously: OpenVINS rs_d455 values (gyro 2.05e-4, accel 2.08e-3, gyro RW 1.11e-5, accel RW 4.13e-4).
 
-GYRO_NOISE_DENSITY = 2.05e-4   # rad/s/sqrt(Hz)
-ACCEL_NOISE_DENSITY = 2.08e-3   # m/s^2/sqrt(Hz)
-GYRO_RANDOM_WALK = 1.11e-5   # rad/s^2/sqrt(Hz)
-ACCEL_RANDOM_WALK = 4.13e-4   # m/s^3/sqrt(Hz)
+GYRO_NOISE_DENSITY = 4.16e-4   # rad/s/sqrt(Hz)
+ACCEL_NOISE_DENSITY = 1.60e-3   # m/s^2/sqrt(Hz)
+GYRO_RANDOM_WALK = 2.57e-6   # rad/s^2/sqrt(Hz)
+ACCEL_RANDOM_WALK = 1.41e-4   # m/s^3/sqrt(Hz)
 INTEGRATION_SIGMA_SQ = 1e-8  # covariance added for integration error (a fudge term)
 GRAVITY = 9.81               # m/s^2
 
