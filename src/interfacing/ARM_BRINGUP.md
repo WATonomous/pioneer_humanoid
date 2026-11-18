@@ -123,7 +123,7 @@ python3 pioneer_leader_arm_teleop.py --target real --live
  ### Other
 
 
-- Scripted moves and benchmarks: `tools/arm_roundtrip.sh` → [can/README.md](can/README.md#angle-benchmarks-arm_roundtrippy)
+- Scripted moves and benchmarks: `tools/roundtrip.sh` → [can/README.md](can/README.md#angle-benchmarks-roundtrippy)
 - Node, configs and tuning → [joint_command/README.md](joint_command/README.md)
 
 ## Adding a motor (or the right arm)
@@ -138,5 +138,5 @@ The motor's id must already be set on the drive (CubeMars tool) and follow the
 3. **`joint_command/config/arm_actuators.yaml`**: the joint's block under its side (`active`,
    `control_type`, `mit_family`, limits, gains). A `right:` block already exists.
 4. **New arm only:** add the side to `arms` in `joint_command/config/joint_command.yaml`.
-5. `./watod build`: `joint_command` and `arm_roundtrip.py` read the *installed* configs.
+5. `./watod build`: `joint_command` and `roundtrip.py` read the *installed* configs.
 6. Bring it up from step 0: `candump`, calibrate, visualize, then move.

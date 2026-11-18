@@ -1,5 +1,6 @@
-"""The arm's limits (arm_calibration.yaml, arm_actuators.yaml), read the way joint_command reads
-them. Used by arm_roundtrip.py, telemetry_record.py and calibrate_actuators.py. No ROS imports.
+"""Arm and leg limits (<limb>_calibration.yaml, <limb>_actuators.yaml), read the way
+joint_command reads them. Used by roundtrip.py, telemetry_record.py and calibrate_actuators.py.
+No ROS imports.
 
 Frames (see joint_command_core.cpp applyCalibration):
   command frame  degrees, what ArmPose carries and what the limits are written in. It IS the
@@ -27,11 +28,29 @@ def arm_pose_topic(arm_side: str) -> str:
     return f"/arm/{arm_side}/joint_targets"
 
 
+# The six LegPose slots, in message order (LegPose.msg) -- joint_command_core.cpp's legJointPaths().
+LEG_POSE_JOINTS = [
+    ("hip", "pitch"), ("hip", "roll"), ("hip", "yaw"),
+    ("knee", "pitch"), ("ankle", "pitch"), ("ankle", "roll"),
+]
+LEG_POSE_NAMES = [f"{group}.{joint}" for group, joint in LEG_POSE_JOINTS]
+
+
+def pose_joints(limb: str) -> List[Tuple[str, str]]:
+    return LEG_POSE_JOINTS if limb == "leg" else ARM_POSE_JOINTS
+
+
+def pose_topic(limb: str, side: str) -> str:
+    """The ArmPose / LegPose topic joint_command listens on for this limb."""
+    return f"/{limb}/{side}/joint_targets"
+
+
 # The repo copy, found relative to this file (src/interfacing/can/scripts -> src/interfacing).
 _REPO_CONFIG = Path(__file__).resolve().parents[2] / "joint_command" / "config"
 
 DEFAULT_CALIBRATIONS = [
     "/calibration/arm_calibration.yaml",  # bind-mounted in both containers
+    "/opt/joint_command_config/arm_calibration.yaml",  # config dir, mounted in both containers
     "/root/ament_ws/src/interfacing/joint_command/config/arm_calibration.yaml",
     "/root/ament_ws/src/joint_command/config/arm_calibration.yaml",
     str(_REPO_CONFIG / "arm_calibration.yaml"),
@@ -65,16 +84,25 @@ _SAFETY_KEYS = ("active", "velocity_max", "delta_max", "control_type", "mit_kp",
 
 def _first_existing(candidates: List[str]) -> Optional[Path]:
     for path in candidates:
-        if path and Path(path).exists():
-            return Path(path)
+        try:
+            if path and Path(path).exists():
+                return Path(path)
+        except PermissionError:  # e.g. /root/... as a non-root container user (py3.10 raises)
+            continue
     return None
 
 
-def find_calibration(explicit: Optional[str]) -> Path:
-    found = _first_existing([explicit] if explicit else DEFAULT_CALIBRATIONS)
+def calibration_configs(limb: str) -> List[str]:
+    return [p.replace("arm_calibration.yaml", f"{limb}_calibration.yaml")
+            for p in DEFAULT_CALIBRATIONS]
+
+
+def find_calibration(explicit: Optional[str], limb: str = "arm") -> Path:
+    candidates = calibration_configs(limb)
+    found = _first_existing([explicit] if explicit else candidates)
     if found is None:
-        raise SystemExit("could not find arm_calibration.yaml; pass --calibration PATH "
-                         f"(looked in: {', '.join(DEFAULT_CALIBRATIONS)})")
+        raise SystemExit(f"could not find {limb}_calibration.yaml; pass --calibration PATH "
+                         f"(looked in: {', '.join(candidates)})")
     return found
 
 
@@ -106,8 +134,10 @@ def same_yaml(a: Path, b: Path) -> bool:
             yaml.safe_load(b.read_text(encoding="utf-8")))
 
 
-def load_joint_map(path: Path, arm_side: str) -> Dict[int, dict]:
-    """-> {motor_id: {"name", "side", "direction", "zero_offset", "lower", "upper", "slot"}}"""
+def load_joint_map(path: Path, arm_side: str, limb: str = "arm") -> Dict[int, dict]:
+    """-> {motor_id: {"name", "side", "direction", "zero_offset", "lower", "upper", "slot",
+    "calibrated"}}. A null direction / zero_offset (an uncalibrated leg joint) gives
+    calibrated=False with direction 1 and zero_offset 0 as placeholders: never move it."""
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
     if arm_side not in data:
         raise SystemExit(f"arm side '{arm_side}' not in {path} (have {list(data)})")
@@ -118,11 +148,14 @@ def load_joint_map(path: Path, arm_side: str) -> Dict[int, dict]:
         if not isinstance(node, dict):
             return
         if "can_id" in node:
+            calibrated = node.get("direction", 1) is not None and \
+                node.get("zero_offset", 0.0) is not None
             out[int(node["can_id"])] = {
                 "name": prefix,
                 "side": arm_side,
-                "direction": float(node.get("direction", 1)) or 1.0,
-                "zero_offset": float(node.get("zero_offset", 0.0)),
+                "direction": float(node.get("direction") or 1) if calibrated else 1.0,
+                "zero_offset": float(node.get("zero_offset", 0.0)) if calibrated else 0.0,
+                "calibrated": calibrated,
                 "lower": float(node.get("lower_limit", float("-inf"))),
                 "upper": float(node.get("upper_limit", float("inf"))),
                 "limit_range": bool(node.get("limit_range", False)),
@@ -133,8 +166,8 @@ def load_joint_map(path: Path, arm_side: str) -> Dict[int, dict]:
             walk(child, f"{prefix}.{key}" if prefix else key)
 
     walk(data[arm_side], "")
-    # Tag the six joints an ArmPose carries, so their setpoints can be matched up.
-    for slot, (group, joint) in enumerate(ARM_POSE_JOINTS):
+    # Tag the six joints an ArmPose / LegPose carries, so their setpoints can be matched up.
+    for slot, (group, joint) in enumerate(pose_joints(limb)):
         node = data[arm_side].get(group, {}).get(joint)
         if node and int(node["can_id"]) in out:
             out[int(node["can_id"])]["slot"] = slot
