@@ -18,6 +18,9 @@ struct JointConfig {
   int direction{1};
   double zero_offset{0.0};
   bool limit_range{false};
+  // false: direction / zero_offset are null in the YAML (legs only). Allowed while the joint is
+  // inactive; loadSafetyFromYaml refuses it active.
+  bool calibrated{true};
 };
 
 // CubeMars MIT dialect. GL II and AK disagree on the status byte (see mit_protocol.hpp).
@@ -190,7 +193,7 @@ public:
   static double quantiseKd(double kd, double kd_max = 5.0);
 
 private:
-  static JointConfig loadJointConfig(const YAML::Node& joint_node);
+  static JointConfig loadJointConfig(const YAML::Node& joint_node, bool allow_uncalibrated = false);
   static JointSafetyConfig loadJointSafetyConfig(const YAML::Node& joint_node,
                                                  const JointSafetyConfig& base);
   static double clampAngle(double angle, const JointConfig& joint);
