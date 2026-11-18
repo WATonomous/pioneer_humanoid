@@ -59,6 +59,9 @@ private:
   void logGravityModel(const std::vector<Limb*>& limbs);
   bool trySeedFromFeedback(Limb& limb);
   void mitFault(const std::string& reason);
+  // Runaway watch for every limb: the first one latches the fault; later ones (or ones found
+  // while already faulted) are logged, and those joints go limp.
+  void checkRunaways();
   // MIT_EXIT (sent 3x) to every MIT joint of every arm, or only the Limp ones.
   void exitMitJoints(bool limp_only);
   std::map<int, MotorFeedbackSample> mitFeedbackSamples();

@@ -1437,3 +1437,131 @@ TEST_F(LegConfig, DetectsMotorIdsSharedWithAnArm) {
   EXPECT_NE(clash->find("hip.pitch"), std::string::npos);
   EXPECT_NE(clash->find("shoulder.pitch"), std::string::npos);
 }
+
+// ---------------------------------------------------------------------------
+// Runaway watch: a drive with a bad encoder calibration pushes its joint AWAY from the target,
+// faster and faster. Positions are motor-frame degrees; the
+// numbers replay runaway #2 (2026-11-18), shifted into this fixture's calibrated range.
+// ---------------------------------------------------------------------------
+
+namespace {
+constexpr size_t kKnee = 3;
+constexpr double kKneeTarget = 30.0; // motor deg; runaway #2's target was -3.3, the knee at -5.1
+
+// Seed every leg joint (motor 0, the knee at kKneeTarget) so the knee's target is kKneeTarget.
+void seedLeg(JointCommandCore& core) {
+  std::map<int, double> positions;
+  for (size_t i = 0; i < core.jointCount(); ++i) {
+    positions[core.motorId(i)] = i == kKnee ? kKneeTarget : 0.0;
+  }
+  const SeedReport report = core.seedPrevTargetsFromFeedback(positions);
+  ASSERT_EQ(report.matched, core.jointCount());
+}
+
+// Feed knee samples 20 ms apart, as the drive's 50 Hz status frames arrive.
+void feedKnee(JointCommandCore& core, const std::vector<double>& positions, double t0 = 0.0) {
+  for (size_t k = 0; k < positions.size(); ++k) {
+    core.recordFeedback(core.motorId(kKnee), positions[k], t0 + 0.02 * k);
+  }
+}
+} // namespace
+
+TEST_F(LegConfig, RunawayAwayFromTheTargetIsCaughtAndHeldLimp) {
+  seedLeg(core);
+  // Away from the target at 5, 25, 100 deg/s: counts at 25 and 100.
+  feedKnee(core, {28.2, 28.1, 27.6});
+  EXPECT_FALSE(core.checkMitRunaway().has_value()) << "one sample is not enough";
+  core.recordFeedback(core.motorId(kKnee), 25.6, 0.06);
+  const auto runaway = core.checkMitRunaway();
+  ASSERT_TRUE(runaway.has_value());
+  EXPECT_NE(runaway->find("knee.pitch"), std::string::npos) << *runaway;
+  EXPECT_NE(runaway->find("RUNAWAY"), std::string::npos) << *runaway;
+  EXPECT_NE(runaway->find("upper computer"), std::string::npos) << *runaway;
+  EXPECT_TRUE(core.isRunaway(kKnee));
+  EXPECT_FALSE(core.checkMitRunaway().has_value()) << "each joint is reported once";
+
+  // The knee is held limp; every other joint keeps its own fault action (damped, for AK).
+  bool saw_knee = false;
+  for (const auto& cmd : core.mitSafeCommands(/*damped_only=*/true)) {
+    EXPECT_FLOAT_EQ(cmd.kp, 0.0f);
+    if (cmd.motor_id == core.motorId(kKnee)) {
+      saw_knee = true;
+      EXPECT_FLOAT_EQ(cmd.kd, 0.0f);
+    } else {
+      size_t j = 0;
+      while (core.motorId(j) != cmd.motor_id) {
+        ++j;
+      }
+      EXPECT_FLOAT_EQ(cmd.kd, static_cast<float>(core.safety(j).mit_fault_kd));
+    }
+  }
+  EXPECT_TRUE(saw_knee);
+}
+
+TEST_F(LegConfig, OvershootThatSlowsDownIsNotARunaway) {
+  seedLeg(core);
+  // Past the target, moving away at 40, 30, 20, 10 deg/s: the restoring push is winning.
+  feedKnee(core, {31.0, 31.8, 32.4, 32.8, 33.0});
+  EXPECT_FALSE(core.checkMitRunaway().has_value());
+}
+
+TEST_F(LegConfig, MovingFastTowardTheTargetIsNotARunaway) {
+  seedLeg(core);
+  feedKnee(core, {20.0, 22.0, 25.0, 29.0});
+  EXPECT_FALSE(core.checkMitRunaway().has_value());
+}
+
+TEST_F(LegConfig, DriftingAwayBelowTheSpeedThresholdIsNotARunaway) {
+  seedLeg(core);
+  // 10, 12, 14, 16, 18 deg/s away: speeding up, but slower than a runaway.
+  feedKnee(core, {28.0, 27.8, 27.56, 27.28, 26.96, 26.6});
+  EXPECT_FALSE(core.checkMitRunaway().has_value());
+}
+
+TEST_F(LegConfig, RunawaySamplesNeedTheirTimeToAdvance) {
+  seedLeg(core);
+  feedKnee(core, {28.2, 28.1, 27.6});
+  // Same timestamp as the last sample: not a new reading, so no velocity from it.
+  core.recordFeedback(core.motorId(kKnee), 25.6, 0.04);
+  EXPECT_FALSE(core.checkMitRunaway().has_value());
+  core.recordFeedback(core.motorId(kKnee), 25.6, 0.06);
+  EXPECT_TRUE(core.checkMitRunaway().has_value());
+}
+
+TEST_F(LegConfig, RunawayWatchStartsOnlyAfterASeedAndRestartsOnReseed) {
+  // Unseeded: no real target yet, so nothing counts.
+  feedKnee(core, {28.2, 28.1, 27.6, 25.6});
+  EXPECT_FALSE(core.checkMitRunaway().has_value());
+
+  seedLeg(core);
+  feedKnee(core, {28.2, 28.1, 27.6}); // one counting sample
+  seedLeg(core);                      // new targets: history cleared
+  core.recordFeedback(core.motorId(kKnee), 25.6, 0.06);
+  EXPECT_FALSE(core.checkMitRunaway().has_value());
+}
+
+TEST_F(ShippedConfig, RunawayLimpsALimpActionJointWithExplicitFrames) {
+  // The GL40 wrist is a Limp joint: normally it gets no frames after a fault. A runaway one must,
+  // because a drive keeps running its last frame.
+  seedAtCommandZero();
+  const int id = static_cast<int>(core.motorId(kWrist));
+  ASSERT_EQ(core.safety(kWrist).mit_fault_action, MitFaultAction::Limp);
+  const double target = core.lastMotorCmdDeg()[kWrist];
+  for (const auto& cmd : core.mitSafeCommands(/*damped_only=*/true)) {
+    EXPECT_NE(cmd.motor_id, id) << "a Limp joint gets no frames after an ordinary fault";
+  }
+  const std::vector<double> away = {-1.8, -1.9, -2.4, -4.4}; // 5, 25, 100 deg/s
+  for (size_t k = 0; k < away.size(); ++k) {
+    core.recordFeedback(id, target + away[k], 0.02 * k);
+  }
+  ASSERT_TRUE(core.checkMitRunaway().has_value());
+  bool saw_wrist = false;
+  for (const auto& cmd : core.mitSafeCommands(/*damped_only=*/true)) {
+    if (cmd.motor_id == id) {
+      saw_wrist = true;
+      EXPECT_FLOAT_EQ(cmd.kp, 0.0f);
+      EXPECT_FLOAT_EQ(cmd.kd, 0.0f);
+    }
+  }
+  EXPECT_TRUE(saw_wrist);
+}
