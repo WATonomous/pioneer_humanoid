@@ -5,7 +5,7 @@
   <description>Common ROS2 message definitions for the WATO Humanoid project.</description>
 
   <maintainer email="gavintranquilino@gmail.com">Gavin Tranquilino</maintainer>
-  <license>Apache2.0</license> 
+  <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
   <depend>std_msgs</depend>

@@ -1,6 +1,6 @@
-# Pioneer - UWaterloo's First Humanoid Robot 
+# Pioneer - UWaterloo's First Humanoid Robot
 
-We are a team of undergraduate student from UWaterloo building a 160 cm humanoid robot. We are the first engineering design team in Canada building a humanoid!
+We are a team of undergraduate students from UWaterloo building a 160 cm humanoid robot. We are the first engineering design team in Canada building a humanoid!
 
 Our humanoid robot will feature 2 arms + 2 legs and we are also developing a 22 DOF humanoid hand that can be modularly switchable with the arm gripper.
 

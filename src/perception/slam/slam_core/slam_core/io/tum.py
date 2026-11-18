@@ -35,7 +35,7 @@ def _camera_for(root):
 class TUMDataset:
     """Iterate a TUM sequence as Frames. RGB frames with no depth within max_dt are dropped."""
 
-    # pairs every RGB image with its closest depth image in time and keeps the pair if they are withing 15 ms
+    # Pairs every RGB image with its closest depth image in time and keeps the pair if they are within max_dt.
     def __init__(self, root, max_dt=0.02):
         self.root = root
         self.K, self.dist = _camera_for(root)
@@ -61,7 +61,7 @@ class TUMDataset:
         for i in range(len(self)):
             yield self[i]
 
-# reads the TIM true camera poeses for scoring later. It is a seperate function because groundtructh isn't par to f the frame.
+# Reads the TUM ground-truth camera poses for scoring. It is a separate function because ground truth isn't part of a Frame.
 
 
 def load_groundtruth(root):

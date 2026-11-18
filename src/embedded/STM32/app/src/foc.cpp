@@ -2,10 +2,10 @@
 /** For setup
  * - initialize PWM
  * - initialize angle/position encoder (MT6835)
- * - intialize current sensing
- * - intialize motor driver
- * - intialize motor configurations (PID, mode) + motor.initFOC()
- * - intialize CANFD and enable RX ISR
+ * - initialize current sensing
+ * - initialize motor driver
+ * - initialize motor configurations (PID, mode) + motor.initFOC()
+ * - initialize CANFD and enable RX ISR
  *
  */
 

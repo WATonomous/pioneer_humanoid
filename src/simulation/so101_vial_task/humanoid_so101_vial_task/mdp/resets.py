@@ -354,7 +354,6 @@ def reset_vials_rack(
         # Select a random slot for this vial
         slot_idx = torch.randint(0, total_slots, (1,), device=env.unwrapped.device).item()
         
-        # Thank you Sonnet lol
         # IMPORTANT: Cannot use get_world_poses() here because write_root_pose_to_sim() doesn't
         # update USD until sim.step(). Instead, manually compute slot positions from local transforms.
         # Transform slot positions from rack local frame to world frame using the NEW rack pose

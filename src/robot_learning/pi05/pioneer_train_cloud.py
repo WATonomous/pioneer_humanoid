@@ -245,7 +245,7 @@ while not done:
         optimizer.zero_grad()
         step += 1
 
-        # just for coms lol
+        # Progress log every 10 steps (mean loss over those steps)
         if step % 10 == 0:
             print(f"step {step} | loss {running_loss/10:.4f} | grad {grad_norm:.2f} | lr {scheduler.get_last_lr()[0]:.2e}")
             running_loss = 0

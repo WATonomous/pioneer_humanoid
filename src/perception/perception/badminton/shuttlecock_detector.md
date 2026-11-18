@@ -45,7 +45,7 @@ durable external directory for real work:
 
 ```
 python prepare_eval.py \
-  --input_dir /home/matthewyang/datasets/badminton_eval/raw_videos \
+  --input_dir ~/datasets/badminton_eval/raw_videos \
   --output_dir /path/to/badminton_eval \
   --video "PAC 1.MP4" --video "PAC 2.MP4" \
   --every_seconds 0.5
@@ -103,14 +103,14 @@ Create and annotate training frames:
 
 ```
 python prepare_eval.py \
-  --input_dir /home/matthewyang/datasets/badminton_eval/raw_videos \
-  --output_dir /home/matthewyang/datasets/badminton_train \
+  --input_dir ~/datasets/badminton_eval/raw_videos \
+  --output_dir ~/datasets/badminton_train \
   --video "PAC 2.MP4" --video "PAC 3.MP4" \
   --video "PAC 4.MP4" --video "PAC 5.MP4" \
   --every_seconds 0.5
 
 python annotate_eval.py \
-  /home/matthewyang/datasets/badminton_train/manifest.jsonl \
+  ~/datasets/badminton_train/manifest.jsonl \
   --max_width 1000 --max_height 650
 ```
 
@@ -119,8 +119,8 @@ Build the YOLO directory and split by source video. This example uses `PAC
 
 ```
 python build_yolo_dataset.py \
-  --manifest /home/matthewyang/datasets/badminton_train/manifest.jsonl \
-  --output_dir /home/matthewyang/datasets/badminton_train/dataset \
+  --manifest ~/datasets/badminton_train/manifest.jsonl \
+  --output_dir ~/datasets/badminton_train/dataset \
   --val_video "PAC 5.MP4" --clean
 ```
 
@@ -135,7 +135,7 @@ models:
 
 ```
 python augment_yolo_dataset.py \
-  --dataset_dir /home/matthewyang/datasets/badminton_train/dataset --remove
+  --dataset_dir ~/datasets/badminton_train/dataset --remove
 ```
 
 Never augment the validation split or the Ticket 3 evaluation images.
@@ -148,8 +148,8 @@ an 8 GB GPU at 1280):
 
 ```
 python train.py \
-  --data /home/matthewyang/datasets/badminton_train/dataset/shuttlecock.yaml \
-  --project /home/matthewyang/datasets/badminton_train/runs \
+  --data ~/datasets/badminton_train/dataset/shuttlecock.yaml \
+  --project ~/datasets/badminton_train/runs \
   --name yolo26n_v2 --cache ram
 ```
 
@@ -161,7 +161,7 @@ Pick the confidence threshold on the PAC 5 val split, not on the Ticket 3 set:
 ```
 python eval_metrics.py \
   --weights .../runs/yolo26n_v2/weights/best.pt \
-  --yolo_dir /home/matthewyang/datasets/badminton_train/dataset --split val \
+  --yolo_dir ~/datasets/badminton_train/dataset --split val \
   --output .../metrics/yolo26n_v2_val.json \
   --imgsz 1280 --class_id 0 --sweep 0.05,0.1,0.15,0.2,0.3,0.4
 ```
@@ -172,8 +172,8 @@ same `imgsz` the model was trained at:
 ```
 python eval_metrics.py \
   --weights .../runs/yolo26n_v2/weights/best.pt \
-  --manifest /home/matthewyang/datasets/badminton_eval/manifest.jsonl \
-  --output /home/matthewyang/datasets/badminton_eval/metrics/yolo26n_v2.json \
+  --manifest ~/datasets/badminton_eval/manifest.jsonl \
+  --output ~/datasets/badminton_eval/metrics/yolo26n_v2.json \
   --imgsz 1280 --confidence 0.60 --match_radius 50 --class_id 0
 ```
 
