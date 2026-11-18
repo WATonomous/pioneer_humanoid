@@ -64,7 +64,7 @@ import rclpy
 from common_msgs.msg import ArmPose, LegPose, MotorFeedback
 
 import joint_config as jc
-from telemetry import RunFolder
+from telemetry import RunFolder, default_run_root
 from telemetry_record import TelemetryRecorder
 
 
@@ -296,6 +296,7 @@ def main(argv=None) -> int:
                            jc.max_torque_by_joint(str(safety_path), side).items()})
     log = RunFolder(
         label=label or "rt", source="ros", enabled=not args.no_log,
+        root=default_run_root("roundtrip"),
         meta={
             "tool": "roundtrip.py", "limb": args.limb, "arm_side": args.arm_side,
             "mapping": str(mapping), "motor_cmd_topic": args.motor_cmd_topic,
