@@ -25,7 +25,6 @@ p.add_argument("--out", default=f"{LEHOME}/out/top_short")
 p.add_argument("--stretch", type=int, default=3, help="physics steps (1/90 s) per demo frame")
 p.add_argument("--video", type=int, default=0, help="also write an mp4 (top + external view) for the first N episodes")
 p.add_argument("--no_record", action="store_true")
-p.add_argument("--no_pin", action="store_true", help="friction grasp only (no particles attached to the fingers)")
 AppLauncher.add_app_launcher_args(p)
 args = p.parse_args()
 args.headless, args.enable_cameras = True, True
@@ -69,6 +68,7 @@ TASK = {"top_short": "fold the short-sleeve top", "top_long": "fold the long-sle
         "pant_long": "fold the trousers"}[args.kind]
 ARRIVE, MAX_WAIT, GRASP_DWELL, RELEASE_DWELL = 0.008, 45, 8, 8
 PIN_RADIUS = 0.018          # m around the fingertip midpoint
+FOLDED_AREA = 0.7           # a fold must leave the cloth covering less than this share of its flat area
 TIP_LOCAL = np.array([TCP_LOCAL[0], TCP_LOCAL[1], -0.240])   # fingertip midpoint, 6 mm up from the tips (link7 frame)
 os.makedirs(args.out, exist_ok=True)
 LOG = open(os.path.join(args.out, f"log_{a0}_{a1}.jsonl"), "a")
@@ -249,6 +249,8 @@ for ep in EPS:
 
         frames, f, waited, dwell, n, pins, lift, grasps, glog = [], 0, 0, 0, 0, {}, 0.0, 0, []
         strain0 = strain = stretch_p99()
+        area = lambda x: len(np.unique(np.floor(x[:, :2].cpu().numpy() / 0.01), axis=0))   # cm^2 the cloth covers
+        area0 = area(cloth.get_world_positions()[0])
         released, springback = [], []
         closed_on = {"left": False, "right": False}
         off = {"left": np.zeros(3), "right": np.zeros(3)}
@@ -278,7 +280,7 @@ for ep in EPS:
             # grasp / release
             for side in ("left", "right"):
                 grip = float(robot.data.joint_pos[0, env._l_grip if side == "left" else env._r_grip].item()) / GRIPPER_STROKE
-                if cmd[side] > 0.5 and side not in pins and grip > 0.6 and not args.no_pin:
+                if cmd[side] > 0.5 and side not in pins and grip > 0.6:
                     pw, R = link7(side)
                     tip = pw + R @ TIP_LOCAL
                     x = cloth.get_world_positions()[0].cpu().numpy()
@@ -345,13 +347,36 @@ for ep in EPS:
                 waited += 1
                 dwell += int(grasping and arrived)
         pins = {}
-        for _ in range(30):  # let the cloth settle before judging
-            env.step(act)
+        x_end = cloth.get_world_positions()[0].clone()
+        settle_s, x_prev, x_sec, move = None, x_end, x_end, []
+        for k in range(150):  # let the cloth settle before judging; how far it moves on its own once let go
+            for _ in range(args.stretch):
+                physics_step(act, {})
+            x_now = cloth.get_world_positions()[0].clone()
+            if settle_s is None and float((x_now - x_prev).norm(dim=1).quantile(0.95)) * 30 < 0.005:   # 95% of the cloth under 5 mm/s
+                settle_s = round((k + 1) / 30, 2)
+            x_prev = x_now
+            if (k + 1) % 30 == 0:   # mm the cloth moved in each second after the fold
+                dx = x_now - x_sec   # mean particle motion, centroid xy shift, mean z change, rms motion about the centroid (mm)
+                move.append([round(float(v) * 1000, 2) for v in (dx.norm(dim=1).mean(), dx[:, :2].mean(0).norm(), dx[:, 2].mean(),
+                                                                (dx - dx.mean(0)).norm(dim=1).mean())])
+                x_sec = x_now
+            if ep - a0 < args.video:
+                obs = get_obs()
+                frames.append(np.hstack([obs["observation.images.top_rgb"][..., :3],
+                                         env.scene_camera.data.output["rgb"][0].cpu().numpy()[..., :3]]))
+        d = (cloth.get_world_positions()[0] - x_end).norm(dim=1) * 100
+        x1 = cloth.get_world_positions()[0]
+        drift = [round(float(d.mean()), 2), round(float(d.quantile(0.95)), 2),   # mean, p95 cm; centroid shift cm; footprint growth cm
+                 round(float((x1.mean(0) - x_end.mean(0))[:2].norm()) * 100, 2),
+                 round(float(((x1.amax(0) - x1.amin(0)) - (x_end.amax(0) - x_end.amin(0)))[:2].sum()) * 100, 2)]
         for _ in range(50):   # the vendored checker only evaluates every 50th call (False otherwise)
             res = success_checker_garment_fold(env.object, env.garment_loader.get_garment_type(GARMENT))
             if isinstance(res, dict):
                 break
         success = bool(res.get("success", False)) if isinstance(res, dict) else bool(res)
+        folded = round(area(cloth.get_world_positions()[0]) / area0, 2)
+        success = success and folded < FOLDED_AREA   # LeHome's check passes legs pushed together without a fold
         checks = [[d.get("description", k)[:40], bool(d.get("passed")), round(float(d.get("value", d.get("distance", -1)) or -1), 3)]
                   for k, d in res.get("details", {}).items()] if isinstance(res, dict) else None
         if ds is not None:
@@ -364,7 +389,7 @@ for ep in EPS:
         rec = dict(ep=ep, garment=E["garment"], success=success, frames=n, demo_frames=len(qL), grasps=grasps,
                    lift=round(lift, 3), ik_err_mm=round(ik_err * 1000, 1), plan_s=round(t_plan, 1),
                    total_s=round(time.time() - t0, 1), shifts=shifts, grasp_log=glog,
-                   checks=checks, stretch_p99=round(strain, 3), stretch0=round(strain0, 3), springback_cm=springback)
+                   checks=checks, stretch_p99=round(strain, 3), stretch0=round(strain0, 3), springback_cm=springback, drift_cm=drift, settle_s=settle_s, folded_area=folded, move_mm_per_s=move)
     except Exception as exc:  # keep going: one bad episode must not stop the night's run
         traceback.print_exc()
         if ds is not None:

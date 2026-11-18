@@ -65,13 +65,15 @@ if args.run_start:
     jp = env.robot.data.default_joint_pos.clone()
     jp[0, ids] = act[0] * torch.tensor([1.0] * 7 + [GRIPPER_STROKE] + [1.0] * 7 + [GRIPPER_STROKE], device=env.device)
     env.robot.write_joint_state_to_sim(jp, torch.zeros_like(jp))
-frames, log = [], []
+frames, log, x_prev = [], [], None
 for n in range(360):   # 12 s at 30 fps, 3 physics steps each
     for _ in range(3):
         env.step(act)
     x = cloth.get_world_positions()[0].cpu().numpy()
     if n % 30 == 0:
-        log.append(dict(t=n / 30, cx=round(float(x[:, 0].mean()), 3), cy=round(float(x[:, 1].mean()), 3),
+        move = 0.0 if x_prev is None else float(np.linalg.norm(x - x_prev, axis=1).mean() * 1000)   # mm the cloth moved in the last second
+        x_prev = x.copy()
+        log.append(dict(t=n / 30, move_mm=round(move, 2), cx=round(float(x[:, 0].mean()), 3), cy=round(float(x[:, 1].mean()), 3),
                         zmax=round(float(x[:, 2].max()), 3), size_x=round(float(np.ptp(x[:, 0])), 3),
                         size_y=round(float(np.ptp(x[:, 1])), 3)))
         print("IDLE", json.dumps(log[-1]), flush=True)
