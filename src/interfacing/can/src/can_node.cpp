@@ -373,7 +373,9 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
 
 void CanNode::loadMitProfiles() {
   const std::string path =
-      ament_index_cpp::get_package_share_directory("can") + "/config/mit_profiles.yaml";
+      canConfigDir(ament_index_cpp::get_package_share_directory("can") + "/config") +
+      "/mit_profiles.yaml";
+  RCLCPP_INFO(this->get_logger(), "Loading MIT profiles from %s", path.c_str());
   YAML::Node root;
   try {
     root = YAML::LoadFile(path);

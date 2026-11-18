@@ -126,3 +126,9 @@ bool mitStatusIsOk(uint8_t status, MitFamily family);
 
 // "ak" / "gl2" (case-sensitive, as written in mit_profiles.yaml). Unknown -> false.
 bool mitFamilyFromString(const std::string& name, MitFamily& out);
+
+// Directory to read mit_profiles.yaml (and params.yaml, in can.launch.py) from: $CAN_CONFIG_DIR when
+// it is set and non-empty, else `installed_config_dir` (the package's share/can/config).
+// docker-compose.interfacing.yaml points CAN_CONFIG_DIR at a directory bind mount of the repo's
+// can/config, so edits and git checkouts reach can_node on its next start.
+std::string canConfigDir(const std::string& installed_config_dir);

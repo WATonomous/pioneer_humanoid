@@ -22,6 +22,8 @@ services:
       - FASTDDS_BUILTIN_TRANSPORTS=UDPv4
       - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
       - ROS_DOMAIN_ID=0
+      # can_node and can.launch.py read mit_profiles.yaml / params.yaml from here (see volumes)
+      - CAN_CONFIG_DIR=/opt/can_config
     volumes:
       - /dev:/dev # Allow access to host devices
       - ${MONO_DIR}/src/interfacing:/root/ament_ws/src/interfacing
@@ -32,9 +34,12 @@ services:
       - ${MONO_DIR}/outputs:/outputs
       # Limits, read-only, for telemetry
       - ${MONO_DIR}/src/interfacing/joint_command/config:/opt/joint_command_config:ro
-      # Overlay the installed config with the repo copies (per file: the dir also holds the DBC)
-      - ${MONO_DIR}/src/interfacing/can/config/mit_profiles.yaml:/opt/watonomous/can/share/can/config/mit_profiles.yaml:ro
-      - ${MONO_DIR}/src/interfacing/can/config/params.yaml:/opt/watonomous/can/share/can/config/params.yaml:ro
+      # Repo can/config, read via CAN_CONFIG_DIR. A DIRECTORY mount on purpose: a single-file bind
+      # mount pins the file's inode, and git checkout/pull or an atomic-save editor replaces the file
+      # with a new one, so the container kept serving the OLD motor profiles and bus routing until it
+      # was recreated. A directory mount always shows the current file. (The DBC still comes from the
+      # image's share/can/config.)
+      - ${MONO_DIR}/src/interfacing/can/config:/opt/can_config:ro
 
   joint_command:
     build:
@@ -63,7 +68,11 @@ services:
       - ${MONO_DIR}/src/interfacing/joint_command:/root/ament_ws/src/joint_command
       # Scripts for telemetry_record.py, outside /root (this container runs as the host user)
       - ${MONO_DIR}/src/interfacing/can/scripts:/opt/humanoid_scripts:ro
-      - ${MONO_DIR}/src/interfacing/joint_command/config/arm_calibration.yaml:/calibration/arm_calibration.yaml:ro
+      # Whole dir, not the single file: a single-file mount goes stale when git or an editor replaces
+      # arm_calibration.yaml, and joint_config.py (live_arm_mjviser, arm_angles, roundtrip,
+      # telemetry_record) reads /calibration first -- while joint_command_node reads the live dir
+      # below, so the scripts and the node silently disagreed on zero offsets and limits.
+      - ${MONO_DIR}/src/interfacing/joint_command/config:/calibration:ro
       - ${MONO_DIR}/src/interfacing/joint_command/config:/opt/joint_command_config:ro
       # Overlay the installed config so calibration/limit edits apply on node restart
       - ${MONO_DIR}/src/interfacing/joint_command/config:/opt/watonomous/joint_command/share/joint_command/config:ro

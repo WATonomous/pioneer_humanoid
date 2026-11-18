@@ -10,6 +10,7 @@ Frames (see joint_command_core.cpp applyCalibration):
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -68,7 +69,10 @@ def actuator_configs(limb: str) -> List[str]:
 
 
 # can/config/mit_profiles.yaml: which protocol family each drive speaks (gl2 | ak).
+# $CAN_CONFIG_DIR first, as in can_node (docker-compose.interfacing.yaml sets it).
+_CAN_CONFIG_DIR = os.environ.get("CAN_CONFIG_DIR")
 MIT_PROFILES = [
+    *([f"{_CAN_CONFIG_DIR}/mit_profiles.yaml"] if _CAN_CONFIG_DIR else []),
     str(Path(__file__).resolve().parent.parent / "config" / "mit_profiles.yaml"),
     "/opt/watonomous/can/share/can/config/mit_profiles.yaml",
 ]

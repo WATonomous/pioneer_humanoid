@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <cstdlib>
 #include <fstream>
 #include <stdexcept>
 
@@ -355,4 +356,18 @@ TEST_F(DbcMitTest, SignalsDecodeBackToTheCodesTheyWereGiven) {
   EXPECT_EQ(signal("MIT_Position")->Decode(frame.data()), packMitValue(2.0, p.p_min, p.p_max, 16));
   EXPECT_EQ(signal("MIT_KP")->Decode(frame.data()), 10u);
   EXPECT_EQ(signal("MIT_KD")->Decode(frame.data()), 8u);
+}
+
+TEST(CanConfigDir, EnvOverridesInstalledDir) {
+  ::setenv("CAN_CONFIG_DIR", "/opt/can_config", 1);
+  EXPECT_EQ(canConfigDir("/opt/watonomous/can/share/can/config"), "/opt/can_config");
+  ::unsetenv("CAN_CONFIG_DIR");
+}
+
+TEST(CanConfigDir, UnsetOrEmptyFallsBackToInstalledDir) {
+  ::unsetenv("CAN_CONFIG_DIR");
+  EXPECT_EQ(canConfigDir("/share/can/config"), "/share/can/config");
+  ::setenv("CAN_CONFIG_DIR", "", 1);  // `CAN_CONFIG_DIR=` in a compose file must not mean "/"
+  EXPECT_EQ(canConfigDir("/share/can/config"), "/share/can/config");
+  ::unsetenv("CAN_CONFIG_DIR");
 }

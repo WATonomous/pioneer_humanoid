@@ -7,12 +7,11 @@ import os
 
 
 def generate_launch_description():
-    # Get the path to the config file
-    config_file = os.path.join(
-        get_package_share_directory('can'),
-        'config',
-        'params.yaml'
-    )
+    # $CAN_CONFIG_DIR (docker-compose.interfacing.yaml: a directory bind mount of the repo's
+    # can/config) wins over the installed copy, as for mit_profiles.yaml in can_node.
+    config_dir = os.environ.get('CAN_CONFIG_DIR') or os.path.join(
+        get_package_share_directory('can'), 'config')
+    config_file = os.path.join(config_dir, 'params.yaml')
 
     config_file_arg = DeclareLaunchArgument(
         'config_file',

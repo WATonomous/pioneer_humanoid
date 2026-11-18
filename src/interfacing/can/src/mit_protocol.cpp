@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <stdexcept>
 #include <string>
 
@@ -218,4 +219,9 @@ bool mitFamilyFromString(const std::string& name, MitFamily& out) {
     return true;
   }
   return false;
+}
+
+std::string canConfigDir(const std::string& installed_config_dir) {
+  const char* dir = std::getenv("CAN_CONFIG_DIR");
+  return (dir != nullptr && dir[0] != '\0') ? std::string(dir) : installed_config_dir;
 }
