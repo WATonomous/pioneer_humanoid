@@ -50,6 +50,7 @@ _REPO_CONFIG = Path(__file__).resolve().parents[2] / "joint_command" / "config"
 
 DEFAULT_CALIBRATIONS = [
     "/calibration/arm_calibration.yaml",  # bind-mounted in both containers
+    "/opt/joint_command_config/arm_calibration.yaml",  # config dir, mounted in both containers
     "/root/ament_ws/src/interfacing/joint_command/config/arm_calibration.yaml",
     "/root/ament_ws/src/joint_command/config/arm_calibration.yaml",
     str(_REPO_CONFIG / "arm_calibration.yaml"),
@@ -83,8 +84,11 @@ _SAFETY_KEYS = ("active", "velocity_max", "delta_max", "control_type", "mit_kp",
 
 def _first_existing(candidates: List[str]) -> Optional[Path]:
     for path in candidates:
-        if path and Path(path).exists():
-            return Path(path)
+        try:
+            if path and Path(path).exists():
+                return Path(path)
+        except PermissionError:  # e.g. /root/... as a non-root container user (py3.10 raises)
+            continue
     return None
 
 
