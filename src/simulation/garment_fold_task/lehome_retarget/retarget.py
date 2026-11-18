@@ -23,6 +23,7 @@ OPEN_ABOVE, CLOSE_BELOW = 0.10, 0.05   # LeHome gripper joint (rad), hysteresis:
 TABLE_Z = 0.522             # apartment table top (settled cloth bottom, smoke test)
 TCP_GRASP_Z = TABLE_Z + 0.022   # TCP is 25 mm above the fingertips: tips 3 mm into the table so the cloth is between them (the approach hovers)
 W_DOWN, W_DOWN_GRASP = 0.02, 1.0   # gripper-down IK weight: soft, and vertical around grasps
+END_Z = 0.12                    # the arms stay this high over the table once the fold is done
 HOVER = 0.07                    # open gripper keeps this high over the table until a grasp is near
 LEHOME_GRASP_Z = 0.499      # their gripper_frame_link height at table grasps
 DZ = TCP_GRASP_Z - LEHOME_GRASP_Z
@@ -123,6 +124,9 @@ def load_episode(ep, kind="top_short"):
             to_close[f] = nxt
         hover = np.where(closed, 0.0, HOVER * np.clip(to_close / 10.0, 0.0, 1.0))
         out[side][:, 2] = np.maximum(out[side][:, 2], TCP_GRASP_Z + hover)
+        rel = [f for f in range(1, len(closed)) if closed[f - 1] and not closed[f]]
+        if rel and not closed[rel[-1]:].any():   # after the last release LeHome's arms sink back to their rest height, onto our folded cloth
+            out[side][rel[-1]:, 2] = np.maximum(out[side][rel[-1]:, 2], TCP_GRASP_Z + END_Z)
         out[side + "_closed"] = closed
         since = np.full(len(closed), 99.0)
         last = 99.0

@@ -25,6 +25,8 @@ p.add_argument("--out", default=f"{LEHOME}/out/top_short")
 p.add_argument("--stretch", type=int, default=3, help="physics steps (1/90 s) per demo frame")
 p.add_argument("--video", type=int, default=0, help="also write an mp4 (top + external view) for the first N episodes")
 p.add_argument("--no_record", action="store_true")
+p.add_argument("--workcell", action="store_true", help="the lab's lightbox workcell instead of LeHome's apartment")
+p.add_argument("--shift_y", type=float, default=0.0, help="m to move the garment and the demo away from the arm")
 AppLauncher.add_app_launcher_args(p)
 args = p.parse_args()
 args.headless, args.enable_cameras = True, True
@@ -50,7 +52,7 @@ from pioneer_humanoid.arm_8dof_params import GRIPPER_STROKE, LEFT_ARM_JOINTS, RI
 
 from humanoid_garment_fold.utils.success_checker_garment import success_checker_garment_fold  # noqa: E402
 
-from retarget import IK, TCP_GRASP_Z, load_episode, plan_track, snap_grasps  # noqa: E402
+from retarget import IK, TABLE_Z, TCP_GRASP_Z, load_episode, plan_track, snap_grasps  # noqa: E402
 
 if ":" in args.episodes:
     a0, a1 = map(int, args.episodes.split(":"))
@@ -67,7 +69,6 @@ CAMS = {"top": "observation.images.top_rgb", "wrist_left": "observation.images.l
 TASK = {"top_short": "fold the short-sleeve top", "top_long": "fold the long-sleeve top", "pant_short": "fold the shorts",
         "pant_long": "fold the trousers"}[args.kind]
 ARRIVE, MAX_WAIT, GRASP_DWELL, RELEASE_DWELL = 0.008, 45, 8, 8
-TAIL = 15                   # frames recorded after the last release (~0.5 s, as long as LeHome's recordings run on)
 PIN_RADIUS = 0.018          # m around the fingertip midpoint
 FOLDED_AREA = 0.7           # a fold must leave the cloth covering less than this share of its flat area
 TIP_LOCAL = np.array([TCP_LOCAL[0], TCP_LOCAL[1], -0.240])   # fingertip midpoint, 6 mm up from the tips (link7 frame)
@@ -75,6 +76,7 @@ os.makedirs(args.out, exist_ok=True)
 LOG = open(os.path.join(args.out, f"log_{a0}_{a1}.jsonl"), "a")
 
 cfg = GarmentPioneerEnvCfg()
+cfg.workcell = args.workcell
 cfg.garment_name = GARMENT
 cfg.particle_cfg_path = os.environ.get("CLOTH_CFG") or cfg.particle_cfg_path
 cfg.garment_cfg_base_path = f"{LEHOME}/assets/objects/Challenge_Garment"
@@ -91,8 +93,8 @@ get_obs = env._get_observations
 env._get_observations = lambda: {}                                     # read once per frame below, not per step
 env._get_rewards = lambda: torch.zeros(1, device=env.device)          # its success check per step is not needed
 if args.video:
-    env.scene_camera.set_world_poses_from_view(torch.tensor([[0.75, 0.55, 1.05]], device=env.device),
-                                               torch.tensor([[0.0, -0.08, 0.55]], device=env.device))
+    eye, target = ([0.55, -0.85, 1.3], [0.0, 0.1, 0.53]) if args.workcell else ([0.75, 0.55, 1.05], [0.0, -0.08, 0.55])   # the lightbox walls block the far side
+    env.scene_camera.set_world_poses_from_view(torch.tensor([eye], device=env.device), torch.tensor([target], device=env.device))
 ids = torch.cat([env._l_arm, env._l_grip, env._r_arm, env._r_grip])
 SCALE = torch.tensor([1.0] * 7 + [GRIPPER_STROKE] + [1.0] * 7 + [GRIPPER_STROKE], device=env.device)
 cloth = env.object._cloth_prim_view
@@ -224,6 +226,10 @@ for ep in EPS:
     t0 = time.time()
     try:
         E = load_episode(ep, args.kind)
+        E["pose"][1] += args.shift_y
+        for a in ("left", "right"):
+            E[a][:, 1] += args.shift_y
+            E[a][:, 2] += getattr(env, "table_top_z", TABLE_Z) - TABLE_Z   # the workcell's table is higher
         g = {"left": E["left_closed"].astype(float), "right": E["right_closed"].astype(float)}
         start = {}
         for a in ("left", "right"):   # start pose only; the full path is planned once the cloth has settled
@@ -309,8 +315,6 @@ for ep in EPS:
                     released.append((n, near, x[near].clone()))
                     cp = keypoints()
                     glog.append([side, f, "release", np.round(tcp_world(side), 3).tolist(), np.round(cp[:, :2], 3).tolist()])
-            if released and not pins and n - released[-1][0] >= TAIL and all(max(g[side][f:], default=0) < 0.5 for side in g):
-                break   # stop recording once the fold is done, like LeHome: the cloth's slow post-fold creep stays out of the data
             for r in [r for r in released if n - r[0] == 30]:   # how far the let-go cloth moves on its own in 1 s
                 springback.append(round(float((cloth.get_world_positions()[0, r[1]] - r[2]).norm(dim=1).mean()) * 100, 2))
             if n % 10 == 0:

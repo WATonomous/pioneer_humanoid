@@ -75,6 +75,9 @@ class GarmentPioneerEnvCfg(GarmentEnvCfg):
     # the cost of the photoreal backdrop -- not done here.)
     robot_base_pos: tuple = (0.0, -0.40, 0.95)
     robot_base_rot: tuple = (0.7071068, 0.0, 0.0, 0.7071068)  # wxyz, +90 deg Z
+    # Build the lab's lightbox workcell (humanoid_rl_tasks.workcell) around the arm instead of the apartment, placed so
+    # the arm stands where it does in the workcell (its table top is then 1 cm below the apartment's).
+    workcell: bool = False
 
     # Optional photoreal NuRec backdrop (visual only, no collision). Off by
     # default -- needs the NuRec renderer + manual alignment.
