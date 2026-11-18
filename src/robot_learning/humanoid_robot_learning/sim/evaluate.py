@@ -7,6 +7,11 @@ Works for any scene that registers ``success`` or a multi-step ``progress``. Epi
 driven like the recorded teleop: state is the arm joints plus gripper closure, the action the joint targets plus the
 gripper command, held for one frame (1 / ``--fps``); cameras are rendered at the size the policy was trained on.
 
+pi0.5 (with its memory and RTC options off) renders the cameras and runs the preprocessor only on the steps where it
+plans a new chunk: it keeps no observation history and doesn't read the observation while it pops queued actions, so the
+skipped steps give the same actions. Every other policy keeps the every-step loop. Every frame is still rendered for
+``--video_dir``, and ``--render_every_step`` restores the every-step loop for pi0.5 too.
+
 Robot (``--robot``, default from the policy's action size): ``8dof`` = pioneer_bimanual_arm_8dof's left arm (7 joints +
 gripper, pioneer_8dof_dataset_schema.yaml), ``armv2`` = the old 6-DoF left arm (6 + gripper).
 """
@@ -165,6 +170,36 @@ def training_task(path: str) -> str | None:
     return names[0] if len(names) == 1 else None
 
 
+def reads_only_when_planning(policy) -> bool:
+    """Whether the policy reads the observation only when it plans a new chunk, so the steps that pop a queued action
+    need no rendering or preprocessing. Claimed only for LeRobot's pi0.5 with its memory and RTC options off: it keeps no
+    observation history, and ``select_action`` pops a queued action without looking at the batch. Policies with history
+    (Pioneer-1, Diffusion, pi0.5's visual or proprioceptive memory) or other policies keep the every-step loop."""
+    cfg = policy.config
+    return (getattr(cfg, "type", None) == "pi05" and not getattr(cfg, "use_visual_memory", False)
+            and not getattr(cfg, "use_proprioceptive_memory", False)
+            and not getattr(getattr(cfg, "rtc_config", None), "enabled", False))
+
+
+def _queued_actions(policy) -> int:
+    count = getattr(policy, "count_queued_actions", None)   # lerobot >= 0.7; earlier pi0 / pi0.5 keep _action_queue
+    return count() if count is not None else len(policy._action_queue)
+
+
+def queued_action(policy, post):
+    """The policy's next queued action, postprocessed as ``predict_action`` does. The batch is empty: the policy must
+    not read an observation here, and fails loudly if it does."""
+    import torch
+
+    with torch.inference_mode():
+        action = policy.select_action({})
+        try:   # lerobot >= 0.7 wraps the action in a transition between policy and postprocessor
+            from lerobot.processor.converters import policy_output_to_transition, transition_to_policy_action
+        except ImportError:
+            return post(action)
+        return post(transition_to_policy_action(policy_output_to_transition(action)))
+
+
 def wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
     """95% confidence interval of a success rate k / n."""
     p, d = k / n, 1 + z * z / n
@@ -191,6 +226,8 @@ def main() -> None:
     p.add_argument("--video_dir", default=None, help="write an mp4 per episode (cameras side by side)")
     p.add_argument("--robot", choices=tuple(ACTION_DIM), default=None,
                    help="sim arm (default: from the policy's action size: 8 = 8dof, 7 = armv2)")
+    p.add_argument("--render_every_step", action="store_true",
+                   help="pi0.5: render and preprocess every step, also while the policy pops queued actions")
     args = p.parse_args()
 
     control_steps = round(1 / (args.fps * CONTROL_DT))
@@ -206,6 +243,8 @@ def main() -> None:
     if action_dim != ACTION_DIM[robot]:
         p.error(f"the policy outputs {action_dim} actions; --robot {robot} takes {ACTION_DIM[robot]}")
     print(f"[EVAL] robot {robot} ({action_dim} actions)", flush=True)
+    skip_queued = not args.render_every_step and reads_only_when_planning(policy)
+    print(f"[EVAL] rendering {'only when the policy plans a chunk' if skip_queued else 'every step'}", flush=True)
     env = SceneEnv(args.scene, cameras, robot)
     task = args.task or training_task(args.policy)
     if task is None and env.progress is None:
@@ -218,10 +257,15 @@ def main() -> None:
         policy.reset()
         frames, held, ok = [], 0.0, False
         for _ in range(int(args.max_s * args.fps)):
-            obs = env.observe()
+            plan = not skip_queued or _queued_actions(policy) == 0
+            obs = env.observe() if plan or args.video_dir else None
             if args.video_dir:
                 frames.append(np.concatenate([obs[f"observation.images.{c}"] for c in cameras], axis=1))
-            action = predict_action(obs, policy, torch.device(args.device), pre, post, use_amp=False, task=env.instruction() or task)
+            if plan:
+                action = predict_action(obs, policy, torch.device(args.device), pre, post, use_amp=False,
+                                        task=env.instruction() or task)
+            else:
+                action = queued_action(policy, post)
             env.step(action.reshape(-1).cpu().numpy(), control_steps)
             held = held + 1 / args.fps if env.success(env.model, env.data) else 0.0
             if held >= HOLD_S:
