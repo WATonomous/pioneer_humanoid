@@ -27,6 +27,7 @@ regions:
     expected_slope_deg: 0.0
     tolerance_cm: 2.0
     false_obstacle_threshold_m: 0.05
+    obstacle_pad_m: [0.18, 0.18, 0.18, 0.52]
 
   # 2. Step (bottom-right of hallway): 73 cm wide (x) x 28 cm deep (y) x 14 cm tall
   #    Width:  1.08 - 0.35 = 0.73 m (73 cm)

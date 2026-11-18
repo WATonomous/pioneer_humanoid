@@ -8,27 +8,24 @@ config/test_course.yaml and reports the TR-11 evaluation metrics:
   3. Under-feet coverage (fraction of cells under the robot with valid heights)
 
 Usage:
-    # Run built-in synthetic benchmark suite (perfect map + 3 known-mistake maps):
-    python3 terrain_tools/evaluate.py
+    # Run built-in synthetic benchmark suite (from src/terrain_mapping/terrain_core):
+    python3 -m terrain_tools.evaluate
 
     # Render top-down 2.5D height plots into src/terrain_mapping/terrain_core/data/:
-    python3 terrain_tools/evaluate.py --png
+    python3 -m terrain_tools.evaluate --png
 
     # Evaluate one or more saved map files (.npz or .npy):
-    python3 evaluate.py path/to/map.npz [--json report.json] [--strict]
+    python3 -m terrain_tools.evaluate path/to/map.npz [--json report.json] [--strict]
 """
 import argparse
 import json
-import os
-import shutil
-import subprocess
 import sys
 from pathlib import Path
 
 import numpy as np
 import yaml
 
-from synthetic_maps import EDGE_MARGIN_M, GridMap, build_synthetic_suite
+from terrain_tools.synthetic_maps import EDGE_MARGIN_M, GridMap, build_synthetic_suite
 
 DEFAULT_CONFIG = Path(__file__).resolve().parent.parent / "config" / "test_course.yaml"
 DEFAULT_DATA_DIR = Path(__file__).resolve().parent.parent / "data"
@@ -74,7 +71,11 @@ def _coverage(gm, mask):
 
 def eval_under_feet(gm, cfg):
     """Fraction of cells under the robot's feet that have a valid height estimate."""
-    mask = gm.region_mask(cfg["bounds"])
+    b = list(cfg["bounds"])
+    if gm.map_centre is not None:
+        cx, cy = gm.map_centre
+        b = [b[0] + cx, b[1] + cx, b[2] + cy, b[3] + cy]
+    mask = gm.region_mask(b)
     cov = _coverage(gm, mask)
     if "min_coverage_pct" in cfg:
         min_cov = float(cfg["min_coverage_pct"]) / 100.0
@@ -92,8 +93,9 @@ def eval_under_feet(gm, cfg):
 def eval_flat_floor(gm, cfg, obstacle_bounds, obstacle_thresh_m):
     """Height error and false obstacle count on the flat floor (excluding known obstacles)."""
     mask = gm.region_mask(cfg["bounds"], EDGE_MARGIN_M)
+    px0, px1, py0, py1 = cfg["obstacle_pad_m"]
     for b in obstacle_bounds:
-        pad = [b[0] - 0.18, b[1] + 0.18, b[2] - 0.18, b[3] + 0.52]
+        pad = [b[0] - px0, b[1] + px1, b[2] - py0, b[3] + py1]
         mask &= ~gm.region_mask(pad)
 
     valid = mask & np.isfinite(gm.z)
@@ -338,7 +340,7 @@ def plot_maps(maps_dict, all_runs, course, out_path=None, show=False):
     from matplotlib.colors import LinearSegmentedColormap
 
     n = len(maps_dict)
-    fig = plt.figure(figsize=(3.9 * n, 9.6), dpi=140, facecolor="#18181b")
+    fig = plt.figure(figsize=(max(3.9 * n, 8.2), 9.6), dpi=140, facecolor="#18181b")
     gs = fig.add_gridspec(4, n, height_ratios=[1.0, 0.042, 1.0, 0.042], hspace=0.14, wspace=0.08)
 
     cmap_elev = plt.cm.turbo.copy()
@@ -392,14 +394,15 @@ def plot_maps(maps_dict, all_runs, course, out_path=None, show=False):
         # Row 1: 2.5D Elevation Map (-10 cm to +50 cm)
         ax1 = fig.add_subplot(gs[0, i], facecolor="#28282c")
         im_top = ax1.imshow(gm.z * 100.0, origin="lower", extent=ext, cmap=cmap_elev, vmin=-10.0, vmax=50.0, interpolation="nearest")
-        # Camera / robot start origin dot at world (0, 0)
+        # Camera / robot position dot (map_centre if loaded from check_map.py, else (0, 0))
+        cam_x, cam_y = gm.map_centre if gm.map_centre is not None else (0.0, 0.0)
         ax1.plot(
-            0.0, 0.0, marker="o", markersize=6.5,
+            cam_x, cam_y, marker="o", markersize=6.5,
             color="#ffffff", markeredgecolor="#18181b", markeredgewidth=1.4, zorder=6,
         )
         if i == 0:
             ax1.annotate(
-                "Camera (0, 0)", xy=(0.0, 0.0), xytext=(0.14, 0.08),
+                f"Camera ({cam_x:.1f}, {cam_y:.1f})", xy=(cam_x, cam_y), xytext=(cam_x + 0.14, cam_y + 0.08),
                 color="#ffffff", fontsize=7.5, fontweight="bold", zorder=7,
                 bbox={"facecolor": "#18181bcc", "edgecolor": "none", "pad": 1.5},
             )
@@ -426,7 +429,7 @@ def plot_maps(maps_dict, all_runs, course, out_path=None, show=False):
         ax2 = fig.add_subplot(gs[2, i], facecolor="#28282c")
         im_bot = ax2.imshow(err_grid_cm, origin="lower", extent=ext, cmap=cmap_err, vmin=-6.0, vmax=6.0, interpolation="nearest")
         ax2.plot(
-            0.0, 0.0, marker="o", markersize=5.5,
+            cam_x, cam_y, marker="o", markersize=5.5,
             color="#ffffff", markeredgecolor="#18181b", markeredgewidth=1.2, zorder=6,
         )
         hud2 = (
@@ -475,16 +478,6 @@ def plot_maps(maps_dict, all_runs, course, out_path=None, show=False):
         plt.savefig(final_p, facecolor=fig.get_facecolor())
         abs_p = final_p.resolve()
         print(f"Saved map plot to {abs_p}")
-        try:
-            if hasattr(os, "startfile"):
-                os.startfile(str(abs_p))
-            elif shutil.which("wslview"):
-                subprocess.Popen(["wslview", str(abs_p)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            elif shutil.which("explorer.exe"):
-                win_p = subprocess.check_output(["wslpath", "-w", str(abs_p)], text=True).strip()
-                subprocess.Popen(["explorer.exe", win_p], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        except Exception:
-            pass
     if show:
         plt.show()
     plt.close(fig)

@@ -15,7 +15,7 @@ dependencies = ["numpy", "pyyaml", "slam_core"]
 dev = ["matplotlib", "scipy", "pytest", "pillow"]
 
 [tool.setuptools.packages.find]
-include = ["terrain_core*"]
+include = ["terrain_core*", "terrain_tools*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
