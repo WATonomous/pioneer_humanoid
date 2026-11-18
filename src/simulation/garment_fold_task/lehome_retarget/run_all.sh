@@ -12,7 +12,7 @@ for gi in $(seq ${FIRST:-0} ${LAST:-9}); do
     LEHOME_ROOT=${LEHOME_ROOT:-$HOME/Desktop/lehome_ref} $ISAAC_PYTHON run_retarget.py --episodes $a:$b --kind $KIND --out $OUT --video 1 \
       --device cuda > $OUT/g$gi.log 2>&1
   else
-    ./isaac_run.sh lehome_${KIND}_g$gi run_retarget.py --episodes $a:$b --kind $KIND --out /lehome/out/${OUTNAME:-$KIND} --video 1 --device cuda \
+    ./isaac_run.sh lehome_${KIND}_g$gi run_retarget.py --episodes $a:$b --kind $KIND --out /lehome/out/${OUTNAME:-$KIND} --video 1 --device cuda $EXTRA \
       > $OUT/g$gi.log 2>&1
   fi
   ok=$(cat $OUT/log_*.jsonl 2>/dev/null | grep -c '"success": true')
