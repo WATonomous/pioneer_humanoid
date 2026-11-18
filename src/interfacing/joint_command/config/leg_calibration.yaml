@@ -24,10 +24,10 @@ left:
   knee:
     pitch:
       can_id: 44
-      lower_limit: -20.0
-      upper_limit: 20.0
+      lower_limit: -54.80000305175781
+      upper_limit: 70.5999984741211
       direction: 1
-      zero_offset: 128.39999389648438
+      zero_offset: 116.69999694824219
       limit_range: true
   ankle:
     pitch:

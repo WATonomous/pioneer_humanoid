@@ -83,14 +83,20 @@ _SAFETY_KEYS = ("active", "velocity_max", "delta_max", "control_type", "mit_kp",
 
 def _first_existing(candidates: List[str]) -> Optional[Path]:
     for path in candidates:
-        if path and Path(path).exists():
-            return Path(path)
+        try:
+            if path and Path(path).exists():
+                return Path(path)
+        except OSError:
+            continue  # unreadable, e.g. /root/... is root-only for the container user: not a candidate
     return None
 
 
 def calibration_configs(limb: str) -> List[str]:
-    return [p.replace("arm_calibration.yaml", f"{limb}_calibration.yaml")
-            for p in DEFAULT_CALIBRATIONS]
+    paths = [p.replace("arm_calibration.yaml", f"{limb}_calibration.yaml") for p in DEFAULT_CALIBRATIONS]
+    # The live config directory, bind-mounted into both containers: the very file joint_command reads.
+    # /calibration/ only has the ARM file in the joint_command container, so a leg needs this one.
+    paths.insert(1, f"/opt/joint_command_config/{limb}_calibration.yaml")
+    return paths
 
 
 def find_calibration(explicit: Optional[str], limb: str = "arm") -> Path:

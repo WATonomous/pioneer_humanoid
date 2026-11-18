@@ -33,8 +33,8 @@ from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy
 
 from common_msgs.msg import ArmPose, LegPose, MotorCmd, MotorFeedback
 
-from joint_config import (arm_pose_topic, find_calibration, pose_topic, load_joint_map, load_actuator_limits,
-                          max_torque_by_joint)
+from joint_config import (arm_pose_topic, find_actuators, find_calibration, pose_topic, load_joint_map,
+                          load_actuator_limits, max_torque_by_joint)
 from telemetry import RunFolder
 
 # GL II status nibble (MIT feedback). Servo feedback uses the DBC's own error codes.
@@ -149,6 +149,64 @@ class TelemetryRecorder(Node):
             self.rows += 1
 
 
+class PoseWatcher(TelemetryRecorder):
+    """A TelemetryRecorder for a run driven by SOMEONE ELSE's pose publisher (a test script, a policy).
+
+    Labels every row `pose N` (N counts each time the requested pose changes), remembers when the last
+    pose arrived (for --idle-stop), and notes when joint_command stops commanding a motor mid-run
+    (kp falls back to 0 after having been live while poses still arrive), which is what an MIT
+    fault looks like from the outside.
+    """
+    POSE_EPS_DEG = 1e-6
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.phase = "idle"
+        self.pose_number = 0
+        self.last_pose_vector: Optional[List[float]] = None
+        self.last_pose_time: Optional[float] = None
+        self.live_motors: set = set()
+        self.halt_reason: Optional[str] = None
+        self.max_abs_torque = 0.0
+        self.requested_range: Dict[int, List[float]] = {}   # motor id -> [min, max] requested
+
+    def _record_request(self, slots: List[float], side: str) -> None:
+        super()._record_request(slots, side)
+        self.last_pose_time = time.monotonic()
+        changed = self.last_pose_vector is None or any(
+            abs(a - b) > self.POSE_EPS_DEG for a, b in zip(slots, self.last_pose_vector))
+        if changed:
+            self.pose_number += 1
+            self.phase = f"pose {self.pose_number}"
+            self.last_pose_vector = list(slots)
+        for motor_id, value in self.requested.items():
+            lo_hi = self.requested_range.setdefault(motor_id, [value, value])
+            lo_hi[0], lo_hi[1] = min(lo_hi[0], value), max(lo_hi[1], value)
+
+    def _on_cmd(self, msg: MotorCmd) -> None:
+        if msg.control_type == MotorCmd.MIT_CONTROL:
+            motor_id = int(msg.motor_id)
+            if msg.kp > 0.0:
+                self.live_motors.add(motor_id)
+            elif (motor_id in self.live_motors and self.halt_reason is None and self.last_pose_time is not None
+                  and time.monotonic() - self.last_pose_time < 1.0):
+                self.halt_reason = (f"joint_command stopped commanding motor {motor_id} (kp fell to 0) "
+                                    f"while poses still arrived: likely an MIT fault")
+        super()._on_cmd(msg)
+
+    def _on_feedback(self, msg: MotorFeedback) -> None:
+        super()._on_feedback(msg)
+        self.max_abs_torque = max(self.max_abs_torque, abs(float(getattr(msg, "torque", 0.0))))
+
+    def moving_joints(self) -> List[str]:
+        """Joints whose requested angle actually varied during the run (what the plots call `moving`)."""
+        names = []
+        for motor_id, (lo, hi) in sorted(self.requested_range.items()):
+            if hi - lo > 0.01:
+                names.append(self.joint_map.get(motor_id, {}).get("name", f"motor{motor_id}"))
+        return names
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0],
                                  formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -157,16 +215,30 @@ def main(argv=None) -> int:
     ap.add_argument("--duration", type=float, default=0.0,
                     help="seconds to record; 0 = until Ctrl-C (default)")
     ap.add_argument("--rate", type=float, default=50.0, help="sampling rate, Hz (default 50)")
-    ap.add_argument("--calibration", "--mapping", dest="mapping", help="path to arm_calibration.yaml")
-    ap.add_argument("--actuators", "--safety-limits", dest="actuators", help="path to arm_actuators.yaml")
-    ap.add_argument("--arm-side", default="left")
+    ap.add_argument("--limb", default="arm", choices=["arm", "leg"],
+                    help="record an arm (ArmPose, the default) or a leg (LegPose)")
+    ap.add_argument("--calibration", "--mapping", dest="mapping", help="path to <limb>_calibration.yaml")
+    ap.add_argument("--actuators", "--safety-limits", dest="actuators", help="path to <limb>_actuators.yaml")
+    ap.add_argument("--arm-side", "--side", dest="arm_side", default="left")
     ap.add_argument("--motors", help="comma-separated motor ids to record (default: all seen)")
+    ap.add_argument("--idle-stop", type=float, default=0.0,
+                    help="stop this many seconds after the last pose message (0 = never). For a run driven by "
+                         "another script: start this first, then that script, and plot when this exits.")
+    ap.add_argument("--start-timeout", type=float, default=30.0,
+                    help="with --idle-stop: give up if no pose message arrives within this many seconds")
     ap.add_argument("--no-log", action="store_true", help="print only, write nothing")
     args = ap.parse_args(argv)
 
-    mapping_path = find_calibration(args.mapping)
-    joint_map = load_joint_map(mapping_path, args.arm_side)
-    velocity_max, mit_limits = load_actuator_limits(args.actuators, args.arm_side)
+    mapping_path = find_calibration(args.mapping, args.limb)
+    joint_map = load_joint_map(mapping_path, args.arm_side, args.limb)
+    safety_path = find_actuators(args.actuators, args.limb)
+    if safety_path is not None:
+        velocity_max, mit_limits = load_actuator_limits(str(safety_path), args.arm_side)
+        torque_caps = max_torque_by_joint(str(safety_path), args.arm_side)
+    else:
+        # Never fall back to the arm's file for a leg: no limits is better than the wrong ones.
+        print(f"note: no {args.limb}_actuators.yaml found; the plots will have no limit lines")
+        velocity_max, mit_limits, torque_caps = {}, {}, {}
     motors = [int(x) for x in args.motors.split(",")] if args.motors else None
 
     log = RunFolder(
@@ -175,6 +247,7 @@ def main(argv=None) -> int:
         enabled=not args.no_log,
         meta={
             "tool": "telemetry_record.py",
+            "limb": args.limb,
             "arm_side": args.arm_side,
             "calibration": str(mapping_path),
             "rate_hz": args.rate,
@@ -191,7 +264,7 @@ def main(argv=None) -> int:
                 "mit": mit_limits,
                 "max_torque_nm": min((v["max_torque_nm"] for v in mit_limits.values()
                                       if v.get("max_torque_nm") is not None), default=None),
-                "max_torque_nm_by_joint": max_torque_by_joint(args.actuators, args.arm_side),
+                "max_torque_nm_by_joint": torque_caps,
                 "max_track_err_deg": min((v["max_track_err_deg"] for v in mit_limits.values()
                                           if v.get("max_track_err_deg") is not None),
                                          default=None),
@@ -202,8 +275,9 @@ def main(argv=None) -> int:
     print(log.describe())
 
     rclpy.init()
-    node = TelemetryRecorder(joint_map, log, motors, args.rate, [args.arm_side])
-    stop_at = time.monotonic() + args.duration if args.duration > 0 else None
+    node = PoseWatcher(joint_map, log, motors, args.rate, [args.arm_side], args.limb)
+    started = time.monotonic()
+    stop_at = started + args.duration if args.duration > 0 else None
     stopping = {"now": False}
 
     def on_signal(signum, _frame):
@@ -212,20 +286,35 @@ def main(argv=None) -> int:
     signal.signal(signal.SIGINT, on_signal)
     signal.signal(signal.SIGTERM, on_signal)
 
+    print("recording" + (f" (stops {args.idle_stop:g} s after the last pose)" if args.idle_stop > 0 else "")
+          + ": waiting for poses on " + pose_topic(args.limb, args.arm_side), flush=True)
     try:
         while rclpy.ok() and not stopping["now"]:
             rclpy.spin_once(node, timeout_sec=0.05)
-            if stop_at is not None and time.monotonic() >= stop_at:
+            now = time.monotonic()
+            if stop_at is not None and now >= stop_at:
                 break
+            if args.idle_stop > 0:
+                if node.last_pose_time is not None and now - node.last_pose_time >= args.idle_stop:
+                    break
+                if node.last_pose_time is None and now - started >= args.start_timeout:
+                    print(f"no pose message within {args.start_timeout:g} s: giving up", flush=True)
+                    break
     finally:
         seen = sorted(node.seen)
-        log.note(motors_seen=seen, rows_written=node.rows)
-        run_dir = log.close("completed")
+        log.note(motors_seen=seen, rows_written=node.rows, moving=node.moving_joints(),
+                 poses_seen=node.pose_number, max_abs_torque_nm=round(node.max_abs_torque, 3))
+        if node.halt_reason:
+            run_dir = log.close("aborted", abort_reason=node.halt_reason)
+        else:
+            run_dir = log.close("completed")
         node.destroy_node()
         rclpy.shutdown()
-        print(f"\nrecorded {node.rows} rows from motors {seen}")
+        print(f"\nrecorded {node.rows} rows from motors {seen}, {node.pose_number} distinct pose(s)")
         if not seen:
             print("WARNING: no feedback received at all -- is can_node running?")
+        if node.halt_reason:
+            print(f"WARNING: {node.halt_reason}")
         if run_dir is not None:
             print(f"Telemetry: {run_dir}")
             print(f"  plot with: uv run --with matplotlib --with numpy "
