@@ -8,6 +8,7 @@ joint_command_node:
     # configured by leg_calibration.yaml and leg_actuators.yaml. Don't write `legs: []`: ROS 2
     # param files can reject empty lists, which could stop this node from starting.
     # legs: ["left", "right"]
+    legs: ["left"]
     control_rate_hz: 50.0
     motor_cmd_topic: "/interfacing/motorCMD"
     control_type: 0  # MIT_CONTROL
