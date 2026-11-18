@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
-"""Leg joint angles straight off the CAN bus, one column per feedback source.
+"""Leg joint angles straight off the CAN bus, plus the MIT commands sent to each drive.
 
-can_node merges two reports of the same shaft into MotorFeedback.position:
-  servo  servo status frame, ext id 0x2900|id, int16 x 0.1 deg (fixed scale)
-  mit    MIT reply, std id 0x000 (master), byte 0 = id, uint16 over mit_profiles.yaml's p range
-This script keeps them apart, so you can check that mit_profiles.yaml's p range matches the
-drive (KNEE_RUNAWAY_DEBUG.md, T3): at the same pose the two must agree. It also shows the MIT
-command frames (ext id 0x800|id) on the bus, decoded the way the drive should read them.
+The leg drives are CubeMars AK V3. They never send MIT replies: everything they report comes in
+the servo status frame (ext id 0x2900|id, humanoid.dbc ServoStatusFeedback), about 50 Hz,
+whether or not they are being commanded:
+  position  int16 x 0.1 deg       speed  int16 x 10 ERPM (rotor, electrical rpm)
+  current   int16 x 0.01 A        temp   int8 deg C          error  uint8
+MIT commands (ext id 0x800|id, KP-first) are decoded with mit_profiles.yaml's ranges, i.e. as the
+drive should read them.
+
+The summary checks the drive's speed sign against the way its position moves. Opposite signs are
+a warning, not proof: the speed is the rotor's, and a gearbox can legitimately reverse it. A
+powered test with the joint held between physical stops is what decides.
 
 Read-only: a receive-only raw CAN socket. It never sends a frame, so it cannot move a motor.
 
@@ -14,11 +19,11 @@ Run (interfacing container, which has can0)::
 
     ros2 run can leg_angles.py                      # left leg, live from can0
     ros2 run can leg_angles.py --ids 44             # just the knee
-    ros2 run can leg_angles.py --log /outputs/can_t3_063150.log   # a candump -L capture
+    ros2 run can leg_angles.py --log /outputs/can_step1.log   # a candump -L capture
 
-Each row: command-frame deg (motor-frame deg in brackets) per source, d = servo - mit (motor
-deg), and the last MIT command seen ("tx"). "---" = nothing from that source in the last
-0.5 s. Ctrl-C (or the end of a log) prints a per-joint summary with a verdict.
+Each row: command-frame deg [motor-frame deg], speed (ERPM), current (A), drive temperature, and
+the last MIT command seen ("tx": target in motor deg, kp, kd). "---" = nothing in the last 0.5 s.
+Ctrl-C (or the end of a log) prints a per-joint summary.
 """
 
 from __future__ import annotations
@@ -26,10 +31,10 @@ from __future__ import annotations
 import argparse
 import math
 import socket
-import statistics
 import struct
 import sys
 import time
+from collections import deque
 from pathlib import Path
 
 import yaml
@@ -38,10 +43,10 @@ import joint_config as jc
 
 SERVO_BASE = 0x2900   # ServoStatusFeedback (humanoid.dbc), ext id = base | drive id
 MIT_CMD_BASE = 0x800  # AK V3 MIT command (mit_protocol.cpp akMitCanId), ext id = base | id
-MIT_MASTER_ID = 0x000  # can params.yaml mit_master_id
 STALE_AFTER_S = 0.5
-PAIR_WINDOW_S = 0.1   # an MIT reply and a servo frame this close count as the same pose
-H2C_RATIO = 50.0 / 12.56  # servo/mit span ratio if the drive decodes p over +-50 (debug log H2c)
+SLOPE_WINDOW_S = 0.1  # position change measured over this long (0.1 deg steps are coarse)
+MIN_SLOPE_DPS = 10.0  # only compare signs while the joint is clearly moving
+MIN_ERPM = 50.0
 
 CAN_EFF_FLAG = 0x80000000
 CAN_RTR_FLAG = 0x40000000
@@ -64,39 +69,39 @@ def load_ak_profiles(ids) -> dict[int, dict]:
     return out
 
 
-def unpack(code: int, lo: float, hi: float, bits: int) -> float:
-    """mit_protocol.cpp unpackMitValue (feedback)."""
-    return code * (hi - lo) / ((1 << bits) - 1) + lo
-
-
 class Joint:
     def __init__(self, motor_id: int, info: dict, profile: dict | None):
         self.id = motor_id
         self.info = info
         self.profile = profile
-        self.servo: tuple[float, float] | None = None   # (motor deg, t)
-        self.mit: tuple[float, float] | None = None
+        self.fb: tuple[float, float, float, int, int, float] | None = None  # deg, erpm, A, C, err, t
         self.tx: tuple[float, float, float, float] | None = None  # (p motor deg, kp, kd, t)
-        self.n_servo = self.n_mit = self.n_tx = 0
-        self.servo_all: list[float] = []
-        self.mit_all: list[float] = []
-        self.pairs: list[tuple[float, float]] = []  # (servo, mit) motor deg, same moment
+        self.n_servo = self.n_tx = 0
+        self.pos_min = math.inf
+        self.pos_max = -math.inf
+        self.recent: deque[tuple[float, float]] = deque()  # (t, deg) over SLOPE_WINDOW_S
+        self.same_sign = self.opposite_sign = 0
+        self.errors: set[int] = set()
 
     def on_servo(self, data: bytes, t: float) -> None:
-        deg = struct.unpack(">h", data[0:2])[0] * 0.1
-        self.servo = (deg, t)
+        pos_raw, erpm_raw, cur_raw, temp, err = struct.unpack(">hhhbB", data[:8])
+        deg, erpm, amps = pos_raw * 0.1, erpm_raw * 10.0, cur_raw * 0.01
+        self.recent.append((t, deg))
+        while t - self.recent[0][0] > SLOPE_WINDOW_S:
+            self.recent.popleft()
+        t0, deg0 = self.recent[0]
+        if t - t0 > 0.5 * SLOPE_WINDOW_S:
+            slope = (deg - deg0) / (t - t0)
+            if abs(slope) > MIN_SLOPE_DPS and abs(erpm) > MIN_ERPM:
+                if (slope > 0) == (erpm > 0):
+                    self.same_sign += 1
+                else:
+                    self.opposite_sign += 1
+        self.fb = (deg, erpm, amps, temp, err, t)
         self.n_servo += 1
-        self.servo_all.append(deg)
-
-    def on_mit_reply(self, data: bytes, t: float) -> None:
-        p = self.profile
-        rad = unpack((data[1] << 8) | data[2], p["p_min"], p["p_max"], 16)
-        deg = math.degrees(rad)
-        self.mit = (deg, t)
-        self.n_mit += 1
-        self.mit_all.append(deg)
-        if self.servo and t - self.servo[1] <= PAIR_WINDOW_S:
-            self.pairs.append((self.servo[0], deg))
+        self.pos_min, self.pos_max = min(self.pos_min, deg), max(self.pos_max, deg)
+        if err:
+            self.errors.add(err)
 
     def on_mit_cmd(self, data: bytes, t: float) -> None:
         """packAkMitCommand, KP-first: kp12 kd12 p16 v12 t12. Gains: code * max / 4096."""
@@ -115,52 +120,43 @@ class Joint:
         return f"{cmd:+7.1f}{'!' if out else ' '}[{motor_deg:+7.1f}]"
 
     def cell(self, now: float) -> str:
-        servo = self.servo if self.servo and now - self.servo[1] <= STALE_AFTER_S else None
-        mit = self.mit if self.mit and now - self.mit[1] <= STALE_AFTER_S else None
+        fb = self.fb if self.fb and now - self.fb[5] <= STALE_AFTER_S else None
         tx = self.tx if self.tx and now - self.tx[3] <= STALE_AFTER_S else None
-        s = self._angle(servo[0]) if servo else f"{'---':>17}"
-        m = self._angle(mit[0]) if mit else f"{'---':>17}"
-        d = f"{servo[0] - mit[0]:+6.1f}" if servo and mit else f"{'---':>6}"
+        if fb:
+            deg, erpm, amps, temp, err, _ = fb
+            f = (f"{self._angle(deg)}  spd {erpm:+7.0f}erpm  cur {amps:+5.2f}A  {temp:3d}C"
+                 + (f"  ERR {err}" if err else ""))
+        else:
+            f = f"{'---':>17}"
         x = (f"p[{tx[0]:+7.1f}] kp{tx[1]:5.1f} kd{tx[2]:4.2f}" if tx else "---")
-        return f"{self.info['name']}  servo {s}  mit {m}  d {d}  tx {x}"
+        return f"{self.info['name']}  {f}  tx {x}"
 
     def summary(self) -> list[str]:
         lines = [f"{self.info['name']} (id {self.id}): {self.n_servo} servo frames, "
-                 f"{self.n_mit} MIT replies, {self.n_tx} MIT commands"]
-        if self.servo_all:
-            lines.append(f"  servo motor deg {min(self.servo_all):+.1f} .. {max(self.servo_all):+.1f}")
-        if self.mit_all:
-            lines.append(f"  mit   motor deg {min(self.mit_all):+.1f} .. {max(self.mit_all):+.1f}"
-                         f"  (p range +-{self.profile['p_max']} rad from mit_profiles.yaml)")
-        lines.append("  verdict: " + self.verdict())
+                 f"{self.n_tx} MIT commands"]
+        if self.n_servo:
+            lines.append(f"  motor deg {self.pos_min:+.1f} .. {self.pos_max:+.1f}"
+                         f"  (moved {self.pos_max - self.pos_min:.1f} deg)")
+        else:
+            lines.append("  no servo frames: drive off, or wrong id/interface")
+        if self.errors:
+            lines.append(f"  drive error codes seen: {sorted(self.errors)}")
+        lines.append("  speed sign: " + self.speed_verdict())
         return lines
 
-    def verdict(self) -> str:
-        if self.profile is None:
-            return "no AK profile in mit_profiles.yaml; MIT frames not decoded"
-        if self.n_mit == 0:
-            if self.n_tx == 0:
-                return ("no MIT commands or replies on the bus: nothing commands this drive in MIT. "
-                        "Is joint_command's motor_cmd_topic still /dry_run/motorCMD?")
-            return "MIT commands sent but no replies: drive off, wrong id, or not in MIT mode"
-        if not self.pairs:
-            return "no servo frame within 0.1 s of an MIT reply: can't compare the two sources"
-        servo = [s for s, _ in self.pairs]
-        mit = [m for _, m in self.pairs]
-        diff = statistics.median(abs(s - m) for s, m in self.pairs)
-        servo_span = max(servo) - min(servo)
-        mit_span = max(mit) - min(mit)
-        base = f"median |servo - mit| {diff:.2f} deg; spans servo {servo_span:.1f} / mit {mit_span:.1f} deg"
-        if servo_span < 5.0:
-            return base + ". Moved < 5 deg: hold the joint at several poses to check the scale."
-        ratio = servo_span / mit_span if mit_span > 0 else float("inf")
-        if diff < 0.5 and abs(ratio - 1.0) < 0.05:
-            return base + ". AGREE: mit_profiles.yaml's p range matches the drive."
-        if abs(ratio - H2C_RATIO) < 0.3:
-            return base + f". MIT moves {ratio:.2f}x less than servo: the drive decodes p over about +-50 (H2c)."
-        if abs(ratio - 1 / H2C_RATIO) < 0.05:
-            return base + f". MIT moves {1 / ratio:.2f}x more than servo: the drive's p range is narrower than the file's."
-        return base + f". DISAGREE (span ratio {ratio:.2f}): look at the rows."
+    def speed_verdict(self) -> str:
+        n = self.same_sign + self.opposite_sign
+        counts = (f"{self.same_sign} same / {self.opposite_sign} opposite to the position change "
+                  "(samples while moving)")
+        if n < 10:
+            return counts + ". Too little motion to tell: turn the joint by hand, both ways, ~20 deg/s."
+        if self.same_sign >= 0.9 * n:
+            return counts + ". SAME: speed and position agree."
+        if self.opposite_sign >= 0.9 * n:
+            return counts + (". OPPOSITE: the drive's speed reading runs against its position. "
+                             "Suspicious (its damping may push instead of brake), but a reversing "
+                             "gearbox also does this: Step 2 between stops decides.")
+        return counts + ". Mixed: look at the rows."
 
 
 def frames_from_socket(ifname: str):
@@ -221,7 +217,7 @@ def main() -> int:
     joints = {mid: Joint(mid, info, profiles.get(mid)) for mid, info in joint_map.items()}
     source = f"log {args.log}" if args.log else f"live {args.interface}"
     print(f"Source: {source}. Read-only: no frame is sent.")
-    print("Columns: command-frame deg [motor-frame deg]; '!' = outside the calibrated limits.\n")
+    print("Angle: command-frame deg [motor-frame deg]; '!' = outside the calibrated limits.\n")
 
     frames = frames_from_log(Path(args.log)) if args.log else frames_from_socket(args.interface)
     t0 = next_row = None
@@ -229,17 +225,12 @@ def main() -> int:
         for t, ext, can_id, data in frames:
             if t0 is None:
                 t0 = next_row = t
-            if data is not None and len(data) >= 8:
-                if ext and (can_id & ~0xFF) == SERVO_BASE and (can_id & 0xFF) in joints:
-                    joints[can_id & 0xFF].on_servo(data, t)
-                elif ext and (can_id & ~0xFF) == MIT_CMD_BASE and (can_id & 0xFF) in joints:
-                    j = joints[can_id & 0xFF]
-                    if j.profile:
-                        j.on_mit_cmd(data, t)
-                elif not ext and can_id == MIT_MASTER_ID and data[0] in joints:
-                    j = joints[data[0]]
-                    if j.profile:
-                        j.on_mit_reply(data, t)
+            if data is not None and ext and len(data) >= 8 and (can_id & 0xFF) in joints:
+                j = joints[can_id & 0xFF]
+                if (can_id & ~0xFF) == SERVO_BASE:
+                    j.on_servo(data, t)
+                elif (can_id & ~0xFF) == MIT_CMD_BASE and j.profile:
+                    j.on_mit_cmd(data, t)
             if t >= next_row:
                 for j in joints.values():
                     print(f"{t - t0:7.2f}s  {j.cell(t)}")

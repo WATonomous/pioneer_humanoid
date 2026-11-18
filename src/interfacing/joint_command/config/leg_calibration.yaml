@@ -27,7 +27,7 @@ left:
       lower_limit: -40.70000457763672
       upper_limit: 68.10000228881836
       direction: 1
-      zero_offset: 124.9000015258789
+      zero_offset: -11.100000381469727
       limit_range: true
   ankle:
     pitch:

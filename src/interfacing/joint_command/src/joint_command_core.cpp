@@ -17,6 +17,16 @@ constexpr double kMitGainCodes = 4096.0;
 constexpr double kGravityFfRampSec = 1.0;
 constexpr double kMaxGravityFfScale = 5.0;
 
+// Runaway watch: a drive whose encoder calibration is wrong pushes its joint AWAY from the target,
+// harder the further it goes, and its damping pushes the wrong way too. A healthy loop never
+// accelerates a joint away from its target: a lagging joint moves toward it, and an overshoot
+// slows down. The left knee's runaway (AKH70-48, 2026-11-18, fixed by recalibrating the encoder in
+// the CubeMars upper computer) moved away at 5, 25, 100 deg/s on successive samples.
+constexpr double kRunawaySpeedDps = 20.0; // away speed that counts
+constexpr double kRunawayMinErrDeg = 1.0; // ignore jitter around the target
+constexpr int kRunawaySamples = 2;        // consecutive samples, each faster than the last
+constexpr double kRunawayMaxGapSec = 0.2; // older previous sample: restart, no velocity from it
+
 // ArmPose joint order, shared by both config files.
 const std::vector<std::pair<std::string, std::string>>& armJointPaths() {
   static const std::vector<std::pair<std::string, std::string>> paths = {
@@ -112,6 +122,8 @@ bool JointCommandCore::loadFromYaml(const YAML::Node& config, const std::string&
   last_motor_cmd_deg_.assign(joints_.size(), 0.0);
   blocked_.assign(joints_.size(), false);
   unpowered_.assign(joints_.size(), false);
+  runaway_track_.assign(joints_.size(), RunawayTrack{});
+  runaway_.assign(joints_.size(), false);
   have_prev_targets_ = true;
   return true;
 }
@@ -150,6 +162,8 @@ void JointCommandCore::resizeJointState() {
   last_motor_cmd_deg_.resize(joints_.size(), 0.0);
   blocked_.resize(joints_.size(), false);
   unpowered_.resize(joints_.size(), false);
+  runaway_track_.resize(joints_.size(), RunawayTrack{});
+  runaway_.resize(joints_.size(), false);
 }
 
 SeedReport
@@ -160,6 +174,9 @@ JointCommandCore::seedPrevTargetsFromFeedback(const std::map<int, double>& motor
   if (last_motor_cmd_deg_.size() != joints_.size()) {
     last_motor_cmd_deg_.assign(joints_.size(), 0.0);
   }
+  // New targets: runaway history from before the seed means nothing.
+  runaway_track_.assign(joints_.size(), RunawayTrack{});
+  runaway_.resize(joints_.size(), false);
   for (size_t i = 0; i < joints_.size(); ++i) {
     if (!isActive(i)) {
       continue; // not part of this run: never seeded, reported or commanded
@@ -178,6 +195,7 @@ JointCommandCore::seedPrevTargetsFromFeedback(const std::map<int, double>& motor
     seeded[i] = joints_[i].zero_offset + it->second / dir;
     // Start the watchdog's tracking error at zero, not at the distance from an unsent 0.
     last_motor_cmd_deg_[i] = it->second;
+    runaway_track_[i].armed = true;
     ++report.matched;
 
     // Outside its own limits (stale calibration): the caller excludes it rather than let the
@@ -598,7 +616,8 @@ common_msgs::msg::MotorCmd JointCommandCore::mitSafeCommand(size_t joint) const 
   cmd.velocity = 0.0f;
   cmd.torque = 0.0f;
   cmd.kp = 0.0f;
-  cmd.kd = safety_[joint].mit_fault_action == MitFaultAction::Damp
+  // A runaway joint's drive pushes the wrong way, so its damping would too: always limp.
+  cmd.kd = safety_[joint].mit_fault_action == MitFaultAction::Damp && !isRunaway(joint)
                ? static_cast<float>(safety_[joint].mit_fault_kd)
                : 0.0f;
   return cmd;
@@ -634,8 +653,10 @@ JointCommandCore::gravityTorqueMotor(const std::vector<double>& cmd_targets_deg)
 std::vector<common_msgs::msg::MotorCmd> JointCommandCore::mitSafeCommands(bool damped_only) const {
   std::vector<common_msgs::msg::MotorCmd> cmds;
   for (size_t i = 0; i < joints_.size(); ++i) {
+    // Runaway joints are included too: an AK drive keeps running its last frame, and AK V3
+    // ignores MIT exit, so only an explicit limp frame stops it.
     if (!isMitJoint(i) || !isActive(i) ||
-        (damped_only && safety_[i].mit_fault_action != MitFaultAction::Damp)) {
+        (damped_only && safety_[i].mit_fault_action != MitFaultAction::Damp && !isRunaway(i))) {
       continue;
     }
     cmds.push_back(mitSafeCommand(i));
@@ -729,6 +750,60 @@ JointCommandCore::checkMitFaults(const std::map<int, MotorFeedbackSample>& feedb
     }
   }
   return std::nullopt;
+}
+
+void JointCommandCore::recordFeedback(int motor_id, double position_deg, double t_s) {
+  for (size_t i = 0; i < joints_.size() && i < runaway_track_.size(); ++i) {
+    if (static_cast<int>(joints_[i].motor_id) != motor_id) {
+      continue;
+    }
+    RunawayTrack& tr = runaway_track_[i];
+    if (!tr.armed || !isMitJoint(i) || !isActive(i) || isBlocked(i)) {
+      return;
+    }
+    if (tr.have_sample && t_s <= tr.t_s) {
+      return; // not a new sample
+    }
+    const double err = last_motor_cmd_deg_[i] - position_deg; // > 0: target is above
+    if (!tr.have_sample || t_s - tr.t_s > kRunawayMaxGapSec) {
+      tr = RunawayTrack{true, true, position_deg, t_s, 0.0, err, 0};
+      return;
+    }
+    const double vel = (position_deg - tr.position_deg) / (t_s - tr.t_s);
+    const double away = err > 0.0 ? -vel : (err < 0.0 ? vel : 0.0);
+    const bool counts = std::abs(err) >= kRunawayMinErrDeg && away >= kRunawaySpeedDps &&
+                        away > tr.away_dps;
+    tr.count = counts ? tr.count + 1 : 0;
+    tr.position_deg = position_deg;
+    tr.t_s = t_s;
+    tr.away_dps = away;
+    tr.err_deg = err;
+    return;
+  }
+}
+
+std::optional<std::string> JointCommandCore::checkMitRunaway() {
+  for (size_t i = 0; i < joints_.size() && i < runaway_track_.size(); ++i) {
+    if (isRunaway(i) || runaway_track_[i].count < kRunawaySamples) {
+      continue;
+    }
+    runaway_[i] = true;
+    const RunawayTrack& tr = runaway_track_[i];
+    std::ostringstream os;
+    os << jointName(i) << " (motor " << static_cast<int>(joints_[i].motor_id)
+       << "): RUNAWAY: moving away from its target at " << tr.away_dps
+       << " deg/s and speeding up (error " << std::abs(tr.err_deg) << " deg, kp "
+       << safety_[i].mit_kp << "). The drive is pushing the joint away from where it is told to "
+       << "go (positive feedback). This joint is now held LIMP (kp 0, kd 0): damping on such a "
+       << "drive also pushes the wrong way. Likely cause: the drive's encoder calibration. "
+       << "Recalibrate the motor encoder in the CubeMars upper computer before running it again";
+    return os.str();
+  }
+  return std::nullopt;
+}
+
+bool JointCommandCore::isRunaway(size_t joint) const {
+  return joint < runaway_.size() && runaway_[joint];
 }
 
 std::vector<common_msgs::msg::MotorCmd>

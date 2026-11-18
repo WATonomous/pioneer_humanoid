@@ -62,8 +62,8 @@ safety:
         # Was: kp 110, kd 1.65, mit_max_torque 74 (raised from 30 without bench data).
         # TODO: check mit_max_torque against the AKH70-48 datasheet's rated torque.
         mit_kp: 10.0
-        mit_kd: 0.15
-        mit_max_torque: 10.0
+        mit_kd: 3.4
+        mit_max_torque: 30.0
         mit_max_track_err: 15.0
         mit_fault_action: damp   # a hanging shank sinks instead of swinging free
     ankle:
