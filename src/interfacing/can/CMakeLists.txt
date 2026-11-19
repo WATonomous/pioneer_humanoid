@@ -114,6 +114,9 @@ if(BUILD_TESTING)
   target_link_libraries(test_mit_protocol /usr/local/lib/libdbcppp.so)
   target_compile_definitions(test_mit_protocol
     PRIVATE DBC_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../dbc/humanoid.dbc")
+  # params.yaml bus-routing checks (header-only, no ROS, no bus).
+  ament_add_gtest(test_bus_routing test/test_bus_routing.cpp)
+  target_include_directories(test_bus_routing PRIVATE include)
 endif()
 
 install(
