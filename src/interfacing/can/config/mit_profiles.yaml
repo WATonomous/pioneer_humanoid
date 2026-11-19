@@ -53,6 +53,8 @@ motors:
   # Before enabling: confirm its firmware and protocol family, and add kt (not in that table).
   # LEFT LEG. Knee 44 and ankles 45 / 46 are the ids read off the drives (2026-11-16); the plan
   # had knee 43, ankles 44 / 45. Hip ids are still planned.
+  # LEFT LEG. Knee 44 and ankles 45 / 46 are the ids read off the drives (2026-11-16); the plan
+  # had knee 43, ankles 44 / 45. Hip ids are still planned.
   # hip_pitch
   "40": {model: AKH70-48, family: ak, p_min: -12.56, p_max: 12.56, v_min: -5.0, v_max: 5.0, t_min: -280.0, t_max: 280.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 8.8123}
   # hip_roll
@@ -60,14 +62,11 @@ motors:
   # hip_yaw
   "42": {model: AK60-39, family: ak, p_min: -12.56, p_max: 12.56, v_min: -10.0, v_max: 10.0, t_min: -80.0, t_max: 80.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 3.4616}
   # knee_pitch
-  # p, v, kd ranges read from THIS drive (upper-computer export, 2026-11-17: t_pid_p +-50,
-  # t_pid_v +-50, t_pid_kd 0-50, t_pid_kp 0-500); the V3 manual values (+-12.56, +-5, 0-5) did not
-  # match it. See explainers/KNEE_RUNAWAY_DEBUG.md (O14, H2c); T3 still has to confirm it on the wire.
-  # Torque left at +-280: the drive's t_pid_i is +-50, but whether that is N.m or A is unknown, and
-  # +-280 over-reads torque (the watchdog trips early, never late). 40 / 56 / 59 not checked yet.
   "44": {model: AKH70-48, family: ak, p_min: -12.56, p_max: 12.56, v_min: -5.0, v_max: 5.0, t_min: -280.0, t_max: 280.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 8.8123}
   # ankle_pitch
   "45": {model: AK60-39, family: ak, p_min: -12.56, p_max: 12.56, v_min: -10.0, v_max: 10.0, t_min: -80.0, t_max: 80.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 3.4616}
+  # ankle_roll
+  "46": {model: AK60-39, family: ak, p_min: -12.56, p_max: 12.56, v_min: -10.0, v_max: 10.0, t_min: -80.0, t_max: 80.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 3.4616}
   # ankle_roll
   "46": {model: AK60-39, family: ak, p_min: -12.56, p_max: 12.56, v_min: -10.0, v_max: 10.0, t_min: -80.0, t_max: 80.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 3.4616}
   # RIGHT LEG

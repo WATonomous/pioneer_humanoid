@@ -5,6 +5,7 @@ left:
       lower_limit: -20.0
       upper_limit: 90.0
       direction: 1
+      direction: 1
       zero_offset: null
       limit_range: true
     roll:
@@ -24,10 +25,10 @@ left:
   knee:
     pitch:
       can_id: 44
-      lower_limit: -40.70000457763672
-      upper_limit: 68.10000228881836
+      lower_limit: 10.300003051757812
+      upper_limit: 38.599998474121094
       direction: 1
-      zero_offset: -11.100000381469727
+      zero_offset: 118.4000015258789
       limit_range: true
   ankle:
     pitch:

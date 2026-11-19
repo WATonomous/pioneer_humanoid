@@ -1260,6 +1260,9 @@ protected:
     // The URDF knee range, independent of whatever calibration the repo holds.
     mapping["left"]["knee"]["pitch"]["lower_limit"] = -140.0;
     mapping["left"]["knee"]["pitch"]["upper_limit"] = 0.0;
+    // The URDF knee range, independent of whatever calibration the repo holds.
+    mapping["left"]["knee"]["pitch"]["lower_limit"] = -140.0;
+    mapping["left"]["knee"]["pitch"]["upper_limit"] = 0.0;
     for (const auto& group : safety["left"]) {
       for (const auto& joint : group.second) {
         auto node = joint.second;
