@@ -2,7 +2,7 @@
 """Score the live elevation map against the bag acceptance checks.
 
 Run next to bag_pipeline.launch.py. When the bag's /clock stops, it prints a JSON report and
-writes a top-down PNG plus the raw height grid (.npy) of the last map.
+writes a top-down PNG plus the raw height grid (.npy and .npz) of the last map.
 
 Checks:
   map       floor: the largest near-level plane at least 0.5 m under the camera, with its tilt
@@ -18,16 +18,20 @@ import math
 import os
 import time
 
-import cv2
 import numpy as np
-import rclpy
-from grid_map_msgs.msg import GridMap
-from rclpy.duration import Duration
-from rclpy.node import Node
-from rclpy.parameter import Parameter
-from rclpy.qos import qos_profile_sensor_data
-from sensor_msgs.msg import Imu
-from tf2_ros import Buffer, TransformListener
+try:
+    import cv2
+    import rclpy
+    from grid_map_msgs.msg import GridMap
+    from rclpy.duration import Duration
+    from rclpy.node import Node
+    from rclpy.parameter import Parameter
+    from rclpy.qos import qos_profile_sensor_data
+    from sensor_msgs.msg import Imu
+    from tf2_ros import Buffer, TransformListener
+except ImportError:
+    cv2 = rclpy = None
+    GridMap = Node = Imu = object
 
 FLOOR_INLIER_M = 0.05
 FLOOR_FLAT_M = 0.02
@@ -79,6 +83,31 @@ def fit_floor(heights: np.ndarray, resolution: float, camera_z: float):
         lambda r, c: coef[0] * (r - centre[0]) * resolution + coef[1] * (c - centre[1]) * resolution + coef[2],
         heights.shape)
     return coef, plane, design[best] @ coef - z[best]
+
+
+def save_map_npz(
+    path: str,
+    heights: np.ndarray,
+    resolution: float,
+    map_centre,
+    frame: str,
+    camera_z: float,
+) -> None:
+    """Save elevation grid and TF/map metadata (.npz) for terrain_tools/evaluate.py."""
+    sensor_height = float(camera_z)
+    if abs(sensor_height) <= 0.5:
+        fit = fit_floor(heights, float(resolution), sensor_height)
+        if fit is not None:
+            coef, _, _ = fit
+            sensor_height = -float(coef[2])
+    np.savez(
+        path,
+        elevation=np.asarray(heights, dtype=np.float32),
+        resolution=np.float64(resolution),
+        map_centre=np.asarray(map_centre, dtype=np.float64).reshape(2),
+        frame=np.str_(frame),
+        camera_height=np.float64(sensor_height),
+    )
 
 
 def objects_above(above: np.ndarray, resolution: float) -> list:
@@ -223,17 +252,27 @@ def main() -> None:
     parser.add_argument('--idle', type=float, default=5.0, help='wall seconds of stalled /clock that end the run')
     parser.add_argument('--timeout', type=float, default=180.0, help='wall seconds before giving up')
     parser.add_argument('--out', default='/tmp/terrain_map_check')
+    parser.add_argument('--snapshot-after', type=float, default=None, help='bag seconds after which to take a mid-run snapshot')
     args, ros_args = parser.parse_known_args()
 
     rclpy.init(args=ros_args)
     node = MapChecker(args.topic, args.imu)
     deadline = time.monotonic() + args.timeout
-    sim_now, sim_changed = None, time.monotonic()
+    sim_start, sim_now, sim_changed = None, None, time.monotonic()
     while rclpy.ok() and time.monotonic() < deadline:
         rclpy.spin_once(node, timeout_sec=0.1)
         now = node.get_clock().now().nanoseconds
         if now != sim_now:
+            if sim_start is None and now > 0:
+                sim_start = now
             sim_now, sim_changed = now, time.monotonic()
+        if (
+            args.snapshot_after is not None
+            and sim_start is not None
+            and node.map_msg is not None
+            and (now - sim_start) * 1e-9 >= args.snapshot_after
+        ):
+            break
         if node.map_msg is not None and time.monotonic() - sim_changed > args.idle:
             break
 
@@ -246,6 +285,15 @@ def main() -> None:
     png = os.path.join(args.out, f'{args.layer}_top_down.png')
     top_down_png(heights, png)
     np.save(os.path.join(args.out, f'{args.layer}.npy'), heights)
+    info = node.map_msg.info
+    save_map_npz(
+        os.path.join(args.out, f'{args.layer}.npz'),
+        heights,
+        info.resolution,
+        [info.pose.position.x, info.pose.position.y],
+        node.map_msg.header.frame_id,
+        camera_z,
+    )
     report = {
         'map': analyze(heights, node.map_msg.info.resolution, camera_z, camera_z_max),
         'odometry': node.odometry_report(),

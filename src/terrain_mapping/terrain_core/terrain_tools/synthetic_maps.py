@@ -18,10 +18,13 @@ EDGE_MARGIN_M = 0.04  # 1-cell border margin around each obstacle ROI
 class GridMap:
     """2.5D elevation grid with world (x, y) <-> cell index conversion."""
 
-    def __init__(self, elevation, resolution, origin, occupied=None):
+    def __init__(self, elevation, resolution, origin, occupied=None, frame="odom", camera_height=None, map_centre=None):
         self.z = np.asarray(elevation, dtype=float)
         self.res = float(resolution)
         self.occupied = None if occupied is None else np.asarray(occupied, dtype=bool)
+        self.frame = str(frame)
+        self.camera_height = None if camera_height is None else float(camera_height)
+        self.map_centre = None if map_centre is None else np.asarray(map_centre, dtype=float).reshape(2)
         self.set_origin(origin)
 
     def set_origin(self, origin):
@@ -32,10 +35,23 @@ class GridMap:
 
     def copy(self):
         occ = None if self.occupied is None else self.occupied.copy()
-        return GridMap(self.z.copy(), self.res, self.origin.copy(), occ)
+        mc = None if self.map_centre is None else self.map_centre.copy()
+        return GridMap(
+            self.z.copy(), self.res, self.origin.copy(), occ,
+            frame=self.frame, camera_height=self.camera_height, map_centre=mc,
+        )
 
     def save(self, path):
-        arrays = {"elevation": self.z, "resolution": self.res, "origin": self.origin}
+        arrays = {
+            "elevation": self.z,
+            "resolution": self.res,
+            "origin": self.origin,
+            "frame": np.str_(self.frame),
+        }
+        if self.map_centre is not None:
+            arrays["map_centre"] = self.map_centre
+        if self.camera_height is not None:
+            arrays["camera_height"] = np.float64(self.camera_height)
         if self.occupied is not None:
             arrays["occupied"] = self.occupied
         np.savez(path, **arrays)
@@ -47,11 +63,30 @@ class GridMap:
             z = np.load(p)
             return cls(z, default_res, default_origin)
         d = np.load(p)
-        missing = [k for k in ("elevation", "resolution", "origin") if k not in d]
-        if missing:
-            raise SystemExit(f"{path}: missing required arrays {missing}")
+        missing = [k for k in ("elevation", "resolution") if k not in d]
+        if missing or ("origin" not in d and "map_centre" not in d):
+            raise SystemExit(f"{path}: missing required arrays (need elevation, resolution, and origin or map_centre)")
+        z = np.asarray(d["elevation"], dtype=float)
+        res = float(d["resolution"])
         occ = d["occupied"] if "occupied" in d else None
-        return cls(d["elevation"], d["resolution"], d["origin"], occ)
+        frame = str(d["frame"].item()) if "frame" in d else "odom"
+        cam_h = float(d["camera_height"]) if "camera_height" in d else None
+        mc = np.asarray(d["map_centre"], dtype=float).reshape(2) if "map_centre" in d else None
+        if "origin" in d:
+            origin = d["origin"]
+        elif mc is not None:
+            # check_map.py exports ROS grid_map order (row 0 = +x_odom forward, col 0 = +y_odom left);
+            # flip row 0..H-1 so row increases along forward (+y_course = +x_odom) while col increases
+            # from left (+y_odom) to right (-y_odom = +x_course).
+            z = z[::-1, :]
+            mc = np.array([-mc[1], mc[0]], dtype=float)
+            if cam_h is not None and frame == "odom":
+                z = z + cam_h
+            h, w = z.shape
+            origin = np.array([mc[0] - 0.5 * w * res, mc[1] - 0.5 * h * res], dtype=float)
+        else:
+            origin = default_origin
+        return cls(z, res, origin, occ, frame=frame, camera_height=cam_h, map_centre=mc)
 
     def region_mask(self, bounds, margin=0.0):
         """Boolean mask of grid cells whose centre lies inside [x_min, x_max, y_min, y_max]."""
@@ -171,7 +206,7 @@ def build_course_map(course, realistic_hallway=True):
         left_strip = left_band & (rng.random(gm.z.shape) < 0.45)
         gm.z[left_strip] = rng.uniform(0.02, 0.22, int(left_strip.sum()))
 
-        # Unobserved (NaN) outside the hallway walls and beyond the far depth cap
+        # Unobserved (NaN) outside the 6 m traversed course and hallway walls inside the 10x10 m grid
         top_jitter = _smooth_2d(rng.normal(0.0, 0.08, (1, nx)), passes=3)
         outside = (
             (X < x_left_wall)

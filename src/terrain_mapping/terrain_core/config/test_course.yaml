@@ -8,7 +8,7 @@
 # ==============================================================================
 
 course_metadata:
-  name: "Nov 6 Hallway Layout"
+  name: "Test Couse Layout"
   version: "1.0"
   grid_resolution_m: 0.04          # 4 cm grid res
   map_bounds_m: [-2.0, 2.0, -0.8, 5.2]  # 4m x 6m
@@ -27,6 +27,7 @@ regions:
     expected_slope_deg: 0.0
     tolerance_cm: 2.0
     false_obstacle_threshold_m: 0.05
+    obstacle_pad_m: [0.18, 0.18, 0.18, 0.52]
 
   # 2. Step (bottom-right of hallway): 73 cm wide (x) x 28 cm deep (y) x 14 cm tall
   #    Width:  1.08 - 0.35 = 0.73 m (73 cm)
