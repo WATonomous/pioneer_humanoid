@@ -26,6 +26,8 @@ p.add_argument("--stretch", type=int, default=3, help="physics steps (1/90 s) pe
 p.add_argument("--video", type=int, default=0, help="also write an mp4 (top + external view) for the first N episodes")
 p.add_argument("--no_record", action="store_true")
 p.add_argument("--workcell", action="store_true", help="the lab's lightbox workcell instead of LeHome's apartment")
+p.add_argument("--hold_s", type=int, default=5, help="seconds to watch the cloth after the demo")
+p.add_argument("--d435_mount", action="store_true", help="preview: wrist cameras = D435 on camera_mount.STL")
 p.add_argument("--shift_y", type=float, default=0.0, help="m to move the garment and the demo away from the arm")
 AppLauncher.add_app_launcher_args(p)
 args = p.parse_args()
@@ -71,6 +73,7 @@ TASK = {"top_short": "fold the short-sleeve top", "top_long": "fold the long-sle
 ARRIVE, MAX_WAIT, GRASP_DWELL, RELEASE_DWELL = 0.008, 45, 8, 8
 PIN_RADIUS = 0.018          # m around the fingertip midpoint
 FOLDED_AREA = 0.7           # a fold must leave the cloth covering less than this share of its flat area
+SLIDE_MAX = 1.0             # mm/s the folded cloth may still slide as a whole 8-10 s after the fold (LeHome: 0.2-0.5 typical)
 TIP_LOCAL = np.array([TCP_LOCAL[0], TCP_LOCAL[1], -0.240])   # fingertip midpoint, 6 mm up from the tips (link7 frame)
 os.makedirs(args.out, exist_ok=True)
 LOG = open(os.path.join(args.out, f"log_{a0}_{a1}.jsonl"), "a")
@@ -86,7 +89,34 @@ cfg.decimation = 1          # we step physics ourselves (the grasp acts every ph
 cfg.sim.render_interval = args.stretch
 cfg.episode_length_s = 1e4
 cfg.scene_camera.width, cfg.scene_camera.height = (640, 480) if args.video else (64, 48)   # dev-only external view
+if args.d435_mount:   # D435 on the slanted face of camera_mount.STL, mount bolted flat to the gripper's +x face
+    for c, y, q in ((cfg.right_wrist, 0.0097, (0.672254, 0.219262, -0.219262, -0.672256)),
+                    (cfg.left_wrist, -0.0097, (0.672254, -0.219262, -0.219262, 0.672256))):
+        c.offset.pos, c.offset.rot = (0.0831, y, -0.0337), q   # lens 1 mm in front of the body
+        c.spawn.focal_length, c.spawn.horizontal_aperture, c.spawn.vertical_aperture = 20.13, 20.955, 15.716   # 640x480, fx 615 px
+        c.spawn.clipping_range = (0.01, 5.0)
 env = gym.make("Humanoid-GarmentFold-Bimanual-Pioneer-v0", cfg=cfg).unwrapped
+if args.d435_mount:
+    import struct
+    from pxr import Gf, UsdGeom
+    b = open(f"{LEHOME}/camera_mount.STL", "rb").read()
+    V = np.frombuffer(b[84:84 + 50 * struct.unpack("<I", b[80:84])[0]], dtype=np.dtype([("n", "<3f4"), ("v", "<9f4"), ("a", "<u2")]))["v"].reshape(-1, 3).astype(np.float64)
+    R, t = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1.0]]), np.array([76, -40, -95.0])
+    st = env.sim.stage
+    for side, sy in (("right", 1), ("left", -1)):
+        P = ((V @ R.T + t) * [1, sy, 1]) / 1000
+        m = UsdGeom.Mesh.Define(st, f"/World/Robot/{side}_link7/camera_mount")
+        m.CreatePointsAttr([Gf.Vec3f(*p_) for p_ in P])
+        idx = np.arange(len(P)).reshape(-1, 3)
+        m.CreateFaceVertexCountsAttr([3] * len(idx))
+        m.CreateFaceVertexIndicesAttr((idx if sy > 0 else idx[:, ::-1]).ravel().tolist())
+        m.CreateDisplayColorAttr([Gf.Vec3f(0.15, 0.15, 0.17)])
+        cam = UsdGeom.Cube.Define(st, f"/World/Robot/{side}_link7/d435_body")   # 90 x 25 x 25 mm, back on the slanted face
+        x = UsdGeom.Xformable(cam)
+        x.AddTranslateOp().Set(Gf.Vec3d(0.0752, sy * 0.0097, -0.0228))
+        x.AddOrientOp().Set(Gf.Quatf(*((0.672254, 0.219262, -0.219262, -0.672256) if sy > 0 else (0.672254, -0.219262, -0.219262, 0.672256))))
+        x.AddScaleOp().Set(Gf.Vec3f(0.045, 0.0125, 0.0125))
+        cam.CreateDisplayColorAttr([Gf.Vec3f(0.6, 0.6, 0.62)])
 env.initialize_obs()
 robot = env.robot
 get_obs = env._get_observations
@@ -95,6 +125,13 @@ env._get_rewards = lambda: torch.zeros(1, device=env.device)          # its succ
 if args.video:
     eye, target = ([0.55, -0.85, 1.3], [0.0, 0.1, 0.53]) if args.workcell else ([0.75, 0.55, 1.05], [0.0, -0.08, 0.55])   # the lightbox walls block the far side
     env.scene_camera.set_world_poses_from_view(torch.tensor([eye], device=env.device), torch.tensor([target], device=env.device))
+def vframe(obs):
+    f = np.hstack([obs["observation.images.top_rgb"][..., :3], env.scene_camera.data.output["rgb"][0].cpu().numpy()[..., :3]])
+    if args.d435_mount:
+        f = np.vstack([f, np.hstack([obs["observation.images.left_rgb"][..., :3], obs["observation.images.right_rgb"][..., :3]])])
+    return f
+
+
 ids = torch.cat([env._l_arm, env._l_grip, env._r_arm, env._r_grip])
 SCALE = torch.tensor([1.0] * 7 + [GRIPPER_STROKE] + [1.0] * 7 + [GRIPPER_STROKE], device=env.device)
 cloth = env.object._cloth_prim_view
@@ -220,6 +257,11 @@ def physics_step(act, pins):
     cloth.set_velocities(v)
 
 
+env.reset()   # the first reset after startup lands the cloth differently from every later one: spend it here
+env.object.set_all_pose({"Garment": np.array(load_episode(EPS[0], args.kind)["pose"], dtype=np.float32)})
+hold0 = (robot.data.joint_pos[0, ids] / SCALE).unsqueeze(0)
+for _ in range(60 * args.stretch):
+    env.step(hold0)
 for ep in EPS:
     if ep in done:
         continue
@@ -276,9 +318,8 @@ for ep in EPS:
                 for k, src in CAMS.items():
                     fr[f"observation.images.{k}"] = obs[src][..., :3]
                 ds.add_frame(fr)
-            if ep - a0 < args.video:
-                frames.append(np.hstack([obs["observation.images.top_rgb"][..., :3],
-                                         env.scene_camera.data.output["rgb"][0].cpu().numpy()[..., :3]]))
+            if EPS.index(ep) < args.video:
+                frames.append(vframe(obs))
             for _ in range(args.stretch):
                 physics_step(act, pins)
             n += 1
@@ -301,7 +342,7 @@ for ep in EPS:
                         held_since[side] = True
                         grasps += 1
                         glog.append([side, f, int(len(idx)), np.round(tip, 3).tolist(), np.round(keypoints()[:, :2], 3).tolist()])
-                    if ep - a0 < args.video and closed_on[side]:
+                    if EPS.index(ep) < args.video and closed_on[side]:
                         print("CLOSE", side, f, "n", len(idx), "tip", np.round(tip, 3).tolist(), "target", np.round(E[side][f], 3).tolist(),
                               "tcp", np.round(tcp_world(side), 3).tolist(), "nearest", round(float(dist.min()), 3), "waited", waited, flush=True)
                     closed_on[side] = False
@@ -356,7 +397,7 @@ for ep in EPS:
         pins = {}
         x_end = cloth.get_world_positions()[0].clone()
         settle_s, x_prev, x_sec, move = None, x_end, x_end, []
-        for k in range(150):  # let the cloth settle before judging; how far it moves on its own once let go
+        for k in range(30 * args.hold_s):  # let the cloth settle before judging; how far it moves on its own once let go
             for _ in range(args.stretch):
                 physics_step(act, {})
             x_now = cloth.get_world_positions()[0].clone()
@@ -368,10 +409,9 @@ for ep in EPS:
                 move.append([round(float(v) * 1000, 2) for v in (dx.norm(dim=1).mean(), dx[:, :2].mean(0).norm(), dx[:, 2].mean(),
                                                                 (dx - dx.mean(0)).norm(dim=1).mean())])
                 x_sec = x_now
-            if ep - a0 < args.video:
+            if EPS.index(ep) < args.video:
                 obs = get_obs()
-                frames.append(np.hstack([obs["observation.images.top_rgb"][..., :3],
-                                         env.scene_camera.data.output["rgb"][0].cpu().numpy()[..., :3]]))
+                frames.append(vframe(obs))
         d = (cloth.get_world_positions()[0] - x_end).norm(dim=1) * 100
         x1 = cloth.get_world_positions()[0]
         drift = [round(float(d.mean()), 2), round(float(d.quantile(0.95)), 2),   # mean, p95 cm; centroid shift cm; footprint growth cm
@@ -384,6 +424,8 @@ for ep in EPS:
         success = bool(res.get("success", False)) if isinstance(res, dict) else bool(res)
         folded = round(area(cloth.get_world_positions()[0]) / area0, 2)
         success = success and folded < FOLDED_AREA   # LeHome's check passes legs pushed together without a fold
+        slide = round(float(np.mean([m_[1] for m_ in move[7:10]])), 2) if len(move) >= 10 else None
+        success = success and (slide is None or slide < SLIDE_MAX)   # a fold whose top layer keeps sliding off is not a fold
         checks = [[d.get("description", k)[:40], bool(d.get("passed")), round(float(d.get("value", d.get("distance", -1)) or -1), 3)]
                   for k, d in res.get("details", {}).items()] if isinstance(res, dict) else None
         if ds is not None:
@@ -396,7 +438,7 @@ for ep in EPS:
         rec = dict(ep=ep, garment=E["garment"], success=success, frames=n, demo_frames=len(qL), grasps=grasps,
                    lift=round(lift, 3), ik_err_mm=round(ik_err * 1000, 1), plan_s=round(t_plan, 1),
                    total_s=round(time.time() - t0, 1), shifts=shifts, grasp_log=glog,
-                   checks=checks, stretch_p99=round(strain, 3), stretch0=round(strain0, 3), springback_cm=springback, drift_cm=drift, settle_s=settle_s, folded_area=folded, move_mm_per_s=move)
+                   checks=checks, stretch_p99=round(strain, 3), stretch0=round(strain0, 3), springback_cm=springback, drift_cm=drift, settle_s=settle_s, folded_area=folded, slide_mm_s=slide, move_mm_per_s=move)
     except Exception as exc:  # keep going: one bad episode must not stop the night's run
         traceback.print_exc()
         if ds is not None:

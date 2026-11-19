@@ -211,7 +211,7 @@ def fold_goal(kind, k, kp):
 
 
 LIFT, LIFT_FRAMES = 0.08, 10   # straight up after a release
-LAY_Z, LAY_FRAMES = 0.008, 8   # lay the held cloth down this high over the table before letting go (higher, it springs back)
+LAY_Z, LAY_FRAMES = 0.015, 16  # lay the held cloth down this high over the table, slowly, before letting go (lower presses the fold into the layer below and it keeps sliding; higher springs back)
 
 
 def snap_grasps(E, keypoints, kind, radius=0.15, blend=10):
