@@ -61,6 +61,9 @@ class PoseGraphBackend:
         # add custom params
         params = gtsam.ISAM2Params()
         params.relinearizeSkip = 1
+        # QR, not the default Cholesky: the bias random-walk sigmas (~1e-6 per keyframe) next to the
+        # 0.02 bias prior made Cholesky raise IndeterminateSystemException (data/run1, at B(139)).
+        params.setFactorization("QR")
         self._extra_updates = 20
 
         # imu preintergration

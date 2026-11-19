@@ -4,6 +4,7 @@ import argparse
 from pathlib import Path
 
 from slam_core.backend import PoseGraphBackend
+from slam_core.backend.imu_fusion.imu import read_imu
 from slam_core.types.pose import to_tum
 
 from load_vo_data import load_vo_keyframes, load_vo_loops
@@ -14,8 +15,10 @@ def main():
     parser.add_argument("keyframes", type=Path)
     parser.add_argument("kf_vo", type=Path)
     parser.add_argument("--loops", type=Path)
+    parser.add_argument("--imu", type=Path, help="imu.txt; adds IMU factors and gravity leveling")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
+    imu = read_imu(args.imu) if args.imu else None   # (stamp, gyro, accel), the whole recording
 
     keyframes = load_vo_keyframes(args.keyframes, args.kf_vo)
     if not keyframes:
@@ -27,7 +30,7 @@ def main():
 
     backend = PoseGraphBackend()
     for keyframe in keyframes:
-        backend.add_keyframe(keyframe)
+        backend.add_keyframe(keyframe, imu)
         for loop in loops_by_new_id.get(keyframe.id, []):
             backend.add_loop_constraint(loop)
 
