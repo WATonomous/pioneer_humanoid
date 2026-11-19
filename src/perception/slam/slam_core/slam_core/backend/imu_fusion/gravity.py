@@ -3,8 +3,8 @@
 import numpy as np
 import gtsam
 from slam_core.types.pose import from_tum, rotation_angle
-from .imu import read_imu, imu_between, read_extrinsics
-from .preintegration import preintegrate, make_params
+from .imu import read_imu, imu_between
+from .preintegration import preintegrate, make_params, T_CAM_IMU
 
 
 # Chains keyframes.txt rows (each T_prev_kf) into T_kf0_kfk for every keyframe, like pose_graph.py
@@ -57,7 +57,7 @@ def level_rotation(g_kf0):
 if __name__ == "__main__":
     stamp, gyro, accel = read_imu("data/run1/imu.txt")
     keyframes = np.loadtxt("data/run1/keyframes.txt")
-    params = make_params(read_extrinsics("data/run1/imu_extrinsics.txt"))
+    params = make_params(T_CAM_IMU)
 
     # Check 1: chained VO rotation of KF1 should match the 8.25 deg from the preintegration check
     poses = chain_vo(keyframes)

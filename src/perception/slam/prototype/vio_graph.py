@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # Batch VIO over a vo.py run: pose_graph.py plus the IMU (slam_core.backend.imu_fusion)
 #
-# Needs <run>/keyframes.txt, imu.txt, imu_extrinsics.txt; uses loops.txt and frames.txt if present.
+# Needs <run>/keyframes.txt, imu.txt; uses loops.txt and frames.txt if present.
+# Camera-IMU extrinsic: the Kalibr T_CAM_IMU (imu_fusion/preintegration.py), not <run>/imu_extrinsics.txt.
 # Writes <out>/kf_before.txt (leveled VO), kf_after.txt, trajectory_after.txt (TUM format), the same
 # files as pose_graph.py, so map.py and evo work unchanged. Default <out> is <run>/vio so it doesn't
 # overwrite pose_graph.py's output.
@@ -12,8 +13,8 @@ import numpy as np
 
 from pose_graph import read_keyframes, rows, write_tum
 from slam_core.backend.imu_fusion.gravity import estimate_gravity, level_rotation
-from slam_core.backend.imu_fusion.imu import read_extrinsics, read_imu
-from slam_core.backend.imu_fusion.preintegration import make_params
+from slam_core.backend.imu_fusion.imu import read_imu
+from slam_core.backend.imu_fusion.preintegration import T_CAM_IMU, make_params
 from slam_core.backend.imu_fusion.vio_graph import solve_vio
 from slam_core.types.pose import from_tum, rotation_angle
 
@@ -37,7 +38,7 @@ def main():
     if not kfs:
         raise SystemExit(f"no keyframes in {args.run}/keyframes.txt")
     imu = read_imu(os.path.join(args.run, "imu.txt"))
-    params = make_params(read_extrinsics(os.path.join(args.run, "imu_extrinsics.txt")))
+    params = make_params(T_CAM_IMU)
     loops = [(int(v[1]), int(v[0]), from_tum([float(x) for x in v[3:10]]))
              for v in rows(os.path.join(args.run, "loops.txt"))]
 

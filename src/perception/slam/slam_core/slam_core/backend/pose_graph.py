@@ -12,20 +12,10 @@ from gtsam.symbol_shorthand import B, V, X
 from slam_core.backend.imu_fusion.imu import imu_between
 from slam_core.backend.imu_fusion.preintegration import make_params, preintegrate
 from slam_core.backend.imu_fusion.preintegration import (
-    ACCEL_RANDOM_WALK, GYRO_RANDOM_WALK)
+    ACCEL_RANDOM_WALK, GYRO_RANDOM_WALK, T_CAM_IMU)
 from slam_core.backend.imu_fusion.gravity import gravity_in_frame, level_rotation
 
 from slam_core.types import Keyframe, LoopClosure
-
-# T_cam_imu: pose of the IMU in the left IR camera frame (p_ir1 = T_cam_imu @ p_imu), Kalibr convention.
-# Derived, not measured by Kalibr: T_infra1_color (factory, from /tf_static) x T_color_imu (Kalibr result).
-# Source: d455_imu_calibration/kalibr_output/T_infra1_imu.yaml
-T_CAM_IMU = np.array([
-    [0.9999892768399253, -0.004148029012896373, 0.0020591407152132164, 0.02816988878101279],
-    [0.004143765359911823, 0.9999892709290251, 0.0020705640504841225, -0.008068887543765038],
-    [-0.0020677073823052936, -0.0020620092515342657, 0.9999957363429309, -0.014059076567611293],
-    [0.0, 0.0, 0.0, 1.0],
-])
 
 
 # starting priors on the first keyframe, copied from imu_fusion/vio_graph.py
@@ -57,6 +47,7 @@ class PoseGraphBackend:
         loop_kernel_scale=1.345,
         R_odom_kf0=None,
         gravity_keyframes=4,
+        T_cam_imu=T_CAM_IMU,   # 4x4, IMU pose in the left IR camera frame; default is the Kalibr calibration
     ):
         # add custom params
         params = gtsam.ISAM2Params()
@@ -67,7 +58,7 @@ class PoseGraphBackend:
         self._extra_updates = 20
 
         # imu preintergration
-        self._params = make_params(T_CAM_IMU)
+        self._params = make_params(np.asarray(T_cam_imu, dtype=float))
         self._bias = gtsam.imuBias.ConstantBias()
 
         # gravity leveling: rotation that makes +y point down in the graph's frame (None = VO frame as is).

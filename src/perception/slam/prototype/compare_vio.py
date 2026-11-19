@@ -14,8 +14,8 @@ import numpy as np
 
 from pose_graph import rows
 from slam_core.backend.imu_fusion.gravity import gravity_in_frame
-from slam_core.backend.imu_fusion.imu import read_extrinsics, read_imu
-from slam_core.backend.imu_fusion.preintegration import make_params
+from slam_core.backend.imu_fusion.imu import read_imu
+from slam_core.backend.imu_fusion.preintegration import T_CAM_IMU, make_params
 from slam_core.types.pose import from_tum, inv_T, rotation_angle
 
 
@@ -56,7 +56,7 @@ def main():
     vio_dir = args.vio or os.path.join(args.run, "vio")
 
     imu = read_imu(os.path.join(args.run, "imu.txt"))
-    params = make_params(read_extrinsics(os.path.join(args.run, "imu_extrinsics.txt")))
+    params = make_params(T_CAM_IMU)
     results = {"VO (pose_graph)": read_kf_poses(os.path.join(args.run, "kf_after.txt")),
                "VIO (vio_graph)": read_kf_poses(os.path.join(vio_dir, "kf_after.txt"))}
 
