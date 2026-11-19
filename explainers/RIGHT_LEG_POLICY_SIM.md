@@ -10,6 +10,11 @@ Status as of 2026-11-18, written from the code on `locomotion-policy` (076b4e41)
 run.** The script in step 2 is new. I've only checked that it parses as Python; it hasn't run in Isaac
 Lab yet. The parts most likely to need a fix on first run are marked ⚠.
 
+**Update 2026-11-19:** runs r1–r7 are done and saved in `outputs_lucas/` (commit bc775866). r1 and r7
+each have two folders. Use the complete one: `20261119-031530_r1` and `20261119-045901_r7`. To judge
+them, read **section 6** (the ideas behind the numbers, from first principles), then run **section 7**
+(a health check per run, and what the sim has to show before each live stage).
+
 ---
 
 ## 0. What this shows
@@ -330,7 +335,8 @@ That takes a minute; later runs reuse it.
 ### 3b. What to look at
 
 - **During the hold:** the shank should hang at the default bend (knee −28.65°, ankle pitch −14.3°),
-  sagging about 2° under gravity. A shank that hangs straight means the gains aren't applied.
+  sagging about 2° under gravity. A shank that hangs straight means the gains aren't applied. (Where
+  the 2° comes from: section 6.3.)
 - **The printed `first action`:** it should be close to the live guide's A1 `first action, vx 0`. It
   won't be identical: the 2° sag means the policy's first input isn't exactly "at default". If it's
   far off, the observation is built differently from training.
@@ -434,9 +440,326 @@ In sim, `dt_ms` is always exactly 20, and without `--jc` the `joint_command` gap
 Keep these sim results. When the real run happens, put the two tables side by side: **sim
 prediction vs real leg**, per run.
 
+Why each row of that table means what it says: section 6. A fuller check per run: section 7.
+
 ---
 
-## 6. What the sim leaves out
+## 6. The ideas behind the numbers (first principles)
+
+Each idea below has: what it is, a number you can work out by hand, and where it shows up in your
+runs. The worked examples use your `outputs_lucas/` runs. If a run doesn't match the number you
+worked out by hand, either the sim is set up wrong or the idea is missing something. Find out which
+before going further.
+
+### 6.1 The policy is a reflex, not a planner
+
+The policy is a function: 50 numbers in, 12 numbers out, 50 times a second. It has no map and no
+plan. All it remembers is its own last output (slots 36–47) and the time on the gait clock (48–49).
+
+It learned by trial and error in one world: the whole robot on the floor, joints with stiff training
+gains. Its outputs only mean something for inputs that look like that world. On the rig, 9 of 12
+joints and all of the body's motion are constants. You're asking it: "what would you do if your body
+were frozen like this?" It never saw that question in training. So:
+
+- **Don't judge whether its motion is good.** No answer here can be "right".
+- **Do judge** whether what it asks for is safe for the hardware (size, speed, torque), and whether
+  the chain delivers what it asks for (section 5's gaps).
+
+**What strain looks like:** large actions. One unit of action is 0.25 rad = 14.3° from the default
+pose. In your r5 and r6 (vx 0.3), ankle pitch's wanted angle reached **−58°**, past the URDF's −30°
+limit. The policy is trying to step, but no step ever lands: there's no floor, so nothing it sees
+ever changes the way stepping would. That's what the safety box is for.
+
+### 6.2 The policy doesn't command torque. It moves the rest point of a spring
+
+target = default + 0.25 × action. Then the drive (the PD drive in sim, MIT mode on the real CubeMars)
+works out the torque many times per policy tick:
+
+  **torque = kp × (target − angle) − kd × angular velocity**
+
+Picture a rubber band from the joint to the target angle, with the joint moving through honey. kp is
+how stiff the band is, and kd is how thick the honey is. In units you can feel:
+
+| kp (N·m/rad) | N·m per degree off target | Like |
+|---|---|---|
+| 200 (training knee) | 3.5 | 1.4 kg hanging 25 cm out, per degree |
+| 40 (training ankle) | 0.7 | 280 g at 25 cm, per degree |
+| 10 (left knee today) | 0.17 | 70 g at 25 cm, per degree |
+
+This has three consequences you can see in the data:
+
+1. **A steady load gives a steady offset (sag)**: offset ≈ load torque ÷ kp. Gravity on the shank is
+   the load (6.3).
+2. **A jump in the target gives a jump in torque**: kp × jump. A 10° jump at kp 200 is 35 N·m at once.
+   Your r1 (no `--jc`) peaked at **41 N·m on the knee**, over the 30 N·m `mit_max_torque` the real
+   drive would fault at. With `--jc` (r3–r6) the peak was 6.6–9.1 N·m. Smoothing the target is what
+   keeps the torque down.
+3. **How fast the joint follows** depends on kp, kd and the mass it moves (6.4).
+
+Why this matters for transfer: the policy learned "I ask for −20°, the knee goes to about −20°",
+because it trained at kp 200. At kp 10 that's no longer true. The same request gives a different
+motion, and the policy sees that difference in its next observation (6.7).
+
+### 6.3 Gravity on a hanging shank
+
+From the URDF, the right shank is 4.86 kg with its centre of mass 0.21 m below the knee, and the foot
+is 1.18 kg about 0.43 m below it. With the thigh vertical:
+
+  **gravity torque at the knee = 14.9 N·m × sin(knee bend)**
+
+It's 0 with the shank hanging straight and 14.9 N·m with the shank horizontal: like a 6 kg bag 25 cm
+out.
+
+**Where the joint settles** is where the spring and gravity balance:
+
+  kp × (target − bend) = 14.9 × sin(bend)
+
+That isn't exactly torque ÷ kp: as the shank swings toward straight, gravity pulls less. Solve it
+numerically (section 7's script does). For the hold at target −28.65°:
+
+| Gains | Predicted sag | Your runs | |
+|---|---|---|---|
+| kp 200 | 1.9° straighter | **2.0°** (r1–r6) | ✓ |
+| kp 10 | 17.1° straighter | **17.9°** (r7) | ✓ |
+
+**This is the best single check that the sim is set up right.** The gains reached the drive, the
+masses are right, and the hold works. Do it on every run.
+
+**Gravity also acts as a spring.** A hanging pendulum is pulled back toward straight down. Near a
+bend θ, that pull grows by 14.9 × cos(θ) N·m for every radian it swings away: about **15 N·m/rad**
+for the small bends here. Next to kp 200 that's nothing. Next to kp 10, it's **stronger than the
+motor**. At kp 10 the knee's position is set more by gravity than by the policy. (On the floor it's
+the other way round: body weight bends a bent knee further. The gantry is the easy case.)
+
+### 6.4 How fast a joint follows: mass, spring and damper
+
+Each joint is a mass on a spring with a damper. Two numbers describe how it moves:
+
+- **Natural frequency** fn = (1/2π) × √(k / I): how fast it would bounce if you plucked it.
+- **Damping ratio** ζ = kd / (2 × √(k × I)): below ~0.5 it overshoots and rings, around 1 it settles
+  cleanly, above 1 it creeps in slowly.
+
+k is the total spring: kp plus gravity's spring (6.3). I is what's being swung, about the joint
+axis. From the URDF: about **0.48 kg·m²** for shank + foot about the knee, and **0.006 kg·m²** for
+the foot about ankle pitch. The sim adds `armature 0.01` to each, a stand-in for the motor's own
+rotor turning through its gearbox.
+
+When the input is a 1 Hz rhythm (the gait), the joint follows it a little late and at a slightly
+different size. The standard mass-spring-damper formulas give how late:
+
+| Joint, kp / kd | k (N·m/rad) | fn | ζ | Behaves like | Predicted lag at 1 Hz | Your lag (section 5) |
+|---|---|---|---|---|---|---|
+| knee, 200 / 5 | ≈ 214 | 3.3 Hz | 0.25 | stiff but springy: overshoots on sudden moves | ≈ 25 ms | 20–40 ms (r1–r6) |
+| knee, 10 / 3.4 | ≈ 25 | 1.1 Hz | 0.49 | soft, and it bounces at about the gait's own 1 Hz | ≈ 210 ms | **200 ms** (r7) |
+| ankle pitch, 40 / 2 | ≈ 40 | 8 Hz | 1.2 | overdamped, about kd/kp = 50 ms behind | ≈ 50 ms | 40 ms (all) |
+| ankle, 10 / 0.5 (replay guide B5's proposal) | ≈ 10 | 4 Hz | 0.6 | well damped | ≈ 50 ms | not run yet |
+
+At kp 10 the knee also moves **less than half** of its setpoint's swing: the motor's spring is only
+10 of the 25 N·m/rad total. In r7 the setpoint swung 13.8° and the knee 5.6°.
+
+Read the r1 overshoot through this table too: with ζ 0.25 at kp 200, a sudden target change makes the
+knee swing past it. In r1 the knee reached −2.5° while the straightest target sent was −5.9°.
+
+What changes on the real leg: friction and cogging (they mostly add lag and dead zone), the delay
+before a command reaches the drive, and the real rotor inertia, which may not be 0.01. These all push
+the lag **up**. The sim's lag is the floor.
+
+### 6.5 What `joint_command` does to a rhythm
+
+Two parts of `joint_command` change a rhythm's size and timing:
+
+- **The low-pass** (alpha 0.85 every 20 ms) is a smoother with a 0.12 s time constant. A 1 Hz swing
+  comes through at **79 %** of its size and **105 ms late**. A 2 Hz swing comes through at 54 % and
+  80 ms late.
+- **The speed cap** (30 deg/s = 0.6° per tick). A swing of ±A degrees at f Hz has top speed
+  2π × f × A. So the cap lets a 1 Hz swing through only up to **±4.8°**, and a 2 Hz swing up to ±2.4°.
+  A bigger swing turns into a triangle (straight 0.6°/tick ramps) and loses size and timing.
+
+So **box 5 is about the largest gait-rhythm swing `joint_command` can pass unchanged**. At box 10 and
+20, the cap limits the motion, not the box. Your data shows it. The share of ticks where the setpoint
+moved exactly 0.6° rose from 0–25 % (r3) to 47–77 % (r6), and in r6 the knee's jc gap (7.4° rms)
+was bigger than its box gap (4.3°).
+
+This is by design, not a fault. It also means that at the 30 deg/s cap, the real leg can never show
+the policy's real gait. That needs the faster-cap bench work (replay guide section 6).
+
+### 6.6 The closed loop: clock rhythm vs a rhythm the loop makes itself
+
+The loop: policy → box → `joint_command` → drive → joint → observation → policy. One trip around
+takes roughly 20 ms (one tick to observe) + about 105 ms (low-pass) + 25–210 ms (drive, 6.4):
+**150–330 ms** in sim. More on the real leg.
+
+A joint can move for two reasons:
+
+1. **The gait clock.** Slots 48–49 tick around once a second, so the policy outputs a pattern that
+   repeats every second. That motion lives at **1 Hz and whole multiples of it** (2, 3 Hz). It
+   repeats exactly, cycle after cycle.
+2. **The policy reacting to its own joint.** It sees the joint off target and corrects, but the
+   correction arrives a loop-delay late, so it overshoots, then corrects back the other way. Like a
+   shower with a long pipe: too cold, turn hot, wait, too hot, turn cold. That is **ringing**. Its
+   frequency is set by the loop delay, so it's usually **not** a whole multiple of 1 Hz. Its swing
+   may grow, and its cycles don't line up with the clock.
+
+Three checks tell them apart (section 7's script prints all three):
+
+| Check | Clock-driven | Ringing |
+|---|---|---|
+| strongest frequencies | 1, 2, 3 Hz | something else, e.g. 1.7 Hz |
+| each 1 s cycle vs the average cycle | the same (≲ 0.5°) | differs |
+| swing size, last third vs first third | ≈ 1 | > 1, growing |
+
+Your runs: every joint is at 1, 2 or 3 Hz, cycles repeat to within 0.1°, nothing grows. In r3 and r4
+the knee had no rhythm at all: it sat pinned against the box edge. **The sim loop is clock-driven
+and stable at every setting you ran.**
+
+The limit of that: the sim has no noise, and less delay than the real loop. More delay means less
+margin before ringing starts. Stable in sim is **needed**, not **enough**.
+
+### 6.7 The policy sees what you do to its output
+
+Every change you make between the policy and the joint (box, cap, low gains, sag) changes where the
+joint ends up. That changes the policy's next observation, and so its next output. Examples:
+
+- **r1 vs r3** (both vx 0): same network, different wanted angles. In r3 the box holds the knee near
+  default, so the policy sees a different knee and answers differently.
+- **r7:** in the very first policy row, `obs_19` (knee angle − default) is **0.313 rad = 17.9°**.
+  Before it has done anything, the policy sees a knee sagged 18° from where it was trained to expect
+  it. Everything after that answers that sag.
+
+So **don't expect a real-leg trace to match a sim trace tick by tick**, even with the same settings.
+What should match: the size of the motion, its frequencies, the gaps, the lag, the torques. A
+different curve shape is normal. A different frequency, sign or steady offset is a finding.
+
+One more thing the policy sees: velocity worked out from 0.1° position steps reads as ±5 deg/s of
+noise per tick, before smoothing. The sim rounds positions the same way, so the policy gets the same
+noise in sim as on the real leg.
+
+### 6.8 Which sim numbers carry over to the real leg
+
+| Quantity | Trust the sim? | Why |
+|---|---|---|
+| box gap, jc gap, % of ticks speed-capped | **Yes, closely** | same arithmetic as `joint_command` (with URDF limits instead of calibrated ones) |
+| wanted angles for a given observation | Yes | same network, same weights. The observations will differ (6.7) |
+| gravity sag | Yes, if the URDF masses are right | the real check is the replay guide's B5 hold test |
+| drive lag, overshoot | Roughly. Real is worse | no friction, comms delay or real rotor inertia in sim (6.4) |
+| peak torque | As a **floor** | real friction and sudden moves add more |
+| ringing / stability | Optimistic | more delay on the real leg (6.6) |
+| joint signs, zeros, ankle linkage | **Not at all** | the sim gets them right by construction. The replay guide's B2–B4 and D1 test them |
+
+---
+
+## 7. Judging a run: health check, then go / no-go
+
+### 7a. Health check, per run folder
+
+On the host, from the repo root. It reads `telemetry.csv` only:
+
+```bash
+uv run --with numpy python - outputs_lucas/20261119-045901_r7 <<'EOF'
+import csv, sys
+import numpy as np
+run = sys.argv[1]
+TORQUE_MAX = {"knee.pitch": 30.0, "ankle.pitch": 10.0, "ankle.roll": 10.0}  # knee: left knee's mit_max_torque; ankles: replay guide B5's proposal
+tel = list(csv.DictReader(open(f"{run}/telemetry.csv")))
+print(f"{'joint':12s} {'hold sag':>8s} {'pred':>5s} | {'freqs Hz':>9s} {'cycle rms':>9s} {'grows':>6s} | {'|tau| max':>9s} {'limit':>5s} | {'offset':>6s} {'wobble':>6s} {'lag ms':>6s}")
+for j in ["knee.pitch", "ankle.pitch", "ankle.roll"]:
+    rows = [r for r in tel if r["joint"] == j]
+    if not rows:
+        continue
+    col = lambda c, ph: np.array([float(r[c]) for r in rows if r["phase"] == ph])
+    # 6.3: hold sag vs spring-against-gravity balance, kp*(target - q) = 14.9 N.m * sin(bend)   (knee only)
+    hold_sp, hold_q, kp = col("sp_deg", "hold")[99], col("pos_deg", "hold")[99], float(rows[0]["kp"])
+    pred = 0.0
+    if j == "knee.pitch":
+        bends = np.linspace(0, -90, 9001)
+        pred = hold_sp - bends[np.argmin(np.abs(kp * np.radians(hold_sp - bends) + 14.9 * np.sin(np.radians(-bends))))]
+    t, sp, q, tau = col("t_s", "policy"), col("sp_deg", "policy"), col("pos_deg", "policy"), col("tau_nm", "policy")
+    # 6.6: the two strongest frequencies (whole multiples of 1 Hz = the gait clock)
+    spec = np.abs(np.fft.rfft(q - q.mean())); f = np.fft.rfftfreq(len(q), 0.02)
+    top = f[1 + np.argsort(spec[1:])[-2:][::-1]]
+    # 6.6: steady part only (3 s ease at each end), cut into 1 s cycles, each compared with the mean cycle
+    s = q[(t >= t[0] + 3) & (t < t[-1] - 3)]
+    n = len(s) // 50
+    cyc = s[: n * 50].reshape(n, 50)
+    cycle_rms = np.sqrt(np.mean((cyc - cyc.mean(0)) ** 2))
+    third = max(n // 3, 1)
+    grows = np.ptp(cyc[-third:]) / max(np.ptp(cyc[:third]), 1e-6)  # swing size, last third / first third
+    # 6.2 / 6.4: motor gap = constant offset (sag, zero error) + moving part (wobble), and the lag
+    gap = sp - q
+    lag = 20 * int(np.argmin([np.std(sp[: len(sp) - k] - q[k:]) for k in range(26)]))
+    print(f"{j:12s} {hold_sp - hold_q:8.1f} {pred:5.1f} | {top[0]:4.2f},{top[1]:4.2f} {cycle_rms:9.2f} {grows:6.2f} | "
+          f"{np.abs(tau).max():9.1f} {TORQUE_MAX[j]:5.0f} | {gap.mean():6.1f} {gap.std():6.2f} {lag:6d}")
+EOF
+```
+
+What the columns are. Sag and offset are both setpoint − measured, the same sign as section 5's motor
+gap, so a knee sagging straighter shows as **negative**:
+
+| Column | Idea | Healthy |
+|---|---|---|
+| hold sag vs pred | 6.3 | within ~1° of each other (ankles: both ≈ 0) |
+| freqs Hz | 6.6 | 1, 2 or 3 (a value near 0 = no rhythm, e.g. pinned at the box) |
+| cycle rms | 6.6 | ≲ 0.5° |
+| grows | 6.6 | 0.8–1.2 |
+| \|tau\| max vs limit | 6.2 | under **half** the limit (the sim's torque is a floor, 6.8) |
+| offset | 6.2, 6.3 | ≈ the hold sag. Bigger: something else pushes the joint |
+| wobble | 6.4 | ≲ 2° |
+| lag ms | 6.4 | close to the 6.4 table's prediction for those gains |
+
+Fill one row per joint per run:
+
+| Run | Joint | hold sag / pred | freqs | cycle rms | grows | \|tau\| max / limit | offset | wobble | lag | Healthy? |
+|---|---|---|---|---|---|---|---|---|---|---|
+| | | | | | | | | | | |
+
+**Worked example, r7's knee** (kp 10): sag −17.9 vs −17.1 predicted ✓, 1 Hz ✓, cycles repeat ✓,
+3.1 N·m against a 30 N·m limit ✓, but offset −13.7°, wobble 4.1° and lag 200 ms. Every one of those
+three is what 6.3 and 6.4 predict for kp 10. So the sim is right, and what it says is that **kp 10
+can't hold the knee where the policy expects it**. It's the same conclusion as the replay guide's
+knee gate (B5), reached from the other direction.
+
+### 7b. What the sim must show before each live stage
+
+The live guide runs stages 1–5 (B4), each with rows a–d. Before each one, run the matching sim run
+**at the gains the real joints will actually have**, and check:
+
+| Check | Pass | Idea |
+|---|---|---|
+| hold sag matches prediction | within ~1° | 6.3: the sim is set up right |
+| clock-driven and stable | freqs 1/2/3 Hz, cycle rms ≲ 0.5°, grows 0.8–1.2 | 6.6 |
+| torque headroom | \|tau\| max < half of that joint's `mit_max_torque` | 6.2, 6.8 |
+| following | wobble ≲ 2°, offset ≈ sag, lag ≲ 100 ms | 6.4 |
+| speed cap | understood: % capped, jc gap (no pass mark, just know it) | 6.5 |
+
+None of your runs used the **right leg's** real gains yet: r7 used the left knee's (10 / 3.4) and
+training's ankle gains (40 / 2). When the replay guide's B5 sets the right leg's gains, rerun r3–r6
+with them (`--kp K A A --kd K A A`). The ankles at B5's proposed 10 / 0.5 should give about 50 ms of
+lag (6.4 table). Check that before stage 1.
+
+These pass marks are a cautious starting point, not derived limits. Tighten them once the first
+live runs give real numbers.
+
+### 7c. How confidence builds up
+
+You won't get confidence from one good-looking run. You get it from **predictions that keep coming
+true**, one layer at a time:
+
+1. **Hand calculations match the sim** (sag, lag: 6.3, 6.4). Then you trust the sim's model of the leg.
+2. **The sim at the real gains passes 7b.** Then you know what the leg will be asked to do, and that
+   it's within the drive's torque.
+3. **The real hold test (replay guide B5) matches the same sag and lag predictions.** Then you trust
+   that the real joint behaves like the model. This is also where signs and zeros get proven, which
+   the sim can't do (6.8).
+4. **Live run: gaps, lag and frequencies match the sim** within "real is a bit worse" (6.8). Then the
+   deployment chain is proven for those joints.
+
+At every layer, **write the prediction in the table before you run**. If a measurement misses its
+prediction, stop and explain the miss before going to the next layer. A miss you can't explain is
+the thing that breaks hardware.
+
+---
+
+## 8. What the sim leaves out
 
 These all make the real leg do worse than the sim, so read the sim as the best case:
 
@@ -466,6 +789,10 @@ These all make the real leg do worse than the sim, so read the sim as the best c
 | `--jc` | The sim copy of `joint_command`: clamp to limits, low-pass (alpha 0.85, ~0.13 s), at most 0.6° per tick. |
 | kp, kd | Drive spring (N·m per rad) and damper (N·m·s per rad). Training used 200/5 (knee) and 40/2 (ankles). |
 | Sag | How far gravity pulls a joint off its target: torque ÷ kp (rad; × 57.3 for degrees). |
+| Natural frequency, damping ratio | How fast a joint would bounce, and whether it overshoots (ζ < ~0.5) or creeps in (ζ > 1). Section 6.4. |
+| Lag | How long the joint trails its setpoint. On a 1 Hz rhythm it's set by kp, kd and the mass (6.4). |
+| Ringing | A rhythm the loop makes itself because its corrections arrive late. Not at whole multiples of 1 Hz; may grow (6.6). |
+| Out of distribution | Inputs unlike anything in training. The policy's outputs for them mean little (6.1). |
 | Gait clock | The policy's sense of time: a 1 s cycle. Each leg stands for 55% of its own cycle; the right leg's is half a cycle behind the left's, so it's meant to swing from about 0.05 s to 0.5 s of each second (`gait.py`). |
 
 Conversions: 1 rad = 57.3°. 30 deg/s at 50 Hz = 0.6° per tick. 0.25 × action 1.0 = 0.25 rad = 14.3° off default.
