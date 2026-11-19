@@ -1,0 +1,47 @@
+#Obstacle bounds for the real Nov 6 D455 bag (2026-11-06_02-09-28), in odom coordinates.
+#Format: [x_min, x_max, y_min, y_max] in metres; origin = camera start, +y = forward.
+#The bag carries no obstacle coordinates, so these were aligned by hand against a
+#10x10 m map (map_length: 10.0) snapshotted after 11 s of bag time.
+#Use: python3 -m terrain_tools.evaluate <map.npz> --config config/nov6_course.yaml
+
+course_metadata:
+  name: "Nov 6 Hallway Bag Layout"
+  version: "1.0"
+  grid_resolution_m: 0.04
+  map_bounds_m: [-2.0, 2.0, -0.8, 5.2]   # unused for real .npz maps (origin comes from map_centre)
+  camera_height_m: 1.64
+
+regions:
+  under_feet:
+    bounds: [-0.40, 0.40, -0.40, 0.40]
+    expected_height_m: 0.00
+    min_coverage_pct: 95.0
+
+  flat_floor:
+    bounds: [-1.25, 1.25, 1.5, 7.2]
+    expected_height_m: 0.00
+    expected_slope_deg: 0.0
+    tolerance_cm: 2.0
+    false_obstacle_threshold_m: 0.05
+    obstacle_pad_m: [0.18, 0.18, 0.18, 0.52]
+
+  step:
+    bounds: [0.50, 1.22, 2.94, 3.22]
+    expected_height_m: 0.14
+    expected_slope_deg: 0.0
+    tolerance_cm: 2.5
+
+  ramp:
+    bounds: [0.66, 1.47, 5.04, 5.94]
+    expected_slope_deg: 9.0
+    start_height_m: 0.00
+    end_height_m: 0.1425
+    tolerance_cm: 2.5
+    slope_tolerance_deg: 2.0
+
+  obstacle_box:
+    bounds: [-0.93, -0.54, 6.58, 6.94]
+    expected_height_m: 0.39
+    height_m: 0.39
+    tolerance_cm: 3.0
+    is_traversable: false

@@ -8,7 +8,7 @@
 # ==============================================================================
 
 course_metadata:
-  name: "Nov 6 Hallway Layout"
+  name: "Test Couse Layout"
   version: "1.0"
   grid_resolution_m: 0.04          # 4 cm grid res
   map_bounds_m: [-2.0, 2.0, -0.8, 5.2]  # 4m x 6m
