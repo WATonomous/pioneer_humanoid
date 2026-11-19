@@ -20,6 +20,8 @@ p.add_argument("--video", type=int, default=0)
 p.add_argument("--task", help="language instruction (default: the one the data recorded for --kind)")
 p.add_argument("--garment", help="evaluate on this garment (e.g. Pant_Short_Unseen_0) instead of the episodes' own")
 p.add_argument("--random_pose", action="store_true", help="the env's own random garment layout, not the recorded episode's (held out)")
+p.add_argument("--workcell", action="store_true", help="the lab's lightbox workcell (as run_retarget --workcell)")
+p.add_argument("--shift_y", type=float, default=0.0, help="m to move the garment away from the arm (as run_retarget)")
 p.add_argument("--flat_cloth", action="store_true", help="no garment textures (data recorded before they loaded)")
 AppLauncher.add_app_launcher_args(p)
 args = p.parse_args()
@@ -49,7 +51,7 @@ from humanoid_robot_learning.sim.evaluate import load_policy  # noqa: E402
 from lerobot.utils.control_utils import predict_action  # noqa: E402
 from pioneer_humanoid.arm_8dof_params import GRIPPER_STROKE, TCP_LOCAL  # noqa: E402
 
-from retarget import IK, TCP_GRASP_Z, load_episode, plan_track  # noqa: E402
+from retarget import IK, TABLE_Z, TCP_GRASP_Z, load_episode, plan_track  # noqa: E402
 
 a0, a1 = map(int, args.episodes.split(":"))
 EPS = list(range(a0, a1))
@@ -68,6 +70,7 @@ if args.flat_cloth:
     gpe.fix_garment_asset_paths = lambda *a: (_fix(*a), a[1].__setattr__("visual_usd_paths", []))[0]
 cfg.garment_cfg_base_path = f"{LEHOME}/assets/objects/Challenge_Garment"
 cfg.sim.use_fabric = True
+cfg.workcell = args.workcell
 cfg.decimation = 1
 cfg.sim.render_interval = args.stretch
 cfg.episode_length_s = 1e4
@@ -79,8 +82,8 @@ get_obs = env._get_observations
 env._get_observations = lambda: {}
 env._get_rewards = lambda: torch.zeros(1, device=env.device)
 if args.video:
-    env.scene_camera.set_world_poses_from_view(torch.tensor([[0.75, 0.55, 1.05]], device=env.device),
-                                               torch.tensor([[0.0, -0.08, 0.55]], device=env.device))
+    eye, target = ([0.55, -0.85, 1.3], [0.0, 0.1, 0.53]) if args.workcell else ([0.75, 0.55, 1.05], [0.0, -0.08, 0.55])   # the lightbox walls block the far side
+    env.scene_camera.set_world_poses_from_view(torch.tensor([eye], device=env.device), torch.tensor([target], device=env.device))
 ids = torch.cat([env._l_arm, env._l_grip, env._r_arm, env._r_grip])
 SCALE = torch.tensor([1.0] * 7 + [GRIPPER_STROKE] + [1.0] * 7 + [GRIPPER_STROKE], device=env.device)
 cloth = env.object._cloth_prim_view
@@ -134,13 +137,23 @@ def physics_step(act, pins):
     cloth.set_velocities(v)
 
 
+env.reset()   # the first reset after startup lands the cloth differently from every later one: spend it here
+hold0 = (robot.data.joint_pos[0, ids] / SCALE).unsqueeze(0)
+for _ in range(60 * args.stretch):
+    env.step(hold0)
 for ep in EPS:
     t0 = time.time()
     E = load_episode(ep, args.kind)
+    for a in ("left", "right"):
+        E[a][:, 1] += args.shift_y
+        E[a][:, 2] += getattr(env, "table_top_z", TABLE_Z) - TABLE_Z   # the workcell's table is higher
     start = {a: plan_track(ik, a, E[a][:1], w_down=E[a + "_wdown"][:1])[0][0] for a in ("left", "right")}
     env.reset()
     if not args.random_pose:
         env.object.set_all_pose({"Garment": np.array(E["pose"], dtype=np.float32)})
+    x = cloth.get_world_positions()
+    x[..., 1] += args.shift_y
+    cloth.set_world_positions(x)
     jp = robot.data.default_joint_pos.clone()
     a_start = torch.tensor(np.concatenate([start["left"], [0.0], start["right"], [0.0]]), dtype=torch.float32, device=env.device)
     jp[0, ids] = a_start * SCALE
