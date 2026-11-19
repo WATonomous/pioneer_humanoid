@@ -95,6 +95,11 @@ slam/
 └── data/                datasets and bags (gitignored, local only)
 ```
 
+## Loop closure
+
+`slam_core/loop_closure/` has place recognition, verification and false-loop defenses, with a synthetic simulator and
+a demo you can run without hardware: `python slam_tools/loop_closure_demo.py`. See [docs/loop_closure.md](docs/loop_closure.md).
+
 ## Foxglove
 
 Layout: `slam_ros/foxglove/slam_layout.json`. In Foxglove: Layouts → Import from file, then open a bag or connect to `foxglove_bridge`.
