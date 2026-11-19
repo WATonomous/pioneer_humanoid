@@ -1297,9 +1297,9 @@ TEST_F(LegConfig, LoadsLegOrderAndProducesCalibratedMitCommands) {
   for (size_t i = 0; i < cmds.size(); ++i) {
     EXPECT_EQ(core.jointName(i), names[i]);
     const auto dot = names[i].find('.');
-    EXPECT_EQ(cmds[i].motor_id, mapping["left"][names[i].substr(0, dot)][names[i].substr(dot + 1)]
-                                       ["can_id"]
-                                           .as<int>());
+    EXPECT_EQ(
+        cmds[i].motor_id,
+        mapping["left"][names[i].substr(0, dot)][names[i].substr(dot + 1)]["can_id"].as<int>());
     EXPECT_EQ(cmds[i].control_type, kMit);
     // Knee cannot move above zero; other joints are limited to 0.6 deg per tick.
     const double target = i == 3 ? 0.0 : 0.6;
