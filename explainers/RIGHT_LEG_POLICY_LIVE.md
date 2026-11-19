@@ -5,9 +5,10 @@ real joint angles go into the policy, its joint targets go out to the motors eve
 link of that chain is logged, so you can measure whether the motors followed what the policy
 commanded and, where they didn't, which link lost it.
 
-Status as of 2026-11-18, written from the code on `legs-benching` (559a3dc7). **Nothing here has run.**
-`policy_deploy.py` (step A3) and the weight export (step A1) don't exist yet; both are specified
-below. Companion guide: [`RIGHT_LEG_POLICY_REPLAY.md`](RIGHT_LEG_POLICY_REPLAY.md), which replays a
+Status as of 2026-11-19: Part A is done (A1 exported, A2 recorded, `policy_deploy.py` written and
+self-tested). The script has also run end to end in software against the real `joint_command_node`
+and fake motors, but **not on the leg**. Part B is blocked: every right-leg joint is still uncalibrated
+(`zero_offset: null`) with zero gains, so the replay guide's B1–B5 come first. Companion guide: [`RIGHT_LEG_POLICY_REPLAY.md`](RIGHT_LEG_POLICY_REPLAY.md), which replays a
 recorded sim walk instead. Its setup steps are reused here.
 
 ---
@@ -172,9 +173,9 @@ EOF
 
 | Check | Expect | Got |
 |---|---|---|
-| layer shapes | (256, 50), (128, 256), (128, 128), (12, 128) | |
-| max \|numpy − torch\| | < 1e-4 | |
-| first action, vx 0: largest \|value\| | small (≲ 1, i.e. ≲ 14° from default) | |
+| layer shapes | (256, 50), (128, 256), (128, 128), (12, 128) | same ✓ |
+| max \|numpy − torch\| | < 1e-4 | 1.5e-5 ✓ |
+| first action, vx 0: largest \|value\| | small (≲ 1, i.e. ≲ 14° from default) | 1.45 (Knee_L); Knee_R 1.36 (+19.5°), Ankle_P_R 0.22, Ankle_R_R −0.29. Slightly over; both knees want to straighten |
 
 `ref_obs`/`ref_act` are the robot standing still at the default pose: exactly the first observation
 `sim2sim_mujoco.py` builds. In A3 the node rebuilds that observation with its own code and must get
@@ -187,13 +188,16 @@ the same action. That catches a wrong slot order or a missing `-1` on gravity.
 So you can tell later whether the real leg's behaviour at vx 0 is odd:
 
 ```bash
-uv run --with mujoco --with torch --with numpy python \
+uv run --with mujoco --with torch --with numpy --with imageio --with imageio-ffmpeg python \
     src/simulation/humanoid_rl_tasks/humanoid_rl_tasks/locomotion/config/pioneer/sim2sim_mujoco.py \
     models/pioneer_leg_only_flat/model_2999.pt --vx 0 --seconds 10 --video outputs/policy/stand.mp4
 ```
 
 Watch the video. Does the policy stand still at vx 0, or step in place (the gait clock keeps ticking)?
-I haven't checked this. Write it down; it's what a "healthy" live run at vx 0 is aiming at.
+Write it down; it's what a "healthy" live run at vx 0 is aiming at.
+
+2026-11-19: 10 s without falling, base drift 3 cm. Frames show the legs trading places, so it seems
+to **step in place** rather than stand still. Confirm by watching `outputs/policy/stand.mp4`.
 
 ### A3. Write `policy_deploy.py`
 
@@ -237,7 +241,9 @@ preflight (refuse and move nothing on any failure):
     print: joint, origin, default, box, limits, the command, E-STOP line
     --check: exit here
 
-phases: approach -> hold 2 s at default -> policy (--seconds) -> hold 2 s -> retreat to origin
+refuse also if the joints active in leg_actuators.yaml are not exactly --joints
+phases: seed 2 s at origin (joint_command's setpoint must match measured, as roundtrip.py's hold)
+    -> approach -> hold 2 s at default -> policy (--seconds) -> hold 2 s -> retreat to origin
     (TelemetryRecorder.phase = the phase name, so telemetry.csv rows are labelled)
 
 policy phase, every 20 ms (timer):
@@ -364,7 +370,7 @@ lag can ring. The box caps how far that goes. Note the frequency for the run tab
 
 ## 5. Part C: did the motors follow?
 
-On the host, per run folder (`outputs/roundtrip/<run>/` or wherever the script printed):
+On the host, per run folder (`outputs/policy/<run>/`, printed at the end of the run):
 
 ```bash
 uv run --with matplotlib --with numpy tools/gl40_telemetry_plot.py <run>     # standard plots: ③ vs ④
