@@ -4,3 +4,22 @@ preprocess:
   z_min: 0.3          # m: closer than this the D455 can't measure depth
   z_max: 3.0          # m: farther than this its depth is too noisy
   voxel_size: 0.02    # m: keep at most one point per cube of this size
+# Traversability section of terrain.yaml (merge into the existing terrain.yaml on main as a new top-level key).
+traversability:
+  # TR-6: limits from locomotion's sim results, 2026-11-10. Non-ideal runs (sensor error added), >=95% clean crossing.
+  # The ideal-condition limits are higher: step up 11 cm / down 10 cm, ramp up 13 deg / down 21 deg. The limits are
+  # asymmetric up vs down; these single values are the conservative ones. The controller can drift sideways on long
+  # slopes, so treat them as good estimates, not absolute limits.
+  robot_limits:
+    max_slope_deg: 7.0       # non-ideal 6 m ramp up: 7 deg passed, 10 deg failed (81.7%)
+    max_step_m: 0.08         # non-ideal step up and down: 8 cm passed
+    max_roughness_m: 0.03    # placeholder, tune on course bags (TR-8)
+    max_variance: null       # m^2; set (e.g. 0.001) to treat uncertain cells as unknown
+
+  # Window sizes are in metres so the same values work at any grid resolution (5 cm, ETH's 4 cm, ...).
+  params:
+    plane_window_m: 0.40     # plane fit for slope and roughness; 0.30 is enough up to ~1 cm noise, 0.20 is not
+    step_radius_m: 0.05      # neighbour reach for step height: the 8 immediate neighbours at 4-5 cm cells
+    noise_sigma_m: null      # per-cell elevation noise; null = estimate from the map's median roughness
+    planar_floor_m: 0.01     # a cell is "planar" (slope enforced) if roughness <= max(floor, factor * noise)
+    planar_noise_factor: 1.5
