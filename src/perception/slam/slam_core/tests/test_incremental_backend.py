@@ -7,6 +7,7 @@ pytest.importorskip("gtsam")
 from slam_core.backend.incremental import IncrementalBackend  # noqa: E402
 from slam_core.loop_closure import LoopClosureDetector, LoopConstraint, LoopParams, LoopUpdate, sim  # noqa: E402
 from slam_core.types import Keyframe  # noqa: E402
+from slam_core.loop_closure.se3 import rot_from_vec  # noqa: E402
 from slam_core.types.pose import covariance_from_sigmas, make_T  # noqa: E402
 
 
@@ -50,3 +51,32 @@ def test_detector_plus_backend_on_the_simulator():
     r = sim.run(sc, det, backend="isam2")
     assert r["n_false"] == 0
     assert r["ate_opt"] < 0.3 * r["ate_raw"]
+
+
+def drifting_circle(seed=0, n=80, radius=3.0, yaw_noise=0.01, settle_iters=3):
+    # A camera walking a circle with noisy odometry (within its stated covariance), so the end has drifted from the start
+    rng = np.random.default_rng(seed)
+    step = 2 * np.pi / n
+    true_step = make_T(rot_from_vec([0, 0, step]), [radius * step, 0, 0])
+    cov = covariance_from_sigmas(yaw_noise, 0.02)
+    be = IncrementalBackend(settle_iters=settle_iters)
+    T_odom = np.eye(4)
+    for i in range(n + 1):
+        T = np.eye(4) if i == 0 else make_T(rot_from_vec(rng.normal(0, yaw_noise, 3)), rng.normal(0, 0.01, 3)) @ true_step
+        T_odom = T_odom @ T
+        be.add_keyframe(Keyframe(id=i, prev_id=i - 1, stamp=i, T_prev_kf=T, covariance=cov, T_odom_kf=T_odom.copy()))
+    return be, n
+
+
+def test_a_true_loop_after_real_drift_is_kept():
+    # Regression: one iSAM2 update is a single solver step, so a loop checked straight away still looks wrong and was
+    # rejected (fr1/room lost all 4 of its true loops). With settle iterations the trajectory bends first, then the check runs
+    def close(settle_iters):
+        be, n = drifting_circle(n=150, yaw_noise=0.02, settle_iters=settle_iters)
+        drift = np.linalg.norm(be.pose(n)[:3, 3])
+        loop = LoopConstraint(1, 0, n, np.eye(4), covariance_from_sigmas(0.01, 0.03), 80, 0.9)   # truth: back at the start
+        return be.apply(LoopUpdate(added=[loop])), drift, np.linalg.norm(be.pose(n)[:3, 3])
+
+    rejected, drift, gap = close(settle_iters=3)
+    assert drift > 0.5 and rejected == [] and gap < 0.1 * drift
+    assert close(settle_iters=0)[0] == [1]          # without settling, this same true loop is wrongly thrown out

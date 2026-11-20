@@ -20,7 +20,9 @@ from slam_core.loop_closure.se3 import mahalanobis2, pose_error
 
 
 class IncrementalBackend:
-    def __init__(self, huber=1.345, max_loop_chi2=CHI2_6_999, relinearize_threshold=0.05):
+    # settle_iters: extra iSAM2 iterations after loops change. One iSAM2 update is a single solver step, so right after a
+    # big correction the trajectory has not finished bending; checking a loop before it settles rejects true loops
+    def __init__(self, huber=1.345, max_loop_chi2=CHI2_6_999, relinearize_threshold=0.05, settle_iters=3):
         params = gtsam.ISAM2Params()
         params.setRelinearizeThreshold(relinearize_threshold)
         params.relinearizeSkip = 1
@@ -29,6 +31,8 @@ class IncrementalBackend:
         self.max_loop_chi2 = max_loop_chi2
         self.estimate = gtsam.Values()
         self.loops = {}             # loop id -> (factor index, LoopConstraint)
+        self.settle_iters = settle_iters
+        self.last_chi2 = {}         # loop id -> its check value the last time it was added (for debugging)
 
     # Pose of keyframe i in the odom frame (4x4)
     def pose(self, i):
@@ -66,10 +70,13 @@ class IncrementalBackend:
         res = self.isam.update(graph, gtsam.Values(), remove)
         for L, idx in zip(update.added, res.getNewFactorsIndices()):
             self.loops[L.id] = (idx, L)
+        for _ in range(self.settle_iters):
+            self.isam.update()
         self.estimate = self.isam.calculateEstimate()
 
         # The graph-level check: a loop the rest of the graph cannot live with is taken back out
-        bad = [L.id for L in update.added if self._loop_chi2(L) > self.max_loop_chi2]
+        self.last_chi2.update({L.id: self._loop_chi2(L) for L in update.added})
+        bad = [L.id for L in update.added if self.last_chi2[L.id] > self.max_loop_chi2]
         if bad:
             self.isam.update(gtsam.NonlinearFactorGraph(), gtsam.Values(), [self.loops.pop(i)[0] for i in bad])
             self.estimate = self.isam.calculateEstimate()

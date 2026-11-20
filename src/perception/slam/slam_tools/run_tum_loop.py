@@ -53,6 +53,8 @@ def main():
     ap.add_argument("--step", type=int, default=2, help="use every Nth frame (speed)")
     ap.add_argument("--max-frames", type=int, default=0, help="stop after this many frames (0 = all)")
     ap.add_argument("--set", nargs="*", default=[], help="VO Params overrides, e.g. loop_min_inliers=30")
+    ap.add_argument("--isam2", action="store_true",
+                    help="module mode: also replay the run through the incremental iSAM2 backend, as a live system would")
     args = ap.parse_args()
 
     import vo
@@ -92,6 +94,43 @@ def main():
     subprocess.run([sys.executable, os.path.join(HERE, "..", "prototype", "pose_graph.py"), args.out], check=True, env=env)
     opt = read_traj(os.path.join(args.out, "trajectory_after.txt"))
     print(f"ATE after loop closure: {ate(opt, gt)[0]:.3f} m ({args.loop_mode}, {len(V.loops)} loops)")
+
+    if args.isam2:
+        if args.loop_mode != "module":
+            raise SystemExit("--isam2 needs --loop-mode module")
+        replay_isam2(V, args.out, gt)
+
+
+# Replays the keyframes through a fresh loop detector and the incremental iSAM2 backend, one keyframe at a time like a live
+# system: each keyframe's odometry edge goes in, then whatever loops the detector adds or retracts at that moment. Writes
+# trajectory_after_isam2.txt (every frame moved with its corrected keyframe) and prints the error and the backend's cost.
+# The detector is re-run with the same verifier, so its loops can differ from the VO run's by RANSAC randomness
+def replay_isam2(V, out, gt):
+    from slam_core.backend.incremental import IncrementalBackend
+    from slam_core.loop_closure import LoopClosureDetector, LoopParams
+    from slam_core.types.pose import to_tum
+
+    backend, detector = IncrementalBackend(), LoopClosureDetector(V._verify_loop, LoopParams())
+    active, rejected, ms = {}, 0, []
+    for r in V.refs:
+        update = detector.process(r.kf, V.encoder.encode(r.kf.descriptors))
+        t = time.perf_counter()
+        backend.add_keyframe(r.kf)
+        bad = backend.apply(update)
+        ms.append((time.perf_counter() - t) * 1000)
+        for L in update.added:
+            active[L.id] = L
+        for i in update.retracted + bad:
+            active.pop(i, None)
+        rejected += len(bad)
+
+    poses = {r.kf.id: backend.pose(r.kf.id) for r in V.refs}
+    path = os.path.join(out, "trajectory_after_isam2.txt")
+    with open(path, "w") as fh:
+        for stamp, kf_id, T in V.frames:
+            fh.write(f"{stamp:.6f} " + " ".join(f"{v:.6f}" for v in to_tum(poses[kf_id] @ T)) + "\n")
+    print(f"ATE with iSAM2 (live replay): {ate(read_traj(path), gt)[0]:.3f} m ({len(active)} loops kept, {rejected} rejected "
+          f"by the backend's check); backend {np.median(ms):.1f} ms median, {np.max(ms):.0f} ms max per keyframe")
 
 
 if __name__ == "__main__":
