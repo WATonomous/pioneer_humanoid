@@ -40,6 +40,13 @@ class PioneerLegOnlyFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
 
 
 @configclass
+class PioneerLegOnlyFlatMotorsPPORunnerCfg(PioneerLegOnlyFlatPPORunnerCfg):
+    def __post_init__(self):
+        super().__post_init__()
+        self.experiment_name = "pioneer_leg_only_flat_motors"
+
+
+@configclass
 class PioneerWholeBodyFlatPPORunnerCfg(PioneerLegOnlyFlatPPORunnerCfg):
     def __post_init__(self):
         super().__post_init__()

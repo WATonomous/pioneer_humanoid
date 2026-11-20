@@ -14,12 +14,13 @@ from isaaclab.utils import configclass
 from isaaclab.utils.modifiers import ModifierCfg
 from isaaclab_tasks.manager_based.locomotion.velocity.velocity_env_cfg import LocomotionVelocityRoughEnvCfg, RewardsCfg
 
-from pioneer_humanoid.leg_only import LEG_ONLY_HUMANOID_CFG
+from pioneer_humanoid.leg_only import LEG_ONLY_HUMANOID_CFG, LEG_ONLY_HUMANOID_MOTORS_CFG
 from pioneer_humanoid.whole_body import WHOLE_BODY_ARM_SWING_CFG
 
 from ... import mdp as loco_mdp
 from . import gait
 from .arm_swing import ArmSwingActionCfg
+from .delayed_action import DelayedJointPositionActionCfg
 
 FEET = ".*_foot"
 LEGS = ["Hip_.*", "Knee_.*"]
@@ -180,6 +181,36 @@ def _demo_look(cfg) -> None:
 
 @configclass
 class PioneerLegOnlyFlatEnvCfg_PLAY(PioneerLegOnlyFlatEnvCfg):
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        _play(self)
+
+
+@configclass
+class PioneerLegOnlyFlatMotorsEnvCfg(PioneerLegOnlyFlatEnvCfg):
+    """The same task with models of the real motors (LEG_ONLY_HUMANOID_MOTORS_CFG: DC-motor torque-speed limits, the rotors'
+    inertia through the gearbox, gearbox friction), the latency from policy to motor driver, and the joint friction
+    randomised. Opt-in, to train and compare against the ideal-actuator task before anything else switches over."""
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.robot = LEG_ONLY_HUMANOID_MOTORS_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        # each episode's joint targets arrive 0 or 1 policy steps (0 or 20 ms) late: the policy -> CAN -> driver latency.
+        # Revisit once the latency is measured on the bench (expected a few ms, so 0-20 ms brackets it coarsely)
+        a = self.actions.joint_pos
+        fields = {k: getattr(a, k) for k in ("asset_name", "joint_names", "scale", "offset", "preserve_order", "use_default_offset", "clip")
+                  if hasattr(a, k)}
+        self.actions.joint_pos = DelayedJointPositionActionCfg(**fields, min_delay=0, max_delay=1)
+        # gearbox friction is measured on one AKH70-48 and estimated for the rest: +-50 % (static, dynamic and viscous)
+        self.events.joint_friction = EventTerm(
+            func=mdp.randomize_joint_parameters,
+            mode="startup",
+            params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*"), "friction_distribution_params": (0.5, 1.5), "operation": "scale"},
+        )
+
+
+@configclass
+class PioneerLegOnlyFlatMotorsEnvCfg_PLAY(PioneerLegOnlyFlatMotorsEnvCfg):
     def __post_init__(self) -> None:
         super().__post_init__()
         _play(self)

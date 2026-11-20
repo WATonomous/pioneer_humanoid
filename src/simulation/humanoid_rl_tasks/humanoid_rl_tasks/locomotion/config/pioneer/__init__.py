@@ -3,6 +3,7 @@ import gymnasium as gym
 from . import agents
 
 for _name, _cfg, _runner in (("Flat-PioneerLegOnly", "flat_env_cfg:PioneerLegOnlyFlatEnvCfg", "PioneerLegOnlyFlatPPORunnerCfg"),
+                             ("Flat-PioneerLegOnlyMotors", "flat_env_cfg:PioneerLegOnlyFlatMotorsEnvCfg", "PioneerLegOnlyFlatMotorsPPORunnerCfg"),
                              ("Flat-PioneerWholeBody", "flat_env_cfg:PioneerWholeBodyFlatEnvCfg", "PioneerWholeBodyFlatPPORunnerCfg"),
                              ("RoughBlind-PioneerLegOnly", "rough_env_cfg:PioneerLegOnlyRoughEnvCfg", "PioneerLegOnlyRoughPPORunnerCfg"),
                              ("RoughPerceptive-PioneerLegOnly", "rough_env_cfg:PioneerLegOnlyPerceptiveEnvCfg",

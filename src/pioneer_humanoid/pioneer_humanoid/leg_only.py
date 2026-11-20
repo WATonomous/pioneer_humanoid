@@ -8,7 +8,7 @@ import os
 import re
 
 import isaaclab.sim as sim_utils
-from isaaclab.actuators import ImplicitActuatorCfg
+from isaaclab.actuators import DCMotorCfg, ImplicitActuatorCfg
 from isaaclab.assets.articulation import ArticulationCfg
 from isaaclab.sim.spawners.from_files import spawn_from_urdf
 
@@ -122,3 +122,52 @@ LEG_ONLY_HUMANOID_CFG = ArticulationCfg(
         ),
     },
 )
+
+
+# Models of the real actuators, for the "Motors" tasks (opt-in: LEG_ONLY_HUMANOID_CFG above is unchanged).
+# Explicit DC-motor actuators: the torque available falls with speed, the rotors' inertia through the gearbox is there
+# (armature), and so is the gearbox's friction. The PD gains are LEG_ONLY_HUMANOID_CFG's (Kd 5 is the drivers' MIT-mode
+# maximum), so only the motor model differs. Values: CubeMars datasheets; the AKH70-48's friction measured on the bench
+# (docs/sysid/akh70-48_bench.md). Isaac Sim 5: friction and dynamic_friction are torques (N.m), viscous_friction N.m.s/rad.
+ANKLE_RATIO = 1.5  # ankle linkage, motor angle per joint angle. Placeholder until the linkage design is final
+LEG_MOTORS = {
+    # AKH70-48: 222 N.m peak, 35 RPM no-load (3.67 rad/s), 48:1, rotor 1170 g.cm^2 -> 0.270 kg.m^2 at the joint
+    "hip_pitch_knee": DCMotorCfg(
+        joint_names_expr=["Hip_F_.*", "Knee_.*"],
+        stiffness=200.0,
+        damping=5.0,
+        armature=0.270,
+        friction=2.2,  # bench: 1.8-2.5 N.m (stall and constant-speed tests)
+        dynamic_friction=2.2,
+        viscous_friction=1.0,  # bench: 0.9-1.2 N.m.s/rad
+        saturation_effort=222.0,
+        effort_limit=222.0,
+        velocity_limit=3.67,
+    ),
+    # AK80-64 at 48 V, hip roll and hip yaw: 120 N.m peak, 75 RPM no-load (7.85 rad/s), 64:1, rotor 564.5 g.cm^2 -> 0.231 kg.m^2
+    "hip_roll_yaw": DCMotorCfg(
+        joint_names_expr=["Hip_A_.*", "Hip_R_.*"],
+        stiffness=150.0,
+        damping=5.0,
+        armature=0.231,
+        friction=2.0,  # estimate, not measured yet
+        dynamic_friction=2.0,
+        saturation_effort=120.0,
+        effort_limit=120.0,
+        velocity_limit=7.85,
+    ),
+    # AK60-39 V3 through the ankle linkage: 72 N.m peak, 98 RPM no-load (10.3 rad/s), 39:1, rotor 305 g.cm^2 (0.0464 kg.m^2
+    # through the gearbox). Reflected to the joint at ANKLE_RATIO: torque x r, speed / r, inertia x r^2
+    "ankles": DCMotorCfg(
+        joint_names_expr=["Ankle_P_.*", "Ankle_R_.*"],
+        stiffness=40.0,
+        damping=2.0,
+        armature=0.0464 * ANKLE_RATIO**2,
+        friction=1.4 * ANKLE_RATIO,  # estimate, not measured yet
+        dynamic_friction=1.4 * ANKLE_RATIO,
+        saturation_effort=72.0 * ANKLE_RATIO,
+        effort_limit=72.0 * ANKLE_RATIO,
+        velocity_limit=10.3 / ANKLE_RATIO,
+    ),
+}
+LEG_ONLY_HUMANOID_MOTORS_CFG = LEG_ONLY_HUMANOID_CFG.replace(actuators=LEG_MOTORS)
