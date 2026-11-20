@@ -48,6 +48,8 @@ loops to add, and ids of earlier loops to take back out.
 The iSAM2 backend adds odometry edges as keyframes arrive and applies each `LoopUpdate`: loop factors are remembered by
 id so retracted loops are removed (`removeFactorIndices`, the RTAB-Map approach), loop edges get a Huber loss, and a loop
 whose residual the rest of the graph cannot accept after optimizing is taken back out (RTAB-Map's error-ratio check).
+That check runs only after a few extra iSAM2 iterations (`settle_iters`, 3): one iSAM2 update is a single solver step, and
+checking a loop before the trajectory has finished bending rejects true loops (it did, on fr1/room, before this was added).
 
 The design follows ORB-SLAM3, VINS-Fusion, RTAB-Map, Kimera-RPGO and cuVSLAM (read for the ideas; no code copied).
 
@@ -57,8 +59,9 @@ The design follows ORB-SLAM3, VINS-Fusion, RTAB-Map, Kimera-RPGO and cuVSLAM (re
   or loaded with `--loop-vocab loop_vocab.npz` (every run writes one, so train it once on a varied recording and reuse it).
   Loops go to `loops.txt` as before.
 - `prototype/pose_graph.py` now scales each loop's sigmas by its inlier count.
-- A live backend would call `IncrementalBackend.add_keyframe(kf)` for each keyframe and `apply(update)` for each
-  `LoopUpdate`; `apply` returns the ids of loops it rejected after optimizing.
+- A live backend calls `IncrementalBackend.add_keyframe(kf)` for each keyframe and `apply(update)` for each
+  `LoopUpdate`; `apply` returns the ids of loops it rejected after optimizing. `run_tum_loop.py --isam2` does exactly
+  that on a recorded sequence (results below).
 
 ## Parameters (`LoopParams`)
 
@@ -132,7 +135,24 @@ The module is never worse than the old search and clearly better where the old s
 ceiling column (`oracle_loops.py`: the same pose graph fed perfect loops from the ground truth) shows the module is already
 at what any loop detector could reach on these sequences: what is left is the visual odometry's local noise, not loop
 closure. Every accepted loop on fr1/room was also checked by hand against the ground truth (1.1-4.9 cm, 0.4-2.7 deg).
-fr2/large_with_loop was not finished (the run stopped when the laptop slept).
+fr2/large_with_loop: our VO lost tracking on 1030 of 2591 frames there (see the RTAB-Map comparison), so it is left out.
+
+### Incremental backend (iSAM2) on real data
+
+The ATE table above uses the batch pose graph (`prototype/pose_graph.py`, solved once at the end). `run_tum_loop.py --isam2`
+replays the same run through the loop detector and the iSAM2 backend one keyframe at a time, as a live system would:
+
+| sequence | batch | iSAM2, live replay | loops kept by iSAM2 |
+|---|---|---|---|
+| fr1/room | 0.115 m | 0.115 m | 4 |
+| fr2/desk | 0.088 m | 0.088 m | 2 |
+| fr3/long_office | 0.031 m | 0.031 m | 4 |
+| fr1/desk | 0.026 m | 0.027 m | 3 |
+| fr1/desk2 | 0.040 m | 0.040 m | 4 |
+| fr1/360 | 0.122 m | 0.121 m | 3 |
+
+Same result as the batch solve, at about 1 ms per keyframe for the backend (13 ms worst case), so it is not the
+bottleneck for live use; feature matching is. Without the settle iterations, fr1/room kept 0 of its 4 true loops (0.319 m).
 
 ### Compared with RTAB-Map
 
