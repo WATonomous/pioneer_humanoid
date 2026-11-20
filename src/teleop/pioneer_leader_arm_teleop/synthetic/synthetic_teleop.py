@@ -350,8 +350,13 @@ def _record_take(args, record, seed: int, take_s: float, result) -> None:
     cameras = {n: (int(s["height"]), int(s["width"])) for n, s in record.images.items()}
     probe = TeleopSim(args.scene, seed, None)
     # Frame buffers sized to this take (not the default 120 s): ~0.9 GB per 10 s with two 640x480 cameras.
+    # A one-step scene already stores its instruction in every frame's task
+    # field. Keep subtask_index only for genuinely multi-step tasks; LeRobot's
+    # scalar Arrow encoding is not compatible with a redundant shape-(1,)
+    # feature under NumPy 2.x.
+    multi_step = probe.progress is not None and probe.progress(probe.model, probe.data)[1] > 1
     recorder, record_every = make_sim_recorder(args, record, device="cpu", sim_dt=probe.control_dt,
-                                               extra_features={"subtask_index": ["subtask_index"]} if probe.progress else None,
+                                               extra_features={"subtask_index": ["subtask_index"]} if multi_step else None,
                                                buffer_capacity_s=take_s + 5.0)
     probe.close()
     episode = recorder.dataset.meta.total_episodes

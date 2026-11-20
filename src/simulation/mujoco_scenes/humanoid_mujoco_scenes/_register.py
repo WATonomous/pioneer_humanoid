@@ -24,6 +24,11 @@ TIMESTEP = 0.001
 # Contact time constant 4 ms (>= 2 x TIMESTEP), solimp near 1: ~0.5 mm penetration under a grasp.
 CONTACT_SOLREF = [0.004, 1.0]
 CONTACT_SOLIMP = [0.95, 0.99, 0.001, 0.5, 2.0]
+# The fin-ray jaws squeeze narrow handles from opposite sides.  Friction-cone
+# iterations alone can let the object ratchet sideways between time steps and
+# eventually escape through the closing fingers.  MuJoCo's no-slip refinement
+# prevents that failure after the normal contact solve.
+NOSLIP_ITERATIONS = 10
 _DEFAULT_SOLREF = [0.02, 1.0]
 _DEFAULT_SOLIMP = [0.9, 0.95, 0.001, 0.5, 2.0]
 
@@ -170,6 +175,7 @@ def make_model(name: str, cameras: dict[str, tuple[int, int]] | None = None, rob
     # letting it creep (MuJoCo's defaults, pyramidal + 1, are soft in the tangential direction).
     spec.option.cone = mujoco.mjtCone.mjCONE_ELLIPTIC
     spec.option.impratio = 10.0
+    spec.option.noslip_iterations = NOSLIP_ITERATIONS
     spec.visual.global_.offwidth = 1280
     spec.visual.global_.offheight = 960
     entry.build(spec)

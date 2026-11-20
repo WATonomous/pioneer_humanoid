@@ -83,6 +83,14 @@ current step; save the take once it says all steps are done.
 src/teleop/quest_controller_teleop/start_quest.sh --scene drawer_stow --record --record_arms left
 ```
 
+The single-step articulated-object benchmark works the same way and supplies its own recorded instruction:
+
+```bash
+src/teleop/quest_controller_teleop/start_quest.sh --scene door_open --record --record_arms left
+```
+
+Saving a `door_open` take resets the scene and randomises the cabinet's reachable X/Y position and yaw for the next episode.
+
 ## How it works
 
 `index.html` → `transport.py` → `scene_driver.py` → `mink_control.py` → joint targets.
