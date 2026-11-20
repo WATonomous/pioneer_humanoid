@@ -10,7 +10,7 @@ services:
         USERNAME: "${USERNAME}"
       cache_from:
         - "${INTERFACING_IMAGE:?}:${TAG}"
-        - "${INTERFACING_IMAGE:?}:main"
+        - "${INTERFACING_IMAGE:?}:build_main"
     image: "${INTERFACING_IMAGE:?}:${TAG}"
     command: /bin/bash -c "ros2 launch can can.launch.py"
     privileged: true
@@ -25,7 +25,7 @@ services:
     volumes:
       - /dev:/dev # Allow access to host devices
       - ${MONO_DIR}/src/interfacing:/root/ament_ws/src/interfacing
-      # For calibrate_arm.py --write-mapping
+      # For calibrate_actuators.py --write-mapping
       # (whole dir, not the single file, so the .bak it creates lands on the host)
       - ${MONO_DIR}/src/interfacing/joint_command/config:/calibration
       # Telemetry run folders (gitignored)
@@ -48,7 +48,7 @@ services:
         BASE_IMAGE: ${BASE_IMAGE_OVERRIDE-}
       cache_from:
         - "${INTERFACING_JOINT_COMMAND_IMAGE:?}:${TAG}"
-        - "${INTERFACING_JOINT_COMMAND_IMAGE:?}:main"
+        - "${INTERFACING_JOINT_COMMAND_IMAGE:?}:build_main"
     image: "${INTERFACING_JOINT_COMMAND_IMAGE:?}:${TAG}"
     network_mode: host
     environment:

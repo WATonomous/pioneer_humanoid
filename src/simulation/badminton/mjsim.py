@@ -50,6 +50,12 @@ class Sim:
         self.arm_qadr = np.array([m.jnt_qposadr[j] for j in self.arm_jids])
         self.arm_vadr = np.array([m.jnt_dofadr[j] for j in self.arm_jids])
         self.arm_act_ids = np.array([m.actuator(n).id for n in arm_joints])
+        # left arm: the scripted baseline drives only the right arm; the
+        # workspace builder samples both
+        left_joints = p["arm"]["joints_left"]
+        self.face_l_sid = m.site("face_center_l").id
+        self.arm_l_jids = [m.joint(ARM_PREFIX + n).id for n in left_joints]
+        self.arm_l_qadr = np.array([m.jnt_qposadr[j] for j in self.arm_l_jids])
 
     # -- state access ------------------------------------------------------
     @property

@@ -19,7 +19,7 @@ import numpy as np
 import torch
 import uuid
 
-from humanoid_robot_learning.so101_sim import SO101_USD_DEG_LIMITS, SO101_LEADER_KEYS
+from humanoid_robot_learning.sim.so101_sim import SO101_USD_DEG_LIMITS, SO101_LEADER_KEYS
 
 from lerobot.teleoperators.so101_leader import SO101LeaderConfig
 from lerobot.robots.so101_follower import SO101FollowerConfig

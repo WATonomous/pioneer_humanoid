@@ -3,12 +3,13 @@
 # with prefix-guided replanning every `execution_horizon` steps, instead of
 # the naive truncate-and-replace approach select_action() uses.
 #
-# The RTC driving logic itself lives in humanoid_robot_learning.rtc_driver.RTCDrivenPolicy
+# The RTC driving logic itself lives in humanoid_robot_learning.deploy.rtc_driver.RTCDrivenPolicy
 # (embodiment-agnostic); SO101RTCPolicy below is the thin, robot-specific
 # adapter around it.
 import argparse
 import json
 import random
+import time
 from copy import copy
 from tqdm import tqdm
 
@@ -47,7 +48,7 @@ import humanoid_so101_vial_task.tasks  # noqa: F401
 from humanoid_so101_vial_task.utils.keyboard import KeyboardControl
 from humanoid_so101_vial_task.utils.lerobot_interface import LeRobotSO101Interface
 
-from humanoid_robot_learning.rtc_driver import RTCDrivenPolicy
+from humanoid_robot_learning.deploy.rtc_driver import RTCDrivenPolicy
 
 
 class SO101RTCPolicy:
@@ -59,7 +60,14 @@ class SO101RTCPolicy:
     and does not change per embodiment.
     """
 
-    def __init__(self, robot_iface: LeRobotSO101Interface, policy_path: str, task_description: str, execution_horizon: int):
+    def __init__(
+        self,
+        robot_iface: LeRobotSO101Interface,
+        policy_path: str,
+        task_description: str,
+        execution_horizon: int,
+        initial_action: torch.Tensor,
+    ):
         self._iface = robot_iface
         self._iface.task_description = task_description
         self._iface.make_policy(policy_path)
@@ -70,6 +78,9 @@ class SO101RTCPolicy:
             task_description=task_description,
             robot_type=self._iface.robot.robot_type,
             execution_horizon=execution_horizon,
+            control_hz=robot_iface.fps,
+            # initial_action is a sim command (rad); the driver works in the policy's action space.
+            initial_action=robot_iface.get_raw_actions_from_radians(initial_action).unsqueeze(0),
         )
 
     def reset(self):
@@ -118,13 +129,20 @@ def main():
     )
     robot_iface.init_device(visualize=False)
 
-    policy = SO101RTCPolicy(robot_iface, args_cli.policy_path, args_cli.lang_instruction, args_cli.execution_horizon)
+    initial_action = torch.tensor([-0.2736, -0.6109, -0.0745, 1.5148, -1.6034, -0.1465], device=env.unwrapped.device)
+
+    policy = SO101RTCPolicy(
+        robot_iface, args_cli.policy_path, args_cli.lang_instruction, args_cli.execution_horizon, initial_action
+    )
 
     obs, _ = env.reset()
     policy.reset()
 
     actions = torch.zeros(env.action_space.shape, device=env.unwrapped.device)
-    initial_action = torch.tensor([-0.2736, -0.6109, -0.0745, 1.5148, -1.6034, -0.1465], device=env.unwrapped.device)
+    # The async driver turns inference time into ticks with robot_iface.fps, so ticks must run in real time.
+    tick_period = 1.0 / robot_iface.fps
+    next_tick = time.perf_counter()
+    lag_warned = False
 
     step = 0
     num_episodes = 0
@@ -170,6 +188,17 @@ def main():
             if pbar is not None:
                 pbar.update(1)
 
+            next_tick += tick_period
+            slack = next_tick - time.perf_counter()
+            if slack > 0:
+                time.sleep(slack)
+            else:
+                if not lag_warned and -slack > tick_period:
+                    print(f"[WARN]: sim slower than real time ({-slack * 1000:.0f} ms behind) -- "
+                          "RTC delay estimates will be too large")
+                    lag_warned = True
+                next_tick = time.perf_counter()
+
             is_terminated = terminated.item() if terminated.numel() == 1 else terminated.any().item()
             is_truncated = truncated.item() if truncated.numel() == 1 else truncated.any().item()
 
@@ -191,6 +220,7 @@ def main():
 
                 obs, _ = env.reset()
                 policy.reset()
+                next_tick = time.perf_counter()
                 step = 0
                 continue
 
@@ -201,6 +231,7 @@ def main():
                     pbar = None
                 obs, _ = env.reset()
                 policy.reset()
+                next_tick = time.perf_counter()
                 step = 0
                 continue
 

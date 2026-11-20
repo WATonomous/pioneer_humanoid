@@ -1,8 +1,14 @@
 """ManagerBasedRlEnvCfg for the badminton receive task.
 
-Physics matches the CPU gates: 1 ms timestep, 50 Hz control (decimation 20),
-contacts only through the four calibrated explicit pairs, shuttle drag and
+Physics matches the CPU scene: 1 ms timestep, 50 Hz control (decimation 20),
+contacts only through the scene's explicit pairs (shuttle vs both racket
+faces, floor and net; inter-arm racket/forearm clashes), shuttle drag and
 cork orientation applied per substep by BadmintonAction.
+
+Both arms are actuated with a racket in each hand, and one single-arm
+policy drives the active arm in that arm's frame (humanoid_badminton/
+shared.py): the action is 6 joint targets, and the observations are in the
+active arm's frame.
 
 Observation groups:
   student  proprioception + EKF-tracked shuttle and noisy trajectory prior
@@ -11,6 +17,11 @@ Observation groups:
 
 The teacher PPO phase trains on "teacher"; distillation maps "teacher" ->
 "student" with the same action space.
+
+In training the active arm is drawn at reset. With chooser=True the action
+waits for ChooserPolicy to lock an arm, and every group gets <group>_right
+and <group>_left copies in the fixed arm frames, which the chooser feeds to
+the critic.
 """
 
 from __future__ import annotations
@@ -18,7 +29,6 @@ from __future__ import annotations
 from mjlab.entity import EntityCfg, EntityArticulationInfoCfg
 from mjlab.actuator import XmlActuatorCfg
 from mjlab.envs import ManagerBasedRlEnvCfg
-from mjlab.envs.mdp import observations as obs_mdp
 from mjlab.envs.mdp import rewards as rew_mdp
 from mjlab.envs.mdp import terminations as term_mdp
 from mjlab.envs.mdp import events as event_mdp
@@ -35,18 +45,62 @@ from mjlab.utils.noise import UniformNoiseCfg as Unoise
 from mjlab.viewer import ViewerConfig
 
 import aero
-from humanoid_badminton import assets, mdp
+from humanoid_badminton import assets, mdp, shared
 from humanoid_badminton.feasibility import FeasibilityCommandCfg
 from humanoid_badminton.perception_command import PerceptionCommandCfg
-from humanoid_badminton.shuttle_action import BadmintonActionCfg
 
+CLASH_SENSORS = ("arm_clash_l", "arm_clash_face_l")
 DECIMATION = 20          # 1 ms physics, 50 Hz control — same as the CPU env
 EPISODE_LENGTH_S = 3.0
 
-FACE_SITE = SceneEntityCfg("robot", site_names=("face_center",))
+FACE_SITES = SceneEntityCfg("robot", site_names=assets.FACE_SITES,
+                            preserve_order=True)
 
 
-def make_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+def _groups(frame: str) -> dict[str, ObservationGroupCfg]:
+    def proprio():
+        return {
+            "joint_pos": ObservationTermCfg(
+                func=shared.joint_pos_frame, params={"frame": frame},
+                noise=Unoise(n_min=-0.01, n_max=0.01)),
+            "joint_vel": ObservationTermCfg(
+                func=shared.joint_vel_frame, params={"frame": frame},
+                noise=Unoise(n_min=-0.5, n_max=0.5)),
+            "face_state": ObservationTermCfg(
+                func=shared.face_state_frame,
+                params={"frame": frame, "asset_cfg": FACE_SITES}),
+            "actions": ObservationTermCfg(
+                func=shared.last_action_frame, params={"frame": frame}),
+        }
+    student = {
+        **proprio(),
+        "shuttle": ObservationTermCfg(
+            func=shared.student_perception_frame,
+            params={"command_name": "perception", "frame": frame}),
+        # EKF std + prior jump: lets the student tell a settling estimate
+        # from a converged one
+        "shuttle_uncertainty": ObservationTermCfg(
+            func=mdp.student_uncertainty,
+            params={"command_name": "perception"}),
+    }
+    teacher = {
+        **proprio(),
+        "shuttle": ObservationTermCfg(
+            func=shared.teacher_perception_frame,
+            params={"command_name": "perception", "frame": frame}),
+        "intercept": ObservationTermCfg(
+            func=shared.intercept_frame, params={"frame": frame}),
+    }
+    return {
+        # student proprioception is corrupted (sim encoders are exact);
+        # its shuttle features carry EKF noise already
+        "student": ObservationGroupCfg(student, enable_corruption=True),
+        "teacher": ObservationGroupCfg(teacher, enable_corruption=False),
+    }
+
+
+def make_env_cfg(play: bool = False,
+                 chooser: bool = False) -> ManagerBasedRlEnvCfg:
     params = aero.load_params()
 
     # The scene XML already places arm_base_link (pos + mount yaw); passing
@@ -55,7 +109,9 @@ def make_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     robot = EntityCfg(
         spec_fn=assets.robot_spec,
         init_state=EntityCfg.InitialStateCfg(
-            joint_pos=dict(assets.READY_JOINT_POS)),
+            # keys are regexes matched with re.match (a prefix match):
+            # anchor them, or "arm_joint1" also sets "arm_joint1L"
+            joint_pos={j + "$": q for j, q in assets.READY_JOINT_POS.items()}),
         articulation=EntityArticulationInfoCfg(
             actuators=(XmlActuatorCfg(target_names_expr=("arm_joint.*",)),)),
     )
@@ -66,12 +122,14 @@ def make_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     )
 
     sensors = (
+        # one primary per racket face (mjlab secondaries are single names)
         ContactSensorCfg(
             name="face_hit",
-            primary=ContactMatch(mode="geom", pattern="shuttle_cork",
-                                 entity="shuttle"),
-            secondary=ContactMatch(mode="geom", pattern="racket_face",
-                                   entity="robot"),
+            primary=ContactMatch(mode="geom",
+                                 pattern=("racket_face", "racket_face_l"),
+                                 entity="robot"),
+            secondary=ContactMatch(mode="geom", pattern="shuttle_cork",
+                                   entity="shuttle"),
             fields=("found", "force"),
             reduce="netforce",
             history_length=DECIMATION,
@@ -93,53 +151,51 @@ def make_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
             fields=("found",),
             reduce="netforce",
         ),
+        # inter-arm clash, covering every pair of build_scene.clash_pairs
+        # with two sensors (a secondary must be one name): the left handle
+        # and forearm have only clash pairs, so any contact on them counts;
+        # the left face also meets the shuttle, so it is matched only
+        # against the right-side geoms.
+        ContactSensorCfg(
+            name="arm_clash_l",
+            primary=ContactMatch(
+                mode="geom", entity="robot",
+                pattern=("racket_handle_l", "arm_col_link4l",
+                         "arm_col_link5l", "arm_col_link6l")),
+            secondary_policy="any",
+            fields=("found", "force"),
+            reduce="netforce",
+            history_length=DECIMATION,
+        ),
+        ContactSensorCfg(
+            name="arm_clash_face_l",
+            primary=ContactMatch(
+                mode="geom", entity="robot",
+                pattern=("racket_face", "racket_handle", "arm_col_link4",
+                         "arm_col_link5", "arm_col_link6")),
+            secondary=ContactMatch(mode="geom", pattern="racket_face_l",
+                                   entity="robot"),
+            fields=("found", "force"),
+            reduce="netforce",
+            history_length=DECIMATION,
+        ),
     )
 
-    proprio = {
-        "joint_pos": ObservationTermCfg(
-            func=obs_mdp.joint_pos_rel,
-            noise=Unoise(n_min=-0.01, n_max=0.01)),
-        "joint_vel": ObservationTermCfg(
-            func=obs_mdp.joint_vel_rel,
-            noise=Unoise(n_min=-0.5, n_max=0.5)),
-        "face_state": ObservationTermCfg(
-            func=mdp.face_state, params={"asset_cfg": FACE_SITE}),
-        "actions": ObservationTermCfg(func=obs_mdp.last_action),
-    }
-    student_terms = {
-        **proprio,
-        "shuttle": ObservationTermCfg(
-            func=mdp.student_perception, params={"command_name": "perception"}),
-        # distillation 1 missed the left/high (early-commit) shots: the
-        # student had no way to tell a settling estimate from a converged
-        # one. EKF std + prior jump give it that (a real filter has both).
-        "shuttle_uncertainty": ObservationTermCfg(
-            func=mdp.student_uncertainty,
-            params={"command_name": "perception"}),
-    }
-    teacher_terms = {
-        **proprio,
-        "shuttle": ObservationTermCfg(
-            func=mdp.teacher_perception, params={"command_name": "perception"}),
-        "intercept": ObservationTermCfg(func=mdp.intercept_target),
-    }
-    observations = {
-        # student proprioception is corrupted (sim encoders are exact);
-        # its shuttle features carry EKF noise already
-        "student": ObservationGroupCfg(student_terms, enable_corruption=True),
-        "teacher": ObservationGroupCfg(teacher_terms, enable_corruption=False),
-    }
+    observations = _groups("active")
+    if chooser:
+        for frame in ("right", "left"):
+            observations.update(
+                {f"{g}_{frame}": c for g, c in _groups(frame).items()})
 
     actions = {
-        "joint_pos": BadmintonActionCfg(
+        "joint_pos": shared.SharedArmActionCfg(
             entity_name="robot",
             shuttle_entity_name="shuttle",
             actuator_names=(".*",),
             scale=1.0,
             use_default_offset=True,
-            clip={f"arm_joint{i + 1}": tuple(r)
-                  for i, r in enumerate(params["arm"]["joint_range"])},
-        ),
+            clip={j + "$": r for j, r in assets.joint_ranges().items()},
+            assign_mode="external" if chooser else "random"),
     }
 
     commands = {
@@ -149,13 +205,18 @@ def make_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         "feasibility": FeasibilityCommandCfg(),
     }
 
-    events = {
-        "reset_arm": EventTermCfg(
+    if params["control"]["shared_start_pose"] == "rest":
+        reset_arm = EventTermCfg(
+            func=shared.reset_arms_to_rest, mode="reset", params={})
+    else:
+        reset_arm = EventTermCfg(
             func=event_mdp.reset_joints_by_offset,
             mode="reset",
             params={"position_range": (0.0, 0.0),
                     "velocity_range": (0.0, 0.0),
-                    "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",))}),
+                    "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",))})
+    events = {
+        "reset_arm": reset_arm,
         "launch_shuttle": EventTermCfg(
             func=mdp.reset_badminton_episode, mode="reset", params={}),
     }
@@ -172,16 +233,16 @@ def make_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         # run 1 (a1vagllq) plateaued with std 0.4: near-zero gradient at that
         # distance, policy held still, exploration std collapsed
         "approach": RewardTermCfg(
-            func=mdp.approach_intercept, weight=1.0,
-            params={"std": 0.8, "asset_cfg": FACE_SITE}),
+            func=shared.approach_assigned, weight=1.0,
+            params={"std": 0.8, "asset_cfg": FACE_SITES}),
         # two-scale shaping: sigma 0.8 pulls from anywhere in the workspace
         # but is flat over the last 30 cm; runs 3-4 showed the policy parks
         # ~outside that band and only hits by luck (~0.1%), regardless of the
         # contact bonus scale. p* lies on the flight path, so precision
         # parking at p* converts directly into contacts.
         "approach_fine": RewardTermCfg(
-            func=mdp.approach_intercept, weight=5.0,
-            params={"std": 0.15, "asset_cfg": FACE_SITE}),
+            func=shared.approach_assigned, weight=5.0,
+            params={"std": 0.15, "asset_cfg": FACE_SITES}),
         "return_flight": RewardTermCfg(
             func=mdp.return_flight, weight=2.0, params={}),
         # run 12: land the return on the episode's launch origin. Sparse,
@@ -192,6 +253,12 @@ def make_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         # window (physical validity, not a style preference).
         "return_landing": RewardTermCfg(
             func=mdp.return_landing, weight=100.0, params={"sigma": 1.5}),
+        # rackets/forearms touching. Per tick in contact; weight
+        # -50 = effective -1.0 per tick, so a clash costs about a hit's
+        # bonus within two ticks. The episode also terminates (see below).
+        "arm_clash": RewardTermCfg(
+            func=mdp.arm_clash, weight=-50.0,
+            params={"sensor_names": CLASH_SENSORS}),
         # smoothness (2026-10 envelope pass): energy-style costs, not a
         # posture preference. -0.01/-1e-4 were token values that let PPO
         # bang-bang the arm inside the (then huge) velocity envelope.
@@ -215,6 +282,9 @@ def make_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
             func=mdp.shuttle_grounded, params={"sensor_name": "shuttle_floor"}),
         "net": TerminationTermCfg(
             func=mdp.shuttle_net, params={"sensor_name": "shuttle_net"}),
+        # a clash ends the episode: the hardware would e-stop on it
+        "arm_clash": TerminationTermCfg(
+            func=mdp.arm_clash, params={"sensor_names": CLASH_SENSORS}),
     }
 
     cfg = ManagerBasedRlEnvCfg(
@@ -236,8 +306,10 @@ def make_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
             entity_name="robot", body_name="arm_base_link",
             distance=3.5, elevation=-15.0, azimuth=180.0),
         sim=SimulationCfg(
-            nconmax=16,
-            njmax=64,
+            # 30 explicit pairs (4 shuttle, 26 clash); clash contacts are rare
+            # and end the episode
+            nconmax=32,
+            njmax=128,
             mujoco=MujocoCfg(timestep=params["integrator"]["dt"]),
         ),
         decimation=DECIMATION,
@@ -245,4 +317,5 @@ def make_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     )
     if play:
         cfg.scene.num_envs = 16
+    assert assets.FACE_SITES[0] == "face_center"   # right face first
     return cfg

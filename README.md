@@ -37,6 +37,7 @@ Your `src/<module>` folder is mounted into the container, so edits on your machi
 | `perception` | Perception (cameras, GPU), `voxel_grid` |
 | `simulation_isaac` | **Isaac Lab 2.3.2** — SO101 robot learning, RL tasks, Quest teleop |
 | `simulation_mj` | MuJoCo / mjlab RL |
+| `terrain_mapping` | GPU elevation map from D455 bags ([src/terrain_mapping](src/terrain_mapping)) |
 
 **Isaac Lab sim (recommended):** see [docker/simulation/isaac_lab/README.md](docker/simulation/isaac_lab/README.md).
 
@@ -58,6 +59,7 @@ humanoid
 │   ├── interfacing/         # CAN ⇄ ROS 2 bridge, real-arm bring-up
 │   ├── embedded/            # STM32 / ESP32S3 motor firmware
 │   ├── perception/          # cameras, voxel grid
+│   ├── terrain_mapping/     # GPU elevation mapping (elevation_mapping_cupy)
 │   ├── simulation/          # Isaac Lab + MuJoCo: RL tasks, teleop scenes
 │   ├── teleop/              # drive the arm (sim or real)
 │   ├── robot_learning/      # record demos, train / eval policies

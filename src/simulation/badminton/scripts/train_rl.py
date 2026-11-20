@@ -1,7 +1,7 @@
 """mjlab training entry point: registers the badminton tasks, then hands
 off to mjlab's train CLI (tyro; task id is the first positional argument).
 
-  uv run scripts/train_rl.py Mjlab-Badminton-Receive-Teacher \
+  uv run scripts/train_rl.py Mjlab-Badminton-Shared-Teacher \
       --env.scene.num-envs 4096
 """
 

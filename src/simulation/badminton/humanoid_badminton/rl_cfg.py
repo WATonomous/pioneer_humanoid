@@ -1,12 +1,18 @@
-"""RSL-RL configs: teacher PPO, then teacher->student distillation.
+"""RSL-RL configs: teacher PPO, teacher->student distillation, then student
+PPO.
 
-Phase 1 (Mjlab-Badminton-Receive-Teacher): PPO where both actor and critic
+Phase 1 (Mjlab-Badminton-Shared-Teacher): PPO where both actor and critic
 see the privileged "teacher" group.
 
-Phase 2 (Mjlab-Badminton-Receive-Student): rsl_rl DistillationRunner. Load
+Phase 2 (Mjlab-Badminton-Shared-Student): rsl_rl DistillationRunner. Load
 the trained teacher with --agent.resume True --agent.load-run <teacher-run>;
 Distillation.load restores only the teacher weights by default, and the
 student (on the "student" group) learns to match its actions.
+
+Phase 3 (Mjlab-Badminton-Shared-Student-PPO-Priv): PPO fine-tune of the
+distilled student with the privileged critic. A Mjlab-Badminton-Shared-
+Student-PPO run (critic on "student") trains the critic that picks the arm
+at deployment, since that critic must run on what the robot observes.
 """
 
 from __future__ import annotations
@@ -24,7 +30,7 @@ def make_teacher_ppo_cfg() -> RslRlOnPolicyRunnerCfg:
         num_steps_per_env=24,
         max_iterations=3000,
         save_interval=100,
-        experiment_name="badminton_teacher",
+        experiment_name="badminton_shared_teacher",
         obs_groups={"actor": ("teacher",), "critic": ("teacher",)},
         actor=RslRlModelCfg(
             hidden_dims=HIDDEN,
@@ -46,19 +52,18 @@ def make_teacher_ppo_cfg() -> RslRlOnPolicyRunnerCfg:
 
 
 def make_student_ppo_cfg() -> RslRlOnPolicyRunnerCfg:
-    """Phase 3: PPO fine-tune of the distilled student. Asymmetric
-    actor-critic — the actor sees the noisy "student" group (what the robot
-    has), the critic the privileged "teacher" group (training-only, so it
-    may cheat). Distillation cannot teach hedging under an ambiguous
-    estimate (the label is the clairvoyant action); optimising the
-    student's own return can. Warm-start the actor with
-    scripts/student_to_ppo.py, then --agent.resume True."""
+    """PPO fine-tune of the distilled student, actor and critic on the
+    "student" group (this critic picks the arm at deployment).
+    Distillation cannot teach hedging under an ambiguous estimate (the
+    label is the clairvoyant action); optimising the student's own return
+    can. Warm-start the actor with scripts/student_to_ppo.py, then
+    --agent.resume True."""
     return RslRlOnPolicyRunnerCfg(
         num_steps_per_env=24,
         max_iterations=1500,
         save_interval=100,
-        experiment_name="badminton_student_ppo",
-        obs_groups={"actor": ("student",), "critic": ("teacher",)},
+        experiment_name="badminton_shared_student_ppo",
+        obs_groups={"actor": ("student",), "critic": ("student",)},
         actor=RslRlModelCfg(
             hidden_dims=HIDDEN,
             obs_normalization=True,
@@ -114,8 +119,18 @@ def make_distill_cfg() -> RslRlDistillationRunnerCfg:
         num_steps_per_env=24,
         max_iterations=1500,
         save_interval=100,
-        experiment_name="badminton_student",
+        experiment_name="badminton_shared_student",
         resume=True,                       # teacher checkpoint required
-        load_run=".*badminton_teacher.*",
+        load_run=".*badminton_shared_teacher.*",
         obs_groups={"student": ("student",), "teacher": ("teacher",)},
     )
+
+
+def make_student_ppo_priv_cfg() -> RslRlOnPolicyRunnerCfg:
+    """Student PPO with the privileged critic (actor on "student", critic
+    on "teacher"). This critic cannot pick the arm on the robot, so the
+    chooser uses the critic of a Student-PPO run."""
+    cfg = make_student_ppo_cfg()
+    cfg.experiment_name = "badminton_shared_student_ppo_priv"
+    cfg.obs_groups = {"actor": ("student",), "critic": ("teacher",)}
+    return cfg

@@ -1,0 +1,41 @@
+services:
+  terrain_mapping:
+    build:
+      context: ..
+      dockerfile: docker/terrain_mapping/terrain_mapping.Dockerfile
+      target: develop
+      args:
+        USER_UID: "${USER_UID}"
+        USER_GID: "${USER_GID}"
+        USERNAME: "${USERNAME}"
+      cache_from:
+        - "${TERRAIN_MAPPING_IMAGE:?}:${TAG}"
+        - "${TERRAIN_MAPPING_IMAGE:?}:main"
+    image: "${TERRAIN_MAPPING_IMAGE:?}:${TAG}"
+    runtime: nvidia
+    # Fast DDS shared-memory segments for large images and point clouds (docker/terrain_mapping/fastdds_shm.xml).
+    shm_size: 1gb
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+      # Keeps replayed /clock and camera topics inside this container, away from
+      # interfacing's ROS graph (host network, domain 0).
+      - ROS_LOCALHOST_ONLY=1
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+    volumes:
+      - ${MONO_DIR}/src/terrain_mapping:/home/bolty/ament_ws/src/terrain_mapping
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - type: bind
+        source: ${TERRAIN_BAGS_DIR:?}
+        target: /bags
+        read_only: true
+        bind:
+          create_host_path: false  # fail on a missing bag folder instead of creating an empty root-owned one
+    command: sleep infinity

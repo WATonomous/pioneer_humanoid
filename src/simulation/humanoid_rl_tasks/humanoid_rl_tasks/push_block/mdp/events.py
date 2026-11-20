@@ -14,7 +14,7 @@ from .utils import BLOCK_HALF_SIZE
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedEnv
 
-__all__ = ["reset_block_center_uniform"]
+__all__ = ["hold_default_joint_targets", "reset_block_center_uniform"]
 
 
 def reset_block_center_uniform(
@@ -102,3 +102,10 @@ def reset_block_center_uniform(
     # set into the physics simulation
     asset.write_root_pose_to_sim(torch.cat([positions, orientations], dim=-1), env_ids=env_ids)
     asset.write_root_velocity_to_sim(velocities, env_ids=env_ids)
+
+
+def hold_default_joint_targets(env: ManagerBasedEnv, env_ids: torch.Tensor, asset_cfg: SceneEntityCfg):
+    """Set the PD targets of joints no action term drives to their default positions (else they track 0)."""
+    robot = env.scene[asset_cfg.name]
+    targets = robot.data.default_joint_pos[env_ids][:, asset_cfg.joint_ids]
+    robot.set_joint_position_target(targets, joint_ids=asset_cfg.joint_ids, env_ids=env_ids)

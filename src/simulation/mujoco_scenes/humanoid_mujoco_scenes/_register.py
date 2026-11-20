@@ -2,7 +2,7 @@
 ``humanoid_mujoco_scenes/<name>/scene.py``.
 
 A scene is one function that adds world geometry to an ``mujoco.MjSpec``; ``make_model``
-attaches the Pioneer arm (pioneer_humanoid.mujoco_bimanual_arm) at ``robot_pos`` and compiles.
+builds it into the Pioneer rig's spec (default pioneer_humanoid.mujoco_bimanual_arm_8dof; robot="armv2" for the previous arms), rig at ``robot_pos``, and compiles.
 CPU only: no Isaac imports anywhere in this package.
 """
 from __future__ import annotations
@@ -36,13 +36,14 @@ class _Entry:
     step: Optional[Callable[[mujoco.MjModel, mujoco.MjData], None]] = None
     reset: Optional[Callable] = None      # reset(model, data, rng): randomise a new episode
     progress: Optional[Callable] = None   # progress(model, data) -> (step index, n steps, instruction)
+    success: Optional[Callable] = None    # success(model, data) -> bool
 
 
 _REGISTRY: dict[str, _Entry] = {}
 _DISCOVERED = False
 
 
-def scene(name: str, *, robot_pos=(0.0, 0.0, ROBOT_STAND_LIFT_Z), camera=None, step=None, reset=None, progress=None):
+def scene(name: str, *, robot_pos=(0.0, 0.0, ROBOT_STAND_LIFT_Z), camera=None, step=None, reset=None, progress=None, success=None):
     """Register ``build(spec)`` under ``name``. ``robot_pos``: arm base placement (default: on its stand).
 
     ``step(model, data)``: optional, called by the teleop once per control step before stepping the
@@ -52,10 +53,11 @@ def scene(name: str, *, robot_pos=(0.0, 0.0, ROBOT_STAND_LIFT_Z), camera=None, s
     ``reset(model, data, rng)``: optional, called after every reset (and at startup) to randomise the
     new episode, e.g. object placement. ``progress(model, data) -> (index, total, instruction)``:
     optional, for multi-step tasks: which step the operator is on (index == total when done) and its
-    instruction, shown by the teleop and recorded per frame.
+    instruction, shown by the teleop and recorded per frame. ``success(model, data) -> bool``: optional,
+    whether the task is done (default for a multi-step task: all its steps are).
     """
     def deco(build):
-        _REGISTRY[name] = _Entry(build, tuple(robot_pos), camera, step, reset, progress)
+        _REGISTRY[name] = _Entry(build, tuple(robot_pos), camera, step, reset, progress, success)
         return build
 
     return deco
@@ -104,8 +106,20 @@ def scene_progress(name: str) -> Optional[Callable]:
     return _REGISTRY[name].progress
 
 
-def add_floor(spec: mujoco.MjSpec) -> None:
-    """Checker floor at z=0, a light, and a skybox."""
+def scene_success(name: str) -> Optional[Callable]:
+    _discover()
+    entry = _REGISTRY[name]
+    if entry.success is not None or entry.progress is None:
+        return entry.success
+
+    def all_steps_done(model, data) -> bool:
+        index, total, _ = entry.progress(model, data)
+        return index >= total
+    return all_steps_done
+
+
+def add_floor(spec: mujoco.MjSpec, light: bool = True) -> None:
+    """Checker floor at z=0, a skybox and (``light``) an overhead light. Scenes use ``add_workcell``."""
     tex = spec.add_texture(
         name="grid", type=mujoco.mjtTexture.mjTEXTURE_2D, builtin=mujoco.mjtBuiltin.mjBUILTIN_CHECKER,
         rgb1=[0.2, 0.3, 0.4], rgb2=[0.1, 0.2, 0.3], width=512, height=512,
@@ -117,19 +131,37 @@ def add_floor(spec: mujoco.MjSpec) -> None:
     mat = spec.add_material(name="grid", texrepeat=[8, 8], reflectance=0.1)
     mat.textures[mujoco.mjtTextureRole.mjTEXROLE_RGB] = tex.name
     spec.worldbody.add_geom(name="floor", type=mujoco.mjtGeom.mjGEOM_PLANE, size=[4, 4, 0.05], material="grid")
-    spec.worldbody.add_light(pos=[0.5, 0, 3.0], dir=[0, 0, -1], diffuse=[0.8, 0.8, 0.8], castshadow=True)
+    if light:
+        spec.worldbody.add_light(pos=[0.5, 0, 3.0], dir=[0, 0, -1], diffuse=[0.8, 0.8, 0.8], castshadow=True)
 
 
-def make_model(name: str, cameras: dict[str, tuple[int, int]] | None = None) -> mujoco.MjModel:
-    """Compile scene ``name`` with the arm attached; joint/actuator names are the URDF joint names.
+# 8dof (default): the bimanual rig with the 1107 Arm Draft arms, 7-DoF + 1-DoF gripper each (pioneer_bimanual_arm_8dof).
+# armv2: the previous 6-DoF arms (pioneer_bimanual_arm), for tools not yet ported (leader-arm teleop, policies).
+ROBOTS = ("8dof", "armv2")
 
-    ``cameras``: robot cameras to mount, {name: (height, width)} (pioneer_humanoid.arm_params.CAMERAS).
+
+def make_model(name: str, cameras: dict[str, tuple[int, int]] | None = None, robot: str = "8dof") -> mujoco.MjModel:
+    """Compile scene ``name`` around the arm; joint/actuator names are the URDF joint names.
+
+    ``cameras``: robot cameras to mount, {name: (height, width)} (that robot's params CAMERAS).
+    ``robot``: "8dof" (default: pioneer_bimanual_arm_8dof, the rig with the 1107 Arm Draft arms) or "armv2" (the previous
+    6-DoF arms). Both are the same rig (same base_link), so a scene's robot_pos fits either.
     """
-    from pioneer_humanoid.mujoco_bimanual_arm import arm_spec
+    if robot == "armv2":
+        from pioneer_humanoid.mujoco_bimanual_arm import arm_spec
+    elif robot == "8dof":
+        from pioneer_humanoid.mujoco_bimanual_arm_8dof import arm_spec
+    else:
+        raise ValueError(f"unknown robot {robot!r}; expected one of {ROBOTS}")
 
     _discover()
     entry = _REGISTRY[name]
-    spec = mujoco.MjSpec()
+    # The robot spec is the root and the scene is built into it (MuJoCo Menagerie's scene.xml-includes-robot
+    # pattern): nothing is attached, so no name prefix is needed and joint/actuator names stay the URDF's. Its
+    # compiler stays in the URDF's radians: switching to MuJoCo's default degrees rescales every joint limit, and a
+    # scene that sets euler/axisangle angles must give them in radians.
+    spec = arm_spec(cameras)
+    spec.body("base_link").pos = list(entry.robot_pos)
     spec.modelname = name
     spec.option.timestep = TIMESTEP
     # Implicit damping keeps the stiff arm PD (kp up to 2270) stable at this step.
@@ -141,8 +173,6 @@ def make_model(name: str, cameras: dict[str, tuple[int, int]] | None = None) -> 
     spec.visual.global_.offwidth = 1280
     spec.visual.global_.offheight = 960
     entry.build(spec)
-    frame = spec.worldbody.add_frame(pos=list(entry.robot_pos))
-    frame.attach_body(arm_spec(cameras).body("base_link"), "", "")
     for geom in spec.geoms:
         # Stiffer than MuJoCo's default contact (0.02 s, 0.9-0.95), which lets a 50 g peg sink mm
         # into the fingers and eats a 1 mm insertion clearance. Geoms a scene tuned are left alone.

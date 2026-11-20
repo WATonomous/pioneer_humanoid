@@ -31,6 +31,23 @@ GUI uses **X11 to host display** (same as [workshop `teleop-docker`](https://git
 ./watod -t simulation_isaac             # bash inside container
 ```
 
+Or pull the prebuilt image (built from `main`, ~30 GB, WATonomous members only; needs a classic token with
+`read:packages`, as `docker login` rejects `gh`'s token). watod runs the `dev_<branch>` tag, so retag it:
+
+```bash
+docker login ghcr.io -u <github-user>
+docker pull ghcr.io/watonomous/humanoid/simulation/isaac_lab:main
+docker tag ghcr.io/watonomous/humanoid/simulation/isaac_lab:main ghcr.io/watonomous/humanoid/simulation/isaac_lab:dev_main
+```
+
+CI doesn't build this image (too big for its runners): after changing the Dockerfile, rebuild on `main` and push
+(classic token with `write:packages`):
+
+```bash
+docker tag ghcr.io/watonomous/humanoid/simulation/isaac_lab:dev_main ghcr.io/watonomous/humanoid/simulation/isaac_lab:main
+docker push ghcr.io/watonomous/humanoid/simulation/isaac_lab:main
+```
+
 Rebuild clean after Dockerfile changes, or if `import torch` fails inside the container (packaging error):
 
 ```bash
@@ -60,7 +77,8 @@ Tasks and runners: [`src/simulation/README.md`](../../../src/simulation/README.m
 
 ### B. Quest teleop
 
-See [`src/teleop/quest_teleop/README.md`](../../../src/teleop/quest_teleop/README.md).
+Controller-based, MuJoCo or Isaac (`isaac/isaac_sim.py`):
+[`src/teleop/quest_controller_teleop/README.md`](../../../src/teleop/quest_controller_teleop/README.md).
 
 ### C. SO101 imitation learning — ACT train, sim eval, record demos, GR00T eval
 

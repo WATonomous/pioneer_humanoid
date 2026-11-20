@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "common_msgs/msg/arm_pose.hpp"
+#include "common_msgs/msg/leg_pose.hpp"
 #include "common_msgs/msg/motor_cmd.hpp"
 #include "yaml-cpp/yaml.h"
 
@@ -17,6 +18,9 @@ struct JointConfig {
   int direction{1};
   double zero_offset{0.0};
   bool limit_range{false};
+  // false: direction / zero_offset are null in the YAML (legs only). Allowed while the joint is
+  // inactive; loadSafetyFromYaml refuses it active.
+  bool calibrated{true};
 };
 
 // CubeMars MIT dialect. GL II and AK disagree on the status byte (see mit_protocol.hpp).
@@ -47,9 +51,13 @@ struct JointSafetyConfig {
   double mit_kd{0.0};
 
   // MIT watchdog limits (a PD drive has no internal limit checking).
-  double mit_max_torque{0.3};       // N.m -- fault above this
+  double mit_max_torque{0.3};       // N.m, rated -- fault above this unless the temperature allows
   double mit_max_track_err{12.0};   // deg -- fault if the joint lags its setpoint by more
   double mit_feedback_timeout{0.2}; // s without feedback before faulting
+  // Above mit_max_torque is allowed while the drive reads below mit_max_temperature, up to
+  // mit_peak_torque. Unset peak = mit_max_torque is the hard cap; unset temperature = no check.
+  std::optional<double> mit_peak_torque;     // N.m
+  std::optional<double> mit_max_temperature; // deg C -- fault at or above this, at any torque
 
   MitDriveFamily mit_family{MitDriveFamily::Gl2};
   // Defaults from mit_family (ak -> Damp, gl2 -> Limp) unless set in the YAML.
@@ -68,7 +76,8 @@ struct JointSafetyConfig {
 struct MotorFeedbackSample {
   double position_deg{0.0}; // MOTOR frame, as published on /interfacing/motorFeedback
   double torque_nm{0.0};
-  int status{0}; // GL II: 0 Disable / 1 Enable / else fault. AK: 0 ok / else fault.
+  double temperature_c{0.0}; // as the drive reports it; 0 = no reading
+  int status{0};             // GL II: 0 Disable / 1 Enable / else fault. AK: 0 ok / else fault.
   double age_s{0.0};
 };
 
@@ -82,8 +91,19 @@ struct SeedReport {
 
 class JointCommandCore {
 public:
-  bool loadFromYaml(const YAML::Node& config, const std::string& arm_side);
+  bool loadFromYaml(const YAML::Node& config, const std::string& side, bool is_leg = false);
+  // safety_cfg is arm_actuators.yaml's `safety`: `global` fallbacks, then this arm's block
+  // (`safety.<arm_side>`). Call loadFromYaml first.
   bool loadSafetyFromYaml(const YAML::Node& safety_cfg, double control_rate_hz);
+
+  const std::string& side() const {
+    return side_;
+  }
+
+  // gravity_model.hpp models the left and right arms; elsewhere gravity_ff_scale must stay 0.
+  bool hasGravityModel() const {
+    return !is_leg_ && (side_ == "left" || side_ == "right");
+  }
 
   // Why loadSafetyFromYaml refused; empty on success.
   const std::string& lastError() const {
@@ -92,6 +112,10 @@ public:
 
   // Advance ONE control tick toward `pose`. Call at control_rate_hz: velocity_max is per tick.
   std::vector<common_msgs::msg::MotorCmd> armPoseToMotorCmds(const common_msgs::msg::ArmPose& pose,
+                                                             int8_t default_control_type);
+
+  // Leg processing has no gripper or gravity feed-forward.
+  std::vector<common_msgs::msg::MotorCmd> legPoseToMotorCmds(const common_msgs::msg::LegPose& pose,
                                                              int8_t default_control_type);
 
   // Fault-action frame per MIT joint (kp = 0; kd = 0 Limp / mit_fault_kd Damp). Used to poke
@@ -114,6 +138,8 @@ public:
   // arm_actuators.yaml `active` (default true). An inactive joint gets no command at all (no MIT
   // enter, no watchdog); to the gravity model its angle is unknown, as if unpowered.
   bool isActive(size_t joint) const;
+  // False: nothing on this arm is driven this run.
+  bool anyActive() const;
 
   // Exclude joints seeded outside their limits (calibration mismatch) until the next seed.
   void blockJoints(const std::vector<size_t>& indices);
@@ -123,6 +149,15 @@ public:
   // MIT watchdog: a fault description, or nullopt when every MIT joint is healthy.
   std::optional<std::string>
   checkMitFaults(const std::map<int, MotorFeedbackSample>& feedback) const;
+
+  // Runaway watch: call for every feedback message (any motor id; others are ignored), with the
+  // time it arrived. Tracks how fast each seeded MIT joint moves away from its last command.
+  void recordFeedback(int motor_id, double position_deg, double t_s);
+  // A joint that ran away from its target, speeding up (positive feedback inside the drive), or
+  // nullopt. The joint is marked runaway: from then on mitSafeCommands() holds it LIMP (kd 0),
+  // whatever its mit_fault_action. Each joint is reported once. Safe to call after a fault.
+  std::optional<std::string> checkMitRunaway();
+  bool isRunaway(size_t joint) const;
 
   bool isMitJoint(size_t joint) const;
   std::vector<int> mitMotorIds() const;
@@ -151,7 +186,7 @@ public:
   // arm_actuators.yaml has a block for it. gripper_position 0 (open) -> cmd 0, 1 -> upper_limit.
   static constexpr size_t kGripperJoint = 6;
   bool hasGripper() const {
-    return joints_.size() > kGripperJoint;
+    return !is_leg_ && joints_.size() > kGripperJoint;
   }
 
   const JointSafetyConfig& safety(size_t joint) const {
@@ -167,7 +202,7 @@ public:
   static double quantiseKd(double kd, double kd_max = 5.0);
 
 private:
-  static JointConfig loadJointConfig(const YAML::Node& joint_node);
+  static JointConfig loadJointConfig(const YAML::Node& joint_node, bool allow_uncalibrated = false);
   static JointSafetyConfig loadJointSafetyConfig(const YAML::Node& joint_node,
                                                  const JointSafetyConfig& base);
   static double clampAngle(double angle, const JointConfig& joint);
@@ -189,10 +224,27 @@ private:
   std::vector<bool> blocked_;
   std::vector<bool> unpowered_; // no feedback at the last seed; recomputed every seed
   std::vector<double> last_gravity_torque_motor_;
+  // Runaway watch, per joint (recordFeedback / checkMitRunaway).
+  struct RunawayTrack {
+    bool armed{false}; // seeded from feedback, so last_motor_cmd_deg_ is a real target
+    bool have_sample{false};
+    double position_deg{0.0};
+    double t_s{0.0};
+    double away_dps{0.0}; // speed away from the target at the last sample (negative = toward)
+    double err_deg{0.0};
+    int count{0}; // consecutive samples moving away, faster each time
+  };
+  std::vector<RunawayTrack> runaway_track_;
+  std::vector<bool> runaway_; // sticky: held limp until the node restarts
   // 0 -> 1 after every seed, so feed-forward never steps on.
   double gravity_ff_ramp_{0.0};
-  std::string arm_side_;
+  std::string side_;
+  bool is_leg_{false};
   bool have_prev_targets_{false};
   double control_rate_hz_{50.0};
   std::string last_error_;
 };
+
+// Feedback and commands are matched by motor id alone, so every arm's motors need their own ids.
+// Returns the first clash ("motor 14 is left shoulder.pitch and right shoulder.pitch"), or nullopt.
+std::optional<std::string> findDuplicateMotorIds(const std::vector<const JointCommandCore*>& limbs);

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "humanoid-garment-fold"
 version = "0.1.0"
-description = "Bimanual garment-folding Isaac Lab task for the pioneer_bimanual_arm (derived from the LeHome Challenge)"
+description = "Bimanual garment-folding Isaac Lab task for the pioneer_bimanual_arm_8dof (derived from the LeHome Challenge)"
 requires-python = ">=3.11"
 # isaaclab / isaacsim / lerobot / torch come from the isaac_lab image.
 dependencies = [

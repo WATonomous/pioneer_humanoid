@@ -14,7 +14,6 @@ x-simulation_isaac_volumes: &simulation_isaac_volumes
   - ${ISAAC_SIM_CACHE_DIR}/cache/computecache:/root/.nv/ComputeCache:rw
   - ${ISAAC_SIM_CACHE_DIR}/logs:/root/.nvidia-omniverse/logs:rw
   - ${ISAAC_SIM_CACHE_DIR}/data:/root/.local/share/ov/data:rw
-  - ${MONO_DIR}/src/teleop/quest_teleop/certs:/certs:ro
 
 x-simulation_isaac_env: &simulation_isaac_env
   - ACCEPT_EULA=Y

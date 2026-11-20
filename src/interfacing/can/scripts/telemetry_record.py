@@ -4,7 +4,8 @@
 Writes a run folder (telemetry.csv + run.json) for tools/gl40_telemetry_plot.py::
 
     /interfacing/motorCMD      MotorCmd, MOTOR frame       -> sp_deg (what was really sent)
-    /arm/joint_targets         ArmPose, command frame, deg -> sp_raw_deg (what was asked for)
+    /arm/<side>/joint_targets  ArmPose, command frame, deg -> sp_raw_deg (what was asked for)
+                               (LegPose on /leg/<side>/joint_targets for a leg)
     /interfacing/motorFeedback MotorFeedback, MOTOR frame  -> pos_deg (converted below)
 
 Both setpoints are recorded: their difference is the clamp and velocity limiter at work.
@@ -30,9 +31,10 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy
 
-from common_msgs.msg import ArmPose, MotorCmd, MotorFeedback
+from common_msgs.msg import ArmPose, LegPose, MotorCmd, MotorFeedback
 
-from joint_config import find_calibration, load_joint_map, load_actuator_limits, max_torque_by_joint
+from joint_config import (arm_pose_topic, find_calibration, pose_topic, load_joint_map, load_actuator_limits,
+                          max_torque_by_joint)
 from telemetry import RunFolder
 
 # GL II status nibble (MIT feedback). Servo feedback uses the DBC's own error codes.
@@ -44,7 +46,8 @@ MIT_STATUS = {
 
 class TelemetryRecorder(Node):
     def __init__(self, joint_map: Dict[int, dict], log: RunFolder, motors: Optional[List[int]],
-                 rate_hz: float):
+                 rate_hz: float, arm_sides: List[str], limb: str = "arm",
+                 motor_cmd_topic: str = "/interfacing/motorCMD"):
         super().__init__("telemetry_recorder")
         self.joint_map = joint_map
         self.log = log
@@ -52,30 +55,42 @@ class TelemetryRecorder(Node):
         self.rate_hz = rate_hz
         self.setpoints: Dict[int, float] = {}      # moderated, from MotorCmd
         self.mit_cmd: Dict[int, tuple] = {}        # (feed-forward N.m, kp) of the last MIT frame
-        self.requested: Dict[int, float] = {}      # raw, from ArmPose
+        self.requested: Dict[int, float] = {}      # raw, from ArmPose / LegPose
         self.feedback: Dict[int, MotorFeedback] = {}
         self.seen: set = set()
         self.rows = 0
         self.first_pose_time: Optional[float] = None
-        # Phase label for every row (set by arm_roundtrip.py).
+        # Phase label for every row (set by roundtrip.py).
         self.phase = "stream"
 
         qos = QoSProfile(reliability=ReliabilityPolicy.BEST_EFFORT,
                          history=HistoryPolicy.KEEP_LAST, depth=50)
-        self.create_subscription(ArmPose, "/arm/joint_targets", self._on_pose, qos)
-        self.create_subscription(MotorCmd, "/interfacing/motorCMD", self._on_cmd, qos)
+        for side in arm_sides:
+            if limb == "leg":
+                self.create_subscription(LegPose, pose_topic(limb, side),
+                                         lambda msg, side=side: self._on_leg_pose(msg, side), qos)
+            else:
+                self.create_subscription(ArmPose, arm_pose_topic(side),
+                                         lambda msg, side=side: self._on_pose(msg, side), qos)
+        self.create_subscription(MotorCmd, motor_cmd_topic, self._on_cmd, qos)
         self.create_subscription(MotorFeedback, "/interfacing/motorFeedback", self._on_feedback,
                                  qos)
         self.create_timer(1.0 / rate_hz, self._sample)
 
-    def _on_pose(self, msg: ArmPose) -> None:
+    def _on_pose(self, msg: ArmPose, side: str) -> None:
+        self._record_request(list(msg.shoulder.position[:3]) + list(msg.elbow.position[:2]) +
+                             list(msg.wrist.position[:1]), side)
+
+    def _on_leg_pose(self, msg: LegPose, side: str) -> None:
+        self._record_request(list(msg.hip.position[:3]) + list(msg.knee.position[:1]) +
+                             list(msg.ankle.position[:2]), side)
+
+    def _record_request(self, slots: List[float], side: str) -> None:
         if self.first_pose_time is None:
             self.first_pose_time = time.monotonic()
-        slots = list(msg.shoulder.position[:3]) + list(msg.elbow.position[:2]) + \
-            list(msg.wrist.position[:1])
         for motor_id, info in self.joint_map.items():
             slot = info["slot"]
-            if slot is not None and slot < len(slots):
+            if info["side"] == side and slot is not None and slot < len(slots):
                 self.requested[motor_id] = float(slots[slot])
 
     def _on_cmd(self, msg: MotorCmd) -> None:
@@ -151,7 +166,7 @@ def main(argv=None) -> int:
 
     mapping_path = find_calibration(args.mapping)
     joint_map = load_joint_map(mapping_path, args.arm_side)
-    velocity_max, mit_limits = load_actuator_limits(args.actuators)
+    velocity_max, mit_limits = load_actuator_limits(args.actuators, args.arm_side)
     motors = [int(x) for x in args.motors.split(",")] if args.motors else None
 
     log = RunFolder(
@@ -176,7 +191,7 @@ def main(argv=None) -> int:
                 "mit": mit_limits,
                 "max_torque_nm": min((v["max_torque_nm"] for v in mit_limits.values()
                                       if v.get("max_torque_nm") is not None), default=None),
-                "max_torque_nm_by_joint": max_torque_by_joint(args.actuators),
+                "max_torque_nm_by_joint": max_torque_by_joint(args.actuators, args.arm_side),
                 "max_track_err_deg": min((v["max_track_err_deg"] for v in mit_limits.values()
                                           if v.get("max_track_err_deg") is not None),
                                          default=None),
@@ -187,7 +202,7 @@ def main(argv=None) -> int:
     print(log.describe())
 
     rclpy.init()
-    node = TelemetryRecorder(joint_map, log, motors, args.rate)
+    node = TelemetryRecorder(joint_map, log, motors, args.rate, [args.arm_side])
     stop_at = time.monotonic() + args.duration if args.duration > 0 else None
     stopping = {"now": False}
 
