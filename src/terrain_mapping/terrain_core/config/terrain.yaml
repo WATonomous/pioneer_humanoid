@@ -4,3 +4,8 @@ preprocess:
   z_min: 0.3          # m: closer than this the D455 can't measure depth
   z_max: 3.0          # m: farther than this its depth is too noisy
   voxel_size: 0.02    # m: keep at most one point per cube of this size
+
+policy:               # height map sent to the locomotion policy
+  length_m: 1.6       # forward
+  width_m: 1.0        # side to side
+  resolution_m: 0.1   # cell size: 16 x 10 cells
