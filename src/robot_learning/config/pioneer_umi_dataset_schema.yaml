@@ -1,0 +1,43 @@
+# Handheld UMI gripper demos (src/umi_gripper): the data contract in the gripper's TOOL frame, not joints, since the
+# handheld rig has no arm. The tcp frame has the robot's tool axes (pioneer_humanoid/arm_8dof_params.py: link7's axes
+# at TCP_LOCAL), so the same vectors drive either 8dof arm through IK (umi_gripper.postprocess.reachability.TcpIK).
+#
+# Per frame (both observation.state and action, 10 values):
+#   tcp_x, tcp_y, tcp_z         metres, in the episode's FIRST tcp frame (start-relative: the headset's world frame
+#                               never enters the data; relative-to-current poses, UMI's representation, follow exactly)
+#   tcp_r6_0 .. tcp_r6_5        rotation in that frame, 6D (the first two columns of the rotation matrix)
+#   gripper                     jaw closure, 0 = open, 1 = closed (the 8dof datasets' gripper convention)
+# action[t] = state[t + 1]: where the hand went next.
+robot_id: pioneer_umi
+repo_id: humanoid/pioneer_umi
+fps: 25
+state_unit: m, rot6d, closure
+
+joint_names:
+  - tcp_x
+  - tcp_y
+  - tcp_z
+  - tcp_r6_0
+  - tcp_r6_1
+  - tcp_r6_2
+  - tcp_r6_3
+  - tcp_r6_4
+  - tcp_r6_5
+  - gripper
+
+# The gripper's wrist camera, rectified to the 640x480 pinhole of the sim and real wrist cameras (wrist_cam.rectify).
+# On the arm, feed the recorded side's wrist camera (wrist_left / wrist_right) as `wrist`.
+images:
+  wrist:
+    height: 480
+    width: 640
+    enabled: true
+    topic: null
+
+ros: null
+
+record:
+  root: datasets/pioneer_umi     # relative to the repo root; to_lerobot writes <root>/real
+  use_videos: true
+  image_writer_threads: 4
+  image_writer_processes: 0

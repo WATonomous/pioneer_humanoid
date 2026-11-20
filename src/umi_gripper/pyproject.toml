@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "umi-gripper"
+version = "0.1.0"
+description = "Handheld UMI-style gripper tracked by a Quest controller: collect, calibrate and convert demos to LeRobot"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "pyyaml>=6.0",
+    "aiohttp>=3.9,<4",               # the headset page's pose WebSocket (reuses quest_controller_teleop)
+    "opencv-contrib-python>=4.8",    # camera capture, rectification, ArUco (camera calibration)
+    "pyserial>=3.5",                 # finds the width encoder's board by USB serial
+    "feetech-servo-sdk>=1.0",        # the STS3215 width encoder (as the leader arm)
+]
+
+[project.optional-dependencies]
+convert = ["lerobot[dataset]>=0.3.0"]                       # postprocess.to_lerobot
+replay = ["mujoco>=3.3", "mink>=1.0", "daqp>=0.6"]          # postprocess.reachability, tools.replay_mujoco
+test = ["pytest>=7"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["umi_gripper*"]

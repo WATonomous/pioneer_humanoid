@@ -33,6 +33,10 @@ More: the [Quest](../teleop/quest_controller_teleop/README.md) and
 [leader](../teleop/pioneer_leader_arm_teleop/README.md) READMEs. Output: `<repo>/datasets/<dataset>/sim/` (later
 sessions append).
 
+**Real-world demos without the arm:** the handheld UMI gripper ([`src/umi_gripper`](../umi_gripper/README.md)) is
+tracked by a Quest controller and records the TCP pose, the jaw closure and the wrist camera. Its datasets are in the
+tool frame, not joints: `config/pioneer_umi_dataset_schema.yaml`, written to `datasets/pioneer_umi/real`.
+
 ## 2. Data contract
 
 25 fps. Per frame:
