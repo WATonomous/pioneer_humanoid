@@ -1,20 +1,4 @@
-"""Slope and roughness from a local least-squares plane fit, plus the noise-aware "planar" test.
-
-For each cell, fit z = a*x + b*y + c to the valid cells in a window about `window_m` wide.
-  slope     = atan(sqrt(a^2 + b^2))            [radians]
-  roughness = RMS of the fit residuals          [metres]
-
-Window size matters because elevation maps are noisy. With per-cell noise sigma, the slope error of a plane fit is
-about sigma / sqrt(sum(dx^2)), which shrinks fast as the window grows: at 1-2 cm noise a 3x3 window (10 cm) gives
-several degrees of slope noise on flat floor, a ~40 cm window gives about 1 degree. The default is 0.40 m.
-
-Cells with too few valid neighbours, and cells whose own height is unknown, are NaN, so the layers never claim more
-than the elevation map knows.
-
-Planar test: a step edge or box wall inside the window is not a slope (the plane fit reports a steep tilt that is really
-the step), and the step layer already covers it. Cells are therefore "planar" (slope enforced) only if their
-residual RMS is at most `planar_tol`, which should sit just above the map's own noise level. See planar_tolerance().
-"""
+"""Slope and roughness from a least-squares plane fit over a window, plus the noise-aware planar test."""
 from __future__ import annotations
 
 import numpy as np
@@ -28,22 +12,17 @@ def plane_fit(
     window_m: float = 0.40,
     min_valid_frac: float = 0.5,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Return (slope_rad, roughness_m), both shaped like `elevation`.
-
-    `min_valid_frac` is the fraction of the window that must hold valid cells for a fit to be trusted.
-    """
+    """Return (slope_rad, roughness_m); NaN where the cell or too much of its window is unknown."""
     elevation = np.asarray(elevation, dtype=float)
     radius = window_radius(window_m, resolution)
     min_valid = max(3, int(np.ceil(min_valid_frac * (2 * radius + 1) ** 2)))
 
     z = shifted_stack(elevation, radius)                  # (K, H, W)
     offs = window_offsets(radius) * resolution            # (K, 2) metres
-    dy = offs[:, 0][:, None, None]                        # row offset
-    dx = offs[:, 1][:, None, None]                        # col offset
+    dy = offs[:, 0][:, None, None]
+    dx = offs[:, 1][:, None, None]
 
-    # Fit relative to each cell's own height. The plane is invariant to a constant offset, and small numbers keep the
-    # residual sum-of-squares free of catastrophic cancellation.
-    z = z - elevation[None]
+    z = z - elevation[None]                               # fit relative to the cell's own height
     valid = np.isfinite(z)
     w = valid.astype(float)
     zz = np.where(valid, z, 0.0)
@@ -67,18 +46,15 @@ def plane_fit(
     rhs = np.stack([sxz, syz, sz], axis=-1)               # (H, W, 3)
 
     ok = (n >= min_valid) & np.isfinite(elevation)
-    # Replace singular / unused systems with identity so the batched solve is safe.
     det = np.linalg.det(A)
     ok &= np.abs(det) > 1e-18
-    A[~ok] = np.eye(3)
+    A[~ok] = np.eye(3)                                    # keep the batched solve safe on unused cells
     rhs[~ok] = 0.0
 
-    params = np.linalg.solve(A, rhs[..., None])[..., 0]   # (H, W, 3) a, b, c
+    params = np.linalg.solve(A, rhs[..., None])[..., 0]   # (H, W, 3): a, b, c
 
     slope = np.arctan(np.hypot(params[..., 0], params[..., 1]))
-
-    # Sum of squared residuals = szz - params . rhs (normal-equation identity).
-    ssr = szz - (params * rhs).sum(-1)
+    ssr = szz - (params * rhs).sum(-1)                    # sum of squared residuals
     rough = np.sqrt(np.maximum(ssr, 0.0) / np.maximum(n, 1.0))
 
     slope[~ok] = np.nan
@@ -87,13 +63,7 @@ def plane_fit(
 
 
 def estimate_noise_sigma(roughness: np.ndarray, window_cells: int) -> float:
-    """Estimate the map's per-cell elevation noise (metres) from its plane-fit roughness.
-
-    On smooth terrain the residual RMS of a plane fit over n cells is about sigma * sqrt((n - 3) / n). The median over
-    the whole map is robust to the minority of cells that sit on steps or obstacles. On a map that is mostly rough
-    (rubble) this overestimates sigma, which only makes the planar test stricter about what counts as flat.
-    Returns 0.0 if the map has no valid roughness.
-    """
+    """Per-cell elevation noise (m) from the map's median roughness; 0.0 if there is no valid roughness."""
     r = np.asarray(roughness, dtype=float)
     r = r[np.isfinite(r)]
     if r.size == 0:
@@ -103,12 +73,7 @@ def estimate_noise_sigma(roughness: np.ndarray, window_cells: int) -> float:
 
 
 def planar_tolerance(sigma: float, floor_m: float = 0.01, noise_factor: float = 1.5) -> float:
-    """Residual RMS below which a cell counts as a planar surface: max(floor, noise_factor * sigma).
-
-    Residual RMS over a window has a tight spread (about sigma / sqrt(2 * n)), so 1.5 x sigma is many standard
-    deviations above what noise alone produces, while a step of height h adds about 0.25 * h of residual and so
-    still separates from noise once h is more than a few times sigma.
-    """
+    """Roughness below which a cell counts as planar: max(floor, noise_factor * sigma)."""
     return max(floor_m, noise_factor * sigma)
 
 

@@ -1,14 +1,11 @@
-"""Tests for terrain_core.traversability.
-
-Clean-surface tests check the geometry. The noisy-map tests matter more: real elevation maps carry 1-2 cm of noise
-per cell, and the layers must still call a noisy flat floor and a 5 degree ramp traversable while blocking a 10 degree
-ramp and a 10 cm step. They run at 5 cm and 4 cm cells (ETH's map) to check that window sizes in metres hold up.
-"""
+"""Tests for terrain_core.traversability, including noisy maps at 5 cm and 4 cm cells."""
 import numpy as np
 import pytest
+from pathlib import Path
 
 from terrain_core.traversability import (
     RobotLimits,
+    TraversabilityConfig,
     TraversabilityParams,
     compute_roughness,
     compute_slope,
@@ -121,12 +118,10 @@ def test_ramp_is_not_a_step():
     planar = rough <= 0.01
     step = compute_step(z, RES, slope=slope, planar=planar)
     assert np.nanmax(inner(step, RES)) < 1e-9
-    # Without the correction the same ramp reads as a (small) step.
     assert np.nanmax(inner(compute_step(z, RES), RES)) > 0.01
 
 
 def test_ramp_roughness_is_zero():
-    # Round-off from the sum-of-squares form leaves ~1 nm; anything under a micrometre is zero.
     assert np.allclose(inner(compute_roughness(ramp(20), RES), RES), 0.0, atol=1e-6)
 
 
@@ -236,7 +231,6 @@ def test_noisy_10cm_step_is_blocked(res, sigma):
     z, edge = step_terrain(0.10, res)
     out = compute_traversability(noisy(z, sigma), res)
     assert edge_band(out["traversable"], res, edge).mean() <= 0.05
-    # floor well away from the edge is unaffected
     far = out["traversable"][int(0.5 / res):-int(0.5 / res), int(0.5 / res):edge - int(0.8 / res)]
     assert far.mean() >= 0.95
 
@@ -250,7 +244,6 @@ def test_legal_6cm_step_still_passes_with_small_noise(res):
 
 def test_noisy_ramp_is_not_read_as_stairs():
     out = compute_traversability(noisy(ramp(5), 0.01), RES)
-    # A 5 degree slope over 5 cm is under 0.5 cm of rise; the step layer should sit at the noise level, not near 8 cm.
     assert np.nanpercentile(inner(out["step"], RES), 99) < 0.05
 
 
@@ -293,7 +286,13 @@ def test_plane_window_is_configurable_in_metres():
     z = noisy(ramp(5), 0.02)
     small = compute_traversability(z, RES, params=TraversabilityParams(plane_window_m=0.20))
     large = compute_traversability(z, RES, params=TraversabilityParams(plane_window_m=0.40))
-    # The wider window averages out more noise, so the slope estimate is closer to the true 5 degrees.
     err_small = np.nanstd(np.rad2deg(inner(small["slope"], RES)))
     err_large = np.nanstd(np.rad2deg(inner(large["slope"], RES)))
     assert err_large < err_small
+
+
+def test_traversability_config_loads_committed_metres_and_limits():
+    config = TraversabilityConfig.from_yaml(Path(__file__).parents[1] / "config" / "terrain.yaml")
+    assert config.limits == RobotLimits(max_slope_deg=7.0, max_step_m=0.08, max_roughness_m=0.03)
+    assert config.params.plane_window_m == pytest.approx(0.40)
+    assert config.params.step_radius_m == pytest.approx(0.05)

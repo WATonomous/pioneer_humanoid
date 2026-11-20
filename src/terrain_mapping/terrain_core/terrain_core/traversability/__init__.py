@@ -1,9 +1,10 @@
-from .combined import RobotLimits, TraversabilityParams, compute_traversability
+from .combined import RobotLimits, TraversabilityConfig, TraversabilityParams, compute_traversability
 from .slope import compute_roughness, compute_slope, estimate_noise_sigma, plane_fit, planar_tolerance
 from .step import compute_step
 
 __all__ = [
     "RobotLimits",
+    "TraversabilityConfig",
     "TraversabilityParams",
     "compute_traversability",
     "compute_slope",

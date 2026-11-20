@@ -1,16 +1,15 @@
-"""Run the traversability layers on a saved elevation grid (.npy) and report / plot what they say.
+"""Evaluate TR-7 traversability layers on a saved elevation grid (.npy).
 
-    python eval_traversability_npy.py elevation.npy --resolution 0.05 --out layers.png
-
-The grid must be a 2D array of heights in metres, NaN for unknown cells. If the file is 3D (several layers, e.g. an
-elevation_mapping dump), choose the elevation layer with --layer. Resolution is the cell size in metres: ask whoever
-made the file, it is NOT stored in a plain .npy.
+Example from ``src/terrain_mapping/terrain_core``:
+    python terrain_tools/eval_traversability_npy.py /path/to/elevation.npy --resolution 0.04
 """
 import argparse
+from dataclasses import replace
+from pathlib import Path
 
 import numpy as np
 
-from terrain_core.traversability import RobotLimits, TraversabilityParams, compute_traversability
+from terrain_core.traversability import TraversabilityConfig, compute_traversability
 from terrain_core.traversability._window import window_radius
 from terrain_core.traversability.slope import estimate_noise_sigma
 
@@ -33,10 +32,15 @@ def main():
     ap.add_argument("npy")
     ap.add_argument("--resolution", type=float, required=True, help="cell size in metres, e.g. 0.05")
     ap.add_argument("--layer", type=int, default=None, help="layer index if the file is 3D")
+    ap.add_argument(
+        "--config",
+        default=Path(__file__).resolve().parents[1] / "config" / "terrain.yaml",
+        help="terrain.yaml containing robot limits and window sizes",
+    )
     ap.add_argument("--plane-window-m", type=float, default=None)
-    ap.add_argument("--max-slope-deg", type=float, default=7.0)
-    ap.add_argument("--max-step-m", type=float, default=0.08)
-    ap.add_argument("--max-roughness-m", type=float, default=0.03)
+    ap.add_argument("--max-slope-deg", type=float, default=None)
+    ap.add_argument("--max-step-m", type=float, default=None)
+    ap.add_argument("--max-roughness-m", type=float, default=None)
     ap.add_argument("--out", default="layers.png")
     args = ap.parse_args()
 
@@ -47,8 +51,23 @@ def main():
     if not finite.any():
         raise SystemExit("no valid cells")
 
-    limits = RobotLimits(args.max_slope_deg, args.max_step_m, args.max_roughness_m)
-    params = TraversabilityParams() if args.plane_window_m is None else TraversabilityParams(plane_window_m=args.plane_window_m)
+    config = TraversabilityConfig.from_yaml(args.config)
+    limits = replace(
+        config.limits,
+        max_slope_deg=config.limits.max_slope_deg if args.max_slope_deg is None else args.max_slope_deg,
+        max_step_m=config.limits.max_step_m if args.max_step_m is None else args.max_step_m,
+        max_roughness_m=(
+            config.limits.max_roughness_m if args.max_roughness_m is None else args.max_roughness_m
+        ),
+    )
+    params = config.params if args.plane_window_m is None else replace(
+        config.params, plane_window_m=args.plane_window_m
+    )
+    print(
+        "limits: "
+        f"slope <= {limits.max_slope_deg:g} deg, step <= {limits.max_step_m * 100:g} cm, "
+        f"roughness <= {limits.max_roughness_m * 100:g} cm"
+    )
     out = compute_traversability(z, args.resolution, limits, params=params)
 
     cells = (2 * window_radius(params.plane_window_m, args.resolution) + 1) ** 2
@@ -64,7 +83,6 @@ def main():
         over_rough = known & (out["roughness"] > limits.max_roughness_m)
     for name, m in (("slope over limit", over_slope), ("step over limit", over_step), ("roughness over limit", over_rough)):
         print(f"  {name}: {m.sum() / max(known.sum(), 1) * 100:.1f}%")
-    print("note: slope-over-limit cells on step edges are still enforced by the step limit; see combined.py")
 
     try:
         import matplotlib

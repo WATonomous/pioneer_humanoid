@@ -1,33 +1,13 @@
 """Combine slope, step and roughness into one traversability score.
 
-Each metric is turned into a cost in [0, 1] by dividing by the robot's limit and clipping. The cell's score is
-1 - max(costs), so the worst metric decides. A cell is `traversable` only if every metric is within its limit.
-
-Unknown cells (NaN elevation, or variance above `max_variance` when given) get NaN score and traversable == False:
-planners must never step on terrain the map has no estimate for.
-
-Two scales, set in metres so they work at any grid resolution:
-  - slope and roughness come from a plane fit over `plane_window_m` (default 0.40 m), large enough that 1-2 cm of
-    elevation noise does not tilt a flat floor or a 5 degree ramp past the 7 degree limit (0.30 m is enough up to
-    about 1 cm of noise, 0.20 m is not);
-  - step height uses `step_radius_m` (default 5 cm: the immediate neighbours), because a step is a local event.
-
-Slope is enforced only on planar cells (residual RMS <= planar tolerance, see slope.planar_tolerance), because near a
-step edge the plane fit's steep tilt is really the step, which the step limit already covers. The tolerance is set
-from the map's own noise level, either given (`noise_sigma_m`) or estimated from the median roughness of the map, so
-it does not break when the noise changes.
-
-Known trade-offs:
-  * A step smaller than a few times the map noise cannot be told from tilt: it is treated as planar, so the plane
-    fit's steep slope blocks its edge cells (conservative). Noise-free or 1 cm-noise maps still pass legal steps.
-  * The noise estimate is global. On a map that is mostly rough it overestimates the noise, which stops steep
-    slopes being checked as strictly; pass `noise_sigma_m` explicitly if you know the sensor noise.
-
-The limit values come from the locomotion team (ticket TR-6, sim results 2026-11-10).
+A cell is traversable only if every metric is within its limit; unknown cells never are. Slope and roughness use a
+plane fit over `plane_window_m`, step height a small `step_radius_m` window. Slope is only enforced on planar cells,
+since near a step edge the steep plane fit is really the step.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from pathlib import Path
 
 import numpy as np
 
@@ -40,17 +20,43 @@ from .step import compute_step
 class RobotLimits:
     max_slope_deg: float = 7.0       # TR-6, locomotion 2026-11-10 (non-ideal, 6 m ramp up)
     max_step_m: float = 0.08         # TR-6, locomotion 2026-11-10 (non-ideal, step up/down)
-    max_roughness_m: float = 0.03    # PLACEHOLDER - tune on course bags
+    max_roughness_m: float = 0.03    # placeholder, tune on course bags
     max_variance: float | None = None  # m^2; None disables the confidence gate
 
 
 @dataclass(frozen=True)
 class TraversabilityParams:
-    plane_window_m: float = 0.40         # plane-fit window width for slope and roughness
+    plane_window_m: float = 0.40         # plane-fit window for slope and roughness
     step_radius_m: float = 0.05          # neighbour reach for step height
     noise_sigma_m: float | None = None   # per-cell elevation noise; None = estimate from the map
-    planar_floor_m: float = 0.01         # planar tolerance never goes below this
-    planar_noise_factor: float = 1.5     # planar tolerance = max(floor, factor * noise sigma)
+    planar_floor_m: float = 0.01         # planar tolerance = max(floor, factor * noise)
+    planar_noise_factor: float = 1.5
+
+
+@dataclass(frozen=True)
+class TraversabilityConfig:
+    """TR-6 limits and TR-7 algorithm settings loaded from ``terrain.yaml``.
+
+    Keeping this separate from :func:`compute_traversability` lets the offline
+    evaluator and a future ROS node use exactly the same, version-controlled
+    values. Missing YAML keys keep the safe defaults above.
+    """
+
+    limits: RobotLimits = field(default_factory=RobotLimits)
+    params: TraversabilityParams = field(default_factory=TraversabilityParams)
+
+    @classmethod
+    def from_yaml(cls, path: str | Path) -> "TraversabilityConfig":
+        """Read the top-level ``traversability:`` section of a terrain YAML file."""
+        import yaml
+
+        with open(path) as fh:
+            settings = yaml.safe_load(fh) or {}
+        section = settings.get("traversability") or {}
+        return cls(
+            limits=RobotLimits(**(section.get("robot_limits") or {})),
+            params=TraversabilityParams(**(section.get("params") or {})),
+        )
 
 
 def compute_traversability(
@@ -60,10 +66,7 @@ def compute_traversability(
     variance: np.ndarray | None = None,
     params: TraversabilityParams = TraversabilityParams(),
 ) -> dict[str, np.ndarray]:
-    """Return a dict of layers, each shaped like `elevation`.
-
-    Keys: slope (rad), step (m), roughness (m), traversability (0..1, NaN if unknown), traversable (bool).
-    """
+    """Return layers shaped like `elevation`: slope (rad), step (m), roughness (m), traversability, traversable."""
     elevation = np.asarray(elevation, dtype=float)
     slope, rough = plane_fit(elevation, resolution, params.plane_window_m)
 
@@ -82,8 +85,7 @@ def compute_traversability(
     if variance is not None and limits.max_variance is not None:
         known &= np.asarray(variance, dtype=float) <= limits.max_variance
 
-    # Slope is only enforced on planar cells; elsewhere the step and roughness limits are responsible.
-    slope_checked = np.where(planar, slope, 0.0)
+    slope_checked = np.where(planar, slope, 0.0)          # off planar cells the step limit applies instead
 
     max_slope = np.deg2rad(limits.max_slope_deg)
     step0 = np.nan_to_num(step, nan=0.0)
