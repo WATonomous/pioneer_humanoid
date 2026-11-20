@@ -1,0 +1,458 @@
+diff --git a/scripts/eval_benchmark.py b/scripts/eval_benchmark.py
+index 182e105..0d2f903 100644
+--- a/scripts/eval_benchmark.py
++++ b/scripts/eval_benchmark.py
+@@ -13,12 +13,13 @@ from supermimic.envs.mdp.motion_library import discover_npz
+ from supermimic.eval.benchmark import load_policy_from_checkpoint, run_benchmark, save_results, summarize
+ 
+ 
+-def main(ckpt: Path, npz_dir: Path = Path("data/npz/lafan1"), clips: list[str] | None = None, clip_list: Path | None = None, manifest: Path | None = None, num_envs: int = 1024, device: str = "cuda:0", out: Path | None = None) -> None:
++def main(ckpt: Path, npz_dir: Path = Path("data/npz/lafan1"), clips: list[str] | None = None, clip_list: Path | None = None, manifest: Path | None = None, num_envs: int = 1024, device: str = "cuda:0", out: Path | None = None, no_xy: bool = False) -> None:
+     if clip_list is not None:
+         clips = [l.strip() for l in open(clip_list) if l.strip()]
+     files = [str(f) for f in discover_npz(npz_dir, names=clips, manifest=manifest)]
+     policy, cfg = load_policy_from_checkpoint(ckpt, device)
+-    results = run_benchmark(policy, files, device=device, num_envs=num_envs, future_frames=cfg["env"]["future_frames"], anchor_obs=cfg["env"].get("anchor_obs", False))
++    results = run_benchmark(policy, files, device=device, num_envs=num_envs, future_frames=cfg["env"]["future_frames"], anchor_obs=cfg["env"].get("anchor_obs", False),
++                            terminations={k: cfg["env"][k] for k in ("root_height_threshold", "root_tilt_threshold", "root_xy_threshold") if cfg["env"].get(k) is not None and not (no_xy and k == "root_xy_threshold")})
+     s = summarize(results)
+     print(f"\n{s['clips']} clips | failed {s['failed']} | mean norm return {s['mean_norm_return']:.4f} | step-weighted {s['step_weighted_norm_return']:.4f}")
+     if "terms" in s:
+@@ -28,7 +29,7 @@ def main(ckpt: Path, npz_dir: Path = Path("data/npz/lafan1"), clips: list[str] |
+     worst = sorted(results, key=lambda r: r.norm_return)[:10]
+     for r in worst:
+         print(f"  {r.name:32s} ret {r.norm_return:.3f} steps {r.steps}/{r.frames} {'FAIL@' + str(r.fail_step) if r.failed else ''}")
+-    out = out or ckpt.parent / f"benchmark_{ckpt.stem}.json"
++    out = out or ckpt.parent / f"benchmark_{ckpt.stem}{'_noxy' if no_xy else ''}.json"
+     save_results(results, out)
+     print("saved", out)
+ 
+diff --git a/src/supermimic/config.py b/src/supermimic/config.py
+index 199741e..0a6e3a5 100644
+--- a/src/supermimic/config.py
++++ b/src/supermimic/config.py
+@@ -33,6 +33,9 @@ class EnvCfg:
+     future_frames: int = 10
+     compact_library: bool = False
+     anchor_obs: bool = False
++    root_tilt_threshold: float = 0.8  # paper; a robot lying on the floor while the reference stands trips it
++    root_height_threshold: float = 0.25  # paper; Pioneer v5 tries 0.5 so falls can lag instead of resetting
++    root_xy_threshold: float | None = None  # Pioneer: reset when the root is this far (m) from the reference in xy
+ 
+ 
+ @dataclass
+diff --git a/src/supermimic/data/motion_convert.py b/src/supermimic/data/motion_convert.py
+index 59c78b9..b046815 100644
+--- a/src/supermimic/data/motion_convert.py
++++ b/src/supermimic/data/motion_convert.py
+@@ -63,12 +63,21 @@ G1_JOINT_NAMES: tuple[str, ...] = (
+     "right_wrist_pitch_joint",
+     "right_wrist_yaw_joint",
+ )
++from supermimic.robots import ROBOT
++
++if ROBOT == "pioneer":
++    from supermimic.robots.pioneer import JOINT_NAMES as G1_JOINT_NAMES  # noqa: F811
+ NUM_JOINTS = len(G1_JOINT_NAMES)
+ 
+ 
+ def g1_xml_path() -> Path:
+     import mjlab
+ 
++    if ROBOT == "pioneer":
++        from supermimic.robots.pioneer import PIONEER_XML
++
++        return PIONEER_XML
++
+     return Path(mjlab.__file__).parent / "asset_zoo/robots/unitree_g1/xmls/g1.xml"
+ 
+ 
+diff --git a/src/supermimic/data/recorder.py b/src/supermimic/data/recorder.py
+index 36313d3..b9e60cb 100644
+--- a/src/supermimic/data/recorder.py
++++ b/src/supermimic/data/recorder.py
+@@ -65,8 +65,23 @@ class ReplayRecorder(RecorderTerm):
+         self._remember(env_ids)
+         self.ep_start[env_ids] = True
+ 
++    @staticmethod
++    def _sane(*rows: torch.Tensor, limit: float = 1.0e3) -> torch.Tensor:
++        """Per-env mask: every value finite and below the limit (a sim blow-up must never reach the world model)."""
++        ok = None
++        for r in rows:
++            r = r.reshape(r.shape[0], -1)
++            m = torch.isfinite(r).all(dim=1) & (r.abs() < limit).all(dim=1)
++            ok = m if ok is None else ok & m
++        return ok
++
+     def _write_rows(self, ids: torch.Tensor, done_next: torch.Tensor) -> None:
+         env = self._env
++        keep = self._sane(self.prev_s[ids], env.action_manager.action[ids], env.reward_buf[ids].unsqueeze(-1))
++        if not keep.all():
++            ids, done_next = ids[keep], done_next[keep]
++            if ids.numel() == 0:
++                return
+         self.buffer.add(
+             ids,
+             s=self.prev_s[ids],
+@@ -91,6 +106,12 @@ class ReplayRecorder(RecorderTerm):
+         # Terminal row: the state reached by the last action (no transition out of it).
+         cmd = self.command
+         s_next = self.state_io.read()[env_ids]
++        keep = self._sane(s_next)
++        if not keep.all():  # no terminal row out of a blown-up state
++            self.buffer.end_episode(env_ids[~keep])
++            env_ids, terminated, s_next = env_ids[keep], terminated[keep], s_next[keep]
++            if env_ids.numel() == 0:
++                return
+         zeros_a = torch.zeros(env_ids.numel(), 29, device=env.device)
+         self.buffer.add(
+             env_ids,
+diff --git a/src/supermimic/envs/mdp/commands.py b/src/supermimic/envs/mdp/commands.py
+index 3f4822e..ae74729 100644
+--- a/src/supermimic/envs/mdp/commands.py
++++ b/src/supermimic/envs/mdp/commands.py
+@@ -13,6 +13,7 @@ functions work unchanged, plus:
+ from __future__ import annotations
+ 
+ import math
++import os
+ from dataclasses import dataclass, field
+ from typing import TYPE_CHECKING, Literal
+ 
+@@ -301,7 +302,8 @@ class MultiClipMotionCommand(CommandTerm):
+         root_lin_vel = r.root_lin_vel_w.clone()
+         root_ang_vel = r.root_ang_vel_w.clone()
+         joint_pos = r.joint_pos.clone()
+-        joint_vel = r.joint_vel
++        joint_vel = r.joint_vel.clone()
++        self._mismatch_lying_start(r, root_pos, root_ori, root_lin_vel, root_ang_vel, joint_pos, joint_vel)
+ 
+         keys = ["x", "y", "z", "roll", "pitch", "yaw"]
+         ranges = torch.tensor([self.cfg.pose_range.get(k, (0.0, 0.0)) for k in keys], device=self.device)
+@@ -318,6 +320,29 @@ class MultiClipMotionCommand(CommandTerm):
+ 
+         self._write_reference_state_to_sim(env_ids, root_pos, root_ori, root_lin_vel, root_ang_vel, joint_pos, joint_vel)
+ 
++    def _mismatch_lying_start(self, r, root_pos, root_ori, root_lin_vel, root_ang_vel, joint_pos, joint_vel) -> None:
++        """Pioneer get-up robustness (env PIONEER_MISMATCH_P): an episode that starts on a lying reference frame starts the
++        robot, with that probability, in a different lying pose from the library (turned to the reference's heading, at
++        rest), so the policy learns to get up from wherever it fell rather than only from the reference's own start."""
++        p = float(os.environ.get("PIONEER_MISMATCH_P", "0"))
++        if p <= 0:
++            return
++        if not hasattr(self, "_lying_frames"):
++            z = torch.cat([self.library.ref(torch.arange(i, min(i + 65536, self.library.num_frames), device=self.device)).root_pos_w[:, 2]
++                           for i in range(0, self.library.num_frames, 65536)])
++            self._lying_frames = (z < 0.4).nonzero().squeeze(-1)
++        swap = ((r.root_pos_w[:, 2] < 0.4) & (torch.rand(len(root_pos), device=self.device) < p)).nonzero().squeeze(-1)
++        if swap.numel() == 0 or self._lying_frames.numel() == 0:
++            return
++        o = self.library.ref(self._lying_frames[torch.randint(0, self._lying_frames.numel(), (swap.numel(),), device=self.device)])
++        turn = quat_mul(yaw_quat(r.root_quat_w[swap]), quat_inv(yaw_quat(o.root_quat_w)))
++        root_ori[swap] = quat_mul(turn, o.root_quat_w)
++        root_pos[swap, 2] = o.root_pos_w[:, 2]
++        joint_pos[swap] = o.joint_pos
++        root_lin_vel[swap] = 0.0
++        root_ang_vel[swap] = 0.0
++        joint_vel[swap] = 0.0
++
+     def update_relative_body_poses(self) -> None:
+         nb = len(self.cfg.body_names)
+         anchor_pos = self.anchor_pos_w[:, None, :].repeat(1, nb, 1)
+diff --git a/src/supermimic/envs/mdp/terminations.py b/src/supermimic/envs/mdp/terminations.py
+index 8005ba4..b67c72d 100644
+--- a/src/supermimic/envs/mdp/terminations.py
++++ b/src/supermimic/envs/mdp/terminations.py
+@@ -29,3 +29,25 @@ def bad_root_tilt(env: ManagerBasedRlEnv, command_name: str, threshold: float =
+ def clip_end(env: ManagerBasedRlEnv, command_name: str) -> torch.Tensor:
+     cmd = cast(MultiClipMotionCommand, env.command_manager.get_term(command_name))
+     return cmd.clip_end
++
++
++def bad_root_xy(env: ManagerBasedRlEnv, command_name: str, threshold: float = 0.8) -> torch.Tensor:
++    """Root (pelvis) more than `threshold` m from the reference in the ground plane (Pioneer, not in the paper): with only
++    height/tilt terminations a policy that stands still while the clip walks away is never reset, and the global
++    position reward (std 0.3) gives it no gradient once it is ~1 m behind."""
++    cmd = cast(MultiClipMotionCommand, env.command_manager.get_term(command_name))
++    return (cmd.root_pos_w[:, :2] - cmd.robot_root_pos_w[:, :2]).norm(dim=-1) > threshold
++
++
++def sim_blowup(env: ManagerBasedRlEnv, command_name: str, max_vel: float = 100.0) -> torch.Tensor:
++    """Robot state non-finite or moving absurdly fast (a MuJoCo Warp blow-up; Pioneer's CAD-box hitboxes occasionally
++    do this on the ground clips). Reset it at once: one such row in the replay buffer turned the world model to NaN."""
++    cmd = cast(MultiClipMotionCommand, env.command_manager.get_term(command_name))
++    d = cmd.robot.data
++    parts = (d.joint_pos, d.joint_vel, d.root_link_pos_w, d.root_link_lin_vel_w, d.root_link_ang_vel_w)
++    bad = torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)
++    for x in parts:
++        bad |= ~torch.isfinite(x).all(dim=-1)
++    for x in parts[1:2] + parts[3:]:
++        bad |= (x.abs() > max_vel).any(dim=-1)
++    return bad
+diff --git a/src/supermimic/envs/tracking_env_cfg.py b/src/supermimic/envs/tracking_env_cfg.py
+index 47f818f..78a8c8f 100644
+--- a/src/supermimic/envs/tracking_env_cfg.py
++++ b/src/supermimic/envs/tracking_env_cfg.py
+@@ -65,6 +65,15 @@ TRACKED_BODIES = (
+ ANCHOR_BODY = "torso_link"
+ ROOT_BODY = "pelvis"
+ FOOT_GEOM_REGEX = r"^(left|right)_foot[1-7]_collision$"
++ROBOT_CFG, ACTION_SCALE = get_g1_robot_cfg, G1_ACTION_SCALE
++
++from supermimic.robots import ROBOT  # noqa: E402
++
++if ROBOT == "pioneer":
++    from supermimic.robots import pioneer as _p
++
++    TRACKED_BODIES, ANCHOR_BODY, ROOT_BODY, FOOT_GEOM_REGEX = _p.TRACKED_BODIES, _p.ANCHOR_BODY, _p.ROOT_BODY, _p.FOOT_GEOM_REGEX
++    ROBOT_CFG, ACTION_SCALE = _p.get_pioneer_robot_cfg, _p.PIONEER_ACTION_SCALE
+ 
+ 
+ @dataclass
+@@ -88,6 +97,7 @@ class SuperMimicEnvCfgArgs:
+     bin_frames: int = 50
+     compact_library: bool = False
+     anchor_obs: bool = False  # add BeyondMimic anchor-relative pose (9) to the goal group (plan D5 alt.)
++    root_xy_threshold: float | None = None  # Pioneer: also reset when the root is this far (m) from the reference in xy
+     debug_vis: bool = False  # draw the reference ghost in the viewer (scripts/play.py)
+     extra_command_kwargs: dict = field(default_factory=dict)
+ 
+@@ -132,7 +142,7 @@ def make_env_cfg(a: SuperMimicEnvCfgArgs) -> ManagerBasedRlEnvCfg:
+         "joint_pos": NoisyJointPositionActionCfg(
+             entity_name="robot",
+             actuator_names=(".*",),
+-            scale=G1_ACTION_SCALE,
++            scale=ACTION_SCALE,
+             use_default_offset=True,
+             noise_std=a.action_noise_std,
+         )
+@@ -167,7 +177,7 @@ def make_env_cfg(a: SuperMimicEnvCfgArgs) -> ManagerBasedRlEnvCfg:
+             mode="startup",
+             func=dr.body_com_offset,
+             params={
+-                "asset_cfg": SceneEntityCfg("robot", body_names=("torso_link",)),
++                "asset_cfg": SceneEntityCfg("robot", body_names=(ANCHOR_BODY,)),
+                 "operation": "add",
+                 "ranges": {0: (-0.025, 0.025), 1: (-0.05, 0.05), 2: (-0.05, 0.05)},
+             },
+@@ -219,13 +229,17 @@ def make_env_cfg(a: SuperMimicEnvCfgArgs) -> ManagerBasedRlEnvCfg:
+         "root_height": TerminationTermCfg(func=sm_term.bad_root_height, params={"command_name": "motion", "threshold": a.root_height_threshold}),
+         "root_tilt": TerminationTermCfg(func=sm_term.bad_root_tilt, params={"command_name": "motion", "threshold": a.root_tilt_threshold}),
+     }
++    if ROBOT == "pioneer":
++        terminations["sim_blowup"] = TerminationTermCfg(func=sm_term.sim_blowup, params={"command_name": "motion"})
++    if a.root_xy_threshold is not None:
++        terminations["root_xy"] = TerminationTermCfg(func=sm_term.bad_root_xy, params={"command_name": "motion", "threshold": a.root_xy_threshold})
+ 
+     recorders = {}
+     if a.record_transitions:
+-        recorders["replay"] = ReplayRecorderCfg(params={"capacity": a.replay_capacity, "foot_geom_regex": FOOT_GEOM_REGEX, "com_body_name": "torso_link"})
++        recorders["replay"] = ReplayRecorderCfg(params={"capacity": a.replay_capacity, "foot_geom_regex": FOOT_GEOM_REGEX, "com_body_name": ANCHOR_BODY})
+ 
+     cfg = ManagerBasedRlEnvCfg(
+-        scene=SceneCfg(terrain=TerrainEntityCfg(terrain_type="plane"), num_envs=a.num_envs, entities={"robot": get_g1_robot_cfg()}),
++        scene=SceneCfg(terrain=TerrainEntityCfg(terrain_type="plane"), num_envs=a.num_envs, entities={"robot": ROBOT_CFG()}),
+         observations=observations,
+         actions=actions,
+         commands=commands,
+@@ -233,8 +247,8 @@ def make_env_cfg(a: SuperMimicEnvCfgArgs) -> ManagerBasedRlEnvCfg:
+         rewards=rewards,
+         terminations=terminations,
+         recorders=recorders,
+-        viewer=ViewerConfig(origin_type=ViewerConfig.OriginType.ASSET_BODY, entity_name="robot", body_name="torso_link", distance=2.8, fovy=55.0, elevation=-5.0, azimuth=120.0),
+-        sim=QuietSimulationCfg(nconmax=35, njmax=250, mujoco=MujocoCfg(timestep=0.005, iterations=10, ls_iterations=20)),
++        viewer=ViewerConfig(origin_type=ViewerConfig.OriginType.ASSET_BODY, entity_name="robot", body_name=ANCHOR_BODY, distance=2.8, fovy=55.0, elevation=-5.0, azimuth=120.0),
++        sim=QuietSimulationCfg(nconmax=35 if ROBOT == "g1" else 300, njmax=250 if ROBOT == "g1" else 1500, mujoco=MujocoCfg(timestep=0.005, iterations=10, ls_iterations=20)),
+         decimation=4,
+         episode_length_s=a.episode_length_s,
+         seed=a.seed,
+diff --git a/src/supermimic/eval/benchmark.py b/src/supermimic/eval/benchmark.py
+index 7d6f3a9..5af5e5b 100644
+--- a/src/supermimic/eval/benchmark.py
++++ b/src/supermimic/eval/benchmark.py
+@@ -41,7 +41,7 @@ def load_policy_from_checkpoint(path: str | Path, device: str) -> tuple[Policy,
+ 
+ 
+ @torch.no_grad()
+-def run_benchmark(policy: Policy, npz_files: list[str], device: str = "cuda:0", num_envs: int | None = None, future_frames: int = 10, verbose: bool = True, anchor_obs: bool = False) -> list[ClipResult]:
++def run_benchmark(policy: Policy, npz_files: list[str], device: str = "cuda:0", num_envs: int | None = None, future_frames: int = 10, verbose: bool = True, anchor_obs: bool = False, terminations: dict | None = None) -> list[ClipResult]:
+     num_envs = min(num_envs or 1024, len(npz_files))
+     args = SuperMimicEnvCfgArgs(
+         npz_files=npz_files,
+@@ -56,6 +56,7 @@ def run_benchmark(policy: Policy, npz_files: list[str], device: str = "cuda:0",
+         record_transitions=False,
+         seed=0,
+         anchor_obs=anchor_obs,
++        **(terminations or {}),  # Pioneer: the run's own training terminations
+     )
+     env = make_env(args, device=device)
+     try:
+diff --git a/src/supermimic/training/loop.py b/src/supermimic/training/loop.py
+index 510e7a7..bbce209 100644
+--- a/src/supermimic/training/loop.py
++++ b/src/supermimic/training/loop.py
+@@ -67,6 +67,9 @@ class Trainer:
+                 replay_capacity=cfg.env.replay_capacity,
+                 compact_library=cfg.env.compact_library,
+                 anchor_obs=cfg.env.anchor_obs,
++                root_xy_threshold=cfg.env.root_xy_threshold,
++                root_height_threshold=cfg.env.root_height_threshold,
++                root_tilt_threshold=cfg.env.root_tilt_threshold,
+                 seed=cfg.seed + 1000 * self.rank,
+             ),
+             device=self.device,
+@@ -131,8 +134,11 @@ class Trainer:
+         self.wm_trainer.opt.load_state_dict(ck["wm_opt"])
+         self.policy_trainer.opt.load_state_dict(ck["policy_opt"])
+         self.policy_trainer.critic_opt.load_state_dict(ck["critic_opt"])
+-        self.command.bin_return.copy_(ck["bin_return"])
+-        self.command.bin_memory.copy_(ck["bin_memory"])
++        if ck["bin_return"].shape == self.command.bin_return.shape:
++            self.command.bin_return.copy_(ck["bin_return"])
++            self.command.bin_memory.copy_(ck["bin_memory"])
++        else:  # a different clip set (e.g. more clips added): keep the networks, start the clip sampling fresh
++            print(f"[INFO] clip bins {tuple(ck['bin_return'].shape)} -> {tuple(self.command.bin_return.shape)}: sampling stats reset")
+         self.iteration = ck["iteration"]
+         self.num_updates = ck["num_updates"]
+         print(f"[INFO] resumed from {path} at iteration {self.iteration}")
+@@ -155,6 +161,7 @@ class Trainer:
+         finished_returns: list[float] = []
+         finished_lens: list[float] = []
+         last_log = time.time()
++        start_iteration = self.iteration  # a resumed run refills its fresh replay buffer first
+ 
+         while self.iteration < sch.total_iterations:
+             # ---------------- (1) collect one vectorised env step
+@@ -177,7 +184,7 @@ class Trainer:
+             self.iteration += 1
+ 
+             # ---------------- (2)+(3) updates at the configured update-to-data ratio
+-            if self.iteration >= sch.warmup_iterations:
++            if self.iteration - start_iteration >= sch.warmup_iterations:
+                 self._utd_acc += sch.updates_per_env_step
+                 while self._utd_acc >= 1.0:
+                     self._utd_acc -= 1.0
+diff --git a/src/supermimic/robots/__init__.py b/src/supermimic/robots/__init__.py
+new file mode 100644
+index 0000000..e9a4231
+--- /dev/null
++++ b/src/supermimic/robots/__init__.py
+@@ -0,0 +1,4 @@
++"""Robot switch: SM_ROBOT=pioneer trains the WATonomous Pioneer instead of the Unitree G1 (default)."""
++import os
++
++ROBOT = os.environ.get("SM_ROBOT", "g1")
+diff --git a/src/supermimic/robots/pioneer.py b/src/supermimic/robots/pioneer.py
+new file mode 100644
+index 0000000..c554b20
+--- /dev/null
++++ b/src/supermimic/robots/pioneer.py
+@@ -0,0 +1,107 @@
++"""WATonomous Pioneer whole-body humanoid for SuperMimic on mjlab.
++
++Model: the MJCF from make_train_mjcf.py in the humanoid repo (floating pelvis, +X forward, fingers locked in fists,
++29 DoF: waist yaw, 2 neck, 7 per arm, 6 per leg). Actuators are DC motors with each joint's real torque and no-load
++speed (URDF limits): the hip pitch and knee AKH70-48 reach only 3.67 rad/s, which caps what motion can be tracked.
++PD gains follow the Isaac Lab locomotion config of the same robot (legs) and its arm-swing config (arms).
++"""
++
++from __future__ import annotations
++
++import os
++from pathlib import Path
++
++import mujoco
++from mjlab.actuator import DcMotorActuatorCfg
++from mjlab.entity import EntityArticulationInfoCfg, EntityCfg
++from mjlab.utils.spec_config import CollisionCfg
++
++PIONEER_XML = Path(os.environ["PIONEER_XML"])  # the training MJCF written by make_train_mjcf.py
++
++# MJCF joint order (= the retarget CSV's column order)
++JOINT_NAMES: tuple[str, ...] = (
++    "waist_yaw", "neck_yaw", "neck_pitch",
++    "r_shoulder_pitch", "r_shoulder_roll", "r_upper_arm_yaw", "r_elbow", "r_forearm_roll", "r_wrist_dev", "r_wrist_flex",
++    "l_shoulder_pitch", "l_shoulder_roll", "l_upper_arm_yaw", "l_elbow", "l_forearm_roll", "l_wrist_dev", "l_wrist_flex",
++    "Hip_F_L", "Hip_A_L", "Hip_R_L", "Knee_L", "Ankle_P_L", "Ankle_R_L",
++    "Hip_F_R", "Hip_A_R", "Hip_R_R", "Knee_R", "Ankle_P_R", "Ankle_R_R",
++)
++
++TRACKED_BODIES = (
++    "pelvis",
++    "l_hip_roll_link", "l_shank_foot", "l_foot",
++    "r_hip_roll_link", "r_shank_foot", "r_foot",
++    "torso",
++    "l_arm_link2", "l_arm_link4", "l_hand_H",
++    "r_arm_link2", "r_arm_link4", "r_hand_H",
++)
++ANCHOR_BODY = "torso"
++ROOT_BODY = "pelvis"
++FOOT_GEOM_REGEX = r"^(l|r)_foot_collision$"
++PELVIS_HEIGHT = 0.848
++
++
++def get_spec() -> mujoco.MjSpec:
++    return mujoco.MjSpec.from_file(str(PIONEER_XML))
++
++
++def _motor(names, effort, velocity, kp, kd):
++    return DcMotorActuatorCfg(
++        target_names_expr=names,
++        stiffness=kp,
++        damping=kd,
++        effort_limit=effort,
++        saturation_effort=effort,
++        velocity_limit=velocity,
++        armature=0.01,
++    )
++
++
++UPPER_VEL = 20.0 if os.environ.get("PIONEER_FAST") else 6.0  # waist / arm / wrist limits (URDF 6 rad/s)
++
++ACTUATORS = (
++    # AKH70-48: 3.67 rad/s no-load. PIONEER_FAST=1 lifts it to the other leg motors' ~21 rad/s (sim experiment only)
++    _motor((r"Hip_F_.", r"Knee_."), 222.0, 20.944 if os.environ.get("PIONEER_FAST") else 3.6652, 200.0, 5.0),
++    _motor((r"Hip_A_.",), 120.0, 20.944, 150.0, 5.0),
++    _motor((r"Hip_R_.",), 60.0, 20.42, 150.0, 5.0),
++    _motor((r"Ankle_._.",), 60.0, 20.42, 40.0, 2.0),
++    _motor(("waist_yaw",), 60.0, UPPER_VEL, 150.0, 5.0),
++    _motor((r"._shoulder_pitch", r"._shoulder_roll"), 53.0, UPPER_VEL, 40.0, 2.0),
++    _motor((r"._upper_arm_yaw", r"._elbow", r"._forearm_roll"), 22.0, UPPER_VEL, 20.0, 1.0),
++    _motor((r"._wrist_dev", r"._wrist_flex"), 2.0, UPPER_VEL, 4.0, 0.2),
++    # neck: held straight ahead. No reward tracks the head, so a policy-driven neck wandered up to ~55 deg; its two
++    # action entries stay (checkpoints still load) but are scaled to zero below
++    _motor(("neck_yaw", "neck_pitch"), 5.0, 6.0, 50.0, 2.0),
++)
++
++# feet: friction and condim 3. Self-collision only forearms/hands vs torso/neck/head/pelvis (the other CAD hitboxes
++# overlap at rest); without it the get-up policy pushed off by sweeping an arm through its own torso.
++ARM_GEOMS = r"^(l|r)_(forearm|hand_.*)_collision.*$"
++TRUNK_GEOMS = r"^(torso|neck_link|head|base_link)_collision.*$"
++SELF_COLLISION = bool(os.environ.get("PIONEER_SELFCOL"))  # off for checkpoints trained before it existed
++COLLISION = CollisionCfg(
++    geom_names_expr=(".*_collision.*",),
++    contype={ARM_GEOMS: 2, ".*": 0} if SELF_COLLISION else 0,
++    conaffinity={TRUNK_GEOMS: 3, ".*": 1} if SELF_COLLISION else 1,
++    condim={FOOT_GEOM_REGEX: 3, ".*_collision.*": 1},
++    priority={FOOT_GEOM_REGEX: 1, ".*": 0},
++    friction={FOOT_GEOM_REGEX: (0.8,)},
++)
++
++INIT_STATE = EntityCfg.InitialStateCfg(
++    pos=(0, 0, PELVIS_HEIGHT),
++    joint_pos={r"Hip_F_.": 0.25, r"Knee_.": -0.5, r"Ankle_P_.": -0.25, ".*": 0.0},
++    joint_vel={".*": 0.0},
++)
++
++ARTICULATION = EntityArticulationInfoCfg(actuators=ACTUATORS, soft_joint_pos_limit_factor=0.9)
++
++
++def get_pioneer_robot_cfg() -> EntityCfg:
++    return EntityCfg(init_state=INIT_STATE, collisions=(COLLISION,), spec_fn=get_spec, articulation=ARTICULATION)
++
++
++PIONEER_ACTION_SCALE: dict[str, float] = {}
++for a in ACTUATORS:
++    for n in a.target_names_expr:
++        PIONEER_ACTION_SCALE[n] = 0.0 if n.startswith("neck") else 0.25 * a.effort_limit / a.stiffness

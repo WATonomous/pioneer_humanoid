@@ -28,3 +28,7 @@ Any motion can be used: walking, dancing, boxing and so on. The pipeline has bee
 ## Getting started
 
 See the repository's [README](https://github.com/WATonomous/Humanoid_motion_tracking#readme) for installation, the full pipeline command, and example training and evaluation commands.
+
+## SuperMimic
+
+[supermimic/](supermimic/): one tracking policy for all 77 LAFAN1 clips with SuperMimic on mjlab (MuJoCo Warp), completing 55 of them in sim; patch, conversion scripts, results and video.
