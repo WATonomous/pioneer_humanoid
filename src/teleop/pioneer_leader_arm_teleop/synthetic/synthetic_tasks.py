@@ -584,10 +584,78 @@ def matcha_plan(op, model, data, notes) -> None:
     _finish(op, rest=start + rng.normal(0, 0.02, 3))
 
 
+# ----------------------------------------------------------------------------- tabletop_pick
+def tabletop_plan(op, model, data, notes) -> None:
+    """Find the asked-for object, take it from above, carry it over the bowl and drop it in."""
+    import math
+
+    import humanoid_mujoco_scenes.tabletop_pick.scene as S
+
+    rng, T = op.rng, S.T
+    name = S.NAMES[int(data.userdata[0])]
+    body = S._body(name)
+    bid = model.body(body).id
+    base_yaw = S.OBJECTS[name][3]
+    # how tall it stands (a glance tells a person that); the body origin is its bottom centre
+    cols = [g for g in range(model.ngeom) if model.geom_bodyid[g] == bid and model.geom_contype[g]]
+    height = max(data.geom_xpos[g][2] + model.geom_rbound[g] for g in cols) - data.xpos[bid][2]
+    height = min(height, 0.11)
+    high = T + 0.24 + rng.uniform(-0.01, 0.02)          # carrying height: the held object clears the bowl's 11 cm rim
+    tip = max(0.010, 0.2 * height) + rng.uniform(-0.002, 0.003)   # jaw tips this far above the table when gripping
+
+    def hand_yaw() -> float:
+        dev = (op.see_yaw(body, symmetry=math.pi) - base_yaw + math.pi / 2) % math.pi - math.pi / 2
+        # a small turn towards the object's yaw (turning costs reach); the 8 cm jaws take the rest
+        return float(np.clip(dev * rng.uniform(0.3, 0.7), -0.1, 0.1))
+
+    def grasp() -> None:
+        for attempt in range(3):
+            o = op.see(body)
+            R = op.down(hand_yaw())
+            op.arc((o[0], o[1], o[2] + height + op.jaw_half + 0.02), high if attempt == 0 else o[2] + height + op.jaw_half + 0.05,
+                   R=R, grip=rng.uniform(0.0, 0.1), tol=0.004, axes=(1, 1, 0))
+            o = op.see(body)                              # a closer look once above it
+            op.move((o[0], o[1], o[2] + tip + op.jaw_half), tol=0.004, speed=0.8)
+            op.settle()
+            op.set_grip(1.0)
+            op.pause(0.1, 0.3)
+            z0 = data.xpos[bid][2]
+            op.move(op.follower_tcp() + (0.0, 0.0, 0.06), tol=0.01, corrections=0, axes=(0, 0, 1))
+            if data.xpos[bid][2] > z0 + 0.03:             # it came up with the gripper (look once the lift is done)
+                return
+            notes.append(f"regrasp {name}")
+            op.set_grip(0.0)
+            op.move(op.follower_tcp() + (0.0, 0.0, 0.03), tol=0.01, corrections=0, via=True)
+        raise TaskFailed(f"grasp {name}")
+
+    def drop() -> None:
+        bowl = op.see("bowl")
+        off = op.follower_tcp() - data.xpos[bid]          # where the hand is on the object
+        drop_z = T + 0.115 + 0.03 + rng.uniform(0.0, 0.02)   # object bottom over the rim
+        op.arc((bowl[0] + off[0] + rng.normal(0, 0.008), bowl[1] + off[1] + rng.normal(0, 0.008), drop_z + off[2]),
+               high, tol=0.012, land=0.6)
+        op.settle()
+        op.set_grip(rng.uniform(0.0, 0.15))
+        op.pause(0.2, 0.5)
+        op.move(op.follower_tcp() + (0.0, 0.0, 0.05), tol=0.01, corrections=0, via=True)
+
+    op.pause(0.3, 0.8)
+    start = op.follower_tcp()
+    op.glance()
+    grasp()
+    drop()
+    if not S._in_bowl(model, data, name):
+        notes.append("missed the bowl")
+        raise TaskFailed("drop")
+    _finish(op, rest=start + rng.normal(0, 0.02, 3))
+    op.pause(0.3, 0.6)
+
+
 TASKS: dict[str, Task] = {
     "drawer_stow": Task(drawer_plan, "put the blocks in the drawer", grasp_pitch_deg=30.0),
     "peg_insert": Task(peg_plan, "insert the peg into the hole", limit_avoid=0.0),   # null space hurt the insert
     "zip_tie": Task(zip_plan, "pull the zip tie tight"),
     "duplo": Task(duplo_plan, "stack the duplo bricks", grasp_pitch_deg=30.0, limit_avoid=0.02),
     "matcha": Task(matcha_plan, "make the matcha and serve it on the tray"),
+    "tabletop_pick": Task(tabletop_plan, "put the object in the red bowl"),
 }
