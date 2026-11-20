@@ -1,0 +1,5 @@
+mujoco>=3.3
+numpy
+scipy
+scikit-image
+imageio[ffmpeg]
