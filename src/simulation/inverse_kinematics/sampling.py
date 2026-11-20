@@ -8,6 +8,34 @@ WORKSPACE_LO = np.array([0.15, -0.10, -0.40])
 WORKSPACE_HI = np.array([0.55, 0.45, 0.05])
 
 EVAL_SEED = 12345      # used ONLY for the evaluation set, never for training
+TRAIN_SEED = 0     #must use seeds other than EVAL_SEED
+
+
+def too_close(p, R, other_p, other_R, pos_tol=1e-3, rot_tol=np.radians(0.2)):
+    """True if goal (p, R) is within pos_tol AND rot_tol of any goal in other_p (M, 3), other_R (M, 3, 3)."""
+    d = np.linalg.norm(other_p - p, axis=1)
+    close = np.flatnonzero(d < pos_tol)
+    for j in close:
+        angle = np.arccos(np.clip((np.trace(R.T @ other_R[j]) - 1) / 2, -1.0, 1.0))
+        if angle < rot_tol:
+            return True
+    return False
+
+def count_too_close(eval_set, n_train=10_000, seed=TRAIN_SEED):
+    """How many eval goals are too close to one of n_train training goals. Should be 0."""
+    arm = LeftArm()
+    rng = np.random.default_rng(seed)
+    train_p = np.zeros((n_train, 3))
+    train_R = np.zeros((n_train, 3, 3))
+    
+    for i in range(n_train):
+        _, train_p[i], train_R[i] = sample_goal(arm, rng)
+    count = 0
+    for i in range(len(eval_set["p_goal"])):
+        if too_close(eval_set["p_goal"][i], eval_set["R_goal"][i], train_p, train_R):
+            count += 1
+    return count
+
 
 
 def in_workspace(p):
@@ -62,8 +90,12 @@ def load_eval_set(path):
     return {key: data[key] for key in data.files}
 
 
+
+
 if __name__ == "__main__":
     make_eval_set(1000, EVAL_SEED, "eval_set.npz")
     s = load_eval_set("eval_set.npz")
     print("q_start", s["q_start"].shape, "p_goal", s["p_goal"].shape, "R_goal", s["R_goal"].shape)
     print("first goal position:", np.round(s["p_goal"][0], 3))
+    print("eval goals too close to a training goal:", count_too_close(s))
+

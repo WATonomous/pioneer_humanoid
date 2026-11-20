@@ -10,11 +10,13 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from arm_model import LeftArm                                                 
-from sampling import WORKSPACE_HI, WORKSPACE_LO, in_workspace, load_eval_set, make_eval_set
+from sampling import WORKSPACE_HI, WORKSPACE_LO, in_workspace, load_eval_set, make_eval_set, too_close
 
 N = 20   # small sets keep the tests fast
 
-
+def rot_z(angle):
+    c, s = np.cos(angle), np.sin(angle)
+    return np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
 class SamplingTests(unittest.TestCase):
 
     def setUp(self):
@@ -86,6 +88,20 @@ class SamplingTests(unittest.TestCase):
         self.assertEqual(s["q_goal"].shape, (N, 7))
         self.assertEqual(s["p_goal"].shape, (N, 3))
         self.assertEqual(s["R_goal"].shape, (N, 3, 3))
+
+    # --- Test 6 ---
+    def test_too_close(self):
+        p = np.array([0.3, 0.2, -0.2])
+        R = rot_z(0.5)
+        self.assertTrue(too_close(p, R, np.array([p]), np.array([R])))
+        
+        p2 = p + np.array([0.002, 0, 0])
+        self.assertFalse(too_close(p2, R, np.array([p]), np.array([R])))
+        R2 = R @ rot_z(np.radians(1.0))
+        self.assertFalse(too_close(p, R2, np.array([p]), np.array([R])))
+        p3 = p + np.array([0.0005, 0, 0])
+        R3 = R @ rot_z(np.radians(0.1))
+        self.assertTrue(too_close(p3, R3, np.array([p]), np.array([R])))
 
 
 
