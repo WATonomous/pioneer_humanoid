@@ -125,15 +125,26 @@ def load_policy(path: str, device: str):
 
 
 def training_task(path: str) -> str | None:
-    """The task text of the policy's training dataset, if it has exactly one."""
+    """The task text of the policy's training dataset, if it has exactly one.
+
+    A local dataset (``root`` set) is read from disk; a Hub dataset (``root`` null, as when training on a
+    ``repo_id``) from its metadata, which training already cached.
+    """
     import pandas as pd
 
     config = Path(path) / "train_config.json"
-    root = json.loads(config.read_text())["dataset"].get("root") if config.exists() else None
-    tasks = Path(root or "") / "meta" / "tasks.parquet"
-    if not root or not tasks.exists():
+    if not config.exists():
         return None
-    names = list(pd.read_parquet(tasks).index)
+    dataset = json.loads(config.read_text())["dataset"]
+    if dataset.get("root"):
+        tasks = Path(dataset["root"]) / "meta" / "tasks.parquet"
+        if not tasks.exists():
+            return None
+        names = list(pd.read_parquet(tasks).index)
+    else:
+        from lerobot.datasets.lerobot_dataset import LeRobotDatasetMetadata
+
+        names = list(LeRobotDatasetMetadata(dataset["repo_id"]).tasks.index)
     return names[0] if len(names) == 1 else None
 
 
