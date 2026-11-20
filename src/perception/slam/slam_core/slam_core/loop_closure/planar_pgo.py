@@ -48,7 +48,7 @@ def optimize(x0, odom, loops, huber=1.345, rounds=4):
         return out
 
     S = lil_matrix((3 * E + 3, 3 * N), dtype=int)
-    for k, (i, j, *_ ) in enumerate(edges):
+    for k, (i, j, *_) in enumerate(edges):
         S[3 * k:3 * k + 3, 3 * i:3 * i + 3] = 1
         S[3 * k:3 * k + 3, 3 * j:3 * j + 3] = 1
     S[3 * E:, 0:3] = 1

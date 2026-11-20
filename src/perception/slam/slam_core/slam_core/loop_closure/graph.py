@@ -60,13 +60,13 @@ class KeyframeGraph:
             return float("inf")
         return self.arc[a] + self.arc[b] - 2 * self.arc[lca]
 
-    # Pose of keyframe i in ancestor l's frame, with covariance. The root-relative covariance of i is the
-    # covariance of l (moved into i's frame) plus the covariance of the path from l down to i, so that path's
+    # Pose of keyframe i in ancestor lca's frame, with covariance. The root-relative covariance of i is the
+    # covariance of lca (moved into i's frame) plus the covariance of the path from lca down to i, so that path's
     # covariance is what is left after taking the first part out
-    def _below(self, l, i):
-        T = inv_T(self.T_root[l]) @ self.T_root[i]
+    def _below(self, lca, i):
+        T = inv_T(self.T_root[lca]) @ self.T_root[i]
         A = adjoint(inv_T(T))
-        S = self.S_root[i] - A @ self.S_root[l] @ A.T
+        S = self.S_root[i] - A @ self.S_root[lca] @ A.T
         return T, (S + S.T) / 2
 
     # Odometry's estimate of T_a_b (pose of keyframe b in keyframe a's frame) and its 6x6 covariance.

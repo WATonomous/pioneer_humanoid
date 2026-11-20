@@ -1,85 +1,104 @@
 # Loop closure
 
-`slam_core/slam_core/loop_closure/` is the loop closure module. ROS-free, numpy-only (OpenCV only inside the PnP
-verifier). Status: working and tested on a synthetic world; **not yet validated on real D455 or TUM data**.
+`slam_core/slam_core/loop_closure/` detects when the robot is back somewhere it has been, so the pose graph can remove the
+drift that visual odometry builds up. It is ROS-free and numpy-only (OpenCV only inside `PnPVerifier`), with an incremental
+GTSAM backend in `slam_core/slam_core/backend/incremental.py`.
 
-## See it work (no camera, no GPU)
+Status: works end to end on real images (7 TUM RGB-D sequences, real XFeat features, real GTSAM) and in two simulators
+built to provoke false loops. **Not yet tested on D455 recordings or on a GPU.** In `prototype/vo.py` it is opt-in
+(`--loop-mode module`); the default is still the old 1 m radius search.
+
+## Try it
 
 ```bash
+# no camera, no GPU: a synthetic building with two identical hallways 36 m apart (writes loop_closure_demo.png)
 pip install numpy scipy matplotlib
-python slam_tools/loop_closure_demo.py                  # writes loop_closure_demo.png
-python slam_tools/loop_closure_demo.py --drift heavy --show
-cd slam_core && pip install -e '.[test]' && pytest tests -q     # 20 tests; the iSAM2 ones need gtsam
+python slam_tools/loop_closure_demo.py              # add --drift heavy, --show
+
+# unit tests (the GTSAM ones are skipped where gtsam is not installed)
+cd slam_core && pip install -e '.[test]' && pytest tests -q
+
+# real data: a TUM RGB-D sequence (needs torch, kornia, tqdm, opencv; gtsam for the pose graph)
+python slam_tools/run_tum_loop.py DATASET --loop-mode module --out runs/room       # VO + loops + pose graph + error
+python slam_tools/eval_loops_pr.py DATASET --cache room.pt                         # retrieval + verification vs truth
+python slam_tools/eval_detector.py DATASET --cache room.pt                         # whole detector vs truth, settings sweep
+python slam_tools/oracle_loops.py DATASET runs/room --out runs/room_oracle          # ceiling: perfect loops
+python slam_tools/bench_matching.py DATASET                                        # matching time, GPU vs CPU
 ```
 
-The demo walks a robot around a building twice plus two side hallways that are identical copies of each other
-(36 m apart). Odometry drifts. The same pose graph optimizer runs after three detectors:
+## How it works
 
-| | detector | what it is |
-|---|---|---|
-| A | prototype | what `vo.py` did before: old keyframes within 1 m of the drifted position, first that verifies wins |
-| B | appearance only | place recognition + verification, no false-loop defenses ("just plug in DBoW2") |
-| C | full module | everything below |
+`LoopClosureDetector.process(keyframe, global_descriptor)` runs once per new keyframe and returns a `LoopUpdate`:
+loops to add, and ids of earlier loops to take back out.
 
-Typical result (581 keyframes, seed 0, raw odometry error 5.5 m RMS, moderate drift; heavy drift in brackets):
+1. **Retrieve** old keyframes that look like the new one: a bag of visual words over the XFeat descriptors (the DBoW2
+   idea, tf-idf weighted, written in numpy with a vocabulary trained on our own data; VLAD is available too). Not the
+   DBoW2 library: its stock vocabulary is for binary ORB descriptors (XFeat's are 64-d floats) and its Python bindings
+   need a source build. Recent keyframes are excluded: fewer than `min_hops` odometry edges or `min_path` metres travelled.
+2. **Verify** every candidate geometrically (feature matching + PnP RANSAC against the old keyframe's depth) and keep
+   the best by inlier count. The verifier is passed in, so the detector logic is testable without images.
+3. **Gate** against odometry: a loop that disagrees with odometry's estimate by far more than the accumulated drift
+   allows (Mahalanobis distance, covariance propagated along the keyframe tree) is rejected.
+4. **Confirm**: `confirm_count` consecutive keyframes must find agreeing loops (ORB-SLAM3's local consistency idea).
+5. **Pairwise consistency** (the PCM / Kimera-RPGO idea): loops must agree with each other through the odometry
+   between them; the largest mutually consistent group is kept, so a later loop can retract an earlier one.
+6. **Output** with a covariance that grows as the inlier count falls (sigma_ref * sqrt(100 / inliers)).
 
-| detector | true loops | false loops | error after |
-|---|---|---|---|
-| A prototype | 29 (19) | 0 | 0.27 m (0.72 m) |
-| B appearance only | 40 (40) | **4** | **8.98 m** (15.1 m) |
-| C full module | 36 (33) | 0 | 0.28 m (0.32 m) |
+The iSAM2 backend adds odometry edges as keyframes arrive and applies each `LoopUpdate`: loop factors are remembered by
+id so retracted loops are removed (`removeFactorIndices`, the RTAB-Map approach), loop edges get a Huber loss, and a loop
+whose residual the rest of the graph cannot accept after optimizing is taken back out (RTAB-Map's error-ratio check).
 
-Read it honestly: in this world the old radius search is already decent (it finds fewer loops and degrades faster
-as drift grows). The clear win is B vs C: once loop candidates come from appearance, the look-alike hallways get
-accepted and wreck the map unless the defenses are there. The numbers come from a simulator, not real images.
-
-## Pipeline (`LoopClosureDetector.process(keyframe, global_descriptor)`)
-
-1. **Retrieve** by appearance, not by the drifted position (`retrieval.py`): a bag of visual words over the local
-   descriptors (XFeat), the DBoW2 idea (tf-idf weighted word histograms) written in numpy with a vocabulary trained on our
-   own recordings, brute-force cosine search. VLAD is available as an alternative. Keyframes within `min_hops` odometry
-   edges are excluded (graph distance, not a time rule). Why not the DBoW2 library: its stock vocabulary is for binary ORB
-   descriptors, XFeat's are 64-d floats, and its Python bindings need a source build.
-2. **Verify** every candidate, keep the best by inliers (`verification.py`): features + PnP/RANSAC against the old
-   keyframe's depth, `min_inliers`. The verifier is passed in, so the logic is testable without images.
-3. **Gate** against odometry (`gate.py`): Mahalanobis distance between the loop and odometry's estimate, with
-   covariance propagated along the keyframe tree. Rejects loops that disagree by far more than drift allows.
-4. **Confirm** over consecutive keyframes (ORB-SLAM3-style): `confirm_count` keyframes in a row must produce
-   agreeing loops.
-5. **Pairwise consistency** (`consistency.py`, the idea behind PCM / Kimera-RPGO): loops that disagree with the
-   largest mutually consistent group are dropped. A later loop can retract an earlier one.
-6. **Output** `LoopUpdate`: loops to add, loop ids to retract. Loop covariance shrinks with the inlier count.
+The design follows ORB-SLAM3, VINS-Fusion, RTAB-Map, Kimera-RPGO and cuVSLAM (read for the ideas; no code copied).
 
 ## Using it
 
-- `prototype/vo.py --loop-mode module` (default is still `radius`, the old behaviour). The vocabulary (500 words,
-  `--loop-encoder bow`, or `vlad`) is trained on the first `--loop-vocab-kfs` keyframes, or loaded with `--loop-vocab
-  loop_vocab.npz`; each run writes `loop_vocab.npz`, so train it once on a varied recording and reuse it.
-- `prototype/pose_graph.py` now scales the loop sigmas by `sqrt(100 / inliers)`.
-- `slam_core/backend/incremental.py` is the iSAM2 backend (needs gtsam). Feed it each keyframe with `add_keyframe`, and each
-  detector `LoopUpdate` with `apply`. Loop factors are remembered by `LoopConstraint.id`, so retracted loops are removed
-  (RTAB-Map does the same). After a loop goes in, its residual is checked against its own covariance and a loop the rest of
-  the graph cannot live with is taken back out (RTAB-Map's optimization error ratio idea).
-  Try it: `sim.run(scenario, detector, backend="isam2")`.
+- `prototype/vo.py --loop-mode module`: the bag-of-words vocabulary is trained on the first `--loop-vocab-kfs` keyframes,
+  or loaded with `--loop-vocab loop_vocab.npz` (every run writes one, so train it once on a varied recording and reuse it).
+  Loops go to `loops.txt` as before.
+- `prototype/pose_graph.py` now scales each loop's sigmas by its inlier count.
+- A live backend would call `IncrementalBackend.add_keyframe(kf)` for each keyframe and `apply(update)` for each
+  `LoopUpdate`; `apply` returns the ids of loops it rejected after optimizing.
 
-## Parameters (`LoopParams`) and how the defaults were chosen
+## Parameters (`LoopParams`)
 
-Defaults: `min_inliers` 30, `confirm_count` 2, `top_k` 3, `min_score` 0.3, `min_hops` 20, `min_path` 2.0 m, `cooldown` 10, gate and pairwise
-consistency on. In the simulators (which only see ~25 landmarks) `min_inliers` is 10.
-
-They come from a sweep of the whole detector (gate, confirmation and consistency included) with the real XFeat verifier
-on TUM sequences (`slam_tools/eval_detector.py`, scored against ground truth: coverage = fraction of revisit keyframes that
-have a correct loop within 5 keyframes; verifications = how many candidate pairs get the expensive matching, the main cost):
-
-| setting | coverage fr1/room, fr2/desk, fr3/office | verifications (same order) |
+| parameter | default | meaning |
 |---|---|---|
-| old: min_inliers 40, confirm 3, top_k 5, min_score 0.2 | 0.78 / 0.95 / 0.88 | 584 / 496 / 538 |
-| **new: min_inliers 30, confirm 2, top_k 3, min_score 0.3** | **0.82 / 1.00 / 1.00** | **327 / 271 / 300** (-44%) |
-| top_k 2 (even cheaper) | loses a loop on fr3 (coverage 0.72) | |
+| `min_inliers` | 30 | inliers a verified loop needs (10 in the simulators, which see ~25 landmarks) |
+| `top_k` | 3 | candidates verified per keyframe (each one costs a feature matching) |
+| `min_score` | 0.3 | retrieval similarity floor |
+| `confirm_count` | 2 | consecutive keyframes that must agree (1 = off) |
+| `min_hops` / `min_path` | 20 / 2.0 m | a candidate must be this far back along the odometry (so standing still makes no loops) |
+| `cooldown` | 10 | keyframes to wait after a loop |
+| `gate`, `gate_inflation` | on, 1.0 | the odometry plausibility gate; raise the inflation if true loops get gated out |
+| `pcm` | on | pairwise consistency |
 
-Final check on all seven TUM sequences, with the corrected scoring (a revisit needs 5 m of real travel and a view within 1 m
-and 40 deg of an earlier one; coverage = revisit keyframes with a correct loop within 5 keyframes). fr1/desk, fr1/desk2 and fr1/360
-were not used for tuning. old = min_inliers 40, confirm 3, top_k 5, min_score 0.2; new = the defaults:
+How they were chosen: the whole detector was swept with the real verifier on fr1/room, fr2/desk and fr3/long_office
+(`eval_detector.py`), then checked on four sequences not used for tuning and in the simulators. The old values were
+`min_inliers` 40, `confirm_count` 3, `top_k` 5, `min_score` 0.2. Lowering `top_k` to 2 started losing loops. These are
+TUM values, not D455 values: re-sweep on labelled D455 recordings.
+
+## Results
+
+### Simulators (identical look-alike hallways, drifting odometry)
+
+581 keyframes, raw odometry error 5.5 m (moderate drift) / 12.2 m (heavy). Same pose graph after each detector:
+
+| detector | moderate: true / false loops, error | heavy: true / false loops, error |
+|---|---|---|
+| A: old prototype (1 m radius search) | 29 / 0, 0.27 m | 19 / 0, 0.72 m |
+| B: appearance only, no defenses ("just plug in DBoW2") | 40 / **4**, **9.38 m** | 40 / **4**, **16.14 m** |
+| C: this module | 39 / 0, 0.24 m | 37 / 0, 0.38 m |
+
+Without the defenses the look-alike hallways get accepted and wreck the map. Over 8 runs (2 drift levels x 4 seeds) the
+new defaults found 309 true loops and no false ones (old defaults: 276 / 0). The 3D simulator (6-DoF, climbing path, drift
+in all axes, real iSAM2 backend) gives the same picture; there, the backend's own check also rejects the false loops.
+
+### Real data: the detector on its own (7 TUM sequences, scored against ground truth)
+
+A *revisit* is a keyframe within 1 m and 40 deg of an earlier one after at least 5 m of true travel; *coverage* is the
+fraction of revisit keyframes with a correct loop (within 10 cm and 5 deg of the true relative pose) within 5 keyframes;
+*verifications* is how many candidate pairs got the expensive matching. fr1/desk, fr1/desk2, fr1/360 and
+fr2/large_with_loop were not used for tuning.
 
 | sequence | keyframes | revisit kfs | coverage old / new | loops (correct) old / new | verifications old / new |
 |---|---|---|---|---|---|
@@ -88,91 +107,58 @@ were not used for tuning. old = min_inliers 40, confirm 3, top_k 5, min_score 0.
 | fr3/long_office | 141 | 25 | 0.88 / 1.00 | 3 (3) / 4 (4) | 538 / 300 |
 | fr1/desk | 62 | 20 | 0.60 / 0.95 | 2 (2) / 3 (3) | 162 / 82 |
 | fr1/desk2 | 79 | 30 | 0.93 / 0.97 | 4 (4) / 4 (4) | 235 / 119 |
-| fr1/360 (spins in place) | 100 | 23 | 0.83 / 0.87 | 2 (2) / 3 (2) | 363 / 188 |
+| fr1/360 | 100 | 23 | 0.83 / 0.87 | 2 (2) / 3 (2) | 363 / 188 |
 | fr2/large_with_loop | 263 | 0 | no scoreable revisit | 1 (1) / 1 (1) | 1153 / 674 |
 
-Over the six scored sequences: mean coverage 0.83 -> 0.94, correct loops 17 -> 19, verifications 2378 -> 1287 (-46%). The one
-"incorrect" loop (fr1/360, KF 70 -> KF 0) is not a wrong place: those keyframes are really 25 cm apart, but it had only 33 inliers
-and its pose is off by 7.7 cm and 5.1 deg (the cut-off for "correct" is 10 cm and 5 deg). That is the price of `min_inliers`
-30 over 40: slightly less accurate weakest loops (their sigmas are inflated for it: sqrt(100 / inliers)). In the simulators
-(8 runs, two drift levels) the new setting finds more true loops (309 vs 276) and still no false ones.
+Six scored sequences: mean coverage 0.83 -> 0.94, correct loops 17 -> 19, verifications -46%. No loop was at a wrong
+place; the one "incorrect" loop is a weak one (see failure cases). Retrieval alone (`eval_loops_pr.py`, fr1/room, fr2/desk,
+fr3/long_office) puts a true revisit among its top 5 candidates 84 / 95 / 96% of the time with bag of words (80 / 89 / 88%
+with VLAD). Two other ideas were measured and dropped because they did not help: re-ranking candidates by neighbouring
+keyframes' scores, and a second guided-matching pass in verification.
 
-fr2/large_with_loop: an earlier version of the scoring counted ~190 "revisits" there that were really the camera standing
-still at the start (keyframes kept being created with no motion). The detector now excludes candidates closer than `min_path`
-(2 m) along the odometry path, and the scoring needs 5 m of true travel. Views of a far scene with no depth (beyond the
-sensor range) cannot be verified with PnP at all; a 2D-2D fallback (essential matrix, up to scale) would be needed for them.
+### Real data: whole-system trajectory error (ATE RMSE, every 2nd frame, CPU)
 
-Caveat: TUM has no look-alike places, so these sweeps cannot measure false-loop risk (the gate rejected nothing); that is
-tested in the simulators. All of it should be re-swept on D455 recordings with labelled revisits.
+| sequence | VO only | old radius search | this module | ceiling: perfect loops |
+|---|---|---|---|---|
+| fr1/room | 0.319 m | 0.125 m | 0.115 m | 0.116 m |
+| fr2/desk | 0.089 m | 0.089 m | 0.088 m | 0.089 m |
+| fr3/long_office | 0.124 m | 0.030 m | 0.031 m | 0.036 m |
+| fr1/desk | 0.038 m | 0.031 m | 0.026 m | |
+| fr1/desk2 | 0.155 m | 0.044 m | 0.040 m | |
+| fr1/360 | 0.185 m | 0.185 m (no loops found) | 0.122 m | |
 
-## Verified vs not
+The module is never worse than the old search and clearly better where the old search finds nothing (fr1/360). (The old-search runs on fr1/desk, fr1/desk2 and fr1/360 used 30 inliers instead of its default 40, which can only have helped it.) The
+ceiling column (`oracle_loops.py`: the same pose graph fed perfect loops from the ground truth) shows the module is already
+at what any loop detector could reach on these sequences: what is left is the visual odometry's local noise, not loop
+closure. Every accepted loop on fr1/room was also checked by hand against the ground truth (1.1-4.9 cm, 0.4-2.7 deg).
+fr2/large_with_loop was not finished (the run stopped when the laptop slept).
 
-- Verified on the simulator: the 20 tests (Linux, GTSAM 4.3.0, numpy 2.5) including detector + iSAM2 backend, and the real
-  `prototype/pose_graph.py` on simulator output (graph error 5132 -> 10.5, start-to-end gap 18.9 m -> 1.2 m).
-- **Verified on real images: three TUM sequences** (real XFeat + LighterGlue features, PnP, real GTSAM, every 2nd frame,
-  CPU only, one run each). Reproduce: `slam_tools/run_tum_loop.py DATASET --loop-mode none|radius|module --out DIR`
-  and `slam_tools/eval_loops_pr.py DATASET` (needs torch, kornia, tqdm, opencv, gtsam; XFeat via torch.hub).
+### Cost
 
-  Whole system, trajectory error (ATE RMSE):
+Feature matching is almost all of it. On a 20-thread laptop CPU (with other jobs running): XFeat detection about 140 ms
+per image, LighterGlue matching about 145 ms, one candidate verification about 150-170 ms. The new defaults average about
+2 verifications per keyframe, so about 0.3 s of loop closure work per keyframe on CPU, which should run in a background
+thread. **GPU speed is not measured yet**: run `slam_tools/bench_matching.py` on a CUDA machine (and again with
+`CUDA_VISIBLE_DEVICES=` to force the CPU) to get it.
 
-  | sequence | VO only | old radius search | new module |
-  |---|---|---|---|
-  | fr1/room | 0.319 m | 0.125 m (2 loops) | 0.112 m (4 loops) |
-  | fr2/desk | 0.089 m | 0.089 m (2 loops) | 0.092 m (2 loops) |
-  | fr3/long_office | 0.124 m | 0.030 m (4 loops) | 0.030 m (3 loops) |
+## Failure cases (cause and fix)
 
-  Loop closure on its own (`eval_loops_pr.py`: retrieval + verification vs ground truth; a revisit = a keyframe at least
-  20 odometry edges after another one within 1 m and 40 deg; correct = within 10 cm and 5 deg of the true relative pose):
+| failure | cause | what happens | fix / status |
+|---|---|---|---|
+| False loop between look-alike places | appearance and local geometry both match (perceptual aliasing) | without defenses: 4 false loops, map error 5.5 -> 9.4 m (simulator) | odometry gate, confirmation, pairwise consistency, backend error check. Tested in the simulators only: TUM has no look-alike places |
+| "Loops" while standing still | VO keeps making keyframes with no motion, so a hop count says the robot travelled | the robot loop-closes to where it already is (found on fr2/large_with_loop) | fixed: `min_path` (2 m along the odometry path); unit-tested |
+| A weak loop is slightly off | `min_inliers` 30 accepts loops with few matches | fr1/360: KF 70 -> 0, right place, 33 inliers, off by 7.7 cm / 5.1 deg | accepted trade-off: its sigmas are inflated by the inlier count, and the loop edge has a Huber loss |
+| Revisit not retrieved | viewpoint change between the two visits | 4-16% of revisits never reach verification | open: a learned global descriptor (check licences: SALAD is GPL-3.0, DINOv2 weights unclear) |
+| View with no depth | far scene beyond the depth sensor's range | the PnP verifier cannot verify it at all | open: needs a 2D-2D (essential matrix) fallback |
+| True loop gated out under heavy drift | odometry covariances smaller than the real drift | fewer loops (simulator, heavy drift: many candidates gated) | `gate_inflation`; tune on D455 data |
 
-  | sequence | keyframes with a revisit | retrieval recall@5 | precision at >=40 inliers | recall at >=40 inliers |
-  |---|---|---|---|---|
-  | fr1/room | 49 / 148 | 0.80 | 1.00 (33/33) | 0.67 |
-  | fr2/desk | 19 / 129 | 0.89 | 1.00 (15/15) | 0.79 |
-  | fr3/long_office | 25 / 141 | 0.88 | 1.00 (24/24) | 0.84 |
+Tracking loss (the other half of the README's failure-case item) belongs to the VO frontend and is not covered here.
 
-  Retrieval and verification experiments (same three sequences, `eval_loops_pr.py`, cached VO keyframes; retrieval recall@5 /
-  recall of verified loops at 100% precision; fr1/room, fr2/desk, fr3/long_office):
+## Not done
 
-  | variant | retrieval recall@5 | verified recall at 100% precision | decision |
-  |---|---|---|---|
-  | VLAD (64 clusters), baseline | 0.80 / 0.89 / 0.88 | 0.67 / 0.79 / 0.84 | alternative |
-  | **bag of words, 500 words** | **0.84 / 0.95 / 0.96** | 0.69 / 0.79 / 0.84 | **default** |
-  | bag of words, 1000 words | 0.86 / 0.95 / 0.88 | 0.69 / 0.79 / 0.88 | same within noise, bigger |
-  | group re-ranking (window 3 / 6) | 0.80 / 0.89 / 0.80 (w3) | 0.61 / 0.79 / 0.84 (w3), 0.59 (room, w6) | off: no gain, worse on fr1 |
-  | guided matching (second PnP pass) | 0.80 / 0.89 / 0.88 | 0.67 / 0.79 / 0.84 (identical to baseline) | off: no measurable effect |
-
-  Precision was 100% in every variant. Samples are small (19-49 revisit keyframes), so one or two loops are noise; the
-  retrieval recall gain of bag of words (+4, +6, +8 points) is the clearest signal. Guided matching (`loop_guided=1`) and group
-  re-ranking (`LoopParams.group_window`) stay in the code, off by default, because they did not help on this data.
-
-  Ceiling for any loop closure (`slam_tools/oracle_loops.py`: the same pose graph fed perfect loops built from the ground
-  truth, no images): fr1/room 0.319 -> 0.116 m, fr2/desk 0.089 -> 0.089 m, fr3/long_office 0.124 -> 0.036 m. Our detector
-  (old defaults) got 0.112 / 0.092 / 0.030 m, i.e. at the ceiling (it can even go slightly under it, since the oracle is not
-  a strict bound). So on these sequences better loop detection cannot lower the whole-system error further: what is left is
-  the visual odometry's local noise. The detector improvements show up in coverage, cost and false-loop protection instead.
-
-  Reading it honestly:
-  - Precision was 100% on all three (all 72 accepted verified loops correct), and the earlier fr1/room check of the accepted
-    loops against the ground truth also found no false loops. Recall at 100% precision is 67-84%; retrieval misses 11-20% of
-    revisits.
-  - End to end, the module is **not measurably better than the old radius search on these sequences** (differences of 1-13 mm,
-    within what one run can show; slightly worse on fr2/desk). These sequences only revisit nearby, with little drift, which
-    is the case the radius search handles. Loop closure itself helps a lot where drift is large (fr1/room 2.8x, fr3 4.1x)
-    and not at all on fr2/desk, whose VO error is already small.
-  - Whole-system accuracy is well behind ORB-SLAM2 (published roughly 5 cm / 1 cm / 1 cm on these three, protocols differ):
-    the gap is the VO frontend (no local map or bundle adjustment, every 2nd frame), not the loop closure.
-  - The precision/recall sweep covers retrieval + verification only, not the gate, confirmation and consistency stages;
-    sample sizes are small (19-49 revisit keyframes per sequence); one run each.
-- `vo.py --loop-mode module` works end to end on real data with the default `LoopParams`.
-
-## Not done / known limits
-
-- Real-data validation and tuning of thresholds (see above).
-- The gate can reject true loops under heavy unmodelled drift (it did reject many candidates in the heavy-drift runs); the
-  iSAM2 backend's Huber loss treats a loop that is far from odometry as an outlier, so large true corrections come in
-  gradually.
-- Identical places that are also geometrically identical and *close in odometry terms* cannot be told apart by
-  anything here.
-- A learned global descriptor (NetVLAD / DINOv2-based) may beat bag of words; check licences first (SALAD is GPL-3.0, the
-  DINOv2 weights' licence is unclear). Gait blur: only let sharp keyframes be loop candidates.
-- The arm-masking and keyframe stability gating for the humanoid are separate work.
+- D455 recordings with labelled revisits (re-sweep the parameters there) and a real look-alike environment.
+- GPU timing; running loop detection in a background thread; batching a keyframe's candidates in one matching call.
+- `--loop-mode module` as the default in `vo.py`; a ROS node and `LoopClosure` message; keyframe database save/load;
+  rebuilding the dense map after a loop.
+- A 2D-2D verification fallback for views without depth.
+- A head-to-head against a mature system (e.g. RTAB-Map's detector on the same sequences, same scoring).

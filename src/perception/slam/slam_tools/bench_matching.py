@@ -52,23 +52,25 @@ def main():
         if torch.cuda.is_available():
             torch.cuda.synchronize()
 
+    # Runs fn, waiting for the GPU before and after so the time is real, and returns (result, milliseconds)
+    def timed(fn, *a):
+        sync()
+        t = time.perf_counter()
+        out = fn(*a)
+        sync()
+        return out, (time.perf_counter() - t) * 1000
+
     t_detect, t_match, t_verify = [], [], []
     for n, (f1, f2) in enumerate(zip(frames, pairs_with)):
-        sync(); t = time.perf_counter()
-        d1 = vo.detect(xfeat, f1.image, p.top_k)
-        sync(); t1 = time.perf_counter() - t
+        d1, ms_detect = timed(vo.detect, xfeat, f1.image, p.top_k)
         d2 = vo.detect(xfeat, f2.image, p.top_k)
-        sync(); t = time.perf_counter()
-        vo.match(xfeat, d1, d2)
-        sync(); t2 = time.perf_counter() - t
+        _, ms_match = timed(vo.match, xfeat, d1, d2)
         ref = vo.Ref(None, d1, f1.depth, f1.image)
-        sync(); t = time.perf_counter()
-        vo.estimate_pose(xfeat, ref, d2, f1.K, f1.dist, p, 15)
-        sync(); t3 = time.perf_counter() - t
+        _, ms_verify = timed(vo.estimate_pose, xfeat, ref, d2, f1.K, f1.dist, p, 15)
         if n >= args.warmup:
-            t_detect.append(t1 * 1000)
-            t_match.append(t2 * 1000)
-            t_verify.append(t3 * 1000)
+            t_detect.append(ms_detect)
+            t_match.append(ms_match)
+            t_verify.append(ms_verify)
     print(f"detect  {stats(t_detect)}")
     print(f"match   {stats(t_match)}")
     print(f"verify  {stats(t_verify)}")

@@ -60,7 +60,7 @@ def main():
             ax.plot(P[:, 0], P[:, 1], color="tab:red" if label == "VO only" else "tab:blue", lw=1.4,
                     label="VO" if label == "VO only" else "after loop closure")
             loops_file = os.path.join(run, "loops.txt")
-            rows = [l.split() for l in open(loops_file) if l.strip() and not l.startswith("#")] if os.path.exists(loops_file) else []
+            rows = [line.split() for line in open(loops_file) if line.strip() and not line.startswith("#")] if os.path.exists(loops_file) else []
             if rows:
                 kf = read(os.path.join(run, "kf_after.txt"))                # one pose per keyframe, id order
                 K = (R @ kf[:, 1:4].T).T + t

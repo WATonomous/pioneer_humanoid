@@ -34,15 +34,14 @@ def main():
     ap.add_argument("--encoder", choices=["vlad", "bow"], default="vlad", help="global descriptor: VLAD (k=64) or bag of words (k=500)")
     ap.add_argument("--k", type=int, default=0, help="vocabulary size (0 = 64 for vlad, 500 for bow)")
     ap.add_argument("--cache-only", action="store_true", help="save the VO cache and stop")
-    ap.add_argument("--group", type=int, default=0, help="retrieval group re-ranking window (0 = off)")
     ap.add_argument("--cache", default="", help="file to save/load the VO keyframes (skips re-running VO)")
-    ap.add_argument("--set", nargs="*", default=[], help="VO Params overrides, e.g. loop_guided=1")
+    ap.add_argument("--set", nargs="*", default=[], help="VO Params overrides, e.g. loop_min_inliers=40")
     ap.add_argument("--vocab-kfs", type=int, default=0, help="train the vocabulary on the first N keyframes (0 = all)")
     args = ap.parse_args()
 
     import vo
     from slam_core.io.tum import TUMDataset, load_groundtruth
-    from slam_core.loop_closure import BagOfWords, DescriptorDatabase, KeyframeGraph, Vlad, group_rerank
+    from slam_core.loop_closure import BagOfWords, DescriptorDatabase, KeyframeGraph, Vlad
     from slam_core.types.pose import from_tum, inv_T, rotation_angle
 
     over = dict(kv.split("=") for kv in args.set)
@@ -67,7 +66,10 @@ def main():
     print(f"{len(kfs)} keyframes")
 
     gt = load_groundtruth(args.dataset)
-    pose = lambda t: from_tum(gt[int(np.argmin(np.abs(gt[:, 0] - t))), 1:8])
+
+    def pose(t):                         # ground truth pose nearest in time
+        return from_tum(gt[int(np.argmin(np.abs(gt[:, 0] - t))), 1:8])
+
     G = [pose(k.stamp) for k in kfs]
 
     def rel_err(i, j, T):                # error of T_i_j against ground truth
@@ -86,9 +88,7 @@ def main():
     rows = []         # (has_revisit, retrieved_true_revisit, best_inliers, best_correct)
     for k in kfs:
         desc = vlad.encode(k.descriptors)
-        cands = [] if len(db) == 0 else group_rerank(
-            db.query(desc, k=4 * args.top_k, min_score=args.min_score, exclude=lambda j: graph.hops(j, k.id) < args.min_hops),
-            args.group)[:args.top_k]
+        cands = [] if len(db) == 0 else db.query(desc, k=args.top_k, min_score=args.min_score, exclude=lambda j: graph.hops(j, k.id) < args.min_hops)
         db.add(k.id, desc)
         true_olds = []
         for j in range(k.id):

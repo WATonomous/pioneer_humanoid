@@ -49,7 +49,10 @@ def main():
     import matplotlib.pyplot as plt
 
     sc = sim.make_scenario(seed=args.seed, **DRIFT[args.drift])
-    verify = lambda: sim.make_verifier(sc)
+
+    def verify():                         # a fresh simulated verifier per detector
+        return sim.make_verifier(sc)
+
     p = dict(min_inliers=10)    # the simulator sees ~20-30 landmarks, real XFeat matches are far more numerous
     variants = [
         ("A  prototype (1 m radius)", sim.PrototypeDetector(verify(), min_inliers=10)),

@@ -75,7 +75,7 @@ def main():
     from slam_core.loop_closure import BagOfWords, KeyframeGraph, LoopClosureDetector, LoopParams, Vlad
     from slam_core.types.pose import from_tum, inv_T, rotation_angle
 
-    p = vo.Params(loop_min_inliers=15)          # the verifier returns anything with 15+ inliers; the detector filters
+    p = vo.Params()                              # the verifier returns anything with 15+ inliers; the detector filters
     V = vo.VO(vo.load_xfeat(p.top_k), p)
     V.refs, V.K, V.dist = torch.load(args.cache, weights_only=False)
     kfs = V.keyframes

@@ -8,7 +8,10 @@ from slam_core.loop_closure import DescriptorDatabase, LoopClosureDetector, Loop
 def test_vlad_ranks_the_same_scene_above_a_different_one():
     rng = np.random.default_rng(0)
     scenes = [rng.normal(size=(40, 64)) for _ in range(3)]     # each scene has its own set of 40 descriptor "prototypes"
-    view = lambda s: scenes[s][rng.choice(40, 30, replace=False)] + rng.normal(0, 0.15, (30, 64))
+
+    def view(s):                        # 30 of a scene's descriptors, a little noisy
+        return scenes[s][rng.choice(40, 30, replace=False)] + rng.normal(0, 0.15, (30, 64))
+
     vlad = Vlad(k=16)
     vlad.fit([view(s) for s in range(3) for _ in range(5)])
     db = DescriptorDatabase()
@@ -23,7 +26,10 @@ def test_bag_of_words_ranks_the_same_scene_above_a_different_one():
     from slam_core.loop_closure import BagOfWords
     rng = np.random.default_rng(1)
     scenes = [rng.normal(size=(40, 64)) for _ in range(3)]
-    view = lambda s: scenes[s][rng.choice(40, 30, replace=False)] + rng.normal(0, 0.15, (30, 64))
+
+    def view(s):                        # 30 of a scene's descriptors, a little noisy
+        return scenes[s][rng.choice(40, 30, replace=False)] + rng.normal(0, 0.15, (30, 64))
+
     bow = BagOfWords(k=60)
     bow.fit([view(s) for s in range(3) for _ in range(5)])
     db = DescriptorDatabase()
@@ -92,12 +98,3 @@ def test_vlad_retrieval_end_to_end(scenario):
     det = LoopClosureDetector(sim.make_verifier(sc), LoopParams(min_inliers=10, min_score=0.3))
     r = sim.run(sc, det, optimize=False)
     assert r["n_false"] == 0 and r["n_long"] >= 10
-
-
-def test_group_rerank_prefers_a_supported_place_over_a_lone_match():
-    from slam_core.loop_closure import group_rerank
-    # keyframes 10-12 all match moderately, keyframe 50 matches a bit better on its own but has no neighbours
-    results = [(50, 0.62), (11, 0.60), (10, 0.58), (12, 0.57)]
-    assert group_rerank(results, 0) == results
-    ranked = group_rerank(results, 3)
-    assert [i for i, _ in ranked] == [11, 50]          # the supported place first, best member of the group

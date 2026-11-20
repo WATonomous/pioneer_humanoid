@@ -127,23 +127,3 @@ class DescriptorDatabase:
             if len(out) == k:
                 break
         return out
-
-
-# Re-ranks retrieval results so that places, not single keyframes, compete: a keyframe's score is boosted by the
-# scores of its temporal neighbours (ids within `window`) that were also retrieved. Returns one entry per place, the
-# best-scoring member, most supported place first. window = 0 leaves the results as they are.
-# Reason: a true revisit usually retrieves a run of consecutive keyframes, a fluke match retrieves one
-def group_rerank(results, window):
-    if window <= 0:
-        return list(results)
-    score = dict(results)
-    support = {i: sum(s for j, s in results if abs(j - i) <= window) for i in score}
-    out, used = [], set()
-    for i in sorted(score, key=lambda i: -support[i]):
-        if i in used:
-            continue
-        members = [j for j in score if abs(j - i) <= window]
-        best = max(members, key=lambda j: score[j])
-        out.append((best, score[best]))
-        used.update(members)
-    return out

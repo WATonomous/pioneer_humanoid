@@ -116,48 +116,6 @@ def estimate_pose(xfeat, ref, feats, K, dist, p, min_inliers):
     return inv_T(T_cur_ref), img[idx], None
 
 
-# Guided matching for loop verification: project the old keyframe's 3D points through the first pose estimate, and for
-# each look for the new keyframe's keypoint nearby (within `radius` px) with the most similar descriptor. This finds
-# matches the global matcher missed, so the pose is better supported (more inliers) and borderline loops get verified.
-# Returns (T_old_new, n_inliers) from PnP on those pairs, or None
-def refine_guided(old, feats, T_old_new, K, dist, p, radius=12.0, min_sim=0.8):
-    kp_o = old.feats["keypoints"].cpu().numpy().astype(np.float64)
-    d_o = old.feats["descriptors"].cpu().numpy()
-    X, valid = backproject(kp_o, old.depth, K, dist, p.zmin, p.zmax)
-    if len(X) < 10:
-        return None
-    d_o = d_o[valid]
-    T_cur_old = inv_T(T_old_new)
-    Xc = X @ T_cur_old[:3, :3].T + T_cur_old[:3, 3]
-    front = Xc[:, 2] > 0.1
-    X, Xc, d_o = X[front], Xc[front], d_o[front]
-    if len(X) < 10:
-        return None
-    uv = cv2.projectPoints(Xc, np.zeros(3), np.zeros(3), K, dist)[0].reshape(-1, 2)
-    kp_n = feats["keypoints"].cpu().numpy().astype(np.float64)
-    d_n = feats["descriptors"].cpu().numpy()
-    unit = lambda a: a / np.maximum(np.linalg.norm(a, axis=1, keepdims=True), 1e-9)
-    sim = unit(d_o) @ unit(d_n).T
-    sim[np.linalg.norm(uv[:, None, :] - kp_n[None, :, :], axis=2) > radius] = -1
-    best = sim.argmax(axis=1)
-    best_sim = sim[np.arange(len(best)), best]
-    keep = best_sim > min_sim
-    # A new keypoint can only be the match of one old point: keep the most similar claim on each
-    for j in np.unique(best[keep]):
-        claim = np.where(keep & (best == j))[0]
-        if len(claim) > 1:
-            keep[claim[np.argsort(-best_sim[claim])[1:]]] = False
-    if keep.sum() < 6:
-        return None
-    pts3d, px = X[keep], kp_n[best[keep]]
-    found, rvec, tvec, inl = cv2.solvePnPRansac(pts3d, px, K, dist, iterationsCount=100, reprojectionError=3.0, confidence=0.999)
-    if not found or inl is None or len(inl) < 6:
-        return None
-    idx = inl[:, 0]
-    rvec, tvec = cv2.solvePnPRefineLM(pts3d[idx], px[idx], K, dist, rvec, tvec)
-    return inv_T(make_T(cv2.Rodrigues(rvec)[0], tvec.ravel())), len(idx)
-
-
 # Every tuning knob for VO; main() turns each one into a command line flag
 @dataclass
 class Params:
@@ -183,12 +141,11 @@ class Params:
     loop_cooldown: int = 10      # Keyframes to wait after a loop before looking again
     loop_radius: float = 1.0     # M, candidates within this distance (by VO estimate)
     loop_max_cands: int = 3
-    loop_min_inliers: int = 30   # Stricter than tracking: false loops are worse than missed ones
+    loop_min_inliers: int = 40   # Stricter than tracking: false loops are worse than missed ones
     # "radius" is the brute force search below. "module" uses slam_core.loop_closure instead: place recognition
-    # (VLAD over the XFeat descriptors), verification, odometry gate, confirmation over keyframes, consistency
+    # (bag of words over the XFeat descriptors), verification, odometry gate, confirmation over keyframes,
+    # consistency. The module's own thresholds (e.g. 30 inliers) are slam_core.loop_closure.LoopParams defaults
     loop_mode: str = "radius"
-    loop_guided: int = 0         # 1: after the first pose estimate, search for more matches near the projected points
-    loop_stage1_inliers: int = 20  # guided mode: inliers the first PnP needs; loop_min_inliers applies after refinement
     loop_encoder: str = "bow"    # module: place recognition descriptor, bow (bag of words, tf-idf) or vlad
     loop_k: int = 0              # module: vocabulary size (0 = 500 words for bow, 64 clusters for vlad)
     loop_vocab_kfs: int = 40     # module: keyframes used to train the vocabulary before loop search starts
@@ -373,23 +330,12 @@ class VO:
                 return r.kf.id
         return -1
 
-    # Verifies one (old, new) keyframe pair for the loop detector: match, PnP against the old keyframe's depth, and
-    # (loop_guided) a second pass that searches for more matches around the projected points
+    # Verifies one (old, new) keyframe pair for the loop detector: match, PnP against the old keyframe's depth.
+    # Returns anything with 15+ inliers; the detector applies its own threshold (LoopParams.min_inliers)
     def _verify_loop(self, old_id, new_id):
-        p = self.p
-        old, new = self.refs[old_id], self.refs[new_id]
-        T, inl_px, _ = estimate_pose(self.xfeat, old, new.feats, self.K, self.dist, p,
-                                     p.loop_stage1_inliers if p.loop_guided else p.loop_min_inliers)
-        if T is None:
-            return None
-        n = len(inl_px)
-        if p.loop_guided:
-            g = refine_guided(old, new.feats, T, self.K, self.dist, p)
-            if g is not None and g[1] > n:
-                T, n = g
-            if n < p.loop_min_inliers:
-                return None
-        return Verification(T, loop_covariance(n), n)
+        T, inl_px, _ = estimate_pose(self.xfeat, self.refs[old_id], self.refs[new_id].feats, self.K, self.dist,
+                                     self.p, 15)
+        return None if T is None else Verification(T, loop_covariance(len(inl_px)), len(inl_px))
 
     # Loop detection with slam_core.loop_closure. Place recognition needs a vocabulary: it is loaded from
     # loop_vocab, or trained on the first loop_vocab_kfs keyframes, and no loops are searched until then.
@@ -398,7 +344,7 @@ class VO:
     def _detect_loop_module(self, new):
         p = self.p
         if self.detector is None:
-            self.detector = LoopClosureDetector(self._verify_loop, LoopParams(min_inliers=p.loop_min_inliers))
+            self.detector = LoopClosureDetector(self._verify_loop, LoopParams())
             self.encoder = BagOfWords(p.loop_k or 500) if p.loop_encoder == "bow" else Vlad(p.loop_k or 64)
             if p.loop_vocab:
                 v = np.load(p.loop_vocab)
