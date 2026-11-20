@@ -93,9 +93,9 @@ def slerp(q0, q1, fraction: float) -> np.ndarray:
 
 
 def rot6d(rotation) -> np.ndarray:
-    """Continuous 6D rotation (Zhou et al. 2019; UMI's and Diffusion Policy's): the first two columns, column-major."""
+    """Continuous 6D rotation (Zhou et al. 2019): the first two ROWS of the matrix, as UMI's mat_to_rot6d."""
     r = np.asarray(rotation, dtype=float)
-    return np.concatenate([r[:, 0], r[:, 1]])
+    return np.concatenate([r[0, :], r[1, :]])
 
 
 def rot6d_to_matrix(value) -> np.ndarray:
@@ -104,7 +104,7 @@ def rot6d_to_matrix(value) -> np.ndarray:
     a = v[:3] / np.linalg.norm(v[:3])
     b = v[3:] - np.dot(a, v[3:]) * a
     b /= np.linalg.norm(b)
-    return np.stack([a, b, np.cross(a, b)], axis=1)
+    return np.stack([a, b, np.cross(a, b)], axis=0)
 
 
 def pose_to_vector(pose) -> np.ndarray:

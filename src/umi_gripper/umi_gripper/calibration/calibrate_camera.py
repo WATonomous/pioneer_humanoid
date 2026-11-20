@@ -124,15 +124,15 @@ def main(argv=None) -> int:
         return 1
     # Lag on the raw camera stamps (no latency applied) against the pose track with its pose latency.
     cfg_no_cam_latency = umi_config.deep_merge(cfg, {"latency": {"camera_s": 0.0}})
-    pose_t, positions, quats = pose_track(take, cfg_no_cam_latency)
-    pose_rot = np.array([geometry.quat_to_matrix(q) for q in quats])
+    track = pose_track(take, cfg_no_cam_latency)
+    pose_rot = np.array([geometry.quat_to_matrix(q) for q in track.quats])
     cam_t = take.camera_s[[i for i, _ in views]]
     cam_rot = np.array([np.linalg.inv(p[:3, :3]) for _, p in views])   # camera orientation w.r.t. the marker
-    lag, score = estimate_lag(*angular_speed(pose_t, pose_rot), *angular_speed(cam_t, cam_rot))
+    lag, score = estimate_lag(*angular_speed(track.times, pose_rot), *angular_speed(cam_t, cam_rot))
     print(f"camera stamps run {lag * 1000:+.0f} ms relative to poses (correlation {score:.2f})")
     if score < 0.5:
         print("WARNING: weak correlation; wave the gripper more briskly and record again")
-    grip, valid = interpolate_poses(pose_t, positions, quats, cam_t - lag, cfg["postprocess"]["max_tracking_gap_s"])
+    grip, valid = interpolate_poses(track, cam_t - lag, cfg["postprocess"]["max_tracking_gap_s"])
     world_grip = grip[valid]
     cam_marker = np.array([p for _, p in views])[valid]
     grip_cam, spread = solve_hand_eye(world_grip, cam_marker)

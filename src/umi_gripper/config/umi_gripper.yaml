@@ -34,7 +34,7 @@ camera:
   device: 0                # OpenCV index, or /dev/v4l/by-id/... on Linux (stable across reboots)
   rectify: true            # wrist_cam.rectify(): the 640x480 pinhole the sim wrist cameras render (perception/camera_calibration)
   calib_dir: null          # null: pioneer_humanoid/calib, as the wrist_camera node
-  fps: 30
+  fps: 25                  # 25 or 50 (a multiple of postprocess.fps), so every step has a frame at its own time
   jpeg_quality: 92
 
 width:
@@ -46,17 +46,18 @@ width:
   open_count: null         # raw counts, jaws fully open / closed: calibrate_width.py
   closed_count: null
   rate_hz: 100
+  max_width_m: 0.082       # jaw gap fully open, for gripper_width_m: the 8dof gripper's (2 x GRIPPER_STROKE)
 
 server: {host: 127.0.0.1, port: 8444, cert: null, key: null}   # adb reverse tcp:8444 tcp:8444, as the Quest teleop
 
 record:
   raw_root: datasets/umi_raw      # relative to the repo root (git-ignored); one folder per session, one per take
 
-# Post-processing: resampling and the checks a take must pass to enter the dataset.
+# Post-processing (postprocess/): resampling, and where a take is cut into episodes (quality.py).
 postprocess:
   fps: 25                         # the repo's dataset rate
-  max_tracking_gap_s: 0.1         # longer controller loss inside a take drops it
-  max_camera_gap_s: 0.1
-  max_speed_m_s: 2.0              # faster TCP motion is a tracking jump, not a hand
+  max_tracking_gap_s: 0.1         # a longer controller loss cuts the take there; shorter ones are interpolated
+  max_frame_offset_s: 0.02        # a step needs a camera frame this close to its grid time (half a 25 fps step)
+  max_speed_m_s: 2.0              # faster TCP motion is a tracking jump, not a hand: cut there
   max_angular_speed_rad_s: 15.0
-  min_duration_s: 1.0
+  min_duration_s: 1.0             # shorter pieces are dropped

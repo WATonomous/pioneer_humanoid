@@ -16,7 +16,7 @@ import numpy as np
 
 from umi_gripper import config as umi_config
 from umi_gripper._paths import PIONEER_HUMANOID, add
-from umi_gripper.postprocess.quality import check_episode
+from umi_gripper.postprocess.quality import split_episode
 from umi_gripper.postprocess.reachability import _arm_joints, check_reach, relative_tcp
 from umi_gripper.postprocess.sync import sync_take
 from umi_gripper.take import load_take
@@ -48,19 +48,23 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("take", type=Path)
     parser.add_argument("--arm", choices=("left", "right"), default="left")
+    parser.add_argument("--episode", type=int, default=0, help="which episode of the take (it may split at gaps)")
     parser.add_argument("--joint-speed", type=float, default=2.0)
     parser.add_argument("--video", type=Path, default=None, help="render to this .mp4 instead of opening a viewer")
     parser.add_argument("--loop", action="store_true", help="viewer: replay until closed")
     args = parser.parse_args(argv)
     cfg = umi_config.load_config()
     fps = float(cfg["postprocess"]["fps"])
-    verdict = check_episode(sync_take(load_take(args.take), cfg), cfg["postprocess"])
-    if not verdict.ok:
-        print("note: this take fails the dataset checks: " + "; ".join(verdict.reasons))
-    episode = verdict.episode
-    if not len(episode):
+    split = split_episode(sync_take(load_take(args.take), cfg), cfg["postprocess"])
+    for reason in split.reasons:
+        print(f"note: {reason}")
+    if not split.ok:
         print("nothing to replay")
         return 1
+    if not 0 <= args.episode < len(split.episodes):
+        print(f"--episode must be in [0, {len(split.episodes)}): the take splits into {len(split.episodes)} episodes")
+        return 1
+    episode = split.episodes[args.episode]
     reach = check_reach(relative_tcp(episode), fps, args.arm, args.joint_speed)
     summary = reach.summary()
     print(f"{summary['reachable_fraction']:.0%} of steps reachable; max error "

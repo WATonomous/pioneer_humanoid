@@ -25,7 +25,7 @@ def true_closure(t: float) -> float:
     return float(0.5 + 0.5 * np.sin(0.8 * t))
 
 
-def make_take(path: Path, duration: float = 4.0, *, pose_hz: float = 72.0, camera_hz: float = 30.0,
+def make_take(path: Path, duration: float = 4.0, *, pose_hz: float = 72.0, camera_hz: float = 25.0,
               width_hz: float = 100.0, clock_offset_s: float = 1234.5, transport_jitter_s: float = 0.004,
               camera_latency_s: float = 0.0, untracked=(), epochs=None, camera: bool = True,
               jump_at: float | None = None, seed: int = 0, meta: dict | None = None) -> Path:

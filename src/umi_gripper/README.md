@@ -52,7 +52,7 @@ which overrides the yaml. Commit that file, as the leader arm's `leader_arm.json
 else has to re-measure it.
 
 Frames (details in the yaml):
-- **world**: the headset's floor frame. It never enters the data: everything is stored relative to the episode's first pose.
+- **world**: the headset's floor frame. Re-centring moves it, so the state is stored relative to each episode's first pose.
 - **grip**: the controller's WebXR grip pose.
 - **tcp**: the robot's tool frame. The fingers point along -Z, and the origin is between the jaws, 25 mm up from the tips.
 - **camera**: the camera's OpenCV frame.
@@ -100,23 +100,27 @@ host timestamps: the raw grip poses, encoder counts and JPEG frames. Nothing is 
 recalibrating later re-converts old takes.
 
 **Tracking tips:** keep the controller where the headset's cameras can see it. Turn your head toward your work;
-don't reach behind objects or your back. Short tracking gaps (< 100 ms) are interpolated over. Longer gaps inside a
-take reject it; gaps at the start or end are trimmed off.
+don't reach behind objects or your back. Short tracking gaps (< 100 ms) are interpolated over; a longer one cuts the
+take into two episodes there, so a dropout costs only that moment.
 
 ## Convert, check, replay
 
 ```bash
-python -m umi_gripper.postprocess.to_lerobot ../../datasets/umi_raw --dry-run          # which takes pass, and why not
+python -m umi_gripper.postprocess.to_lerobot ../../datasets/umi_raw --dry-run          # episodes per take, what was cut
 python -m umi_gripper.postprocess.to_lerobot ../../datasets/umi_raw                    # -> datasets/pioneer_umi/real
 python -m umi_gripper.postprocess.reachability ../../datasets/umi_raw --arm left       # can the 8dof arm follow?
-python -m umi_gripper.tools.replay_mujoco <take> [--video out.mp4]                     # watch it on the arm
+python -m umi_gripper.tools.replay_mujoco <take> [--episode N] [--video out.mp4]       # watch it on the arm
 ```
 
-Conversion moves every stream onto the host clock, removes each stream's latency, and resamples at 25 fps: the TCP
-pose is interpolated, the jaw closure linearly interpolated, and each step takes the nearest camera frame. A take
-is then rejected for any of: an interior tracking or camera gap, a TCP jump (> 2 m/s or > 15 rad/s), a headset
-re-centre partway through, or a length under 1 s. The script writes a report next to the dataset listing each
-take and why it was kept or dropped.
+Conversion follows UMI's dataset plan (`06_generate_dataset_plan.py`):
+- **Sync.** Every stream moves onto the host clock and back by its latency. Steps are picked at 25 fps; each takes
+  its nearest camera frame, and the TCP pose (interpolated) and jaw closure are read at that frame's own capture
+  time, so image, pose and jaw describe the same instant. Run the camera at 25 or 50 fps (`camera.fps`) so the
+  steps stay evenly spaced; the report flags any other rate.
+- **Split.** A take is cut into episodes wherever tracking was lost for more than 100 ms, a camera frame was missing
+  or dropped, the headset re-centred, or the pose jumped (> 2 m/s or > 15 rad/s between raw samples: the tracker
+  relocalising). Pieces under 1 s are dropped.
+- **Report.** Written next to the dataset: per take, the episodes kept, the fraction of steps kept and what was cut.
 
 The reachability check places the demo's first pose at the arm's home TCP pose, then tracks every step with mink IK
 at a joint speed cap. That catches demos the arm can't reach, or can't follow at that speed.
@@ -127,12 +131,16 @@ at a joint speed cap. That catches demos the arm can't reach, or can't follow at
 |---|---|
 | `observation.state` (10) | TCP position (m) + 6D rotation in the episode's first TCP frame, then `gripper` (0 open … 1 closed) |
 | `action` (10) | the next step's state: where the hand went |
+| `observation.eef_pose_world` (9) | TCP position + 6D rotation in the headset's floor frame (UMI's `robot0_eef_pos` / `_rot`) |
+| `observation.demo_start_pose_world` (9) | the episode's first TCP pose, on every step (UMI's `robot0_demo_start_pose`) |
+| `observation.gripper_width_m` (1) | jaw gap in metres (UMI's `robot0_gripper_width`; `width.max_width_m` fully open) |
 | `observation.images.wrist` | 640x480 RGB, the rectified wrist camera |
 | `task` | `--task` |
 
-Storing poses relative to the episode's first frame keeps the headset's world frame out of the data. The pose of
-any step relative to any other step is still exact, so a training pipeline can build UMI's relative-to-current
-actions directly from these columns.
+6D rotation is UMI's: the first two rows of the rotation matrix (`mat_to_rot6d`). The state is relative to the
+episode's first frame, so the headset's world frame stays out of it, and the pose of any step relative to any other
+is exact. The absolute columns are there for pipelines that build their own representation at load time, as UMI's
+`umi_dataset.py` does (relative to the current pose); the world frame is consistent within an episode only.
 
 ## On the real arm
 
@@ -155,7 +163,7 @@ src/umi_gripper/
     ├── take.py                      raw take format
     ├── collect.py                   the collection session
     ├── calibration/                 calibrate_width, calibrate_tcp (pivot), calibrate_camera (hand-eye + latency)
-    ├── postprocess/                 sync (25 fps), quality, reachability (TCP IK), to_lerobot
+    ├── postprocess/                 sync (25 fps, pose at frame time), quality (split into episodes), reachability, to_lerobot
     └── tools/replay_mujoco.py       a take on the 8dof arm in MuJoCo
 ```
 

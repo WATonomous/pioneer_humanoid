@@ -119,7 +119,7 @@ def relative_tcp(episode) -> np.ndarray:
 
 def main(argv=None) -> int:
     from umi_gripper import config as umi_config
-    from umi_gripper.postprocess.quality import check_episode
+    from umi_gripper.postprocess.quality import split_episode
     from umi_gripper.postprocess.sync import sync_take
     from umi_gripper.take import find_takes, load_take
 
@@ -131,14 +131,15 @@ def main(argv=None) -> int:
     cfg = umi_config.load_config()
     fps = float(cfg["postprocess"]["fps"])
     for path in [t for root in args.inputs for t in find_takes(root)]:
-        verdict = check_episode(sync_take(load_take(path), cfg), cfg["postprocess"])
-        if not len(verdict.episode):
-            print(f"{path}: no valid steps")
+        split = split_episode(sync_take(load_take(path), cfg), cfg["postprocess"])
+        if not split.ok:
+            print(f"{path}: no usable episode ({'; '.join(split.reasons)})")
             continue
-        reach = check_reach(relative_tcp(verdict.episode), fps, args.arm, args.joint_speed)
-        s = reach.summary()
-        print(f"{path}: {s['reachable_fraction']:.0%} reachable, max error {s['max_position_error_m'] * 100:.1f} cm "
-              f"/ {s['max_orientation_error_deg']:.0f} deg")
+        for index, episode in enumerate(split.episodes):
+            reach = check_reach(relative_tcp(episode), fps, args.arm, args.joint_speed)
+            s = reach.summary()
+            print(f"{path} episode {index}: {s['reachable_fraction']:.0%} reachable, max error "
+                  f"{s['max_position_error_m'] * 100:.1f} cm / {s['max_orientation_error_deg']:.0f} deg")
     return 0
 
 
