@@ -72,6 +72,7 @@ class PoseGraphBackend:
             raise ValueError("gravity_keyframes must be at least 3")
         self._gravity_keyframes = gravity_keyframes
         self._pending = []   # (keyframe, imu) held back until gravity is known
+        self._pending_loops = []   # loops touching a held-back keyframe, added once it is inserted
 
         self._isam = gtsam.ISAM2(params)
         self._seen_ids = set()
@@ -125,7 +126,12 @@ class PoseGraphBackend:
         for kf, kf_imu in self._pending:
             pose = self._insert_keyframe(kf, kf_imu)
         self._pending = []
-        return pose
+
+        # Loops that arrived while their keyframes were held back can go in now.
+        loops, self._pending_loops = self._pending_loops, []
+        for loop in loops:
+            self.add_loop_constraint(loop)
+        return self.optimized_pose(keyframe.id)
 
     def _insert_keyframe(self, keyframe: Keyframe, imu=None):
         if keyframe.id in self._seen_ids:
@@ -206,12 +212,20 @@ class PoseGraphBackend:
 
     def add_loop_constraint(self, loop: LoopClosure) -> dict[int, gtsam.Pose3]:
         pair = (loop.old_id, loop.new_id)
-        if loop.old_id not in self._seen_ids or loop.new_id not in self._seen_ids:
+        if pair in self._loop_pairs or any(
+            (queued.old_id, queued.new_id) == pair for queued in self._pending_loops
+        ):
+            raise ValueError(f"loop X{loop.old_id} -> X{loop.new_id} was already added")
+
+        # A keyframe held back for gravity leveling isn't in the graph yet: queue the loop until it is.
+        known_ids = self._seen_ids | {kf.id for kf, _ in self._pending}
+        if loop.old_id not in known_ids or loop.new_id not in known_ids:
             raise ValueError(
                 f"loop X{loop.old_id} -> X{loop.new_id} refers to an unseen keyframe"
             )
-        if pair in self._loop_pairs:
-            raise ValueError(f"loop X{loop.old_id} -> X{loop.new_id} was already added")
+        if loop.old_id not in self._seen_ids or loop.new_id not in self._seen_ids:
+            self._pending_loops.append(loop)
+            return self.optimized_poses()   # nothing optimized for the held-back keyframes yet
 
         covariance = np.asarray(loop.covariance, dtype=float)
         base_noise = gtsam.noiseModel.Gaussian.Covariance(covariance)
