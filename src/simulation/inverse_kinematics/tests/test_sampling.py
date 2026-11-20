@@ -10,13 +10,15 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from arm_model import LeftArm                                                 
-from sampling import WORKSPACE_HI, WORKSPACE_LO, in_workspace, load_eval_set, make_eval_set, too_close
+from sampling import WORKSPACE_HI, WORKSPACE_LO, in_workspace, load_eval_set, make_eval_set, too_close, collision_free, segment_hits_box, segments_too_close
 
 N = 20   # small sets keep the tests fast
 
 def rot_z(angle):
     c, s = np.cos(angle), np.sin(angle)
     return np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
+
+
 class SamplingTests(unittest.TestCase):
 
     def setUp(self):
@@ -103,7 +105,35 @@ class SamplingTests(unittest.TestCase):
         R3 = R @ rot_z(np.radians(0.1))
         self.assertTrue(too_close(p3, R3, np.array([p]), np.array([R])))
 
+    def test_collision_free(self):
+        arm = self.arm
+        self.assertTrue(collision_free(arm, arm.rest))
 
+        q= arm.rest.copy()
+        q[2] = -1.2
+        self.assertFalse(collision_free(arm, q))
+
+    def test_segment_hits_box(self):
+        lo, hi = np.zeros(3), np.ones(3)          # a 1 m cube
+        # far away from the cube
+        self.assertFalse(segment_hits_box(np.array([5., 5, 5]), np.array([6., 6, 6]), 0.01, lo, hi))
+        # straight through the middle
+        self.assertTrue(segment_hits_box(np.array([-1., .5, .5]), np.array([2., .5, .5]), 0.01, lo, hi))
+        # 3 cm outside one face: radius 2 cm + clearance 2 cm = 4 cm reaches it
+        self.assertTrue(segment_hits_box(np.array([1.03, 0, .5]), np.array([1.03, 1, .5]), 0.02, lo, hi))
+        # 10 cm outside: out of reach
+        self.assertFalse(segment_hits_box(np.array([1.1, 0, .5]), np.array([1.1, 1, .5]), 0.02, lo, hi))
+
+    def test_segments_too_close(self):
+        a, b = np.array([0., 0, 0]), np.array([0., 0, 0.3])     # segment 1: vertical, 30 cm
+        shift = np.array([0.05, 0, 0])
+        c, d = a + shift, b + shift                             # segment 2: same, 5 cm along x
+        # needed gap: 0.04 + 0.04 + 0.02 clearance = 10 cm; they're 5 cm apart -> too close
+        self.assertTrue(segments_too_close(a, b, 0.04, c, d, 0.04))
+
+        far = np.array([0.5, 0, 0])
+        e, f = a + far, b + far                                 # 50 cm apart -> fine
+        self.assertFalse(segments_too_close(a, b, 0.04, e, f, 0.04))
 
 if __name__ == "__main__":
     unittest.main()
