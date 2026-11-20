@@ -24,6 +24,7 @@ python slam_tools/eval_loops_pr.py DATASET --cache room.pt                      
 python slam_tools/eval_detector.py DATASET --cache room.pt                         # whole detector vs truth, settings sweep
 python slam_tools/oracle_loops.py DATASET runs/room --out runs/room_oracle          # ceiling: perfect loops
 python slam_tools/bench_matching.py DATASET                                        # matching time, GPU vs CPU
+python slam_tools/compare_loops.py DATASET --ours runs/room --rtabmap rtabmap.db    # same scoring for RTAB-Map's loops
 ```
 
 ## How it works
@@ -133,6 +134,37 @@ at what any loop detector could reach on these sequences: what is left is the vi
 closure. Every accepted loop on fr1/room was also checked by hand against the ground truth (1.1-4.9 cm, 0.4-2.7 deg).
 fr2/large_with_loop was not finished (the run stopped when the laptop slept).
 
+### Compared with RTAB-Map
+
+RTAB-Map 0.23.14 (default settings, `rtabmap-rgbd_dataset`) and this module on the same sequences, scored by
+`slam_tools/compare_loops.py` with the same ground-truth rules for both. The systems make keyframes differently (RTAB-Map adds a
+map node once per second), so scoring is by time: a loop is correct within 10 cm and 5 deg of the true relative pose; the
+true trajectory is sampled every 0.5 s and a sample is a revisit if it is within 1 m and 40 deg of a point at least 5 m of
+travel earlier; coverage = revisit samples with a correct loop within 2 s. RTAB-Map's transforms are in its base frame, so one
+frame/direction convention is fitted for all its loops per sequence (the one that fits the ground truth best).
+
+| sequence | ours: loops (correct), median error, coverage | RTAB-Map: loops (correct), median error, coverage | trajectory error ours / RTAB-Map |
+|---|---|---|---|
+| fr1/room | 4 (4), 1.6 cm, **0.78** | 6 (6), 1.9 cm, 0.62 | 0.115 / **0.058** m |
+| fr2/desk | 2 (2), 2.8 cm, 0.52 | 16 (16), 2.2 cm, **0.77** | **0.088** / 0.128 m |
+| fr3/long_office | 4 (4), 1.9 cm, 0.64 | 26 (26), 1.8 cm, **0.86** | 0.031 / **0.017** m |
+| fr1/desk | 3 (3), 2.4 cm, **0.80** | 6 (6), 1.7 cm, 0.73 | 0.026 / 0.028 m |
+| fr1/desk2 | 4 (4), 3.4 cm, **1.00** | 6 (6), 1.2 cm, 0.88 | 0.040 / 0.043 m |
+| fr1/360 | 3 (2), 3.1 cm, **0.76** | 0 loops, 0.00 | **0.122** / 0.307 m |
+| fr2/large_with_loop | 1 (1), 9.1 cm, no revisits to score | 4 (0 within 10 cm / 5 deg; median 16 cm, none >1 m off) | 0.534 / 0.424 m |
+
+- Precision: the same. Neither system put a loop at a wrong place; our only miss is the weak fr1/360 loop.
+- Coverage: about even. Ours is higher on 4 sequences, RTAB-Map's on 2; mean 0.75 vs 0.64 (0.75 vs 0.77 without fr1/360,
+  where RTAB-Map found no loops).
+- RTAB-Map adds many more loops on the longer sequences (mostly by appearance: 14 of 16 on fr2/desk, 20 of 26 on fr3); ours is
+  probably held back by `cooldown` (10 keyframes after each loop), which is worth revisiting.
+- RTAB-Map's loop poses are slightly more accurate (it refines each loop more).
+- The trajectory error mostly reflects odometry (RTAB-Map's frame-to-map odometry with local bundle adjustment is better than
+  `prototype/vo.py`), so it is not a loop closure comparison. On fr2/large_with_loop our VO lost tracking on 1030 of 2591
+  frames (a large hall with little valid depth), and RTAB-Map's 4 loops all miss the 10 cm / 5 deg cut-off; whether that is
+  real inaccuracy or a frame-convention artefact of the scoring was not resolved, so treat that row as inconclusive.
+- One run each, RTAB-Map at default settings, small sequences.
+
 ### Cost
 
 Feature matching is almost all of it. On a 20-thread laptop CPU (with other jobs running): XFeat detection about 140 ms
@@ -161,4 +193,4 @@ Tracking loss (the other half of the README's failure-case item) belongs to the 
 - `--loop-mode module` as the default in `vo.py`; a ROS node and `LoopClosure` message; keyframe database save/load;
   rebuilding the dense map after a loop.
 - A 2D-2D verification fallback for views without depth.
-- A head-to-head against a mature system (e.g. RTAB-Map's detector on the same sequences, same scoring).
+- More loops on long sequences (RTAB-Map adds many more; try a shorter `cooldown`), and RTAB-Map at tuned settings / on D455.
