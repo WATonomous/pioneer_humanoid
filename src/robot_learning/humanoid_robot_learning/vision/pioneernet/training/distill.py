@@ -84,7 +84,9 @@ class PioneerNet(nn.Module):
         f3 = self.l3(f2)
         f4 = self.l4(f3)
         ref = f2 if self.stride == 8 else f3
-        up = lambda f: F.interpolate(f, size=ref.shape[2:], mode="bilinear", align_corners=False)
+
+        def up(f):
+            return F.interpolate(f, size=ref.shape[2:], mode="bilinear", align_corners=False)
         parts = [f2, up(f3), up(f4)] if self.stride == 8 else [f3, up(f4)]
         return self.fuse(torch.cat(parts, 1))
 
@@ -393,7 +395,8 @@ def main():
         for f, t in zip(files, take):
             with np.load(f) as z:
                 sel = np.sort(rng.choice(len(z["rgb"]), t, replace=False))
-                rr.append(z["rgb"][sel]); rd.append(z["depth"][sel])
+                rr.append(z["rgb"][sel])
+                rd.append(z["depth"][sel])
         real_bg = {"rgb": np.concatenate(rr), "depth": np.concatenate(rd)}
         del rr, rd
         print(f"real backgrounds: {len(real_bg['rgb'])} frames from {len(files)} files", flush=True)
@@ -446,6 +449,7 @@ def main():
         torch.set_rng_state(ck["torch"].cpu())
         step0 = ck["step"]
         print(f"resumed from {resume} at step {step0}", flush=True)
+
     def save_final(path, step):
         torch.save(dict(state=student.state_dict(), rgb_teacher=args.rgb_teacher, depth_teacher=args.depth_teacher,
                         real_rgbd=args.real_rgbd, rgb_dim=t_rgb.dim, depth_dim=t_d.dim, arch=arch, geo=args.geo,
@@ -498,6 +502,7 @@ def main():
                 x = torch.cat([x[:, :3] * (u >= pr), x[:, 3:] * ((u < pr) | (u >= pr + pd))], 1)
             f = student.trunk(x)
             pr, pd, pgr, pgd = student.heads(f)
+
         def tok_loss(p, t):
             p = F.interpolate(p.float(), size=t.shape[2:], mode="bilinear", align_corners=False)
             p, t = p.flatten(2), t.float().flatten(2)
