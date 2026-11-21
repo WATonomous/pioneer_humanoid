@@ -10,7 +10,7 @@ import unittest
 import gtsam
 import numpy as np
 
-from slam_core.backend import PoseGraphBackend
+from slam_core.backend import ImuNotReadyError, PoseGraphBackend
 from slam_core.backend.imu_fusion.imu import imu_between
 from slam_core.backend.imu_fusion.preintegration import GRAVITY, T_CAM_IMU, make_params, preintegrate
 from slam_core.types import Keyframe, LoopClosure
@@ -169,6 +169,71 @@ class PoseGraphImuTests(unittest.TestCase):
         self.assertIn((0, 2), backend._loop_pairs)
         self.assertEqual(backend._pending_loops, [])
         self.assertEqual(len(backend.optimized_poses()), 4)
+
+    def test_streaming_imu_matches_whole_recording(self):
+        # Live use: IMU pushed in small chunks as it would arrive, each keyframe added once the IMU has reached it.
+        stamp, gyro, accel = self.imu
+        backend, i, not_ready, max_buffer = PoseGraphBackend(live_imu=True), 0, 0, 0
+        for kf in self.keyframes:
+            while True:
+                try:
+                    backend.add_keyframe(kf)
+                    break
+                except ImuNotReadyError:   # the IMU is behind this keyframe: feed the next chunk, retry
+                    not_ready += 1
+                    backend.add_imu(stamp[i:i + 7], gyro[i:i + 7], accel[i:i + 7])
+                    i += 7
+            max_buffer = max(max_buffer, len(backend._imu_stamp))
+        poses = [backend.optimized_pose(kf.id).matrix() for kf in self.keyframes]
+        diff = max(np.abs(a - b).max() for a, b in zip(poses, self.vio_poses))
+        print(f"\nstreaming vs whole recording: max pose entry difference {diff:.2e},"
+              f" {not_ready} not-ready retries, buffer at most {max_buffer} samples")
+        self.assertLess(diff, 1e-6)
+        self.assertGreater(not_ready, 0)
+        # trimmed as keyframes go in: at most the gravity wait (4 keyframes) plus one chunk, never the whole recording
+        self.assertLess(max_buffer, 4 * KF_DT * IMU_RATE + 10)
+
+    def test_streaming_rejects_bad_input(self):
+        stamp, gyro, accel = self.imu
+        with self.assertRaises(ValueError):
+            PoseGraphBackend().add_imu(stamp[0], gyro[0], accel[0])   # live IMU without live_imu=True
+        backend = PoseGraphBackend(live_imu=True)
+        with self.assertRaises(ImuNotReadyError):
+            backend.add_keyframe(self.keyframes[0])            # no IMU yet: waits, not silently VO-only
+        backend.add_imu(stamp[20:40], gyro[20:40], accel[20:40])
+        with self.assertRaises(ValueError):
+            backend.add_imu(stamp[30], gyro[30], accel[30])    # goes back in time
+        with self.assertRaises(ValueError):
+            backend.add_keyframe(self.keyframes[0])            # IMU starts after keyframe 0 (stamp[20] > 0)
+        with self.assertRaises(ValueError):
+            backend.add_keyframe(self.keyframes[0], self.imu)  # buffer and whole recording mixed
+
+    def test_imu_factor_follows_time_not_vo_prev_id(self):
+        # After a tracking recovery VO can measure a keyframe from an older one (prev_id skips back). The IMU
+        # factor must still start at the keyframe just before in time, or it double-counts that stretch of IMU.
+        truth, n = self.truth, 40
+        kfs = []
+        for k in range(n):
+            prev = -1 if k == 0 else (k - 3 if k == 30 else k - 1)   # keyframe 30 measured from 27
+            T_prev_kf = np.eye(4) if k == 0 else np.linalg.inv(truth[prev]) @ truth[k]
+            kfs.append(Keyframe(id=k, prev_id=prev, stamp=k * KF_DT, T_prev_kf=T_prev_kf,
+                                covariance=covariance_from_sigmas(0.01, 0.02),
+                                T_odom_kf=np.linalg.inv(truth[0]) @ truth[k]))
+        backend = PoseGraphBackend()
+        for kf in kfs:
+            backend.add_keyframe(kf, self.imu)
+
+        graph = backend._isam.getFactorsUnsafe()
+        imu_links = set()
+        for i in range(graph.size()):
+            f = graph.at(i)
+            if isinstance(f, gtsam.ImuFactor):
+                keys = f.keys()
+                imu_links.add((gtsam.Symbol(keys[0]).index(), gtsam.Symbol(keys[2]).index()))
+        self.assertIn((29, 30), imu_links)
+        self.assertNotIn((27, 30), imu_links)
+        err = max(np.linalg.norm(backend.optimized_pose(k).translation() - truth[k][:3, 3]) for k in range(n))
+        self.assertLess(err, 0.01)
 
 
 if __name__ == "__main__":

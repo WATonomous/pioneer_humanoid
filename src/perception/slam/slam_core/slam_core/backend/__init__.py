@@ -1,11 +1,11 @@
 """ROS-free backend components for the WATO SLAM library.
 
-The package currently exports an incremental GTSAM pose graph that accepts
-keyframes and loop constraints. ROS 2 message handling and node lifecycle
-belong in the ROS integration layer. IMU factors and graph persistence are
-future extensions.
+PoseGraphBackend is an incremental GTSAM (iSAM2) pose graph that takes keyframes, loop constraints and,
+optionally, IMU data (preintegrated IMU factors and gravity leveling). Feed IMU either as a whole recording
+per add_keyframe call (replay) or live with add_imu. ROS 2 message handling and node lifecycle belong in the
+ROS integration layer. Graph persistence is a future extension.
 """
 
-from .pose_graph import PoseGraphBackend
+from .pose_graph import ImuNotReadyError, PoseGraphBackend
 
-__all__ = ["PoseGraphBackend"]
+__all__ = ["ImuNotReadyError", "PoseGraphBackend"]

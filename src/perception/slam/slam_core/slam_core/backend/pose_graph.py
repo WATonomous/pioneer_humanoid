@@ -38,6 +38,10 @@ def kf0_prior_noise(R_level):
     return gtsam.noiseModel.Gaussian.Covariance(cov)
 
 
+class ImuNotReadyError(RuntimeError):
+    """add_keyframe with add_imu: the IMU has not reached the keyframe's stamp yet. Keep the keyframe, retry later."""
+
+
 class PoseGraphBackend:
     def __init__(
         self,
@@ -48,6 +52,7 @@ class PoseGraphBackend:
         R_odom_kf0=None,
         gravity_keyframes=4,
         T_cam_imu=T_CAM_IMU,   # 4x4, IMU pose in the left IR camera frame; default is the Kalibr calibration
+        live_imu=False,        # True: IMU comes in through add_imu, and every keyframe waits for it (ImuNotReadyError)
     ):
         # add custom params
         params = gtsam.ISAM2Params()
@@ -74,6 +79,13 @@ class PoseGraphBackend:
         self._pending = []   # (keyframe, imu) held back until gravity is known
         self._pending_loops = []   # loops touching a held-back keyframe, added once it is inserted
 
+        # Live IMU buffer (add_imu): samples kept from the last inserted keyframe on, trimmed as keyframes go in
+        self._imu_stamp = np.empty(0)
+        self._imu_gyro = np.empty((0, 3))
+        self._imu_accel = np.empty((0, 3))
+        self._imu_streaming = bool(live_imu)   # every keyframe takes its IMU from the buffer
+        self._last_id = None          # newest inserted keyframe: the IMU factor's start (not VO's prev_id)
+
         self._isam = gtsam.ISAM2(params)
         self._seen_ids = set()
         self._stamps = {}
@@ -91,7 +103,58 @@ class PoseGraphBackend:
     def bias_sigmas(self, accel, gyro):
         return gtsam.noiseModel.Diagonal.Sigmas(np.array([accel] * 3 + [gyro] * 3))
 
+    # Live IMU input: push samples as they arrive (one sample as scalars/3-vectors, or arrays of N). Stamps must keep
+    # increasing, on the same clock as keyframe stamps. Needs live_imu=True.
+    def add_imu(self, stamp, gyro, accel):
+        if not self._imu_streaming:
+            raise ValueError("add_imu needs PoseGraphBackend(live_imu=True)")
+        stamp = np.atleast_1d(np.asarray(stamp, dtype=float))
+        gyro = np.asarray(gyro, dtype=float).reshape(-1, 3)
+        accel = np.asarray(accel, dtype=float).reshape(-1, 3)
+        if not (len(stamp) == len(gyro) == len(accel)):
+            raise ValueError("add_imu: stamp, gyro and accel need the same number of samples")
+        if np.any(np.diff(stamp) <= 0) or (self._imu_stamp.size and stamp[0] <= self._imu_stamp[-1]):
+            raise ValueError("add_imu: IMU stamps must be strictly increasing")
+        self._imu_stamp = np.concatenate([self._imu_stamp, stamp])
+        self._imu_gyro = np.vstack([self._imu_gyro, gyro])
+        self._imu_accel = np.vstack([self._imu_accel, accel])
+
+    # The buffered IMU as add_keyframe's (stamp, gyro, accel), after checking it covers this keyframe.
+    def _buffered_imu(self, keyframe):
+        if self._imu_stamp.size == 0 or self._imu_stamp[-1] < keyframe.stamp:
+            raise ImuNotReadyError(
+                f"keyframe {keyframe.id} at {keyframe.stamp:.6f}: IMU only up to "
+                f"{self._imu_stamp[-1] if self._imu_stamp.size else 'nothing yet'}; add_imu more, then retry")
+        if self._imu_stamp[0] > keyframe.stamp:
+            raise ValueError(f"keyframe {keyframe.id}: IMU starts after it ({self._imu_stamp[0]:.6f}); "
+                             "start the IMU stream before the first keyframe")
+        return self._imu_stamp, self._imu_gyro, self._imu_accel
+
+    # Drop samples nothing will need: keep the last one at or before the oldest keyframe an IMU factor still starts from.
+    def _trim_imu(self):
+        if not self._imu_streaming or self._pending or self._last_id is None:
+            return
+        keep_from = max(np.searchsorted(self._imu_stamp, self._stamps[self._last_id], side="right") - 1, 0)
+        self._imu_stamp = self._imu_stamp[keep_from:]
+        self._imu_gyro = self._imu_gyro[keep_from:]
+        self._imu_accel = self._imu_accel[keep_from:]
+
+    # imu: the whole recording as (stamp, gyro, accel) for replay, or None. With live_imu, leave it None: the buffer is
+    # used, and ImuNotReadyError means the IMU hasn't reached this keyframe's stamp yet (keep the keyframe and retry).
     def add_keyframe(self, keyframe: Keyframe, imu=None):
+        if self._imu_streaming:
+            if imu is not None:
+                raise ValueError("add_keyframe: give imu or use add_imu, not both")
+            imu = self._buffered_imu(keyframe)
+        if imu is not None and self._last_id is not None and keyframe.stamp <= self._stamps[self._last_id]:
+            raise ValueError(f"keyframe {keyframe.id}: stamp must be after the previous keyframe's")
+        if imu is not None and self._pending and keyframe.stamp <= self._pending[-1][0].stamp:
+            raise ValueError(f"keyframe {keyframe.id}: stamp must be after the previous keyframe's")
+        pose = self._add_keyframe(keyframe, imu)
+        self._trim_imu()
+        return pose
+
+    def _add_keyframe(self, keyframe: Keyframe, imu):
         # No IMU data, or the leveling is already known: insert right away.
         if imu is None or self._R_level is not None:
             if imu is None and self._pending:
@@ -115,7 +178,8 @@ class PoseGraphBackend:
 
         # Enough keyframes: gravity in the first keyframe's frame, turned into the odom frame, then the leveling rotation.
         kfs = [kf for kf, _ in self._pending]
-        stamp, gyro, accel = self._pending[0][1]   # the same IMU recording for every keyframe
+        imu = self._pending[-1][1]   # the newest IMU snapshot covers every held-back keyframe
+        stamp, gyro, accel = imu
         T0_inv = np.linalg.inv(kfs[0].T_odom_kf)
         g_kf0 = gravity_in_frame(stamp, gyro, accel, np.array([kf.stamp for kf in kfs]),
                                  [T0_inv @ kf.T_odom_kf for kf in kfs], self._params)
@@ -123,8 +187,8 @@ class PoseGraphBackend:
         self._T_level[:3, :3] = self._R_level
 
         # Insert the held-back keyframes through the normal path, now leveled.
-        for kf, kf_imu in self._pending:
-            pose = self._insert_keyframe(kf, kf_imu)
+        for kf, _ in self._pending:
+            self._insert_keyframe(kf, imu)
         self._pending = []
 
         # Loops that arrived while their keyframes were held back can go in now.
@@ -153,9 +217,9 @@ class PoseGraphBackend:
             if keyframe.is_first:
                 v_guess = np.zeros(3)
             else:
-                prev_pos = self._estimate.atPose3(X(keyframe.prev_id)).translation()
-                dt_kf = keyframe.stamp - self._stamps[keyframe.prev_id]
-                v_guess = (pose_guess.translation() - prev_pos) / dt_kf
+                last_pos = self._estimate.atPose3(X(self._last_id)).translation()
+                dt_kf = keyframe.stamp - self._stamps[self._last_id]
+                v_guess = (pose_guess.translation() - last_pos) / dt_kf
             initial.insert(V(keyframe.id), v_guess)
             initial.insert(B(keyframe.id), self._bias)
 
@@ -185,18 +249,19 @@ class PoseGraphBackend:
                 )
             )
 
-        # imu preintergration
+        # imu preintergration, from the newest keyframe in time. Not VO's prev_id: after a tracking recovery VO can
+        # measure from an older keyframe, but the IMU (and the velocity/bias chain) runs through time.
         if not keyframe.is_first and imu is not None:
             stamp, gyro, accel = imu
-            t0 = self._stamps[keyframe.prev_id]
+            last = self._last_id
+            t0 = self._stamps[last]
             t1 = keyframe.stamp
-            # imu stuff
             gyro_seg, accel_seg, dt = imu_between(stamp, gyro, accel, t0, t1)
             pim = preintegrate(gyro_seg, accel_seg, dt, self._params, self._bias)
-            factors.add(gtsam.ImuFactor(X(keyframe.prev_id), V(keyframe.prev_id), key, V(keyframe.id), B(keyframe.prev_id), pim))
+            factors.add(gtsam.ImuFactor(X(last), V(last), key, V(keyframe.id), B(last), pim))
             sq = np.sqrt(t1 - t0)
             factors.add(gtsam.BetweenFactorConstantBias(
-                B(keyframe.prev_id),
+                B(last),
                 B(keyframe.id),
                 self._bias,
                 self.bias_sigmas(ACCEL_RANDOM_WALK * sq, GYRO_RANDOM_WALK * sq),
@@ -208,6 +273,7 @@ class PoseGraphBackend:
         # add seen ids and past timestamps
         self._seen_ids.add(keyframe.id)
         self._stamps[keyframe.id] = keyframe.stamp
+        self._last_id = keyframe.id
         return self.optimized_pose(keyframe.id)
 
     def add_loop_constraint(self, loop: LoopClosure) -> dict[int, gtsam.Pose3]:
