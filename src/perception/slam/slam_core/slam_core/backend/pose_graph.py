@@ -1,8 +1,14 @@
-"""Incremental GTSAM pose-graph backend.
+"""Incremental GTSAM pose-graph backend, with optional IMU factors.
 
 This module accepts one Keyframe at a time and updates an iSAM2 factor graph.
 The first keyframe receives a prior, and later keyframes receive VO
 BetweenFactorPose3 constraints using their relative pose and covariance.
+A LoopClosure adds a between factor with a robust noise model.
+
+With IMU data (add_keyframe(keyframe, imu)) each keyframe also gets a velocity and an IMU bias variable, an
+ImuFactor from the previous keyframe and a bias random-walk factor. The IMU factors need gravity along +y in the
+graph's frame, so unless a leveling rotation is given, the first gravity_keyframes keyframes are held back until
+gravity can be estimated. The README in this folder has the details.
 """
 
 import gtsam
@@ -16,6 +22,7 @@ from slam_core.backend.imu_fusion.preintegration import (
 from slam_core.backend.imu_fusion.gravity import gravity_in_frame, level_rotation
 
 from slam_core.types import Keyframe, LoopClosure
+from slam_core.types.pose import is_pose
 
 
 # starting priors on the first keyframe, copied from imu_fusion/vio_graph.py
@@ -60,10 +67,13 @@ class PoseGraphBackend:
         # QR, not the default Cholesky: the bias random-walk sigmas (~1e-6 per keyframe) next to the
         # 0.02 bias prior made Cholesky raise IndeterminateSystemException (data/run1, at B(139)).
         params.setFactorization("QR")
-        self._extra_updates = 20
+        self._settle_updates = 20
 
-        # imu preintergration
-        self._params = make_params(np.asarray(T_cam_imu, dtype=float))
+        # imu preintegration
+        T_cam_imu = np.asarray(T_cam_imu, dtype=float)
+        if not is_pose(T_cam_imu):
+            raise ValueError("T_cam_imu must be a 4x4 rigid transform")
+        self._params = make_params(T_cam_imu)
         self._bias = gtsam.imuBias.ConstantBias()
 
         # gravity leveling: rotation that makes +y point down in the graph's frame (None = VO frame as is).
@@ -78,6 +88,7 @@ class PoseGraphBackend:
         self._gravity_keyframes = gravity_keyframes
         self._pending = []   # (keyframe, imu) held back until gravity is known
         self._pending_loops = []   # loops touching a held-back keyframe, added once it is inserted
+        self._uses_imu = None      # set by the first keyframe: every keyframe then has IMU data, or none does
 
         # Live IMU buffer (add_imu): samples kept from the last inserted keyframe on, trimmed as keyframes go in
         self._imu_stamp = np.empty(0)
@@ -146,21 +157,36 @@ class PoseGraphBackend:
             if imu is not None:
                 raise ValueError("add_keyframe: give imu or use add_imu, not both")
             imu = self._buffered_imu(keyframe)
-        if imu is not None and self._last_id is not None and keyframe.stamp <= self._stamps[self._last_id]:
-            raise ValueError(f"keyframe {keyframe.id}: stamp must be after the previous keyframe's")
-        if imu is not None and self._pending and keyframe.stamp <= self._pending[-1][0].stamp:
-            raise ValueError(f"keyframe {keyframe.id}: stamp must be after the previous keyframe's")
+        # IMU data for every keyframe or for none: a keyframe without it has no velocity or bias for the next IMU factor.
+        if self._uses_imu is not None and (imu is not None) != self._uses_imu:
+            raise ValueError("imu must be given for every keyframe, or for none")
         pose = self._add_keyframe(keyframe, imu)
+        if self._uses_imu is None:
+            self._uses_imu = imu is not None
         self._trim_imu()
         return pose
 
     def _add_keyframe(self, keyframe: Keyframe, imu):
         # No IMU data, or the leveling is already known: insert right away.
         if imu is None or self._R_level is not None:
-            if imu is None and self._pending:
-                raise ValueError("imu must be given for every keyframe once buffering has started")
             return self._insert_keyframe(keyframe, imu)
         return self._buffer_keyframe(keyframe, imu)
+
+    @staticmethod
+    def _check_stamp_after(keyframe: Keyframe, prev_stamp):
+        if keyframe.stamp <= prev_stamp:
+            raise ValueError(
+                f"keyframe {keyframe.id}: stamp {keyframe.stamp} is not after its previous keyframe's stamp {prev_stamp}"
+            )
+
+    @staticmethod
+    def _check_imu_covers(imu, t0, t1, keyframe_id):
+        imu_stamps = imu[0]
+        if t0 < imu_stamps[0] or t1 > imu_stamps[-1]:
+            raise ValueError(
+                f"keyframe {keyframe_id}: the IMU data covers [{imu_stamps[0]}, {imu_stamps[-1]}] "
+                f"but the interval to the previous keyframe is [{t0}, {t1}]"
+            )
 
     # Hold the first keyframes back until gravity can be estimated, then insert them all leveled.
     def _buffer_keyframe(self, keyframe: Keyframe, imu):
@@ -172,6 +198,13 @@ class PoseGraphBackend:
                 f"keyframe {keyframe.id} refers to unseen previous keyframe "
                 f"{keyframe.prev_id}"
             )
+        if not keyframe.is_first:
+            # Checked before the keyframe is held back, so a bad one never leaves the buffer half-filled.
+            # VO edge from prev_id; IMU factor from the newest held-back keyframe (see _insert_keyframe).
+            prev_stamp = next(kf.stamp for kf, _ in self._pending if kf.id == keyframe.prev_id)
+            last_stamp = self._pending[-1][0].stamp
+            self._check_stamp_after(keyframe, max(prev_stamp, last_stamp))
+            self._check_imu_covers(imu, last_stamp, keyframe.stamp, keyframe.id)
         self._pending.append((keyframe, imu))
         if len(self._pending) < self._gravity_keyframes:
             return gtsam.Pose3(keyframe.T_odom_kf)   # provisional: VO's own pose, not optimized yet
@@ -205,18 +238,32 @@ class PoseGraphBackend:
                 f"keyframe {keyframe.id} refers to unseen previous keyframe "
                 f"{keyframe.prev_id}"
             )
+        if not keyframe.is_first:
+            self._check_stamp_after(keyframe, self._stamps[keyframe.prev_id])
+            if imu is not None:   # the IMU factor runs from the newest keyframe in time (see below)
+                last_stamp = self._stamps[self._last_id]
+                self._check_stamp_after(keyframe, last_stamp)
+                self._check_imu_covers(imu, last_stamp, keyframe.stamp, keyframe.id)
 
         factors = gtsam.NonlinearFactorGraph()
         initial = gtsam.Values()
         key = X(keyframe.id)
-        pose_guess = gtsam.Pose3(self._T_level @ keyframe.T_odom_kf)
+        # First keyframe: VO's pose, leveled. Later ones: the previous keyframe's OPTIMIZED pose plus VO's relative step,
+        # so the guess is in the same frame as the graph. VO's own T_odom_kf drifts away from that frame once the IMU or
+        # a loop corrects the trajectory (by keyframe 100 the velocity guess below was 1.8 m/s for a 0.24 m/s camera).
+        if keyframe.is_first:
+            pose_guess = gtsam.Pose3(self._T_level @ keyframe.T_odom_kf)
+        else:
+            prev_pose = self._estimate.atPose3(X(keyframe.prev_id))
+            pose_guess = prev_pose.compose(gtsam.Pose3(keyframe.T_prev_kf))
         initial.insert(key, pose_guess)
 
-        #imu: starting guesses for this keyframe's velocity and bias
+        # imu: starting guesses for this keyframe's velocity and bias
         if imu is not None:
             if keyframe.is_first:
                 v_guess = np.zeros(3)
             else:
+                # over the IMU factor's interval: from the keyframe just before in time (VO's prev_id unless it skipped back)
                 last_pos = self._estimate.atPose3(X(self._last_id)).translation()
                 dt_kf = keyframe.stamp - self._stamps[self._last_id]
                 v_guess = (pose_guess.translation() - last_pos) / dt_kf
@@ -249,7 +296,7 @@ class PoseGraphBackend:
                 )
             )
 
-        # imu preintergration, from the newest keyframe in time. Not VO's prev_id: after a tracking recovery VO can
+        # imu preintegration, from the newest keyframe in time. Not VO's prev_id: after a tracking recovery VO can
         # measure from an older keyframe, but the IMU (and the velocity/bias chain) runs through time.
         if not keyframe.is_first and imu is not None:
             stamp, gyro, accel = imu
@@ -315,8 +362,8 @@ class PoseGraphBackend:
             )
         )
         self._isam.update(factors, gtsam.Values())
-        for _ in range(self._extra_updates):
-            self._isam.update(gtsam.NonlinearFactorGraph(), gtsam.Values())  # no new data,
+        for _ in range(self._settle_updates):
+            self._isam.update(gtsam.NonlinearFactorGraph(), gtsam.Values())  # no new data: extra solver steps so the correction settles
         self._estimate = self._isam.calculateEstimate()
         self._loop_pairs.add(pair)
         return self.optimized_poses()
