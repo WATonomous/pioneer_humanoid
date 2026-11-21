@@ -3,7 +3,7 @@
 
 Runs on the HOST (the robot images have no numpy/matplotlib)::
 
-    uv run --with matplotlib --with numpy tools/gl40_telemetry_plot.py outputs/gl40_bench/<run>
+    uv run --with matplotlib --with numpy tools/gl40_telemetry_plot.py outputs/roundtrip/<run>
 
 Produces, in the run folder itself:
 

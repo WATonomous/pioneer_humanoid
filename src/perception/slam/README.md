@@ -3,7 +3,7 @@
 Custom SLAM system for the humanoid, built around an Intel RealSense D455 (left IR + depth + IMU).
 Visual odometry frontend, GTSAM backend, loop closure, dense mapping.
 
-> Status: skeleton. Only the VO frontend (`frontend/`, `io/`, `odometry_node.py`) and shared `types/` have placeholder files so far. Every other folder exists but is empty (`.gitkeep`): add your module's files there when you start on it.
+> Status: skeleton. Only the VO frontend (`frontend/`, `io/`, `odometry_node.py`) and shared `types/` have placeholder files so far. Every other folder exists but is empty (`.gitkeep`): add your module's files there when you start on it. Exception: loop closure (`loop_closure/`, `backend/incremental.py`) is implemented and tested, see [docs/loop_closure.md](docs/loop_closure.md).
 
 ## Scope
 
@@ -12,7 +12,7 @@ Must
 - GTSAM backend
 - Loop closure
 - Runs offline on recorded data
-- Failure-case writeup (tracking loss and bad loops, with cause and fix)
+- Failure-case writeup (tracking loss and bad loops, with cause and fix); the bad-loop half is in docs/loop_closure.md
 
 Should
 - Dense voxel map, rebuilt after loop closure
@@ -94,6 +94,11 @@ slam/
 ├── docs/                architecture, failure cases, benchmarks
 └── data/                datasets and bags (gitignored, local only)
 ```
+
+## Loop closure
+
+`slam_core/loop_closure/` has place recognition, verification and false-loop defenses, with a synthetic simulator and
+a demo you can run without hardware: `python slam_tools/loop_closure_demo.py`. See [docs/loop_closure.md](docs/loop_closure.md).
 
 ## Foxglove
 

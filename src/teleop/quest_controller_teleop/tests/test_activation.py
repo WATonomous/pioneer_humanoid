@@ -46,7 +46,7 @@ class ActivationTests(unittest.TestCase):
             return Task()
         def pump():
             calls.append(1)
-            control = Input(np.array([0., 1., 0.]), np.eye(3), False, 0., False, False)
+            control = Input(np.array([0., 1., 0.]), np.eye(3), 0., False, False)
             with driver.shared.lock:
                 driver.shared.packet = {"head": np.eye(3), "left": control, "right": None}
                 driver.shared.received = time.monotonic()
@@ -87,8 +87,8 @@ class ActivationTests(unittest.TestCase):
         finally:
             driver.close()
 
-    def send(self, driver, home, *, grip=False, x=0., left=True, head=True, age=0., calibrate=False, reset=0):
-        control = Input(np.array([x, 1., 0.]), np.eye(3), grip, .4, False, calibrate)
+    def send(self, driver, home, *, x=0., left=True, head=True, age=0., calibrate=False, reset=0):
+        control = Input(np.array([x, 1., 0.]), np.eye(3), .4, False, calibrate)
         with driver.shared.lock:
             driver.shared.packet = {"head": np.eye(3) if head else None,
                                     "left": control if left else None, "right": None}
@@ -99,11 +99,10 @@ class ActivationTests(unittest.TestCase):
 
     def test_always_mode_engages_without_button_and_consumes_relative_motion(self):
         driver, home = self.driver()
-        _, original = self.send(driver, home)
+        self.send(driver, home)
         target = driver.targets["left"]
         p, r, _, _ = driver.solvers["left"].kinematics(home["left"])
         self.assertTrue(target.active)
-        self.assertFalse(original.clutch)  # shared packet was not mutated
         np.testing.assert_allclose(target.position, p)
         np.testing.assert_allclose(target.rotation, r)
         self.send(driver, home, x=.01)
@@ -150,10 +149,10 @@ class ActivationTests(unittest.TestCase):
         self.assertTrue(driver.targets["left"].active)
         np.testing.assert_allclose(driver.targets["left"].position, p)
 
-    def test_calibration_pauses_always_mode_even_if_physical_grip_is_held(self):
+    def test_calibration_pauses_always_mode(self):
         driver, home = self.driver()
         self.send(driver, home)
-        self.send(driver, home, grip=True, calibrate=True, x=.1)
+        self.send(driver, home, calibrate=True, x=.1)
         self.assertTrue(driver.calibrating["left"])
         self.assertFalse(driver.targets["left"].active)
         self.send(driver, home, x=1.)  # short/invalid fit still resumes safely

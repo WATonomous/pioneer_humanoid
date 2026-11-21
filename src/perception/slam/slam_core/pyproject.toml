@@ -12,7 +12,8 @@ dependencies = ["numpy", "pyyaml"]
 [project.optional-dependencies]
 realsense = ["pyrealsense2"]
 backend = ["gtsam"]
-
+demo = ["scipy", "matplotlib"] 
+test = ["pytest", "scipy"]
 
 [tool.setuptools.packages.find]
 include = ["slam_core*"]

@@ -6,16 +6,22 @@
 Usage:
     ros2 launch terrain_mapping_bringup bag_pipeline.launch.py
     ros2 launch terrain_mapping_bringup bag_pipeline.launch.py bag:='/bags/001-D455(360_turn_v1)'
+    ros2 launch terrain_mapping_bringup bag_pipeline.launch.py record:=/outputs/terrain_mapping/map_bags/run1
 """
 import math
 import os
+import signal
 
 import numpy as np
 import rosbag2_py
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, OpaqueFunction, TimerAction
-from launch.conditions import IfCondition
+from launch.actions import (DeclareLaunchArgument, EmitEvent, ExecuteProcess, OpaqueFunction,
+                            RegisterEventHandler, TimerAction)
+from launch.conditions import IfCondition, LaunchConfigurationNotEquals
+from launch.event_handlers import OnProcessExit
+from launch.events import matches_action
+from launch.events.process import SignalProcess
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import ComposableNodeContainer, Node
 from launch_ros.descriptions import ComposableNode
@@ -32,6 +38,13 @@ BAG_TOPICS = [
     '/camera/camera/color/camera_info',
     '/camera/camera/aligned_depth_to_color/image_raw',
     '/camera/camera/aligned_depth_to_color/camera_info',
+]
+# The map output, for teammates without an NVIDIA GPU (elevation_mapping_cupy has no CPU path).
+RECORD_TOPICS = [
+    '/elevation_mapping_node/elevation_map_raw',
+    '/elevation_mapping_node/elevation_map_filter',
+    '/tf',
+    '/tf_static',
 ]
 SIM_TIME = {'use_sim_time': True}
 IMU_TOPIC = '/camera/camera/imu'
@@ -181,20 +194,40 @@ def generate_launch_description():
     )
 
     # Start playback once the nodes are up so they see /tf_static and the first frames.
-    play = TimerAction(period=5.0, actions=[ExecuteProcess(
+    play = ExecuteProcess(
         cmd=['ros2', 'bag', 'play', bag, '--clock', '--rate', rate, '--topics', *BAG_TOPICS],
         output='screen',
-    )])
+    )
+
+    # Starts with the nodes, before playback, so it catches the first /tf_static.
+    record_condition = LaunchConfigurationNotEquals('record', '')
+    record = ExecuteProcess(
+        cmd=['ros2', 'bag', 'record', '-s', 'mcap', '--use-sim-time', '-o', LaunchConfiguration('record'),
+             *RECORD_TOPICS],
+        output='screen',
+        condition=record_condition,
+    )
+    # SIGINT, not kill, so the recorder writes the mcap summary and metadata.yaml.
+    stop_record = RegisterEventHandler(
+        OnProcessExit(target_action=play, on_exit=[
+            EmitEvent(event=SignalProcess(signal_number=signal.SIGINT, process_matcher=matches_action(record))),
+        ]),
+        condition=record_condition,
+    )
 
     return LaunchDescription([
         DeclareLaunchArgument('bag', default_value='/bags/002-D455(360_turn_office)'),
         DeclareLaunchArgument('rate', default_value='1.0'),
         DeclareLaunchArgument('rviz', default_value='true'),
+        DeclareLaunchArgument('record', default_value='',
+                              description='Output folder for an mcap of the map and TF; must not exist yet'),
         base_link,
         imu_filter,
         OpaqueFunction(function=odometry_node),
         point_cloud,
         elevation_mapping,
         rviz,
-        play,
+        record,
+        stop_record,
+        TimerAction(period=5.0, actions=[play]),
     ])

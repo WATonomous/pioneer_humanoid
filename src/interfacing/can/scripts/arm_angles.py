@@ -6,7 +6,7 @@ Subscribes to /interfacing/motorFeedback and prints every joint's angle in the c
 arm_calibration.yaml. The gripper is shown as its position, 0 open .. 1 closed.
 
 Read-only: it creates no publisher, so it cannot command a motor. Run it next to anything else
-(joint_command, teleop, arm_roundtrip.py) to watch the arm.
+(joint_command, teleop, roundtrip.py) to watch the arm.
 
 Run (joint_command or interfacing container, can_node running)::
 

@@ -7,7 +7,8 @@
 #include <rclcpp/serialization.hpp>
 #include <thread>
 
-CanNode::CanNode() : Node("can_node"), can_core(this->get_logger()) {
+CanNode::CanNode()
+    : Node("can_node"), can_upper(this->get_logger()), can_lower(this->get_logger()) {
   RCLCPP_INFO(this->get_logger(), "CAN Node has been initialized");
 
   // Load DBC file
@@ -33,40 +34,94 @@ CanNode::CanNode() : Node("can_node"), can_core(this->get_logger()) {
   loadMitProfiles();
 
   // Load parameters from config/params.yaml
-  this->declare_parameter("can_interface", "can0");
-  this->declare_parameter("device_path", "/dev/canable");
-  this->declare_parameter("bustype", "slcan");
-  this->declare_parameter("bitrate", 500000);
+  this->declare_parameter("upper.can_interface", "can0");
+  this->declare_parameter("upper.device_path", "/dev/canable1");
+  this->declare_parameter("upper.bustype", "slcan");
+  this->declare_parameter("upper.bitrate", 1000000);
+  this->declare_parameter<std::vector<int64_t>>("upper.motor_ids",
+                                                {11, 12, 13, 14, 21, 22, 30, 31, 32, 33, 34, 104});
+
+  this->declare_parameter("lower.can_interface", "can1");
+  this->declare_parameter("lower.device_path", "/dev/canable2");
+  this->declare_parameter("lower.bustype", "slcan");
+  this->declare_parameter("lower.bitrate", 1000000);
+  this->declare_parameter<std::vector<int64_t>>("lower.motor_ids",
+                                                {40, 41, 42, 43, 44, 45, 50, 51, 52, 53, 54, 55});
+
   this->declare_parameter("receive_poll_interval_ms", 10);
   this->declare_parameter("mit_master_id", 0);
 
   // Get parameter values
-  std::string can_interface = this->get_parameter("can_interface").as_string();
-  std::string device_path = this->get_parameter("device_path").as_string();
-  std::string bustype = this->get_parameter("bustype").as_string();
-  int bitrate = this->get_parameter("bitrate").as_int();
-
   int receive_poll_interval_ms = this->get_parameter("receive_poll_interval_ms").as_int();
   mit_master_id_ = static_cast<int>(this->get_parameter("mit_master_id").as_int());
 
+  std::string can_interface_upper = this->get_parameter("upper.can_interface").as_string();
+  std::string device_path_upper = this->get_parameter("upper.device_path").as_string();
+  std::string bustype_upper = this->get_parameter("upper.bustype").as_string();
+  int bitrate_upper = this->get_parameter("upper.bitrate").as_int();
+  const auto motor_ids_upper = this->get_parameter("upper.motor_ids").as_integer_array();
+
+  std::string can_interface_lower = this->get_parameter("lower.can_interface").as_string();
+  std::string device_path_lower = this->get_parameter("lower.device_path").as_string();
+  std::string bustype_lower = this->get_parameter("lower.bustype").as_string();
+  int bitrate_lower = this->get_parameter("lower.bitrate").as_int();
+  const auto motor_ids_lower = this->get_parameter("lower.motor_ids").as_integer_array();
+
   RCLCPP_INFO(this->get_logger(),
-              "Loaded parameters: interface=%s, bustype=%s, bitrate=%d, "
+              "Loaded upper parameters: interface=%s, bustype=%s, bitrate=%d, "
               "poll_interval_ms=%d",
-              can_interface.c_str(), bustype.c_str(), bitrate, receive_poll_interval_ms);
+              can_interface_upper.c_str(), bustype_upper.c_str(), bitrate_upper,
+              receive_poll_interval_ms);
+
+  RCLCPP_INFO(this->get_logger(),
+              "Loaded lower parameters: interface=%s, bustype=%s, bitrate=%d, "
+              "poll_interval_ms=%d",
+              can_interface_lower.c_str(), bustype_lower.c_str(), bitrate_lower,
+              receive_poll_interval_ms);
 
   // Configure CanCore
-  CanConfig config;
-  config.interface_name = can_interface;
-  config.device_path = device_path;
-  config.bustype = bustype;
-  config.bitrate = static_cast<uint32_t>(bitrate);
+  CanConfig config_upper{};
+  config_upper.interface_name = can_interface_upper;
+  config_upper.device_path = device_path_upper;
+  config_upper.bustype = bustype_upper;
+  config_upper.bitrate = bitrate_upper;
+  for (const auto id : motor_ids_upper) {
+    motor_buses_[static_cast<int>(id)] = &can_upper;
+  }
 
-  // Throws on failure: a CAN node without a bus must not keep running and accept commands.
-  can_core.initialize(config);
-  RCLCPP_INFO(this->get_logger(), "CAN Core interface initialized successfully");
+  CanConfig config_lower{};
+  config_lower.interface_name = can_interface_lower;
+  config_lower.device_path = device_path_lower;
+  config_lower.bustype = bustype_lower;
+  config_lower.bitrate = bitrate_lower;
+  for (const auto id : motor_ids_lower) {
+    motor_buses_[static_cast<int>(id)] = &can_lower;
+  }
 
-  receive_timer_ = this->create_wall_timer(std::chrono::milliseconds(receive_poll_interval_ms),
-                                           [this]() { receiveCanMessages(); });
+  // Initialize the CAN interface
+  try {
+    can_upper.initialize(config_upper);
+    upper_initialized_ = true;
+    RCLCPP_INFO(this->get_logger(), "Upper CAN Core interface initialized successfully");
+    // Setup a timer to periodically call receiveCanMessages
+    upper_receive_timer_ =
+        this->create_wall_timer(std::chrono::milliseconds(receive_poll_interval_ms),
+                                [this]() { receiveCanMessages(can_upper); });
+  } catch (const std::exception& e) {
+    RCLCPP_ERROR(this->get_logger(), "Failed to initialize upper CAN Core: %s", e.what());
+  }
+
+  try {
+    can_lower.initialize(config_lower);
+    lower_initialized_ = true;
+    RCLCPP_INFO(this->get_logger(), "Lower CAN Core interface initialized successfully");
+    // Setup a timer to periodically call receiveCanMessages
+    lower_receive_timer_ =
+        this->create_wall_timer(std::chrono::milliseconds(receive_poll_interval_ms),
+                                [this]() { receiveCanMessages(can_lower); });
+  } catch (const std::exception& e) {
+    RCLCPP_ERROR(this->get_logger(), "Failed to initialize lower CAN Core: %s", e.what());
+  }
 
   // Load topic configurations and create subscribers
   createSubscribersPublishers();
@@ -136,6 +191,11 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
   RCLCPP_DEBUG(this->get_logger(), "Received MotorCMD motor=%d control_type=%d",
                static_cast<int>(msg->motor_id), static_cast<int>(msg->control_type));
 
+  CanCore* bus = findBusForMotor(msg->motor_id);
+  if (!bus) {
+    return;
+  }
+
   const dbcppp::IMessage* dbc_msg = nullptr;
 
   try {
@@ -146,7 +206,7 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
       CanMessage can_msg = dbcCanMessage(dbc_msg, msg->motor_id);
       encodeSignal(findSignalByName(dbc_msg, "DutyCycle"), static_cast<double>(msg->duty_cycle),
                    can_msg);
-      publishCanMessage(can_msg);
+      publishCanMessage(can_msg, *bus);
       break;
     }
 
@@ -155,7 +215,7 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
       CanMessage can_msg = dbcCanMessage(dbc_msg, msg->motor_id);
       encodeSignal(findSignalByName(dbc_msg, "IqCurrent"), static_cast<double>(msg->current),
                    can_msg);
-      publishCanMessage(can_msg);
+      publishCanMessage(can_msg, *bus);
       break;
     }
 
@@ -164,7 +224,7 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
       CanMessage can_msg = dbcCanMessage(dbc_msg, msg->motor_id);
       encodeSignal(findSignalByName(dbc_msg, "BrakeCurrent"), static_cast<double>(msg->current),
                    can_msg);
-      publishCanMessage(can_msg);
+      publishCanMessage(can_msg, *bus);
       break;
     }
 
@@ -173,7 +233,7 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
       CanMessage can_msg = dbcCanMessage(dbc_msg, msg->motor_id);
       encodeSignal(findSignalByName(dbc_msg, "VelocityERPM"), static_cast<double>(msg->velocity),
                    can_msg);
-      publishCanMessage(can_msg);
+      publishCanMessage(can_msg, *bus);
       break;
     }
 
@@ -182,7 +242,7 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
       CanMessage can_msg = dbcCanMessage(dbc_msg, msg->motor_id);
       encodeSignal(findSignalByName(dbc_msg, "PositionDeg"), static_cast<double>(msg->position),
                    can_msg);
-      publishCanMessage(can_msg);
+      publishCanMessage(can_msg, *bus);
       break;
     }
 
@@ -192,7 +252,7 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
       // 0 = Temporary Origin, 1 = Permanent Origin (from DBC VAL_)
       double origin_mode = msg->temporary ? 0.0 : 1.0;
       encodeSignal(findSignalByName(dbc_msg, "OriginMode"), origin_mode, can_msg);
-      publishCanMessage(can_msg);
+      publishCanMessage(can_msg, *bus);
       break;
     }
 
@@ -205,7 +265,7 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
                    can_msg);
       encodeSignal(findSignalByName(dbc_msg, "PosVelAccel"), static_cast<double>(msg->acceleration),
                    can_msg);
-      publishCanMessage(can_msg);
+      publishCanMessage(can_msg, *bus);
       break;
     }
 
@@ -240,7 +300,7 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
         const auto payload =
             packAkMitCommand(msg->position, msg->velocity, msg->kp, msg->kd, msg->torque, p);
         std::copy(payload.begin(), payload.end(), ak_msg.data.begin());
-        publishCanMessage(ak_msg);
+        publishCanMessage(ak_msg, *bus);
         break;
       }
       dbc_msg = can_messages["MITControlCmd"];
@@ -258,7 +318,7 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
                    can_msg);
       encodeSignal(findSignalByName(dbc_msg, "MIT_Torque"),
                    static_cast<int64_t>(packMitValue(msg->torque, p.t_min, p.t_max, 12)), can_msg);
-      publishCanMessage(can_msg);
+      publishCanMessage(can_msg, *bus);
       break;
     }
 
@@ -292,7 +352,7 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
       dbc_msg = can_messages["MotorDisableCmd"];
       // MotorDisableCmd has no signals, just send the CAN ID
       CanMessage can_msg = dbcCanMessage(dbc_msg, msg->motor_id);
-      publishCanMessage(can_msg);
+      publishCanMessage(can_msg, *bus);
       break;
     }
 
@@ -410,6 +470,10 @@ CanMessage CanNode::dbcCanMessage(const dbcppp::IMessage* msg, int device_id) co
 }
 
 void CanNode::sendMitSpecialFrame(int motor_id, uint8_t code, const char* what) {
+  CanCore* bus = findBusForMotor(motor_id);
+  if (!bus) {
+    return;
+  }
   const auto it = mit_profiles_.find(motor_id);
   if (it == mit_profiles_.end()) {
     RCLCPP_ERROR(this->get_logger(),
@@ -438,7 +502,7 @@ void CanNode::sendMitSpecialFrame(int motor_id, uint8_t code, const char* what) 
   const auto payload = mitSpecialFrame(code);
   std::copy(payload.begin(), payload.end(), can_msg.data.begin());
   RCLCPP_INFO(this->get_logger(), "MIT %s -> motor %d", what, motor_id);
-  publishCanMessage(can_msg);
+  publishCanMessage(can_msg, *bus);
 }
 
 // MIT feedback: a standard frame on the master id, outside the DBC. Byte 0 is the full motor id
@@ -458,6 +522,7 @@ bool CanNode::handleMitFeedback(const CanMessage& message) {
   const uint8_t id_nibble = message.data[0] & 0xF;
   const MitProfile* profile = nullptr;
   int motor_id = -1;
+
   for (const auto& [id, p] : mit_profiles_) {
     if (p.family == MitFamily::Gl2 && (id & 0xF) == id_nibble) {
       if (profile != nullptr) {
@@ -531,10 +596,10 @@ void CanNode::publishFeedback(const common_msgs::msg::MotorFeedback& feedback_ms
   }
 }
 
-void CanNode::receiveCanMessages() {
+void CanNode::receiveCanMessages(CanCore& core) {
   std::vector<CanMessage> messages;
   CanMessage msg;
-  while (can_core.receiveMessage(msg)) {
+  while (core.receiveMessage(msg)) {
     messages.push_back(msg);
   }
 
@@ -594,9 +659,20 @@ void CanNode::receiveCanMessages() {
   }
 }
 
-void CanNode::publishCanMessage(CanMessage& can_msg) {
+CanCore* CanNode::findBusForMotor(int motor_id) {
+  const auto it = motor_buses_.find(motor_id);
+  if (it == motor_buses_.end() || (it->second == &can_upper && !upper_initialized_) ||
+      (it->second == &can_lower && !lower_initialized_)) {
+    RCLCPP_ERROR_THROTTLE(get_logger(), *get_clock(), 1000,
+                          "Motor %d has no configured, available CAN bus", motor_id);
+    return nullptr;
+  }
+  return it->second;
+}
+
+void CanNode::publishCanMessage(CanMessage& can_msg, CanCore& core) {
   // Send the CAN message
-  if (can_core.sendMessage(can_msg)) {
+  if (core.sendMessage(can_msg)) {
     RCLCPP_DEBUG(this->get_logger(), "Sent CAN message: ID=0x%X", can_msg.id);
   } else {
     RCLCPP_ERROR(this->get_logger(), "Failed to send CAN message: ID=0x%X", can_msg.id);
