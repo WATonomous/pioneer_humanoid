@@ -60,7 +60,8 @@ def imu_reading(t, h=1e-3):
     R = T_world_imu(t)[:3, :3]
     R_prev, R_next = T_world_imu(t - h)[:3, :3], T_world_imu(t + h)[:3, :3]
     gyro = gtsam.Rot3.Logmap(gtsam.Rot3(R_prev.T @ R_next)) / (2 * h)
-    p = lambda s: T_world_imu(s)[:3, 3]
+    def p(s):
+        return T_world_imu(s)[:3, 3]
     accel_world = (p(t + h) - 2 * p(t) + p(t - h)) / h**2
     accel = R.T @ (accel_world - G_WORLD)   # at rest this is [0, -9.81, 0], as in imu.txt
     return gyro, accel
