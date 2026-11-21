@@ -32,6 +32,8 @@ services:
     volumes:
       - ${MONO_DIR}/src/terrain_mapping:/home/bolty/ament_ws/src/terrain_mapping
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      # Writable; `record:=/outputs/...` in bag_pipeline.launch.py lands in the repo's gitignored outputs/.
+      - ${MONO_DIR}/outputs:/outputs
       - type: bind
         source: ${TERRAIN_BAGS_DIR:?}
         target: /bags
