@@ -8,6 +8,7 @@ articulations (`left_arm` / `right_arm`).
 from __future__ import annotations
 
 import os
+import sys
 from collections.abc import Sequence
 
 import numpy as np
@@ -53,7 +54,7 @@ def fix_garment_asset_paths(garment_loader, garment_config, garment_name, garmen
     raw = garment_config.get("asset_path", "")
     if raw:
         garment_config.asset_path = os.path.join(gdir, os.path.basename(raw))
-    fixed = [os.path.join(gdir, os.path.basename(v))
+    fixed = [os.path.join(garment_cfg_base_path, garment_version, "Color_Texture", os.path.basename(v))
              for v in (garment_config.get("visual_usd_paths", []) or []) if v]
     garment_config.visual_usd_paths = fixed
 
@@ -122,8 +123,9 @@ class GarmentPioneerEnv(GarmentEnv):
         self.scene.sensors["right_camera"] = self.right_camera
         self.scene.sensors["scene_camera"] = self.scene_camera
 
-        light_cfg = sim_utils.DomeLightCfg(intensity=1200, color=(0.75, 0.75, 0.75))
-        light_cfg.func("/World/Light", light_cfg)
+        if not self.cfg.workcell:   # the workcell brings its own lights
+            light_cfg = sim_utils.DomeLightCfg(intensity=1200, color=(0.75, 0.75, 0.75))
+            light_cfg.func("/World/Light", light_cfg)
 
     def _build_worksurface(self):
         """LeHome spawns `Scene_00_Apartment.usd` at /World/Scene (photoreal
@@ -138,6 +140,9 @@ class GarmentPioneerEnv(GarmentEnv):
             bd = sim_utils.UsdFileCfg(usd_path=self.cfg.backdrop_usd_path, scale=(s, s, s))
             bd.func("/World/Backdrop", bd, translation=self.cfg.backdrop_pos)
 
+        if self.cfg.workcell:
+            self._build_workcell()
+            return
         if os.path.isfile(MARBLE_BEDROOM_USD_PATH):
             cfg = sim_utils.UsdFileCfg(usd_path=MARBLE_BEDROOM_USD_PATH)
             cfg.func("/World/Scene", cfg, translation=(0.0, 0.0, 0.0),
@@ -158,6 +163,31 @@ class GarmentPioneerEnv(GarmentEnv):
                 "drop to the ground plane. Copy Scene_00_Apartment.usd into "
                 "vendor_assets/scenes/marble/."
             )
+
+    def _build_workcell(self):
+        """Every prim of LightboxWorkcellCfg under /World/Workcell, moved so its arm base lands on robot_base_pos."""
+        import importlib.util
+        from pxr import Gf
+        import isaacsim.core.utils.prims as prim_utils
+        path = os.path.join(os.environ.get("HUMANOID_ROOT", "/workspace/humanoid"),
+                            "src/simulation/humanoid_rl_tasks/humanoid_rl_tasks/workcell.py")
+        spec = importlib.util.spec_from_file_location("workcell", path)
+        wc = importlib.util.module_from_spec(spec)
+        sys.modules["workcell"] = wc   # configclass needs the module registered
+        spec.loader.exec_module(wc)
+        yaw = Gf.Rotation(Gf.Vec3d(0, 0, 1), 90)   # the workcell arm faces +x, ours +y (robot_base_rot)
+        base = yaw.TransformDir(Gf.Vec3d(*wc.ROBOT_BASE_POS))
+        t = Gf.Vec3d(*self.cfg.robot_base_pos) - base
+        prim_utils.create_prim("/World/Workcell", "Xform", translation=tuple(t), orientation=(0.7071068, 0.0, 0.0, 0.7071068))
+        for name, a in vars(wc.LightboxWorkcellCfg(num_envs=1, env_spacing=1.0)).items():
+            if hasattr(a, "spawn") and a.spawn is not None:
+                a.spawn.func(f"/World/Workcell/{name}", a.spawn, translation=a.init_state.pos, orientation=a.init_state.rot)
+        board = sim_utils.CuboidCfg(size=(wc.TABLE_X_MAX - wc.TABLE_X_MIN, 2 * wc.TABLE_Y_HALF, 0.01), visible=False,
+                                    collision_props=sim_utils.CollisionPropertiesCfg(),   # the cloth lies on the white boards
+                                    physics_material=sim_utils.RigidBodyMaterialCfg(static_friction=1.0, dynamic_friction=1.0))
+        board.func("/World/Workcell/board_collision", board,
+                   translation=(wc._TABLE_POS[0], wc._TABLE_POS[1], wc.TABLE_TOP_Z + wc.BOTTOM_PANEL + 0.0005 - 0.005))
+        self.table_top_z = wc.TABLE_TOP_Z + wc.BOTTOM_PANEL + 0.0005 + t[2]   # world z of the boards the cloth lies on
 
     # ------------------------------------------------------------------ actions
     def _apply_action(self) -> None:
