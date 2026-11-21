@@ -63,9 +63,10 @@ class Tracker:
         self.T_odom_kf = np.eye(4)
         self.T_odom_cur = np.eye(4)
         self.n_lost = 0
+        self.last = None  # (frame, features, T_odom, n_inliers) of the last tracked frame
 
     def _set_keyframe(self, frame, feats, T_odom_frame, T_prev_kf, n_inliers, gap=False):
-        """Make `frame` the new tracking reference and return its Keyframe message."""
+        # Make `frame` the new tracking reference and return its Keyframe message
         z = depth_at(frame.depth, feats.keypoints)
         valid = z > 0
         points = back_project(undistort(feats.keypoints, frame.K, frame.dist), z, frame.K)
@@ -84,8 +85,16 @@ class Tracker:
             descriptors=feats.descriptors[valid],
             points_3d=points[valid].astype(np.float32))
 
+    def _track(self, feats, frame, size):
+        # match against the current keyframe and estimate the pose
+        m = self.matcher.match(self.kf["feats"], feats, size)
+        keep = self.kf["valid"][m.idx_a]
+        X = self.kf["points"][m.idx_a[keep]]
+        pts = undistort(feats.keypoints[m.idx_b[keep]], frame.K, frame.dist)
+        return m, estimate_pose(X, pts, frame.K, size, **self.pose_kwargs)
+
     def process(self, frame):
-        # Track one Frame. Returns a TrackResult (pose, stats, maybe a new Keyframe).
+        # Track one Frame. Returns a TrackResult (pose, stats, maybe a new Keyframe)
         if not frame.has_depth:
             raise ValueError("Tracker needs depth (RGB-D input)")
         feats = self.extractor.extract(frame.image)
@@ -94,35 +103,41 @@ class Tracker:
         # first frame: becomes keyframe 0 and defines the odom origin
         if self.kf is None:
             kf = self._set_keyframe(frame, feats, np.eye(4), np.eye(4), len(feats.keypoints))
+            self.last = (frame, feats, np.eye(4), len(feats.keypoints))
             return TrackResult(True, self.T_odom_cur.copy(), keyframe=kf)
 
-        # match against the keyframe, keep only matches whose keyframe point has depth
-        m = self.matcher.match(self.kf["feats"], feats, size)
-        keep = self.kf["valid"][m.idx_a]
-        X = self.kf["points"][m.idx_a[keep]]
-        pts = undistort(feats.keypoints[m.idx_b[keep]], frame.K, frame.dist)
-        res = estimate_pose(X, pts, frame.K, size, **self.pose_kwargs)
+        m, res = self._track(feats, frame, size)
 
-        # tracking failed: publish nothing; after max_lost in a row, restart from here
+        # too far from the keyframe: promote the last good frame to keyframe and retry from it
+        promoted = None
+        if not res.ok and self.last[0] is not self.kf["frame"]:
+            lf, lfeats, T_odom_last, n_last = self.last
+            T_prev_kf = np.linalg.inv(self.T_odom_kf) @ T_odom_last
+            promoted = self._set_keyframe(lf, lfeats, T_odom_last, T_prev_kf, n_last)
+            m, res = self._track(feats, frame, size)
+
+        # still failing: publish nothing; after max_lost in a row, restart from here
         if not res.ok:
             self.n_lost += 1
-            kf = None
-            if self.n_lost >= self.max_lost:
+            kf = promoted
+            if kf is None and self.n_lost >= self.max_lost:
                 T_guess = np.linalg.inv(self.T_odom_kf) @ self.T_odom_cur  # last good pose, as a guess
                 kf = self._set_keyframe(frame, feats, self.T_odom_cur.copy(), T_guess, 0, gap=True)
+                self.last = (frame, feats, self.T_odom_cur.copy(), 0)
                 self.n_lost = 0
             return TrackResult(False, self.T_odom_cur.copy(), res.reason, len(m), len(res.inliers), kf)
 
-        # success: chain into the odom frame. res.T maps keyframe points into this camera
-        # (T_cur_kf), so the camera's pose in the keyframe is its inverse.
+        # success: chain into odom. res.T is T_cur_kf, so the camera's pose in the keyframe is its inverse
         self.n_lost = 0
         T_kf_cur = np.linalg.inv(res.T)
         self.T_odom_cur = self.T_odom_kf @ T_kf_cur
+        self.last = (frame, feats, self.T_odom_cur.copy(), len(res.inliers))
 
-        # new keyframe if tracking is getting weak or we've moved far from the keyframe
-        trans = np.linalg.norm(T_kf_cur[:3, 3])
-        angle = np.degrees(np.linalg.norm(cv2.Rodrigues(T_kf_cur[:3, :3])[0]))
-        kf = None
-        if len(res.inliers) < self.kf_min_inliers or trans > self.kf_max_trans or angle > self.kf_max_rot_deg:
-            kf = self._set_keyframe(frame, feats, self.T_odom_cur.copy(), T_kf_cur, len(res.inliers))
+        # new keyframe if tracking is weakening or we've moved far (skip if we just promoted one)
+        kf = promoted
+        if kf is None:
+            trans = np.linalg.norm(T_kf_cur[:3, 3])
+            angle = np.degrees(np.linalg.norm(cv2.Rodrigues(T_kf_cur[:3, :3])[0]))
+            if len(res.inliers) < self.kf_min_inliers or trans > self.kf_max_trans or angle > self.kf_max_rot_deg:
+                kf = self._set_keyframe(frame, feats, self.T_odom_cur.copy(), T_kf_cur, len(res.inliers))
         return TrackResult(True, self.T_odom_cur.copy(), "", len(m), len(res.inliers), kf)
