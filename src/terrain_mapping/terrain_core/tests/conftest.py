@@ -2,5 +2,7 @@
 import sys
 from pathlib import Path
 
-# tum.py lives in terrain_core/terrain_tools/ (parents[1] = the outer terrain_core/ folder)
+# parents[1] = the outer terrain_core/ folder (contains terrain_core/ and terrain_tools/)
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "terrain_tools"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "terrain_mapping_bringup" / "scripts"))
