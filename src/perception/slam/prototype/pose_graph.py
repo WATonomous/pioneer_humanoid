@@ -16,6 +16,7 @@ import gtsam
 import numpy as np
 from gtsam.symbol_shorthand import X   # X(i) = graph key for keyframe i's pose
 
+from slam_core.loop_closure import loop_covariance
 from slam_core.types import Keyframe
 from slam_core.types.pose import covariance_from_sigmas, from_tum, to_tum
 
@@ -51,8 +52,8 @@ def write_tum(path, stamps, poses):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("run", nargs="?", default="out", help="vo.py output directory")
-    ap.add_argument("--loop-rot", type=float, default=0.02, help="rad, loop closure sigma")
-    ap.add_argument("--loop-trans", type=float, default=0.03, help="m, loop closure sigma")
+    ap.add_argument("--loop-rot", type=float, default=0.02, help="rad, loop closure sigma at 100 inliers (scaled by sqrt(100 / inliers))")
+    ap.add_argument("--loop-trans", type=float, default=0.03, help="m, loop closure sigma at 100 inliers")
     args = ap.parse_args()
 
     kfs = read_keyframes(os.path.join(args.run, "keyframes.txt"))
@@ -86,7 +87,9 @@ def main():
     for v in loops:
         new_id, old_id = int(v[0]), int(v[1])
         T_old_new = from_tum([float(x) for x in v[3:10]])
-        noise = gtsam.noiseModel.Robust.Create(huber, sigmas(args.loop_rot, args.loop_trans))
+        # More inliers means a more trustworthy loop: the sigmas are the flags' values at 100 inliers, scaled by sqrt(100 / inliers)
+        cov = loop_covariance(int(v[10]), args.loop_rot, args.loop_trans)
+        noise = gtsam.noiseModel.Robust.Create(huber, gtsam.noiseModel.Gaussian.Covariance(cov))
         graph.add(gtsam.BetweenFactorPose3(X(old_id), X(new_id), gtsam.Pose3(T_old_new), noise))
 
     first, last = kfs[0].id, kfs[-1].id

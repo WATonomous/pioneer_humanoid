@@ -10,6 +10,7 @@ import torch
 
 from slam_core.frontend.features import grid_select
 from slam_core.io.realsense import RealSense, RealSenseConfig
+from slam_core.loop_closure import BagOfWords, LoopClosureDetector, LoopParams, Verification, Vlad, loop_covariance
 from slam_core.types import Keyframe
 from slam_core.types.pose import covariance_from_sigmas, inv_T, make_T, rotation_angle, to_tum
 
@@ -141,6 +142,14 @@ class Params:
     loop_radius: float = 1.0     # M, candidates within this distance (by VO estimate)
     loop_max_cands: int = 3
     loop_min_inliers: int = 40   # Stricter than tracking: false loops are worse than missed ones
+    # "radius" is the brute force search below. "module" uses slam_core.loop_closure instead: place recognition
+    # (bag of words over the XFeat descriptors), verification, odometry gate, confirmation over keyframes,
+    # consistency. The module's own thresholds (e.g. 30 inliers) are slam_core.loop_closure.LoopParams defaults
+    loop_mode: str = "radius"
+    loop_encoder: str = "bow"    # module: place recognition descriptor, bow (bag of words, tf-idf) or vlad
+    loop_k: int = 0              # module: vocabulary size (0 = 500 words for bow, 64 clusters for vlad)
+    loop_vocab_kfs: int = 40     # module: keyframes used to train the vocabulary before loop search starts
+    loop_vocab: str = ""         # module: .npz vocabulary to reuse instead (a run writes loop_vocab.npz)
 
 
 # What one process() call returns, which is everything the viewer (and later the ROS node) needs
@@ -168,6 +177,9 @@ class VO:
         self.lost = 0
         self.loops = []              # (new_id, old_id, stamp, T_old_new, inliers)
         self.last_loop_kf = -10**9
+        self.detector = self.encoder = None   # loop_mode "module": the detector and its place recognition encoder
+        self.loop_edges = {}               # its accepted loops by id
+        self.fed = 0                       # keyframes handed to the detector so far
         self.frames = []             # (stamp, kf_id, T_kf_cur) for every tracked frame
         self.K = self.dist = None
 
@@ -294,6 +306,8 @@ class VO:
     # outside the radius
     def _detect_loop(self, new):
         p = self.p
+        if p.loop_mode == "module":
+            return self._detect_loop_module(new)
         # Waits a few keyframes after a loop so the same revisit isn't added again and again
         if new.kf.id - self.last_loop_kf < p.loop_cooldown:
             return -1
@@ -316,10 +330,53 @@ class VO:
                 return r.kf.id
         return -1
 
+    # Verifies one (old, new) keyframe pair for the loop detector: match, PnP against the old keyframe's depth.
+    # Returns anything with 15+ inliers; the detector applies its own threshold (LoopParams.min_inliers)
+    def _verify_loop(self, old_id, new_id):
+        T, inl_px, _ = estimate_pose(self.xfeat, self.refs[old_id], self.refs[new_id].feats, self.K, self.dist,
+                                     self.p, 15)
+        return None if T is None else Verification(T, loop_covariance(len(inl_px)), len(inl_px))
+
+    # Loop detection with slam_core.loop_closure. Place recognition needs a vocabulary: it is loaded from
+    # loop_vocab, or trained on the first loop_vocab_kfs keyframes, and no loops are searched until then.
+    # Every keyframe (including the first and the ones after a re-initialization) is handed to the detector in
+    # order, because it builds its own odometry tree. Returns the old keyframe of the newest accepted loop, else -1
+    def _detect_loop_module(self, new):
+        p = self.p
+        if self.detector is None:
+            self.detector = LoopClosureDetector(self._verify_loop, LoopParams())
+            self.encoder = BagOfWords(p.loop_k or 500) if p.loop_encoder == "bow" else Vlad(p.loop_k or 64)
+            if p.loop_vocab:
+                v = np.load(p.loop_vocab)
+                self.encoder.centers = v["centers"]
+                if "idf" in v.files:
+                    self.encoder.idf = v["idf"]
+        if self.encoder.centers is None:
+            if len(self.refs) < p.loop_vocab_kfs:
+                return -1
+            self.encoder.fit([r.kf.descriptors for r in self.refs])
+        found = -1
+        for r in self.refs[self.fed:new.kf.id + 1]:
+            up = self.detector.process(r.kf, self.encoder.encode(r.kf.descriptors))
+            for L in up.added:
+                self.loop_edges[L.id] = L
+                found = L.old_id
+            for i in up.retracted:
+                self.loop_edges.pop(i, None)
+        self.fed = new.kf.id + 1
+        # The same tuples the radius mode writes to loops.txt, so pose_graph.py needs no changes
+        self.loops = [(L.new_id, L.old_id, L.stamp, L.T_old_new, L.n_inliers) for L in self.loop_edges.values()]
+        return found
+
     # Writes everything pose_graph.py and map.py need into the out directory
     def write(self, out):
         os.makedirs(out, exist_ok=True)
         kfs = self.keyframes
+        if self.encoder is not None and self.encoder.centers is not None:
+            vocab = {"centers": self.encoder.centers}
+            if getattr(self.encoder, "idf", None) is not None:
+                vocab["idf"] = self.encoder.idf
+            np.savez(os.path.join(out, "loop_vocab.npz"), **vocab)
 
         # The raw VO trajectory, one pose per tracked frame
         with open(os.path.join(out, "trajectory_vo.txt"), "w") as fh:

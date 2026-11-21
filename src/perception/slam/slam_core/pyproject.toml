@@ -11,6 +11,8 @@ dependencies = ["numpy", "pyyaml"]
 
 [project.optional-dependencies]
 realsense = ["pyrealsense2"]
+demo = ["scipy", "matplotlib"]   # loop closure simulator and demo plots
+test = ["pytest", "scipy"]
 
 [tool.setuptools.packages.find]
 include = ["slam_core*"]
