@@ -1,0 +1,118 @@
+<title>PioneerNet Results</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@500;600&display=swap">
+<style>
+/* Layout: one reading column; the two result tables may run wider inside their own scroll boxes. */
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --fg: #1b2230; --muted: #5d6676; --rule: #dde1e8;
+  --accent: #1f5fbf; --ours: #e8f0fc; --best: #0e6b3a; --na: #9aa2b0;
+  --display: "Space Grotesk", "IBM Plex Sans", system-ui, sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #11151c; --panel: #171c25; --fg: #e4e8ef; --muted: #98a1b1; --rule: #2a313d;
+  --accent: #7aa8f0; --ours: #1c2a40; --best: #6fd39b; --na: #5f6878; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #11151c; --panel: #171c25; --fg: #e4e8ef; --muted: #98a1b1; --rule: #2a313d;
+  --accent: #7aa8f0; --ours: #1c2a40; --best: #6fd39b; --na: #5f6878; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font: 15px/1.55 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+main { max-width: 1080px; margin: 0 auto; padding-block: 28px 56px; display: grid; gap: 36px; }
+h1, h2 { font-family: var(--display); text-wrap: balance; margin: 0; letter-spacing: -0.01em; }
+h1 { font-size: 1.9rem; font-weight: 600; }
+h2 { font-size: 1.2rem; font-weight: 600; }
+p { margin: 0; max-width: 68ch; }
+.muted { color: var(--muted); }
+.meta { font: 12.5px var(--mono); color: var(--muted); }
+header { display: grid; gap: 10px; }
+.lead { font-size: 1.05rem; }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 8px; }
+.fact { background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 14px 16px; display: grid; gap: 2px; }
+.fact b { font: 600 1.6rem var(--display); font-variant-numeric: tabular-nums; }
+.fact span { font-size: 13px; color: var(--muted); }
+section { display: grid; gap: 12px; min-width: 0; }
+.scroll { overflow-x: auto; border: 1px solid var(--rule); border-radius: 8px; background: var(--panel); }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { padding: 8px 10px; border-bottom: 1px solid var(--rule); text-align: right; white-space: nowrap; }
+thead th { font: 500 12px var(--body); text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); vertical-align: bottom; }
+thead th:first-child, tbody th { text-align: left; }
+tbody th { font-weight: 500; }
+tbody tr:last-child > * { border-bottom: 0; }
+tr.ours > * { background: var(--ours); }
+.tr { display: block; font: 12px var(--body); color: var(--muted); font-weight: 400; }
+td.best { color: var(--best); font-weight: 600; }
+td.na { color: var(--na); }
+.split th:nth-child(5), .split td:nth-child(5) { border-right: 2px solid var(--rule); }
+.note { font-size: 13.5px; color: var(--muted); }
+.vids { display: grid; grid-template-columns: 1fr; gap: 16px; }
+figure { margin: 0; display: grid; gap: 6px; min-width: 0; }
+video, img { width: 100%; max-width: 100%; border-radius: 6px; border: 1px solid var(--rule); background: #000; }
+figcaption { font-size: 13.5px; color: var(--muted); }
+a { color: var(--accent); }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+<main>
+  <header>
+    <div class="meta">8-DoF bimanual rig · peg insertion · MuJoCo · updated {{UPDATED}}</div>
+    <h1>PioneerNet results</h1>
+    <p class="lead">A 12M-parameter RGB-D ResNet-18, distilled from DINOv2 and DeFM, gives the best clean robot policy we have
+      tested, frozen, and the most robust one under lighting, colour, fog, glare, lens and shadow changes. v5 failed a new
+      background (8%); v6, trained with random background panels and distractors, reaches 32%, and 24% on a held-out
+      tablecloth where every baseline gets 0–6%.</p>
+    <div class="facts">
+      <div class="fact"><b>92%</b><span>clean success, frozen (best baseline 88%, fine-tuned)</span></div>
+      <div class="fact"><b>68% vs 12%</b><span>success under changed lighting, vs the best baseline</span></div>
+      <div class="fact"><b>74% → 2%</b><span>colour-change success with depth switched off: that robustness comes from depth</span></div>
+    </div>
+  </header>
+
+  <section>
+    <h2>Robot success</h2>
+    <p class="muted">Success rate (%) on held-out layouts: 100 clean, 50 per shift. Green marks the best in each column.
+      The seven columns on the right are the scenario shifts (below), several of which also degrade depth.</p>
+    <div class="scroll"><table class="split">{{ROBOT}}</table></div>
+    <p class="note">{{STATUS}} The camera-moved test is unsolved by every policy.</p>
+  </section>
+
+  <section>
+    <h2>The scenarios</h2>
+    <p class="muted">Light and colour changes leave depth untouched, so these also hit depth where a real sensor would:
+      fog and glare cause depth dropout, a wet lens blanks depth under the drops, and clutter and a new background
+      change the geometry. Shadows change colour only, as in reality. The tablecloth was added after v6's training
+      corruptions were designed and before any v6 result, so it is a held-out test for v6.</p>
+    <figure><img src="scenario_examples.png" alt="One held-out layout under the seven scenarios, from the head and wrist cameras, colour and depth">
+      <figcaption>The same layout under each scenario. Depth in colour scale; black means no reading.</figcaption></figure>
+  </section>
+
+  <section>
+    <h2>Side by side</h2>
+    <p class="muted">PioneerNet v5 (left) and the ACT ResNet-18 baseline (right), same layout, same shift.</p>
+    <div class="vids">
+      <figure><video controls muted loop playsinline preload="metadata" src="cmp_peg_color_v5_vs_act.mp4"></video>
+        <figcaption>Peg and block recoloured: PioneerNet inserts; ACT never reaches the hole.</figcaption></figure>
+      <figure><video controls muted loop playsinline preload="metadata" src="cmp_peg_light_v5_vs_act.mp4"></video>
+        <figcaption>Dim, warm lighting: PioneerNet inserts; ACT does not.</figcaption></figure>
+      <figure><video controls muted loop playsinline preload="metadata" src="cmp_peg_clean_v5_vs_act.mp4"></video>
+        <figcaption>Clean: both insert.</figcaption></figure>
+      <figure><video controls muted loop playsinline preload="metadata" src="cmp_peg_color_v5_depth_on_vs_off.mp4"></video>
+        <figcaption>Fairness check, PioneerNet v5 with depth (left) and without (right), recoloured scene: only the
+          depth-on policy inserts (74% vs 2% over 50 layouts).</figcaption></figure>
+    </div>
+  </section>
+
+  <section>
+    <h2>Encoder probe</h2>
+    <p class="muted">Peg-to-hole error in mm (lower is better) from a probe on each frozen encoder, 38 held-out episodes.
+      "RGB only" blanks depth on both cameras. On the probe it barely matters; on the robot it does (Colour column above).</p>
+    <div class="scroll"><table>{{PROBE}}</table></div>
+  </section>
+
+  <section>
+    <h2>More detail</h2>
+    <p>Method, all tables, ablations and limitations are in the paper draft:
+      <a href="https://claude.ai/artifact/Sr6UT6JVsPQWuMy4FZsRFg" target="_blank" rel="noopener">PioneerNet paper draft</a>.</p>
+  </section>
+</main>
