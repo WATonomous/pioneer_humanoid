@@ -10,7 +10,8 @@ offline, with no ROS imports. The ROS side (launch files, `elevation_mapping_cup
 |------|--------|-------|
 | Preprocessing: depth to points, crop, voxel downsample, into `odom` | TR-4 | Done, tested on TUM RGB-D |
 | Self-filtering (remove arms and legs) | TR-5 | Next |
-| Elevation grid, traversability, ROS node | TR-2/3, TR-7/8, TR-14 | Not started |
+| Traversability layers: slope, step, roughness | TR-7 | Done offline; synthetic and noisy-map tested |
+| Elevation grid, combined policy layer, ROS node | TR-2/3, TR-8, TR-14 | In progress / not wired to our node |
 
 ## Layout
 
@@ -18,11 +19,12 @@ offline, with no ROS imports. The ROS side (launch files, `elevation_mapping_cup
 src/terrain_mapping/terrain_core/
 ├── pyproject.toml          pip-installable library, no ROS imports
 ├── COLCON_IGNORE           not a ROS package: keeps the terrain_mapping image's colcon build away
-├── config/terrain.yaml     settings (preprocess: crop range, voxel size)
+├── config/terrain.yaml     preprocessing plus TR-6/7 robot limits and windows
 ├── terrain_core/
-│   └── preprocess/         depth.py, crop.py, downsample.py, transform.py, pipeline.py
+│   ├── preprocess/         depth.py, crop.py, downsample.py, transform.py, pipeline.py
+│   └── traversability/     slope.py, step.py, combined.py (TR-7 layers and offline score)
 ├── tests/                  python -m pytest (no dataset needed, except one TUM test)
-├── terrain_tools/          tum.py: TumDataset loads a TUM RGB-D sequence as slam_core Frames
+├── terrain_tools/          tum.py plus eval_traversability_npy.py for saved elevation grids
 ├── prototype/              demo scripts with plots (take --data path/to/sequence)
 └── data/                   datasets and bags (gitignored)
 ```
@@ -53,6 +55,41 @@ cloud = preprocess(frame, T_odom_cam, config)
 - `frame`: a `slam_core.types.Frame` with depth in metres and intrinsics `K`.
 - `T_odom_cam`: 4x4 pose of the camera optical frame in `odom` **at `frame.stamp`**
   (`T_a_b` naming from `slam_core.types.pose`).
+
+## TR-7: traversability layers
+
+TR-7 starts with a 2D elevation grid: one height in metres per map cell, with `NaN` for a cell the camera has not
+measured. It produces three same-shaped layers:
+
+- **Slope** is the angle of the least-squares plane fitted around each cell. It answers “how tilted is the ground?”
+- **Step** is the largest height jump to a nearby cell. The rise explained by a smooth ramp is removed, so a ramp is
+  not falsely reported as stairs.
+- **Roughness** is the RMS error left after fitting the plane. It distinguishes a smooth ramp from uneven ground.
+
+`config/terrain.yaml` is the source of truth for the TR-6 limits and window sizes. The slope/roughness fit uses a
+0.40 m window so 1–2 cm elevation noise does not look like a dangerous slope. Step detection uses only a 0.05 m
+neighbour reach so a real edge remains local. Both settings are metres, not cell counts, so they preserve their
+meaning for both 5 cm and ETH's 4 cm grids.
+
+Run the focused regression suite:
+
+```bash
+python -m pytest tests/test_traversability.py -q
+```
+
+The suite uses clean ramps, steps, boxes, holes, and 1–2 cm seeded noise at both 5 cm and 4 cm resolution. In
+particular it requires noisy flat floor and a 5 degree ramp to remain traversable, while a noisy 10 degree ramp and
+10 cm step remain blocked.
+
+To inspect a recorded map such as Johnson's Nov. 6 `elevation.npy` (the file is intentionally gitignored), run:
+
+```bash
+python terrain_tools/eval_traversability_npy.py /path/to/elevation.npy --resolution 0.04 \
+  --out /tmp/nov6_traversability.png
+```
+
+The command prints the configured limits, estimated map noise, fraction traversable, and the fraction over each
+metric's limit. Its PNG has elevation, slope, step, roughness, score, and final boolean traversability panels.
 
 ## Results on TUM RGB-D `freiburg1_desk`
 
