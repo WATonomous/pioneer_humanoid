@@ -78,6 +78,7 @@ def build(spec: mujoco.MjSpec) -> None:
 | name | notes |
 |------|-------|
 | `bare` | Empty lightbox workcell + arm. |
+| `color_sorting` | Put two 2 × 2 × 4 cm, 50 g blocks into matching coloured bins, in any order, on the shared lightbox workcell. The layout is mirrored to the robot’s right (negative Y). Block and bin centres are 12 cm apart laterally, both on the right at Y = −0.24/−0.12 m; bin exteriors have a 2.4 cm gap. Bins form a horizontal row behind the cubes in the ego view, with 9 × 9 cm interiors, 3 mm floors/walls and 1 cm rims above the floor (9.6 × 9.6 × 1.3 cm outside). Each reset samples two distinct colours from red, green, blue, yellow, cyan and magenta, independently permutes the cube slots, and randomises cube yaw and ±4 mm XY jitter. Each `cube_i` matches `bin_i` regardless of sampled colour. `progress` counts cubes with their entire footprint inside the matching bin, nearly still and supported by its inner floor; removing a cube reduces progress. Prop dimensions are simulation values, not calibrated physical props. |
 | `rubiks_markers` | A Rubik's cube and two whiteboard markers (orange, red) on the floor boards, all free bodies. |
 | `bimanual_sorting` | Sort four 4 cm blocks (two red, two blue) into matching trays on opposite sides of the table. Blocks start outside the trays, on the side opposite their destination. Every reset shifts and rotates the blocks. Success: all four blocks fully inside their matching trays, released from the robot and settled for 0.3 s. Blocks may rest on the tray floor or be stacked on another placed block of the same colour. |
 | `color_sort` | Right arm. Long horizon, 3 steps in order: put the red, blue and yellow pins (5 x 5 x 13 cm, 150 g) on their matching flat 10 cm pads, which sit in a row at the back of the right arm's gripper-down reach (x 0.48). Every reset scatters the pins, lying on their sides, in a strip in front of the pads. A pin counts once its centre is over its pad, resting on the table (lying or standing), still and released; steps latch in order. Checks: `on_pad(model, data, color)`, `all_sorted(model, data)`. |
@@ -86,6 +87,18 @@ def build(spec: mujoco.MjSpec) -> None:
 | `duplo` | Long horizon, 3 steps: stack the red, blue and yellow Duplo 2x4 bricks (64 x 32 x 19 mm) on the green baseplate in the colour order announced (first on the plate, each next one on the previous). Studs, walls and tubes are real collision geometry; the studs taper, so a brick put down within ~4 mm of the grid slides onto it. A brick seated square on the grid, overlapping what it sits on by at least one stud, is welded there (MuJoCo can't do the press fit); pulling it off with more than 6 N, or twisting it, releases it. Bricks lie in a row beside the plate, long side along X, for the gripper pointing down pinching their 32 mm width. Reset shuffles the order and the bricks' places. |
 | `zip_tie` | A pre-threaded 300 × 3.6 mm nylon zip tie around four loose rods (spring-mounted, a few mm apart). The strap is one continuous chain from the head's root, round the rods, back through the slot and out as the tail toward the robot. Grab the tail ≳60 mm from the head (the jaws are 89 mm long) and pull: strap feeds through a one-way, toothed ratchet and the loop gathers then squeezes the rods (about 1 N to cinch). Success: `zip_tie.scene.is_tight(model, data)` (loop ≤ 107 mm, all rods touching). |
 | `peg_insert` | 4 cm square peg, block with a square hole `CLEARANCE` (4 mm, 2 mm a side) wider. Peg and block sit inside the left arm's gripper-down reach (x 0.30–0.45, y 0.22–0.38); each reset shifts the peg (±15 mm) and block (±10 mm). `is_inserted`: peg in the hole ≥ 2 cm deep. |
+
+### Color-sorting workcell migration
+
+The scene uses the shared 0.780 m work surface. The two-colour layout uses pickup slots at Y = −0.24/−0.12 m and samples two distinct colours per reset;
+the horizontal bin row is at x = 0.455 m and the pickups at x = 0.330/0.325 m, after moving all props 5 cm farther back on the table.
+The former 0.705 m table's reach rectangle and recordings do not directly apply to this geometry.
+Robot camera mounts are unchanged; only the initial free-camera overview was moved inside the lightbox.
+
+Earlier static reach checks used the three-block layout and older robot. The compact two-block
+layout and current 8dof arm still need dynamic grasp/place and randomized-yaw validation in
+an operator trial. The shared model disables arm self-collision
+and lightbox-wall collision. Confirm dynamic teleoperation before collecting a full dataset.
 
 ## Differences from Isaac
 

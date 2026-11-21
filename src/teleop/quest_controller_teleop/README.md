@@ -72,7 +72,11 @@ recording. Train on it as in `src/robot_learning/README.md`.
 
 For a single-arm task, `--record_arms left` (or `right`) records only that arm: its 8 values (7 joints + gripper), the
 ego camera and its wrist camera, into `datasets/pioneer_8dof_left_arm/sim`. That is the format sim evaluation
-(`humanoid_robot_learning.sim.evaluate`, left arm) runs. Both arms are still driven; keep the other one still.
+(`humanoid_robot_learning.sim.evaluate`, left arm) runs. In MuJoCo, `--record_arms` also selects which arm
+is controlled: the unused arm receives no VR updates and retains its initialized actuator targets.
+It remains simulated and can settle under gravity. This also applies in practice
+without `--record`. The default `bimanual` controls both arms. Left Y still resets and right B still
+starts/saves a recording regardless of which arm is selected.
 
 Multi-step scenes (those with a `progress` function, e.g. `drawer_stow`) record the current step's instruction as each
 frame's task ("open the drawer", "put the red block in the drawer", ...) plus a `subtask_index` feature, as the leader
@@ -81,6 +85,12 @@ current step; save the take once it says all steps are done.
 
 ```bash
 src/teleop/quest_controller_teleop/start_quest.sh --scene drawer_stow --record --record_arms left
+```
+
+For right-arm color sorting in MuJoCo:
+
+```bash
+src/teleop/quest_controller_teleop/start_quest.sh --scene color_sorting --record --record_arms right
 ```
 
 ## How it works
