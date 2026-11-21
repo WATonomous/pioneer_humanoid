@@ -9,6 +9,7 @@ import unittest
 
 import gtsam
 import numpy as np
+from gtsam.symbol_shorthand import V, X
 
 from slam_core.backend import PoseGraphBackend
 from slam_core.backend.imu_fusion.imu import imu_between
@@ -98,6 +99,21 @@ def loop(old_id, new_id, truth):
                        covariance=covariance_from_sigmas(0.02, 0.03), n_inliers=100)
 
 
+# Wraps the backend's iSAM2 and remembers the starting values handed over with the last update.
+class RecordingIsam:
+    def __init__(self, isam):
+        self._isam = isam
+        self.last_initial = None
+
+    def update(self, *args):
+        if len(args) >= 2:
+            self.last_initial = args[1]
+        return self._isam.update(*args)
+
+    def __getattr__(self, name):
+        return getattr(self._isam, name)
+
+
 class PoseGraphImuTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -169,6 +185,29 @@ class PoseGraphImuTests(unittest.TestCase):
         self.assertIn((0, 2), backend._loop_pairs)
         self.assertEqual(backend._pending_loops, [])
         self.assertEqual(len(backend.optimized_poses()), 4)
+
+    def test_new_keyframe_starting_guess_is_in_the_optimized_frame(self):
+        # Regression: a new keyframe's starting pose and velocity were built from VO's own T_odom_kf, which drifts away
+        # from the optimized frame once the IMU (or a loop) corrects the trajectory. By keyframe 100 the velocity guess was
+        # ~1.8 m/s for a camera moving at 0.24 m/s. It must come from the previous optimized pose plus VO's relative step.
+        k = 100
+        for with_loop in (False, True):
+            with self.subTest(with_loop=with_loop):
+                backend = PoseGraphBackend()
+                for kf in self.keyframes[:k + 1]:
+                    backend.add_keyframe(kf, self.imu)
+                if with_loop:
+                    backend.add_loop_constraint(loop(0, k, self.truth))   # moves the whole map
+                recorder = RecordingIsam(backend._isam)
+                backend._isam = recorder
+
+                kf = self.keyframes[k + 1]
+                prev_position = backend.optimized_pose(k).translation()   # before the update moves it slightly
+                backend.add_keyframe(kf, self.imu)
+                step = np.linalg.norm(kf.T_prev_kf[:3, 3])               # VO's measured motion to this keyframe
+                guess = recorder.last_initial
+                self.assertAlmostEqual(np.linalg.norm(guess.atPose3(X(kf.id)).translation() - prev_position), step, places=6)
+                self.assertAlmostEqual(np.linalg.norm(guess.atVector(V(kf.id))), step / KF_DT, places=6)
 
 
 if __name__ == "__main__":
