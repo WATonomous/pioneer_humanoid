@@ -12,7 +12,7 @@ from .pose_estimation import estimate_pose
 def undistort(pts, K, dist):
     # Raw pixels to pizels of an ideal pinhole camera with same K
     if len(pts) == 0 or not np.any(dist):
-        return pts, astype(np.float64)
+        return pts.astype(np.float64)
     return cv2.undistortPoints(pts.reshape(-1, 1, 2).astype(np.float64), K, dist, P=K).reshape(-1, 2)
 
 
@@ -57,13 +57,15 @@ class Tracker:
         self.kf_max_rot_deg = kf_max_rot_deg  # deg turned from the keyframe -> new keyframe
         self.max_lost = max_lost              # failed frames in a row before restarting
         self.pose_kwargs = pose_kwargs or {}  # passed to estimate_pose (thresholds)
-
         self.kf = None          # current keyframe: frame, features, 3D points, valid mask
         self.kf_id = -1
         self.T_odom_kf = np.eye(4)
         self.T_odom_cur = np.eye(4)
         self.n_lost = 0
         self.last = None  # (frame, features, T_odom, n_inliers) of the last tracked frame
+        self.vel = np.eye(4)
+        loose_min_ratio = 0.15
+        self.loose_min_ratio = loose_min_ratio
 
     def _set_keyframe(self, frame, feats, T_odom_frame, T_prev_kf, n_inliers, gap=False):
         # Make `frame` the new tracking reference and return its Keyframe message
@@ -85,13 +87,16 @@ class Tracker:
             descriptors=feats.descriptors[valid],
             points_3d=points[valid].astype(np.float32))
 
-    def _track(self, feats, frame, size):
+    def _track(self, feats, frame, size, min_ratio=None):
         # match against the current keyframe and estimate the pose
         m = self.matcher.match(self.kf["feats"], feats, size)
         keep = self.kf["valid"][m.idx_a]
         X = self.kf["points"][m.idx_a[keep]]
         pts = undistort(feats.keypoints[m.idx_b[keep]], frame.K, frame.dist)
-        return m, estimate_pose(X, pts, frame.K, size, **self.pose_kwargs)
+        kwargs = dict(self.pose_kwargs)
+        if min_ratio is not None:
+            kwargs["min_ratio"] = min_ratio
+        return m, estimate_pose(X, pts, frame.K, size, **kwargs)
 
     def process(self, frame):
         # Track one Frame. Returns a TrackResult (pose, stats, maybe a new Keyframe)
@@ -116,8 +121,13 @@ class Tracker:
             promoted = self._set_keyframe(lf, lfeats, T_odom_last, T_prev_kf, n_last)
             m, res = self._track(feats, frame, size)
 
+        # still failing: accept a rougher pose than coast blind
+        if not res.ok:
+            m, res = self._track(feats, frame, size, min_ratio=self.loose_min_ratio)
+
         # still failing: publish nothing; after max_lost in a row, restart from here
         if not res.ok:
+            self.T_odom_cur = self.T_odom_cur @ self.vel  # keep moving like the last frame
             self.n_lost += 1
             kf = promoted
             if kf is None and self.n_lost >= self.max_lost:
@@ -128,9 +138,13 @@ class Tracker:
             return TrackResult(False, self.T_odom_cur.copy(), res.reason, len(m), len(res.inliers), kf)
 
         # success: chain into odom. res.T is T_cur_kf, so the camera's pose in the keyframe is its inverse
+        was_lost = self.n_lost > 0
         self.n_lost = 0
         T_kf_cur = np.linalg.inv(res.T)
+        T_prev = self.T_odom_cur
         self.T_odom_cur = self.T_odom_kf @ T_kf_cur
+        if not was_lost:  # only learn the velocity from two real poses in a row
+            self.vel = np.linalg.inv(T_prev) @ self.T_odom_cur
         self.last = (frame, feats, self.T_odom_cur.copy(), len(res.inliers))
 
         # new keyframe if tracking is weakening or we've moved far (skip if we just promoted one)
