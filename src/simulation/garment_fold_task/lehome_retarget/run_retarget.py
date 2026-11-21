@@ -27,7 +27,6 @@ p.add_argument("--video", type=int, default=0, help="also write an mp4 (top + ex
 p.add_argument("--no_record", action="store_true")
 p.add_argument("--workcell", action="store_true", help="the lab's lightbox workcell instead of LeHome's apartment")
 p.add_argument("--hold_s", type=int, default=5, help="seconds to watch the cloth after the demo")
-p.add_argument("--d435_mount", action="store_true", help="preview: wrist cameras = D435 on camera_mount.STL")
 p.add_argument("--shift_y", type=float, default=0.0, help="m to move the garment and the demo away from the arm")
 AppLauncher.add_app_launcher_args(p)
 args = p.parse_args()
@@ -89,34 +88,7 @@ cfg.decimation = 1          # we step physics ourselves (the grasp acts every ph
 cfg.sim.render_interval = args.stretch
 cfg.episode_length_s = 1e4
 cfg.scene_camera.width, cfg.scene_camera.height = (640, 480) if args.video else (64, 48)   # dev-only external view
-if args.d435_mount:   # D435 on the slanted face of camera_mount.STL, mount bolted flat to the gripper's +x face
-    for c, y, q in ((cfg.right_wrist, 0.0097, (0.672254, 0.219262, -0.219262, -0.672256)),
-                    (cfg.left_wrist, -0.0097, (0.672254, -0.219262, -0.219262, 0.672256))):
-        c.offset.pos, c.offset.rot = (0.0831, y, -0.0337), q   # lens 1 mm in front of the body
-        c.spawn.focal_length, c.spawn.horizontal_aperture, c.spawn.vertical_aperture = 20.13, 20.955, 15.716   # 640x480, fx 615 px
-        c.spawn.clipping_range = (0.01, 5.0)
 env = gym.make("Humanoid-GarmentFold-Bimanual-Pioneer-v0", cfg=cfg).unwrapped
-if args.d435_mount:
-    import struct
-    from pxr import Gf, UsdGeom
-    b = open(f"{LEHOME}/camera_mount.STL", "rb").read()
-    V = np.frombuffer(b[84:84 + 50 * struct.unpack("<I", b[80:84])[0]], dtype=np.dtype([("n", "<3f4"), ("v", "<9f4"), ("a", "<u2")]))["v"].reshape(-1, 3).astype(np.float64)
-    R, t = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1.0]]), np.array([76, -40, -95.0])
-    st = env.sim.stage
-    for side, sy in (("right", 1), ("left", -1)):
-        P = ((V @ R.T + t) * [1, sy, 1]) / 1000
-        m = UsdGeom.Mesh.Define(st, f"/World/Robot/{side}_link7/camera_mount")
-        m.CreatePointsAttr([Gf.Vec3f(*p_) for p_ in P])
-        idx = np.arange(len(P)).reshape(-1, 3)
-        m.CreateFaceVertexCountsAttr([3] * len(idx))
-        m.CreateFaceVertexIndicesAttr((idx if sy > 0 else idx[:, ::-1]).ravel().tolist())
-        m.CreateDisplayColorAttr([Gf.Vec3f(0.15, 0.15, 0.17)])
-        cam = UsdGeom.Cube.Define(st, f"/World/Robot/{side}_link7/d435_body")   # 90 x 25 x 25 mm, back on the slanted face
-        x = UsdGeom.Xformable(cam)
-        x.AddTranslateOp().Set(Gf.Vec3d(0.0752, sy * 0.0097, -0.0228))
-        x.AddOrientOp().Set(Gf.Quatf(*((0.672254, 0.219262, -0.219262, -0.672256) if sy > 0 else (0.672254, -0.219262, -0.219262, 0.672256))))
-        x.AddScaleOp().Set(Gf.Vec3f(0.045, 0.0125, 0.0125))
-        cam.CreateDisplayColorAttr([Gf.Vec3f(0.6, 0.6, 0.62)])
 env.initialize_obs()
 robot = env.robot
 get_obs = env._get_observations
@@ -126,10 +98,7 @@ if args.video:
     eye, target = ([0.55, -0.85, 1.3], [0.0, 0.1, 0.53]) if args.workcell else ([0.75, 0.55, 1.05], [0.0, -0.08, 0.55])   # the lightbox walls block the far side
     env.scene_camera.set_world_poses_from_view(torch.tensor([eye], device=env.device), torch.tensor([target], device=env.device))
 def vframe(obs):
-    f = np.hstack([obs["observation.images.top_rgb"][..., :3], env.scene_camera.data.output["rgb"][0].cpu().numpy()[..., :3]])
-    if args.d435_mount:
-        f = np.vstack([f, np.hstack([obs["observation.images.left_rgb"][..., :3], obs["observation.images.right_rgb"][..., :3]])])
-    return f
+    return np.hstack([obs["observation.images.top_rgb"][..., :3], env.scene_camera.data.output["rgb"][0].cpu().numpy()[..., :3]])
 
 
 ids = torch.cat([env._l_arm, env._l_grip, env._r_arm, env._r_grip])
