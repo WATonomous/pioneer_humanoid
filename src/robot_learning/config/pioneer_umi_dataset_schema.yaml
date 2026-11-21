@@ -1,0 +1,54 @@
+# Handheld UMI gripper demos (src/umi_gripper): the data contract in the gripper's TOOL frame, not joints, since the
+# handheld rig has no arm. The tcp frame has the robot's tool axes (pioneer_humanoid/arm_8dof_params.py: link7's axes
+# at TCP_LOCAL), so the same vectors drive either 8dof arm through IK (umi_gripper.postprocess.reachability.TcpIK).
+# Rotations are 6D as in UMI (umi/common/pose_util.py mat_to_rot6d): the first two ROWS of the rotation matrix.
+#
+# observation.state and action (10 values each):
+#   tcp_x, tcp_y, tcp_z         metres, in the episode's FIRST tcp frame (relative-to-current poses, UMI's training
+#                               representation, follow exactly: inv(T0^-1 T_s) (T0^-1 T_t) = T_s^-1 T_t)
+#   tcp_r6_0 .. tcp_r6_5        rotation in that frame, 6D
+#   gripper                     jaw closure, 0 = open, 1 = closed (the 8dof datasets' gripper convention)
+# action[t] = state[t + 1]: where the hand went next.
+#
+# extra_features: the absolute columns of UMI's replay buffer (robot0_eef_pos/rot, robot0_demo_start_pose,
+# robot0_gripper_width), so a training pipeline can build any pose representation at load time. "world" is the
+# headset's floor frame: consistent within one episode, arbitrary between episodes.
+
+robot_id: pioneer_umi
+repo_id: humanoid/pioneer_umi
+fps: 25
+state_unit: m, rot6d, closure
+
+joint_names:
+  - tcp_x
+  - tcp_y
+  - tcp_z
+  - tcp_r6_0
+  - tcp_r6_1
+  - tcp_r6_2
+  - tcp_r6_3
+  - tcp_r6_4
+  - tcp_r6_5
+  - gripper
+
+extra_features:
+  observation.eef_pose_world: [x, y, z, r6_0, r6_1, r6_2, r6_3, r6_4, r6_5]
+  observation.demo_start_pose_world: [x, y, z, r6_0, r6_1, r6_2, r6_3, r6_4, r6_5]
+  observation.gripper_width_m: [gripper_width_m]    # jaw gap, metres (umi_gripper.yaml width.max_width_m open)
+
+# The gripper's wrist camera, rectified to the 640x480 pinhole of the sim and real wrist cameras (wrist_cam.rectify).
+# On the arm, feed the recorded side's wrist camera (wrist_left / wrist_right) as `wrist`.
+images:
+  wrist:
+    height: 480
+    width: 640
+    enabled: true
+    topic: null
+
+ros: null
+
+record:
+  root: datasets/pioneer_umi     # relative to the repo root; to_lerobot writes <root>/real
+  use_videos: true
+  image_writer_threads: 4
+  image_writer_processes: 0

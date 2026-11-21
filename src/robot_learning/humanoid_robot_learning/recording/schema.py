@@ -89,6 +89,10 @@ def build_features(cfg: dict[str, Any]) -> dict[str, dict[str, Any]]:
         },
     }
 
+    # Optional float32 vectors besides state/action, e.g. the UMI schema's world poses: {feature key: [names]}.
+    for key, names in (cfg.get("extra_features") or {}).items():
+        features[key] = {"dtype": "float32", "shape": (len(names),), "names": list(names)}
+
     for key, spec in enabled_images(cfg).items():
         h = int(spec["height"])
         w = int(spec["width"])
