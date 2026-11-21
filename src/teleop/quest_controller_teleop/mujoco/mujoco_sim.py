@@ -19,6 +19,10 @@ import time
 
 import numpy as np
 
+# Before --record loads lerobot, which imports PyAV: PyAV's bundled FFmpeg libraries, loaded first, stop OpenCV's
+# Qt window from ever appearing on Linux (the sim runs, no window). Loading cv2 first avoids the clash.
+import cv2  # noqa: F401
+
 _THIS_DIR = Path(__file__).resolve().parent
 _SRC = _THIS_DIR.parents[2]  # src/teleop/quest_controller_teleop/mujoco -> src
 # pioneer_humanoid and humanoid_mujoco_scenes; this fallback keeps an uninstalled checkout working.

@@ -97,8 +97,13 @@ class CameraWindow:
                 key = cv2.waitKey(5) & 0xFF
                 if chr(key) in keys:
                     keys[chr(key)]()
-                if shown and cv2.getWindowProperty(self.TITLE, cv2.WND_PROP_VISIBLE) < 1:
-                    break   # window closed
+                if shown:
+                    try:
+                        visible = cv2.getWindowProperty(self.TITLE, cv2.WND_PROP_VISIBLE)
+                    except cv2.error:   # Qt (Linux) destroys a closed window and raises instead of returning 0
+                        visible = 0
+                    if visible < 1:
+                        break   # window closed
         finally:
             cv2.destroyAllWindows()
 
