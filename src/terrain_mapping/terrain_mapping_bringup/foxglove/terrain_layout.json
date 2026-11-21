@@ -26,18 +26,19 @@
         }
       },
       "cameraState": {
-        "distance": 19.999999999999723,
         "perspective": true,
-        "phi": 60.000000000000604,
+        "distance": 19.99999999999878,
+        "phi": 60.000000000002224,
+        "thetaOffset": 60.000000000009514,
+        "targetOffset": [
+          3.2929972710694386,
+          1.1011451239035317,
+          -4.0398024882565394e-17
+        ],
         "target": [
           0,
           0,
           0
-        ],
-        "targetOffset": [
-          0.8036362687649123,
-          0.4674077455706952,
-          1.963994316696526e-17
         ],
         "targetOrientation": [
           0,
@@ -45,15 +46,55 @@
           0,
           1
         ],
-        "thetaOffset": 60.00000000000234,
         "fovy": 45,
         "near": 0.5,
         "far": 5000
       },
       "followMode": "follow-pose",
-      "scene": {},
+      "scene": {
+        "transforms": {
+          "showLabel": false
+        }
+      },
       "transforms": {},
-      "topics": {},
+      "topics": {
+        "/elevation_mapping_node/elevation_map_filter": {
+          "visible": true,
+          "drawBehind": false,
+          "interpolationMethod": "linear",
+          "showLines": false,
+          "lineColor": "#000000",
+          "useLighting": true,
+          "elevationMode": "layer",
+          "elevationLayer": "elevation",
+          "colorLayer": "elevation",
+          "colorGradient": [
+            "#000000",
+            "#ffffff"
+          ],
+          "colorMode": "colorMap",
+          "colorMap": "rainbow",
+          "explicitAlpha": 1
+        },
+        "/elevation_mapping_node/elevation_map_raw": {
+          "visible": false,
+          "drawBehind": false,
+          "interpolationMethod": "linear",
+          "showLines": false,
+          "lineColor": "#000000",
+          "useLighting": true,
+          "elevationMode": "layer",
+          "elevationLayer": "elevation",
+          "colorLayer": "elevation",
+          "colorGradient": [
+            "#000000",
+            "#ffffff"
+          ],
+          "colorMode": "colorMap",
+          "colorMap": "rainbow",
+          "explicitAlpha": 1
+        }
+      },
       "publish": {
         "type": "point",
         "poseTopic": "/move_base_simple/goal",
@@ -64,7 +105,8 @@
         "poseEstimateThetaDeviation": 0.26179939
       },
       "synchronize": false,
-      "imageMode": {}
+      "imageMode": {},
+      "followTf": "odom"
     },
     "Image!38uqnzw": {
       "cameraState": {
@@ -191,6 +233,6 @@
       "splitPercentage": 56.72955974842767
     },
     "direction": "row",
-    "splitPercentage": 45.795768460546
+    "splitPercentage": 60.57347670250897
   }
 }
