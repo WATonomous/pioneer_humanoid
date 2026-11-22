@@ -12,6 +12,7 @@ from terrain_core.traversability.footholds import (
     compute_footholds,
     score_footholds_at,
 )
+from terrain_core.traversability.policy_interface import build_height_scan
 
 # Load real elevation map and metadata
 data_dir = Path("terrain mapping bags")
@@ -96,6 +97,38 @@ def world_to_rc(x, y):
     col = int(np.floor((x - extent[0]) / resolution))
     row = int(np.floor((y - extent[2]) / resolution))
     return row, col
+
+# Real-map policy-style height scan
+scan = build_height_scan(
+    elevation=elevation,
+    world_to_rc=world_to_rc,
+    base_xy=(center_x, center_y),
+    base_yaw=0.0,
+    base_z=0.0,  # Placeholder: real robot pose is unavailable
+)
+
+fig, ax = plt.subplots(figsize=(10, 6))
+
+im = ax.imshow(
+    np.ma.masked_invalid(scan),
+    origin="lower",
+    extent=[
+        -0.8, 0.8,
+        -0.5, 0.5,
+    ],
+    cmap="terrain",
+    interpolation="nearest",
+    aspect="equal",
+)
+
+ax.set_title("Policy-Style Height Scan (Real Map)")
+ax.set_xlabel("Forward X (m)")
+ax.set_ylabel("Lateral Y (m)")
+fig.colorbar(im, ax=ax, label="Height value (m)")
+
+plt.tight_layout()
+plt.savefig(data_dir / "policy_height_scan.png", dpi=200)
+plt.show()
 
 # Real-map scorer spot check
 test_points = {
