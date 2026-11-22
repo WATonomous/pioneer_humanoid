@@ -8,7 +8,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path("src/terrain_mapping/terrain_core").resolve()))
 
 from terrain_core.traversability import compute_traversability
-from terrain_core.traversability.footholds import compute_footholds
+from terrain_core.traversability.footholds import (
+    compute_footholds,
+    score_footholds_at,
+)
 
 # Load real elevation map and metadata
 data_dir = Path("terrain mapping bags")
@@ -88,6 +91,39 @@ extent = [
     center_y - length_y / 2,
     center_y + length_y / 2,
 ]
+
+def world_to_rc(x, y):
+    col = int(np.floor((x - extent[0]) / resolution))
+    row = int(np.floor((y - extent[2]) / resolution))
+    return row, col
+
+# Real-map scorer spot check
+test_points = {
+    "map centre": (center_x, center_y),
+    "near elevated square": (6.6, 0.6),
+    "outside map": (center_x + 4.0, center_y),
+}
+
+print("\n--- Real-map Foothold Spot Check ---")
+
+for label, (x, y) in test_points.items():
+    result = score_footholds_at(
+        foothold_score,
+        foothold,
+        world_to_rc,
+        resolution,
+        np.array([[0.0, 0.0]]),
+        base_xy=(x, y),
+        base_yaw=0.0,
+    )
+
+    print(
+        f"{label}: world=({x:.3f}, {y:.3f}), "
+        f"in_map={result['in_map'][0]}, "
+        f"good={result['good'][0]}, "
+        f"score={result['score'][0]:.3f}, "
+        f"patch_min={result['patch_min_score'][0]:.3f}"
+    )
 
 fig, axes = plt.subplots(1, 2, figsize=(15, 7))
 

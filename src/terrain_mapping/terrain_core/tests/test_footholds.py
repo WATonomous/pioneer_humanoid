@@ -2,7 +2,10 @@
 import numpy as np
 import pytest
 
-from terrain_core.traversability.footholds import compute_footholds
+from terrain_core.traversability.footholds import (
+    compute_footholds,
+    score_footholds_at,
+)
 
 
 def test_all_traversable_only_border_excluded():
@@ -64,3 +67,95 @@ def test_score_properties():
     assert s.min() >= 0.0 and s.max() <= 1.0
     assert (s[~mask] == 0).all()
     assert (s <= np.nan_to_num(trav, nan=0.0) + 1e-6).all()
+
+
+def test_score_footholds_at_basic():
+    mask = np.ones((100, 100), dtype=bool)
+    res = 0.05
+    fp = compute_footholds(mask, res)
+    w2rc = lambda x, y: (int(round(y / res)), int(round(x / res)))
+
+    out = score_footholds_at(
+        fp["foothold_score"],
+        fp["foothold"],
+        w2rc,
+        res,
+        np.array([[0.0, 0.15], [0.0, -0.15]]),
+        base_xy=(2.5, 2.5),
+        base_yaw=0.0,
+    )
+
+    assert out["in_map"].all() and out["good"].all()
+
+
+def test_score_footholds_at_yaw_and_out_of_map():
+    mask = np.ones((100, 100), dtype=bool)
+    res = 0.05
+    fp = compute_footholds(mask, res)
+    w2rc = lambda x, y: (int(round(y / res)), int(round(x / res)))
+
+    # 90 deg yaw turns a +x offset into +y
+    out = score_footholds_at(
+        fp["foothold_score"],
+        fp["foothold"],
+        w2rc,
+        res,
+        np.array([[1.0, 0.0]]),
+        (2.5, 2.5),
+        np.pi / 2,
+    )
+
+    assert out["in_map"][0]
+
+    out = score_footholds_at(
+        fp["foothold_score"],
+        fp["foothold"],
+        w2rc,
+        res,
+        np.array([[10.0, 0.0]]),
+        (2.5, 2.5),
+        0.0,
+    )
+
+    assert not out["in_map"][0]
+    assert not out["good"][0]
+    assert out["score"][0] == 0
+
+
+def test_patch_is_7x7_at_5cm():
+    res = 0.05
+    mask = np.ones((100, 100), dtype=bool)
+    mask[50, 50 + 4] = False
+
+    fp = compute_footholds(mask, res)
+
+    score = np.ones_like(fp["foothold_score"])
+    score[50, 50 + 4] = 0.0
+
+    w2rc = lambda x, y: (int(round(y / res)), int(round(x / res)))
+
+    out = score_footholds_at(
+        score,
+        fp["foothold"],
+        w2rc,
+        res,
+        np.array([[0.0, 0.0]]),
+        base_xy=(2.5, 2.5),
+        base_yaw=0.0,
+    )
+
+    assert out["patch_min_score"][0] == 1.0
+
+    score[50, 50 + 3] = 0.0
+
+    out = score_footholds_at(
+        score,
+        fp["foothold"],
+        w2rc,
+        res,
+        np.array([[0.0, 0.0]]),
+        base_xy=(2.5, 2.5),
+        base_yaw=0.0,
+    )
+
+    assert out["patch_min_score"][0] == 0.0
