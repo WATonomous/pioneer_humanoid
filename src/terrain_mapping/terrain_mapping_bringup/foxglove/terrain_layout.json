@@ -93,6 +93,9 @@
           "colorMode": "colorMap",
           "colorMap": "rainbow",
           "explicitAlpha": 1
+        },
+        "/camera/depth/points": {
+          "visible": true
         }
       },
       "publish": {
