@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Log how old messages are: arrival time minus the header stamp.
+"""Log how old messages are when they arrive: arrival time minus the header stamp.
 
-Works on any message with a header.
-On a bag, play it with --clock and run this with use_sim_time:=true, so both
-times come from the bag's clock.
+Meant for the live robot: on the elevation map (the default topic) this is the sensor -> map
+latency. Works on any message with a header. The message type is detected from the topic
+(or set msg_type).
 
 Usage:
-    ros2 run terrain_mapping_bringup latency_logger.py --ros-args \
-        -p topic:=/camera/camera/depth/image_rect_raw -p use_sim_time:=true
+    ros2 run terrain_mapping_bringup latency_logger.py
+    ros2 run terrain_mapping_bringup latency_logger.py --ros-args -p topic:=/camera/camera/color/image_raw
 """
 import csv
 
@@ -20,13 +20,13 @@ from rosidl_runtime_py.utilities import get_message
 class LatencyLogger(Node):
     def __init__(self):
         super().__init__("latency_logger")
-        self.declare_parameter("topic", "/camera/camera/depth/image_rect_raw")
-        self.declare_parameter("msg_type", "sensor_msgs/msg/Image")
+        self.declare_parameter("topic", "/elevation_mapping_node/elevation_map_raw")
+        self.declare_parameter("msg_type", "")
         self.declare_parameter("report_period_s", 1.0)
         self.declare_parameter("csv_path", "")
 
-        topic = self.get_parameter("topic").value
-        msg_cls = get_message(self.get_parameter("msg_type").value)
+        self._topic = self.get_parameter("topic").value
+        msg_type = self.get_parameter("msg_type").value
         period = self.get_parameter("report_period_s").value
         csv_path = self.get_parameter("csv_path").value
 
@@ -38,11 +38,26 @@ class LatencyLogger(Node):
             self._csv_writer = csv.writer(self._csv_file)
             self._csv_writer.writerow(["arrival_time_ns", "latency_ms"])
 
-        self.create_subscription(
-            msg_cls, topic, self._on_msg, qos_profile_sensor_data
-        )
+        if msg_type:
+            self._subscribe(msg_type)
+        else:
+            self.get_logger().info(f"Waiting for {self._topic} to appear to detect its type")
+            self._detect_timer = self.create_timer(0.5, self._detect_type)
         self.create_timer(period, self._report)
-        self.get_logger().info(f"Measuring latency on {topic}")
+
+    def _detect_type(self):
+        """Look up the topic's message type once it shows up on the network."""
+        for name, types in self.get_topic_names_and_types():
+            if name == self._topic:
+                self._detect_timer.cancel()
+                self._subscribe(types[0])
+                return
+
+    def _subscribe(self, msg_type):
+        self.create_subscription(
+            get_message(msg_type), self._topic, self._on_msg, qos_profile_sensor_data
+        )
+        self.get_logger().info(f"Measuring latency on {self._topic} ({msg_type})")
 
     def _on_msg(self, msg):
         now_ns = self.get_clock().now().nanoseconds
