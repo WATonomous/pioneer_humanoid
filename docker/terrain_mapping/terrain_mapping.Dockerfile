@@ -50,6 +50,7 @@ RUN apt-get update && \
       ros-humble-sensor-msgs-py \
       ros-humble-std-srvs \
       ros-humble-rosbag2-storage-mcap \
+      ros-humble-foxglove-bridge \
       ros-humble-ament-cmake-pytest \
       ros-humble-ament-cmake-ros \
       ros-humble-ament-lint-auto \
