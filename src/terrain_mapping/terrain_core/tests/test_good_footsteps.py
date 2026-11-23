@@ -2,7 +2,7 @@
 import numpy as np
 import pytest
 
-from terrain_core.traversability.policy_scan import (
+from terrain_core.traversability.good_footsteps import (
     foothold_layer, foothold_obs, make_policy_scan,
 )
 
