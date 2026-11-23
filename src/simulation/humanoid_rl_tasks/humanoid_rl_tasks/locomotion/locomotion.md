@@ -2,10 +2,11 @@
 
 Velocity-commanded bipedal locomotion for **Pioneer humanoid Simulation Model V1** in Isaac Lab. The agent receives base velocity commands $(v_x, v_y, \omega_z)$ and is rewarded for tracking them while staying upright.
 
-Asset: `assets/old_leg_only_humanoid/` (SolidWorks URDF export).
-Legacy Flat/Rough tasks use the upstream `old_leg_only_humanoid.urdf` and
-`pioneer_humanoid/old_leg_only.py` unchanged. The rough-no-stairs and Onshape tasks
-use a separate, frozen research baseline; see
+Asset: `assets/pioneer_whole_body_humanoid/` (whole-body URDF). The v1 flat,
+rough, rough-no-stairs and Onshape tasks spawn `WHOLE_BODY_WALKER_CFG` from
+`pioneer_humanoid/whole_body.py`, which walks the 12 leg joints with the arms
+and head held rigid; the arm-swing variant spawns `WHOLE_BODY_ARM_SWING_CFG`
+from the same module. Historical baseline notes:
 [robot baseline isolation](../../../../../assets/old_leg_only_humanoid/RL_BASELINE.md).
 
 **Environments**
@@ -20,6 +21,8 @@ use a separate, frozen research baseline; see
 | `Isaac-Locomotion-RoughNoStairsSelectiveKneeShape-PioneerHumanoid-Play-v0` | Matching rough-no-stairs recipe | Play |
 | `Isaac-Locomotion-StairsStraight-PioneerHumanoid-v0` | Onshape straight staircase USD course | Train scaffold |
 | `Isaac-Locomotion-StairsStraight-PioneerHumanoid-Play-v0` | Fixed Onshape straight course inspection | Play scaffold |
+| `Isaac-Locomotion-StairsStraightArmSwing-PioneerHumanoid-v0` | Onshape straight course, whole-body walker with learned arm swing (16 actions) | Train |
+| `Isaac-Locomotion-StairsStraightArmSwing-PioneerHumanoid-Play-v0` | Matching arm-swing play config | Play |
 | `Isaac-Locomotion-StairsSpiral-PioneerHumanoid-v0` | Onshape spiral staircase USD course | Train scaffold |
 | `Isaac-Locomotion-StairsSpiral-PioneerHumanoid-Play-v0` | Fixed Onshape spiral course inspection | Play scaffold |
 
@@ -121,19 +124,23 @@ and runs native Windows physics without committing models or local setup.
 
 Checkpoint compatibility requires the actor **and** critic observation
 normalizers from the saved policy, 235 policy observations, 12 ordered joint
-actions, and the matching task's scale/default-offset mapping. Both processed
+actions, and the matching task's scale/default-offset mapping. The arm-swing
+variant adds four joints and therefore needs 247 observations and 16 ordered
+actions; use `tools/rl_sessions/expand_walker_checkpoint.py` to convert a
+12-action checkpoint rather than loading one directly. Both processed
 knee targets are bounded to `[-0.95, -0.05]` radians after scaling and offsetting.
 Negative knee position is flexion. Selective physical self-collision permits
 only each foot against the opposite calf; terrain-only foot sensors prevent
 those self-contacts from being mistaken for ground stance.
 
-The recipe uses `pioneer_humanoid/rough_baseline.py` and the isolated
-`assets/old_leg_only_humanoid/rl_baseline_v1.urdf`. This frozen baseline retains
-the recipe's knee axes/limits, 0.84 m nominal root height, mirrored nominal
-ankle-pitch signs, and actuator settings. It does **not** modify the latest
-upstream robot asset or legacy Flat/Rough tasks. Isaac converts the baseline URDF
-on first launch into ignored `outputs/isaac/rough_baseline_v1/`; the baseline and
-selective-collision configuration share this cache. Generated USD is not checked
+The recipe uses the whole-body walker (`WHOLE_BODY_WALKER_CFG` in
+`pioneer_humanoid/whole_body.py`) on
+`assets/pioneer_whole_body_humanoid/pioneer_whole_body_humanoid.urdf`, with
+every non-leg joint turned into a fixed joint at its zero pose (arms hanging at
+the sides). It retains the recipe's knee axes/limits, 0.84 m nominal root height,
+mirrored nominal ankle-pitch signs, and actuator settings. Isaac writes an
+Isaac-specific URDF copy and converts it on first launch into ignored
+`outputs/rl/assets/pioneer_whole_body_humanoid/`; generated USD is not checked
 in, and later launches reuse matching conversion output. Use the pinned team
 simulator stack when regenerating it, rather than substituting another robot's
 USD or assuming conversion across simulator versions is identical.
@@ -150,8 +157,30 @@ and wiring tests do not establish locomotion or hardware robustness.
 The Onshape stair courses inherit this 19-reward recipe and use the committed
 merged terrain USDs in `assets/staircase_onshape/`. The STEP exports and raw
 conversion intermediates are intentionally not in the repo; only
-`*_terrain.usd` and the profile/geometry JSONs are needed at runtime. They are
-training scaffolds; no trained Onshape policy is supplied.
+`*_terrain.usd` and the profile/geometry JSONs are needed at runtime. The plain
+straight and spiral tasks are training scaffolds; no trained Onshape policy is
+supplied.
+
+The straight course also has a learned-arm-swing variant
+(`StairsStraightArmSwing`) that frees `l_shoulder_pitch`, `r_shoulder_pitch`,
+`l_elbow` and `r_elbow` (16 actions total) on the same whole-body URDF. Its
+reward set adds an arm-posture anchor (`joint_deviation_arm`) and an
+`arm_swing_coupling` term that tracks shoulder-pitch velocity against the
+same-side hip velocity. Because the network gains four action channels, the
+12-action walker checkpoint has to be expanded first; the script remaps the
+observation columns by joint name (the arm joints interleave with the legs in
+articulation order) and zero-initialises the new action rows:
+
+```bash
+$ISAACLAB/isaaclab.sh -p tools/rl_sessions/expand_walker_checkpoint.py \
+  --src <12-action-walker>.pt --dst <walker_arm_swing>.pt
+
+$ISAACLAB/isaaclab.sh -p $RL_RUNNERS/train.py \
+  --task Isaac-Locomotion-StairsStraightArmSwing-PioneerHumanoid-v0 \
+  --headless --num_envs 4096 \
+  --warm_start_checkpoint <walker_arm_swing>.pt \
+  --run_name straight_arm_swing
+```
 
 **Gait probe**
 
@@ -185,13 +214,14 @@ $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/diagnose_joints.py \
 | Role | Names |
 | :--- | :--- |
 | Root body | `base` (merged upright root from isaac URDF) |
-| Feet (contacts) | `Foot_L`, `Foot_R` |
+| Feet (contacts) | `l_foot`, `r_foot` |
 | Hip flexion | `Hip_F_L`, `Hip_F_R` |
 | Hip abduction | `Hip_A_L`, `Hip_A_R` |
 | Hip rotation | `Hip_R_L`, `Hip_R_R` |
 | Knee | `Knee_L`, `Knee_R` |
 | Ankle pitch / roll | `Ankle_P_*`, `Ankle_R_*` |
+| Arms (arm-swing task) | `l_shoulder_pitch`, `r_shoulder_pitch`, `l_elbow`, `r_elbow` |
 
-Robot configs: `pioneer_humanoid/old_leg_only.py` for legacy Flat/Rough;
-`pioneer_humanoid/rough_baseline.py` for rough-no-stairs and Onshape courses.
-Task configs are under `config/pioneer_humanoid_v1/`.
+Robot configs: `pioneer_humanoid/whole_body.py` for all v1 tasks
+(`WHOLE_BODY_WALKER_CFG` for flat/rough/Onshape, `WHOLE_BODY_ARM_SWING_CFG` for
+the arm-swing variant). Task configs are under `config/pioneer_humanoid_v1/`.

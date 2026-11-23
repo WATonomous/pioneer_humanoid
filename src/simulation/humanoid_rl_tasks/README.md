@@ -4,6 +4,6 @@ The Isaac Lab RL tasks: one folder per task under `humanoid_rl_tasks/` (`locomot
 
 Locomotion (`humanoid_rl_tasks/locomotion/`):
 - [Pioneer walking](humanoid_rl_tasks/locomotion/config/pioneer/README.md): leg-only and whole-body Pioneer, flat and uneven ground, trained models, sim2sim in MuJoCo.
-- [Old leg-only humanoid](humanoid_rl_tasks/locomotion/locomotion.md) (`config/pioneer_humanoid_v1`) and its [stairs](humanoid_rl_tasks/locomotion/STAIRS.md).
+- [Old leg-only humanoid](humanoid_rl_tasks/locomotion/locomotion.md) (`config/pioneer_humanoid_v1`) and its [Onshape stair courses](humanoid_rl_tasks/locomotion/locomotion.md).
 
-`scripts/` and `tests/`: checks for the old leg-only humanoid's stairs task.
+`scripts/` and `tests/`: checks for the old leg-only humanoid's locomotion tasks.

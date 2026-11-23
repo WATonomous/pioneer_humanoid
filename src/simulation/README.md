@@ -63,9 +63,9 @@ Per-task notes: `humanoid_rl_tasks/humanoid_rl_tasks/<task>/*.md`. Full walkthro
 
 Pioneer humanoid walking: [source-only rough-no-stairs training and playback recipe](humanoid_rl_tasks/humanoid_rl_tasks/locomotion/locomotion.md#rough-no-stairs-source-only-recipe).
 Onshape stair courses: [committed merged terrain USD courses](humanoid_rl_tasks/humanoid_rl_tasks/locomotion/locomotion.md).
-These research tasks use an [isolated frozen robot baseline](../../assets/old_leg_only_humanoid/RL_BASELINE.md);
-the upstream robot definition and legacy Flat/Rough configuration are not changed.
-Its USD is generated from the baseline URDF on first launch into ignored
-`outputs/isaac/rough_baseline_v1/` and reused on later launches with matching
-conversion settings. Use the pinned team Isaac image to generate that cache;
-generated baseline USD files are not part of the PR.
+The v1 research tasks spawn the [whole-body walker](../../pioneer_humanoid/pioneer_humanoid/whole_body.py);
+the upstream robot definition and the legacy old-leg-only configuration are not changed.
+Its Isaac-specific URDF and USD are generated on first launch into ignored
+`outputs/rl/assets/pioneer_whole_body_humanoid/` and reused on later launches with
+matching conversion settings. Use the pinned team Isaac image to generate that
+cache; generated USD files are not part of the PR.
