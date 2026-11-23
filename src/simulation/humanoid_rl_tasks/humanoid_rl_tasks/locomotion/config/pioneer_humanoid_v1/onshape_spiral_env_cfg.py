@@ -408,7 +408,6 @@ class PioneerHumanoidOnshapeSpiralEnvCfg(PioneerHumanoidOnshapeCourseEnvCfg):
         # worth the risk. At 20 the lift earns 1.8 per swing, and the riser
         # bonus below (worth 40 per riser) is what makes the step-up itself
         # worth attempting.
-        self.rewards.foot_swing_clearance.weight = 40.0
         self.rewards.foot_swing_clearance.params.update({
             "forward_axis": 1,
             "max_clearance": 0.45,
@@ -420,6 +419,10 @@ class PioneerHumanoidOnshapeSpiralEnvCfg(PioneerHumanoidOnshapeCourseEnvCfg):
         })
         self.rewards.foot_backswing_cost.params["path_centre"] = centre
         
+        # This course uses the landing-window term below instead of the
+        # straight course's whole-stance foot_flat; zero the inherited copy.
+        self.rewards.foot_flat.weight = 0.0
+
         # Flat foot landing: encourage the foot to land flat (not tilted) within
         # the first 0.15s of contact. The deadband is 0.23 rad (13.2 deg) -
         # calibrated to leave the good foot's worst case (11.7 deg) free.
