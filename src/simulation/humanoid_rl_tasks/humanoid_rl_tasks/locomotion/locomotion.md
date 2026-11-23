@@ -159,7 +159,8 @@ merged terrain USDs in `assets/staircase_onshape/`. The STEP exports and raw
 conversion intermediates are intentionally not in the repo; only
 `*_terrain.usd` and the profile/geometry JSONs are needed at runtime. The plain
 straight and spiral tasks are training scaffolds; no trained Onshape policy is
-supplied.
+supplied. Why each course reward/termination is set the way it is (with the
+measurements behind it) is in [STAIR_REWARD_NOTES.md](STAIR_REWARD_NOTES.md).
 
 The straight course also has a learned-arm-swing variant
 (`StairsStraightArmSwing`) that frees `l_shoulder_pitch`, `r_shoulder_pitch`,
