@@ -84,6 +84,15 @@ class TD3:
         a = (a + noise * torch.randn_like(a)).clamp(-1, 1) if noise else a
         return self.fix(a, a_ref)
 
+    @torch.no_grad()
+    def act_wiggle(self, z: Tensor, s: Tensor, a_ref: Tensor, std: float, C: int) -> Tensor:
+        """The actor's chunk plus one Gaussian offset per chunk of C frames (train.py's exploration), kept on at run
+        time: a smoothness-penalized actor stops wiggling the peg past the rim, and this puts a small, controlled
+        wiggle back (light penalty, 4 mm: 44% without it, 65% with std 0.02, half the original actor's jerk)."""
+        a = self.actor(z, s, a_ref).view(len(z), C, -1)
+        a = a + std * torch.randn(len(z), 1, a.shape[-1], device=a.device)
+        return self.fix(a.clamp(-1, 1).reshape(len(z), -1), a_ref)
+
     def update(self, b: dict[str, Tensor]) -> dict[str, float]:
         with torch.no_grad():
             n = (self.policy_noise * torch.randn_like(b["a"])).clamp(-self.noise_clip, self.noise_clip)

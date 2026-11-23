@@ -1,6 +1,6 @@
 #!/bin/bash
 # How jerky the commanded motion is (rlt/jitter.py), per replanning setting and with inference-time smoothing.
-# From the repo root:  sbatch src/robot_learning/slurm/rlt_jitter.sbatch   (BASE=, RLT=, VARIANTS= optional)
+# From the repo root:  sbatch src/robot_learning/slurm/rlt_jitter.sbatch   (BASE=, RLT=, VARIANTS=, REPORT= optional)
 #SBATCH --job-name=rlt_jitter
 #SBATCH --cpus-per-task=10
 #SBATCH --mem=48G
@@ -14,4 +14,4 @@ cd src/robot_learning
 BASE=${BASE:-$HOME/outputs/pioneer1_peg_100}
 RLT=${RLT:-$HOME/outputs/rlt_peg_100}
 python -m humanoid_robot_learning.rlt.jitter --policy "$BASE/checkpoints/last/pretrained_model" --rlt "$RLT" \
-  ${VARIANTS:+--variants $VARIANTS}
+  ${VARIANTS:+--variants $VARIANTS} ${REPORT:+--report $REPORT}
