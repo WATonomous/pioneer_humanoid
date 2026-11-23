@@ -121,6 +121,40 @@ def test_score_footholds_at_yaw_and_out_of_map():
     assert not out["good"][0]
     assert out["score"][0] == 0
 
+def test_score_footholds_at_yaw_hits_expected_cell():
+    res = 0.05
+    score = np.zeros((100, 100), dtype=np.float32)
+    score[70, 50] = 0.9
+    mask = score > 0.5
+    w2rc = lambda x, y: (int(round(y / res)), int(round(x / res)))
+
+    out = score_footholds_at(
+        score, mask, w2rc, res,
+        np.array([[1.0, 0.0]]), (2.5, 2.5), np.pi / 2
+    )
+    assert out["score"][0] == pytest.approx(0.9)
+    assert out["good"][0]
+
+    out = score_footholds_at(
+        score, mask, w2rc, res,
+        np.array([[1.0, 0.0]]), (2.5, 2.5), -np.pi / 2
+    )
+    assert out["score"][0] == 0.0
+
+def test_score_footholds_at_left_right_position():
+    res = 0.05
+    score = np.zeros((100, 100), dtype=np.float32)
+    score[54, 50] = 0.8
+    mask = score > 0.5
+    w2rc = lambda x, y: (int(round(y / res)), int(round(x / res)))
+
+    out = score_footholds_at(
+        score, mask, w2rc, res,
+        np.array([[0.0, 0.2]]), (2.5, 2.5), 0.0
+    )
+
+    assert out["score"][0] == pytest.approx(0.8)
+    assert out["good"][0]
 
 def test_patch_is_7x7_at_5cm():
     res = 0.05
@@ -159,3 +193,5 @@ def test_patch_is_7x7_at_5cm():
     )
 
     assert out["patch_min_score"][0] == 0.0
+
+

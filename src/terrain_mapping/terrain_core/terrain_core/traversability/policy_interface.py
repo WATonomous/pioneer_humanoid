@@ -34,40 +34,72 @@ def build_height_scan(
     return scan
 
 
+
 def foothold_observation(
-    height_scan,            # (num_y, num_x) from build_height_scan(), NaN allowed
-    footholds_b,            # (2, 2) predicted footholds, base frame XY
+    height_scan,
+    footholds_b,
     scan_resolution=0.05,
     scan_size=(1.6, 1.0),
     patch_size=7,
-    fallback=0.0,           # used only if the whole scan is NaN. Explicit choice, see PR.
+    fallback=0.0,
+    return_nan_fraction=False,
 ):
-    """The 102-value actor foothold observation: per foot [x, y, 49 heights].
+    """Build the 102-value actor foothold observation.
 
-    Mirrors foothold_scan(): round-to-nearest anchor, clamp at the border, patch
-    flattened x-slow / y-fast. NaN is filled with the patch median, then the
-    scan median, then `fallback`. No clipping or noise is applied here.
+    Returns the observation as a float32 array by default.
+    If return_nan_fraction=True, also returns one NaN fraction per foot.
+
+    NaN is filled with the patch median, then the scan median, then fallback.
+    NaN fractions are measured before filling.
     """
     num_y, num_x = height_scan.shape
+
+    expected_x = int(round(scan_size[0] / scan_resolution)) + 1
+    expected_y = int(round(scan_size[1] / scan_resolution)) + 1
+
+    if (num_y, num_x) != (expected_y, expected_x):
+        raise ValueError(
+            f"height_scan shape {(num_y, num_x)} does not match "
+            f"scan_size/resolution expected shape {(expected_y, expected_x)}"
+        )
+
     origin_x, origin_y = -scan_size[0] / 2.0, -scan_size[1] / 2.0
     half = patch_size // 2
     k = np.arange(-half, half + (patch_size % 2))
     off_x, off_y = np.meshgrid(k, k, indexing="ij")
     off_x, off_y = off_x.flatten(), off_y.flatten()
 
-    flat = height_scan.reshape(-1)                       # y-major, x fastest
-    scan_median = np.nanmedian(flat) if np.isfinite(flat).any() else fallback
+    flat = height_scan.reshape(-1)
+    scan_median = (
+        np.nanmedian(flat) if np.isfinite(flat).any() else fallback
+    )
 
     out = []
+    nan_fractions = []
+
     for fx, fy in np.asarray(footholds_b, dtype=float).reshape(-1, 2):
-        ax = int(np.rint((fx - origin_x) / scan_resolution))   # half-to-even, like torch.round
+        ax = int(np.rint((fx - origin_x) / scan_resolution))
         ay = int(np.rint((fy - origin_y) / scan_resolution))
+
         sx = np.clip(ax + off_x, 0, num_x - 1)
         sy = np.clip(ay + off_y, 0, num_y - 1)
+
         patch = flat[sy * num_x + sx]
+
         nan = ~np.isfinite(patch)
+        nan_fractions.append(float(nan.mean()))
+
         if nan.any():
             valid = patch[~nan]
-            patch = np.where(nan, np.median(valid) if valid.size else scan_median, patch)
+            fill_value = np.median(valid) if valid.size else scan_median
+            patch = np.where(nan, fill_value, patch)
+
         out.append(np.concatenate([[fx, fy], patch]))
-    return np.concatenate(out).astype(np.float32)
+
+    observation = np.concatenate(out).astype(np.float32)
+    nan_fractions = np.asarray(nan_fractions, dtype=np.float32)
+
+    if return_nan_fraction:
+        return observation, nan_fractions
+
+    return observation
