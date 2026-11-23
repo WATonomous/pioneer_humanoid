@@ -194,6 +194,9 @@ def main():
     p.add_argument("--gamma", type=float, default=0.98)
     p.add_argument("--noise", type=float, default=0.01, help="exploration std, normalized action units (~2-3 mm)")
     p.add_argument("--ref_dropout", type=float, default=0.5)
+    p.add_argument("--smooth_t", type=float, default=0.0, help="CAPS-style penalty on the change of the actor's "
+                   "correction between consecutive decisions (actor_critic.TD3); 0 = off")
+    p.add_argument("--smooth_c", type=float, default=0.0, help="penalty on the correction's wiggle within a chunk")
     p.add_argument("--minutes", type=float, default=60.0, help="RL wall-clock budget")
     p.add_argument("--eval_every", type=int, default=3000, help="transitions between evals")
     p.add_argument("--seed", type=int, default=0)
@@ -267,7 +270,8 @@ def main():
             fixed[:, -1] = True
             fixed = fixed.reshape(-1)
         td3 = TD3(zd, sd, ad, dev, beta=args.beta, gamma=args.gamma, ref_dropout=args.ref_dropout,
-                  policy_noise=args.noise, noise_clip=2 * args.noise, fixed=fixed)
+                  policy_noise=args.noise, noise_clip=2 * args.noise, fixed=fixed,
+                  smooth_t=args.smooth_t, smooth_c=args.smooth_c, chunk=(C, A))
         rb = Replay(200_000, {"z": zd, "s": sd, "ref": ad, "a": ad, "r": 0, "d": 0, "z2": zd, "s2": sd, "ref2": ad}, dev)
         rng = np.random.default_rng(args.seed)
         n = venv.n
