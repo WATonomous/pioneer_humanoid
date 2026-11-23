@@ -15,7 +15,7 @@ from isaaclab.sensors import patterns
 from isaaclab.utils import configclass
 from isaaclab.utils.modifiers import ModifierCfg
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
-from pioneer_humanoid.whole_body import WHOLE_BODY_ARM_SWING_CFG
+from pioneer_humanoid.whole_body import WHOLE_BODY_WALKER_CFG
 
 from . import foothold, gait
 from .arm_swing import ArmSwingActionCfg
@@ -118,7 +118,7 @@ class PioneerLegOnlyFootholdEnvCfg_PLAY(PioneerLegOnlyFootholdEnvCfg):
 def _whole_body(cfg: PioneerLegOnlyFootholdEnvCfg):
     """The whole-body humanoid with its arms swung on the gait clock, as Flat-PioneerWholeBody: every joint input (policy,
     critic, foot predictor) stays the 12 leg joints in the leg-only order."""
-    cfg.scene.robot = WHOLE_BODY_ARM_SWING_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+    cfg.scene.robot = WHOLE_BODY_WALKER_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
     legs = SceneEntityCfg("robot", joint_names=LEG_ORDER, preserve_order=True)
     cfg.actions.joint_pos.joint_names = LEG_ORDER
     cfg.actions.joint_pos.preserve_order = True
