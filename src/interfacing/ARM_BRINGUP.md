@@ -140,3 +140,8 @@ The motor's id must already be set on the drive (CubeMars tool) and follow the
 4. **New arm only:** add the side to `arms` in `joint_command/config/joint_command.yaml`.
 5. `./watod build`: `joint_command` and `roundtrip.py` read the *installed* configs.
 6. Bring it up from step 0: `candump`, calibrate, visualize, then move.
+
+
+```bash
+tools/roundtrip.sh --limb leg --joints knee.pitch --offset "0,0,0,30,0,0"
+```

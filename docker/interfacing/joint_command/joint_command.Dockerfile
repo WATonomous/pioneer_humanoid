@@ -34,6 +34,7 @@ RUN . /opt/ros/$ROS_DISTRO/setup.sh && \
         --install-base ${WATONOMOUS_INSTALL}
 
 RUN rm -rf src build log
+RUN pip install onnxruntime
 
 COPY docker/wato_ros_entrypoint.sh ${AMENT_WS}/wato_ros_entrypoint.sh
 ENTRYPOINT ["./wato_ros_entrypoint.sh"]

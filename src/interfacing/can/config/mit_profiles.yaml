@@ -71,7 +71,7 @@ motors:
   "46": {model: AK60-39, family: ak, p_min: -12.56, p_max: 12.56, v_min: -10.0, v_max: 10.0, t_min: -80.0, t_max: 80.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 3.4616}
   # RIGHT LEG
   # hip_pitch
-  "56": {model: AKH70-48, family: ak, p_min: -12.56, p_max: 12.56, v_min: -5.0, v_max: 5.0, t_min: -280.0, t_max: 280.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 8.8123}
+  "60": {model: AKH70-48, family: ak, p_min: -12.56, p_max: 12.56, v_min: -5.0, v_max: 5.0, t_min: -280.0, t_max: 280.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 8.8123}
   # hip_roll
   # "57": {model: AK80-64, family: ak, p_min: -12.5, p_max: 12.5, v_min: -8.0, v_max: 8.0, t_min: -144.0, t_max: 144.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0}
   # hip_yaw
@@ -79,6 +79,6 @@ motors:
   # knee_pitch
   "59": {model: AKH70-48, family: ak, p_min: -12.56, p_max: 12.56, v_min: -5.0, v_max: 5.0, t_min: -280.0, t_max: 280.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 8.8123}
   # ankle_pitch
-  "60": {model: AK60-39, family: ak, p_min: -12.56, p_max: 12.56, v_min: -10.0, v_max: 10.0, t_min: -80.0, t_max: 80.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 3.4616}
+  "55": {model: AK60-39, family: ak, p_min: -12.56, p_max: 12.56, v_min: -10.0, v_max: 10.0, t_min: -80.0, t_max: 80.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 3.4616}
   # ankle_roll
-  "61": {model: AK60-39, family: ak, p_min: -12.56, p_max: 12.56, v_min: -10.0, v_max: 10.0, t_min: -80.0, t_max: 80.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 3.4616}
+  "56": {model: AK60-39, family: ak, p_min: -12.56, p_max: 12.56, v_min: -10.0, v_max: 10.0, t_min: -80.0, t_max: 80.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 3.4616}

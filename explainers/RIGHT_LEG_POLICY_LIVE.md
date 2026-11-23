@@ -92,6 +92,7 @@ order, in raw units (no normalisation), every 20 ms:
 | 36–47 | last action | the network's own previous raw output | as in training |
 | 48–49 | gait clock | `sin, cos` of 2π · (t mod 1 s), t from policy start | as in training |
 
+
 Joint order (slots 12–23, 24–35, 36–47, and the 12 outputs) is the training order:
 
 ```

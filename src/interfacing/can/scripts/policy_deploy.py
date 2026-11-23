@@ -10,10 +10,13 @@ Guide: explainers/RIGHT_LEG_POLICY_LIVE.md.
 Run (joint_command container, ROS sourced; joint_command with this side in `legs` and exactly
 the --joints joints `active: true` in leg_actuators.yaml)::
 
-  policy_deploy.py --weights /outputs/policy/leg_only_flat_2999.npz --self-test   # no ROS
-  policy_deploy.py --weights ... --side right --joints ankle.pitch --vx 0 --box 5 --check
-  policy_deploy.py --weights ... --side right --joints ankle.pitch --vx 0 --box 5 \
-      --seconds 20 --label s1a
+  policy_deploy.py --self-test    # no ROS; needs torch + onnxruntime; exports the .onnx if missing
+  policy_deploy.py --side right --joints ankle.pitch --vx 0 --box 5 --check
+  policy_deploy.py --side right --joints ankle.pitch --vx 0 --box 5 --seconds 20 --label s1a
+
+The network is --onnx (run live with onnxruntime). If it is missing it is exported from the
+rsl_rl --checkpoint (needs torch, so only that first time). --self-test also uses the checkpoint
+as the reference the .onnx and build_obs are checked against; there is no other reference file.
 
 Dry run: joint_command on motor_cmd_topic /dry_run/motorCMD, and --motor-cmd-topic
 /dry_run/motorCMD here.
@@ -38,6 +41,7 @@ from __future__ import annotations
 import argparse
 import csv
 import math
+import os
 import signal
 import sys
 import time
@@ -60,19 +64,55 @@ APPROACH_VEL = 10.0  # deg/s, peak of the approach and retreat ramps
 HOLD_S = 2.0
 
 
-def load_policy(path: str):
-    """-> (mlp(obs) -> action, ref_obs, ref_act) from the A1 export."""
-    data = np.load(path)
-    weights = [(data[f"w{i}"], data[f"b{i}"]) for i in range(int(data["n"]))]
+def rebuild_actor(checkpoint: str):
+    """The trained actor MLP as a torch module, rebuilt from an rsl_rl .pt checkpoint."""
+    import torch
+    state = torch.load(checkpoint, map_location="cpu")["model_state_dict"]
+    assert not [k for k in state if "normalizer" in k], \
+        "checkpoint normalises observations: this deploy path would be wrong"
+    keys = sorted((k for k in state if k.startswith("actor.") and k.endswith(".weight")),
+                  key=lambda k: int(k.split(".")[1]))
+    layers = []
+    for i, k in enumerate(keys):
+        lin = torch.nn.Linear(state[k].shape[1], state[k].shape[0])
+        lin.weight.data, lin.bias.data = state[k], state[k.replace("weight", "bias")]
+        layers += [lin] + ([torch.nn.ELU()] if i < len(keys) - 1 else [])
+    return torch.nn.Sequential(*layers).eval()
 
-    def mlp(x):
-        for i, (w, b) in enumerate(weights):
-            x = w @ x + b
-            if i < len(weights) - 1:
-                x = np.where(x > 0, x, np.expm1(x))  # ELU
-        return x
 
-    return mlp, data["ref_obs"], data["ref_act"]
+def export_onnx(checkpoint: str, onnx_path: str) -> None:
+    import torch
+    actor = rebuild_actor(checkpoint)
+    os.makedirs(os.path.dirname(os.path.abspath(onnx_path)), exist_ok=True)
+    torch.onnx.export(actor, torch.zeros(1, 50), onnx_path, input_names=["obs"],
+                      output_names=["action"], opset_version=17, dynamo=False)
+
+
+def ensure_onnx(onnx_path: str, checkpoint: str) -> None:
+    """Export the .onnx from the checkpoint the first time; --self-test checks it against it."""
+    if os.path.exists(onnx_path):
+        return
+    if not os.path.exists(checkpoint):
+        sys.exit(f"neither {onnx_path} nor the checkpoint {checkpoint} exists")
+    print(f"exporting {checkpoint} -> {onnx_path}", flush=True)
+    export_onnx(checkpoint, onnx_path)
+
+
+def load_policy(onnx_path: str):
+    """-> mlp(obs) -> action: numpy (50,) in, numpy (12,) out, run by onnxruntime."""
+    import onnxruntime as ort
+    opts = ort.SessionOptions()
+    opts.intra_op_num_threads = opts.inter_op_num_threads = 1  # don't steal CPU from the 50 Hz loop
+    sess = ort.InferenceSession(onnx_path, sess_options=opts, providers=["CPUExecutionProvider"])
+    inp, out = sess.get_inputs()[0], sess.get_outputs()[0]
+    if inp.shape[-1] != 50 or out.shape[-1] != 12:
+        sys.exit(f"{onnx_path} maps {inp.shape} -> {out.shape}; expected (.., 50) -> (.., 12)")
+
+    def mlp(obs):
+        x = np.asarray(obs, dtype=np.float32).reshape(1, 50)  # onnxruntime does not convert dtype
+        return sess.run([out.name], {inp.name: x})[0][0].astype(np.float64)
+
+    return mlp
 
 
 def build_obs(q_rel, qd, last_action, t, cmd):
@@ -82,18 +122,42 @@ def build_obs(q_rel, qd, last_action, t, cmd):
                            [math.sin(2 * math.pi * phase), math.cos(2 * math.pi * phase)]])
 
 
-def self_test(weights: str) -> int:
-    mlp, ref_obs, ref_act = load_policy(weights)
+def self_test(onnx_path: str, checkpoint: str) -> int:
+    """Is build_obs right (vs a hand-written layout), and does the .onnx match the checkpoint?"""
+    import torch
+    ensure_onnx(onnx_path, checkpoint)
+    mlp = load_policy(onnx_path)
+    actor = rebuild_actor(checkpoint)
+
+    def torch_action(obs):
+        with torch.no_grad():
+            return actor(torch.from_numpy(np.asarray(obs, dtype=np.float32))).numpy().astype(np.float64)
+
+    live = [JOINTS.index(n) for n in ("Knee_R", "Ankle_P_R", "Ankle_R_R")]
     ok = True
-    for k, vx in enumerate((0.0, 0.3)):
+    for vx in (0.0, 0.3):
+        expected = np.zeros(50)  # the layout table, by hand: NOT built with build_obs
+        expected[8] = -1.0       # gravity_z
+        expected[9] = vx         # cmd_vx
+        expected[49] = 1.0       # clock_cos at t = 0
         obs = build_obs(np.zeros(12), np.zeros(12), np.zeros(12), 0.0, np.array([vx, 0.0, 0.0]))
-        obs_err = float(np.abs(obs - ref_obs[k]).max())
-        act_err = float(np.abs(mlp(obs) - ref_act[k]).max())
-        good = obs_err <= 1e-6 and act_err <= 1e-6
+        assert obs.shape == (50,), obs.shape
+        obs_err = float(np.abs(obs - expected).max())
+        action = mlp(obs)
+        act_err = float(np.abs(action - torch_action(obs)).max())
+        good = obs_err <= 1e-6 and act_err <= 1e-4
         ok &= good
-        print(f"vx {vx}: max |obs - ref_obs| = {obs_err:.2e}, max |action - ref_act| = "
-              f"{act_err:.2e}  {'OK' if good else 'MISMATCH'}")
-    print("\nobservation at vx 0.3 (the second reference):")
+        print(f"vx {vx}: max |obs - expected| = {obs_err:.2e}, max |onnx - torch| = "
+              f"{act_err:.2e}  {'OK' if good else 'MISMATCH'}   "
+              f"Knee_R, Ankle_P_R, Ankle_R_R actions: {np.round(action[live], 2)}")
+
+    xs = np.random.default_rng(0).normal(size=(1000, 50))
+    sweep = max(float(np.abs(mlp(x) - torch_action(x)).max()) for x in xs)
+    good = sweep <= 1e-4
+    ok &= good
+    print(f"1000 random obs: max |onnx - torch| = {sweep:.2e}  {'OK' if good else 'MISMATCH'}")
+
+    print("\nobservation at vx 0.3:")
     for i, (name, v) in enumerate(zip(OBS_NAMES, obs)):
         print(f"  {i:2d} {name:<22}{v:+.3f}")
     print("\nself-test " + ("passed" if ok else "FAILED"))
@@ -104,9 +168,12 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0],
                                  formatter_class=argparse.RawDescriptionHelpFormatter,
                                  epilog=__doc__)
-    ap.add_argument("--weights", required=True, help="the .npz from the guide's step A1")
+    ap.add_argument("--onnx", default="/outputs/policy/leg_only_flat_2999.onnx",
+                    help="the policy network; exported from --checkpoint if it does not exist")
+    ap.add_argument("--checkpoint", default="/outputs/policy/model_2999.pt",
+                    help="rsl_rl .pt checkpoint: exports --onnx, and is the --self-test reference")
     ap.add_argument("--side", default="right", choices=["left", "right"])
-    ap.add_argument("--joints", help="comma-separated, from knee.pitch, ankle.pitch, ankle.roll: "
+    ap.add_argument("--joints", default="knee.pitch,ankle.pitch,ankle.roll", help="comma-separated, from knee.pitch, ankle.pitch, ankle.roll: "
                                      "fed into the policy AND driven")
     ap.add_argument("--vx", type=float, default=0.0, help="command, m/s (default 0)")
     ap.add_argument("--vy", type=float, default=0.0, help="command, m/s (default 0)")
@@ -129,14 +196,14 @@ def main(argv=None) -> int:
     ap.add_argument("--motor-cmd-topic", default="/interfacing/motorCMD",
                     help="where joint_command publishes MotorCmd; /dry_run/motorCMD for a dry run")
     ap.add_argument("--self-test", action="store_true",
-                    help="no ROS: rebuild the A1 reference observations, compare the actions, exit")
+                    help="no ROS: check build_obs and the .onnx against the checkpoint, exit")
     ap.add_argument("--check", action="store_true",
                     help="preflight against live feedback, publish nothing, exit")
     ap.set_defaults(limb="leg", mapping=None, actuators=None)  # for roundtrip.resolve_config
     args = ap.parse_args(argv)
 
     if args.self_test:
-        return self_test(args.weights)
+        return self_test(args.onnx, args.checkpoint)
 
     if not args.joints:
         sys.exit("--joints is required (e.g. ankle.pitch)")
@@ -146,7 +213,8 @@ def main(argv=None) -> int:
         sys.exit(f"unknown joint(s) {unknown}; choose from {list(RIGHT_IDX)}")
     if args.box <= 0 or args.seconds <= 0 or args.ease < 0 or 2 * args.ease > args.seconds:
         sys.exit("need --box > 0, --seconds > 0 and 0 <= 2 * --ease <= --seconds")
-    mlp, _, _ = load_policy(args.weights)
+    ensure_onnx(args.onnx, args.checkpoint)
+    mlp = load_policy(args.onnx)
     idx = {j: RIGHT_IDX[j] - (args.side == "left") for j in joints}
     cmd = np.array([args.vx, args.vy, args.wz])
 
@@ -206,7 +274,7 @@ def main(argv=None) -> int:
         "motor_cmd_topic": args.motor_cmd_topic, "rate_hz": 50.0,
         "frame": "command frame (degrees) for both sp_deg and pos_deg",
         "joints": {str(mid): info["name"] for mid, info in sorted(joint_map.items())},
-        "moving": sorted(joints), "weights": args.weights,
+        "moving": sorted(joints), "onnx": args.onnx,
         "command": [args.vx, args.vy, args.wz], "box_deg": args.box,
         "seconds": args.seconds, "ease_s": args.ease,
         "default_deg": default_deg,

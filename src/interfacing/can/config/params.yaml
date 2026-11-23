@@ -20,4 +20,4 @@ can_node:
       device_path: "/dev/canable2"
       bustype: "slcan"
       bitrate: 1000000
-      motor_ids: [40, 41, 42, 43, 44, 45, 56, 57, 58, 59, 60, 61]
+      motor_ids: [40, 41, 42, 43, 44, 45, 60, 57, 58, 59, 55, 56]

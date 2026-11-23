@@ -38,15 +38,13 @@ CanNode::CanNode()
   this->declare_parameter("upper.device_path", "/dev/canable1");
   this->declare_parameter("upper.bustype", "slcan");
   this->declare_parameter("upper.bitrate", 1000000);
-  this->declare_parameter<std::vector<int64_t>>("upper.motor_ids",
-                                                {11, 12, 13, 14, 21, 22, 30, 31, 32, 33, 34, 104});
+  this->declare_parameter<std::vector<int64_t>>("upper.motor_ids");
 
   this->declare_parameter("lower.can_interface", "can1");
   this->declare_parameter("lower.device_path", "/dev/canable2");
   this->declare_parameter("lower.bustype", "slcan");
   this->declare_parameter("lower.bitrate", 1000000);
-  this->declare_parameter<std::vector<int64_t>>("lower.motor_ids",
-                                                {40, 41, 42, 43, 44, 45, 50, 51, 52, 53, 54, 55});
+  this->declare_parameter<std::vector<int64_t>>("lower.motor_ids");
 
   this->declare_parameter("receive_poll_interval_ms", 10);
   this->declare_parameter("mit_master_id", 0);
