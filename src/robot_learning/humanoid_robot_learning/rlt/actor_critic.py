@@ -79,7 +79,9 @@ class TD3:
             n = (self.policy_noise * torch.randn_like(b["a"])).clamp(-self.noise_clip, self.noise_clip)
             a2 = self.fix((self.actor_t(b["z2"], b["s2"], b["ref2"]) + n).clamp(-1, 1), b["ref2"])  # acting sees the reference
             q1t, q2t = self.critic_t(b["z2"], b["s2"], a2)
-            y = b["r"] + self.gamma * (1 - b["d"]) * torch.min(q1t, q2t)
+            # the reward is 1 once (success) and 0 otherwise, so no return exceeds 1: clipping the target stops the
+            # early overestimation (Q reached 2.2) that the actor chased in the first runs
+            y = (b["r"] + self.gamma * (1 - b["d"]) * torch.min(q1t, q2t)).clamp(0.0, 1.0)
         q1, q2 = self.critic(b["z"], b["s"], b["a"])
         lc = (q1 - y).pow(2).mean() + (q2 - y).pow(2).mean()
         self.opt_c.zero_grad(set_to_none=True)
