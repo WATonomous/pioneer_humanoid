@@ -2,7 +2,7 @@ import gymnasium as gym
 
 from . import agents
 
-# Register the final walking recipe and stairs scaffold alongside legacy tasks.
+# Register the final walking recipe and Onshape stair courses alongside legacy tasks.
 _ENVS = (
     ("Rough", "rough_env_cfg:PioneerHumanoidRoughEnvCfg", "PioneerHumanoidRoughPPORunnerCfg", ""),
     ("Rough", "rough_env_cfg:PioneerHumanoidRoughEnvCfg_PLAY", "PioneerHumanoidRoughPPORunnerCfg", "-Play"),
@@ -35,18 +35,36 @@ for _terrain, _env_cfg, _agent_cfg, _suffix in _ENVS:
             kwargs=_kwargs,
         )
 
-# A separate runner module keeps the stairs scaffold isolated from walking logs.
+# Straight staircase course (user STEP mesh as terrain). PLAY first for visual
+# verification; training follows on the same terrain.
 for _suffix, _env_class in (
-    ("", "PioneerHumanoidStairsEnvCfg"),
-    ("-Play", "PioneerHumanoidStairsEnvCfg_PLAY"),
+    ("", "PioneerHumanoidOnshapeCourseEnvCfg"),
+    ("-Play", "PioneerHumanoidOnshapeCourseEnvCfg_PLAY"),
 ):
     for _prefix in ("Isaac-Locomotion", "Isaac-Velocity"):
         gym.register(
-            id=f"{_prefix}-Stairs-PioneerHumanoid{_suffix}-v0",
+            id=f"{_prefix}-StairsStraight-PioneerHumanoid{_suffix}-v0",
             entry_point="isaaclab.envs:ManagerBasedRLEnv",
             disable_env_checker=True,
             kwargs={
-                "env_cfg_entry_point": f"{__name__}.stairs_env_cfg:{_env_class}",
-                "rsl_rl_cfg_entry_point": f"{agents.__name__}.stairs_ppo_cfg:PioneerHumanoidStairsPPORunnerCfg",
+                "env_cfg_entry_point": f"{__name__}.onshape_env_cfg:{_env_class}",
+                "rsl_rl_cfg_entry_point": f"{agents.__name__}.onshape_ppo_cfg:PioneerHumanoidOnshapePPORunnerCfg",
+            },
+        )
+# Spiral staircase (the user's Onshape spiral). Same recipe as the straight
+# Onshape course, but every course term is measured along the path: the
+# height is the progress coordinate, the tangent is the direction.
+for _suffix, _env_class in (
+    ("", "PioneerHumanoidOnshapeSpiralEnvCfg"),
+    ("-Play", "PioneerHumanoidOnshapeSpiralEnvCfg_PLAY"),
+):
+    for _prefix in ("Isaac-Locomotion", "Isaac-Velocity"):
+        gym.register(
+            id=f"{_prefix}-StairsSpiral-PioneerHumanoid{_suffix}-v0",
+            entry_point="isaaclab.envs:ManagerBasedRLEnv",
+            disable_env_checker=True,
+            kwargs={
+                "env_cfg_entry_point": f"{__name__}.onshape_spiral_env_cfg:{_env_class}",
+                "rsl_rl_cfg_entry_point": f"{agents.__name__}.onshape_spiral_ppo_cfg:PioneerHumanoidOnshapeSpiralPPORunnerCfg",
             },
         )

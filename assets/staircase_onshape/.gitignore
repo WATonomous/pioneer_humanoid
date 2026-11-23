@@ -1,0 +1,14 @@
+# Inputs and intermediates of tools/onshape_course/build_course.py. None are
+# committed: the STEP export comes from the team Onshape account, and the raw
+# USD and per-part bounds are regenerated from it.
+#
+# Committed (what the tasks actually load):
+#   *_terrain.usd        merged single-mesh course (build_course.py)
+#   *_profile.json       height/clearance table (course_profile.py)
+#   spiral_geometry.json spiral parameters (spiral_profile.py)
+*.step
+*.usd
+!*_terrain.usd
+*_bounds.json
+*.log
+hoops_config.json
