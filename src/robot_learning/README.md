@@ -71,6 +71,8 @@ train-policy \
 
 Flag pitfalls (`--steps`, not epochs; always `--policy.push_to_hub=false` for local runs) are listed in the [SO101 README](../simulation/so101_vial_task/README.md), which uses the same command.
 
+[Rubik’s cube ACT](rubiks_cube.md) documents WATcloud training, the recording-era left-arm simulator, and paired tests of camera-guided retargeting.
+
 **Pioneer-1** (`pioneer1`, [`humanoid_robot_learning/policies/pioneer1`](humanoid_robot_learning/policies/pioneer1)) is our policy model (the model, not the robot): language-conditioned, for picking the object an instruction names. A DINOv3 ViT-B/16 encodes every camera. The scene camera gives all of its patch tokens, the wrist cameras a 7x7 pooled grid. The instruction's frozen CLIP text features join them through FiLM and as word tokens, and two fusion layers let each patch attend to the words. The action head is a flow-matching transformer (adaLN-Zero) that cross-attends to this context, trained with real-time chunking. At run time it plans 32 actions, executes 16, and starts the next chunk from the 6 actions it had planned next (`n_action_steps`, `replan_prefix`). 256M parameters, 193M trained. DINOv3 is gated on Hugging Face: request access on [its page](https://huggingface.co/facebook/dinov3-vitb16-pretrain-lvd1689m) first. Install with `pip install -e .[pioneer1]` and train with:
 
 ```bash
