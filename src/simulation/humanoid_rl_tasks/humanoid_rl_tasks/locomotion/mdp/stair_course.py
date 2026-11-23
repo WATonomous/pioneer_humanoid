@@ -159,6 +159,37 @@ def _path_forward_offset(env, centre, positions, batch, swing_idx, stance_idx):
     return dx * tx + dy * ty
 
 
+def foot_low_fly_in(
+    env,
+    sensor_cfg,
+    feet_cfg,
+    low_height: float = 0.06,
+) -> torch.Tensor:
+    """Cost a swing foot that is flying in *low and fast* -- the stomp.
+
+    The touchdown probes on this course measure a landing that is vertical-quiet
+    (descent ~0.01 m/s) but horizontally quick (0.16 m/s against the straight
+    course's 0.09): the foot is still travelling forward when it meets the
+    tread, so it lands in a skid and reads as a thud. Contact-gated terms cannot
+    see that -- by the time the foot is in contact it has already arrived -- and
+    the vertical impact term is inert for the same reason.
+
+    This prices the approach instead: the squared horizontal speed of any
+    airborne foot that is within ``low_height`` of the lower foot, i.e. the
+    final descent onto the tread. A foot carried high through swing is free
+    (that is what clearance pays for), and so is a foot that has stopped moving
+    horizontally before it drops.
+    """
+    asset = env.scene[feet_cfg.name]
+    pos = asset.data.body_pos_w[:, feet_cfg.body_ids, :]
+    vel = asset.data.body_lin_vel_w[:, feet_cfg.body_ids, :2]
+    contact_time = env.scene.sensors[sensor_cfg.name].data.current_contact_time[:, sensor_cfg.body_ids]
+    airborne = contact_time <= 0.0
+    above = pos[:, :, 2] - pos[:, :, 2].min(dim=1, keepdim=True).values
+    low = above < low_height
+    return (vel.square().sum(dim=-1) * airborne * low).sum(dim=1)
+
+
 def foot_swing_clearance(
     env,
     left_sensor_cfg,
@@ -176,6 +207,7 @@ def foot_swing_clearance(
     excess_coef: float = 0.0,
     back_allow: float | None = None,
     phase_ramp: float = 0.06,
+    min_command_norm: float = 0.1,
 ) -> torch.Tensor:
     """Reward swing-foot height above the stance foot during single stance.
 
@@ -185,6 +217,13 @@ def foot_swing_clearance(
     stance earns nothing, so standing straddled across two treads cannot harvest
     it — only a genuine step pays. Gated on commanded motion like the air-time
     reward so standing-reserve environments stay neutral.
+
+    ``min_command_norm`` is that gate's threshold. It is a strict ``>`` on the
+    commanded speed, so a task that *commands* exactly 0.1 m/s (the spiral's
+    slow gait) reads zero on every step and the term silently disappears --
+    which is what happened here: the lift shaping was dead for a whole run.
+    Such a task must lower the threshold below its command, not raise its
+    command.
 
     With ``min_forward_speed`` set, the payout additionally ramps with measured
     forward speed along ``forward_axis`` (capped at 1.0). A held-up foot while
@@ -251,7 +290,7 @@ def foot_swing_clearance(
     else:
         reward = clearance
     reward = torch.where(single_stance, reward, torch.zeros_like(reward))
-    reward = reward * (env.command_manager.get_command(command_name)[:, :2].norm(dim=1) > 0.1)
+    reward = reward * (env.command_manager.get_command(command_name)[:, :2].norm(dim=1) > min_command_norm)
     if back_allow is not None:
         if path_centre is not None:
             d_fwd = _path_forward_offset(env, path_centre, positions, batch, swing_idx, stance_idx)
@@ -352,6 +391,34 @@ def feet_impact(
     return (torch.clamp_min(-vel_z, 0.0) ** 2 * contact).sum(dim=1)
 
 
+def feet_impact_contact(env, sensor_cfg, asset_cfg) -> torch.Tensor:
+    """Squared downward foot speed on contact frames (soft landings), one sensor.
+
+    The same quantity as :func:`feet_impact`, but reading the single multi-body
+    ``contact_forces`` sensor the foothold task already has instead of two
+    single-body terrain sensors. ``sensor_cfg`` and ``asset_cfg`` must both be
+    resolved with ``preserve_order=True`` and the same body order, because the
+    columns are matched by position: column i of the sensor is the contact state
+    of ``asset_cfg.body_ids[i]``.
+
+    The term is deliberately contact-gated rather than continuous: a foot moving
+    down in swing costs nothing (that is the step), only the frame(s) where it
+    is actually touching the terrain pay, so a fast descent followed by a soft
+    touchdown is rewarded over a fast descent slammed into the tread.
+    """
+    asset = env.scene[asset_cfg.name]
+    vel_z = asset.data.body_lin_vel_w[:, asset_cfg.body_ids, 2]
+    sensor = env.scene.sensors[sensor_cfg.name]
+    contact = sensor.data.current_contact_time[:, sensor_cfg.body_ids] > 0.0
+    if contact.shape != vel_z.shape:
+        raise ValueError(
+            f"feet_impact_contact: sensor '{sensor_cfg.name}' selects {contact.shape} "
+            f"bodies but the asset selects {vel_z.shape}; both cfg must use the same "
+            f"body names with preserve_order=True."
+        )
+    return (torch.clamp_min(-vel_z, 0.0) ** 2 * contact).sum(dim=1)
+
+
 def _quat_apply(quat: torch.Tensor, vec: torch.Tensor) -> torch.Tensor:
     """Rotate ``vec`` by the (w, x, y, z) quaternion ``quat`` (broadcast over leading dims).
 
@@ -416,12 +483,26 @@ def foot_flat_l2(
     tilt = torch.acos(up_world[..., up_axis].clamp(-1.0, 1.0))
     excess = (tilt - deadband).clamp_min(0.0)
     
-    # Get contact times for the feet bodies only
-    # The contact_forces sensor tracks all robot bodies; we slice by feet body_ids
-    sensor = env.scene.sensors[left_sensor_cfg.name]  # same sensor for both
-    contact_time_all = sensor.data.current_contact_time  # (num_envs, num_bodies)
-    contact_time = contact_time_all[:, feet_cfg.body_ids]  # (num_envs, 2)
-    
+    # Each foot is tracked by its own single-body terrain-contact sensor, so read
+    # column 0 of each. Indexing these sensors with the *robot's* foot body ids
+    # (what this did before) is out of bounds for a single-body sensor and trips
+    # the CUDA index kernel -- invisible until now because the reward manager
+    # skips zero-weight terms, and this term sat at weight 0.
+    contact_times = []
+    for sensor_cfg in (left_sensor_cfg, right_sensor_cfg):
+        sensor = env.scene.sensors[sensor_cfg.name]
+        # Select the cfg's body rather than assuming the sensor holds exactly
+        # one: the shared 'contact_forces' sensor tracks every body, and only
+        # the per-foot sensors used by the earlier tasks were single-body.
+        times = sensor.data.current_contact_time[:, sensor_cfg.body_ids]
+        if times.shape[1] != 1:
+            raise ValueError(
+                f"foot_flat_l2 expects one body per sensor cfg, but '{sensor_cfg.name}' "
+                f"selects {times.shape[1]} (bodies {sensor.body_names})."
+            )
+        contact_times.append(times[:, 0])
+    contact_time = torch.stack(contact_times, dim=1)  # (num_envs, 2)
+
     landing = (contact_time > 0.0) & (contact_time <= landing_window)
     return (excess.square() * landing).sum(dim=1)
 
@@ -471,3 +552,86 @@ def complete_stair_course_levels(
     terrain = env.scene.terrain
     terrain.update_env_origins(env_ids, move_up=move_up, move_down=move_down)
     return terrain.terrain_levels.float().mean()
+
+
+def reset_root_state_course_spawn(
+    env,
+    env_ids,
+    asset_cfg,
+    spawn_x: float,
+    spawn_y: tuple[float, ...],
+    x_jitter: float = 0.15,
+    y_jitter: float = 0.06,
+    yaw: float = 1.5707963,
+    velocity_range: dict | None = None,
+) -> None:
+    """Reset the robot onto one of several flat spawn slots along the course.
+
+    A single uniform ``pose_range`` cannot express "start at the foot of any
+    pyramid", and the course has no ground-level area between parts except the
+    0.4 m gaps before each one. The slots are measured off the merged collider
+    (``assets/staircase_onshape/straight_stairs_centreline.npz``): slot y is the
+    middle of a gap, where the whole sole (8 cm of heel behind the ankle, 16 cm
+    of toe ahead) sits on flat ground, so the robot always spawns standing.
+    The jitters are kept small for the same reason: 0.45 m of gap, 0.24 m of
+    sole.
+
+    Spreading the spawn means an episode can start at the 14.5-16 cm risers
+    instead of spending its first 35 s working up to them.
+    """
+    # Local import: this module is imported by CPU unit tests that stay torch-only.
+    from isaaclab.utils import math as math_utils
+
+    asset = env.scene[asset_cfg.name]
+    n = len(env_ids)
+    root_states = asset.data.default_root_state[env_ids].clone()
+    slots = torch.tensor(spawn_y, device=env.device, dtype=root_states.dtype)
+    slot = slots[torch.randint(len(spawn_y), (n,), device=env.device)]
+    xs = spawn_x + (torch.rand(n, device=env.device, dtype=root_states.dtype) - 0.5) * 2.0 * x_jitter
+    ys = slot + (torch.rand(n, device=env.device, dtype=root_states.dtype) - 0.5) * 2.0 * y_jitter
+    positions = torch.stack([xs, ys, root_states[:, 2]], dim=-1) + env.scene.env_origins[env_ids]
+    zeros = torch.zeros(n, device=env.device, dtype=root_states.dtype)
+    orientations = math_utils.quat_from_euler_xyz(zeros, zeros, torch.full_like(zeros, yaw))
+    asset.write_root_pose_to_sim(torch.cat([positions, orientations], dim=-1), env_ids)
+
+    velocity_range = velocity_range or {k: (0.0, 0.0) for k in ("x", "y", "z", "roll", "pitch", "yaw")}
+    ranges = torch.tensor(
+        [velocity_range.get(k, (0.0, 0.0)) for k in ("x", "y", "z", "roll", "pitch", "yaw")],
+        device=env.device, dtype=root_states.dtype,
+    )
+    asset.write_root_velocity_to_sim(
+        math_utils.sample_uniform(ranges[:, 0], ranges[:, 1], (n, 6), device=env.device).to(root_states.dtype),
+        env_ids,
+    )
+
+
+_PUSH_BASE_RANGE: dict[str, dict] = {}
+
+
+def push_speed_schedule(
+    env,
+    env_ids,
+    term_name: str = "push_robot",
+    start_scale: float = 0.35,
+    final_scale: float = 1.0,
+    ramp_steps: int = 6000,
+) -> torch.Tensor:
+    """Ramp the push velocity range from ``start_scale`` to ``final_scale``.
+
+    ``push_robot`` currently kicks every 5-10 s with up to 0.8 m/s per axis,
+    which is a very large instantaneous velocity change. Starting a run at a
+    fraction of it and ramping up lets the gait settle first; the endpoint is
+    left at the configured magnitude so the disturbance the policy is finally
+    optimised against is unchanged. ``ramp_steps`` is in environment steps
+    (24 per iteration), so 6000 is about 250 iterations.
+
+    The configured range is cached in this module rather than in the event's
+    params: the event manager forwards every param to its function as a keyword
+    argument, so an extra key there would crash the push.
+    """
+    term = env.event_manager.get_term_cfg(term_name)
+    full = _PUSH_BASE_RANGE.setdefault(term_name, dict(term.params["velocity_range"]))
+    progress = min(1.0, float(env.common_step_counter) / max(1, ramp_steps))
+    scale = start_scale + (final_scale - start_scale) * progress
+    term.params["velocity_range"] = {k: (lo * scale, hi * scale) for k, (lo, hi) in full.items()}
+    return torch.tensor([scale], device=env.device)

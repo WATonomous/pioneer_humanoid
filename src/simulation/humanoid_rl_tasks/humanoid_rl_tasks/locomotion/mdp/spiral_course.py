@@ -168,6 +168,7 @@ def spiral_riser_bonus(
     standing_height: float = 0.845,
     asset_name: str = "robot",
     tau: float = 0.5,
+    min_interval_steps: int = 0,
 ):
     """A discrete bonus for each riser of the staircase the robot reaches.
 
@@ -194,21 +195,46 @@ def spiral_riser_bonus(
 
     A high-water mark cannot be gamed: going up and down pays exactly once,
     and only *new* height pays.
+
+    ``min_interval_steps`` caps how often that payment can happen: a riser
+    cleared sooner than the interval after the last paid one still advances
+    the mark but is not paid. That is the difference between "paid for
+    climbing" and "paid for climbing fast". Without it the bonus is worth more
+    per second the faster the robot moves, and the policy ran the staircase
+    (2.5-3.5 risers/s against a 0.2 m/s command) in a scrambling hop; the total
+    per episode is now bounded at roughly episode_steps / min_interval_steps
+    payments no matter how quickly the risers go by.
     """
     ema, _ = height_rate(env, asset_name, tau)
     key = "_spiral_riser_level"
     level = getattr(env, key, None)
     if level is None or level.shape != ema.shape:
-        level = torch.zeros_like(ema)
+        # Start the mark at the height the robot is already standing at, not
+        # at zero: the multi-slot spawn can drop it a metre up the staircase,
+        # and a zero mark would then pay for every riser below it (one per
+        # step, ~20 in a row) without the robot moving.
+        level = torch.round((ema - standing_height) / riser)
     height = ema - standing_height
     # A respawn (back on the floor) resets the mark.
     level = torch.where(height < -0.2, torch.zeros_like(level), level)
     # Rise only, and only past the middle of the next riser.
     above = height > (level + 0.5) * riser
     gained = above.float()
+    # The mark always advances, so a riser that is too soon to be paid is
+    # skipped for good rather than queued up and paid later.
     level = level + gained
+    payment = gained
+    if min_interval_steps > 0:
+        step = env.episode_length_buf.to(gained.dtype)
+        last = getattr(env, "_spiral_bonus_step", None)
+        if last is None or last.shape != gained.shape:
+            last = torch.full_like(gained, -1.0e9)
+        allowed = (step - last) >= float(min_interval_steps)
+        payment = gained * allowed.float()
+        last = torch.where(payment > 0, step, last)
+        env._spiral_bonus_step = last
     setattr(env, key, level)
-    return gained
+    return payment
 
 
 def spiral_retreat_cost(
@@ -309,10 +335,17 @@ def spiral_no_progress(
 
     The height gain is measured against the standing height at the spawn, so
     a robot that shuffles around the bottom tread, or walks back down, never
-    satisfies it.
+    satisfies it. With the multi-slot spawn the robot can start a metre or
+    more up the staircase, so the per-env spawn height recorded by
+    :func:`reset_root_state_spiral_slots` takes precedence over the fixed
+    ``spawn_height`` (a fixed one would make every raised slot immune to this
+    termination -- the exact stander it exists to catch).
     """
     z = env.scene[asset_name].data.root_pos_w[:, 2]
-    gain = z - spawn_height
+    spawn = getattr(env, "_spiral_spawn_height", None)
+    if spawn is None or spawn.shape != z.shape:
+        spawn = torch.full_like(z, spawn_height)
+    gain = z - spawn
     time_ok = env.episode_length_buf >= int(min_time / env.step_dt)
     return time_ok & (gain < min_gain)
 
@@ -335,3 +368,127 @@ def spiral_out_of_bounds(
         | (position[:, 2] < min_height)
         | (position[:, 2] > max_height)
     )
+
+
+# --------------------------------------------------------------------------- #
+# Reset
+# --------------------------------------------------------------------------- #
+def reset_root_state_spiral_slots(
+    env,
+    env_ids,
+    asset_cfg,
+    slots: tuple[tuple[float, float, float, float], ...],
+    riser: float = 0.12,
+    standing_height: float = 0.845,
+    xy_jitter: float = 0.05,
+    yaw_jitter: float = 0.05,
+    velocity_range: dict | None = None,
+) -> None:
+    """Reset the robot onto one of several treads along the staircase.
+
+    ``slots`` are measured poses ``(x, y, z, yaw)``: ``z`` is the root height
+    that stands on the tread (tread top + ``standing_height``), and ``yaw``
+    faces the path's tangent at that tread. The values are measured off the
+    merged collider (``tools/onshape_course/spiral_spawn_slots.py``), because
+    the extracted tread angles carry ~0.8 rad of offset and per-tread noise:
+    spawning from the analytic helicoid puts the robot across a riser.
+
+    A single uniform ``pose_range`` cannot express "start on any of these
+    treads", and starting every episode on the flat approach is what let the
+    policy stand still: the approach is free, so the only cheap policy is to
+    not walk. Spreading the spawn puts half the batch *in* the climb, where
+    standing is terminated (``spiral_no_progress``) and the riser bonus is
+    within reach.
+
+    The reset also re-seeds this module's per-env shaping state (the height
+    filter, the spawn height used by the no-progress termination, and the
+    riser high-water mark), because all three must start from the slot's own
+    height rather than from the bottom of the staircase.
+    """
+    # Local import: this module is imported by CPU unit tests that stay torch-only.
+    from isaaclab.utils import math as math_utils
+
+    asset = env.scene[asset_cfg.name]
+    n = len(env_ids)
+    root_states = asset.data.default_root_state[env_ids].clone()
+    table = torch.tensor(slots, device=env.device, dtype=root_states.dtype)
+    chosen = table[torch.randint(len(slots), (n,), device=env.device)]
+
+    def _jitter(width: float) -> torch.Tensor:
+        return (torch.rand(n, device=env.device, dtype=root_states.dtype) - 0.5) * 2.0 * width
+
+    positions = torch.stack([chosen[:, 0] + _jitter(xy_jitter), chosen[:, 1] + _jitter(xy_jitter), chosen[:, 2]], dim=-1)
+    positions = positions + env.scene.env_origins[env_ids]
+    zeros = torch.zeros(n, device=env.device, dtype=root_states.dtype)
+    orientations = math_utils.quat_from_euler_xyz(zeros, zeros, chosen[:, 3] + _jitter(yaw_jitter))
+    asset.write_root_pose_to_sim(torch.cat([positions, orientations], dim=-1), env_ids)
+
+    velocity_range = velocity_range or {k: (0.0, 0.0) for k in ("x", "y", "z", "roll", "pitch", "yaw")}
+    ranges = torch.tensor(
+        [velocity_range.get(k, (0.0, 0.0)) for k in ("x", "y", "z", "roll", "pitch", "yaw")],
+        device=env.device, dtype=root_states.dtype,
+    )
+    asset.write_root_velocity_to_sim(
+        math_utils.sample_uniform(ranges[:, 0], ranges[:, 1], (n, 6), device=env.device).to(root_states.dtype),
+        env_ids,
+    )
+
+    # Re-seed the shaping state for the envs that just respawned. The filter
+    # is set to the spawn height so the respawn does not read as a fall, the
+    # spawn height feeds the no-progress termination, and the riser mark is
+    # this tread's riser count (so only new height above the slot pays).
+    #
+    # The buffers are sized by the env count, never by the reset batch: a
+    # partial reset (the usual case) must not reallocate them, or every other
+    # env's mark and spawn height is wiped and the riser bonus pays again for
+    # height it already climbed.
+    num_envs = env.scene.num_envs
+    z = positions[:, 2]
+
+    def _buffer(name: str, fill: float) -> torch.Tensor:
+        buf = getattr(env, name, None)
+        if buf is None or buf.shape != (num_envs,):
+            buf = torch.full((num_envs,), fill, device=env.device, dtype=root_states.dtype)
+            setattr(env, name, buf)
+        return buf
+
+    _buffer("_spiral_height_filter", 0.0)[env_ids] = z
+    _buffer("_spiral_spawn_height", standing_height)[env_ids] = z
+    _buffer("_spiral_riser_level", 0.0)[env_ids] = torch.round((z - standing_height) / riser)
+    # The riser-bonus payment clock: allow a payment straight away in the new
+    # episode. Without this the clock keeps the previous episode's step count,
+    # episode_length_buf restarts at 0, and no riser is ever paid again.
+    _buffer("_spiral_bonus_step", -1.0e9)[env_ids] = -1.0e9
+
+
+def tread_step_bonus(
+    env,
+    sensor_cfg,
+    asset_cfg,
+    riser: float = 0.12,
+    threshold: float = 1.0,
+):
+    """Pay a footfall that lands on a tread *above* the other foot.
+
+    The root-based riser bonus cannot tell a step that advances from one that
+    does not, and on 0.55 m of going per tread the slow policy was taking ~2.7
+    steps per tread: the swing foot caught the riser edge and it shuffled again
+    (measured 0.53 treads gained per step, which is what "crippled" looked
+    like). This pays at each foot-contact onset for the landing foot's height
+    above the other foot, in risers (0 to 1), so a step onto the next tread
+    pays and a step back onto the same tread pays nothing.
+
+    Onset detection needs one step of memory per foot, kept on the env and
+    refreshed lazily, which is safe across respawns: both feet are at the same
+    height at the spawn, so a reset can only pay zero.
+    """
+    forces = env.scene.sensors[sensor_cfg.name].data.net_forces_w[:, sensor_cfg.body_ids, 2]
+    contact = forces > threshold
+    previous = getattr(env, "_tread_step_prev", None)
+    if previous is None or previous.shape != contact.shape:
+        previous = contact.clone()
+    onset = contact & ~previous
+    env._tread_step_prev = contact.clone()
+    z = env.scene[asset_cfg.name].data.body_pos_w[:, asset_cfg.body_ids, 2]
+    above_other = (z - z.flip(1)).clamp(min=0.0) / max(riser, 1e-6)
+    return (onset.float() * above_other.clamp(max=1.0)).sum(dim=1)

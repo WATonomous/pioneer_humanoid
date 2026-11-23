@@ -118,7 +118,16 @@ def main():
             log_root_path, agent_cfg.load_run, agent_cfg.load_checkpoint)
 
     log_dir = os.path.dirname(resume_path)
-    env_cfg.log_dir = log_dir
+    # Foothold-conditioned tasks resolve their foot predictor through
+    # env_cfg.log_dir. Only point that at the checkpoint's run directory when a
+    # predictor actually sits there: otherwise the supervisor silently falls
+    # back to bootstrapped (fixed) footholds and the visual shows a policy fed
+    # inputs it was not trained on. Their PLAY configs default to models/<task>.
+    run_has_predictor = os.path.isdir(log_dir) and any(
+        n.startswith("foot_model_") and n.endswith(".pt") for n in os.listdir(log_dir)
+    )
+    if run_has_predictor or not hasattr(env_cfg, "log_dir"):
+        env_cfg.log_dir = log_dir
 
     # Where a recording lands. PLAY_VIDEO_DIR / PLAY_VIDEO_PREFIX let a second
     # angle be recorded next to the first instead of overwriting it.

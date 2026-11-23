@@ -61,14 +61,18 @@ def _predict_footholds(env: ManagerBasedEnv, use_model: bool, bootstrap_foothold
     return torch.tensor(bootstrap_footholds, device=env.device).expand(env.num_envs, 2, 2)
 
 
-def _draw_patches(patches_w: torch.Tensor):
-    """Draws what the policy sees: the height points around each predicted foothold (blue), the footholds (orange)."""
+def _draw_patches(patches_w: torch.Tensor, centre: int):
+    """Draws what the policy sees: the height points around each predicted foothold (blue), the footholds (orange).
+
+    ``centre`` is the flat index of the grid cell that sits on the predicted foothold itself; with rows added behind
+    the heel it is no longer the middle entry of the flattened patch.
+    """
     if _STATE.markers is None:
         def ball(radius, color):
             return sim_utils.SphereCfg(radius=radius, visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=color))
         _STATE.markers = VisualizationMarkers(VisualizationMarkersCfg(
             prim_path="/Visuals/footholds", markers={"patch": ball(0.014, (0.1, 0.8, 0.95)), "foothold": ball(0.04, (1.0, 0.45, 0.05))}))
-    centres = patches_w[:, :, patches_w.shape[2] // 2].reshape(-1, 3)
+    centres = patches_w[:, :, centre].reshape(-1, 3)
     points = torch.cat([patches_w.reshape(-1, 3), centres])
     kinds = torch.cat([torch.zeros(len(points) - len(centres)), torch.ones(len(centres))]).long()
     _STATE.markers.visualize(translations=points + torch.tensor([0.0, 0.0, 0.012], device=points.device), marker_indices=kinds)
@@ -80,6 +84,7 @@ def foothold_scan(
     scan_resolution: float = 0.05,
     scan_size: tuple[float, float] = (1.6, 1.0),
     patch_size: int = 7,
+    patch_rows_behind: int = 0,
     xy_drift_range: tuple[float, float] = (0.0, 0.0),
     z_drift_range: tuple[float, float] = (0.0, 0.0),
     bootstrap_footholds: tuple = ((0.0, 0.1), (0.0, -0.1)),
@@ -120,8 +125,15 @@ def foothold_scan(
     num_y = int(scan_size[1] / scan_resolution) + 1
     origin_x, origin_y = -scan_size[0] / 2.0, -scan_size[1] / 2.0
     half = patch_size // 2
-    k_range = torch.arange(-half, half + (patch_size % 2), device=device)
-    off_x, off_y = torch.meshgrid(k_range, k_range, indexing="ij")
+    # The patch is square by default. ``patch_rows_behind`` adds rows on the
+    # -x side (behind the predicted foothold in the base frame), which is where
+    # the step-off edge a descending heel can clip sits: the sole is 24.3 cm
+    # long and the ankle is 8.0 cm from the heel, so a 7-cell patch at 5 cm
+    # (15 cm) reaches only ~7 cm past the heel. The extra rows are flattened
+    # *first*, so the original 7 x 7 block keeps its entries and its order.
+    rows = torch.arange(-half - patch_rows_behind, half + (patch_size % 2), device=device)
+    cols = torch.arange(-half, half + (patch_size % 2), device=device)
+    off_x, off_y = torch.meshgrid(rows, cols, indexing="ij")
     off_x, off_y = off_x.flatten(), off_y.flatten()
 
     outputs, patches_w = [], []
@@ -137,7 +149,7 @@ def foothold_scan(
             patches_w.append(torch.gather(sensor.data.ray_hits_w, 1, idx.unsqueeze(-1).expand(-1, -1, 3)))
     obs = torch.cat(outputs, dim=1)
     if show_patches:
-        _draw_patches(torch.stack(patches_w, dim=1))
+        _draw_patches(torch.stack(patches_w, dim=1), centre=(patch_rows_behind + half) * patch_size + half)
 
     z_on = tuple(z_drift_range) != (0.0, 0.0)
     if _STATE.z_drift is None or _STATE.z_drift.shape[0] != num_envs:
@@ -147,7 +159,7 @@ def foothold_scan(
     if len(reset_ids) > 0 and z_on:
         _STATE.z_drift[reset_ids] = _sample_uniform((len(reset_ids), 1), z_drift_range, device)
     if z_on:
-        n = patch_size**2
+        n = (patch_size + patch_rows_behind) * patch_size
         obs[:, 2 : 2 + n] += _STATE.z_drift
         obs[:, n + 4 : 2 * n + 4] += _STATE.z_drift
     return obs

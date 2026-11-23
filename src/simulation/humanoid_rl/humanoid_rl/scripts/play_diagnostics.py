@@ -12,7 +12,7 @@ variables so a probe does not need extra CLI plumbing:
     PLAY_MARKER          world x,y,z of a visible spawn-marker sphere
     PLAY_FOLLOW_ROBOT    keep robot 0 in frame (any value except ""/"0")
     PLAY_REAR_CAM        rear follow view (implies PLAY_FOLLOW_ROBOT)
-    PLAY_CAM_MODE        side (default), rear, quarter, body, or full
+    PLAY_CAM_MODE        side (default), rear, quarter, body, radial, or full
     PLAY_CAM_ALPHA/DIST/HEIGHT/LOOK   follow-camera geometry
     PLAY_PUSH_DETECT     report root-velocity jumps (default on)
 """
@@ -200,10 +200,11 @@ def _follow_cam_step(
             target = [p[0], p[1] + 0.45 * look, p[2] - 0.05]
         elif mode == "body":
             # Heading-relative three-quarter. The other modes use fixed world
-            # axes, which works on the straight course but loses the legs when
-            # the robot turns. Riding the robot's own yaw keeps the body in view
-            # through a turn. Body +X (forward) is (cos yaw, sin yaw); body +Y
-            # (left) is (-sin yaw, cos yaw).
+            # axes, which is fine on a straight course but on the spiral the
+            # robot circles a column, so the shot swings all the way round and
+            # spends half the time behind the stair above. Riding the robot's
+            # own yaw keeps the legs in view the whole climb. Body +X (forward)
+            # is (cos yaw, sin yaw); body +Y (left) is (-sin yaw, cos yaw).
             yaw = float(env.unwrapped.scene["robot"].data.heading_w[0])
             fx, fy = math.cos(yaw), math.sin(yaw)
             lx, ly = -fy, fx
@@ -211,12 +212,23 @@ def _follow_cam_step(
                    p[1] - 0.45 * dist * fy + 0.85 * dist * ly,
                    p[2] + height]
             target = [p[0] + 0.30 * look * fx, p[1] + 0.30 * look * fy, p[2] - 0.20]
-        elif mode == "full":
-            # Whole-body framing (see the defaults in __init__): aim at the
-            # root (pelvis, roughly body centre) from level with it, instead of
-            # 0.55-1.2 m below it, so the head and arms stay in frame.
-            eye = [p[0] + dist, p[1] - 0.25 * look, p[2] + height]
-            target = [p[0], p[1] + 0.35 * look, p[2] - look]
+        elif mode in ("radial", "full"):
+            # Stand outside the helix and look in. The spiral is a column of
+            # treads around a centre, so a camera offset in a fixed world
+            # direction -- or in the robot's own frame -- regularly ends up
+            # inside the stair above (half the frames of a "body" shot came out
+            # black). Placing the eye on the ray from the centre through the
+            # robot always puts it outside the treads, looking inward.
+            #
+            # "full" is the same shot with whole-body framing (see the defaults
+            # in __init__): "radial" aims 0.55 m below the root, which on a
+            # 1.7 m robot frames only the legs, while "full" aims at the root
+            # (pelvis, roughly body centre) from level with it.
+            cx, cy = (float(v) for v in os.environ.get("PLAY_CAM_CENTRE", "0,0").split(","))
+            dx, dy = p[0] - cx, p[1] - cy
+            r = math.hypot(dx, dy) or 1.0
+            eye = [p[0] + dist * dx / r, p[1] + dist * dy / r, p[2] + height]
+            target = [p[0], p[1], p[2] - look]
         else:  # side
             eye = [p[0] + dist, p[1] - 0.25 * look, p[2] + height]
             target = [p[0], p[1] + 0.35 * look, p[2] - 0.10]

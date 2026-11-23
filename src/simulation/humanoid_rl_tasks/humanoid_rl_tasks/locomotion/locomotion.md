@@ -23,8 +23,14 @@ from the same module. Historical baseline notes:
 | `Isaac-Locomotion-StairsStraight-PioneerHumanoid-Play-v0` | Fixed Onshape straight course inspection | Play scaffold |
 | `Isaac-Locomotion-StairsStraightArmSwing-PioneerHumanoid-v0` | Onshape straight course, whole-body walker with learned arm swing (16 actions) | Train |
 | `Isaac-Locomotion-StairsStraightArmSwing-PioneerHumanoid-Play-v0` | Matching arm-swing play config | Play |
+| `Isaac-Locomotion-StairsStraightFoothold-PioneerHumanoid-v0` | Onshape straight course, foothold-conditioned perception ("Watch Your Step"), arms scripted | Train |
+| `Isaac-Locomotion-StairsStraightFoothold-PioneerHumanoid-Play-v0` | Matching foothold play config (loads `models/pioneer_humanoid_stairs_foothold/`) | Play |
 | `Isaac-Locomotion-StairsSpiral-PioneerHumanoid-v0` | Onshape spiral staircase USD course | Train scaffold |
 | `Isaac-Locomotion-StairsSpiral-PioneerHumanoid-Play-v0` | Fixed Onshape spiral course inspection | Play scaffold |
+| `Isaac-Locomotion-StairsSpiralArmSwing-PioneerHumanoid-v0` | Onshape spiral course with learned arm swing (16 actions) | Train |
+| `Isaac-Locomotion-StairsSpiralArmSwing-PioneerHumanoid-Play-v0` | Matching spiral arm-swing play config | Play |
+| `Isaac-Locomotion-StairsSpiralFoothold-PioneerHumanoid-v0` | Onshape spiral course, foothold-conditioned perception | Train |
+| `Isaac-Locomotion-StairsSpiralFoothold-PioneerHumanoid-Play-v0` | Matching spiral foothold play config | Play |
 
 Legacy aliases `Isaac-Velocity-*` register the same configs.
 
@@ -182,6 +188,21 @@ $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/train.py \
   --warm_start_checkpoint <walker_arm_swing>.pt \
   --run_name straight_arm_swing
 ```
+
+**Foothold-conditioned stairs ("Watch Your Step")**
+
+The `*Foothold` tasks replace the 187-ray height scan with a learned foot-landing
+predictor: for each foot the policy sees the predicted next foothold (x, y in the
+base frame) and a 7 x 7 patch of terrain heights around it (the policy input is
+152, or 166 with `patch_rows_behind=1`; the plain tasks are 235). A checkpoint
+from one family therefore cannot be loaded into the other. The predictor trains
+alongside the policy and is saved as `foot_model_*.pt` next to the checkpoints;
+Play configs load it from `models/<task>/`. `tools/onshape_course/widen_foothold_obs.py`
+widens a 7-row checkpoint to the 8-row patch.
+The straight foothold task keeps the arms scripted; the learned arm swing exists
+in the plain `StairsStraightArmSwing` / `StairsSpiralArmSwing` tasks.
+A trained straight policy and its predictor are in
+`models/pioneer_humanoid_stairs_foothold/` (`model_599.pt`, `foot_model_2505.pt`).
 
 **Gait probe**
 

@@ -97,6 +97,7 @@ def feet_air_time_positive_biped_terrain(
     right_sensor_cfg: SceneEntityCfg,
     min_forward_speed: float = 0.0,
     forward_axis: int = 0,
+    min_command_norm: float = 0.1,
 ) -> torch.Tensor:
     """Apply the existing biped air-time reward using terrain-only stance.
 
@@ -105,6 +106,10 @@ def feet_air_time_positive_biped_terrain(
     held-up foot while standing still earns nothing while real stepping during
     forward motion pays fully. Default 0.0 preserves the ungated behavior for
     every other task using this function.
+
+    ``min_command_norm`` is the strict ``>`` gate on the commanded speed; a
+    task that commands exactly the default 0.1 m/s must lower it, or every step
+    reads zero (see ``foot_swing_clearance``).
     """
     sensors = [env.scene.sensors[cfg.name] for cfg in (left_sensor_cfg, right_sensor_cfg)]
     air_time = torch.cat([sensor.data.current_air_time for sensor in sensors], dim=1)
@@ -113,7 +118,7 @@ def feet_air_time_positive_biped_terrain(
     in_mode_time = torch.where(in_contact, contact_time, air_time)
     single_stance = in_contact.int().sum(dim=1) == 1
     reward = torch.where(single_stance.unsqueeze(-1), in_mode_time, 0.0).amin(dim=1).clamp(max=threshold)
-    reward *= env.command_manager.get_command(command_name)[:, :2].norm(dim=1) > 0.1
+    reward *= env.command_manager.get_command(command_name)[:, :2].norm(dim=1) > min_command_norm
     if min_forward_speed > 0.0:
         fwd = env.scene["robot"].data.root_lin_vel_w[:, forward_axis]
         reward = reward * (fwd / min_forward_speed).clamp(0.0, 1.0)

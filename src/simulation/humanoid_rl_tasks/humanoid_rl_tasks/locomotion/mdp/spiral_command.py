@@ -24,18 +24,6 @@ from isaaclab.utils import configclass
 import isaaclab.utils.math as math_utils
 
 
-@configclass
-class SpiralVelocityCommandCfg(UniformVelocityCommandCfg):
-    """Configuration of the spiral heading command.
-
-    Everything the inherited velocity command takes is inherited; the two
-    extra fields describe the staircase the heading target follows.
-    """
-
-    centre: tuple[float, float] = (0.0, 0.0)
-    walking_radius: float = 0.87
-
-
 class SpiralVelocityCommand(UniformVelocityCommand):
     """A velocity command that steers along a spiral staircase.
 
@@ -69,12 +57,16 @@ class SpiralVelocityCommand(UniformVelocityCommand):
         # Every env steers: the heading target is not sampled, it is computed.
         self.is_heading_env[:] = True
         self.heading_target = torch.zeros(self.num_envs, device=self.device)
+        # The sampled forward speed, kept aside so the align gate below can
+        # scale it every step without compounding (see _update_command).
+        self._forward_cmd = self.vel_command_b[:, 0].clone()
 
     def _resample_command(self, env_ids: Sequence[int]) -> None:
         # The velocity command is resampled (the base class samples the speed);
         # the heading target is overwritten every step in _update_command.
         super()._resample_command(env_ids)
         self.is_heading_env[env_ids] = True
+        self._forward_cmd[env_ids] = self.vel_command_b[env_ids, 0]
 
     def _update_command(self) -> None:
         """Point the heading target at the staircase's tangent, and steer."""
@@ -104,8 +96,37 @@ class SpiralVelocityCommand(UniformVelocityCommand):
         # tangent at the spawn is 35 deg, so this is the difference between
         # turning on the spot and sweeping across the outer edge.
         align = torch.clamp(1.0 - heading_error.abs() / 1.0, 0.15, 1.0)
-        self.vel_command_b[:, 0] = self.vel_command_b[:, 0] * align
+        # Scale the *sampled* speed, not the buffer: multiplying the buffer in
+        # place compounds the gate every step (0.5, 0.25, 0.12 ... 0 in half a
+        # second) and the robot stops instead of turning in.
+        self.vel_command_b[:, 0] = self._forward_cmd * align
         # Enforce standing (zero command) for standing envs, as the base class
         # does.
         standing = self.is_standing_env.nonzero(as_tuple=False).flatten()
         self.vel_command_b[standing, :] = 0.0
+
+
+@configclass
+class SpiralVelocityCommandCfg(UniformVelocityCommandCfg):
+    """Configuration of the spiral heading command.
+
+    Everything the inherited velocity command takes is inherited; the two
+    extra fields describe the staircase the heading target follows.
+
+    ``class_type`` is what makes this configuration *be* the spiral command.
+    It was missing until the polish runs: the term was built as the inherited
+    ``UniformVelocityCommand``, so ``heading_command=True`` held the heading
+    target at the sampled value (the ranges' ``heading=(0, 0)``, i.e. world
+    +X) for the whole episode. Every spiral run so far trained with a command
+    telling the robot to face a fixed world direction while it walked a
+    helicoid; the tangent target, the ``v / r`` feed-forward and the align
+    gate below were dead code, and the yaw-rate command sat saturated at
+    +/-1 rad/s chasing a heading the robot could not keep. The policy that
+    came out of that scrambles around the annulus, which is what the
+    "drunken" gait is.
+    """
+
+    class_type: type = SpiralVelocityCommand
+
+    centre: tuple[float, float] = (0.0, 0.0)
+    walking_radius: float = 0.87

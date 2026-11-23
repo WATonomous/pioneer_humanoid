@@ -173,3 +173,34 @@ class PioneerWholeBodyFootholdEnvCfg_DEMO(PioneerWholeBodyFootholdEnvCfg_PLAY):
         self.commands.base_velocity.debug_vis = False
         self.viewer = ViewerCfg(eye=(2.4, 2.4, 0.7), lookat=(0.0, 0.3, -0.1), resolution=(1280, 720), origin_type="asset_root",
                                 asset_name="robot")
+
+
+def foothold_observation_groups(cfg, patch_rows_behind: int = 0) -> None:
+    """Point ``cfg``'s actor at predicted footholds + patches, keep the full map on the critic.
+
+    This is the observation half of the foothold recipe, factored out so a second
+    course (the spiral) can reuse the exact same layout as the straight stairs.
+    Keeping the layout identical is what makes an asymmetric actor/critic
+    checkpoint portable between the two courses: the actor input is
+    ``base terms + gait clock + 2 x (2 xy + heights)`` in that order.
+    """
+    scan = {**_SCAN, "patch_rows_behind": patch_rows_behind}
+    policy = cfg.observations.policy
+    policy.height_scan = None
+    policy.foothold_scan = ObsTerm(
+        func=foothold.foothold_scan,
+        params={**scan, "xy_drift_range": (-0.05, 0.05), "z_drift_range": (-0.05, 0.05)},
+        noise=Unoise(n_min=-0.1, n_max=0.1),
+        modifiers=[ModifierCfg(func=gait.finite)],
+        clip=(-1.0, 1.0),
+    )
+    critic = copy.deepcopy(policy)
+    critic.enable_corruption = False
+    critic.height_scan = ObsTerm(func=mdp.height_scan, params={"sensor_cfg": SceneEntityCfg("height_scanner")},
+                                 modifiers=[ModifierCfg(func=gait.finite)], clip=(-1.0, 1.0))
+    critic.foothold_scan = ObsTerm(func=foothold.foothold_scan, params=dict(scan),
+                                   modifiers=[ModifierCfg(func=gait.finite)], clip=(-1.0, 1.0))
+    cfg.observations.critic = critic
+    cfg.observations.system_state = _SystemStateCfg()
+    cfg.observations.system_contact = _SystemContactCfg()
+    cfg.observations.system_pose = _SystemPoseCfg()
