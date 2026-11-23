@@ -49,9 +49,15 @@ from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.utils import configclass
 
+from ...mdp import LidarNoiseCfg
+from ...mdp import arm_swing_coupling
+from ...mdp import feet_duty_symmetry
+from ...mdp import joint_bias_mirror
+from ...mdp import joint_deviation_l1
 from ...mdp import push_by_setting_velocity
 from ...mdp import shove as shove_mdp
 from ...mdp import stair_course as course_mdp
+from ...mdp import terminations as mdp
 from .rough_env_cfg import (
     FOOT_BODIES,
     LEG_JOINTS,
@@ -59,7 +65,11 @@ from .rough_env_cfg import (
     PioneerHumanoidRoughNoStairsSelectiveKneeShapeEnvCfg,
 )
 
-from pioneer_humanoid.whole_body import WHOLE_BODY_WALKER_CFG
+from pioneer_humanoid.whole_body import (
+    ARM_SWING_JOINTS,
+    WHOLE_BODY_ARM_SWING_CFG,
+    WHOLE_BODY_WALKER_CFG,
+)
 
 # Body names for the whole-body walker's leg links.
 ONSHAPE_FOOT_BODIES = FOOT_BODIES
@@ -148,18 +158,6 @@ class PioneerHumanoidOnshapeCourseRewards(PioneerHumanoidRoughNoStairsSelectiveK
             "deadband": 0.25,
         },
     )
-    # Flat foot landing (disabled - model-fixed)
-    foot_flat = RewTerm(
-        func=course_mdp.foot_flat_l2,
-        weight=0.0,
-        params={
-            "left_sensor_cfg": SceneEntityCfg("left_foot_terrain_contact"),
-            "right_sensor_cfg": SceneEntityCfg("right_foot_terrain_contact"),
-            "feet_cfg": SceneEntityCfg("robot", body_names=ONSHAPE_FOOT_BODIES, preserve_order=True),
-            "deadband": 0.23,
-            "landing_window": 0.15,
-        },
-    )
 # Course runs +Y as modeled (forward is +Y). Spawn directly on the marker
 # sliver (metres, from the marker part's bounds: centre 4.1628, -1.5486),
 # facing +Y; course rewards/terminations take axis=1 / target=pi/2 below.
@@ -211,6 +209,16 @@ class PioneerHumanoidOnshapeCourseEnvCfg(PioneerHumanoidRoughNoStairsSelectiveKn
         self.scene.height_scanner.mesh_prim_paths = ["/World/ground/terrain"]
         self.scene.env_spacing = 0.0
 
+        # Corrupt the height scan the way a real range sensor fails, not just
+        # with range error: Gaussian noise + a fixed per-beam bias + beam
+        # dropout (see mdp/noise.py). This replaces the shared +/-10 cm uniform
+        # term inherited from locomotion_env_cfg.py. Rates ramp in over the
+        # first ~500 iterations so a warm-started checkpoint adapts instead of
+        # meeting full corruption on its first rollout. The straight course and
+        # the spiral (plus both arm-swing variants) inherit from here; the
+        # _PLAY configs strip the term by disabling observation corruption.
+        self.observations.policy.height_scan.noise = LidarNoiseCfg()
+
         # Termination: goal is the flat exit past the final descent
         self.terminations.course_complete = DoneTerm(
             func=course_mdp.course_complete,
@@ -220,6 +228,11 @@ class PioneerHumanoidOnshapeCourseEnvCfg(PioneerHumanoidRoughNoStairsSelectiveKn
         self.terminations.course_out_of_bounds = DoneTerm(
             func=course_mdp.course_out_of_bounds,
             params={"lateral_limit": 2.0, "backward_limit": -0.7},
+        )
+        # Stairs have sustained pitch during climbing; raise base_tilt limit from 0.8
+        # (45°) to 1.2 rad (~69°) so normal stair ascent doesn't trigger termination.
+        self.terminations.base_tilt = DoneTerm(
+            func=mdp.base_tilt_over_limit, params={"limit": 1.2}
         )
         # Curriculum: advance difficulty on upright completion
         self.curriculum.terrain_levels = CurrTerm(
@@ -339,9 +352,24 @@ class PioneerHumanoidOnshapeCourseEnvCfg(PioneerHumanoidRoughNoStairsSelectiveKn
         # MODEL-FIX ERA: reverted. The right foot's landing tilt was measured
         # against the broken ankle-pitch axis (mirrored physical ranges); with the
         # axis fixed both feet have the same range and the term's premise is gone.
+        # MEASURED 2026-11-10 (model_1350, 24 s, pushes off): the right foot
+        # lands 22.2 deg off horizontal on average (p95 32.4) against 12.9 deg
+        # (p95 28.9) for the left, and the left foot never plants -- it slides
+        # 0.62 m/s for 0.365 s per "contact" (max 1.29 s) while the right taps
+        # for 0.078 s. Both were free: this term was at 0.0 and feet_slide at
+        # -0.1, together ~1.5 % of the forward-progress income.
+        #
+        # Weight calibration: the term only fires on the ~7 landing frames of a
+        # step and it is squared, so its mean over a step is ~0.0055 rad^2. With
+        # step_dt 0.02 that is 0.0055 * 0.02 * weight per step against 0.032 per
+        # step of forward-progress income -- so -0.5 would be 0.2 % of the
+        # income, i.e. inert. -15 puts a foot still landing 9 deg outside the
+        # deadband at ~5 %. This is why the old "weight is large by necessity"
+        # note existed; the spiral's -0.5 landing term is inert by the same
+        # arithmetic.
         self.rewards.foot_flat = RewTerm(
             func=course_mdp.foot_flat_l2,
-            weight=0.0,
+            weight=-15.0,
             params={
                 "left_sensor_cfg": SceneEntityCfg("left_foot_terrain_contact"),
                 "right_sensor_cfg": SceneEntityCfg("right_foot_terrain_contact"),
@@ -350,6 +378,37 @@ class PioneerHumanoidOnshapeCourseEnvCfg(PioneerHumanoidRoughNoStairsSelectiveKn
                 "landing_window": 0.15,
             },
         )
+
+        # Left/right symmetry, held ready but disabled. A raw pairwise joint
+        # term would fight the anti-phase swing, so these compare slow averages
+        # (see mdp/rewards.py): the time-averaged joint angles in mirrored
+        # coordinates, and the time-averaged stance duty. Measured bias on
+        # model_1350 was hip 0.56 rad / knee 0.82 rad / duty 0.81 vs 0.18, so
+        # if they are enabled the aim is knee bias < ~0.2 rad and duty within
+        # ~0.15 of each other. Weights, if enabled: joint_bias_mirror -0.05
+        # (0.05 * 1.7 rad * 0.02 dt = 0.0017/step = ~5 % of progress income),
+        # feet_duty_symmetry -0.2 (0.2 * 0.6 * 0.02 = 0.0024/step = ~7 %).
+        self.rewards.joint_bias_mirror = RewTerm(
+            func=joint_bias_mirror,
+            weight=0.0,
+            params={"asset_cfg": SceneEntityCfg("robot"), "tau_s": 1.0, "deadband": 0.05},
+        )
+        self.rewards.feet_duty_symmetry = RewTerm(
+            func=feet_duty_symmetry,
+            weight=0.0,
+            params={
+                "left_sensor_cfg": SceneEntityCfg("left_foot_terrain_contact"),
+                "right_sensor_cfg": SceneEntityCfg("right_foot_terrain_contact"),
+                "tau_s": 2.0,
+            },
+        )
+
+        # The skate, priced. A foot that translates 0.62 m/s while touching
+        # terrain is dragging, not stepping; at -0.1 the term logged -0.0008
+        # against +0.054 of forward progress, i.e. inert (same failure mode as
+        # feet_impact and foot_flat before it). -0.5 puts a full skate at a few
+        # percent of the walk's income, enough to make planting cheaper.
+        self.rewards.feet_slide.weight = -0.5
 
         # Fixed course: no curriculum, no generator-only edge termination.
         self.curriculum.terrain_levels = None
@@ -472,10 +531,11 @@ class PioneerHumanoidOnshapeCourseEnvCfg(PioneerHumanoidRoughNoStairsSelectiveKn
         self.rewards.dof_acc_l2.params["asset_cfg"] = SceneEntityCfg("robot", joint_names=LEG_JOINTS)
         # Freezing backstop: reset if not displaced 2 m along the course after
         # 15 s. Anchored at the spawn centre since scattered starts sit metres
-        # off-origin.
+        # off-origin. Relaxed for arm-swing warm-start: policy stays upright but
+        # walks slowly; 1.5 m in 25 s gives more time to build momentum.
         self.terminations.course_no_progress = DoneTerm(
             func=course_mdp.course_no_progress,
-            params={"axis": 1, "min_displacement": 2.0, "min_time": 15.0,
+            params={"axis": 1, "min_displacement": 1.5, "min_time": 25.0,
                     "spawn": (_SPAWN_X, _SPAWN_Y)},
         )
         # Random shoving: robustness domain randomisation (see the module-level
@@ -527,6 +587,145 @@ class PioneerHumanoidOnshapeCourseEnvCfg_PLAY(PioneerHumanoidOnshapeCourseEnvCfg
         # Shoving stays ON in the visual config: the point of the clip is to
         # watch the policy catch itself. Same calibration as training, so the
         # clip shows what the policy was actually trained against.
+        self.events.push_robot = EventTerm(
+            func=shove_mdp.push_robot_logged,
+            mode="interval",
+            interval_range_s=_PUSH_INTERVAL_S,
+            params={
+                "asset_cfg": SceneEntityCfg("robot"),
+                "velocity_range": _PUSH_VELOCITY,
+            },
+        )
+
+        # Generator-only edge termination rejects USD terrain; the course
+        # bounds term below covers it.
+        self.terminations.terrain_out_of_bounds = None
+        # Training guardrail: any ray miss resets. Disabled for the visual so
+        # walking is verifiable even with partial scan misses at mesh edges.
+        self.terminations.invalid_height_scan = None
+        self.terminations.course_out_of_bounds.params = {
+            "lateral_limit": 12.0,
+            "backward_limit": -8.0,
+            "axis": 1,
+        }
+        # Past the summit and out to the flat exit ground (which ends at
+        # y=27.61), so the visual shows the whole course walked rather than
+        # stopping at the top of the last flight.
+        self.terminations.course_complete.params["goal_distance"] = 27.0
+        self.terminations.course_complete.params["axis"] = 1
+
+
+@configclass
+class PioneerHumanoidOnshapeCourseArmSwingEnvCfg(PioneerHumanoidOnshapeCourseEnvCfg):
+    """Onshape straight course with learned arm swing (shoulders + elbows).
+
+    Warm-started from the rough checkpoint with network surgery (12 -> 16 actions).
+    Uses WHOLE_BODY_ARM_SWING_CFG which actuates l_shoulder_pitch, r_shoulder_pitch,
+    l_elbow, r_elbow in addition to the 12 leg joints.
+    """
+
+    def __post_init__(self):
+        super().__post_init__()
+
+        # Walk the whole-body model with 4 arm joints free (arms + hands held in
+        # fist pose). The arm default pose comes from WHOLE_BODY_ARM_SWING_CFG:
+        # 0 rad on every arm joint, which is the URDF's arms-at-the-sides pose.
+        self.scene.robot = WHOLE_BODY_ARM_SWING_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+
+        # The inherited per-joint scale dict lists every leg joint but not the
+        # arms, so arm actions would fall back to the framework's 1.0 -- 4x to
+        # 16x the gain of any leg channel (Hip_A 0.06 ... Knee 0.30). In the
+        # 2026-11-10 straight-stairs run that made the arms the highest-gain
+        # channels in the network: with the exploration std drifting up to
+        # ~3 rad, every arm action hit its clip every step and the shoulders
+        # ended up pinned behind the torso. Keep the arms on the same 0.5 as
+        # the framework default so an action means the same thing body-wide.
+        self.actions.joint_pos.scale = {
+            **self.actions.joint_pos.scale,
+            **dict.fromkeys(ARM_SWING_JOINTS, 0.5),
+        }
+
+        # Action clip (target angles, radians, after the default offset + scale).
+        # Arms start at 0 and swing +/-: negative shoulder pitch is forward.
+        # The envelope is a walking swing, not the joint's full physical range:
+        # the same run showed that a +1.5 rad shoulder bound (86 deg behind the
+        # torso) and a +0.5 rad elbow bound (28 deg of hyperextension) are both
+        # reachable and look like the arms being flung backwards, so cap them at
+        # a plausible swing (51 deg forward / 26 deg back, elbow never hyperextends).
+        self.actions.joint_pos.clip = {
+            "Knee_.*": (-1.10, -0.05),
+            ".*_shoulder_pitch": (-0.9, 0.45),
+            ".*_elbow": (-1.4, 0.0),
+        }
+
+        # Anchor the arm channels. Nothing in the reward set priced arm posture,
+        # so the four arm action means had no restoring force and random-walked
+        # under Adam until they saturated (left shoulder at +1.5 rad, elbows at
+        # +0.5 rad). L1 deviation from the default pose (arms at the sides) gives
+        # them that restoring force. Weight is deliberately below the base
+        # `joint_deviation_hip` -0.1: that term spans 2 joints at ~0.1 rad
+        # (~-0.02/step), while this one spans 4 joints at ~0.5 rad (~-0.06/step),
+        # so it centres the swing without flattening it.
+        self.rewards.joint_deviation_arm = RewTerm(
+            func=joint_deviation_l1,
+            weight=-0.03,
+            params={"asset_cfg": SceneEntityCfg("robot", joint_names=list(ARM_SWING_JOINTS))},
+        )
+
+        # ... and pay for the swing itself. The anchor above only bounds the
+        # amplitude; on its own it makes moving the arms a pure cost, and the
+        # first fixed run measured exactly that (0.02 rad of total arm deviation
+        # after 500 iterations, and still 0.02 rad after another 230 with a
+        # *position*-coupled version of this term). The term returns the L1 error
+        # between the shoulder pitch velocity and gain x the same-side hip
+        # velocity, so the weight is negative. Measured on the 2026-11-10 policy
+        # (model_225) the untracked error is 2.78 rad/s, i.e. ~0.28/step of cost
+        # against ~0.3/step of leg income -- loud enough for the arm channels to
+        # act on, without the swing term dictating the gait.
+        self.rewards.arm_swing_coupling = RewTerm(
+            func=arm_swing_coupling,
+            weight=-0.1,
+            params={"asset_cfg": SceneEntityCfg("robot"), "gain": 0.5, "deadband": 0.3},
+        )
+
+
+@configclass
+class PioneerHumanoidOnshapeCourseArmSwingEnvCfg_PLAY(PioneerHumanoidOnshapeCourseArmSwingEnvCfg):
+    """Repeatable visual verification: 3 robots, const forward command with arm swing."""
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+
+        self.scene.num_envs = 3
+        self.scene.env_spacing = 2.0
+        self.scene.terrain.max_init_terrain_level = 0
+        self.curriculum.terrain_levels = None
+        self.episode_length_s = 60.0
+        # Spawn exactly on the marker (same start the training uses), root at
+        # floor level, facing +Y up the course.
+        self.events.reset_base.params["pose_range"]["x"] = (_SPAWN_X, _SPAWN_X)
+        self.events.reset_base.params["pose_range"]["y"] = (_SPAWN_Y, _SPAWN_Y)
+        self.events.reset_base.params["pose_range"]["z"] = (0.0, 0.0)
+        self.events.reset_base.params["pose_range"]["yaw"] = (_YAW_90, _YAW_90)
+
+        self.commands.base_velocity.rel_standing_envs = 0.0
+        self.commands.base_velocity.ranges.lin_vel_x = (0.4, 0.4)
+        self.commands.base_velocity.ranges.heading = (_YAW_90, _YAW_90)
+        self.events.reset_base.params["velocity_range"] = {
+            "x": (0.0, 0.0),
+            "y": (0.0, 0.0),
+            "z": (0.0, 0.0),
+            "roll": (0.0, 0.0),
+            "pitch": (0.0, 0.0),
+            "yaw": (0.0, 0.0),
+        }
+        self.observations.policy.enable_corruption = False
+        self.events.base_external_force_torque = None
+        # Shoving stays ON in the visual config: the point of the clip is to
+        # watch the policy catch itself. Same calibration as training, so the
+        # clip shows what the policy was actually trained against.
+        from ...mdp import shove as shove_mdp
+        from isaaclab.managers import EventTermCfg as EventTerm
         self.events.push_robot = EventTerm(
             func=shove_mdp.push_robot_logged,
             mode="interval",

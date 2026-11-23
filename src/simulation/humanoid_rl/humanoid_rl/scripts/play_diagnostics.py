@@ -12,7 +12,7 @@ variables so a probe does not need extra CLI plumbing:
     PLAY_MARKER          world x,y,z of a visible spawn-marker sphere
     PLAY_FOLLOW_ROBOT    keep robot 0 in frame (any value except ""/"0")
     PLAY_REAR_CAM        rear follow view (implies PLAY_FOLLOW_ROBOT)
-    PLAY_CAM_MODE        side (default), rear, or quarter
+    PLAY_CAM_MODE        side (default), rear, quarter, body, or full
     PLAY_CAM_ALPHA/DIST/HEIGHT/LOOK   follow-camera geometry
     PLAY_PUSH_DETECT     report root-velocity jumps (default on)
 """
@@ -198,6 +198,25 @@ def _follow_cam_step(
             # at the same time, at the cost of some fore/aft readability.
             eye = [p[0] + 0.75 * dist, p[1] - 0.6 * dist, p[2] + height]
             target = [p[0], p[1] + 0.45 * look, p[2] - 0.05]
+        elif mode == "body":
+            # Heading-relative three-quarter. The other modes use fixed world
+            # axes, which works on the straight course but loses the legs when
+            # the robot turns. Riding the robot's own yaw keeps the body in view
+            # through a turn. Body +X (forward) is (cos yaw, sin yaw); body +Y
+            # (left) is (-sin yaw, cos yaw).
+            yaw = float(env.unwrapped.scene["robot"].data.heading_w[0])
+            fx, fy = math.cos(yaw), math.sin(yaw)
+            lx, ly = -fy, fx
+            eye = [p[0] - 0.45 * dist * fx + 0.85 * dist * lx,
+                   p[1] - 0.45 * dist * fy + 0.85 * dist * ly,
+                   p[2] + height]
+            target = [p[0] + 0.30 * look * fx, p[1] + 0.30 * look * fy, p[2] - 0.20]
+        elif mode == "full":
+            # Whole-body framing (see the defaults in __init__): aim at the
+            # root (pelvis, roughly body centre) from level with it, instead of
+            # 0.55-1.2 m below it, so the head and arms stay in frame.
+            eye = [p[0] + dist, p[1] - 0.25 * look, p[2] + height]
+            target = [p[0], p[1] + 0.35 * look, p[2] - look]
         else:  # side
             eye = [p[0] + dist, p[1] - 0.25 * look, p[2] + height]
             target = [p[0], p[1] + 0.35 * look, p[2] - 0.10]
@@ -373,9 +392,14 @@ class PlayDiagnostics:
         self.follow_cam = follow or rear
         self.cam_mode = os.environ.get("PLAY_CAM_MODE", "rear" if rear else "side").strip().lower()
         self.cam_alpha = float(os.environ.get("PLAY_CAM_ALPHA", "0.05") or 0.05)
-        self.cam_dist = float(os.environ.get("PLAY_CAM_DIST", "3.4") or 3.4)
-        self.cam_height = float(os.environ.get("PLAY_CAM_HEIGHT", "0.55") or 0.55)
-        self.cam_look = float(os.environ.get("PLAY_CAM_LOOK", "1.2") or 1.2)
+        # "full" frames head to toe: on a 1.7 m robot the viewport's ~36 deg
+        # vertical field needs ~2.8 m to fit it, so the default distance is
+        # wider than the other modes' and the look-at sits at the pelvis
+        # instead of 1.2 m below it.
+        _full = self.cam_mode == "full"
+        self.cam_dist = float(os.environ.get("PLAY_CAM_DIST", "3.9" if _full else "3.4") or 3.4)
+        self.cam_height = float(os.environ.get("PLAY_CAM_HEIGHT", "0.15" if _full else "0.55") or 0.55)
+        self.cam_look = float(os.environ.get("PLAY_CAM_LOOK", "0.05" if _full else "1.2") or 1.2)
         self.push_detect = os.environ.get("PLAY_PUSH_DETECT", "1") not in ("", "0")
 
         print(f"[PLAYARC] joint_names={list(env.unwrapped.scene['robot'].data.joint_names)}", flush=True)

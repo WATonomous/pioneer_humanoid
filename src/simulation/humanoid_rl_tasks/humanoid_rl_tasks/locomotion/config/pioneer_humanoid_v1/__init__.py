@@ -51,6 +51,22 @@ for _suffix, _env_class in (
                 "rsl_rl_cfg_entry_point": f"{agents.__name__}.onshape_ppo_cfg:PioneerHumanoidOnshapePPORunnerCfg",
             },
         )
+# Straight staircase with learned arm swing (shoulders + elbows, 16 actions).
+# Warm-started from the rough checkpoint with network surgery (12 -> 16 actions).
+for _suffix, _env_class in (
+    ("", "PioneerHumanoidOnshapeCourseArmSwingEnvCfg"),
+    ("-Play", "PioneerHumanoidOnshapeCourseArmSwingEnvCfg_PLAY"),
+):
+    for _prefix in ("Isaac-Locomotion", "Isaac-Velocity"):
+        gym.register(
+            id=f"{_prefix}-StairsStraightArmSwing-PioneerHumanoid{_suffix}-v0",
+            entry_point="isaaclab.envs:ManagerBasedRLEnv",
+            disable_env_checker=True,
+            kwargs={
+                "env_cfg_entry_point": f"{__name__}.onshape_env_cfg:{_env_class}",
+                "rsl_rl_cfg_entry_point": f"{agents.__name__}.onshape_ppo_cfg:PioneerHumanoidOnshapePPORunnerCfg",
+            },
+        )
 # Spiral staircase (the user's Onshape spiral). Same recipe as the straight
 # Onshape course, but every course term is measured along the path: the
 # height is the progress coordinate, the tangent is the direction.

@@ -270,3 +270,133 @@ def track_ang_vel_z_world_exp(
     asset = env.scene[asset_cfg.name]
     ang_vel_error = torch.square(env.command_manager.get_command(command_name)[:, 2] - asset.data.root_ang_vel_w[:, 2])
     return torch.exp(-ang_vel_error / std**2)
+
+
+def arm_swing_coupling(
+    env,
+    asset_cfg: SceneEntityCfg,
+    hip_joint_names: tuple[str, str] = ("Hip_F_L", "Hip_F_R"),
+    shoulder_joint_names: tuple[str, str] = ("l_shoulder_pitch", "r_shoulder_pitch"),
+    gain: float = 0.5,
+    deadband: float = 0.3,
+) -> torch.Tensor:
+    """Cost the shoulder pitch velocity not following the same-side hip velocity.
+
+    Humanoid arm swing is driven by the legs: the arm goes back while the
+    same-side thigh goes forward. The URDF axes are signed so that a positive hip
+    flexion is the thigh moving forward and a positive shoulder pitch is the arm
+    moving backward, so the natural pairing is ``v_shoulder ~ +gain*v_hip``
+    (in phase in joint coordinates, anti-phase in world space).
+
+    Velocity, not position: a position target ``q_shoulder ~ gain*q_hip`` carries
+    the hip's mean with it (the stance hip sits ~0.39 rad from its default), so
+    the arms would park at a constant forward offset and swing only a few degrees
+    around it. Hip velocity is zero-mean by construction, so this asks for the
+    swing itself and nothing else.
+
+    Without a term like this the arms are free: the warm-started arm channels
+    start at zero weight and nothing in the stair-course reward pays for moving
+    them, so they stay parked at the sides (measured: 0.02 rad of total arm
+    deviation after 500 iterations, and unchanged after another 230 with a
+    position-coupled version of this term at weight -0.1 -- the hip's own offset
+    dominated that error, so it was a near-constant cost the critic absorbed
+    instead of a signal the arm channels could act on).
+
+    ``deadband`` (rad/s) keeps the small wobble out of the cost so standing still
+    is not penalised for micro-motion.
+    """
+    asset = env.scene[asset_cfg.name]
+    hip_ids = [asset.joint_names.index(n) for n in hip_joint_names]
+    shoulder_ids = [asset.joint_names.index(n) for n in shoulder_joint_names]
+    hip_vel = asset.data.joint_vel[:, hip_ids]
+    shoulder_vel = asset.data.joint_vel[:, shoulder_ids]
+    error = torch.clamp(torch.abs(shoulder_vel - gain * hip_vel) - deadband, min=0.0)
+    return torch.sum(error, dim=1)
+
+
+# ---------------------------------------------------------------------------
+# Gait symmetry: price the left/right *bias*, not the anti-phase swing.
+#
+# Measured on the 2026-11-10 stairs policy (model_1350, 24 s, pushes off): the
+# right knee sat 54 deg more flexed than the left on average (hip pitch 32 deg),
+# the left foot was "in contact" 81 % of the time while the right was 18 %, and
+# the left foot slid at 0.62 m/s while touching. Nothing in the reward set
+# compared the legs to each other, so a bias was free.
+#
+# A raw |q_L - q_R| term would fight every step, because the legs are meant to
+# be in anti-phase. These compare *slow averages* instead: what a symmetric gait
+# has in common is that the time-averaged joint angles and the time-averaged
+# stance duty match, whatever the instantaneous phase is.
+# ---------------------------------------------------------------------------
+
+
+def _ema(env, key: str, value: torch.Tensor, tau_s: float) -> torch.Tensor:
+    """Exponentially weighted average of ``value`` over roughly ``tau_s`` seconds."""
+    store = getattr(env, "_gait_ema_store", None)
+    if store is None:
+        store = {}
+        env._gait_ema_store = store
+    state = store.get(key)
+    if state is None or state.shape != value.shape:
+        state = value.clone()
+        store[key] = state
+    alpha = min(1.0, env.step_dt / max(tau_s, env.step_dt))
+    state.mul_(1.0 - alpha).add_(value, alpha=alpha)
+    return state
+
+
+def joint_bias_mirror(
+    env,
+    asset_cfg: SceneEntityCfg,
+    tau_s: float = 1.0,
+    deadband: float = 0.05,
+) -> torch.Tensor:
+    """Cost a persistent left/right bias in the leg joints.
+
+    Pairs are compared in mirrored joint coordinates: sagittal joints share an
+    axis on both sides (symmetric gait = equal time-averaged angles), while
+    abduction, hip rotation and ankle roll have axis-mirrored signs (symmetric
+    gait = opposite time-averaged angles). ``deadband`` (rad) keeps small
+    unavoidable bias out of the cost.
+
+    The average runs over ``tau_s`` seconds, so the alternating swing cancels
+    and only the bias a limp would leave behind is priced.
+    """
+    asset = env.scene[asset_cfg.name]
+    pairs = (
+        ("Hip_F_L", "Hip_F_R", 1.0),
+        ("Knee_L", "Knee_R", 1.0),
+        ("Ankle_P_L", "Ankle_P_R", 1.0),
+        ("Hip_A_L", "Hip_A_R", -1.0),
+        ("Hip_R_L", "Hip_R_R", -1.0),
+        ("Ankle_R_L", "Ankle_R_R", -1.0),
+    )
+    names = asset.joint_names
+    left_ids = [names.index(p[0]) for p in pairs]
+    right_ids = [names.index(p[1]) for p in pairs]
+    signs = torch.tensor([p[2] for p in pairs], dtype=asset.data.joint_pos.dtype,
+                         device=asset.data.joint_pos.device)
+
+    left = _ema(env, "joint_bias_left", asset.data.joint_pos[:, left_ids], tau_s)
+    right = _ema(env, "joint_bias_right", asset.data.joint_pos[:, right_ids], tau_s)
+    excess = (left - signs * right).abs() - deadband
+    return excess.clamp_min(0.0).sum(dim=1)
+
+
+def feet_duty_symmetry(
+    env,
+    left_sensor_cfg: SceneEntityCfg,
+    right_sensor_cfg: SceneEntityCfg,
+    tau_s: float = 2.0,
+) -> torch.Tensor:
+    """Cost the difference between the two feet's time-averaged stance duty.
+
+    A symmetric gait gives each foot the same share of ground contact; a hop or
+    a drag leaves one foot dominant. Averaging over ``tau_s`` makes this
+    independent of the instantaneous anti-phase contact pattern.
+    """
+    left = env.scene.sensors[left_sensor_cfg.name].data.net_forces_w.norm(dim=-1).amax(dim=-1)
+    right = env.scene.sensors[right_sensor_cfg.name].data.net_forces_w.norm(dim=-1).amax(dim=-1)
+    duty_left = _ema(env, "duty_left", (left > 1.0).to(left.dtype), tau_s)
+    duty_right = _ema(env, "duty_right", (right > 1.0).to(right.dtype), tau_s)
+    return (duty_left - duty_right).abs()

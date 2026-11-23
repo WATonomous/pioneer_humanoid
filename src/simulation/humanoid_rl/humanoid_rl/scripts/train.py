@@ -131,6 +131,20 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     # create isaac environment
     env = gym.make(args_cli.task, cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None)
 
+    if args_cli.video:
+        # The RTX renderer returns an empty (all-black) buffer for its first
+        # frames while it warms up; RecordVideo would write them as black
+        # opening frames. Spend the warm-up before the recorder exists.
+        # `unwrapped` skips the gym OrderEnforcer, which refuses render()
+        # before the first reset().
+        for _ in range(30):
+            frame = env.unwrapped.render()
+            simulation_app.update()
+            if frame is not None and frame.max() > 0:
+                break
+        else:
+            print("[TRAIN] renderer still black after 30 warm-up frames", flush=True)
+
     # convert to single-agent instance if required by the RL algorithm
     if isinstance(env.unwrapped, DirectMARLEnv):
         env = multi_agent_to_single_agent(env)
@@ -153,7 +167,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         env = gym.wrappers.RecordVideo(env, **video_kwargs)
 
     # wrap around environment for rsl-rl
-    env = RslRlVecEnvWrapper(env)
+    env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
 
     # create runner from rsl-rl
     runner = OnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)

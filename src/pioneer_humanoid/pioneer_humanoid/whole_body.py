@@ -2,6 +2,7 @@
 import os
 
 from isaaclab.actuators import ImplicitActuatorCfg
+from isaaclab.assets.articulation import ArticulationCfg
 
 from .leg_only import _OUT_DIR, LEG_ONLY_HUMANOID_CFG, _isaac_urdf
 
@@ -38,18 +39,35 @@ WHOLE_BODY_WALKER_CFG = LEG_ONLY_HUMANOID_CFG.replace(
 )
 
 # The same with shoulder pitch and elbows free, for a scripted arm swing (humanoid_rl_tasks ... config/pioneer/arm_swing.py).
+#
+# Arm pose: the URDF's zero pose *is* arms hanging at the sides (every arm link
+# origin steps along -Z from the shoulder). Shoulder-pitch and elbow both rotate
+# about the robot's lateral (+X) axis with the same sign on each side, and a
+# negative angle swings the arm forward -- so 0.0 is the by-the-side default and
+# -1.57 would hold the arms straight out in front. Keep the arm default at 0.0:
+# the JointPositionAction's default offset is the default joint position, so a
+# zero policy action then means "arms down" instead of "arms forward".
 ARM_SWING_JOINTS = ("l_shoulder_pitch", "r_shoulder_pitch", "l_elbow", "r_elbow")
+_ARM_SWING_INIT = WHOLE_BODY_WALKER_CFG.init_state
 WHOLE_BODY_ARM_SWING_CFG = WHOLE_BODY_WALKER_CFG.replace(
     spawn=WHOLE_BODY_WALKER_CFG.spawn.replace(
         asset_path=_isaac_urdf("pioneer_whole_body_humanoid", "pioneer_whole_body_humanoid.urdf", legs_only=True, keep=ARM_SWING_JOINTS,
                                name="pioneer_whole_body_humanoid_arm_swing", pose=FIST),
         usd_dir=os.path.join(_OUT_DIR, "..", "pioneer_whole_body_humanoid", "usd_arm_swing"),
     ),
+    init_state=ArticulationCfg.InitialStateCfg(
+        pos=_ARM_SWING_INIT.pos,
+        joint_pos={**_ARM_SWING_INIT.joint_pos, **dict.fromkeys(ARM_SWING_JOINTS, 0.0)},
+        joint_vel=dict(_ARM_SWING_INIT.joint_vel),
+    ),
     actuators={
         **WHOLE_BODY_WALKER_CFG.actuators,
         "arms": ImplicitActuatorCfg(
             joint_names_expr=list(ARM_SWING_JOINTS),
             effort_limit_sim={".*_shoulder_pitch": 53.0, ".*_elbow": 22.0},
+            # The arm motors' PD gains (same 40 / 2 as the scripted arm swing and
+            # the MuJoCo sim2sim check), strong enough to track a swing against
+            # gravity instead of letting the arm flop passively.
             stiffness=40.0,
             damping=2.0,
             armature=0.01,

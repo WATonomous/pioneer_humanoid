@@ -130,6 +130,20 @@ def main():
     # create isaac environment
     env = gym.make(args_cli.task, cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None)
 
+    if args_cli.video:
+        # The RTX renderer returns an empty (all-black) buffer for its first
+        # frames while it warms up. RecordVideo captures on the first step, so
+        # without this the clip opens on one or more black frames. Spend the
+        # warm-up here, before the recorder exists. `unwrapped` skips the gym
+        # OrderEnforcer, which refuses render() before the first reset().
+        for _ in range(30):
+            frame = env.unwrapped.render()
+            simulation_app.update()
+            if frame is not None and frame.max() > 0:
+                break
+        else:
+            print("[PLAY] renderer still black after 30 warm-up frames", flush=True)
+
     if args_cli.diagnostics:
         # Spawn/camera setup that makes an Onshape probe reproducible.
         apply_spawn_offsets(env)
@@ -156,7 +170,7 @@ def main():
         add_spawn_marker(env)
 
     # wrap around environment for rsl-rl
-    env = RslRlVecEnvWrapper(env)
+    env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
     diagnostics = PlayDiagnostics(env) if args_cli.diagnostics else None
 
     print(f"[INFO]: Loading model checkpoint from: {resume_path}")
