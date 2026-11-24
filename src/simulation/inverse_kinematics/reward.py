@@ -80,7 +80,7 @@ class PoseReward:
         weights = {
             "linear position": linear_position_reward * RewardConfig.w_pos_linear,
             "fine position": fine_position_reward * RewardConfig.w_pos_tanh,
-            "keypiont wide": keypoint_wide_reward * RewardConfig.w_kp_wide,
+            "keypoint wide": keypoint_wide_reward * RewardConfig.w_kp_wide,
             "keypoint sharp": keypoint_sharp_reward * RewardConfig.w_kp_sharp,
             "improvement": improvement_reward * RewardConfig.w_improve,
             "shaping": shaping_reward * RewardConfig.w_shaping,
@@ -90,5 +90,11 @@ class PoseReward:
             "joint velocity": joint_vel_reward * RewardConfig.w_joint_vel,
             "joint limits": limit_reward * RewardConfig.w_limit
         }
+
+        # update new values
+        self.best = min(rho, self.best)
+        self.phi_prev = phi
+        self.a_prev = np.array(a, dtype=float) # Makes a copy too
+        self.fresh = False # Not first step
 
         return sum(weights.values()), weights
