@@ -185,19 +185,16 @@ The straight foothold task keeps the arms scripted (see "Arm swing" above).
 A trained straight policy and its predictor are in
 `models/pioneer_humanoid_stairs_foothold/` (`model_599.pt`, `foot_model_2505.pt`).
 
-**Gait probe**
-
-Add `--diagnostics` to `play.py` for the per-swing, lead-foot, camera and
-reward instrumentation (`[PLAYARC]`, `[PLAYLEAD]`, `[PLAYDBG]`, ...). The
-`PLAY_INIT_OVERRIDE`, `PLAY_SPAWN_DY`, `PLAY_MARKER`,
-`PLAY_FOLLOW_ROBOT`/`PLAY_REAR_CAM` and `PLAY_MAX_STEPS` environment variables
-are read in that mode:
+**Recording a video**
 
 ```bash
 $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/play.py \
   --task=Isaac-Locomotion-StairsStraightFoothold-PioneerHumanoid-Play-v0 \
-  --checkpoint <model.pt> --diagnostics --headless
+  --checkpoint models/pioneer_humanoid_stairs_foothold/model_599.pt \
+  --video --video_length 2500 --headless
 ```
+
+The clip lands in `<checkpoint dir>/videos/play/` (`PLAY_VIDEO_DIR` / `PLAY_VIDEO_PREFIX` override).
 
 **Spawn / joint smoke checks**
 

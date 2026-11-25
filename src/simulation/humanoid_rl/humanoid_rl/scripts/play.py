@@ -32,14 +32,6 @@ parser.add_argument(
 )
 parser.add_argument("--real-time", action="store_true", default=False,
                     help="Run in real-time, if possible.")
-parser.add_argument(
-    "--diagnostics",
-    action="store_true",
-    default=False,
-    help="Print the gait/camera/reward probe ([PLAYARC], [PLAYLEAD], [PLAYDBG], ...). "
-         "Also enables the PLAY_INIT_OVERRIDE, PLAY_SPAWN_DY, PLAY_MARKER and "
-         "PLAY_FOLLOW_ROBOT/PLAY_REAR_CAM environment variables.",
-)
 # append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
 # append AppLauncher cli args
@@ -78,13 +70,6 @@ from isaaclab_rl.utils.pretrained_checkpoint import get_published_pretrained_che
 
 import humanoid_rl_tasks  # noqa: F401  (registers every RL task)
 from isaaclab_tasks.utils import get_checkpoint_path, parse_env_cfg
-from play_diagnostics import (
-    PlayDiagnostics,
-    add_spawn_marker,
-    apply_init_override,
-    apply_spawn_offsets,
-    pin_course_camera,
-)
 
 installed_rsl_rl_version = metadata.version("rsl-rl-lib")
 
@@ -99,8 +84,6 @@ def main():
         args_cli.task, device=args_cli.device, num_envs=args_cli.num_envs, use_fabric=not args_cli.disable_fabric
     )
     agent_cfg: RslRlOnPolicyRunnerCfg = cli_args.parse_rsl_rl_cfg(args_cli.task, args_cli)
-    if args_cli.diagnostics:
-        apply_init_override(env_cfg)
 
     # specify directory for logging experiments
     _out_root = os.environ.get("HUMANOID_ROOT") or os.getcwd()
@@ -153,11 +136,6 @@ def main():
         else:
             print("[PLAY] renderer still black after 30 warm-up frames", flush=True)
 
-    if args_cli.diagnostics:
-        # Spawn/camera setup that makes an Onshape probe reproducible.
-        apply_spawn_offsets(env)
-        pin_course_camera(env)
-
     # convert to single-agent instance if required by the RL algorithm
     if isinstance(env.unwrapped, DirectMARLEnv):
         env = multi_agent_to_single_agent(env)
@@ -175,12 +153,8 @@ def main():
         print_dict(video_kwargs, nesting=4)
         env = gym.wrappers.RecordVideo(env, **video_kwargs)
 
-    if args_cli.diagnostics:
-        add_spawn_marker(env)
-
     # wrap around environment for rsl-rl
     env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
-    diagnostics = PlayDiagnostics(env) if args_cli.diagnostics else None
 
     print(f"[INFO]: Loading model checkpoint from: {resume_path}")
     # load previously trained model
@@ -231,8 +205,6 @@ def main():
             # env stepping
             obs, _, dones, _ = env.step(actions)
             step_index += 1
-            if diagnostics is not None:
-                diagnostics.on_step(actions, dones, step_index)
             if version.parse(installed_rsl_rl_version) >= version.parse("4.0.0"):
                 policy.reset(dones)
             elif policy_nn is not None:
