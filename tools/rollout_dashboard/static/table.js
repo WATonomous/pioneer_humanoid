@@ -105,6 +105,20 @@ class EpisodeTable {
     return true;
   }
 
+  // One line naming the active filters, shown next to the collapsed "Filters" toggle.
+  summary(f) {
+    const range = (name, lo, hi) => (lo == null && hi == null ? null : `${name} ${lo ?? ""}–${hi ?? ""}`);
+    const unchecked = id => [...$(id).querySelectorAll("input")].filter(i => !i.checked).map(i => i.value);
+    const parts = [range("length", f.lenMin, f.lenMax), f.showAll ? "incl. no video" : null];
+    if (f.rl) {
+      const noSource = unchecked("f-source"), noRound = unchecked("f-round");
+      parts.push(f.outcome !== "all" ? f.outcome : null, noSource.length ? `source ≠ ${noSource.join(",")}` : null,
+        noRound.length ? `round ≠ ${noRound.join(",")}` : null, f.policy || null, range("seed", f.seedMin, f.seedMax));
+    }
+    const active = parts.filter(Boolean);
+    return active.length ? `· ${active.join(" · ")}` : "· none";
+  }
+
   sortBy(key) {
     this.sort = { key, dir: this.sort.key === key ? -this.sort.dir : 1 };
     this.setTab(this.tab);
@@ -119,6 +133,7 @@ class EpisodeTable {
       return dir * ((x > y) - (x < y));
     });
     const pool = f.showAll ? this.rows.length : this.playableCount, hidden = this.rows.length - this.playableCount;
+    $("filter-summary").textContent = this.summary(f);
     $("count").textContent = `${this.view.length.toLocaleString()} of ${pool.toLocaleString()} episodes`
       + (!f.showAll && hidden ? ` · ${hidden.toLocaleString()} without video hidden` : "");
     this.body.style.height = `${this.view.length * this.rowHeight()}px`;

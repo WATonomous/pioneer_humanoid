@@ -13,6 +13,9 @@ mp4s) and needs no LeRobot or repo imports.
   (`recap/frames` `progress`) as dashed marks, and a labels file's `positive` frames as a shaded band.
   Table columns show each value source's value at the last frame, so sorting by it finds stalled failures.
 
+The filters fold under a "Filters" toggle, which shows a one-line summary of the active ones. The toggle
+starts closed on windows shorter than 700 px, and the episode list always keeps room for at least six rows.
+
 Click or drag on either chart to seek. Keys: `space` play/pause, `←/→` one frame, `shift+←/→` one second,
 `↑/↓` previous/next episode in the filtered list. The URL keeps the dataset, tab and episode, so a link
 reopens the same view, and editing it (`…#ep=700`) switches episodes.

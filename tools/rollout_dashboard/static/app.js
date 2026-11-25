@@ -14,7 +14,10 @@ const getJSON = url => fetch(url).then(r => (r.ok ? r.json() : r.json().then(e =
 const shortJoint = name => name.replace(/^left_|^right_/, "");
 
 // ---------- dataset / tab ----------
+const SHORT_WINDOW_PX = 700;  // below this height the filters start collapsed so the episode list gets the room
+
 async function init() {
+  if (window.innerHeight < SHORT_WINDOW_PX) $("more-filters").open = false;
   state.datasets = await getJSON("/api/datasets");
   $("dataset").innerHTML = state.datasets.map((d, i) => `<option value="${i}">${d.name} (${d.num_episodes})</option>`).join("");
   const hash = Object.fromEntries(new URLSearchParams(location.hash.slice(1)));

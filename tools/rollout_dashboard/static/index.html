@@ -24,33 +24,36 @@
       <div class="row">
         <input id="f-search" type="search" placeholder="search episode / task / policy">
       </div>
-      <div class="row">
-        <label><input id="f-show-all" type="checkbox"> also list episodes whose video files are missing</label>
-      </div>
-      <div class="row">
-        <label>length (s)</label>
-        <input id="f-len-min" type="number" min="0" placeholder="min">
-        <input id="f-len-max" type="number" min="0" placeholder="max">
-      </div>
-      <div class="rl-only">
-        <div class="row" id="f-outcome">
-          <label>outcome</label>
-          <label><input type="radio" name="outcome" value="all" checked> all</label>
-          <label><input type="radio" name="outcome" value="success"> success</label>
-          <label><input type="radio" name="outcome" value="failure"> failure</label>
-        </div>
-        <div class="row"><label>source</label><span id="f-source" class="chips"></span></div>
-        <div class="row"><label>round</label><span id="f-round" class="chips"></span></div>
+      <details id="more-filters" open>
+        <summary>Filters <span id="filter-summary" class="muted"></span></summary>
         <div class="row">
-          <label>policy</label>
-          <select id="f-policy"><option value="">all</option></select>
+          <label><input id="f-show-all" type="checkbox"> also list episodes whose video files are missing</label>
         </div>
         <div class="row">
-          <label>seed</label>
-          <input id="f-seed-min" type="number" placeholder="min">
-          <input id="f-seed-max" type="number" placeholder="max">
+          <label>length (s)</label>
+          <input id="f-len-min" type="number" min="0" placeholder="min">
+          <input id="f-len-max" type="number" min="0" placeholder="max">
         </div>
-      </div>
+        <div class="rl-only">
+          <div class="row" id="f-outcome">
+            <label>outcome</label>
+            <label><input type="radio" name="outcome" value="all" checked> all</label>
+            <label><input type="radio" name="outcome" value="success"> success</label>
+            <label><input type="radio" name="outcome" value="failure"> failure</label>
+          </div>
+          <div class="row"><label>source</label><span id="f-source" class="chips"></span></div>
+          <div class="row"><label>round</label><span id="f-round" class="chips"></span></div>
+          <div class="row">
+            <label>policy</label>
+            <select id="f-policy"><option value="">all</option></select>
+          </div>
+          <div class="row">
+            <label>seed</label>
+            <input id="f-seed-min" type="number" placeholder="min">
+            <input id="f-seed-max" type="number" placeholder="max">
+          </div>
+        </div>
+      </details>
     </section>
     <div id="table-scroll">
       <div id="table-head" class="table-row head"></div>
