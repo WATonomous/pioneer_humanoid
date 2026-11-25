@@ -33,14 +33,11 @@ from isaaclab.sensors import RayCasterCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.utils import configclass
 
-from ...mdp import arm_swing_coupling
-from ...mdp import joint_deviation_l1
 from ...mdp import spiral_course as spiral_mdp
 from ...mdp.stair_course import foot_flat_l2
 from .rough_env_cfg import FOOT_BODIES
 from ...mdp.spiral_command import SpiralVelocityCommandCfg
 from .onshape_env_cfg import PioneerHumanoidOnshapeCourseEnvCfg
-from pioneer_humanoid.whole_body import ARM_SWING_JOINTS, WHOLE_BODY_ARM_SWING_CFG
 
 _SPIRAL_USD = "assets/staircase_onshape/spiral_terrain.usd"
 # A nudge of the spawn away from the marker (metres, world frame). The marker
@@ -299,83 +296,3 @@ class PioneerHumanoidOnshapeSpiralEnvCfg(PioneerHumanoidOnshapeCourseEnvCfg):
         # The staircase is 7 m tall and the climb takes ~50 s at the commanded
         # speed, so the episode needs room to finish (and to retry).
         self.episode_length_s = 240.0
-
-
-@configclass
-class PioneerHumanoidOnshapeSpiralArmSwingEnvCfg(PioneerHumanoidOnshapeSpiralEnvCfg):
-    """Spiral staircase with learned arm swing (shoulders + elbows).
-
-    Warm-started from the rough checkpoint with network surgery (12 -> 16 actions).
-    Uses WHOLE_BODY_ARM_SWING_CFG which actuates l_shoulder_pitch, r_shoulder_pitch,
-    l_elbow, r_elbow in addition to the 12 leg joints.
-    """
-
-    def __post_init__(self):
-        super().__post_init__()
-
-        # Walk the whole-body model with 4 arm joints free (arms + hands held in
-        # fist pose). The arm default pose comes from WHOLE_BODY_ARM_SWING_CFG:
-        # 0 rad on every arm joint, which is the URDF's arms-at-the-sides pose.
-        self.scene.robot = WHOLE_BODY_ARM_SWING_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
-
-        # Arms are not in the inherited per-joint scale dict, so they would fall
-        # back to 1.0 (4x-16x the leg channels' gain). Keep them on 0.5.
-        self.actions.joint_pos.scale = {
-            **self.actions.joint_pos.scale,
-            **dict.fromkeys(ARM_SWING_JOINTS, 0.5),
-        }
-
-        # Action clip (target angles, radians, after the default offset + scale).
-        # Arms start at 0 and swing +/-: negative shoulder pitch is forward. The
-        # bounds are a walking swing rather than the joint's full physical range,
-        # so the arms cannot be flung behind the torso or hyperextend at the elbow.
-        self.actions.joint_pos.clip = {
-            "Knee_.*": (-1.10, -0.05),
-            ".*_shoulder_pitch": (-0.9, 0.45),
-            ".*_elbow": (-1.4, 0.0),
-        }
-
-        # Anchor the arm channels: without a posture term the arm action means
-        # random-walk until they saturate (see the straight-stairs diagnosis).
-        # -0.03 keeps the per-step cost comparable to the base hip-deviation term.
-        self.rewards.joint_deviation_arm = RewTerm(
-            func=joint_deviation_l1,
-            weight=-0.03,
-            params={"asset_cfg": SceneEntityCfg("robot", joint_names=list(ARM_SWING_JOINTS))},
-        )
-
-        # Pay for the swing itself, coupled to the same-side hip velocity so the
-        # arms follow the stride rather than a fixed oscillator (see the
-        # straight-stairs diagnosis: without this the arms stay parked). The
-        # function returns the L1 tracking error, so the weight is negative.
-        self.rewards.arm_swing_coupling = RewTerm(
-            func=arm_swing_coupling,
-            weight=-0.1,
-            params={"asset_cfg": SceneEntityCfg("robot"), "gain": 0.5, "deadband": 0.3},
-        )
-
-
-@configclass
-class PioneerHumanoidOnshapeSpiralArmSwingEnvCfg_PLAY(PioneerHumanoidOnshapeSpiralArmSwingEnvCfg):
-    """Repeatable visual verification on the spiral staircase with arm swing."""
-
-    def __post_init__(self) -> None:
-        super().__post_init__()
-
-        self.scene.num_envs = 3
-        self.scene.env_spacing = 0.0
-        self.episode_length_s = 120.0
-        # Spawn exactly on the marker, facing +Y.
-        _marker = tuple(float(v) for v in self.spiral_geometry["marker"])
-        self.events.reset_base.params["pose_range"]["x"] = (_marker[0] + _SPAWN_OFFSET_X,) * 2
-        self.events.reset_base.params["pose_range"]["y"] = (_marker[1] + _SPAWN_OFFSET_Y,) * 2
-        self.events.reset_base.params["pose_range"]["z"] = (0.0, 0.0)
-        self.events.reset_base.params["pose_range"]["yaw"] = (_YAW_90, _YAW_90)
-
-        self.commands.base_velocity.ranges.lin_vel_x = (0.26, 0.26)
-        self.observations.policy.enable_corruption = False
-        self.events.base_external_force_torque = None
-        # The generator-only edge termination rejects USD terrain; the spiral's
-        # own radius/height bounds cover it.
-        self.terminations.terrain_out_of_bounds = None
-        self.terminations.invalid_height_scan = None

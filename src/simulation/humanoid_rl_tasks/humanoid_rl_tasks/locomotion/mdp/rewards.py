@@ -272,48 +272,6 @@ def track_ang_vel_z_world_exp(
     return torch.exp(-ang_vel_error / std**2)
 
 
-def arm_swing_coupling(
-    env,
-    asset_cfg: SceneEntityCfg,
-    hip_joint_names: tuple[str, str] = ("Hip_F_L", "Hip_F_R"),
-    shoulder_joint_names: tuple[str, str] = ("l_shoulder_pitch", "r_shoulder_pitch"),
-    gain: float = 0.5,
-    deadband: float = 0.3,
-) -> torch.Tensor:
-    """Cost the shoulder pitch velocity not following the same-side hip velocity.
-
-    Humanoid arm swing is driven by the legs: the arm goes back while the
-    same-side thigh goes forward. The URDF axes are signed so that a positive hip
-    flexion is the thigh moving forward and a positive shoulder pitch is the arm
-    moving backward, so the natural pairing is ``v_shoulder ~ +gain*v_hip``
-    (in phase in joint coordinates, anti-phase in world space).
-
-    Velocity, not position: a position target ``q_shoulder ~ gain*q_hip`` carries
-    the hip's mean with it (the stance hip sits ~0.39 rad from its default), so
-    the arms would park at a constant forward offset and swing only a few degrees
-    around it. Hip velocity is zero-mean by construction, so this asks for the
-    swing itself and nothing else.
-
-    Without a term like this the arms are free: the warm-started arm channels
-    start at zero weight and nothing in the stair-course reward pays for moving
-    them, so they stay parked at the sides (measured: 0.02 rad of total arm
-    deviation after 500 iterations, and unchanged after another 230 with a
-    position-coupled version of this term at weight -0.1 -- the hip's own offset
-    dominated that error, so it was a near-constant cost the critic absorbed
-    instead of a signal the arm channels could act on).
-
-    ``deadband`` (rad/s) keeps the small wobble out of the cost so standing still
-    is not penalised for micro-motion.
-    """
-    asset = env.scene[asset_cfg.name]
-    hip_ids = [asset.joint_names.index(n) for n in hip_joint_names]
-    shoulder_ids = [asset.joint_names.index(n) for n in shoulder_joint_names]
-    hip_vel = asset.data.joint_vel[:, hip_ids]
-    shoulder_vel = asset.data.joint_vel[:, shoulder_ids]
-    error = torch.clamp(torch.abs(shoulder_vel - gain * hip_vel) - deadband, min=0.0)
-    return torch.sum(error, dim=1)
-
-
 # ---------------------------------------------------------------------------
 # Gait symmetry: price the left/right *bias*, not the anti-phase swing.
 #

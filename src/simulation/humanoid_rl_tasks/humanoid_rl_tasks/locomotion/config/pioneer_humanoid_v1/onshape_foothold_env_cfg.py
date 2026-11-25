@@ -18,8 +18,8 @@ ETH Zurich foothold-prediction port) moved onto the Onshape straight course:
 
 The course overrides below (USD terrain, marker spawn, +Y heading command, course
 terminations, progress rewards, no terrain curriculum) are the same ones
-``PioneerHumanoidOnshapeCourseArmSwingEnvCfg`` uses, so the two tasks differ only
-in how the policy perceives the terrain and whether the arms are learned.
+``PioneerHumanoidOnshapeCourseEnvCfg`` uses, so this task differs from the plain
+height-scan course only in how the policy perceives the terrain.
 """
 
 import math

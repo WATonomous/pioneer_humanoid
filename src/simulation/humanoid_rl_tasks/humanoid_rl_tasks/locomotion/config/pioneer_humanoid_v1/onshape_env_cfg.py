@@ -48,10 +48,8 @@ from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.utils import configclass
 
 from ...mdp import LidarNoiseCfg
-from ...mdp import arm_swing_coupling
 from ...mdp import feet_duty_symmetry
 from ...mdp import joint_bias_mirror
-from ...mdp import joint_deviation_l1
 from ...mdp import push_by_setting_velocity
 from ...mdp import shove as shove_mdp
 from ...mdp import stair_course as course_mdp
@@ -63,11 +61,7 @@ from .rough_env_cfg import (
     PioneerHumanoidRoughNoStairsSelectiveKneeShapeEnvCfg,
 )
 
-from pioneer_humanoid.whole_body import (
-    ARM_SWING_JOINTS,
-    WHOLE_BODY_ARM_SWING_CFG,
-    WHOLE_BODY_WALKER_CFG,
-)
+from pioneer_humanoid.whole_body import WHOLE_BODY_WALKER_CFG
 
 # Body names for the whole-body walker's leg links.
 ONSHAPE_FOOT_BODIES = FOOT_BODIES
@@ -377,114 +371,3 @@ class PioneerHumanoidOnshapeCourseEnvCfg(PioneerHumanoidRoughNoStairsSelectiveKn
             },
         )
         self.episode_length_s = 1200.0
-
-
-@configclass
-class PioneerHumanoidOnshapeCourseArmSwingEnvCfg(PioneerHumanoidOnshapeCourseEnvCfg):
-    """Onshape straight course with learned arm swing (shoulders + elbows).
-
-    Warm-started from the rough checkpoint with network surgery (12 -> 16 actions).
-    Uses WHOLE_BODY_ARM_SWING_CFG which actuates l_shoulder_pitch, r_shoulder_pitch,
-    l_elbow, r_elbow in addition to the 12 leg joints.
-    """
-
-    def __post_init__(self):
-        super().__post_init__()
-
-        # Walk the whole-body model with 4 arm joints free (arms + hands held in
-        # fist pose). The arm default pose comes from WHOLE_BODY_ARM_SWING_CFG:
-        # 0 rad on every arm joint, which is the URDF's arms-at-the-sides pose.
-        self.scene.robot = WHOLE_BODY_ARM_SWING_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
-
-        # Arm actions scale 0.5 like the framework default (the leg-only dict would
-        # leave them at 1.0, 4-16x any leg channel). See STAIR_REWARD_NOTES.md.
-        self.actions.joint_pos.scale = {
-            **self.actions.joint_pos.scale,
-            **dict.fromkeys(ARM_SWING_JOINTS, 0.5),
-        }
-
-        # Walking-swing envelope for the arms, not the joint's full range (STAIR_REWARD_NOTES.md).
-        self.actions.joint_pos.clip = {
-            "Knee_.*": (-1.10, -0.05),
-            ".*_shoulder_pitch": (-0.9, 0.45),
-            ".*_elbow": (-1.4, 0.0),
-        }
-
-        # Anchor the arms to the at-the-sides pose so the action means don't random-walk.
-        self.rewards.joint_deviation_arm = RewTerm(
-            func=joint_deviation_l1,
-            weight=-0.03,
-            params={"asset_cfg": SceneEntityCfg("robot", joint_names=list(ARM_SWING_JOINTS))},
-        )
-
-        # ... and pay for the swing: shoulder velocity follows same-side hip velocity (STAIR_REWARD_NOTES.md).
-        self.rewards.arm_swing_coupling = RewTerm(
-            func=arm_swing_coupling,
-            weight=-0.1,
-            params={"asset_cfg": SceneEntityCfg("robot"), "gain": 0.5, "deadband": 0.3},
-        )
-
-
-@configclass
-class PioneerHumanoidOnshapeCourseArmSwingEnvCfg_PLAY(PioneerHumanoidOnshapeCourseArmSwingEnvCfg):
-    """Repeatable visual verification: 3 robots, const forward command with arm swing."""
-
-    def __post_init__(self) -> None:
-        super().__post_init__()
-
-        self.scene.num_envs = 3
-        self.scene.env_spacing = 2.0
-        self.scene.terrain.max_init_terrain_level = 0
-        self.curriculum.terrain_levels = None
-        self.episode_length_s = 60.0
-        # Spawn exactly on the marker (same start the training uses), root at
-        # floor level, facing +Y up the course.
-        self.events.reset_base.params["pose_range"]["x"] = (_SPAWN_X, _SPAWN_X)
-        self.events.reset_base.params["pose_range"]["y"] = (_SPAWN_Y, _SPAWN_Y)
-        self.events.reset_base.params["pose_range"]["z"] = (0.0, 0.0)
-        self.events.reset_base.params["pose_range"]["yaw"] = (_YAW_90, _YAW_90)
-
-        self.commands.base_velocity.rel_standing_envs = 0.0
-        self.commands.base_velocity.ranges.lin_vel_x = (0.4, 0.4)
-        self.commands.base_velocity.ranges.heading = (_YAW_90, _YAW_90)
-        self.events.reset_base.params["velocity_range"] = {
-            "x": (0.0, 0.0),
-            "y": (0.0, 0.0),
-            "z": (0.0, 0.0),
-            "roll": (0.0, 0.0),
-            "pitch": (0.0, 0.0),
-            "yaw": (0.0, 0.0),
-        }
-        self.observations.policy.enable_corruption = False
-        self.events.base_external_force_torque = None
-        # Shoving stays ON in the visual config: the point of the clip is to
-        # watch the policy catch itself. Same calibration as training, so the
-        # clip shows what the policy was actually trained against.
-        from ...mdp import shove as shove_mdp
-        from isaaclab.managers import EventTermCfg as EventTerm
-        self.events.push_robot = EventTerm(
-            func=shove_mdp.push_robot_logged,
-            mode="interval",
-            interval_range_s=_PUSH_INTERVAL_S,
-            params={
-                "asset_cfg": SceneEntityCfg("robot"),
-                "velocity_range": _PUSH_VELOCITY,
-            },
-        )
-
-        # Generator-only edge termination rejects USD terrain; the course
-        # bounds term below covers it.
-        self.terminations.terrain_out_of_bounds = None
-        # Training guardrail: any ray miss resets. Disabled for the visual so
-        # walking is verifiable even with partial scan misses at mesh edges.
-        self.terminations.invalid_height_scan = None
-        self.terminations.course_out_of_bounds.params = {
-            "lateral_limit": 12.0,
-            "backward_limit": -8.0,
-            "axis": 1,
-        }
-        # Past the summit and out to the flat exit ground (which ends at
-        # y=27.61), so the visual shows the whole course walked rather than
-        # stopping at the top of the last flight.
-        self.terminations.course_complete.params["goal_distance"] = 27.0
-        self.terminations.course_complete.params["axis"] = 1

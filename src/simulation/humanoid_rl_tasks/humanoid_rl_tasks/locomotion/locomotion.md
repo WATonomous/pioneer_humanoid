@@ -5,8 +5,10 @@ Velocity-commanded bipedal locomotion for **Pioneer humanoid Simulation Model V1
 Asset: `assets/pioneer_whole_body_humanoid/` (whole-body URDF). The v1 flat,
 rough, rough-no-stairs and Onshape tasks spawn `WHOLE_BODY_WALKER_CFG` from
 `pioneer_humanoid/whole_body.py`, which walks the 12 leg joints with the arms
-and head held rigid; the arm-swing variant spawns `WHOLE_BODY_ARM_SWING_CFG`
-from the same module. Historical baseline notes:
+and head held rigid. The two Onshape foothold tasks spawn
+`WHOLE_BODY_ARM_SWING_CFG` from the same module, where the shoulders and elbows
+are actuated and swung on the gait clock (see "Arm swing" below). Historical
+baseline notes:
 [robot baseline isolation](../../../../../assets/old_leg_only_humanoid/RL_BASELINE.md).
 
 **Environments**
@@ -19,13 +21,9 @@ from the same module. Historical baseline notes:
 | `Isaac-Locomotion-Rough-PioneerHumanoid-Play-v0` | Procedural rough | Play |
 | `Isaac-Locomotion-RoughNoStairsSelectiveKneeShape-PioneerHumanoid-v0` | Rough without stairs, corrected knees and selective self-collision | Train |
 | `Isaac-Locomotion-RoughNoStairsSelectiveKneeShape-PioneerHumanoid-Play-v0` | Matching rough-no-stairs recipe | Play |
-| `Isaac-Locomotion-StairsStraightArmSwing-PioneerHumanoid-v0` | Onshape straight course, whole-body walker with learned arm swing (16 actions) | Train |
-| `Isaac-Locomotion-StairsStraightArmSwing-PioneerHumanoid-Play-v0` | Matching arm-swing play config | Play |
-| `Isaac-Locomotion-StairsStraightFoothold-PioneerHumanoid-v0` | Onshape straight course, foothold-conditioned perception ("Watch Your Step"), arms scripted | Train |
+| `Isaac-Locomotion-StairsStraightFoothold-PioneerHumanoid-v0` | Onshape straight course, foothold-conditioned perception ("Watch Your Step"), arms swing on the gait clock | Train |
 | `Isaac-Locomotion-StairsStraightFoothold-PioneerHumanoid-Play-v0` | Matching foothold play config (loads `models/pioneer_humanoid_stairs_foothold/`) | Play |
-| `Isaac-Locomotion-StairsSpiralArmSwing-PioneerHumanoid-v0` | Onshape spiral course with learned arm swing (16 actions) | Train |
-| `Isaac-Locomotion-StairsSpiralArmSwing-PioneerHumanoid-Play-v0` | Matching spiral arm-swing play config | Play |
-| `Isaac-Locomotion-StairsSpiralFoothold-PioneerHumanoid-v0` | Onshape spiral course, foothold-conditioned perception | Train |
+| `Isaac-Locomotion-StairsSpiralFoothold-PioneerHumanoid-v0` | Onshape spiral course, foothold-conditioned perception, arms swing on the gait clock | Train |
 | `Isaac-Locomotion-StairsSpiralFoothold-PioneerHumanoid-Play-v0` | Matching spiral foothold play config | Play |
 
 Legacy aliases `Isaac-Velocity-*` register the same configs.
@@ -125,13 +123,12 @@ It takes an explicit trusted checkpoint, exports TorchScript plus a manifest,
 and runs native Windows physics without committing models or local setup.
 
 Checkpoint compatibility requires the actor **and** critic observation
-normalizers from the saved policy, 235 policy observations, 12 ordered joint
-actions, and the matching task's scale/default-offset mapping. The arm-swing
-variant adds four joints and therefore needs 247 observations and 16 ordered
-actions, so a 12-action checkpoint cannot be loaded directly; the network has to
-be widened first (the conversion script is not part of this tree). Both
-processed knee targets are bounded to `[-0.95, -0.05]` radians after scaling and
-offsetting.
+normalizers from the saved policy, the task's observation size, 12 ordered joint
+actions, and the matching task's scale/default-offset mapping. The plain
+height-scan tasks take 235 policy observations; the foothold tasks take 152, or
+166 with `patch_rows_behind=1`, so a checkpoint from one family cannot be loaded
+into the other. Both processed knee targets are bounded to `[-0.95, -0.05]`
+radians after scaling and offsetting.
 Negative knee position is flexion. Selective physical self-collision permits
 only each foot against the opposite calf; terrain-only foot sensors prevent
 those self-contacts from being mistaken for ground stance.
@@ -164,24 +161,14 @@ conversion intermediates are intentionally not in the repo; only
 course reward/termination is set the way it is (with the measurements behind it)
 is in [STAIR_REWARD_NOTES.md](STAIR_REWARD_NOTES.md).
 
-The straight course also has a learned-arm-swing variant
-(`StairsStraightArmSwing`) that frees `l_shoulder_pitch`, `r_shoulder_pitch`,
-`l_elbow` and `r_elbow` (16 actions total) on the same whole-body URDF. Its
-reward set adds an arm-posture anchor (`joint_deviation_arm`) and an
-`arm_swing_coupling` term that tracks shoulder-pitch velocity against the
-same-side hip velocity. Because the network gains four action channels, the
-12-action walker checkpoint has to be widened first, which is a network-surgery
-step rather than a load: the observation columns are remapped by joint name (the
-arm joints interleave with the legs in articulation order) and the new action
-rows start at zero. That conversion script is not part of this tree.
+**Arm swing**
 
-```bash
-$ISAACLAB/isaaclab.sh -p $RL_RUNNERS/train.py \
-  --task Isaac-Locomotion-StairsStraightArmSwing-PioneerHumanoid-v0 \
-  --headless --num_envs 4096 \
-  --warm_start_checkpoint <16-action-checkpoint>.pt \
-  --run_name straight_arm_swing
-```
+The arms are not part of the action space. `ArmSwingActionCfg`
+(`config/pioneer/arm_swing.py`) drives the shoulders and elbows on the gait
+clock: each shoulder swings opposite its same-side leg via `gait.leg_phase`,
+with amplitude proportional to commanded speed and zero when standing, and the
+elbows stay a little bent. It takes zero policy actions, so the policy keeps the
+leg-only observations and the 12 leg actions.
 
 **Foothold-conditioned stairs ("Watch Your Step")**
 
@@ -194,8 +181,7 @@ alongside the policy and is saved as `foot_model_*.pt` next to the checkpoints;
 Play configs load it from `models/<task>/`.
 The course-rebuild tooling (STEP -> terrain USD) is not part of this tree; the committed
 `*_terrain.usd` and profile JSONs are all that runtime needs.
-The straight foothold task keeps the arms scripted; the learned arm swing exists
-in the `StairsStraightArmSwing` / `StairsSpiralArmSwing` tasks.
+The straight foothold task keeps the arms scripted (see "Arm swing" above).
 A trained straight policy and its predictor are in
 `models/pioneer_humanoid_stairs_foothold/` (`model_599.pt`, `foot_model_2505.pt`).
 
@@ -209,7 +195,7 @@ are read in that mode:
 
 ```bash
 $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/play.py \
-  --task=Isaac-Locomotion-StairsStraightArmSwing-PioneerHumanoid-Play-v0 \
+  --task=Isaac-Locomotion-StairsStraightFoothold-PioneerHumanoid-Play-v0 \
   --checkpoint <model.pt> --diagnostics --headless
 ```
 

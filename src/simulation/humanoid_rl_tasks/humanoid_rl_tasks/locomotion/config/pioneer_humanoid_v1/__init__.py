@@ -35,38 +35,6 @@ for _terrain, _env_cfg, _agent_cfg, _suffix in _ENVS:
             kwargs=_kwargs,
         )
 
-# Straight staircase with learned arm swing (shoulders + elbows, 16 actions).
-# Warm-started from the rough checkpoint with network surgery (12 -> 16 actions).
-for _suffix, _env_class in (
-    ("", "PioneerHumanoidOnshapeCourseArmSwingEnvCfg"),
-    ("-Play", "PioneerHumanoidOnshapeCourseArmSwingEnvCfg_PLAY"),
-):
-    for _prefix in ("Isaac-Locomotion", "Isaac-Velocity"):
-        gym.register(
-            id=f"{_prefix}-StairsStraightArmSwing-PioneerHumanoid{_suffix}-v0",
-            entry_point="isaaclab.envs:ManagerBasedRLEnv",
-            disable_env_checker=True,
-            kwargs={
-                "env_cfg_entry_point": f"{__name__}.onshape_env_cfg:{_env_class}",
-                "rsl_rl_cfg_entry_point": f"{agents.__name__}.onshape_ppo_cfg:PioneerHumanoidOnshapePPORunnerCfg",
-            },
-        )
-# Spiral staircase with learned arm swing (shoulders + elbows, 16 actions).
-# Warm-started from rough checkpoint with network surgery (12 -> 16 actions).
-for _suffix, _env_class in (
-    ("", "PioneerHumanoidOnshapeSpiralArmSwingEnvCfg"),
-    ("-Play", "PioneerHumanoidOnshapeSpiralArmSwingEnvCfg_PLAY"),
-):
-    for _prefix in ("Isaac-Locomotion", "Isaac-Velocity"):
-        gym.register(
-            id=f"{_prefix}-StairsSpiralArmSwing-PioneerHumanoid{_suffix}-v0",
-            entry_point="isaaclab.envs:ManagerBasedRLEnv",
-            disable_env_checker=True,
-            kwargs={
-                "env_cfg_entry_point": f"{__name__}.onshape_spiral_env_cfg:{_env_class}",
-                "rsl_rl_cfg_entry_point": f"{agents.__name__}.onshape_spiral_ppo_cfg:PioneerHumanoidOnshapeSpiralPPORunnerCfg",
-            },
-        )
 # Straight staircase with foothold-conditioned perception (the "Watch Your Step"
 # port): the policy sees predicted next footholds + 7x7 patches, the critic sees
 # the full height map, and the arms are swung on the gait clock (12 leg actions).

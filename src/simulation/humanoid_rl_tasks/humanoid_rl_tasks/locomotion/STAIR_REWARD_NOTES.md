@@ -47,21 +47,6 @@ guarantees on the current walker.
 - **Height-scan noise** (`LidarNoiseCfg`): Gaussian + per-beam bias + dropout,
   ramped over ~500 iterations so a warm-started checkpoint adapts.
 
-## Arm swing (`onshape_env_cfg.py`, arm-swing classes)
-
-- **Arm action scale 0.5.** The inherited scale dict lists leg joints only, so
-  arm actions fell back to 1.0, 4-16x any leg channel; the shoulders ended pinned
-  behind the torso.
-- **Clip envelope** shoulder (-0.9, 0.45), elbow (-1.4, 0): a walking swing, not
-  the joint's full range. The full range looked like flung arms.
-- **`joint_deviation_arm` -0.03** gives arm posture a restoring force, below
-  `joint_deviation_hip` because it spans four joints.
-- **`arm_swing_coupling` -0.1.** The anchor alone makes moving the arms a pure
-  cost; the velocity form tracks `v_shoulder ~ 0.5 * v_hip` (same side), which is
-  zero-mean unlike hip position.
-- **`entropy_coef` 0.002.** The inherited 0.006 was ~0.24/step against ~0.06/step
-  of course reward, so entropy dominated and the action std grew past the clip.
-
 ## Spiral course (`onshape_spiral_env_cfg.py`)
 
 World-axis terms are replaced with path-relative ones (`mdp/spiral_course.py`);
