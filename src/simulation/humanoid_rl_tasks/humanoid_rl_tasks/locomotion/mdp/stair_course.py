@@ -159,37 +159,6 @@ def _path_forward_offset(env, centre, positions, batch, swing_idx, stance_idx):
     return dx * tx + dy * ty
 
 
-def foot_low_fly_in(
-    env,
-    sensor_cfg,
-    feet_cfg,
-    low_height: float = 0.06,
-) -> torch.Tensor:
-    """Cost a swing foot that is flying in *low and fast* -- the stomp.
-
-    The touchdown probes on this course measure a landing that is vertical-quiet
-    (descent ~0.01 m/s) but horizontally quick (0.16 m/s against the straight
-    course's 0.09): the foot is still travelling forward when it meets the
-    tread, so it lands in a skid and reads as a thud. Contact-gated terms cannot
-    see that -- by the time the foot is in contact it has already arrived -- and
-    the vertical impact term is inert for the same reason.
-
-    This prices the approach instead: the squared horizontal speed of any
-    airborne foot that is within ``low_height`` of the lower foot, i.e. the
-    final descent onto the tread. A foot carried high through swing is free
-    (that is what clearance pays for), and so is a foot that has stopped moving
-    horizontally before it drops.
-    """
-    asset = env.scene[feet_cfg.name]
-    pos = asset.data.body_pos_w[:, feet_cfg.body_ids, :]
-    vel = asset.data.body_lin_vel_w[:, feet_cfg.body_ids, :2]
-    contact_time = env.scene.sensors[sensor_cfg.name].data.current_contact_time[:, sensor_cfg.body_ids]
-    airborne = contact_time <= 0.0
-    above = pos[:, :, 2] - pos[:, :, 2].min(dim=1, keepdim=True).values
-    low = above < low_height
-    return (vel.square().sum(dim=-1) * airborne * low).sum(dim=1)
-
-
 def foot_swing_clearance(
     env,
     left_sensor_cfg,

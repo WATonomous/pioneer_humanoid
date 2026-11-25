@@ -68,32 +68,6 @@ def shank_backward_rotation_l2(
     return (back.square() * airborne.float()).sum(dim=1)
 
 
-def knee_flexion_airborne_l2(
-    env,
-    sensor_cfg: SceneEntityCfg,
-    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot", joint_names=["Knee_L", "Knee_R"], preserve_order=True),
-    max_flexion: float = 0.45,
-) -> torch.Tensor:
-    """Knee flexion past ``max_flexion`` while that leg's foot is airborne.
-
-    The visible "back kick": after toe-off the knee folds from -0.23 rad to
-    -0.73 rad over 0.24 s and stays there, i.e. the shank rotates ~29 deg
-    backwards. Moving the *foot* forward does not remove it -- the hip can carry
-    the foot forward while the knee folds -- so this prices the joint angle
-    itself. Gated on airborne, so a leg that pre-folds while still loaded (which
-    is what a real step-up does: the heel comes up before the toe leaves) is
-    free, and the policy is pushed to clear the riser with the hip instead of
-    snapping the shank up behind the body.
-
-    The knee's convention is negative-flexed (clip -1.10..-0.05 rad), so flexion
-    is ``-q`` and the excess is charged squared past ``max_flexion``.
-    """
-    asset = env.scene[asset_cfg.name]
-    airborne = ~_in_contact(env, sensor_cfg)
-    flex = (-asset.data.joint_pos[:, asset_cfg.joint_ids] - max_flexion).clamp_min(0.0)
-    return (flex.square() * airborne.float()).sum(dim=1)
-
-
 def feet_swing_behind_l2(
     env,
     sensor_cfg: SceneEntityCfg,
@@ -126,37 +100,6 @@ def feet_swing_behind_l2(
     fwd = torch.cos(yaw).unsqueeze(-1) * rel[..., 0] + torch.sin(yaw).unsqueeze(-1) * rel[..., 1]
     behind = (-fwd - allowance).clamp_min(0.0)
     return (behind.square() * airborne.float()).sum(dim=1)
-
-
-def feet_swing_backward_l2(
-    env,
-    sensor_cfg: SceneEntityCfg,
-    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot", body_names=["l_foot", "r_foot"], preserve_order=True),
-) -> torch.Tensor:
-    """Rearward body-frame speed of each *airborne* foot, squared and summed.
-
-    Measured on the spiral gait (kick_probe.py, 381 swings aligned at lift-off):
-    the foot leaves the tread 0.24 m behind the root, drifts a further 3 cm
-    backwards over the next 0.26 s while the knee folds to -0.75 rad, and only
-    then reaches forward. That is the visible "back kick". Nothing in the reward
-    prices the fore/aft direction of swing -- ``feet_swing_height_relative``
-    prices only the sole's height -- so the cheapest way to clear the riser is
-    to tuck the leg up behind the body, which is what the policy learned.
-
-    The term is the squared *backward* component of an airborne foot's velocity
-    in the robot's frame, so forward motion costs nothing (a normal swing, which
-    starts behind the body and travels forward, pays zero) and only the kick is
-    charged. It is gated on airborne so a planted foot, which is legitimately
-    moving backwards relative to the body as the robot advances over it, is free.
-    """
-    asset = env.scene[asset_cfg.name]
-    airborne = ~_in_contact(env, sensor_cfg)
-    vel = asset.data.body_lin_vel_w[:, asset_cfg.body_ids, :2]
-    yaw = asset.data.heading_w
-    # body +X in world is (cos yaw, sin yaw)
-    fwd = torch.cos(yaw).unsqueeze(-1) * vel[..., 0] + torch.sin(yaw).unsqueeze(-1) * vel[..., 1]
-    back = (-fwd).clamp_min(0.0)
-    return (back.square() * airborne.float()).sum(dim=1)
 
 
 def contact_matches_phase(env, sensor_cfg: SceneEntityCfg, period: float = PERIOD) -> torch.Tensor:
@@ -284,7 +227,6 @@ def _finite_rewards() -> None:
 
 
 _finite_rewards()
-
 
 
 def _joint_action_idx(env, names) -> torch.Tensor:

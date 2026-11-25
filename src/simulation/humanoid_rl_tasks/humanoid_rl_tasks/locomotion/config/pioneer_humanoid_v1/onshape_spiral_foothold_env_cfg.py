@@ -35,8 +35,8 @@ from ...mdp import stair_course as course_mdp
 
 _REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), *[".."] * 7))
 
-# Task knobs, read at import (one task per process). Defaults reproduce the shipped
-# model (model_249_slow); each SPIRAL_* env var overrides one. Rationale: STAIR_REWARD_NOTES.md.
+# Task knobs, read at import (one task per process). Defaults reproduce the
+# best spiral policy (model_300); each SPIRAL_* env var overrides one. Rationale: STAIR_REWARD_NOTES.md.
 _RISER_BONUS = float(os.environ.get("SPIRAL_RISER_BONUS", "20"))
 _BONUS_MIN_STEPS = int(os.environ.get("SPIRAL_BONUS_MIN_STEPS", "0"))
 # Dense climb-rate income (the capped height-rate term). Raising this and
@@ -58,13 +58,13 @@ _TRACK_LIN = float(os.environ.get("SPIRAL_TRACK_LIN", "5"))
 # 0.36 m/s the policy settles at is ~0.65 steps/s, i.e. a ~3 s cycle. The
 # scripted arms ride the same clock, so this also re-syncs them.
 _CLOCK_PERIOD = float(os.environ.get("SPIRAL_CLOCK_PERIOD", "3.0"))
-_MISMATCH_WEIGHT = float(os.environ.get("SPIRAL_MISMATCH_WEIGHT", "1.0"))
+_MISMATCH_WEIGHT = float(os.environ.get("SPIRAL_MISMATCH_WEIGHT", "0.4"))
 _TREAD_BONUS = float(os.environ.get("SPIRAL_TREAD_BONUS", "20"))
 _FLAT_ORIENT = float(os.environ.get("SPIRAL_FLAT_ORIENT", "-10"))
 _CMD_SPEED = float(os.environ.get("SPIRAL_CMD_SPEED", "0.10"))
 # The inherited feet_impact was blind on this course (feet touch the helicoid, not the
 # filtered terrain mesh); feet_impact_contact reads contact_forces instead.
-_FEET_IMPACT = float(os.environ.get("SPIRAL_FEET_IMPACT", "-5"))
+_FEET_IMPACT = float(os.environ.get("SPIRAL_FEET_IMPACT", "-100"))
 # Horizontal plant speed while loaded prices a skid; -4 matches model_299_plant.
 _FEET_SLIDE = float(os.environ.get("SPIRAL_FEET_SLIDE", "-4"))
 # Back-kick: squared world-frame rearward speed of an airborne foot (measured with
@@ -72,22 +72,18 @@ _FEET_SLIDE = float(os.environ.get("SPIRAL_FEET_SLIDE", "-4"))
 # -0.5 changed nothing; -1.5 is ~46 % of income.
 _BACKKICK = float(os.environ.get("SPIRAL_BACKKICK", "-1.5"))
 _BACKKICK_ALLOW = float(os.environ.get("SPIRAL_BACKKICK_ALLOW", "0.10"))
-# Knee-fold-behind-body term. OFF: folding is geometrically needed to clear the riser.
-_KNEE_FOLD = float(os.environ.get("SPIRAL_KNEE_FOLD", "0"))
-_KNEE_FOLD_ALLOW = float(os.environ.get("SPIRAL_KNEE_FOLD_ALLOW", "0.45"))
 # Shank rotation while airborne, the kick as seen by eye; prices the rotation itself.
 _SHANK_BACK = float(os.environ.get("SPIRAL_SHANK_BACK", "-0.02"))
 # Leg smoothness: action-rate weight is the straight deliverable's -0.02 (the inherited
 # -0.002 was ~3 % of income, so the knee buzzed at the control Nyquist rate).
 _ACTION_RATE = float(os.environ.get("SPIRAL_ACTION_RATE", "-0.02"))
 # Hinge on the raw action beyond +-_SAT_THRESHOLD (see gait.action_saturation_l2).
-_SAT = float(os.environ.get("SPIRAL_SAT", "0"))
+_SAT = float(os.environ.get("SPIRAL_SAT", "-0.01"))
 _SAT_THRESHOLD = float(os.environ.get("SPIRAL_SAT_THRESHOLD", "3.0"))
-# Narrow fixes (all swing-phase only; see gait.py): forward foot speed in the
-# first 0.2 s of swing, the knee's commanded-angle change in swing, and a
-# knee-only saturation hinge.
+# Stance-tilt hinge, forward foot speed at swing start, knee target rate in swing, and the
+# action-saturation hinge (see gait.py): all on in model_300's recipe.
 # Re-parameterised action space (see ACT_RANGE below). 0 = the legacy scales.
-_ACT_RANGE = float(os.environ.get("SPIRAL_ACT_RANGE", "0"))
+_ACT_RANGE = float(os.environ.get("SPIRAL_ACT_RANGE", "3"))
 # Commandable target window of each leg joint (rad) and its neutral pose: the joint
 # range extended by effort/kp (joint_info.py) so full torque stays reachable at any
 # angle. NOT the bare joint range -- clipping to that cannot climb (the policy
@@ -97,19 +93,11 @@ _JOINT_WINDOW = {
     "Knee_.*": (-1.10, -0.05, -0.5), "Ankle_P_.*": (-2.02, 2.37, -0.25), "Ankle_R_.*": (-1.76, 1.76, 0.0),
 }
 
-if os.environ.get("SPIRAL_WINDOW_BARE"):   # the bare joint ranges
-    _JOINT_WINDOW = {'Hip_F_.*': (-0.35, 1.57, 0.25), 'Hip_A_.*': (-0.17, 1.05, 0.0), 'Hip_R_.*': (-0.52, 1.57, 0.0), 'Knee_.*': (-1.1, -0.05, -0.5), 'Ankle_P_.*': (-0.52, 0.87, -0.25), 'Ankle_R_.*': (-0.26, 0.26, 0.0)}
-_WIDE = float(os.environ.get("SPIRAL_WINDOW_WIDE", "0"))   # diagnostic: non-knee windows = +-WIDE rad (nothing clips)
-if _WIDE:
-    _JOINT_WINDOW = {k: ((-_WIDE, _WIDE, off) if not k.startswith("Knee") else (lo, hi, off))
-                     for k, (lo, hi, off) in _JOINT_WINDOW.items()}
-_STANCE_TILT = float(os.environ.get("SPIRAL_STANCE_TILT", "0"))
+_STANCE_TILT = float(os.environ.get("SPIRAL_STANCE_TILT", "-0.01"))
 _STANCE_TILT_ALLOW = float(os.environ.get("SPIRAL_STANCE_TILT_ALLOW", "10"))
-_SWING_FWD = float(os.environ.get("SPIRAL_SWING_FWD", "0"))
-_KNEE_SWING_RATE = float(os.environ.get("SPIRAL_KNEE_SWING_RATE", "0"))
-_KNEE_SAT = float(os.environ.get("SPIRAL_KNEE_SAT", "0"))
-_KNEE_SAT_THRESHOLD = float(os.environ.get("SPIRAL_KNEE_SAT_THRESHOLD", "7.0"))
-_DOF_ACC = float(os.environ.get("SPIRAL_DOF_ACC", "-1.5e-6"))
+_SWING_FWD = float(os.environ.get("SPIRAL_SWING_FWD", "0.5"))
+_KNEE_SWING_RATE = float(os.environ.get("SPIRAL_KNEE_SWING_RATE", "-3"))
+_DOF_ACC = float(os.environ.get("SPIRAL_DOF_ACC", "-6e-6"))
 # Price the action magnitude (nothing did). The shipped model sat at |a| ~ 10 with the
 # knee on a clip rail 85 % of steps; -2e-3 is ~30 % of gross reward there and ~1 % at
 # the straight deliverable's |a| ~ 1 (calibrated with l2_calib.py).
@@ -131,8 +119,6 @@ _SWING_TARGET = float(os.environ.get("SPIRAL_SWING_TARGET", "-40"))
 # touchdown probe measures (0.19 m/s here against 0.09 on the straight course).
 _JOINT_VEL = float(os.environ.get("SPIRAL_JOINT_VEL", "-1e-3"))
 _STANCE_VEL = float(os.environ.get("SPIRAL_STANCE_VEL", "-1.0"))
-# Price low horizontal swing-foot arrival. OFF: it made the policy stub the risers.
-_FLY_IN = float(os.environ.get("SPIRAL_FLY_IN", "0"))
 # Command speed vs the 'being asked to move' gate: the shared 0.1 threshold equals this
 # task's 0.10 m/s command, which silently disabled all swing shaping. Threshold sits below it.
 _MIN_CMD = float(os.environ.get("SPIRAL_MIN_CMD", "0.02"))
@@ -255,11 +241,6 @@ class PioneerHumanoidSpiralFootholdEnvCfg(PioneerHumanoidOnshapeSpiralEnvCfg):
                 func=gait.knee_swing_target_rate_l2, weight=_KNEE_SWING_RATE,
                 params={"sensor_cfg": FEET_CONTACT},
             )
-        if _KNEE_SAT:
-            self.rewards.knee_saturation = RewTerm(
-                func=gait.action_saturation_l2, weight=_KNEE_SAT,
-                params={"threshold": _KNEE_SAT_THRESHOLD, "joint_names": ["Knee_L", "Knee_R"]},
-            )
         if _SAT:
             self.rewards.action_saturation = RewTerm(
                 func=gait.action_saturation_l2,
@@ -280,15 +261,6 @@ class PioneerHumanoidSpiralFootholdEnvCfg(PioneerHumanoidOnshapeSpiralEnvCfg):
                 func=gait.shank_backward_rotation_l2,
                 weight=_SHANK_BACK,
                 params={"sensor_cfg": FEET_CONTACT, "asset_cfg": SHANK_CFG},
-            )
-        if _KNEE_FOLD:
-            # Price the shank folding up behind the body after toe-off, which is
-            # the kick the foot-position term cannot see (see _KNEE_FOLD).
-            self.rewards.knee_flexion_airborne = RewTerm(
-                func=gait.knee_flexion_airborne_l2,
-                weight=_KNEE_FOLD,
-                params={"sensor_cfg": FEET_CONTACT, "asset_cfg": KNEE_JOINTS_CFG,
-                        "max_flexion": _KNEE_FOLD_ALLOW},
             )
         if _MISMATCH_WEIGHT:
             # Feet must be in the clock's stance/swing state (4 = both wrong).
@@ -339,12 +311,6 @@ class PioneerHumanoidSpiralFootholdEnvCfg(PioneerHumanoidOnshapeSpiralEnvCfg):
             weight=_STANCE_VEL,
             params={"sensor_cfg": FEET_CONTACT, "asset_cfg": FEET_POSE},
         )
-        if _FLY_IN:
-            self.rewards.foot_low_fly_in = RewTerm(
-                func=course_mdp.foot_low_fly_in,
-                weight=_FLY_IN,
-                params={"sensor_cfg": FEET_CONTACT, "feet_cfg": FEET_POSE},
-            )
 
         # --- turn the swing shaping back on: its gates compare against the command norm, which
         # equalled the shared threshold, so all three terms read exactly zero.
