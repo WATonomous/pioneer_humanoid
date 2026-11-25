@@ -16,7 +16,10 @@ class RLToken(nn.Module):
         self.inp = nn.Linear(in_dim, dim)
         self.pos = nn.Parameter(torch.randn(1, max_tokens, dim) * 0.02)
         self.rl = nn.Parameter(torch.randn(1, 1, dim) * 0.02)          # the learned <rl> query token
-        make = lambda: nn.TransformerEncoderLayer(dim, heads, 4 * dim, dropout=0.0, batch_first=True, norm_first=True)  # noqa: E731
+
+        def make():
+            return nn.TransformerEncoderLayer(dim, heads, 4 * dim, dropout=0.0, batch_first=True, norm_first=True)
+
         self.encoder = nn.TransformerEncoder(make(), layers)
         self.to_z = nn.Sequential(nn.LayerNorm(dim), nn.Linear(dim, z_dim))
         self.from_z = nn.Linear(z_dim, dim)

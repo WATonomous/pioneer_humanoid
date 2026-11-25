@@ -351,7 +351,7 @@ def main():
                                        args.prefix))
         log(out, stage="final", transitions=transitions, episodes=episodes, **final)
         (out / "results.json").write_text(json.dumps({"baseline": baseline, "baselines": baselines, "final": final, "evals": evals,
-                                                       "args": vars(args)}, indent=1))
+                                                      "args": vars(args)}, indent=1))
         torch.save({"actor": td3.actor.state_dict(), "critic": td3.critic.state_dict()}, out / "td3_final.pt")
     finally:
         venv.close()

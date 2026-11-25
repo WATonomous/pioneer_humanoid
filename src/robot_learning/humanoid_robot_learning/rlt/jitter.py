@@ -119,7 +119,7 @@ def main():
             if mode == "rl" and c != C0:
                 raise SystemExit(f"{spec}: the actor was trained on chunks of {C0}")
             res, cmds = rollouts(base, token, td3, venv, starts, c, p, max_frames, mode == "rl", ema, residual,
-                                  noise[0] if noise else 0.0)
+                                 noise[0] if noise else 0.0)
             report[spec] = {**summarize(res), **jitter(cmds)}
             print(json.dumps({"variant": spec, **report[spec]}), flush=True)
     finally:
