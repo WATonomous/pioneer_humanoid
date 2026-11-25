@@ -195,6 +195,134 @@ class TestStep(unittest.TestCase):
         self.assertEqual(self.env.t, 0)
 
 
+class TestGoalResampling(unittest.TestCase):
+    """cfg.resample_goals: a new goal every goal_every steps, with the arm left where it is."""
+    ACTION = np.linspace(-0.5, 0.5, 7)
+
+    def make(self, **kw):
+        env = PolicyIKEnv(EnvConfig(max_steps=20, goal_every=5, **kw), seed=4)
+        env.reset()
+        return env
+
+    def test_off_by_default_the_goal_never_changes(self):
+        env = self.make(resample_goals=False)
+        g0 = env.p_goal.copy()
+        for _ in range(19):
+            env.step(self.ACTION)
+            self.assertTrue(np.array_equal(env.p_goal, g0))
+
+    def test_when_on_the_goal_changes_exactly_every_goal_every_steps(self):
+        env = self.make(resample_goals=True)
+        changed = []
+        for step in range(1, 21):
+            before = env.p_goal.copy()
+            env.step(self.ACTION)
+            if not np.array_equal(env.p_goal, before):
+                changed.append(step)
+        self.assertEqual(changed, [5, 10, 15])            # not on the last step (20), where the episode ends
+
+    def test_resampling_does_not_move_the_arm(self):
+        on, off = self.make(resample_goals=True), self.make(resample_goals=False)
+        for _ in range(5):                                # the goal changes at the end of step 5 in `on` only
+            on.step(self.ACTION)
+            off.step(self.ACTION)
+        self.assertFalse(np.allclose(on.p_goal, off.p_goal))
+        self.assertTrue(np.array_equal(on.data.qpos, off.data.qpos))
+        self.assertTrue(np.array_equal(on.data.qvel, off.data.qvel))
+        self.assertTrue(np.array_equal(on.z, off.z))
+
+    def test_the_observation_after_a_resample_is_for_the_new_goal(self):
+        env = self.make(resample_goals=True)
+        for _ in range(4):
+            env.step(self.ACTION)
+        obs = env.step(self.ACTION)[0]                    # step 5
+        self.assertTrue(np.allclose(obs[GOAL], env.p_goal, atol=1e-6))
+        self.assertTrue(np.allclose(obs[PREV_ACTION], self.ACTION))      # the last action is kept, not zeroed
+
+    def test_per_goal_memory_restarts_on_the_new_goal(self):
+        env = self.make(resample_goals=True)
+        for _ in range(5):
+            env.step(self.ACTION)
+        rho_new = rho_now(env)
+        self.assertTrue(env.reward.fresh)
+        self.assertAlmostEqual(env.reward.best, rho_new, places=6)
+        self.assertAlmostEqual(env.best_so_far, rho_new, places=6)        # set by the observation built after step 5
+        terms6 = env.step(self.ACTION)[4]                                  # the first step against the new goal
+        for name in ("improvement", "shaping", "backslide", "dwell"):
+            self.assertEqual(terms6[name], 0.0)
+        self.assertNotEqual(env.step(self.ACTION)[4]["shaping"], 0.0)      # and progress counts again from step 7
+
+    def test_the_action_rate_cost_continues_across_a_new_goal(self):
+        env = self.make(resample_goals=True)
+        for _ in range(5):
+            env.step(self.ACTION)
+        self.assertEqual(env.step(self.ACTION)[4]["action rate"], 0.0)     # same action as before: no jump in the cost
+
+
+class TestObservationNoise(unittest.TestCase):
+    """cfg.obs_noise: uniform noise on the joint-position and joint-velocity blocks only."""
+    NOISE = 0.01
+    ACTIONS = [np.linspace(-1, 1, 7) * s for s in (0.3, 0.6, 0.9)]
+
+    def run_env(self, noise, seed=6):
+        env = PolicyIKEnv(EnvConfig(obs_noise=noise), seed=seed)
+        out = [(env.reset(), 0.0)]
+        for a in self.ACTIONS:
+            obs, reward, *_ = env.step(a)
+            out.append((obs, reward))
+        return env, out
+
+    def test_zero_noise_gives_the_true_joint_values(self):
+        env, out = self.run_env(0.0)
+        obs = out[-1][0]
+        q, qd = env.data.qpos[env.arm.qadr], env.data.qvel[env.arm.qadr]
+        self.assertTrue(np.allclose(obs[JOINTS], q - env.arm.rest, atol=1e-6))
+        self.assertTrue(np.allclose(obs[VEL], qd, atol=1e-6))
+
+    def test_noise_changes_only_the_joint_position_and_velocity_blocks(self):
+        _, clean = self.run_env(0.0)
+        _, noisy = self.run_env(self.NOISE)
+        for (o_clean, _), (o_noisy, _) in zip(clean, noisy):
+            keep = np.ones(54, dtype=bool)
+            keep[JOINTS] = keep[VEL] = False
+            self.assertTrue(np.array_equal(o_clean[keep], o_noisy[keep]))     # goal, errors, best, z - q, previous action
+            self.assertFalse(np.array_equal(o_clean[JOINTS], o_noisy[JOINTS]))
+            self.assertFalse(np.array_equal(o_clean[VEL], o_noisy[VEL]))
+
+    def test_the_noise_stays_inside_plus_minus_the_setting(self):
+        _, clean = self.run_env(0.0)
+        _, noisy = self.run_env(self.NOISE)
+        for (o_clean, _), (o_noisy, _) in zip(clean, noisy):
+            for block in (JOINTS, VEL):
+                self.assertTrue(np.all(np.abs(o_noisy[block] - o_clean[block]) <= self.NOISE + 1e-6))
+
+    def test_noise_does_not_touch_the_physics_or_the_reward(self):
+        env_clean, clean = self.run_env(0.0)
+        env_noisy, noisy = self.run_env(self.NOISE)
+        self.assertTrue(np.array_equal(env_clean.data.qpos, env_noisy.data.qpos))
+        self.assertEqual([r for _, r in clean], [r for _, r in noisy])
+
+    def test_noise_does_not_use_the_goal_generator(self):
+        env_clean, _ = self.run_env(0.0)
+        env_noisy, _ = self.run_env(self.NOISE)
+        # The generator that picks goals and starts must be in exactly the same state with or without noise. (Comparing
+        # goals alone is not enough: goal sampling rejects candidates in groups of 7 draws, and the noise uses 14 per
+        # observation, so a shared generator can still land on the same goal by coincidence.)
+        self.assertEqual(env_clean.rng.bit_generator.state, env_noisy.rng.bit_generator.state)
+        self.assertTrue(np.array_equal(env_clean.p_goal, env_noisy.p_goal))
+        env_clean.reset(); env_noisy.reset()
+        self.assertTrue(np.array_equal(env_clean.p_goal, env_noisy.p_goal))
+        self.assertEqual(env_clean.rng.bit_generator.state, env_noisy.rng.bit_generator.state)
+
+    def test_noise_is_reproducible_and_fresh_each_time(self):
+        _, a = self.run_env(self.NOISE, seed=3)
+        _, b = self.run_env(self.NOISE, seed=3)
+        self.assertTrue(all(np.array_equal(x[0], y[0]) for x, y in zip(a, b)))       # same seed, same noise
+        env = PolicyIKEnv(EnvConfig(obs_noise=self.NOISE), seed=3)
+        env.reset()
+        self.assertFalse(np.array_equal(env._observation()[JOINTS], env._observation()[JOINTS]))   # new draw each call
+
+
 class TestEpisodeEnd(unittest.TestCase):
     def test_truncates_exactly_at_max_steps_and_never_terminates(self):
         env = PolicyIKEnv(EnvConfig(max_steps=10), seed=2)
