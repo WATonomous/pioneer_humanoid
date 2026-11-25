@@ -8,7 +8,6 @@
 from isaaclab.envs.mdp import *  # noqa: F401, F403
 
 from .curriculums import *  # noqa: F401, F403
-from .joint_rate_limit import *  # noqa: F401, F403
 from .knee_shaping import *  # noqa: F401, F403
 from .noise import *  # noqa: F401, F403
 from .observations import *  # noqa: F401, F403

@@ -389,7 +389,7 @@ def reset_root_state_spiral_slots(
     ``slots`` are measured poses ``(x, y, z, yaw)``: ``z`` is the root height
     that stands on the tread (tread top + ``standing_height``), and ``yaw``
     faces the path's tangent at that tread. The values are measured off the
-    merged collider (``tools/onshape_course/spiral_spawn_slots.py``), because
+    merged collider by the course build tooling (not in this tree), because
     the extracted tread angles carry ~0.8 rad of offset and per-tread noise:
     spawning from the analytic helicoid puts the robot across a riser.
 

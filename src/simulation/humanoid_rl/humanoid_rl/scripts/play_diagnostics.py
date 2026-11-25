@@ -1,8 +1,8 @@
 """Optional gait, camera, and reset diagnostics for ``play.py``.
 
-Enable with ``play.py --diagnostics``. The printed formats (``[PLAYARC]``,
-``[PLAYLEAD]``, ...) are parsed by ``tools/onshape_course/probe_report.py``, so
-keep them stable.
+Enable with ``play.py --diagnostics``. The printed lines (``[PLAYARC]``,
+``[PLAYLEAD]``, ...) are plain text on stdout and are meant to be diffed between
+runs.
 
 The behaviour is tuned for the Onshape courses and is driven by environment
 variables so a probe does not need extra CLI plumbing:

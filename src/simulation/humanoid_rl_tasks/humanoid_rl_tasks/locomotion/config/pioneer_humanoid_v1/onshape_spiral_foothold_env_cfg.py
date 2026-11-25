@@ -79,9 +79,6 @@ _KNEE_FOLD_ALLOW = float(os.environ.get("SPIRAL_KNEE_FOLD_ALLOW", "0.45"))
 _SHANK_BACK = float(os.environ.get("SPIRAL_SHANK_BACK", "-0.02"))
 # Leg smoothness: action-rate weight is the straight deliverable's -0.02 (the inherited
 # -0.002 was ~3 % of income, so the knee buzzed at the control Nyquist rate).
-# Slew cap on leg targets: DEFAULT OFF (cost 20 % completion, did not reduce the
-# acceleration tail; the spikes are joints hitting their position stops).
-_LEG_RATE = float(os.environ.get("SPIRAL_LEG_RATE", "0"))
 _ACTION_RATE = float(os.environ.get("SPIRAL_ACTION_RATE", "-0.02"))
 # Hinge on the raw action beyond +-_SAT_THRESHOLD (see gait.action_saturation_l2).
 _SAT = float(os.environ.get("SPIRAL_SAT", "0"))
@@ -122,10 +119,6 @@ _ACTION_L2 = float(os.environ.get("SPIRAL_ACTION_L2", "-2e-3"))
 # leave the rail and completion fell 0.939 -> 0.903, so this is left at the
 # inherited value until the target signal itself is measured.
 _KNEE_OVERSHOOT = float(os.environ.get("SPIRAL_KNEE_OVERSHOOT", "-0.025"))
-# Knee command slew limit (rad/s, None disables). TRIED AND OFF: a slew cap bounds step
-# size, not reversal rate, so the relay still limit-cycles; kept as an optional rail.
-_KNEE_RATE = os.environ.get("SPIRAL_KNEE_RATE", "0")
-_KNEE_RATE = float(_KNEE_RATE) if _KNEE_RATE not in ("", "0", "none", "off") else None
 # Knee action scale (loop gain): 0.05 spans the clip range over a in [-12, +9], matched
 # to the |a| ~ 8-13 the network produces, instead of a two-state relay at 0.30.
 _KNEE_SCALE = float(os.environ.get("SPIRAL_KNEE_SCALE", "0.05"))
@@ -149,8 +142,8 @@ _MIN_CMD = float(os.environ.get("SPIRAL_MIN_CMD", "0.02"))
 # 0.994 with falls 0.052 -> 0.005.
 _FLIGHT = float(os.environ.get("SPIRAL_FLIGHT", "25"))
 
-# Tread poses (x, y, root z, yaw) measured off the merged collider by
-# ``tools/onshape_course/spiral_spawn_slots.py``: the marker (slot 0), then the
+# Tread poses (x, y, root z, yaw) measured off the merged collider by the course
+# build tooling (not in this tree): the marker (slot 0), then the
 # centres of treads 4, 9, 16, 24 and 34 risers up, on the walking circle with
 # the yaw on the path's tangent. ``z`` is the root height at rest on the tread,
 # so the robot spawns standing instead of dropping onto it.
@@ -245,16 +238,6 @@ class PioneerHumanoidSpiralFootholdEnvCfg(PioneerHumanoidOnshapeSpiralEnvCfg):
             self.actions.joint_pos.scale = {
                 k: max(hi - off, off - lo) / _ACT_RANGE for k, (lo, hi, off) in _JOINT_WINDOW.items()}
             self.actions.joint_pos.clip = {k: (lo, hi) for k, (lo, hi, off) in _JOINT_WINDOW.items()}
-        if _LEG_RATE:
-            self.actions.joint_pos.class_type = mdp.JointPositionActionRateLimited
-            self.actions.joint_pos.max_rate = {
-                "Hip_F_.*": _LEG_RATE, "Hip_A_.*": _LEG_RATE, "Hip_R_.*": _LEG_RATE,
-                "Knee_.*": _LEG_RATE, "Ankle_P_.*": _LEG_RATE, "Ankle_R_.*": _LEG_RATE,
-            }
-        if _KNEE_RATE:
-            # Rate-limit the knee target inside the action term so it is part of trained dynamics.
-            self.actions.joint_pos.class_type = mdp.JointPositionActionRateLimited
-            self.actions.joint_pos.max_rate = {"Knee_.*": _KNEE_RATE}
         self.rewards.track_lin_vel_xy_exp.weight = _TRACK_LIN
         if _STANCE_TILT:
             self.rewards.stance_tilt_hinge = RewTerm(

@@ -17,8 +17,8 @@ the fall penalty -- is inherited from the Onshape course recipe, so the
 policy that walks the sawtooth is the starting point for this one.
 
 The geometry (centre, walking radius, riser, angular step, the clearance band
-table) is read from ``assets/staircase_onshape/spiral_geometry.json``, which
-``tools/onshape_course/spiral_profile.py`` extracts from the merged USD.
+table) is read from ``assets/staircase_onshape/spiral_geometry.json``, which the
+course build tooling (not in this tree) extracts from the merged USD.
 """
 
 from __future__ import annotations
@@ -299,32 +299,6 @@ class PioneerHumanoidOnshapeSpiralEnvCfg(PioneerHumanoidOnshapeCourseEnvCfg):
         # The staircase is 7 m tall and the climb takes ~50 s at the commanded
         # speed, so the episode needs room to finish (and to retry).
         self.episode_length_s = 240.0
-
-
-@configclass
-class PioneerHumanoidOnshapeSpiralEnvCfg_PLAY(PioneerHumanoidOnshapeSpiralEnvCfg):
-    """Repeatable visual verification on the spiral staircase."""
-
-    def __post_init__(self) -> None:
-        super().__post_init__()
-
-        self.scene.num_envs = 3
-        self.scene.env_spacing = 0.0
-        self.episode_length_s = 120.0
-        # Spawn exactly on the marker, facing +Y.
-        _marker = tuple(float(v) for v in self.spiral_geometry["marker"])
-        self.events.reset_base.params["pose_range"]["x"] = (_marker[0] + _SPAWN_OFFSET_X,) * 2
-        self.events.reset_base.params["pose_range"]["y"] = (_marker[1] + _SPAWN_OFFSET_Y,) * 2
-        self.events.reset_base.params["pose_range"]["z"] = (0.0, 0.0)
-        self.events.reset_base.params["pose_range"]["yaw"] = (_YAW_90, _YAW_90)
-
-        self.commands.base_velocity.ranges.lin_vel_x = (0.26, 0.26)
-        self.observations.policy.enable_corruption = False
-        self.events.base_external_force_torque = None
-        # The generator-only edge termination rejects USD terrain; the spiral's
-        # own radius/height bounds cover it.
-        self.terminations.terrain_out_of_bounds = None
-        self.terminations.invalid_height_scan = None
 
 
 @configclass

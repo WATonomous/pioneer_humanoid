@@ -10,10 +10,8 @@ single-mesh USD (straight_stairs_terrain.usd: the 6 stair parts plus the Part St
 own ground, metres, triangle-soup collision baked). The RayCaster height scanner
 reads that one mesh, so policy observations stay 235-dim and stairs checkpoints
 load. The STEP export is not committed; place it in assets/staircase_onshape/
-and rebuild the terrain with:
-
-    isaaclab.sh -p tools/onshape_course/build_course.py \\
-        --step assets/staircase_onshape/straight_stairs.step
+and rebuild the terrain from it with the course build tooling (not part of this
+tree).
 
 Spawn: directly on the Part Studio's ``marker`` sliver (x=4.163, y=-1.549), facing
 +Y (yaw pi/2), so the local +X velocity command drives the robot up the course.
@@ -82,8 +80,8 @@ _ONSHAPE_COURSE_PROFILE = "assets/staircase_onshape/straight_stairs_profile.json
 def _load_course_band() -> list:
     """The course's own shape: the swing clearance each position actually needs.
 
-    Written by tools/onshape_course/course_profile.py from the merged USD
-    (see that script for how the table is derived). A single global band has
+    Generated from the merged USD by the course build tooling (not in this
+    tree). A single global band has
     to cover the tallest riser, so it also pays a high-knee lift everywhere
     else; this table pays only for the riser that is actually coming.
     """
@@ -379,69 +377,6 @@ class PioneerHumanoidOnshapeCourseEnvCfg(PioneerHumanoidRoughNoStairsSelectiveKn
             },
         )
         self.episode_length_s = 1200.0
-
-
-@configclass
-class PioneerHumanoidOnshapeCourseEnvCfg_PLAY(PioneerHumanoidOnshapeCourseEnvCfg):
-    """Repeatable visual verification: 3 robots, const forward command."""
-
-    def __post_init__(self) -> None:
-        super().__post_init__()
-
-        self.scene.num_envs = 3
-        self.scene.env_spacing = 2.0
-        self.scene.terrain.max_init_terrain_level = 0
-        self.curriculum.terrain_levels = None
-        self.episode_length_s = 60.0
-        # Spawn exactly on the marker (same start the training uses), root at
-        # floor level, facing +Y up the course.
-        self.events.reset_base.params["pose_range"]["x"] = (_SPAWN_X, _SPAWN_X)
-        self.events.reset_base.params["pose_range"]["y"] = (_SPAWN_Y, _SPAWN_Y)
-        self.events.reset_base.params["pose_range"]["z"] = (0.0, 0.0)
-        self.events.reset_base.params["pose_range"]["yaw"] = (_YAW_90, _YAW_90)
-        self.commands.base_velocity.ranges.heading = (_YAW_90, _YAW_90)
-
-        self.commands.base_velocity.rel_standing_envs = 0.0
-        self.commands.base_velocity.ranges.lin_vel_x = (0.4, 0.4)
-        self.events.reset_base.params["velocity_range"] = {
-            "x": (0.0, 0.0),
-            "y": (0.0, 0.0),
-            "z": (0.0, 0.0),
-            "roll": (0.0, 0.0),
-            "pitch": (0.0, 0.0),
-            "yaw": (0.0, 0.0),
-        }
-        self.observations.policy.enable_corruption = False
-        self.events.base_external_force_torque = None
-        # Shoving stays ON in the visual config: the point of the clip is to
-        # watch the policy catch itself. Same calibration as training, so the
-        # clip shows what the policy was actually trained against.
-        self.events.push_robot = EventTerm(
-            func=shove_mdp.push_robot_logged,
-            mode="interval",
-            interval_range_s=_PUSH_INTERVAL_S,
-            params={
-                "asset_cfg": SceneEntityCfg("robot"),
-                "velocity_range": _PUSH_VELOCITY,
-            },
-        )
-
-        # Generator-only edge termination rejects USD terrain; the course
-        # bounds term below covers it.
-        self.terminations.terrain_out_of_bounds = None
-        # Training guardrail: any ray miss resets. Disabled for the visual so
-        # walking is verifiable even with partial scan misses at mesh edges.
-        self.terminations.invalid_height_scan = None
-        self.terminations.course_out_of_bounds.params = {
-            "lateral_limit": 12.0,
-            "backward_limit": -8.0,
-            "axis": 1,
-        }
-        # Past the summit and out to the flat exit ground (which ends at
-        # y=27.61), so the visual shows the whole course walked rather than
-        # stopping at the top of the last flight.
-        self.terminations.course_complete.params["goal_distance"] = 27.0
-        self.terminations.course_complete.params["axis"] = 1
 
 
 @configclass

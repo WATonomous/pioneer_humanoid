@@ -569,10 +569,10 @@ def reset_root_state_course_spawn(
 
     A single uniform ``pose_range`` cannot express "start at the foot of any
     pyramid", and the course has no ground-level area between parts except the
-    0.4 m gaps before each one. The slots are measured off the merged collider
-    (``assets/staircase_onshape/straight_stairs_centreline.npz``): slot y is the
-    middle of a gap, where the whole sole (8 cm of heel behind the ankle, 16 cm
-    of toe ahead) sits on flat ground, so the robot always spawns standing.
+    0.4 m gaps before each one. The slots were measured off the merged collider:
+    slot y is the middle of a gap, where the whole sole (8 cm of heel behind the
+    ankle, 16 cm of toe ahead) sits on flat ground, so the robot always spawns
+    standing.
     The jitters are kept small for the same reason: 0.45 m of gap, 0.24 m of
     sole.
 
