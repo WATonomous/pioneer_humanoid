@@ -21,6 +21,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from env import PolicyIKEnv
+from metrics import CONTROL_DT
 
 AXIS_RGBA = ([1.0, 0.1, 0.1, 1.0], [0.1, 0.9, 0.1, 1.0], [0.2, 0.3, 1.0, 1.0])   # x red, y green, z blue
 
@@ -55,9 +56,10 @@ def main():
 
     env = PolicyIKEnv(seed=args.seed)
     try:
-        env._observation()
-    except NotImplementedError:
-        env._observation = lambda: np.zeros(1)      # stand-in so reset() works before the observation is written
+        env.reset()
+    except Exception as err:    # _observation() isn't finished yet (or has a bug): use a stand-in so reset() still works
+        print(f"note: _observation() failed ({type(err).__name__}: {err}); using a stand-in observation")
+        env._observation = lambda: np.zeros(1)
 
     with mujoco.viewer.launch_passive(env.model, env.data) as viewer:
         viewer.cam.lookat[:] = [0.3, 0.15, -0.1]
@@ -75,12 +77,12 @@ def main():
             t_end = time.time() + args.every
             while viewer.is_running() and time.time() < t_end:
                 if args.physics:
-                    for _ in range(env.n_substeps):
-                        mujoco.mj_step(env.model, env.data)
+                    env.sim.step(env.z)                                     # one control step, holding the reference z
+                    mujoco.mj_forward(env.model, env.data)                  # Sim.step leaves site positions one substep old
                     with viewer.lock():
                         draw(env, viewer.user_scn)
                     viewer.sync()
-                    time.sleep(env.n_substeps * env.model.opt.timestep)     # about real time
+                    time.sleep(CONTROL_DT)                                  # about real time
                 else:
                     time.sleep(0.05)
 
