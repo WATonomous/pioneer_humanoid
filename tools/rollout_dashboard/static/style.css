@@ -113,7 +113,8 @@ body:not(.rl) .rl-only { display: none; }
   z-index: 1;
 }
 .table-row.head span:hover { color: var(--ink); }
-#table-scroll { flex: 1 1 0; min-height: var(--list-min-h); overflow: auto; position: relative; }  /* scrolls sideways when a subset adds many columns */
+/* scrolls sideways too when a subset adds many columns */
+#table-scroll { flex: 1 1 0; min-height: var(--list-min-h); overflow: auto; position: relative; }
 #table-body { position: relative; min-width: max-content; }
 #table-body .table-row { position: absolute; left: 0; right: 0; cursor: pointer; }
 #table-body .table-row:hover { background: var(--grid); }
