@@ -25,6 +25,10 @@ class EnvConfig:
     max_steps: int = 300         # episode time-out (steps)
     obs_noise: float = 0.0       # observation noise, off for now
 
+    # tuned params from A3
+    beta_min: float = 0.1
+    rho_far: float = 100
+
 
 class PolicyIKEnv:
     def __init__(self, cfg=None, seed=0):
@@ -41,10 +45,16 @@ class PolicyIKEnv:
         # (the model also has the right arm and the grippers, which this env leaves alone)
         self.n_joints = 7
 
-        self.z = None            # accumulated joint reference (7,)
+        # joint limits as two (7,) arrays, made once: arm.limits is (7, 2) with columns [lower, upper]
+        self.lo = self.arm.limits[:, 0].copy()
+        self.hi = self.arm.limits[:, 1].copy()
+
+        self.z = None           # accumulated joint reference (7,)
         self.p_goal = None       # goal tool position (3,)
         self.R_goal = None       # goal tool orientation (3, 3)
         self.t = 0               # steps since reset
+
+        
 
     def reset(self):
         """New goal and start pose. Returns the first observation."""
@@ -70,8 +80,61 @@ class PolicyIKEnv:
 
     def step(self, action):
         """Apply one action. Returns (obs, reward, terminated, truncated, info)."""
-        raise NotImplementedError
+        action = np.clip(np.array(action), -1, 1, out=None)
+
+        # runs forward kinematic
+        mujoco.mj_forward(self.model, self.data)
+        p_t = self.data.site_xpos[self.arm.tcp_id].copy()
+        R_t = self.data.site_xmat[self.arm.tcp_id].reshape(3, 3).copy()
+        e_pos, e_rot = pm.pose_errors(p_t, R_t, self.p_goal, self.R_goal)
+
+        # Compute stuff
+        self.rho = pm.rho(e_pos, e_rot)
+        self.beta = np.clip(self.rho / self.cfg.rho_far, self.cfg.beta_min, 1.0)
+        self.z = np.clip(self.z + self.cfg.eta * self.beta * action, self.lo, self.hi)
+
+        self.data.ctrl[:self.n_joints] = self.z
+
+        for _ in range(self.n_substeps):
+            mujoco.mj_step(self.arm.model, self.arm.data)
+        mujoco.mj_forward(self.model, self.data)
+
+        # Get new data
+        q = self.data.qpos[self.arm.qadr]
+        qd = self.data.qvel[self.arm.qadr]
+
+        p_t = self.data.site_xpos[self.arm.tcp_id].copy()
+        R_t = self.data.site_xmat[self.arm.tcp_id].reshape(3, 3).copy()
+
+        reward, terms = self.reward.step(p_t, R_t, self.p_goal, self.R_goal, q, qd, action, self.lo, self.hi)
+
+        self.t += 1
+
+        truncated = False
+        terminated = False
+        if self.t >= self.cfg.max_steps:
+            truncated = True
+
+
+        return self._observation(), reward, terminated, truncated, terms
 
     def _observation(self):
         """The observation vector. Layout still to agree (S2)."""
-        raise NotImplementedError
+        obs_v = np.array([])
+        mujoco.mj_forward(self.model, self.data) # To ensure fresh values of measured quantities
+
+        # get position and velocity of all joints
+        q = self.data.qpos[self.arm.qadr]
+        qd = self.data.qvel[self.arm.qadr]
+
+        obs_v = np.concatenate(obs_v, (q - self.arm.rest)) # Current joints - rest joints
+        obs_v = np.concatenate(obs_v, qd) # Adds velocities
+
+        obs_v = np.concatenate(obs_v, self.p_goal)
+        obs_v = np.concatenate(obs_v, pm.keypoint_errors(self.p_t, self.R_t, self.p_g, self.R_g))
+        
+
+        
+        
+
+        return obs_v
