@@ -6,10 +6,11 @@ Already set up? [REAL_ARM_TELEOP_CHECKLIST.md](REAL_ARM_TELEOP_CHECKLIST.md) is 
 command list, through leader-arm teleop.
 
 ## 0. Connect
-1. **Hardware**: battery + E-stop closed (motor power ≠ CAN power). CANable USB → host; CAN_H/CAN_L → arm (120 Ω term).
-> ⚠️ If connecting voltage source XT60 connectors to the motors, ensure you DONT connect the 51.2V battery to the GL40 batteries -- it will immediately fry the motor driver and render it unusable. \
-\
-> ❗ The CAN adapter is a little buggy. When you first plug it in, the LED will be red. You must unplug it and plug it in a second time so that the green light flashes. Then you can run the CAN udev scripts.
+1. **Hardware**: battery + E-stop closed (motor power ≠ CAN power). CANable USB → host; CAN_H/CAN_L → arm (120 Ω term). 
+
+> ‼️ Ensure battery pack is below 52V, otherwise motors can break. Check with a multimeter, or install the DCHOUSE app. If the battery pack is above 52V, drain it with the load drainer ([DL24_BATTERY_DRAINER_INSTRUCTIONS.md](DL24_BATTERY_DRAINER_INSTRUCTIONS.md)).
+
+> 💡 The CAN adapter is a little buggy. When you first plug it in, the LED will be red. You must unplug it and plug it in a second time so that the green light flashes. Then you can run the CAN udev scripts.
 2. **Host setup (once)**: `./src/interfacing/can/scripts/can_udev.sh install` → `/dev/canable`.
    `watod-config.local.sh`: `ACTIVE_MODULES="interfacing"`, `MODE_OF_OPERATION="develop"`.
 3. **Bring up**: `can.launch.py` starts `can_node` + SLCAN (`/dev/canable` → `can0` @ 1 Mbps).
