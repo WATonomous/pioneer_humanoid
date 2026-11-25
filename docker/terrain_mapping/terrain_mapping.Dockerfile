@@ -50,6 +50,7 @@ RUN apt-get update && \
       ros-humble-sensor-msgs-py \
       ros-humble-std-srvs \
       ros-humble-rosbag2-storage-mcap \
+      ros-humble-foxglove-bridge \
       ros-humble-ament-cmake-pytest \
       ros-humble-ament-cmake-ros \
       ros-humble-ament-lint-auto \
@@ -91,6 +92,11 @@ RUN src/terrain_mapping/third_party/vendor_elevation_mapping_cupy.sh && \
         --cmake-args -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF \
         --install-base ${WATONOMOUS_INSTALL} && \
     rm -rf build log install
+
+# terrain_core (ROS-free core) and slam_core for the terrain node and tools.
+# terrain_core has a COLCON_IGNORE, so colcon skips it and pip installs it here.
+COPY src/perception/slam/slam_core /opt/slam_core
+RUN python3 -m pip install --no-cache-dir src/terrain_mapping/terrain_core /opt/slam_core
 
 # `watod -t` opens a plain bash, which skips the entrypoint, so source the install from bashrc too.
 RUN printf '%s\n' \

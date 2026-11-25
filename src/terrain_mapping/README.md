@@ -89,7 +89,14 @@ The Nov 6 hallway bags (step, box, ramp; see the results under Score a run) are 
 ros2 launch terrain_mapping_bringup bag_pipeline.launch.py bag:=/bags/Nov6_rosbags/2026-11-06_02-09-28
 ```
 
-Launch arguments are `bag`, `rate` (playback speed, default `1.0`), and `rviz` (default `true`).
+Launch arguments are `bag`, `rate` (playback speed, default `1.0`), `rviz` (default `true`), and `record` (default off).
+`record:=<folder>` writes the two elevation map topics, `/tf` and `/tf_static` to an mcap in that folder, which must not exist yet. Recording stops when playback ends. Teammates without an NVIDIA GPU can play these bags instead of running `elevation_mapping_cupy`.
+The first run in a new container compiles CuPy's kernels while the bag plays and publishes almost no maps (1 instead of 49 on `02-04-00`), so record on the second run:
+
+```bash
+ros2 launch terrain_mapping_bringup bag_pipeline.launch.py bag:=/bags/Nov6_rosbags/2026-11-06_02-09-28 \
+  record:=/outputs/terrain_mapping/map_bags/2026-11-06_02-09-28
+```
 The launch file starts every node on the bag's clock (`use_sim_time`) and plays the bag with `--clock` after 5 s.
 
 RViz opens on your X display. If it cannot open the display, run `xhost +SI:localuser:$(id -un)` on the host.

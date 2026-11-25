@@ -9,6 +9,7 @@ from slam_core.types.frame import Frame
 # fx fy cx cy, then k1 k2 p1 p2 k3, from TUM's file_formats page
 CAMERAS = {
     "freiburg1": ([517.3, 516.5, 318.6, 255.3], [0.2624, -0.9531, -0.0054, 0.0026, 1.1633]),
+    "freiburg2": ([520.9, 521.0, 325.1, 249.7], [0.2312, -0.7849, -0.0033, -0.0001, 0.9172]),
     "freiburg3": ([535.4, 539.2, 320.1, 247.6], [0, 0, 0, 0, 0]),
 }
 DEPTH_SCALE = 5000.0  # TUM depth PNG units per meter

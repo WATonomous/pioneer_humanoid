@@ -51,7 +51,7 @@ Arm **hanging straight down**. The motors buzz during this step, which is normal
 
 ```bash
 # still in the interfacing container
-ros2 run can calibrate_arm.py --arm-side right --write-mapping
+ros2 run can calibrate_actuators.py --arm-side right --write-mapping
 ```
 
 - Per joint: confirm the motor id → set home → move to one end, Enter → move to the other end, Enter

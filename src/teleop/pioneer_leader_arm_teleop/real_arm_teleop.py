@@ -8,7 +8,7 @@ At start it asks "start at home? [y/N]". y adds the HOME phase between CHECK and
   ZERO   read-only. Hang the leader AND the real arm (each --arms arm) straight down, leader gripper
          open, then Enter: the leader's current reading becomes its zero (this run only, not saved).
          Refuses if any active real joint reads more than ZERO_TOL_DEG from 0 there: its calibration
-         is stale, re-run calibrate_arm.py. The real arm's zero is never changed here (joint_command
+         is stale, re-run calibrate_actuators.py. The real arm's zero is never changed here (joint_command
          loads it from arm_calibration.yaml). --skip-zero keeps leader_arm.json's zeros.
   CHECK  read-only. Leader vs real arm, side by side. Nothing is published.
          Enter starts HOME (y) or SLOW (n) once every active joint reports feedback and is inside its
@@ -80,7 +80,7 @@ def zero_failures(rows: list[dict], arm: RealArm) -> list[str]:
             out.append(f"{name}: no feedback")
         elif abs(row["real"]) > ZERO_TOL_DEG:
             out.append(f"{name}: real reads {row['real']:+.1f} deg, not ~0 -- hang it straight down, "
-                       "or recalibrate (calibrate_arm.py)")
+                       "or recalibrate (calibrate_actuators.py)")
     return out
 
 
@@ -329,7 +329,7 @@ def run() -> None:
             if refusals:
                 start_home = False
                 print("[INFO] Not homing: " + "; ".join(refusals) + " (joint_command would clamp it; re-run "
-                      "calibrate_arm.py sweeping past home). Continuing without HOME.", flush=True)
+                      "calibrate_actuators.py sweeping past home). Continuing without HOME.", flush=True)
                 time.sleep(3.0)
         home_deg = {arm.side: [math.degrees(h) for h in arm.home] for arm in arms}
         if sys.stdin.isatty():

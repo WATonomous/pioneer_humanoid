@@ -25,7 +25,7 @@ services:
     volumes:
       - /dev:/dev # Allow access to host devices
       - ${MONO_DIR}/src/interfacing:/root/ament_ws/src/interfacing
-      # For calibrate_arm.py --write-mapping
+      # For calibrate_actuators.py --write-mapping
       # (whole dir, not the single file, so the .bak it creates lands on the host)
       - ${MONO_DIR}/src/interfacing/joint_command/config:/calibration
       # Telemetry run folders (gitignored)

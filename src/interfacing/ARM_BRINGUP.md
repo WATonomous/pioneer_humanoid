@@ -6,10 +6,11 @@ Already set up? [REAL_ARM_TELEOP_CHECKLIST.md](REAL_ARM_TELEOP_CHECKLIST.md) is 
 command list, through leader-arm teleop.
 
 ## 0. Connect
-1. **Hardware**: battery + E-stop closed (motor power ≠ CAN power). CANable USB → host; CAN_H/CAN_L → arm (120 Ω term).
-> ⚠️ If connecting voltage source XT60 connectors to the motors, ensure you DONT connect the 51.2V battery to the GL40 batteries -- it will immediately fry the motor driver and render it unusable. \
-\
-> ❗ The CAN adapter is a little buggy. When you first plug it in, the LED will be red. You must unplug it and plug it in a second time so that the green light flashes. Then you can run the CAN udev scripts.
+1. **Hardware**: battery + E-stop closed (motor power ≠ CAN power). CANable USB → host; CAN_H/CAN_L → arm (120 Ω term). 
+
+> ‼️ Ensure battery pack is below 52V, otherwise motors can break. Check with a multimeter, or install the DCHOUSE app. If the battery pack is above 52V, drain it with the load drainer ([DL24_BATTERY_DRAINER_INSTRUCTIONS.md](DL24_BATTERY_DRAINER_INSTRUCTIONS.md)).
+
+> 💡 The CAN adapter is a little buggy. When you first plug it in, the LED will be red. You must unplug it and plug it in a second time so that the green light flashes. Then you can run the CAN udev scripts.
 2. **Host setup (once)**: `./src/interfacing/can/scripts/can_udev.sh install` → `/dev/canable`.
    `watod-config.local.sh`: `ACTIVE_MODULES="interfacing"`, `MODE_OF_OPERATION="develop"`.
 3. **Bring up**: `can.launch.py` starts `can_node` + SLCAN (`/dev/canable` → `can0` @ 1 Mbps).
@@ -29,7 +30,7 @@ command list, through leader-arm teleop.
      [`dbc/humanoid.dbc`](dbc/humanoid.dbc)). Left arm today: `0000290B`–`0000290E` (ids 11–14)
      and `00002968` (id 104, elbow yaw).
    - **GL40s (wrist 22, gripper 21) are silent here, and that is normal.** They only answer MIT
-     frames, so they appear once `calibrate_arm.py` or `joint_command` sends `MIT_ENTER`: standard
+     frames, so they appear once `calibrate_actuators.py` or `joint_command` sends `MIT_ENTER`: standard
      id `000` (the master id), byte 0 = status nibble + the last hex digit of the motor id.
    - An expected AK missing → check its power, its id, and that it is set to 1 Mbps.
 
@@ -46,7 +47,7 @@ their single-turn absolute encoders don't reliably survive a power cycle; should
 Per joint: confirm motor id → home zero → one end Enter → other end Enter → writes `zero_offset`/limits/`can_id`.
 ```bash
 source /opt/watonomous/setup.bash
-ros2 run can calibrate_arm.py --write-mapping
+ros2 run can calibrate_actuators.py --write-mapping
 ```
 Prompt: **Enter**=yes · id=correct id · **s**=skip · **q**=quit.
 
@@ -74,7 +75,7 @@ python3 /workspace/humanoid/src/interfacing/can/scripts/live_arm_mjviser.py --ar
 > at the same angle. Try fixes with `--flip JOINT` / `--offset JOINT=DEG` (viewer-only), then
 > make them real: a flip is the joint's `direction` in
 > [joint_command/config/arm_calibration.yaml](joint_command/config/arm_calibration.yaml)
-> (then re-run `calibrate_arm.py`); an offset means it was not zeroed hanging (re-run it).
+> (then re-run `calibrate_actuators.py`); an offset means it was not zeroed hanging (re-run it).
 
 → script docstring in `live_arm_mjviser.py` for the angle math and full flag reference.
 
@@ -123,7 +124,7 @@ python3 pioneer_leader_arm_teleop.py --target real --live
  ### Other
 
 
-- Scripted moves and benchmarks: `tools/arm_roundtrip.sh` → [can/README.md](can/README.md#angle-benchmarks-arm_roundtrippy)
+- Scripted moves and benchmarks: `tools/roundtrip.sh` → [can/README.md](can/README.md#angle-benchmarks-roundtrippy)
 - Node, configs and tuning → [joint_command/README.md](joint_command/README.md)
 
 ## Adding a motor (or the right arm)
@@ -133,10 +134,10 @@ The motor's id must already be set on the drive (CubeMars tool) and follow the
    MIT ranges, and `kt` for an AK). Without it `can_node` refuses MIT commands to that id.
 2. **`joint_command/config/arm_calibration.yaml`**: the joint under its arm side with its
    `can_id` and a `direction` matching the URDF. A new arm needs its own top-level block
-   (`right:`) first: `calibrate_arm.py --arm-side right` fails if the side is missing. Only
+   (`right:`) first: `calibrate_actuators.py --arm-side right` fails if the side is missing. Only
    `left:` exists today.
 3. **`joint_command/config/arm_actuators.yaml`**: the joint's block under its side (`active`,
    `control_type`, `mit_family`, limits, gains). A `right:` block already exists.
 4. **New arm only:** add the side to `arms` in `joint_command/config/joint_command.yaml`.
-5. `./watod build`: `joint_command` and `arm_roundtrip.py` read the *installed* configs.
+5. `./watod build`: `joint_command` and `roundtrip.py` read the *installed* configs.
 6. Bring it up from step 0: `candump`, calibrate, visualize, then move.

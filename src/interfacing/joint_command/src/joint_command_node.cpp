@@ -23,11 +23,6 @@ JointCommandNode::JointCommandNode() : Node("joint_command_node") {
 
   const std::vector<std::string> arms = this->get_parameter("arms").as_string_array();
   const std::vector<std::string> legs = this->get_parameter("legs").as_string_array();
-  if (!legs.empty()) {
-    // TODO(legs): load each leg from leg_calibration.yaml / leg_actuators.yaml as the arms are
-    // loaded below (is_leg = true), and include them in findDuplicateMotorIds. Until then, refuse.
-    throw std::runtime_error("`legs` is set but leg support is not implemented yet");
-  }
   control_rate_hz_ = this->get_parameter("control_rate_hz").as_double();
   const std::string motor_cmd_topic = this->get_parameter("motor_cmd_topic").as_string();
   control_type_ = static_cast<int8_t>(this->get_parameter("control_type").as_int());
@@ -35,39 +30,59 @@ JointCommandNode::JointCommandNode() : Node("joint_command_node") {
   command_timeout_sec_ = this->get_parameter("command_timeout_sec").as_double();
   mit_shutdown_damp_sec_ = this->get_parameter("mit_shutdown_damp_sec").as_double();
 
-  const YAML::Node hardware_config =
+  const YAML::Node arm_mapping =
       YAML::LoadFile(ament_index_cpp::get_package_share_directory("joint_command") +
                      "/config/arm_calibration.yaml");
-  const std::string safety_config_path =
+  const std::string arm_safety_path =
       ament_index_cpp::get_package_share_directory("joint_command") + "/config/arm_actuators.yaml";
-  const YAML::Node safety_root = YAML::LoadFile(safety_config_path)["safety"];
+  const YAML::Node arm_safety = YAML::LoadFile(arm_safety_path)["safety"];
 
   // Every listed arm is loaded and validated, active or not.
-  std::vector<Limb> loaded(arms.size());
+  std::vector<Limb> loaded(arms.size() + legs.size());
   std::vector<const JointCommandCore*> cores;
   for (size_t k = 0; k < arms.size(); ++k) {
     Limb& limb = loaded[k];
     limb.side = arms[k];
-    if (!limb.core.loadFromYaml(hardware_config, limb.side)) {
+    limb.is_leg = false;
+    if (!limb.core.loadFromYaml(arm_mapping, limb.side)) {
       throw std::runtime_error("Failed to load 6-joint mapping for arm side '" + limb.side + "'");
     }
-    if (!limb.core.loadSafetyFromYaml(safety_root, control_rate_hz_)) {
+    if (!limb.core.loadSafetyFromYaml(arm_safety, control_rate_hz_)) {
       // Refusing to start is deliberate: an unsafe gain here reaches a real motor.
       throw std::runtime_error("Failed to load safety config for arm '" + limb.side + "' from '" +
-                               safety_config_path + "': " + limb.core.lastError());
+                               arm_safety_path + "': " + limb.core.lastError());
     }
     cores.push_back(&limb.core);
   }
+  if (!legs.empty()) {
+    const std::string config_dir =
+        ament_index_cpp::get_package_share_directory("joint_command") + "/config/";
+    const YAML::Node leg_mapping = YAML::LoadFile(config_dir + "leg_calibration.yaml");
+    const YAML::Node leg_safety = YAML::LoadFile(config_dir + "leg_actuators.yaml")["safety"];
+    for (size_t k = 0; k < legs.size(); ++k) {
+      Limb& limb = loaded[arms.size() + k];
+      limb.side = legs[k];
+      limb.is_leg = true;
+      if (!limb.core.loadFromYaml(leg_mapping, limb.side, true)) {
+        throw std::runtime_error("Failed to load 6-joint mapping for leg '" + limb.side + "'");
+      }
+      if (!limb.core.loadSafetyFromYaml(leg_safety, control_rate_hz_)) {
+        throw std::runtime_error("Failed to load safety config for leg '" + limb.side +
+                                 "': " + limb.core.lastError());
+      }
+      cores.push_back(&limb.core);
+    }
+  }
   if (const auto clash = findDuplicateMotorIds(cores)) {
-    throw std::runtime_error("Motor ids must be unique across arms (feedback is matched by id "
+    throw std::runtime_error("Motor ids must be unique across limbs (feedback is matched by id "
                              "alone): " +
                              *clash);
   }
 
   for (Limb& limb : loaded) {
     if (!limb.core.anyActive()) {
-      RCLCPP_INFO(this->get_logger(), "[%s] no active joint: this arm is not driven this run",
-                  limb.side.c_str());
+      RCLCPP_INFO(this->get_logger(), "[%s] no active joint: this limb is not driven this run",
+                  limb.label().c_str());
       continue;
     }
     std::string active;
@@ -75,12 +90,13 @@ JointCommandNode::JointCommandNode() : Node("joint_command_node") {
       active += std::string(active.empty() ? "" : ", ") + limb.core.jointName(i) +
                 (limb.core.isActive(i) ? "" : " (INACTIVE)");
     }
-    RCLCPP_INFO(this->get_logger(), "[%s] joints this run: %s", limb.side.c_str(), active.c_str());
+    RCLCPP_INFO(this->get_logger(), "[%s] joints this run: %s", limb.label().c_str(),
+                active.c_str());
     limbs_.push_back(std::move(limb));
   }
   if (limbs_.empty()) {
-    throw std::runtime_error("No arm in `arms` has an active joint: set active: true on at least "
-                             "one joint in arm_actuators.yaml");
+    throw std::runtime_error("No configured limb has an active joint: set active: true on at least "
+                             "one joint in its actuator config");
   }
 
   // Depth: one tick publishes every arm's commands in a burst, and a fault sends MIT_EXIT 3x per
@@ -95,7 +111,7 @@ JointCommandNode::JointCommandNode() : Node("joint_command_node") {
       limbs_[i].leg_pose_sub = this->create_subscription<common_msgs::msg::LegPose>(
           topic, rclcpp::QoS(10),
           [this, i](const common_msgs::msg::LegPose::SharedPtr msg) { legPoseCallback(i, msg); });
-      RCLCPP_INFO(this->get_logger(), "[%s leg] listening on %s", limbs_[i].side.c_str(),
+      RCLCPP_INFO(this->get_logger(), "[%s] listening on %s", limbs_[i].label().c_str(),
                   topic.c_str());
       continue;
     }
@@ -103,7 +119,8 @@ JointCommandNode::JointCommandNode() : Node("joint_command_node") {
     limbs_[i].arm_pose_sub = this->create_subscription<common_msgs::msg::ArmPose>(
         topic, rclcpp::QoS(10),
         [this, i](const common_msgs::msg::ArmPose::SharedPtr msg) { armPoseCallback(i, msg); });
-    RCLCPP_INFO(this->get_logger(), "[%s] listening on %s", limbs_[i].side.c_str(), topic.c_str());
+    RCLCPP_INFO(this->get_logger(), "[%s] listening on %s", limbs_[i].label().c_str(),
+                topic.c_str());
   }
 
   feedback_sub_ = this->create_subscription<common_msgs::msg::MotorFeedback>(
@@ -127,14 +144,14 @@ JointCommandNode::JointCommandNode() : Node("joint_command_node") {
     // A GL II ignores MIT frames until entered. Gains apply only after seeding.
     publish(limb.core.mitModeCommands(common_msgs::msg::MotorCmd::MIT_ENTER));
     RCLCPP_INFO(this->get_logger(), "[%s] MIT joints: motor ids [%s] -- sent enter-motor-mode",
-                limb.side.c_str(), ids.c_str());
+                limb.label().c_str(), ids.c_str());
   }
 
   std::string sides;
   for (const Limb& limb : limbs_) {
-    sides += (sides.empty() ? "" : ", ") + limb.side;
+    sides += (sides.empty() ? "" : ", ") + limb.label();
   }
-  RCLCPP_INFO(this->get_logger(), "Joint command node ready: arms=[%s], rate=%.1f Hz",
+  RCLCPP_INFO(this->get_logger(), "Joint command node ready: limbs=[%s], rate=%.1f Hz",
               sides.c_str(), control_rate_hz_);
 }
 
@@ -146,7 +163,7 @@ void JointCommandNode::armPoseCallback(size_t limb_index,
     RCLCPP_ERROR_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
                           "[%s] ArmPose with is_left=%s on this arm's topic -- ignored, holding "
                           "the last pose",
-                          limb.side.c_str(), msg->is_left ? "true" : "false");
+                          limb.label().c_str(), msg->is_left ? "true" : "false");
     return;
   }
   // Only cache the pose here. Moderation and publishing happen exclusively on control_timer_'s
@@ -160,7 +177,7 @@ void JointCommandNode::armPoseCallback(size_t limb_index,
         RCLCPP_ERROR_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
                               "[%s] ArmPose has a non-finite angle -- ignored, holding the last "
                               "pose",
-                              limb.side.c_str());
+                              limb.label().c_str());
         return;
       }
     }
@@ -169,13 +186,13 @@ void JointCommandNode::armPoseCallback(size_t limb_index,
     RCLCPP_ERROR_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
                           "[%s] ArmPose has a non-finite gripper_position -- ignored, holding the "
                           "last pose",
-                          limb.side.c_str());
+                          limb.label().c_str());
     return;
   }
-  limb.latest_pose = *msg;
+  limb.latest_arm_pose = *msg;
   limb.have_latest_pose = true;
-  limb.last_armpose_time = this->get_clock()->now();
-  limb.have_armpose_time = true;
+  limb.last_pose_time = this->get_clock()->now();
+  limb.have_pose_time = true;
 }
 
 void JointCommandNode::legPoseCallback(size_t limb_index,
@@ -183,14 +200,25 @@ void JointCommandNode::legPoseCallback(size_t limb_index,
   Limb& limb = limbs_[limb_index];
   // As armPoseCallback: only cache the pose; the control tick moderates and publishes.
   if (msg->is_left != (limb.side == "left")) {
-    // TODO(legs): log like armPoseCallback.
+    RCLCPP_ERROR_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
+                          "[%s] LegPose side does not match topic -- ignored",
+                          limb.label().c_str());
     return;
   }
-  // TODO(legs): reject non-finite angles, as armPoseCallback does.
+  for (const auto* joints : {&msg->hip, &msg->knee, &msg->ankle}) {
+    for (const double angle : joints->position) {
+      if (!std::isfinite(angle)) {
+        RCLCPP_ERROR_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
+                              "[%s] LegPose has a non-finite angle -- ignored",
+                              limb.label().c_str());
+        return;
+      }
+    }
+  }
   limb.latest_leg_pose = *msg;
   limb.have_latest_pose = true;
-  limb.last_armpose_time = this->get_clock()->now();
-  limb.have_armpose_time = true;
+  limb.last_pose_time = this->get_clock()->now();
+  limb.have_pose_time = true;
 }
 
 void JointCommandNode::motorFeedbackCallback(const common_msgs::msg::MotorFeedback::SharedPtr msg) {
@@ -204,6 +232,27 @@ void JointCommandNode::motorFeedbackCallback(const common_msgs::msg::MotorFeedba
   sample.status = static_cast<int>(msg->error_code);
   latest_feedback_full_[id] = sample;
   latest_feedback_time_[id] = this->get_clock()->now();
+  // Every sample, not once per tick: the runaway watch needs each step of the motion.
+  const double t_s = latest_feedback_time_[id].seconds();
+  for (Limb& limb : limbs_) {
+    limb.core.recordFeedback(id, sample.position_deg, t_s);
+  }
+}
+
+void JointCommandNode::checkRunaways() {
+  for (Limb& limb : limbs_) {
+    const auto runaway = limb.core.checkMitRunaway();
+    if (!runaway.has_value()) {
+      continue;
+    }
+    if (!mit_faulted_) {
+      mitFault("[" + limb.label() + "] " + *runaway);
+    } else {
+      // Already halted by another fault, and this joint was being damped: it's limp from now.
+      RCLCPP_ERROR(this->get_logger(), "MIT FAULT (after the first fault): [%s] %s.",
+                   limb.label().c_str(), runaway->c_str());
+    }
+  }
 }
 
 std::map<int, MotorFeedbackSample> JointCommandNode::mitFeedbackSamples() {
@@ -231,10 +280,10 @@ bool JointCommandNode::trySeedFromFeedback(Limb& limb) {
   }
   if (fresh.empty()) {
     RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
-                         "[%s] Waiting for motor feedback before accepting ArmPose: the "
+                         "[%s] Waiting for motor feedback before accepting pose: the "
                          "rate-limiter must be seeded from the real pose first. No command "
                          "sent. (Is can_node running and are the motors powered?)",
-                         limb.side.c_str());
+                         limb.label().c_str());
     return false;
   }
 
@@ -249,34 +298,35 @@ bool JointCommandNode::trySeedFromFeedback(Limb& limb) {
   }
   RCLCPP_INFO(this->get_logger(),
               "[%s] Rate-limiter seeded from feedback: %s. prev_targets(cmd-frame deg)=[%s]. Now "
-              "accepting ArmPose; motion ramps from here.",
-              limb.side.c_str(), report.describe().c_str(), s.c_str());
+              "accepting pose; motion ramps from here.",
+              limb.label().c_str(), report.describe().c_str(), s.c_str());
 
   for (const size_t i : report.unmatched) {
     RCLCPP_WARN(this->get_logger(),
                 "[%s] EXCLUDING joint %s (motor %d): no feedback -- not commanded%s until the next "
-                "seed (after the ArmPose stream goes stale).",
-                limb.side.c_str(), core.jointName(i).c_str(), static_cast<int>(core.motorId(i)),
+                "seed (after the pose stream goes stale).",
+                limb.label().c_str(), core.jointName(i).c_str(), static_cast<int>(core.motorId(i)),
                 core.isMitJoint(i) ? " (MIT: held at kp=0)" : "");
     const auto& assume = core.safety(i).gravity_assume_deg;
     if (assume.has_value()) {
       RCLCPP_WARN(this->get_logger(),
                   "[%s] Gravity model ASSUMES %s is at %.1f deg (cmd frame, gravity_assume_deg). "
                   "Only true while that limp joint is strapped there.",
-                  limb.side.c_str(), core.jointName(i).c_str(), *assume);
+                  limb.label().c_str(), core.jointName(i).c_str(), *assume);
     }
   }
 
   if (!report.out_of_range.empty()) {
     core.blockJoints(report.out_of_range);
     for (const size_t i : report.out_of_range) {
-      RCLCPP_ERROR(this->get_logger(),
-                   "[%s] EXCLUDING joint %s (motor %d): it is at %.1f deg, outside its configured "
-                   "limits [%.1f, %.1f] in arm_calibration.yaml. Its calibration is stale or "
-                   "the limits are placeholders. This joint will NOT be commanded (MIT joints "
-                   "are held limp) until the mapping is corrected -- re-run calibrate_arm.py.",
-                   limb.side.c_str(), core.jointName(i).c_str(), static_cast<int>(core.motorId(i)),
-                   core.prevTargets()[i], core.joint(i).lower_limit, core.joint(i).upper_limit);
+      RCLCPP_ERROR(
+          this->get_logger(),
+          "[%s] EXCLUDING joint %s (motor %d): it is at %.1f deg, outside its configured "
+          "limits [%.1f, %.1f] in the calibration YAML. Its calibration is stale or "
+          "the limits are placeholders. This joint will NOT be commanded (MIT joints "
+          "are held limp) until the mapping is corrected -- re-run calibrate_actuators.py.",
+          limb.label().c_str(), core.jointName(i).c_str(), static_cast<int>(core.motorId(i)),
+          core.prevTargets()[i], core.joint(i).lower_limit, core.joint(i).upper_limit);
     }
   }
   return true;
@@ -288,7 +338,7 @@ void JointCommandNode::mitFault(const std::string& reason) {
   }
   mit_faulted_ = true;
   RCLCPP_ERROR(this->get_logger(),
-               "MIT FAULT: %s. EVERY arm is halted: limp MIT joints are freed, damped ones are "
+               "MIT FAULT: %s. EVERY limb is halted: limp MIT joints are freed, damped ones are "
                "held at kp=0 (sinking slowly) while this node runs; commands are halted. Restart "
                "the node after checking the hardware.",
                reason.c_str());
@@ -366,17 +416,17 @@ bool JointCommandNode::readyToCommand(Limb& limb) {
     return false;
   }
 
-  if (limb.have_armpose_time &&
-      (this->get_clock()->now() - limb.last_armpose_time).seconds() > command_timeout_sec_) {
+  if (limb.have_pose_time &&
+      (this->get_clock()->now() - limb.last_pose_time).seconds() > command_timeout_sec_) {
     // No fresh ArmPose within the timeout window: stop republishing the stale cached
     // target and force a fresh seed-from-feedback + ramp on the next real command,
     // instead of instantly resuming motion toward a target that could be arbitrarily old.
     // Not throttled: it fires once per stale stream, and a throttle would hide the other arm's.
     RCLCPP_WARN(this->get_logger(),
-                "[%s] ArmPose stream stale (no message in %.1fs): halting motor commands "
-                "until a fresh ArmPose re-seeds the rate-limiter. MIT joints are held "
+                "[%s] Pose stream stale (no message in %.1fs): halting motor commands "
+                "until a fresh pose re-seeds the rate-limiter. MIT joints are held "
                 "at kp=0 (limp or damped, per mit_fault_action).",
-                limb.side.c_str(), command_timeout_sec_);
+                limb.label().c_str(), command_timeout_sec_);
     limb.have_latest_pose = false;
     limb.seeded_from_feedback = false;
     publish(limb.core.mitSafeCommands());
@@ -391,7 +441,10 @@ bool JointCommandNode::readyToCommand(Limb& limb) {
 
 void JointCommandNode::controlTimerCallback() {
   if (mit_faulted_) {
-    // Keep damping Damp joints: a silent AK trips its CAN timeout and drops the arm.
+    // Still watch for a runaway: on a drive that pushes the wrong way, damping accelerates it.
+    checkRunaways();
+    // Keep damping Damp joints: a silent AK trips its CAN timeout and drops the arm. Runaway
+    // joints get explicit limp frames instead.
     for (const Limb& limb : limbs_) {
       publish(limb.core.mitSafeCommands(/*damped_only=*/true));
     }
@@ -409,6 +462,12 @@ void JointCommandNode::controlTimerCallback() {
   }
 
   // Watchdog runs before the next command is generated, so a fault stops every arm this tick.
+  // Runaway first: it names the cause (the drive's calibration) and limps the joint, where the
+  // torque or tracking check that trips on the same motion would only damp it.
+  checkRunaways();
+  if (mit_faulted_) {
+    return;
+  }
   const auto feedback = mitFeedbackSamples();
   for (const Limb* limb : ready) {
     if (limb->core.mitMotorIds().empty()) {
@@ -416,7 +475,7 @@ void JointCommandNode::controlTimerCallback() {
     }
     const auto fault = limb->core.checkMitFaults(feedback);
     if (fault.has_value()) {
-      mitFault("[" + limb->side + "] " + *fault);
+      mitFault("[" + limb->label() + "] " + *fault);
       return;
     }
   }
@@ -428,11 +487,11 @@ void JointCommandNode::controlTimerCallback() {
                              limb->core.legPoseToMotorCmds(limb->latest_leg_pose, control_type_));
       } else {
         publishMotorCommands(*limb,
-                             limb->core.armPoseToMotorCmds(limb->latest_pose, control_type_));
+                             limb->core.armPoseToMotorCmds(limb->latest_arm_pose, control_type_));
       }
     } catch (const std::exception& e) {
       RCLCPP_ERROR_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
-                            "[%s] Failed to process ArmPose: %s", limb->side.c_str(), e.what());
+                            "[%s] Failed to process pose: %s", limb->label().c_str(), e.what());
     }
   }
   logGravityModel(ready);
@@ -444,6 +503,9 @@ void JointCommandNode::logGravityModel(const std::vector<Limb*>& limbs) {
   // one. An arm without a gravity model (gravity_model.hpp has left and right) shows meas only.
   std::string s;
   for (const Limb* limb : limbs) {
+    if (limb->is_leg) {
+      continue;
+    }
     const JointCommandCore& core = limb->core;
     const auto& pred = core.lastGravityTorqueMotor();
     s += (s.empty() ? "[" : " || [") + limb->side + "] ";
@@ -461,6 +523,9 @@ void JointCommandNode::logGravityModel(const std::vector<Limb*>& limbs) {
       s += buf;
     }
   }
+  if (s.empty()) {
+    return;
+  }
   RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
                        "Gravity model, motor frame N.m: %s", s.c_str());
 }
@@ -477,7 +542,7 @@ void JointCommandNode::publishMotorCommands(Limb& limb,
              std::to_string(static_cast<int>(cmd.control_type)) + ")";
     }
     RCLCPP_INFO(this->get_logger(), "[%s] Publishing %zu MotorCmd per cycle; motor_ids=[%s]",
-                limb.side.c_str(), cmds.size(), ids.c_str());
+                limb.label().c_str(), cmds.size(), ids.c_str());
     limb.logged_publish_count = true;
   }
   publish(cmds);

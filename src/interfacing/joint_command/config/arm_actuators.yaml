@@ -6,7 +6,7 @@ safety:
     # motor's range (can/config/mit_profiles.yaml). The global 0 / 0 is a safe no-op: a joint
     # holds only with gains set in its own block below.
 
-  # Position clamp is ENABLED, with the limits calibrate_arm.py wrote to arm_calibration.yaml.
+  # Position clamp is ENABLED, with the limits calibrate_actuators.py wrote to arm_calibration.yaml.
   # Re-run calibration after every power-on: the AK80-9s lose their zero.
   # Every joint below sets its own velocity_max and MIT limits; the global values are fallbacks.
   #
@@ -46,7 +46,7 @@ safety:
   # its own full block on purpose: what you read here is what that arm runs.
   left:
     # --- AK10-9 / AK80-9, MIT --------------------------------------------------
-    # Limits come from calibrate_arm.py's software zero-mode (see arm_calibration.yaml).
+    # Limits come from calibrate_actuators.py's software zero-mode (see arm_calibration.yaml).
     # Re-run calibration after any power cycle: AK80-9 joints lose their zero (src/interfacing/README.md).
     # Interim gains (#327), not yet bench-checked; gravity feed-forward off until its sign is
     # checked (#325). Each mit_max_torque = 2 x that joint's max gravity load (the model over its
