@@ -288,10 +288,6 @@ def load_mapping(path: Path) -> Dict[str, Any]:
 def save_mapping(path: Path, data: Dict[str, Any]) -> None:
     if yaml is None:
         raise RuntimeError("PyYAML required")
-    backup = path.with_suffix(path.suffix + ".bak")
-    if path.exists() and not backup.exists():
-        backup.write_text(path.read_text(encoding="utf-8"), encoding="utf-8")
-        print(f"  Backup: {backup}")
     with path.open("w", encoding="utf-8") as f:
         yaml.safe_dump(data, f, default_flow_style=False, sort_keys=False)
     print(f"  Wrote: {path}")
