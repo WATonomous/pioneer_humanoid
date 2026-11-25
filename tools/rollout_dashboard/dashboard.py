@@ -30,12 +30,25 @@ def parse_values(specs: list[str], dataset_names: list[str]) -> dict[str, dict[s
     return out
 
 
+def parse_subsets(specs: list[str], dataset_names: list[str]) -> dict[str, Path]:
+    """`[DATASET:]PATH` -> {dataset_name: PATH}; without a known DATASET prefix the first dataset is meant."""
+    out = {}
+    for spec in specs:
+        prefix, sep, rest = spec.partition(":")
+        dataset, path = (prefix, rest) if sep and prefix in dataset_names else (dataset_names[0], spec)
+        out[dataset] = Path(path).expanduser()
+    return out
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("datasets", nargs="+", type=Path, help="LeRobot v3 dataset folders (with meta/, data/, videos/; recap/ optional)")
     parser.add_argument("--values", action="append", default=[], metavar="[DATASET:]NAME=PATH",
                         help="extra value function: a values.npy (one float per dataset frame) or a labels parquet "
                              "(index, value[, positive]). Repeatable. recap/labels_r*.parquet are added automatically.")
+    parser.add_argument("--episodes", action="append", default=[], metavar="[DATASET:]PATH",
+                        help="episode subset: parquet/CSV with an episode_index column (or index). Only those episodes are "
+                             "listed, in the file's row order; its other numeric columns become sortable list columns.")
     parser.add_argument("--host", default="127.0.0.1", help="bind address (0.0.0.0 to reach it from another machine)")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--clip-dir", type=Path,
@@ -45,9 +58,10 @@ def main():
 
     names = [p.resolve().name for p in args.datasets]
     values = parse_values(args.values, names)
+    subsets = parse_subsets(args.episodes, names)
     datasets = []
     for path, name in zip(args.datasets, names):
-        dataset = Dataset(path, values[name])
+        dataset = Dataset(path, values[name], subsets.get(name))
         print(f"{name}: {len(dataset.episodes)} episodes, {dataset.total_frames} frames, cameras {dataset.cameras}, "
               f"values {list(dataset.values)}")
         datasets.append(dataset)

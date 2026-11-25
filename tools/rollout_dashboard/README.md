@@ -15,7 +15,7 @@ mp4s) and needs no LeRobot or repo imports.
 
 Click or drag on either chart to seek. Keys: `space` play/pause, `←/→` one frame, `shift+←/→` one second,
 `↑/↓` previous/next episode in the filtered list. The URL keeps the dataset, tab and episode, so a link
-reopens the same view.
+reopens the same view, and editing it (`…#ep=700`) switches episodes.
 
 ## Run
 
@@ -34,6 +34,14 @@ Then open http://127.0.0.1:8765/. `--help` lists all options.
   `positive`). Add others with `--values [DATASET:]NAME=PATH`, either a `values.npy` with one float per
   dataset frame in dataset-index order (what the RECAP image value function's `--values` writes) or a labels-style parquet
   (`index, value[, positive]`). Without `DATASET:` the value goes to the first dataset.
+- **Episode subset**: `--episodes [DATASET:]PATH` (a parquet or CSV with an `episode_index` column or index)
+  lists only those episodes, in the file's row order (the `#` column). The file's other numeric and bool
+  columns, such as a value-disagreement score, become sortable list columns:
+  `--episodes outputs/value_compare/subset_100.parquet`.
+- **Only playable episodes are listed**: an episode is hidden unless every camera's mp4 exists. The
+  header shows "N of M episodes · K without video hidden", and a checkbox in the filters lists the hidden
+  ones too. This is re-checked whenever the list loads, so files copied in while the server runs appear
+  after a page reload.
 - **Episodes without a `recap/episodes.parquet` row** count as successful demos. Datasets with no
   `recap/` folder at all simply have no RL columns.
 
@@ -48,7 +56,7 @@ python tools/rollout_dashboard/dashboard.py /path/on/cluster/datasets/recap/two_
 ```
 
 A partial local copy works too (`meta/`, `data/`, `recap/` and any subset of `videos/`). Episodes whose
-mp4 is missing show a placeholder instead of video.
+mp4s are missing are hidden from the list by default.
 
 ## How it scales
 

@@ -4,6 +4,9 @@ Only metadata is loaded up front: the episode table (meta/episodes + recap/episo
 per-frame value arrays (a few float32s per frame). Per-frame state/action, recap step counters and video
 are read per episode on request, so memory stays flat with dataset size.
 
+An episode subset (--episodes) is a parquet/CSV with an `episode_index` column (or index): only those episodes are
+listed in the file's row order, and its other numeric/bool columns become sortable list columns (e.g. a score).
+
 Value sources (one checkbox each in the RL tab):
   * recap/labels_r*.parquet — auto-discovered; `value` (+ `positive`) keyed by dataset `index`.
   * --values NAME=PATH — a .npy with one float per dataset frame (dataset-index order), or a labels-style parquet.
@@ -49,6 +52,16 @@ def load_value_source(name: str, path: Path, total_frames: int) -> ValueSource:
     return ValueSource(name, values, positive)
 
 
+def load_subset(path: Path) -> pd.DataFrame:
+    """Episode subset file -> DataFrame with an `episode_index` column (accepts it as the pandas index too)."""
+    table = pd.read_parquet(path) if path.suffix == ".parquet" else pd.read_csv(path)
+    if "episode_index" not in table.columns:
+        table = table.reset_index()
+    if "episode_index" not in table.columns:
+        raise ValueError(f"{path}: needs an episode_index column or index")
+    return table
+
+
 def short_policy(path: str) -> str:
     """`.../runs/<run>/train/checkpoints/<step>/pretrained_model` -> `<run>@<step>`; other strings unchanged."""
     if not isinstance(path, str) or not path:
@@ -69,7 +82,7 @@ def _rounded(array: np.ndarray) -> list:
 
 
 class Dataset:
-    def __init__(self, root: Path, extra_values: dict[str, Path] | None = None):
+    def __init__(self, root: Path, extra_values: dict[str, Path] | None = None, subset: Path | None = None):
         self.root = Path(root).resolve()
         self.name = self.root.name
         self.info = json.loads((self.root / "meta" / "info.json").read_text())
@@ -84,6 +97,10 @@ class Dataset:
         self.has_recap = (self.recap_dir / "episodes.parquet").exists()
         self.values = self._load_values(extra_values or {})
         self.episodes = self._load_episode_table()
+        self.subset_name = Path(subset).name if subset else None
+        self.extra_columns: list[str] = []
+        if subset:
+            self._apply_subset(load_subset(Path(subset)))
 
     # ---- loading (once, at startup) ----
     def _load_tasks(self) -> list[str]:
@@ -128,6 +145,26 @@ class Dataset:
             eps["policy"] = eps["policy"].map(short_policy)
         return eps
 
+    def _apply_subset(self, subset: pd.DataFrame):
+        """Keep only the subset's episodes; its numeric/bool columns not already in the table become list columns."""
+        self.extra_columns = [c for c in subset.columns if c != "episode_index" and c not in self.episodes
+                              and (pd.api.types.is_numeric_dtype(subset[c]) or pd.api.types.is_bool_dtype(subset[c]))]
+        missing = len(set(subset["episode_index"]) - set(self.episodes["episode_index"]))
+        if missing:
+            print(f"warning: {missing} subset episodes are not in {self.name}")
+        subset = subset.assign(subset_rank=np.arange(1, len(subset) + 1))  # the file's own order is the default sort
+        self.extra_columns = ["subset_rank"] + self.extra_columns
+        self.episodes = self.episodes.merge(subset[["episode_index"] + self.extra_columns], on="episode_index", how="inner")
+
+    def playable(self) -> np.ndarray:
+        """True where every camera's mp4 exists. Re-checked per request, so videos copied in while serving show up."""
+        ok = np.ones(len(self.episodes), dtype=bool)
+        for cam in self.cameras:
+            keys = list(zip(self.episodes[f"videos/{cam}/chunk_index"], self.episodes[f"videos/{cam}/file_index"]))
+            exists = {k: self.video_path(cam, int(k[0]), int(k[1])).exists() for k in set(keys)}
+            ok &= np.array([exists[k] for k in keys], dtype=bool)
+        return ok
+
     # ---- summaries for the browser ----
     def describe(self) -> dict:
         return {
@@ -141,15 +178,19 @@ class Dataset:
             "tasks": self.tasks,
             "has_recap": self.has_recap,
             "values": [{"name": n, "has_positive": s.positive is not None} for n, s in self.values.items()],
+            "subset": self.subset_name,
+            "extra_columns": self.extra_columns,
         }
 
     def episode_table(self) -> dict:
         """Column-oriented episode table (no per-frame data): ~100 bytes per episode."""
         keep = ["episode_index", "length", "seconds", "tasks", "source", "success"]
         keep += [c for c in RECAP_COLUMNS if c in self.episodes and c not in keep]
-        keep += [c for c in self.episodes if c.startswith("value_end:")]
+        keep += [c for c in self.episodes if c.startswith("value_end:")] + self.extra_columns
         table = self.episodes[keep].astype(object).where(self.episodes[keep].notna(), None)
-        return {c: table[c].tolist() for c in keep}
+        out = {c: [x.item() if isinstance(x, np.generic) else x for x in table[c]] for c in keep}  # float32 etc. -> JSON
+        out["playable"] = self.playable().tolist()
+        return out
 
     # ---- per-episode data (on request) ----
     def row(self, episode: int) -> pd.Series:

@@ -81,6 +81,7 @@ main { flex: 1; display: flex; min-height: 0; }
 #filters { padding: 8px 12px; border-bottom: 1px solid var(--grid); }
 #filters .row { display: flex; align-items: center; gap: 6px; margin: 4px 0; flex-wrap: wrap; }
 #filters .row > label:first-child { width: 64px; color: var(--ink-2); }
+#filters .row > label:only-child { width: auto; }
 #f-search { flex: 1; }
 #f-policy { max-width: 340px; }
 .chips { display: inline-flex; flex-wrap: wrap; gap: 4px 10px; }
@@ -95,15 +96,26 @@ body:not(.rl) .rl-only { display: none; }
   height: var(--row-h);
   align-items: center;
   white-space: nowrap;
+  min-width: max-content;
 }
 .table-row > span { overflow: hidden; text-overflow: ellipsis; }
-.table-row.head { color: var(--ink-2); border-bottom: 1px solid var(--grid); cursor: pointer; user-select: none; }
+.table-row.head {
+  color: var(--ink-2);
+  background: var(--page);
+  border-bottom: 1px solid var(--grid);
+  cursor: pointer;
+  user-select: none;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
 .table-row.head span:hover { color: var(--ink); }
-#table-scroll { flex: 1; overflow-y: auto; position: relative; }
-#table-body { position: relative; }
+#table-scroll { flex: 1; overflow: auto; position: relative; }  /* scrolls sideways when a subset adds many columns */
+#table-body { position: relative; min-width: max-content; }
 #table-body .table-row { position: absolute; left: 0; right: 0; cursor: pointer; }
 #table-body .table-row:hover { background: var(--grid); }
 #table-body .table-row.selected { background: var(--select); }
+#table-body .table-row.novideo { color: var(--muted); }
 .ok { color: var(--good); }
 .fail { color: var(--bad); }
 .num { text-align: right; font-variant-numeric: tabular-nums; }

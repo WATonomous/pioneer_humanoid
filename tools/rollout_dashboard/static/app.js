@@ -31,7 +31,7 @@ async function loadDataset(ds, ep = null) {
   buildValueControls();
   buildJointControls();
   const episodes = await getJSON(`/api/episodes?ds=${ds}`);
-  table.load(episodes, state.meta.values.map(v => v.name), state.tab);
+  table.load(episodes, state.meta.values.map(v => v.name), state.meta.extra_columns, state.tab);
   setTab(state.tab);
   const first = ep ?? table.view[0]?.episode_index;
   if (first != null) table.select(first);
@@ -268,7 +268,17 @@ function tick() {
   requestAnimationFrame(tick);
 }
 
+// Hand-edited URLs (…#ep=700): writeHash uses replaceState, which does not fire hashchange, so this only sees the user's edits.
+async function onHashChange() {
+  const hash = Object.fromEntries(new URLSearchParams(location.hash.slice(1)));
+  const ds = hash.ds != null ? +hash.ds : state.ds, ep = hash.ep != null ? +hash.ep : null;
+  if (hash.tab && hash.tab !== state.tab) setTab(hash.tab);
+  if (ds !== state.ds) await loadDataset(ds, ep);
+  else if (ep != null && ep !== state.episode?.episode_index) table.select(ep);
+}
+
 // ---------- wiring ----------
+window.addEventListener("hashchange", onHashChange);
 $("dataset").addEventListener("change", e => loadDataset(+e.target.value));
 document.querySelectorAll("#tabs button").forEach(b => b.addEventListener("click", () => setTab(b.dataset.tab)));
 $("play").addEventListener("click", () => (state.playing ? pause() : play()));

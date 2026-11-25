@@ -4,17 +4,22 @@
 
 const $ = id => document.getElementById(id);
 const fmtValue = v => (v == null ? "" : v.toFixed(2));
+const fmtExtra = v => (v == null ? "" : typeof v === "boolean" ? (v ? "✓" : "") : Number.isInteger(v) ? v : v.toFixed(3));
 
 // Column sets per tab: [key, header, grid width, render(row)].
-function columnsFor(tab, valueNames) {
+// Subset columns (--episodes) come right after the episode id: they are why the subset was made.
+function columnsFor(tab, valueNames, extras) {
   const ep = ["episode_index", "ep", "44px", r => r.episode_index];
   const secs = ["seconds", "s", "44px", r => r.seconds.toFixed(1)];
+  const extra = extras.map(c => (c === "subset_rank"
+    ? [c, "#", "32px", r => r[c], "row order in the --episodes file"]
+    : [c, c, "60px", r => fmtExtra(r[c]), `${c} (from the --episodes file)`]));
   if (tab === "sft") {
-    return [ep, secs, ["source", "source", "70px", r => r.source], ["tasks", "tasks", "1fr", r => r.tasks]];
+    return [ep, secs, ...extra, ["source", "source", "70px", r => r.source], ["tasks", "tasks", "minmax(200px, 1fr)", r => r.tasks]];
   }
   const ok = ["success", "", "16px", r => (r.success ? "<b class=ok>✓</b>" : "<b class=fail>✗</b>")];
   const values = valueNames.map(n => [`value_end:${n}`, n, "56px", r => fmtValue(r[`value_end:${n}`]), `value of ${n} at the last frame`]);
-  return [ok, ep, secs, ["source", "source", "60px", r => r.source], ["round", "rnd", "28px", r => r.round ?? ""],
+  return [ok, ep, secs, ...extra, ["source", "source", "60px", r => r.source], ["round", "rnd", "28px", r => r.round ?? ""],
     ["seed", "seed", "40px", r => r.seed ?? ""], ...values, ["policy", "policy", "minmax(80px, 1fr)", r => r.policy ?? ""]];
 }
 
@@ -30,20 +35,28 @@ class EpisodeTable {
     this.scroll.addEventListener("scroll", () => this.renderRows());
     new ResizeObserver(() => this.renderRows()).observe(this.scroll);
     $("filters").addEventListener("input", () => this.refresh());
+    // pointerdown, not click: a re-render between mousedown and mouseup (scroll, refresh) would swallow the click
+    this.body.addEventListener("pointerdown", e => {
+      const row = e.target.closest(".table-row");
+      if (row && e.button === 0) this.select(Number(row.dataset.ep));
+    });
   }
 
   // table: column-oriented {col: [...]} from /api/episodes
-  load(table, valueNames, tab) {
+  load(table, valueNames, extras, tab) {
     const cols = Object.keys(table);
     this.rows = table.episode_index.map((_, i) => Object.fromEntries(cols.map(c => [c, table[c][i]])));
+    this.playableCount = this.rows.filter(r => r.playable).length;
     this.valueNames = valueNames;
+    this.extras = extras;
+    this.sort = { key: extras.includes("subset_rank") ? "subset_rank" : "episode_index", dir: 1 };
     this.buildFilterOptions();
     this.setTab(tab);
   }
 
   setTab(tab) {
     this.tab = tab;
-    this.columns = columnsFor(tab, this.valueNames);
+    this.columns = columnsFor(tab, this.valueNames, this.extras);
     document.documentElement.style.setProperty("--cols", this.columns.map(c => c[2]).join(" "));
     $("table-head").innerHTML = this.columns.map(([key, label, , , tip]) => {
       const arrow = key === this.sort.key ? (this.sort.dir > 0 ? " ▲" : " ▼") : "";
@@ -68,6 +81,7 @@ class EpisodeTable {
     const checked = id => new Set([...$(id).querySelectorAll("input:checked")].map(i => i.value));
     return {
       search: $("f-search").value.trim().toLowerCase(),
+      showAll: $("f-show-all").checked,
       lenMin: num("f-len-min"), lenMax: num("f-len-max"),
       rl: this.tab === "rl",
       outcome: document.querySelector("input[name=outcome]:checked").value,
@@ -78,6 +92,7 @@ class EpisodeTable {
   }
 
   matches(r, f) {
+    if (!f.showAll && !r.playable) return false;
     if (f.search && !`${r.episode_index} ${r.tasks} ${r.policy ?? ""}`.toLowerCase().includes(f.search)) return false;
     if ((f.lenMin != null && r.seconds < f.lenMin) || (f.lenMax != null && r.seconds > f.lenMax)) return false;
     if (!f.rl) return true;
@@ -103,7 +118,9 @@ class EpisodeTable {
       if (x == null || y == null) return (x == null) - (y == null);
       return dir * ((x > y) - (x < y));
     });
-    $("count").textContent = `${this.view.length.toLocaleString()} / ${this.rows.length.toLocaleString()} episodes`;
+    const pool = f.showAll ? this.rows.length : this.playableCount, hidden = this.rows.length - this.playableCount;
+    $("count").textContent = `${this.view.length.toLocaleString()} of ${pool.toLocaleString()} episodes`
+      + (!f.showAll && hidden ? ` · ${hidden.toLocaleString()} without video hidden` : "");
     this.body.style.height = `${this.view.length * this.rowHeight()}px`;
     this.renderRows();
   }
@@ -115,15 +132,14 @@ class EpisodeTable {
     const last = Math.min(this.view.length, first + Math.ceil(this.scroll.clientHeight / h) + 2);
     let html = "";
     for (let i = first; i < last; i++) {
-      const r = this.view[i], sel = r.episode_index === this.selected ? " selected" : "";
+      const r = this.view[i], sel = (r.episode_index === this.selected ? " selected" : "") + (r.playable ? "" : " novideo");
       const cells = this.columns.map(([key, , , render]) => {
-        const cls = ["seconds", "round", "seed"].includes(key) || key.startsWith("value_end") ? " class=num" : "";
+        const cls = ["seconds", "round", "seed", ...this.extras].includes(key) || key.startsWith("value_end") ? " class=num" : "";
         return `<span${cls} title="${key === "policy" || key === "tasks" ? r[key] ?? "" : ""}">${render(r)}</span>`;
       }).join("");
       html += `<div class="table-row${sel}" data-ep="${r.episode_index}" style="top:${i * h}px">${cells}</div>`;
     }
     this.body.innerHTML = html;
-    this.body.querySelectorAll(".table-row").forEach(el => el.addEventListener("click", () => this.select(Number(el.dataset.ep))));
   }
 
   select(ep) {
@@ -136,7 +152,7 @@ class EpisodeTable {
     const i = this.view.findIndex(r => r.episode_index === this.selected) + delta;
     if (i < 0 || i >= this.view.length) return;
     const h = this.rowHeight();
-    if (i * h < this.scroll.scrollTop || (i + 1) * h > this.scroll.scrollTop + this.scroll.clientHeight) {
+    if (i * h < this.scroll.scrollTop || (i + 2) * h > this.scroll.scrollTop + this.scroll.clientHeight) {  // +1 row: sticky header
       this.scroll.scrollTop = i * h - this.scroll.clientHeight / 2;
     }
     this.select(this.view[i].episode_index);

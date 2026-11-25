@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rollout Dashboard</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <h1>Rollout dashboard</h1>
+  <select id="dataset" title="Dataset"></select>
+  <nav id="tabs">
+    <button data-tab="sft" class="active">SFT</button>
+    <button data-tab="rl">RL</button>
+  </nav>
+  <span id="count" class="muted"></span>
+  <span class="muted keys">space play · ←/→ frame · shift ±1 s · ↑/↓ episode</span>
+</header>
+
+<main>
+  <aside id="browser">
+    <section id="filters">
+      <div class="row">
+        <input id="f-search" type="search" placeholder="search episode / task / policy">
+      </div>
+      <div class="row">
+        <label><input id="f-show-all" type="checkbox"> also list episodes whose video files are missing</label>
+      </div>
+      <div class="row">
+        <label>length (s)</label>
+        <input id="f-len-min" type="number" min="0" placeholder="min">
+        <input id="f-len-max" type="number" min="0" placeholder="max">
+      </div>
+      <div class="rl-only">
+        <div class="row" id="f-outcome">
+          <label>outcome</label>
+          <label><input type="radio" name="outcome" value="all" checked> all</label>
+          <label><input type="radio" name="outcome" value="success"> success</label>
+          <label><input type="radio" name="outcome" value="failure"> failure</label>
+        </div>
+        <div class="row"><label>source</label><span id="f-source" class="chips"></span></div>
+        <div class="row"><label>round</label><span id="f-round" class="chips"></span></div>
+        <div class="row">
+          <label>policy</label>
+          <select id="f-policy"><option value="">all</option></select>
+        </div>
+        <div class="row">
+          <label>seed</label>
+          <input id="f-seed-min" type="number" placeholder="min">
+          <input id="f-seed-max" type="number" placeholder="max">
+        </div>
+      </div>
+    </section>
+    <div id="table-scroll">
+      <div id="table-head" class="table-row head"></div>
+      <div id="table-body"></div>
+    </div>
+  </aside>
+
+  <section id="viewer">
+    <div id="episode-title" class="muted">select an episode</div>
+    <div id="videos"></div>
+    <div id="transport">
+      <button id="play" title="play / pause (space)">▶</button>
+      <input id="scrub" type="range" min="0" max="0" value="0">
+      <span id="clock" class="mono">0 / 0</span>
+      <select id="rate" title="playback speed">
+        <option>0.5</option><option selected>1</option><option>2</option><option>4</option>
+      </select>
+    </div>
+    <div id="instruction"></div>
+    <div id="task-strip"></div>
+
+    <div class="panel rl-only" id="value-panel">
+      <div class="panel-head">
+        <strong>Value</strong>
+        <span id="value-checks" class="chips"></span>
+        <label><input type="checkbox" id="show-progress" checked> step changes</label>
+        <label><input type="checkbox" id="show-positive"> positive label of</label>
+        <select id="positive-source"></select>
+      </div>
+      <div class="chart-wrap"><canvas id="value-chart"></canvas></div>
+      <div id="value-readout" class="readout mono"></div>
+    </div>
+
+    <div class="panel" id="joint-panel">
+      <div class="panel-head">
+        <strong>Joints</strong>
+        <label><input type="checkbox" id="show-state" checked> state</label>
+        <label><input type="checkbox" id="show-action" checked> action (dashed)</label>
+        <span id="joint-checks" class="chips"></span>
+      </div>
+      <div class="chart-wrap"><canvas id="joint-chart"></canvas></div>
+      <div id="joint-readout" class="readout mono"></div>
+    </div>
+  </section>
+</main>
+
+<script src="/static/chart.js"></script>
+<script src="/static/table.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>
