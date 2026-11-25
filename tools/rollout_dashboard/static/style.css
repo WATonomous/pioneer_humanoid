@@ -173,7 +173,14 @@ body:not(.rl) .rl-only { display: none; }
 /* Narrow windows stack list over viewer and the whole page area scrolls; the list keeps a usable height. */
 @media (max-width: 900px) {
   main { flex-direction: column; overflow-y: auto; }
-  #browser { width: 100%; max-width: none; resize: none; overflow: visible; border-right: none; border-bottom: 1px solid var(--grid); }
+  #browser {
+    width: 100%;
+    max-width: none;
+    resize: none;
+    overflow: visible;
+    border-right: none;
+    border-bottom: 1px solid var(--grid);
+  }
   #table-scroll { flex: none; height: max(var(--list-min-h), 40vh); }
   #viewer { overflow: visible; }
   #videos { flex-direction: column; }
