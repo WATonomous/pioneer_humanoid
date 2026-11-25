@@ -197,8 +197,9 @@ base frame) and a 7 x 7 patch of terrain heights around it (the policy input is
 152, or 166 with `patch_rows_behind=1`; the plain tasks are 235). A checkpoint
 from one family therefore cannot be loaded into the other. The predictor trains
 alongside the policy and is saved as `foot_model_*.pt` next to the checkpoints;
-Play configs load it from `models/<task>/`. `tools/onshape_course/widen_foothold_obs.py`
-widens a 7-row checkpoint to the 8-row patch.
+Play configs load it from `models/<task>/`.
+The course-rebuild tooling (STEP -> terrain USD) is not part of this tree; the committed
+`*_terrain.usd` and profile JSONs are all that runtime needs.
 The straight foothold task keeps the arms scripted; the learned arm swing exists
 in the plain `StairsStraightArmSwing` / `StairsSpiralArmSwing` tasks.
 A trained straight policy and its predictor are in
