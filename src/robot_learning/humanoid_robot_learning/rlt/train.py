@@ -2,17 +2,18 @@
 
     MUJOCO_GL=egl python -m humanoid_robot_learning.rlt.train --policy <run>/checkpoints/last/pretrained_model --out rlt_out
 
+The defaults are the settled peg_insert run (trained at the scene's 4 mm hole; TD target clipped to [0, 1];
+smoothness penalties on): critical phase 2% (base) -> 38%, full task at 8 mm 14% -> 76% (paired, 100 layouts), with
+a quarter of the unpenalized actor's jerk. 150 min on one RTX 3090; PEG_CLEARANCE=0.008 widens the hole. To reuse
+another run's start states and RL token for comparable numbers, copy its starts.pkl and rl_token.pt into --out first.
+
 1. Start states: the base runs from fresh layouts (held-out seeds) until the handoff (peg held above the block top,
    within 3 cm of the hole; env.py) and the MuJoCo state is saved. Train and eval start states use disjoint seeds.
    The base's context tokens seen along the way are kept for step 2.
 2. RL token: a small encoder/decoder (token.py) trained to reconstruct those context tokens through one vector.
 3. Baseline: the base alone from every eval start state, replanning every C frames (as the RL agent does).
 4. TD3 (actor_critic.py) on (token, state, base chunk), chunks of C frames, reward 1 when the peg stays inserted
-   0.4 s, episode limit 10 s. Replay warmed with base rollouts; UTD ratio 2; evaluated every --eval_every transitions.
-
-The defaults are the settled peg_insert run (trained at the scene's 4 mm hole): critical phase 2% (base) -> 38%,
-full task at 8 mm 14% -> 76% (paired, 100 layouts), with a quarter of the unpenalized actor's jerk. 150 min on one
-RTX 3090; PEG_CLEARANCE=0.008 widens the hole.
+   0.4 s, episode limit 10 s. Replay warmed with base rollouts; UTD ratio --utd; evaluated every --eval_every transitions.
 
 Deviations from the paper (arXiv 2604.23073), for a first sim result on a small budget: the token is trained on
 the base's own rollouts (not demos) with a parallel (not autoregressive) decoder; no chunk subsampling at stride 2;
