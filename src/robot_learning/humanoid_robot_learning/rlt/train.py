@@ -8,7 +8,11 @@
 2. RL token: a small encoder/decoder (token.py) trained to reconstruct those context tokens through one vector.
 3. Baseline: the base alone from every eval start state, replanning every C frames (as the RL agent does).
 4. TD3 (actor_critic.py) on (token, state, base chunk), chunks of C frames, reward 1 when the peg stays inserted
-   0.4 s, episode limit 10 s. Replay warmed with base rollouts; UTD ratio 5; evaluated every --eval_every transitions.
+   0.4 s, episode limit 10 s. Replay warmed with base rollouts; UTD ratio 2; evaluated every --eval_every transitions.
+
+The defaults are the settled peg_insert run (trained at the scene's 4 mm hole): critical phase 2% (base) -> 38%,
+full task at 8 mm 14% -> 76% (paired, 100 layouts), with a quarter of the unpenalized actor's jerk. 150 min on one
+RTX 3090; PEG_CLEARANCE=0.008 widens the hole.
 
 Deviations from the paper (arXiv 2604.23073), for a first sim result on a small budget: the token is trained on
 the base's own rollouts (not demos) with a parallel (not autoregressive) decoder; no chunk subsampling at stride 2;
@@ -174,31 +178,32 @@ def main():
     p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     p.add_argument("--policy", required=True, help="Pioneer-1 pretrained_model directory (frozen base)")
     p.add_argument("--out", default="rlt_out")
-    p.add_argument("--envs", type=int, default=6)
+    p.add_argument("--envs", type=int, default=8)
     p.add_argument("--train_starts", type=int, default=240, help="layouts tried for training start states")
-    p.add_argument("--eval_starts", type=int, default=48, help="layouts tried for eval start states")
+    p.add_argument("--eval_starts", type=int, default=130, help="layouts tried for eval start states")
     p.add_argument("--token_steps", type=int, default=2000)
     p.add_argument("--chunk", type=int, default=5, help="C: frames per RL action (0.2 s at 25 fps)")
-    p.add_argument("--prefix", type=int, default=5, help="RTC prefix: actions of the base's last plan kept at the start"
+    p.add_argument("--prefix", type=int, default=2, help="RTC prefix: actions of the base's last plan kept at the start"
                    " of each new chunk (Pioneer-1 is trained with up to 6; 0 = none, which breaks its motion)")
-    p.add_argument("--baselines", default="5:0,5:2,5:5,16:6",
+    p.add_argument("--baselines", default="5:2,16:6",
                    help="base-only evals before RL, as C:prefix pairs (16:6 = how Pioneer-1 runs natively)")
     p.add_argument("--baseline_only", action="store_true", help="stop after the baselines")
     p.add_argument("--episode_s", type=float, default=10.0)
     p.add_argument("--warmup", type=int, default=2000, help="base-rollout transitions before RL updates")
-    p.add_argument("--utd", type=int, default=5)
+    p.add_argument("--utd", type=int, default=2, help="updates per transition; 5 overestimated Q")
     p.add_argument("--beta", type=float, default=10.0, help="penalty on ||a - a_ref||^2 (mean over values); 1 let the "
                    "actor drift cm away and knock the peg loose")
     p.add_argument("--free_gripper", action="store_true", help="let the actor change the gripper command (default: "
                    "pinned to the base's, insertion never needs it)")
     p.add_argument("--gamma", type=float, default=0.98)
-    p.add_argument("--noise", type=float, default=0.01, help="exploration std, normalized action units (~2-3 mm)")
+    p.add_argument("--noise", type=float, default=0.02, help="exploration std, normalized action units (0.01 ~ 2-3 mm); "
+                   "0.01 explored 5-15x less than the actor moved")
     p.add_argument("--ref_dropout", type=float, default=0.5)
-    p.add_argument("--smooth_t", type=float, default=0.0, help="CAPS-style penalty on the change of the actor's "
-                   "correction between consecutive decisions (actor_critic.TD3); 0 = off")
-    p.add_argument("--smooth_c", type=float, default=0.0, help="penalty on the correction's wiggle within a chunk")
-    p.add_argument("--minutes", type=float, default=60.0, help="RL wall-clock budget")
-    p.add_argument("--eval_every", type=int, default=3000, help="transitions between evals")
+    p.add_argument("--smooth_t", type=float, default=10.0, help="CAPS-style penalty on the change of the actor's "
+                   "correction between consecutive decisions (actor_critic.TD3); 0 = off, 40 stopped learning")
+    p.add_argument("--smooth_c", type=float, default=10.0, help="penalty on the correction's wiggle within a chunk")
+    p.add_argument("--minutes", type=float, default=150.0, help="RL wall-clock budget")
+    p.add_argument("--eval_every", type=int, default=10000, help="transitions between evals")
     p.add_argument("--seed", type=int, default=0)
     args = p.parse_args()
     import humanoid_mujoco_scenes.peg_insert.scene as peg_scene
