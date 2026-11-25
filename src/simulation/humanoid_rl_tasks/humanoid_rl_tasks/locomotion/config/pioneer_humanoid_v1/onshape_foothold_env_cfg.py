@@ -62,14 +62,8 @@ class PioneerHumanoidStairsFootholdEnvCfg(PioneerWholeBodyFootholdEnvCfg):
         # only the collider path changes, the course is one merged mesh.
         self.scene.height_scanner.mesh_prim_paths = ["/World/ground/terrain"]
 
-        # --- one extra patch row behind the heel -----------------------------
-        # A 7 x 7 patch at 5 cm reaches 15 cm behind the predicted foothold, but
-        # the ankle sits 8.0 cm from the heel of a 24.3 cm sole, so the step-off
-        # edge a descending heel can clip is right at the patch's rear boundary.
-        # One extra row extends the rear reach to 20 cm; the extra heights are
-        # flattened first, so the original 49 entries keep their order (see
-        # foothold.foothold_scan). The critic sees the same patch layout so the
-        # asymmetric pair stays consistent.
+        # --- one extra patch row behind the heel (the step-off edge sits at the 7x7 patch's rear
+        # boundary; critic sees the same layout)
         for group in (self.observations.policy, self.observations.critic):
             group.foothold_scan.params["patch_rows_behind"] = 1
 
@@ -77,14 +71,7 @@ class PioneerHumanoidStairsFootholdEnvCfg(PioneerWholeBodyFootholdEnvCfg):
         # (replaced below by the multi-slot course spawn; kept as the slot list's
         # first entry so the original spawn is still one of the draws)
 
-        # --- spawn along the course ------------------------------------------
-        # Every episode used to start 1.5 m before the first riser, so the
-        # 14.5-16 cm parts and their descents were a small slice of each 46 s
-        # episode. Start instead at the foot of any part: the y slots are the
-        # centres of the 0.4 m ground-level gaps measured off the merged
-        # collider (assets/staircase_onshape/straight_stairs_centreline.npz),
-        # where the whole 24 cm sole sits on flat ground. Jitters are small for
-        # the same reason (0.45 m of gap, 0.24 m of sole).
+        # --- spawn at the foot of any part (centres of the 0.4 m ground gaps in the centreline table)
         self.events.reset_base.func = course_mdp.reset_root_state_course_spawn
         self.events.reset_base.params = {
             "asset_cfg": SceneEntityCfg("robot"),
@@ -149,15 +136,7 @@ class PioneerHumanoidStairsFootholdEnvCfg(PioneerWholeBodyFootholdEnvCfg):
             params={"axis": 1},
         )
 
-        # --- soft landings ---------------------------------------------------
-        # Squared downward foot speed on terrain-contact frames only, i.e. the
-        # touchdown spike and nothing in swing. Measured on model_3549: the
-        # touchdown frames sum 91.7 (m/s)^2 over a 75 s episode, which at the
-        # -0.5 the arm-swing task used is worth 0.012 reward units -- inert, and
-        # exactly why that task never lost its "hard landing on the way down".
-        # -5.0 is ~0.12 units, about 9 % of the 1.34 forward-progress income, so
-        # a 1 m/s slam costs ~4x a normal 0.5 m/s touchdown without making the
-        # descent itself expensive.
+        # --- soft landings: -5.0 is ~9 % of progress income; -0.5 was inert on model_3549
         self.rewards.feet_impact = RewTerm(
             func=course_mdp.feet_impact_contact,
             weight=-5.0,
@@ -167,27 +146,13 @@ class PioneerHumanoidStairsFootholdEnvCfg(PioneerWholeBodyFootholdEnvCfg):
             },
         )
 
-        # --- ramp the push magnitude over the run ----------------------------
-        # push_robot kicks with up to 0.8 m/s per axis every 5-10 s, which is a
-        # huge instantaneous velocity change; starting at ~1/3 of it lets the
-        # gait settle before the full disturbance arrives. The endpoint is the
-        # configured 0.8 m/s, so the disturbance the policy is finally optimised
-        # against is unchanged and runs stay comparable. 6000 env steps is
-        # ~250 iterations at 24 steps per iteration.
+        # --- ramp the push magnitude 0.35 -> 1.0 over ~250 iterations so the gait settles first
         self.curriculum.push_speed = CurrTerm(
             func=course_mdp.push_speed_schedule,
             params={"term_name": "push_robot", "start_scale": 0.35, "final_scale": 1.0, "ramp_steps": 6000},
         )
 
-        # --- torso stability, slightly ---------------------------------------
-        # Measured on model_2999 (28 s, pushes off): pitch -0.9 +- 4.6 deg, roll
-        # +0.3 +- 3.2 deg, body-frame angular rate |wx| 0.36 / |wy| 0.44 rad/s.
-        # The mean tilt is ~0, so the defect is oscillation rather than a lean:
-        # price the rates (ang_vel_xy_l2) and the tilt amplitude
-        # (flat_orientation_l2) a little harder. Both moves are deliberately
-        # small -- at these magnitudes the rate term goes from ~7 % to ~14 % of
-        # the velocity-tracking income, which is enough to matter without
-        # reshaping the gait the walk was trained on.
+        # --- torso stability, slightly: price roll/pitch oscillation (not mean lean) a bit harder
         self.rewards.ang_vel_xy_l2.weight = -0.10       # was -0.05
         self.rewards.flat_orientation_l2.weight = -1.5  # was -1.0
 

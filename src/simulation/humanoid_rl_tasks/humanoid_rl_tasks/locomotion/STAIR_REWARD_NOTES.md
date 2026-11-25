@@ -233,3 +233,116 @@ against the fall penalty is unchanged.
   +/-50). The 0.84 m flat approach eats the first seconds, so a stricter bar
   would truncate every episode before a sustained climb.
 - **Episode length 240 s.** The staircase is ~7 m tall and the climb takes ~50 s.
+
+## Foothold tasks (`StairsStraightFoothold`, `StairsSpiralFoothold`)
+
+### Straight foothold
+- **Extra patch row behind the heel.** A 7x7 patch at 5 cm reaches 15 cm behind the
+  predicted foothold, but the ankle sits 8.0 cm from the heel of a 24.3 cm sole, so the
+  step-off edge a descending heel can clip is at the patch's rear boundary. One more row
+  extends the reach to 20 cm; the extra heights are flattened first so the original 49
+  keep their order. The critic sees the same layout.
+- **Spawn at the foot of any part.** Starting 1.5 m before the first riser made the
+  14.5-16 cm parts a small slice of each 46 s episode. The y slots are the centres of the
+  0.4 m ground-level gaps (`straight_stairs_centreline.npz`), where the whole 24 cm sole
+  sits on flat ground; jitters are small for the same reason.
+- **Soft landings -5.0.** Touchdown frames summed 91.7 (m/s)^2 over a 75 s episode on
+  model_3549, worth 0.012 at -0.5 (inert). -5.0 is ~0.12, about 9 % of the 1.34
+  forward-progress income.
+- **Push ramp 0.35 -> 1.0** over 6000 env steps (~250 iterations): `push_robot` kicks up to
+  0.8 m/s per axis every 5-10 s, so starting at ~1/3 lets the gait settle first; the
+  endpoint is unchanged.
+- **Torso stability.** model_2999 (28 s, no pushes): pitch -0.9 +/- 4.6 deg, roll
+  +0.3 +/- 3.2 deg, |wx| 0.36 / |wy| 0.44 rad/s. Mean tilt ~0, so the defect is oscillation;
+  the rate term goes from ~7 % to ~14 % of velocity-tracking income.
+
+### Spiral foothold (the measurements behind each `SPIRAL_*` knob)
+- **Defaults** reproduce `model_249_slow`: dense height-rate climb income capped at the
+  commanded path speed (weight 80 at 0.10 m/s), riser bonus 20 (makes a step-up worth the
+  fall), flight penalty 25, velocity tracking 5, torso damped (-2 roll / -10 tilt).
+- **`feet_impact_contact`.** The inherited `feet_impact` reads sensors that filter the
+  terrain mesh, but here the feet touch the staircase helicoid, so it logged -0.0011 per
+  episode (0.1 % of income). The replacement reads the `contact_forces` sensor.
+- **`feet_slide` -4.** Plant speed while loaded was 0.19 m/s here vs 0.09 on the straight
+  course (the foot is still travelling when it lands). The inherited -0.5 was 2 % of income;
+  -4 is ~7 % and is what `model_299_plant` used. It is linear in plant speed, so it prices a
+  skid where the squared vertical-impact term cannot.
+- **Back-kick -1.5, allow 0.10.** `kick_probe.py` over 381 swings aligned at lift-off: the
+  foot leaves the tread 0.24 m behind the root and moves 3 cm further backwards over 0.26 s
+  with the knee at -0.75 rad. 43 % of swings carry the foot backwards in world frame for the
+  first 0.2 s; averaging hides it. Raw term averages 0.055 (m/s)^2/step (p90 0.117) against
+  ~0.18 reward/step: -0.5 (~15 %) changed nothing, -1.5 charges ~46 %. It uses
+  `body_lin_vel_w` projected on the heading, gated on airborne, so a planted foot is free.
+- **Knee fold: off.** Knee goes -0.23 -> -0.73 rad within 0.24 s of lift-off. Pricing it at
+  -1.0 (34 % of income) changed nothing: folding is geometrically required to clear a riser
+  from a foot that leaves 0.24 m behind the body.
+- **Shank rotation -0.02.** Shank pitch -22.9 -> -39.5 deg over 0.28 s while the thigh comes
+  forward only 12.5 deg. Pricing joint angle or foot position both failed; pricing the
+  rotation forces the hip to lead. Raw 1.54 (rad/s)^2/step, so -0.02 is ~17 % of income.
+- **Action-rate -0.02, not -0.002.** The action changed 2.9 sigma per step (straight: 0.34)
+  and legs accelerated at 99 rad/s^2 (straight: 43). At -0.002 the term was 3 % of income and
+  the policy buzzed at the control Nyquist rate (the knee target, clipped to (-1.1, -0.05),
+  was a two-state relay). At -0.02 the buzz costs 35 % and the smooth regime 1.5 %.
+- **Slew cap on leg targets: off.** On `2026-11-18_19-08-38` the mean target step is tiny
+  (knee 0.03 rad) but tails are huge (Ankle_P_L and Hip_F_L p99 0.74 rad, max 1.37 rad in
+  one step). A 12 rad/s cap clips only those, yet trained in it cost 20 % completion
+  (0.951 -> 0.749) and left the leg-acceleration tail unchanged (p99 270 -> 246): the spikes
+  are joints hitting position stops, not command slew. It was briefly default-on, which put
+  earlier probes and videos under the cap. The mechanism stays in `mdp/joint_rate_limit.py`
+  behind `SPIRAL_LEG_RATE` / `SPIRAL_KNEE_RATE`.
+- **Knee slew cap: tried, off.** Knee target step median 0.000 rad, p99 0.89, max 1.05 rad
+  (the whole range in one 20 ms step: a relay). A 16 rad/s cap cost nothing but left velocity
+  reversals unchanged (23.96 -> 23.93 /s, 24.16 retrained) and taps per riser went 3.6 -> 5.1:
+  a slew cap bounds step size, not reversal rate.
+- **Knee action scale 0.05.** The inherited 0.30 maps the 1.05 rad clip range onto a in
+  [-2.0, +1.5] while the knee output is |a| ~ 8-13, so the command sits on a rail ~85 % of
+  steps, with ~5x too much small-signal gain and ~24 reversals/s (straight: 12-16). 0.05
+  spans a in [-12, +9].
+- **`action_l2` -2e-3.** On the shipped model mean |a| was 10.8-13.9 (hips) and 9.9-11.3
+  (knees) vs 0.9-1.3 on the straight deliverable; commands were outside the joint range on
+  50-84 % of steps and motors at effort limit on 26-59 %. The drift came with action std
+  growing 0.84 -> 2.01 rad (`entropy_coef` 0 leaves it no restoring force). `action_rate_l2`
+  prices only changes, so a policy sitting in saturation pays nothing. The reward manager
+  charges `weight * sum(a^2) * dt` and logs it divided by episode length (which is why -2e-4
+  looked 39x too small); -2e-3 is ~30 % of gross reward at |a| ~ 10 and ~1 % at |a| ~ 1.
+- **`knee_target_overshoot`.** Charges the unclipped target beyond the window (smooth-L1,
+  linear tail). The inherited -0.025 was ~1 % of reward and the relay survived three runs;
+  -0.5 is ~22 % but the policy paid it instead of leaving the rail (completion
+  0.939 -> 0.903), so it stays at the inherited value until the target signal is measured.
+- **Swing target vs band bonus.** The straight deliverable prices swing height with a target
+  (`feet_swing_height_relative`, 0.10 m, weight -40); the inherited band bonus pays for
+  extreme flexion, and the knee sat on a clip value 85 % of steps. `dof_vel` and
+  `contact_no_vel` are the two other smoothness terms this task lacked.
+- **Fly-in: off.** At -2 over 300 iterations it cut peak touchdown force 680 -> 670 N but
+  completion fell 0.894 -> 0.797 and out-of-bounds doubled (0.039 -> 0.086): pricing the low
+  forward carry makes the policy stub risers. The horizontal arrival is a symptom of the
+  short stride.
+- **Command gate threshold.** Swing clearance, air time and knee tuck gate on a strict `>`
+  against the command norm, and this task commands exactly 0.10 m/s, equal to the shared 0.1
+  threshold, so all three read 0.0000 and the robot shuffled up on straight knees. The
+  threshold now sits below the command; the shared default is untouched.
+- **Scanner at the base, not lifted.** The spiral recipe lifts the scanner 1.5 m, but from
+  there ~75 % of rays hit the turn above (heights ~-1.5 m, clipped to -1), which is exactly
+  the information the foothold patches need.
+- **Observation clips.** The base-motion, joint-velocity and last-action terms were
+  unbounded, and `last_action` feeds back. Both spiral runs died at ~450 iterations:
+  `action_rate_l2` spiked 350,000x in one iteration, value loss reached 1e12, then std went
+  NaN, with actor weights flat (max |w| 0.44) -- the blow-up came from the input.
+- **`invalid_height_scan` off.** A ray leaving the staircase from the base-level scanner is
+  genuinely no ground and is already encoded as -1; terminating on it charged -800 for the
+  outer columns and ended 25-67 % of transfer-run episodes.
+- **Spawn spread.** Starting every episode on the flat 0.84 m approach (standing is free
+  there) was the attractor the straight-to-spiral transfer sat in for 455 iterations without
+  climbing once; half the batch now starts on treads.
+- **Riser bonus capped in rate.** Uncapped, it pays more per second the faster the robot
+  moves and turned the gait into a sprint (2.5-3.5 risers/s vs a 0.20 m/s command). The cap
+  pays at most one riser per `SPIRAL_BONUS_MIN_STEPS`; dense progress terms are capped at
+  the commanded path speed.
+- **Action window scaling.** On the old scales the low edge was reached at |a| of 2.3-3.5
+  while the policy sat at 8-10; outside the window the reward is flat in the action, so no
+  gradient. Scaling so |a| = `_ACT_RANGE` reaches the far edge keeps every relevant command
+  inside the gradient region.
+- **Keep a foot loaded.** A staircase is a support-transfer task. The straight policy keeps
+  a foot loaded 66 % of the time; the spiral was at 27 % (4.3 footfalls/s, 44 deg forward
+  lean). The term is zero in every supported step, so it does not prefer standing. With it:
+  54 % loaded, completion 0.939 -> 0.994, falls 0.052 -> 0.005.
