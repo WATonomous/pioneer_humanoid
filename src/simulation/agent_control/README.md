@@ -25,7 +25,7 @@ Then give the agent, running on the host from the repo root, [TASK_hanoi.md](TAS
 The server only exposes safe primitives: `move` is a straight fingertip line with the gripper pointing down, IK checked
 at every waypoint, and refuses with `IK_UNREACHABLE`, `PATH_UNREACHABLE` or `BELOW_TABLE` instead of moving.
 
-## Results (camera-only, 3 rings, one run each)
+## Results (camera-only, 3 rings, one run each, before the wrist-camera calibration fix)
 
 | | solved | commands | camera looks | failed grasps | agent time | sim time |
 |---|---|---|---|---|---|---|
