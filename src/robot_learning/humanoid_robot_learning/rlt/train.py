@@ -2,13 +2,19 @@
 
     MUJOCO_GL=egl python -m humanoid_robot_learning.rlt.train --policy <run>/checkpoints/last/pretrained_model --out rlt_out
 
+Settings of the reported runs (4 mm hole; TD target clipped to [0, 1]; to reuse another run's start states and RL
+token for comparable numbers, copy its starts.pkl and rl_token.pt into --out first):
+
+    --envs 8 --train_starts 240 --eval_starts 130 --prefix 2 --baselines 5:2,16:6 --utd 2 --noise 0.02 --beta 10 \
+      --minutes 150 --eval_every 10000
+
 1. Start states: the base runs from fresh layouts (held-out seeds) until the handoff (peg held above the block top,
    within 3 cm of the hole; env.py) and the MuJoCo state is saved. Train and eval start states use disjoint seeds.
    The base's context tokens seen along the way are kept for step 2.
 2. RL token: a small encoder/decoder (token.py) trained to reconstruct those context tokens through one vector.
 3. Baseline: the base alone from every eval start state, replanning every C frames (as the RL agent does).
 4. TD3 (actor_critic.py) on (token, state, base chunk), chunks of C frames, reward 1 when the peg stays inserted
-   0.4 s, episode limit 10 s. Replay warmed with base rollouts; UTD ratio 5; evaluated every --eval_every transitions.
+   0.4 s, episode limit 10 s. Replay warmed with base rollouts; UTD ratio --utd; evaluated every --eval_every transitions.
 
 Deviations from the paper (arXiv 2604.23073), for a first sim result on a small budget: the token is trained on
 the base's own rollouts (not demos) with a parallel (not autoregressive) decoder; no chunk subsampling at stride 2;
