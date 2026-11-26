@@ -5,6 +5,7 @@ from pathlib import Path
 
 import numpy as np
 
+
 def test_ramp_exports_match_measured_geometry_and_local_labels(tmp_path):
     script = Path(__file__).resolve().parents[1] / "prototype" / "simulate_tr8.py"
     subprocess.run([sys.executable, str(script), "--noise-mm", "0", "--out", str(tmp_path)], check=True)
