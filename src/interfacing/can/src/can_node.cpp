@@ -38,15 +38,11 @@ CanNode::CanNode()
   this->declare_parameter("upper.device_path", "/dev/canable1");
   this->declare_parameter("upper.bustype", "slcan");
   this->declare_parameter("upper.bitrate", 1000000);
-  this->declare_parameter<std::vector<int64_t>>("upper.motor_ids",
-                                                {11, 12, 13, 14, 21, 22, 30, 31, 32, 33, 34, 104});
 
   this->declare_parameter("lower.can_interface", "can1");
   this->declare_parameter("lower.device_path", "/dev/canable2");
   this->declare_parameter("lower.bustype", "slcan");
   this->declare_parameter("lower.bitrate", 1000000);
-  this->declare_parameter<std::vector<int64_t>>("lower.motor_ids",
-                                                {40, 41, 42, 43, 44, 45, 50, 51, 52, 53, 54, 55});
 
   this->declare_parameter("receive_poll_interval_ms", 10);
   this->declare_parameter("mit_master_id", 0);
@@ -59,13 +55,11 @@ CanNode::CanNode()
   std::string device_path_upper = this->get_parameter("upper.device_path").as_string();
   std::string bustype_upper = this->get_parameter("upper.bustype").as_string();
   int bitrate_upper = this->get_parameter("upper.bitrate").as_int();
-  const auto motor_ids_upper = this->get_parameter("upper.motor_ids").as_integer_array();
 
   std::string can_interface_lower = this->get_parameter("lower.can_interface").as_string();
   std::string device_path_lower = this->get_parameter("lower.device_path").as_string();
   std::string bustype_lower = this->get_parameter("lower.bustype").as_string();
   int bitrate_lower = this->get_parameter("lower.bitrate").as_int();
-  const auto motor_ids_lower = this->get_parameter("lower.motor_ids").as_integer_array();
 
   RCLCPP_INFO(this->get_logger(),
               "Loaded upper parameters: interface=%s, bustype=%s, bitrate=%d, "
@@ -85,18 +79,12 @@ CanNode::CanNode()
   config_upper.device_path = device_path_upper;
   config_upper.bustype = bustype_upper;
   config_upper.bitrate = bitrate_upper;
-  for (const auto id : motor_ids_upper) {
-    motor_buses_[static_cast<int>(id)] = &can_upper;
-  }
 
   CanConfig config_lower{};
   config_lower.interface_name = can_interface_lower;
   config_lower.device_path = device_path_lower;
   config_lower.bustype = bustype_lower;
   config_lower.bitrate = bitrate_lower;
-  for (const auto id : motor_ids_lower) {
-    motor_buses_[static_cast<int>(id)] = &can_lower;
-  }
 
   // Initialize the CAN interface
   try {
@@ -293,7 +281,8 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
         return;
       }
       const MitProfile& p = it->second;
-      if (p.family == MitFamily::Ak) {
+      // akv2 and gl2 fall through to the DBC's MITControlCmd (same layout, standard frame).
+      if (p.family == MitFamily::Akv3) {
         // AK V3: extended id 0x800|id, KP-first payload.
         CanMessage ak_msg(static_cast<int>(akMitCanId(msg->motor_id)), 8);
         ak_msg.is_extended_id = true;
@@ -379,56 +368,77 @@ void CanNode::loadMitProfiles() {
     root = YAML::LoadFile(path);
   } catch (const std::exception& e) {
     RCLCPP_ERROR(this->get_logger(),
-                 "Failed to load MIT profiles from %s: %s. MIT_CONTROL "
-                 "commands will be refused for all motors.",
+                 "Failed to load MIT profiles from %s: %s. No motor has a bus: every "
+                 "command will be refused.",
                  path.c_str(), e.what());
     return;
   }
-  const YAML::Node motors = root["motors"];
-  if (!motors) {
-    RCLCPP_ERROR(this->get_logger(), "MIT profiles file %s has no 'motors' key", path.c_str());
+  if (!root["upper"] && !root["lower"]) {
+    RCLCPP_ERROR(this->get_logger(),
+                 "MIT profiles file %s has no 'upper' or 'lower' section. No motor has a bus: "
+                 "every command will be refused.",
+                 path.c_str());
     return;
   }
-  for (const auto& kv : motors) {
-    const int motor_id = std::stoi(kv.first.as<std::string>());
-    const YAML::Node n = kv.second;
-    MitProfile p;
-    p.p_min = n["p_min"].as<double>();
-    p.p_max = n["p_max"].as<double>();
-    p.v_min = n["v_min"].as<double>();
-    p.v_max = n["v_max"].as<double>();
-    p.t_min = n["t_min"].as<double>();
-    p.t_max = n["t_max"].as<double>();
-    p.kp_min = n["kp_min"].as<double>();
-    p.kp_max = n["kp_max"].as<double>();
-    p.kd_min = n["kd_min"].as<double>();
-    p.kd_max = n["kd_max"].as<double>();
-    p.model = n["model"] ? n["model"].as<std::string>() : std::string("?");
-    p.kt = n["kt"] ? n["kt"].as<double>() : 0.0;
-    const std::string family = n["family"] ? n["family"].as<std::string>() : std::string("ak");
-    if (!mitFamilyFromString(family, p.family)) {
-      RCLCPP_ERROR(this->get_logger(),
-                   "MIT profile for motor %d has unknown family '%s' (expected ak|gl2) -- "
-                   "skipping this motor; MIT_CONTROL for it will be refused.",
-                   motor_id, family.c_str());
-      continue;
+  // The section a motor is listed under is the bus it is sent on.
+  std::vector<int> duplicates;
+  for (const auto& [section, bus] : {std::pair<const char*, CanCore*>{"upper", &can_upper},
+                                     std::pair<const char*, CanCore*>{"lower", &can_lower}}) {
+    for (const auto& kv : root[section]) {
+      const int motor_id = std::stoi(kv.first.as<std::string>());
+      if (motor_buses_.count(motor_id)) {
+        duplicates.push_back(motor_id);
+      }
+      motor_buses_[motor_id] = bus;
+      const YAML::Node n = kv.second;
+      MitProfile p;
+      p.p_min = n["p_min"].as<double>();
+      p.p_max = n["p_max"].as<double>();
+      p.v_min = n["v_min"].as<double>();
+      p.v_max = n["v_max"].as<double>();
+      p.t_min = n["t_min"].as<double>();
+      p.t_max = n["t_max"].as<double>();
+      p.kp_min = n["kp_min"].as<double>();
+      p.kp_max = n["kp_max"].as<double>();
+      p.kd_min = n["kd_min"].as<double>();
+      p.kd_max = n["kd_max"].as<double>();
+      p.model = n["model"] ? n["model"].as<std::string>() : std::string("?");
+      p.kt = n["kt"] ? n["kt"].as<double>() : 0.0;
+      const std::string family = n["family"] ? n["family"].as<std::string>() : std::string("akv3");
+      if (!mitFamilyFromString(family, p.family)) {
+        RCLCPP_ERROR(this->get_logger(),
+                     "MIT profile for motor %d has unknown family '%s' (expected akv2|akv3|gl2) -- "
+                     "skipping this motor; MIT_CONTROL for it will be refused.",
+                     motor_id, family.c_str());
+        continue;
+      }
+      if (p.family == MitFamily::Akv3 && p.kt <= 0.0) {
+        RCLCPP_WARN(this->get_logger(),
+                    "AK motor %d has no 'kt' in mit_profiles.yaml: its feedback torque stays 0, so "
+                    "joint_command's mit_max_torque can never trip for it in MIT mode.",
+                    motor_id);
+      }
+      mit_profiles_[motor_id] = p;
+      RCLCPP_INFO(this->get_logger(), "Loaded MIT profile for motor %d (%s, family %s, %s bus)",
+                  motor_id, p.model.c_str(), family.c_str(), section);
     }
-    if (p.family == MitFamily::Ak && p.kt <= 0.0) {
-      RCLCPP_WARN(this->get_logger(),
-                  "AK motor %d has no 'kt' in mit_profiles.yaml: its feedback torque stays 0, so "
-                  "joint_command's mit_max_torque can never trip for it in MIT mode.",
-                  motor_id);
-    }
-    mit_profiles_[motor_id] = p;
-    RCLCPP_INFO(this->get_logger(), "Loaded MIT profile for motor %d (%s, family %s)", motor_id,
-                p.model.c_str(), family.c_str());
   }
 
-  // Both families reply on the master id: drop an AK profile whose id shares a GL II's low
+  // An id listed twice: which entry is the real drive is unknown, so refuse it entirely.
+  for (const int id : duplicates) {
+    RCLCPP_ERROR(this->get_logger(),
+                 "Motor %d is listed more than once in mit_profiles.yaml -- refusing every "
+                 "command to it until the duplicate is removed.",
+                 id);
+    mit_profiles_.erase(id);
+    motor_buses_.erase(id);
+  }
+
+  // akv2 and gl2 reply on the master id: drop an akv2 profile whose id shares a GL II's low
   // nibble, rather than misread its feedback.
   std::vector<int> ambiguous;
   for (const auto& [ak_id, ak] : mit_profiles_) {
-    if (ak.family != MitFamily::Ak) {
+    if (ak.family != MitFamily::Akv2) {
       continue;
     }
     for (const auto& [gl_id, gl] : mit_profiles_) {
@@ -482,7 +492,7 @@ void CanNode::sendMitSpecialFrame(int motor_id, uint8_t code, const char* what) 
                  what, motor_id);
     return;
   }
-  if (it->second.family == MitFamily::Ak) {
+  if (it->second.family == MitFamily::Akv3) {
     // AK V3 has no special frames.
     if (code == MIT_SPECIAL_SET_ZERO) {
       RCLCPP_ERROR(this->get_logger(),
@@ -506,17 +516,20 @@ void CanNode::sendMitSpecialFrame(int motor_id, uint8_t code, const char* what) 
 }
 
 // MIT feedback: a standard frame on the master id, outside the DBC. Byte 0 is the full motor id
-// (ak) or status << 4 | id nibble (gl2). Returns true if consumed.
+// (akv2) or status << 4 | id nibble (gl2). Returns true if consumed.
 bool CanNode::handleMitFeedback(const CanMessage& message) {
-  if (message.is_extended_id || static_cast<int>(message.id) != mit_master_id_ ||
-      message.data.size() < 8) {
+  if (message.is_extended_id || message.data.size() < 8) {
     return false;
   }
 
   const auto ak_it = mit_profiles_.find(static_cast<int>(message.data[0]));
-  if (ak_it != mit_profiles_.end() && ak_it->second.family == MitFamily::Ak) {
+  if (ak_it != mit_profiles_.end() && ak_it->second.family == MitFamily::Akv2 &&
+      static_cast<int>(message.id) == ak_it->first) {
     publishAkFeedback(ak_it->first, decodeAkFeedback(message.data.data(), ak_it->second));
     return true;
+  }
+  if (static_cast<int>(message.id) != mit_master_id_) {
+    return false;
   }
 
   const uint8_t id_nibble = message.data[0] & 0xF;
@@ -539,7 +552,7 @@ bool CanNode::handleMitFeedback(const CanMessage& message) {
   if (profile == nullptr) {
     RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
                          "MIT feedback on master id 0x%X for unknown motor (byte 0 = 0x%02X) -- "
-                         "no ak id or gl2 nibble matches (see config/mit_profiles.yaml)",
+                         "no akv2 id or gl2 nibble matches (see config/mit_profiles.yaml)",
                          mit_master_id_, message.data[0]);
     return true;
   }
@@ -573,10 +586,10 @@ void CanNode::publishAkFeedback(int motor_id, const MitAkFeedback& fb) {
   feedback_msg.velocity = static_cast<float>(fb.velocity);                // rad/s
   feedback_msg.current = 0.0f;
   feedback_msg.torque = static_cast<float>(fb.torque);
-  feedback_msg.temperature = static_cast<int8_t>(fb.motor_temp);
+  feedback_msg.temperature = static_cast<int8_t>(std::min(fb.motor_temp, 127));
   feedback_msg.error_code = static_cast<int8_t>(fb.error);
 
-  if (!mitStatusIsOk(fb.error, MitFamily::Ak)) {
+  if (!mitStatusIsOk(fb.error, MitFamily::Akv2)) {
     RCLCPP_ERROR_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
                           "Motor %d reports AK MIT error %d (%s)", motor_id, fb.error,
                           mitAkErrorName(fb.error));
@@ -631,7 +644,7 @@ void CanNode::receiveCanMessages(CanCore& core) {
         // Servo frames carry current: derive torque for AK drives (read by mit_max_torque).
         feedback_msg.torque = 0.0f;
         const auto prof = mit_profiles_.find(device_id);
-        if (prof != mit_profiles_.end() && prof->second.family == MitFamily::Ak &&
+        if (prof != mit_profiles_.end() && prof->second.family == MitFamily::Akv3 &&
             prof->second.kt > 0.0) {
           feedback_msg.torque = static_cast<float>(feedback_msg.current * prof->second.kt);
         }

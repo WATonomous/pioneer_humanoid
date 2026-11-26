@@ -144,7 +144,8 @@ MitAkFeedback decodeAkFeedback(const uint8_t* data, const MitProfile& profile) {
   fb.position = unpackMitValue(pos_i, profile.p_min, profile.p_max, 16);
   fb.velocity = unpackMitValue(vel_i, profile.v_min, profile.v_max, 12);
   fb.torque = unpackMitValue(t_i, profile.t_min, profile.t_max, 12);
-  fb.motor_temp = static_cast<int8_t>(data[6]);
+  profile.family == MitFamily::Akv3 ? fb.motor_temp = static_cast<int>(data[6])
+                                    : fb.motor_temp = static_cast<int>(data[6]) - 40;
   fb.error = data[7];
   return fb;
 }
@@ -202,15 +203,19 @@ const char* mitAkErrorName(uint8_t error) {
 }
 
 bool mitStatusIsOk(uint8_t status, MitFamily family) {
-  if (family == MitFamily::Ak) {
+  if (family == MitFamily::Akv2 || family == MitFamily::Akv3) {
     return status == 0;
   }
   return status == 0x0 || status == 0x1;
 }
 
 bool mitFamilyFromString(const std::string& name, MitFamily& out) {
-  if (name == "ak") {
-    out = MitFamily::Ak;
+  if (name == "akv2") {
+    out = MitFamily::Akv2;
+    return true;
+  }
+  if (name == "akv3") {
+    out = MitFamily::Akv3;
     return true;
   }
   if (name == "gl2") {

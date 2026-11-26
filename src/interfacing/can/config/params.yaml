@@ -14,10 +14,8 @@ can_node:
       device_path: "/dev/canable1"  # Serial device path for SLCAN
       bustype: "slcan"  # Bus type to create a CAN interface: "socketcan" or "slcan"
       bitrate: 1000000  # CAN bitrate in bps (125000, 250000, 500000, 1000000)
-      motor_ids: [11, 12, 13, 14, 21, 22, 30, 31, 32, 33, 34, 104]
     lower:
       can_interface: "can1"
       device_path: "/dev/canable2"
       bustype: "slcan"
       bitrate: 1000000
-      motor_ids: [40, 41, 42, 43, 44, 45, 56, 57, 58, 59, 60, 61]

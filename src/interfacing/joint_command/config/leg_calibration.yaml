@@ -5,7 +5,6 @@ left:
       lower_limit: -20.0
       upper_limit: 90.0
       direction: 1
-      direction: 1
       zero_offset: null
       limit_range: true
     roll:
@@ -48,14 +47,14 @@ left:
 right:
   hip:
     pitch:
-      can_id: 56
+      can_id: 60
       lower_limit: -20.0
       upper_limit: 90.0
       direction: 1
       zero_offset: null
       limit_range: true
     roll:
-      can_id: 57
+      can_id: 52
       lower_limit: -10.0
       upper_limit: 60.0
       direction: 1
@@ -71,23 +70,23 @@ right:
   knee:
     pitch:
       can_id: 59
-      lower_limit: -140.0
-      upper_limit: 0.0
+      lower_limit: -50.0
+      upper_limit: 50.0
       direction: 1
-      zero_offset: null
+      zero_offset: 40.099998474121094
       limit_range: true
   ankle:
     pitch:
-      can_id: 60
-      lower_limit: -30.0
-      upper_limit: 50.0
+      can_id: 55
+      lower_limit: -55.30000019073486
+      upper_limit: 52.29999828338623
       direction: 1
-      zero_offset: null
+      zero_offset: -31.799999237060547
       limit_range: true
     roll:
-      can_id: 61
-      lower_limit: -15.0
-      upper_limit: 15.0
+      can_id: 56
+      lower_limit: -55.0
+      upper_limit: 55.0
       direction: 1
-      zero_offset: null
+      zero_offset: -30.399999618530273
       limit_range: true

@@ -131,7 +131,8 @@ python3 pioneer_leader_arm_teleop.py --target real --live
 The motor's id must already be set on the drive (CubeMars tool) and follow the
 [id rules](can/README.md#both-arms-on-one-bus). Then, in the repo:
 1. **`can/config/mit_profiles.yaml`**: an entry keyed by the decimal id (`model`, `family`,
-   MIT ranges, and `kt` for an AK). Without it `can_node` refuses MIT commands to that id.
+   MIT ranges, and `kt` for an AK) under the section of the bus it is wired to (`upper` or
+   `lower`). Without it `can_node` has no bus for that id and refuses every command to it.
 2. **`joint_command/config/arm_calibration.yaml`**: the joint under its arm side with its
    `can_id` and a `direction` matching the URDF. A new arm needs its own top-level block
    (`right:`) first: `calibrate_actuators.py --arm-side right` fails if the side is missing. Only
@@ -141,3 +142,8 @@ The motor's id must already be set on the drive (CubeMars tool) and follow the
 4. **New arm only:** add the side to `arms` in `joint_command/config/joint_command.yaml`.
 5. `./watod build`: `joint_command` and `roundtrip.py` read the *installed* configs.
 6. Bring it up from step 0: `candump`, calibrate, visualize, then move.
+
+
+```bash
+tools/roundtrip.sh --limb leg --joints knee.pitch --offset "0,0,0,30,0,0"
+```
