@@ -1,5 +1,6 @@
 #pragma once
 
+#include "bus_routing.hpp"
 #include "can_core.hpp"
 #include "mit_protocol.hpp"
 
@@ -36,6 +37,9 @@ private:
   bool lower_initialized_ = false;
   std::unordered_map<int, CanCore*> motor_buses_;
   CanCore* findBusForMotor(int motor_id);
+  // Throws std::runtime_error on an id listed twice or outside int8; logs MIT profiles on no bus.
+  void validateBusRouting(const std::vector<int64_t>& upper_ids,
+                          const std::vector<int64_t>& lower_ids);
   // Can messages
   // Map of CAN message ID to its DBC definition for decoding
   std::unordered_map<std::string, const dbcppp::IMessage*> can_messages;
@@ -51,6 +55,8 @@ private:
   static constexpr size_t max_payload_per_frame = 8; // CAN frame max bytes
   static constexpr size_t data_chunk_size = 8;
 
+  // The named DBC message; throws std::runtime_error if it is not loaded.
+  const dbcppp::IMessage* dbcMessage(const std::string& name) const;
   void publishCanMessage(CanMessage& can_msg, CanCore& core);
   void encodeSignal(const dbcppp::ISignal* signal, int64_t phys_value, CanMessage& can_msg);
   void encodeSignal(const dbcppp::ISignal* signal, double phys_value, CanMessage& can_msg);

@@ -5,6 +5,7 @@
 #include <cstring> // Required for std::memcpy
 #include <functional>
 #include <rclcpp/serialization.hpp>
+#include <stdexcept>
 #include <thread>
 
 CanNode::CanNode()
@@ -73,6 +74,9 @@ CanNode::CanNode()
               can_interface_lower.c_str(), bustype_lower.c_str(), bitrate_lower,
               receive_poll_interval_ms);
 
+  // Every MIT profile is loaded above, so routing can be checked against it before any bus opens.
+  validateBusRouting(motor_ids_upper, motor_ids_lower);
+
   // Configure CanCore
   CanConfig config_upper{};
   config_upper.interface_name = can_interface_upper;
@@ -113,6 +117,47 @@ CanNode::CanNode()
 
   // Load topic configurations and create subscribers
   createSubscribersPublishers();
+}
+
+void CanNode::validateBusRouting(const std::vector<int64_t>& upper_ids,
+                                 const std::vector<int64_t>& lower_ids) {
+  std::vector<int> mit_ids;
+  for (const auto& [id, profile] : mit_profiles_) {
+    mit_ids.push_back(id);
+  }
+  const BusRoutingReport report = checkBusRouting(upper_ids, lower_ids, mit_ids);
+  const auto join = [](const auto& ids) {
+    std::string s;
+    for (const auto id : ids) {
+      s += (s.empty() ? "" : ", ") + std::to_string(id);
+    }
+    return s;
+  };
+
+  if (!report.unrouted_mit_ids.empty()) {
+    // Not fatal (a profile can exist for a drive not fitted yet), but commands to these motors
+    // are dropped: before this check that showed up only as a throttled runtime log line.
+    RCLCPP_ERROR(this->get_logger(),
+                 "Motor(s) [%s] have an MIT profile in mit_profiles.yaml but are on neither "
+                 "upper.motor_ids nor lower.motor_ids in params.yaml: every command to them "
+                 "will be DROPPED. Add each one to the bus it is wired to.",
+                 join(report.unrouted_mit_ids).c_str());
+  }
+  if (!report.invalid_ids.empty()) {
+    RCLCPP_FATAL(this->get_logger(),
+                 "Motor id(s) [%s] in params.yaml are outside 0-%ld: MotorCmd/MotorFeedback "
+                 "carry motor_id as int8, so they can never be routed.",
+                 join(report.invalid_ids).c_str(), static_cast<long>(kMaxRoutableMotorId));
+  }
+  if (!report.duplicate_ids.empty()) {
+    RCLCPP_FATAL(this->get_logger(),
+                 "Motor id(s) [%s] are listed more than once across upper.motor_ids and "
+                 "lower.motor_ids in params.yaml: a motor is wired to exactly one bus.",
+                 join(report.duplicate_ids).c_str());
+  }
+  if (report.hasErrors()) {
+    throw std::runtime_error("Invalid CAN bus routing in params.yaml (see the errors above)");
+  }
 }
 
 void CanNode::createSubscribersPublishers() {
@@ -190,7 +235,7 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
     switch (msg->control_type) {
 
     case common_msgs::msg::MotorCmd::DUTY_CYCLE: {
-      dbc_msg = can_messages["DutyCycleCmd"];
+      dbc_msg = dbcMessage("DutyCycleCmd");
       CanMessage can_msg = dbcCanMessage(dbc_msg, msg->motor_id);
       encodeSignal(findSignalByName(dbc_msg, "DutyCycle"), static_cast<double>(msg->duty_cycle),
                    can_msg);
@@ -199,7 +244,7 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
     }
 
     case common_msgs::msg::MotorCmd::CURRENT_LOOP: {
-      dbc_msg = can_messages["CurrentLoopCmd"];
+      dbc_msg = dbcMessage("CurrentLoopCmd");
       CanMessage can_msg = dbcCanMessage(dbc_msg, msg->motor_id);
       encodeSignal(findSignalByName(dbc_msg, "IqCurrent"), static_cast<double>(msg->current),
                    can_msg);
@@ -208,7 +253,7 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
     }
 
     case common_msgs::msg::MotorCmd::CURRENT_BRAKE: {
-      dbc_msg = can_messages["CurrentBrakeCmd"];
+      dbc_msg = dbcMessage("CurrentBrakeCmd");
       CanMessage can_msg = dbcCanMessage(dbc_msg, msg->motor_id);
       encodeSignal(findSignalByName(dbc_msg, "BrakeCurrent"), static_cast<double>(msg->current),
                    can_msg);
@@ -217,7 +262,7 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
     }
 
     case common_msgs::msg::MotorCmd::VELOCITY_LOOP: {
-      dbc_msg = can_messages["VelocityLoopCmd"];
+      dbc_msg = dbcMessage("VelocityLoopCmd");
       CanMessage can_msg = dbcCanMessage(dbc_msg, msg->motor_id);
       encodeSignal(findSignalByName(dbc_msg, "VelocityERPM"), static_cast<double>(msg->velocity),
                    can_msg);
@@ -226,7 +271,7 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
     }
 
     case common_msgs::msg::MotorCmd::POSITION_LOOP: {
-      dbc_msg = can_messages["PositionLoopCmd"];
+      dbc_msg = dbcMessage("PositionLoopCmd");
       CanMessage can_msg = dbcCanMessage(dbc_msg, msg->motor_id);
       encodeSignal(findSignalByName(dbc_msg, "PositionDeg"), static_cast<double>(msg->position),
                    can_msg);
@@ -235,7 +280,7 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
     }
 
     case common_msgs::msg::MotorCmd::SET_ORIGIN: {
-      dbc_msg = can_messages["SetOriginCmd"];
+      dbc_msg = dbcMessage("SetOriginCmd");
       CanMessage can_msg = dbcCanMessage(dbc_msg, msg->motor_id);
       // 0 = Temporary Origin, 1 = Permanent Origin (from DBC VAL_)
       double origin_mode = msg->temporary ? 0.0 : 1.0;
@@ -245,7 +290,7 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
     }
 
     case common_msgs::msg::MotorCmd::POSITION_VELOCITY: {
-      dbc_msg = can_messages["PositionVelocityCmd"];
+      dbc_msg = dbcMessage("PositionVelocityCmd");
       CanMessage can_msg = dbcCanMessage(dbc_msg, msg->motor_id);
       encodeSignal(findSignalByName(dbc_msg, "PosVelPosition"), static_cast<double>(msg->position),
                    can_msg);
@@ -292,7 +337,7 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
         publishCanMessage(ak_msg, *bus);
         break;
       }
-      dbc_msg = can_messages["MITControlCmd"];
+      dbc_msg = dbcMessage("MITControlCmd");
       CanMessage can_msg = dbcCanMessage(dbc_msg, msg->motor_id);
       // Nearest code for gains: truncation would apply kp 0.61 as 0.488.
       encodeSignal(findSignalByName(dbc_msg, "MIT_KP"),
@@ -338,7 +383,7 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
     }
 
     case common_msgs::msg::MotorCmd::DISABLE: {
-      dbc_msg = can_messages["MotorDisableCmd"];
+      dbc_msg = dbcMessage("MotorDisableCmd");
       // MotorDisableCmd has no signals, just send the CAN ID
       CanMessage can_msg = dbcCanMessage(dbc_msg, msg->motor_id);
       publishCanMessage(can_msg, *bus);
@@ -459,12 +504,29 @@ void CanNode::loadMitProfiles() {
   }
 }
 
+// Throws (caught in motorCMDCallback) instead of handing back nullptr: an unknown name used to
+// insert a null entry via operator[] and segfault the node in dbcCanMessage, taking every motor's
+// feedback down with it (e.g. a GL II command after the DBC failed to load).
+const dbcppp::IMessage* CanNode::dbcMessage(const std::string& name) const {
+  const auto it = can_messages.find(name);
+  if (it == can_messages.end() || it->second == nullptr) {
+    throw std::runtime_error("DBC message '" + name + "' not loaded (is humanoid.dbc installed?)");
+  }
+  return it->second;
+}
+
 void CanNode::encodeSignal(const dbcppp::ISignal* signal, int64_t phys_value, CanMessage& can_msg) {
+  if (signal == nullptr) {
+    throw std::runtime_error("DBC signal missing -- frame not sent");
+  }
   auto raw = signal->PhysToRaw(phys_value);
   signal->Encode(raw, can_msg.data.data());
 }
 
 void CanNode::encodeSignal(const dbcppp::ISignal* signal, double phys_value, CanMessage& can_msg) {
+  if (signal == nullptr) {
+    throw std::runtime_error("DBC signal missing -- frame not sent");
+  }
   auto raw = signal->PhysToRaw(phys_value);
   signal->Encode(raw, can_msg.data.data());
 }
@@ -667,7 +729,10 @@ void CanNode::receiveCanMessages(CanCore& core) {
         }
       }
     } else {
-      RCLCPP_WARN(this->get_logger(), "Received CAN message with unknown ID: 0x%X", base_id);
+      // Throttled: this fires per frame (e.g. every frame when the DBC failed to load), which
+      // flooded the log at bus rate and buried the errors that matter.
+      RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
+                           "Received CAN message with unknown ID: 0x%X", base_id);
     }
   }
 }
