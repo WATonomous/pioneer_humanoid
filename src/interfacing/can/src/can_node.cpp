@@ -518,19 +518,17 @@ void CanNode::sendMitSpecialFrame(int motor_id, uint8_t code, const char* what) 
 // MIT feedback: a standard frame on the master id, outside the DBC. Byte 0 is the full motor id
 // (akv2) or status << 4 | id nibble (gl2). Returns true if consumed.
 bool CanNode::handleMitFeedback(const CanMessage& message) {
-  if (message.is_extended_id || /*static_cast<int>(message.id) != mit_master_id_ */
-      message.data.size() < 8 /*static_cast<int>(message.id) != any of the can ids in akv2 drives in mit profiles*/) {
+  if (message.is_extended_id || message.data.size() < 8) {
     return false;
   }
 
-
   const auto ak_it = mit_profiles_.find(static_cast<int>(message.data[0]));
   if (ak_it != mit_profiles_.end() && ak_it->second.family == MitFamily::Akv2 &&
-static_cast<int>(message.id) == ak_it->first) {
+      static_cast<int>(message.id) == ak_it->first) {
     publishAkFeedback(ak_it->first, decodeAkFeedback(message.data.data(), ak_it->second));
     return true;
   }
-  if (static_cast<int>(message.id) != mit_master_id_){
+  if (static_cast<int>(message.id) != mit_master_id_) {
     return false;
   }
 
