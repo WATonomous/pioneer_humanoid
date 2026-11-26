@@ -36,9 +36,13 @@ def _worker(conn, cameras, fps):
     control_steps = round(1 / (fps * CONTROL_DT))
     block_id = env.model.body("hole_block").id
     held, lifted = 0, False                      # a drop only counts once the peg has been off the table
+    record = False                               # also return every frame's cameras (half size) from "step"
     while True:
         cmd, arg = conn.recv()
-        if cmd == "reset":                       # fresh layout from a seed (start-state collection)
+        if cmd == "record":
+            record = bool(arg)
+            conn.send(None)
+        elif cmd == "reset":                     # fresh layout from a seed (start-state collection)
             env.reset(arg)
             held, lifted = 0, False
             conn.send(env.observe())
@@ -58,10 +62,13 @@ def _worker(conn, cameras, fps):
                        "block_pos": env.model.body_pos[block_id].copy()})
         elif cmd == "step":                      # (k, A) actions, one per frame; stop early on success or a drop
             success = dropped = False
-            frames = 0
+            frames, video = 0, []
             for a in arg:
                 env.step(np.asarray(a, dtype=np.float64), control_steps)
                 frames += 1
+                if record:
+                    o = env.observe()
+                    video.append(np.concatenate([v[::2, ::2] for k, v in o.items() if k.startswith("observation.images")], 1))
                 held = held + 1 if env.success(env.model, env.data) else 0
                 if held >= HOLD_FRAMES:
                     success = True
@@ -76,7 +83,7 @@ def _worker(conn, cameras, fps):
             handoff = (bool(obs["observation.state"][-1] > GRASPED) and bottom > block_top + 0.002
                        and float(np.linalg.norm(peg[:2] - block[:2])) < HANDOFF_XY)
             conn.send((obs, {"success": success, "dropped": dropped, "handoff": handoff, "frames": frames,
-                             "time": float(env.data.time)}))
+                             "time": float(env.data.time), "video": video}))
         elif cmd == "close":
             env.close()
             conn.close()
