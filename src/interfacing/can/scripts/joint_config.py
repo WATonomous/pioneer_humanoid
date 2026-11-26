@@ -67,7 +67,7 @@ def actuator_configs(limb: str) -> List[str]:
     ]
 
 
-# can/config/mit_profiles.yaml: which protocol family each drive speaks (gl2 | ak).
+# can/config/mit_profiles.yaml: which protocol family each drive speaks (gl2 | akv2 | akv3).
 MIT_PROFILES = [
     str(Path(__file__).resolve().parent.parent / "config" / "mit_profiles.yaml"),
     "/opt/watonomous/can/share/can/config/mit_profiles.yaml",
@@ -111,7 +111,7 @@ def find_actuators(explicit: Optional[str], limb: str = "arm") -> Optional[Path]
 
 
 def drive_family(motor_id: int) -> Optional[str]:
-    """mit_profiles.yaml family for this id (gl2 / ak), or None if unknown."""
+    """mit_profiles.yaml family for this id (gl2 / akv2 / akv3), or None if unknown."""
     path = _first_existing(MIT_PROFILES)
     if path is None:
         return None

@@ -7,10 +7,12 @@
 # GL40 ranges are the GL II manual V1.0 section 5 defaults. Ranges are per-drive settings
 # (CubeMars upper computer): fix them here if a drive was reconfigured.
 #
-# family: ak  -- AK V3.0: extended frame, KP-first payload, no ENTER/EXIT. Feedback is the servo
+# family: akv2 -- AK V2: standard frame on the node id, needs MIT_ENTER first, replies once per
+#                command on mit_master_id (not yet checked on the bench).
+#         akv3 -- AK V3.0: extended frame, KP-first payload, no ENTER/EXIT. Feedback is the servo
 #                frame; torque = current * kt (manual table). The manual's CAN examples decode
 #                with p +-12.5 / v +-50, not the table values below -- verify on the bench.
-#         gl2 -- GL II: standard frame, feedback on mit_master_id, needs MIT_ENTER first.
+#         gl2  -- GL II: standard frame, feedback on mit_master_id, needs MIT_ENTER first.
 #
 # position (rad), velocity (rad/s), torque (N.m); kp/kd ranges are shared across AK models.
 # gl2 velocity is in the drive's "r/s".
@@ -19,12 +21,12 @@
 motors:
     # LEFT
   # AK10-9 -- shoulder_pitch (0x0E), shoulder_roll (0x0C)
-  "30": {model: AK10-9, family: ak, p_min: -12.56, p_max: 12.56, v_min: -28.0, v_max: 28.0, t_min: -54.0, t_max: 54.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 1.3137}
-  "31": {model: AK10-9, family: ak, p_min: -12.56, p_max: 12.56, v_min: -28.0, v_max: 28.0, t_min: -54.0, t_max: 54.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 1.3137}
+  "30": {model: AK10-9, family: akv3, p_min: -12.56, p_max: 12.56, v_min: -28.0, v_max: 28.0, t_min: -54.0, t_max: 54.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 1.3137}
+  "31": {model: AK10-9, family: akv3, p_min: -12.56, p_max: 12.56, v_min: -28.0, v_max: 28.0, t_min: -54.0, t_max: 54.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 1.3137}
   # AK80-9 -- shoulder_yaw (0x0D), elbow_pitch (0x0B), elbow_yaw (0x68)
-  "32": {model: AK80-9, family: ak, p_min: -12.56, p_max: 12.56, v_min: -65.0, v_max: 65.0, t_min: -18.0, t_max: 18.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 0.5701}
-  "33": {model: AK80-9, family: ak, p_min: -12.56, p_max: 12.56, v_min: -65.0, v_max: 65.0, t_min: -18.0, t_max: 18.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 0.5701}
-  "34": {model: AK80-9, family: ak, p_min: -12.56, p_max: 12.56, v_min: -65.0, v_max: 65.0, t_min: -18.0, t_max: 18.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 0.5701}
+  "32": {model: AK80-9, family: akv3, p_min: -12.56, p_max: 12.56, v_min: -65.0, v_max: 65.0, t_min: -18.0, t_max: 18.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 0.5701}
+  "33": {model: AK80-9, family: akv3, p_min: -12.56, p_max: 12.56, v_min: -65.0, v_max: 65.0, t_min: -18.0, t_max: 18.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 0.5701}
+  "34": {model: AK80-9, family: akv3, p_min: -12.56, p_max: 12.56, v_min: -65.0, v_max: 65.0, t_min: -18.0, t_max: 18.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 0.5701}
   # GL40 KV70 (GL II) -- wrist_pitch (0x16), gripper open_close (0x15). Verify p_max: with the
   # drive limp, a quarter turn by hand must move MotorFeedback.position by ~90 deg.
   "35": {model: GL40-KV70, family: gl2, p_min: -12.5, p_max: 12.5, v_min: -200.0, v_max: 200.0, t_min: -10.0, t_max: 10.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0}
@@ -32,12 +34,12 @@ motors:
 
   # RIGHT
   # AK10-9 -- shoulder_pitch (0x0E), shoulder_roll (0x0C)
-  "14": {model: AK10-9, family: ak, p_min: -12.56, p_max: 12.56, v_min: -28.0, v_max: 28.0, t_min: -54.0, t_max: 54.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 1.3137}
-  "12": {model: AK10-9, family: ak, p_min: -12.56, p_max: 12.56, v_min: -28.0, v_max: 28.0, t_min: -54.0, t_max: 54.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 1.3137}
+  "14": {model: AK10-9, family: akv3, p_min: -12.56, p_max: 12.56, v_min: -28.0, v_max: 28.0, t_min: -54.0, t_max: 54.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 1.3137}
+  "12": {model: AK10-9, family: akv3, p_min: -12.56, p_max: 12.56, v_min: -28.0, v_max: 28.0, t_min: -54.0, t_max: 54.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 1.3137}
   # AK80-9 -- shoulder_yaw (0x0D), elbow_pitch (0x0B), elbow_yaw (0x68)
-  "13": {model: AK80-9, family: ak, p_min: -12.56, p_max: 12.56, v_min: -65.0, v_max: 65.0, t_min: -18.0, t_max: 18.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 0.5701}
-  "11": {model: AK80-9, family: ak, p_min: -12.56, p_max: 12.56, v_min: -65.0, v_max: 65.0, t_min: -18.0, t_max: 18.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 0.5701}
-  "104": {model: AK80-9, family: ak, p_min: -12.56, p_max: 12.56, v_min: -65.0, v_max: 65.0, t_min: -18.0, t_max: 18.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 0.5701}
+  "13": {model: AK80-9, family: akv3, p_min: -12.56, p_max: 12.56, v_min: -65.0, v_max: 65.0, t_min: -18.0, t_max: 18.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 0.5701}
+  "11": {model: AK80-9, family: akv3, p_min: -12.56, p_max: 12.56, v_min: -65.0, v_max: 65.0, t_min: -18.0, t_max: 18.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 0.5701}
+  "104": {model: AK80-9, family: akv3, p_min: -12.56, p_max: 12.56, v_min: -65.0, v_max: 65.0, t_min: -18.0, t_max: 18.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 0.5701}
   # GL40 KV70 (GL II) -- wrist_pitch (0x16), gripper open_close (0x15). Verify p_max: with the
   # drive limp, a quarter turn by hand must move MotorFeedback.position by ~90 deg.
   "22": {model: GL40-KV70, family: gl2, p_min: -12.5, p_max: 12.5, v_min: -200.0, v_max: 200.0, t_min: -10.0, t_max: 10.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0}
@@ -56,27 +58,33 @@ motors:
   # LEFT LEG. Knee 44 and ankles 45 / 46 are the ids read off the drives (2026-11-16); the plan
   # had knee 43, ankles 44 / 45. Hip ids are still planned.
   # hip_pitch
-  "40": {model: AKH70-48, family: ak, p_min: -12.56, p_max: 12.56, v_min: -5.0, v_max: 5.0, t_min: -280.0, t_max: 280.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 8.8123}
+  "40": {model: AKH70-48, family: akv3, p_min: -12.56, p_max: 12.56, v_min: -5.0, v_max: 5.0, t_min: -280.0, t_max: 280.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 8.8123}
   # hip_roll
-  "41": {model: AK80-64, family: ak, p_min: -12.5, p_max: 12.5, v_min: -8.0, v_max: 8.0, t_min: -144.0, t_max: 144.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0}
+  "41": {model: AK80-64, family: akv2, p_min: -12.5, p_max: 12.5, v_min: -8.0, v_max: 8.0, t_min: -144.0, t_max: 144.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0}
   # hip_yaw
-  "42": {model: AK80-64, family: ak, p_min: -12.5, p_max: 12.5, v_min: -8.0, v_max: 8.0, t_min: -144.0, t_max: 144.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0}
+  "42": {model: AK80-64, family: akv2, p_min: -12.5, p_max: 12.5, v_min: -8.0, v_max: 8.0, t_min: -144.0, t_max: 144.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0}
   # knee_pitch
-  "44": {model: AKH70-48, family: ak, p_min: -12.56, p_max: 12.56, v_min: -5.0, v_max: 5.0, t_min: -280.0, t_max: 280.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 8.8123}
+  "44": {model: AKH70-48, family: akv3, p_min: -12.56, p_max: 12.56, v_min: -5.0, v_max: 5.0, t_min: -280.0, t_max: 280.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 8.8123}
   # ankle_pitch
-  "45": {model: AK60-39, family: ak, p_min: -12.56, p_max: 12.56, v_min: -10.0, v_max: 10.0, t_min: -80.0, t_max: 80.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 3.4616}
+  "45": {model: AK60-39, family: akv3, p_min: -12.56, p_max: 12.56, v_min: -10.0, v_max: 10.0, t_min: -80.0, t_max: 80.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 3.4616}
   # ankle_roll
-  "46": {model: AK60-39, family: ak, p_min: -12.56, p_max: 12.56, v_min: -10.0, v_max: 10.0, t_min: -80.0, t_max: 80.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 3.4616}
+  "46": {model: AK60-39, family: akv3, p_min: -12.56, p_max: 12.56, v_min: -10.0, v_max: 10.0, t_min: -80.0, t_max: 80.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 3.4616}
   # RIGHT LEG
   # hip_pitch
-  "60": {model: AKH70-48, family: ak, p_min: -12.56, p_max: 12.56, v_min: -5.0, v_max: 5.0, t_min: -280.0, t_max: 280.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 8.8123}
+  "60": {model: AKH70-48, family: akv3, p_min: -12.56, p_max: 12.56, v_min: -5.0, v_max: 5.0, t_min: -280.0, t_max: 280.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 8.8123}
   # hip_roll
-  "52": {model: AK80-64, family: ak, p_min: -12.5, p_max: 12.5, v_min: -8.0, v_max: 8.0, t_min: -144.0, t_max: 144.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0}
+  "52": {model: AK80-64, family: akv2, p_min: -12.5, p_max: 12.5, v_min: -8.0, v_max: 8.0, t_min: -144.0, t_max: 144.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0}
   # hip_yaw
-  "58": {model: AK80-64, family: ak, p_min: -12.5, p_max: 12.5, v_min: -8.0, v_max: 8.0, t_min: -144.0, t_max: 144.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0}
+  "58": {model: AK80-64, family: akv2, p_min: -12.5, p_max: 12.5, v_min: -8.0, v_max: 8.0, t_min: -144.0, t_max: 144.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0}
   # knee_pitch
-  "59": {model: AKH70-48, family: ak, p_min: -12.56, p_max: 12.56, v_min: -5.0, v_max: 5.0, t_min: -280.0, t_max: 280.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 8.8123}
+  "59": {model: AKH70-48, family: akv3, p_min: -12.56, p_max: 12.56, v_min: -5.0, v_max: 5.0, t_min: -280.0, t_max: 280.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 8.8123}
   # ankle_pitch
-  "55": {model: AK60-39, family: ak, p_min: -12.56, p_max: 12.56, v_min: -10.0, v_max: 10.0, t_min: -80.0, t_max: 80.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 3.4616}
+  "55": {model: AK60-39, family: akv3, p_min: -12.56, p_max: 12.56, v_min: -10.0, v_max: 10.0, t_min: -80.0, t_max: 80.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 3.4616}
   # ankle_roll
-  "56": {model: AK60-39, family: ak, p_min: -12.56, p_max: 12.56, v_min: -10.0, v_max: 10.0, t_min: -80.0, t_max: 80.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 3.4616}
+  "56": {model: AK60-39, family: akv3, p_min: -12.56, p_max: 12.56, v_min: -10.0, v_max: 10.0, t_min: -80.0, t_max: 80.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 3.4616}
+
+# Upper Waist
+  "46": {model: AK80-64, family: akv2, p_min: -12.5, p_max: 12.5, v_min: -8.0, v_max: 8.0, t_min: -144.0, t_max: 144.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0}
+
+# Lower Waist
+  "42": {model: AK80-64, family: akv2, p_min: -12.5, p_max: 12.5, v_min: -8.0, v_max: 8.0, t_min: -144.0, t_max: 144.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0}

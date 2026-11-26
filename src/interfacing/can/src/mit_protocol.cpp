@@ -202,15 +202,19 @@ const char* mitAkErrorName(uint8_t error) {
 }
 
 bool mitStatusIsOk(uint8_t status, MitFamily family) {
-  if (family == MitFamily::Ak) {
+  if (family == MitFamily::Akv2 || family == MitFamily::Akv3) {
     return status == 0;
   }
   return status == 0x0 || status == 0x1;
 }
 
 bool mitFamilyFromString(const std::string& name, MitFamily& out) {
-  if (name == "ak") {
-    out = MitFamily::Ak;
+  if (name == "akv2") {
+    out = MitFamily::Akv2;
+    return true;
+  }
+  if (name == "akv3") {
+    out = MitFamily::Akv3;
     return true;
   }
   if (name == "gl2") {

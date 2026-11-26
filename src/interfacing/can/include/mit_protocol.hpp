@@ -1,11 +1,13 @@
 #pragma once
 
 // CubeMars MIT ("Force Control") protocol helpers. Pure functions, unit-tested without a bus.
-//   gl2 (GL40, GL II manual V1.0 s5): standard frame on the motor id; needs ENTER (FF..FC) first.
-//   ak  (AK V3.0, manual V3.0.1 s4.2): extended frame akMitCanId(), KP-first byte order, no
-//       special frames. Feedback is the servo status frame via the DBC.
+//   gl2  (GL40, GL II manual V1.0 s5): standard frame on the motor id; needs ENTER (FF..FC) first.
+//   akv2 (AK V2, driver manual V1.0.18): same command frame and ENTER as gl2. Replies once per
+//        command with the classic-MIT AK feedback below.
+//   akv3 (AK V3.0, manual V3.0.1 s4.2): extended frame akMitCanId(), KP-first byte order, no
+//        special frames. Feedback is the servo status frame via the DBC.
 //
-// GL II command payload, 8 bytes:
+// GL II / AK V2 command payload, 8 bytes:
 //   byte 0: p[15:8]   byte 1: p[7:0]
 //   byte 2: v[11:4]   byte 3: v[3:0]<<4 | kp[11:8]
 //   byte 4: kp[7:0]   byte 5: kd[11:4]
@@ -18,7 +20,7 @@
 //   byte4[3:0] + byte 5: torque(12)
 //   byte 6: drive temp (degC, signed)   byte 7: motor temp (degC, signed)
 //
-// Classic-MIT AK feedback payload, on the master id (pre-V3 only; V3 sends the servo frame):
+// Classic-MIT AK feedback payload, on the master id (akv2 only; V3 sends the servo frame):
 //   byte 0: driver id (FULL 8 bits -- unlike GL II, no status nibble)
 //   byte 1-2: position(16)   byte 3 + byte4[7:4]: velocity(12)
 //   byte4[3:0] + byte 5: torque(12)
@@ -35,7 +37,7 @@ inline constexpr uint8_t MIT_SPECIAL_EXIT = 0xFD;      // exit motor mode (motor
 inline constexpr uint8_t MIT_SPECIAL_SET_ZERO = 0xFE;  // set current position as zero
 inline constexpr uint8_t MIT_SPECIAL_CLEAR_ERR = 0xFB; // clear errors
 
-enum class MitFamily { Ak, Gl2 };
+enum class MitFamily { Akv2, Akv3, Gl2 };
 
 // Per-motor MIT (Force Control) protocol scaling constants -- see config/mit_profiles.yaml.
 // Physical position/velocity/torque/kp/kd MIN..MAX for THIS motor model, used to pack
@@ -93,7 +95,7 @@ const char* mitCommandOutOfRange(double p, double v, double kp, double kd, doubl
 // Manual uint_to_float: code * span / (2^bits - 1) + min.
 double unpackMitValue(uint32_t code, double min, double max, unsigned bits);
 
-// Payload for a GL II MIT command frame, in the byte order documented above.
+// Payload for a GL II / AK V2 MIT command frame, in the byte order documented above.
 std::array<uint8_t, 8> packMitCommand(double p, double v, double kp, double kd, double t,
                                       const MitProfile& profile);
 
@@ -124,5 +126,5 @@ const char* mitAkErrorName(uint8_t error);
 // Healthy status codes. Families disagree: GL II 1 = Enable, AK 1 = over-temperature.
 bool mitStatusIsOk(uint8_t status, MitFamily family);
 
-// "ak" / "gl2" (case-sensitive, as written in mit_profiles.yaml). Unknown -> false.
+// "akv2" / "akv3" / "gl2" (case-sensitive, as written in mit_profiles.yaml). Unknown -> false.
 bool mitFamilyFromString(const std::string& name, MitFamily& out);

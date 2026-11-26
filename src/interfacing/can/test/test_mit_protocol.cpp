@@ -39,7 +39,7 @@ MitProfile ak809Profile() {
   p.v_max = 65.0;
   p.t_min = -18.0;
   p.t_max = 18.0;
-  p.family = MitFamily::Ak;
+  p.family = MitFamily::Akv3;
   p.model = "AK80-9";
   return p;
 }
@@ -164,16 +164,18 @@ TEST(MitDecode, DecodesAkLayoutFromTheManual) {
   EXPECT_NEAR(fb.torque, 3.0, 36.0 / 4095.0);
   EXPECT_EQ(fb.motor_temp, 35);
   EXPECT_EQ(fb.error, 0);
-  EXPECT_TRUE(mitStatusIsOk(fb.error, MitFamily::Ak));
+  EXPECT_TRUE(mitStatusIsOk(fb.error, MitFamily::Akv2));
 }
 
 // Code 1: GL II "Enable" (healthy) vs AK "motor over-temp".
 TEST(MitDecode, StatusOneIsAFaultOnAkButHealthyOnGl2) {
   EXPECT_TRUE(mitStatusIsOk(1, MitFamily::Gl2));
-  EXPECT_FALSE(mitStatusIsOk(1, MitFamily::Ak));
+  EXPECT_FALSE(mitStatusIsOk(1, MitFamily::Akv2));
+  EXPECT_FALSE(mitStatusIsOk(1, MitFamily::Akv3));
   EXPECT_STREQ(mitAkErrorName(1), "Motor over-temperature");
   for (uint8_t e = 1; e <= 7; ++e) {
-    EXPECT_FALSE(mitStatusIsOk(e, MitFamily::Ak)) << "AK error " << static_cast<int>(e);
+    EXPECT_FALSE(mitStatusIsOk(e, MitFamily::Akv2)) << "AK error " << static_cast<int>(e);
+    EXPECT_FALSE(mitStatusIsOk(e, MitFamily::Akv3)) << "AK error " << static_cast<int>(e);
   }
 }
 
@@ -272,12 +274,25 @@ TEST(AkMit, LayoutDiffersFromGl2) {
   EXPECT_EQ(ak[4], gl[1]);
 }
 
-TEST(MitProfileParsing, KnowsBothFamilies) {
+// Hand-packed from the AK V2 field order (p16 v12 kp12 kd12 t12), not a bench capture.
+TEST(AkV2Mit, CommandVector) {
+  MitProfile p = ak809Profile();
+  p.family = MitFamily::Akv2;
+  p.p_min = -12.5;
+  p.p_max = 12.5;
+  const std::array<uint8_t, 8> want{{0x85, 0x1E, 0x80, 0x00, 0x52, 0x33, 0x38, 0x00}};
+  EXPECT_EQ(packMitCommand(0.5, 0.0, 10.0, 1.0, 0.0, p), want);
+}
+
+TEST(MitProfileParsing, KnowsAllFamilies) {
   MitFamily f{};
-  EXPECT_TRUE(mitFamilyFromString("ak", f));
-  EXPECT_EQ(f, MitFamily::Ak);
+  EXPECT_TRUE(mitFamilyFromString("akv2", f));
+  EXPECT_EQ(f, MitFamily::Akv2);
+  EXPECT_TRUE(mitFamilyFromString("akv3", f));
+  EXPECT_EQ(f, MitFamily::Akv3);
   EXPECT_TRUE(mitFamilyFromString("gl2", f));
   EXPECT_EQ(f, MitFamily::Gl2);
+  EXPECT_FALSE(mitFamilyFromString("ak", f)) << "ambiguous: say akv2 or akv3";
   EXPECT_FALSE(mitFamilyFromString("gl40", f));
   EXPECT_FALSE(mitFamilyFromString("", f));
 }

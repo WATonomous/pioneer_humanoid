@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Leg joint angles straight off the CAN bus, plus the MIT commands sent to each drive.
 
-The leg drives are CubeMars AK V3. They never send MIT replies: everything they report comes in
+This script reads CubeMars AK V3 (akv3) drives only; it does not show akv2 motors. V3 drives never send MIT replies: everything they report comes in
 the servo status frame (ext id 0x2900|id, humanoid.dbc ServoStatusFeedback), about 50 Hz,
 whether or not they are being commanded:
   position  int16 x 0.1 deg       speed  int16 x 10 ERPM (rotor, electrical rpm)
@@ -55,7 +55,7 @@ CAN_FRAME = struct.Struct("=IB3x8s")
 
 
 def load_ak_profiles(ids) -> dict[int, dict]:
-    """mit_profiles.yaml entries for these ids, AK family only (the leg drives)."""
+    """mit_profiles.yaml entries for these ids, akv3 only (the frames this script decodes)."""
     path = jc._first_existing(jc.MIT_PROFILES)
     if path is None:
         raise SystemExit(f"could not find mit_profiles.yaml (looked in: {', '.join(jc.MIT_PROFILES)})")
@@ -63,7 +63,7 @@ def load_ak_profiles(ids) -> dict[int, dict]:
     out = {}
     for motor_id in ids:
         prof = motors.get(str(motor_id))
-        if prof and prof.get("family") == "ak":
+        if prof and prof.get("family") == "akv3":
             out[motor_id] = prof
     print(f"MIT profiles: {path}")
     return out

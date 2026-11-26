@@ -47,8 +47,8 @@ Bring-up (connect, verify, calibrate) is in [../ARM_BRINGUP.md](../ARM_BRINGUP.m
 | Frame layout + scaling | [`../dbc/humanoid.dbc`](../dbc/README.md), via `libdbcppp` | `config/mit_profiles.yaml` (each motor's family and ranges) + `src/mit_protocol.cpp` |
 | Why | one id per motor, same scaling for every motor | scaling depends on the motor's range; GL II feedback shares one id |
 
-Exceptions: the GL II MIT command uses the DBC's `MITControlCmd` layout (codes already scaled by
-`mit_protocol.cpp`), and AK feedback is always the DBC's `ServoStatusFeedback`, even in MIT.
+Exceptions: the GL II and AK V2 MIT commands use the DBC's `MITControlCmd` layout (codes already scaled by
+`mit_protocol.cpp`), and AK V3 feedback is always the DBC's `ServoStatusFeedback`, even in MIT.
 Each joint's `control_type` is set in `joint_command/config/arm_actuators.yaml`.
 
 ## gs_usb / candleLight adapter
@@ -66,7 +66,10 @@ ros2 run can can_node --ros-args --params-file $(ros2 pkg prefix can)/share/can/
 - **gl2**: GL40 wrist (22) / gripper (21) on a GL II drive. Standard frame on the node id,
   `MIT_ENTER` before commands, feedback on the master id (`mit_master_id`, default `0x000`)
   ([manual §5](https://www.cubemars.com/images/file/20241231/1735633965678815.pdf)).
-- **ak**: AK10-9 / AK80-9 on V3.0 firmware. Extended frame on `0x800 | id`, KP-first payload, no
+- **akv2**: AK V2 drive. Same command frame as gl2 (standard frame on the node id, `MIT_ENTER`
+  first). It replies once per command on `mit_master_id`, so it is silent unless something is
+  sending MIT commands. Not yet checked on the bench.
+- **akv3**: AK drive on V3.0 firmware. Extended frame on `0x800 | id`, KP-first payload, no
   special frames (`MIT_SET_ZERO` is refused; use `SET_ORIGIN`). Feedback is the servo frame, with
   `torque = current × kt`.
 
