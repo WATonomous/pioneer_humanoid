@@ -1,10 +1,3 @@
-# Inputs and intermediates of the course build tooling (not in this tree).
-# None are committed: the STEP export comes from the team Onshape account, and
-# the raw USD and per-part bounds are regenerated from it.
-#
-# Committed (what the tasks actually load):
-#   *_terrain.usd        merged single-mesh course
-#   *_profile.json       height/clearance table
 *.step
 *.usd
 !*_terrain.usd
