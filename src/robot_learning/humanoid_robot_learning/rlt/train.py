@@ -2,11 +2,6 @@
 
     MUJOCO_GL=egl python -m humanoid_robot_learning.rlt.train --policy <run>/checkpoints/last/pretrained_model --out rlt_out
 
-The defaults are the settled peg_insert run (trained at the scene's 4 mm hole; TD target clipped to [0, 1];
-smoothness penalties on): critical phase 2% (base) -> 38%, full task at 8 mm 14% -> 76% (paired, 100 layouts), with
-a quarter of the unpenalized actor's jerk. 150 min on one RTX 3090; PEG_CLEARANCE=0.008 widens the hole. To reuse
-another run's start states and RL token for comparable numbers, copy its starts.pkl and rl_token.pt into --out first.
-
 1. Start states: the base runs from fresh layouts (held-out seeds) until the handoff (peg held above the block top,
    within 3 cm of the hole; env.py) and the MuJoCo state is saved. Train and eval start states use disjoint seeds.
    The base's context tokens seen along the way are kept for step 2.
@@ -179,36 +174,29 @@ def main():
     p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     p.add_argument("--policy", required=True, help="Pioneer-1 pretrained_model directory (frozen base)")
     p.add_argument("--out", default="rlt_out")
-    p.add_argument("--envs", type=int, default=8)
+    p.add_argument("--envs", type=int, default=6)
     p.add_argument("--train_starts", type=int, default=240, help="layouts tried for training start states")
-    p.add_argument("--eval_starts", type=int, default=130, help="layouts tried for eval start states")
+    p.add_argument("--eval_starts", type=int, default=48, help="layouts tried for eval start states")
     p.add_argument("--token_steps", type=int, default=2000)
     p.add_argument("--chunk", type=int, default=5, help="C: frames per RL action (0.2 s at 25 fps)")
-    p.add_argument("--prefix", type=int, default=2, help="RTC prefix: actions of the base's last plan kept at the start"
+    p.add_argument("--prefix", type=int, default=5, help="RTC prefix: actions of the base's last plan kept at the start"
                    " of each new chunk (Pioneer-1 is trained with up to 6; 0 = none, which breaks its motion)")
-    p.add_argument("--baselines", default="5:2,16:6",
+    p.add_argument("--baselines", default="5:0,5:2,5:5,16:6",
                    help="base-only evals before RL, as C:prefix pairs (16:6 = how Pioneer-1 runs natively)")
     p.add_argument("--baseline_only", action="store_true", help="stop after the baselines")
     p.add_argument("--episode_s", type=float, default=10.0)
     p.add_argument("--warmup", type=int, default=2000, help="base-rollout transitions before RL updates")
-    p.add_argument("--utd", type=int, default=2, help="updates per transition; 5 overestimated Q")
-    p.add_argument("--beta", type=float, default=10.0, help="penalty on ||a - a_ref||^2 (mean over values); 1 let the "
-                   "actor drift cm away and knock the peg loose")
-    p.add_argument("--free_gripper", action="store_true", help="let the actor change the gripper command (default: "
-                   "pinned to the base's, insertion never needs it)")
+    p.add_argument("--utd", type=int, default=5)
+    p.add_argument("--beta", type=float, default=1.0)
     p.add_argument("--gamma", type=float, default=0.98)
-    p.add_argument("--noise", type=float, default=0.02, help="exploration std, normalized action units (0.01 ~ 2-3 mm); "
-                   "0.01 explored 5-15x less than the actor moved")
+    p.add_argument("--noise", type=float, default=0.01, help="exploration std, normalized action units (~2-3 mm)")
     p.add_argument("--ref_dropout", type=float, default=0.5)
-    p.add_argument("--smooth_t", type=float, default=10.0, help="CAPS-style penalty on the change of the actor's "
-                   "correction between consecutive decisions (actor_critic.TD3); 0 = off, 40 stopped learning")
-    p.add_argument("--smooth_c", type=float, default=10.0, help="penalty on the correction's wiggle within a chunk")
-    p.add_argument("--minutes", type=float, default=150.0, help="RL wall-clock budget")
-    p.add_argument("--eval_every", type=int, default=10000, help="transitions between evals")
+    p.add_argument("--minutes", type=float, default=60.0, help="RL wall-clock budget")
+    p.add_argument("--eval_every", type=int, default=3000, help="transitions between evals")
     p.add_argument("--seed", type=int, default=0)
     args = p.parse_args()
     import humanoid_mujoco_scenes.peg_insert.scene as peg_scene
-    args.clearance_m = peg_scene.CLEARANCE           # PEG_CLEARANCE env var; the workers inherit it
+    args.clearance_m = peg_scene.CLEARANCE
     torch.manual_seed(args.seed)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -270,14 +258,8 @@ def main():
 
         # 4. TD3
         zd, sd, ad = token.to_z[-1].out_features, base.policy.config.robot_state_feature.shape[0], C * A
-        fixed = None
-        if not args.free_gripper:                 # the last value of each step is the gripper command
-            fixed = torch.zeros(C, A, dtype=torch.bool)
-            fixed[:, -1] = True
-            fixed = fixed.reshape(-1)
         td3 = TD3(zd, sd, ad, dev, beta=args.beta, gamma=args.gamma, ref_dropout=args.ref_dropout,
-                  policy_noise=args.noise, noise_clip=2 * args.noise, fixed=fixed,
-                  smooth_t=args.smooth_t, smooth_c=args.smooth_c, chunk=(C, A))
+                  policy_noise=args.noise, noise_clip=2 * args.noise)
         rb = Replay(200_000, {"z": zd, "s": sd, "ref": ad, "a": ad, "r": 0, "d": 0, "z2": zd, "s2": sd, "ref2": ad}, dev)
         rng = np.random.default_rng(args.seed)
         n = venv.n
@@ -285,7 +267,7 @@ def main():
         chunks_in_ep = np.zeros(n, int)
         plans = [None] * n                        # each env's last base plan, for the RTC prefix
         pending = [None] * n                      # (z, s, ref, a, r, d) waiting for the next state's z2, s2, ref2
-        transitions, episodes, ep_success, ep_dropped, ep_len, next_eval, evals = 0, 0, [], [], [], args.eval_every, []
+        transitions, episodes, ep_success, next_eval, evals = 0, 0, [], args.eval_every, []
         deadline = time.time() + args.minutes * 60
         while time.time() < deadline:
             context, mask, s, chunk = query(base, obs, plans, C, args.prefix)
@@ -304,7 +286,7 @@ def main():
             else:
                 a = td3.act(z, s, ref)
                 noise = torch.randn(n, 1, A, device=dev) * args.noise           # one offset per chunk
-                a = td3.fix((a.view(n, C, A) + noise).clamp(-1, 1).reshape(n, -1), ref)
+                a = (a.view(n, C, A) + noise).clamp(-1, 1).reshape(n, -1)
             res = venv.call("step", list(base.unnormalize(a.view(n, C, A))))
             restarts = []
             for i, (o, info) in enumerate(res):
@@ -317,8 +299,6 @@ def main():
                            d=torch.tensor([1.0]), z2=z[i:i + 1], s2=s[i:i + 1], ref2=ref[i:i + 1])
                     episodes += 1
                     ep_success.append(r)
-                    ep_dropped.append(float(info["dropped"]))
-                    ep_len.append(int(chunks_in_ep[i]))
                     restarts.append(i)
                 else:
                     pending[i] = (z[i], s[i], ref[i], a[i], r, 0.0)
@@ -340,8 +320,6 @@ def main():
                 recent = ep_success[-200:]
                 log(out, stage="rl_eval", transitions=transitions, episodes=episodes,
                     train_success_recent=round(float(np.mean(recent)), 3) if recent else None,
-                    train_dropped_recent=round(float(np.mean(ep_dropped[-200:])), 3) if ep_dropped else None,
-                    train_ep_chunks_recent=round(float(np.mean(ep_len[-200:])), 1) if ep_len else None,
                     **ev, **({k: round(v, 4) for k, v in stats.items()} if not warm else {}))
                 torch.save({"actor": td3.actor.state_dict(), "critic": td3.critic.state_dict()}, out / f"td3_{transitions}.pt")
                 # the obs of the training envs are stale after the eval reused the workers: restart them
