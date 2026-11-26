@@ -1,8 +1,3 @@
-"""Evaluate TR-7 traversability layers on a saved elevation grid (.npy).
-
-Example from ``src/terrain_mapping/terrain_core``:
-    python terrain_tools/eval_traversability_npy.py /path/to/elevation.npy --resolution 0.04
-"""
 import argparse
 from dataclasses import replace
 from pathlib import Path
@@ -27,6 +22,25 @@ def load_grid(path, layer):
     return arr.astype(float)
 
 
+def review_decisions(decisions, labels):
+    """Compare two aligned grids. NaN labels are cells the reviewer skipped."""
+    if labels.shape != decisions.shape:
+        raise ValueError(f"labels shape {labels.shape} must match elevation shape {decisions.shape}")
+    if not np.all(np.isnan(labels) | np.isin(labels, [0, 1])):
+        raise ValueError("labels must contain only 0 (blocked), 1 (traversable), or NaN (unlabeled)")
+    reviewed = np.isfinite(labels)
+    total = int(reviewed.sum())
+    if not total:
+        raise ValueError("labels contain no reviewed cells")
+    matches = int(np.sum(decisions == labels))
+    return (
+        f"Agreement: {matches}/{total} reviewed cells ({100 * matches / total:.1f}%)\n"
+        f"  human blocked, predicted traversable: {np.sum((labels == 0) & (decisions == 1))}\n"
+        f"  human traversable, predicted blocked: {np.sum((labels == 1) & (decisions == 0))}\n"
+        f"  unknown prediction on reviewed cells: {np.sum(reviewed & np.isnan(decisions))}"
+    )
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("npy")
@@ -42,14 +56,17 @@ def main():
     ap.add_argument("--max-step-m", type=float, default=None)
     ap.add_argument("--max-roughness-m", type=float, default=None)
     ap.add_argument("--out", default="layers.png")
+    ap.add_argument("--decisions-out", type=Path, help="save TR-8 decisions as .npy (1 pass, 0 blocked, NaN unknown)")
+    ap.add_argument("--labels", type=Path, help="aligned human decisions .npy (1 pass, 0 blocked, NaN unlabeled)")
     args = ap.parse_args()
 
     z = load_grid(args.npy, args.layer)
     finite = np.isfinite(z)
-    print(f"valid cells: {finite.mean() * 100:.1f}%  height min/median/max: "
-          f"{np.nanmin(z):.3f} / {np.nanmedian(z):.3f} / {np.nanmax(z):.3f} m")
-    if not finite.any():
-        raise SystemExit("no valid cells")
+    if finite.any():
+        print(f"valid cells: {finite.mean() * 100:.1f}%  height min/median/max: "
+              f"{np.nanmin(z):.3f} / {np.nanmedian(z):.3f} / {np.nanmax(z):.3f} m")
+    else:
+        print("valid cells: 0%")
 
     config = TraversabilityConfig.from_yaml(args.config)
     limits = replace(
@@ -76,6 +93,14 @@ def main():
 
     known = np.isfinite(out["traversability"])
     t = out["traversable"]
+    decisions = np.where(known, t, np.nan)
+    if args.labels:
+        try:
+            print(review_decisions(decisions, np.load(args.labels)))
+        except ValueError as exc:
+            ap.error(str(exc))
+    if args.decisions_out:
+        np.save(args.decisions_out, decisions)
     print(f"traversable: {t.sum() / max(known.sum(), 1) * 100:.1f}% of cells with an estimate")
     with np.errstate(invalid="ignore"):
         over_slope = known & (out["slope"] > np.deg2rad(limits.max_slope_deg))
@@ -85,22 +110,12 @@ def main():
         print(f"  {name}: {m.sum() / max(known.sum(), 1) * 100:.1f}%")
 
     try:
-        import matplotlib
-        matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
+        from terrain_core.traversability.plot import plot_layers
     except ImportError:
         print("matplotlib not installed: skipping the plot (pip install matplotlib)")
         return
-    panels = [("elevation (m)", z), ("slope (deg)", np.rad2deg(out["slope"])), ("step (m)", out["step"]),
-              ("roughness (m)", out["roughness"]), ("traversability", out["traversability"]),
-              ("traversable", np.where(known, t.astype(float), np.nan))]
-    fig, axes = plt.subplots(2, 3, figsize=(15, 9))
-    for ax, (title, data) in zip(axes.ravel(), panels):
-        im = ax.imshow(data, origin="lower")
-        ax.set_title(title)
-        fig.colorbar(im, ax=ax, shrink=0.8)
-    fig.tight_layout()
-    fig.savefig(args.out, dpi=110)
+    figure = plot_layers(z, out)
+    figure.savefig(args.out, dpi=110)
     print(f"saved {args.out}")
 
 
