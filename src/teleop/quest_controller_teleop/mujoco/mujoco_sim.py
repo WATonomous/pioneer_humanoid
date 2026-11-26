@@ -80,32 +80,54 @@ class Recording:
         self.recorder, self.window, self.every, self.driver, self.sides = recorder, window, every, driver, sides
         self.flags = recorder.start_flags()
         self.presses = self.saved_takes = 0
+        self.accepting = self.saving = self._reset_after_save = False
 
     def toggle(self) -> None:
-        self.save() if self.flags.start else self.start()
+        self.save() if self.accepting else self.start()
 
     def start(self) -> None:
-        if not self.flags.start:
+        if self.saving:
+            self.driver.status = "Finishing the previous save; recording will be ready in a moment."
+        elif not self.accepting:
+            self.flags.success = False
             self.flags.start = True
+            self.accepting = True
             self.driver.status = "Recording: right B saves, left Y discards"
 
     def save(self) -> None:
-        if self.flags.start:
-            self.flags.success = True   # the render thread saves at the next sample, then resets the scene
+        if self.accepting:
+            # The marker is ordered after all queued frames.  Stop accepting
+            # immediately so the post-save reset cannot enter this episode.
+            self.accepting = False
+            self.saving = True
+            self._reset_after_save = True
+            self.window.save()
+            self.driver.status = "Saving take; scene moved to a new random pose."
+
+    def consume_reset_after_save(self) -> bool:
+        requested, self._reset_after_save = self._reset_after_save, False
+        return requested
 
     def discard(self) -> None:
-        if self.flags.start:
+        if self.accepting:
+            self.accepting = False
             self.flags.start = False
             self.window.discard()
             self.driver.status = "Take discarded. Right B records a take."
 
-    def saved(self) -> None:
-        self.saved_takes += 1
-        self.driver.status = f"Saved take {self.saved_takes}. Right B records the next."
+    def saved(self, committed: bool = True) -> None:
+        self.saving = False
+        if committed:
+            self.saved_takes += 1
+            self.driver.status = f"Saved take {self.saved_takes}. Right B records the next."
+        else:
+            self.driver.status = "No frames were recorded; right B starts a new take."
 
     def status(self) -> str:
-        if self.flags.start:
+        if self.accepting:
             return f"REC {self.recorder.num_buffered_frames / self.recorder.fps:.1f} s"
+        if self.saving:
+            return "SAVING"
         return f"{self.saved_takes} saved"
 
 
@@ -121,7 +143,10 @@ def arm_ids(model, side: str) -> ArmIds:
         dofs=[model.joint(j).dofadr[0] for j in joints],
         arm_acts=[model.actuator(j).id for j in joints],
         grip_acts=[model.actuator(j).id for j in fingers],
-        grip_qpos=[model.joint(j).qposadr[0] for j in fingers],
+        # The single gripper actuator drives a differential tendon; record the
+        # mean of both physical sliders so an off-centre grasp is represented
+        # correctly by the one scalar in the policy schema.
+        grip_qpos=[model.joint(j).qposadr[0] for j in (*fingers, f"{side}_gripper_mimic")],
         grip_open=np.array([grip_open[j] for j in fingers]),
         grip_closed=np.array([grip_closed[j] for j in fingers]),
     )
@@ -197,7 +222,7 @@ def run() -> None:
     recording = Recording(recorder, window, every, driver, ARM_SETS[args.record_arms]) if recorder is not None else None
     keys = {"6": reset_key.set}
     if recording is not None:
-        window.on_saved = lambda: (recording.saved(), reset_key.set())
+        window.on_saved = recording.saved
         keys.update({"7": recording.start, "8": recording.save, "9": recording.discard})
         print(f"[RECORD] Right B (or 7) records a take, again (or 8) saves it; left Y, 6 or 9 discards. "
               f"Saving to {recorder.dataset_root}", flush=True)
@@ -261,6 +286,7 @@ def loop(model, data, driver, arms, window, recording, reset, reset_key, scene_h
         if recording is not None and driver.record_presses != recording.presses:
             recording.presses = driver.record_presses
             recording.toggle()
+        reset_after_save = recording is not None and recording.consume_reset_after_save()
         if reset_now:
             reset_key.clear()
             if recording is not None:
@@ -269,12 +295,23 @@ def loop(model, data, driver, arms, window, recording, reset, reset_key, scene_h
             driver.reset(joint_positions())
             previous = joint_positions()
             print("[Quest] Scene reset; arms back to home.", flush=True)
+        elif reset_after_save:
+            # Saving is drained asynchronously by the camera queue, but the
+            # operator must see the next randomized task immediately.
+            reset()
+            driver.reset(joint_positions())
+            previous = joint_positions()
+            cabinet_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "cabinet")
+            pose = "" if cabinet_id < 0 else (
+                f" Cabinet now at x={model.body_pos[cabinet_id, 0]:.3f}, y={model.body_pos[cabinet_id, 1]:.3f}."
+            )
+            print(f"[RECORD] Episode ended; randomized scene ready.{pose}", flush=True)
         commands = driver.solve(joint_positions(), dt)
         for side, ids in arms.items():
             data.ctrl[ids.arm_acts] = arm_ctrl(model, data, ids, commands[side], (commands[side] - previous[side]) / dt)
             previous[side] = commands[side]
             data.ctrl[ids.grip_acts] = ids.grip_open + driver.grippers[side] * (ids.grip_closed - ids.grip_open)
-        if recording is not None and recording.flags.start and tick % recording.every == 0:
+        if recording is not None and recording.accepting and tick % recording.every == 0:
             # Before the step: image, state and action are of the same instant. Left arm first, as the schema.
             action, state = [], []
             for side in recording.sides:
@@ -295,9 +332,13 @@ def loop(model, data, driver, arms, window, recording, reset, reset_key, scene_h
             parts = [recording.status() if recording is not None else "", step]
             window.status = "  |  ".join(p for p in parts if p)
         tick += 1
-        if scene_hook is not None:
-            scene_hook(model, data)
-        mujoco.mj_step(model, data, nstep=substeps)
+        # Scene contact hooks must see every 1 kHz physics contact.  Calling a
+        # hook once before a 10-step batch allowed a fast VR-driven jaw to enter
+        # and leave a narrow handle between 100 Hz control ticks.
+        for _ in range(substeps):
+            if scene_hook is not None:
+                scene_hook(model, data)
+            mujoco.mj_step(model, data)
         now = time.monotonic()
         if window is not None:
             window.push(data)

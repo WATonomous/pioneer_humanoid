@@ -11,7 +11,7 @@ unpack with `xz -dk`) has geometry only. Joints, links and limits come from:
 
 Robot: the bimanual rig with its arms replaced: pioneer_bimanual_arm's base_link AS IS (aluminium stand, steel
 shoulder bar, printed brackets, the two shoulder-pitch motors, head camera; its meshes, inertia and collision are
-referenced from assets/pioneer_bimanual_arm) carrying two new 7-DoF arms + a 1-DoF gripper each (GL40 -> linkage
+referenced from assets/pioneer_bimanual_arm) carrying two new 7-DoF arms + a 1-DoF gripper each (AK40-10 -> linkage
 -> two fingers on an MGN9 rail; finger B mimics finger A), on the same shoulder-pitch pivots (old joint1/joint1L).
 The STEP's own shoulder bar is not used. base_link is the old pioneer_bimanual_arm's base_link frame (x forward, y left, z up, metres), mapped
 from the draft frame (mm, x right->left arm at x<0, y forward, z up) by
@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import sys
 from pathlib import Path
 
@@ -77,6 +78,7 @@ GRIPPER_STROKE = 0.041         # m per finger; CAD pose = open (inner faces 83 m
 JAW_CENTRE_X = -279.0          # draft x of the jaw centre (left arm)
 FINGER_PARTS = ("finger_carriage", "component188", "component189", "0_1_1_272_", "0_1_1_275_")
 OLD_URDF = Path(__file__).resolve().parents[2] / "assets/pioneer_bimanual_arm/urdf/pioneer_bimanual_arm.urdf"
+AK45_VISUAL = Path(__file__).resolve().parents[2] / "assets/pioneer_bimanual_arm_8dof/meshes/ak45_10_visual.stl"
 VISUAL_FACES = {}
 NO_DECIMATION = ("link1", "link2", "link3", "link4", "link5", "link6", "link7", "finger_a", "finger_b")   # all: decimation left spikes
 DEFAULT_VISUAL_FACES = 14000
@@ -85,6 +87,7 @@ DEFAULT_RGB = (0.9, 0.9, 0.92)   # parts without a STEP colour: light print
 # The fingers are orange, as on the rig's current arms (pioneer_bimanual_arm link7l/8l finger material); the STEP
 # export colours them blue. Dark (motor) and grey (metal) parts keep their STEP colour.
 FINGER_ORANGE = (0.910, 0.455, 0.173)
+AK45_RGB = (0.055, 0.055, 0.060)
 
 
 def finger_colour(link, rgb):
@@ -228,6 +231,11 @@ def main(step, out):
     out = Path(out)
     (out / "meshes").mkdir(parents=True, exist_ok=True)
     (out / "urdf").mkdir(parents=True, exist_ok=True)
+    ak45_out = out / "meshes" / AK45_VISUAL.name
+    if not AK45_VISUAL.exists():
+        raise FileNotFoundError(f"required AK45-10 visual mesh is missing: {AK45_VISUAL}")
+    if ak45_out.resolve() != AK45_VISUAL.resolve():
+        shutil.copy2(AK45_VISUAL, ak45_out)
     print("reading STEP ...", flush=True)
     solids = read_solids(step)
     link, centre = assign_links(solids)
@@ -351,9 +359,34 @@ def main(step, out):
             f'    <visual><geometry><mesh filename="package://pioneer_bimanual_arm_8dof/meshes/{mf}.stl"/></geometry>'
             f'<material name="{fname}_m{i}"><color rgba="{r:.3f} {g:.3f} {b:.3f} 1"/></material></visual>\n'
             for i, (mf, (r, g, b)) in enumerate(visuals[fname]))
-        return (f'  <link name="{fname}">\n    {inertial_xml(fname)}\n{vis}'
-                f'    <collision><geometry><mesh filename="package://pioneer_bimanual_arm_8dof/meshes/{fname}_collision.stl"/>'
-                f'</geometry></collision>\n  </link>')
+        # The arm-draft STEP contains the two wrist brackets but omits their AK45-10 bodies.  Add the official
+        # CubeMars visual mesh at the already-defined joint pivots.  This is visual-only: collision, inertia and
+        # kinematics remain those of the validated generated model.
+        link_name = fname.removeprefix("left_").removeprefix("right_")
+        ak45_pose = {
+            "link5": ("-0.001000 0.000000 -0.054000", "0 0 0"),
+            "link6": ("0.000000 0.000000 -0.060000", "0 0 -1.570796"),
+        }.get(link_name)
+        if ak45_pose:
+            xyz, rpy = ak45_pose
+            r, g, b = AK45_RGB
+            vis += (f'    <visual><origin xyz="{xyz}" rpy="{rpy}"/><geometry>'
+                    f'<mesh filename="package://pioneer_bimanual_arm_8dof/meshes/ak45_10_visual.stl"/></geometry>'
+                    f'<material name="{fname}_ak45"><color rgba="{r:.3f} {g:.3f} {b:.3f} 1"/></material></visual>\n')
+        link_name = fname.removeprefix("left_").removeprefix("right_")
+        if link_name in ("finger_a", "finger_b"):
+            # Keep the orange jaw and grey carriage separate.  A single convex
+            # hull bridges their concavity and creates an invisible gripping
+            # surface about 9 mm inside the rendered jaw.
+            collision_meshes = [mf for mf, _ in visuals[fname]]
+        else:
+            collision_meshes = [f"{fname}_collision"]
+        collisions = "".join(
+            f'    <collision><geometry><mesh filename="package://pioneer_bimanual_arm_8dof/meshes/{mesh_name}.stl"/>'
+            f'</geometry></collision>\n'
+            for mesh_name in collision_meshes
+        )
+        return f'  <link name="{fname}">\n    {inertial_xml(fname)}\n{vis}{collisions}  </link>'
 
     xml = ['<?xml version="1.0"?>',
            '<!-- GENERATED by tools/bimanual_arm_8dof/build_bimanual_arm_8dof.py from the 1107 Arm Draft STEP; do not edit by hand. -->',

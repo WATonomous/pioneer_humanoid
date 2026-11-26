@@ -158,6 +158,8 @@ def main() -> None:
     p.add_argument("--task", default=None, help="task text (default: the scene's step instruction, else the training dataset's task)")
     p.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     p.add_argument("--video_dir", default=None, help="write an mp4 per episode (cameras side by side)")
+    p.add_argument("--n_action_steps", type=int, default=None,
+                   help="ACT actions to execute before replanning (default: checkpoint setting)")
     p.add_argument("--robot", choices=tuple(ACTION_DIM), default=None,
                    help="sim arm (default: from the policy's action size: 8 = 8dof, 7 = armv2)")
     args = p.parse_args()
@@ -166,6 +168,13 @@ def main() -> None:
     if abs(control_steps * args.fps * CONTROL_DT - 1) > 1e-9:
         p.error(f"--fps {args.fps} must divide {1 / CONTROL_DT:g} Hz")
     policy, pre, post = load_policy(args.policy, args.device)
+    if args.n_action_steps is not None:
+        if not hasattr(policy.config, "n_action_steps"):
+            p.error("--n_action_steps is only supported by policies with action chunks")
+        if not 1 <= args.n_action_steps <= policy.config.chunk_size:
+            p.error(f"--n_action_steps must be between 1 and chunk_size={policy.config.chunk_size}")
+        policy.config.n_action_steps = args.n_action_steps
+        print(f"[EVAL] replanning every {args.n_action_steps} action steps", flush=True)
     cameras = {key.removeprefix("observation.images."): tuple(ft.shape[1:]) for key, ft in policy.config.image_features.items()}
     action_dim = int(policy.config.output_features["action"].shape[0])
     try:

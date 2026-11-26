@@ -235,6 +235,23 @@ class SimLeRobotRecorder:
                 )
         return False
 
+    def finish_recording(self) -> bool:
+        """Save the buffered take immediately and leave recording mode.
+
+        Camera-based simulators use this behind an in-order queue marker: every
+        frame queued before the marker is rendered and buffered first, while no
+        frame from the freshly reset scene can leak into the episode.
+        """
+        if self._flags is None or self._current_frame == 0:
+            if self._flags is not None:
+                self._flags.start = False
+                self._flags.success = False
+            return False
+        self.save_episode()
+        self._flags.start = False
+        self._flags.success = False
+        return True
+
     @property
     def num_buffered_frames(self) -> int:
         """Frames in the current (unsaved) episode."""
@@ -311,25 +328,35 @@ class SimLeRobotRecorder:
         print(f"[INFO]: Created new dataset at {root}")
 
     def _allocate_buffers(self) -> None:
+        """Reserve episode buffers without touching the full capacity on CPU.
+
+        Every recorded row is overwritten before it is read, so zero-filling a
+        120-second RGB buffer is unnecessary.  On CPU, ``torch.zeros`` commits
+        all of those pages at the first frame (5.5 GB for two 640x480 cameras),
+        on top of the writer slots, and can trigger the host OOM killer.
+        ``empty`` keeps the reservation demand-paged; RSS grows only with frames
+        that were actually captured.  CUDA allocations remain fully reserved as
+        before, which is appropriate for the Isaac path.
+        """
         dim = len(self.joint_names)
         cap, dev = self._capacity, self.device
-        self._action_buf = torch.zeros((cap, dim), dtype=torch.float32, device=dev)
-        self._obs_buf = torch.zeros((cap, dim), dtype=torch.float32, device=dev)
+        self._action_buf = torch.empty((cap, dim), dtype=torch.float32, device=dev)
+        self._obs_buf = torch.empty((cap, dim), dtype=torch.float32, device=dev)
         for name, spec in self.cameras.items():
             h, w = spec["height"], spec["width"]
-            self._rgb_bufs[name] = torch.zeros(
+            self._rgb_bufs[name] = torch.empty(
                 (cap, h, w, 3), dtype=torch.uint8, device=dev
             )
             if self.depth:
-                self._depth_bufs[name] = torch.zeros(
+                self._depth_bufs[name] = torch.empty(
                     (cap, h, w, 1), dtype=torch.float32, device=dev
                 )
             if self.instance_id_seg:
-                self._seg_bufs[name] = torch.zeros(
+                self._seg_bufs[name] = torch.empty(
                     (cap, h, w, 3), dtype=torch.uint8, device=dev
                 )
         for name, comp_names in self.extra_features.items():
-            self._extra_bufs[name] = torch.zeros(
+            self._extra_bufs[name] = torch.empty(
                 (cap, len(comp_names)), dtype=torch.float32, device=dev
             )
 
@@ -400,10 +427,18 @@ class SimLeRobotRecorder:
         can be in flight — save_episode() blocks when both are busy.
         Pinning needs CUDA; without a GPU (MuJoCo on CPU) the slots are plain memory.
         """
-        pin = torch.cuda.is_available()
+        # A host with a GPU is not necessarily recording on the GPU.  Pinning
+        # multi-gigabyte writer slots for a MuJoCo ``device="cpu"`` session
+        # commits every page immediately and starves the OS.  Pageable CPU
+        # slots remain lazy and need no DMA optimization.
+        pin = torch.cuda.is_available() and torch.device(self.device).type == "cuda"
         dim = len(self.joint_names)
         cap = self._capacity
-        for _ in range(self._NUM_CPU_SLOTS):
+        # CPU recording writes one episode at a time.  A second full-capacity
+        # slot only doubles the possible resident image memory; CUDA keeps two
+        # so simulation can overlap DMA with the writer as designed.
+        num_slots = self._NUM_CPU_SLOTS if pin else 1
+        for _ in range(num_slots):
             slot: dict[str, Any] = {
                 "total_frames": 0,
                 "action": torch.empty((cap, dim), dtype=torch.float32, pin_memory=pin),

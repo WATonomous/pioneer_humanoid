@@ -43,6 +43,81 @@ def _finish(op, rest=None) -> None:
     op.pause(0.3, 0.8)
 
 
+# ----------------------------------------------------------------------------- door_open
+def door_plan(op, model, data, notes) -> None:
+    """Pinch the cabinet handle and follow its hinge arc until the door is open.
+
+    The scene only enables its grasp constraint after both finger pads have
+    physically contacted the handle. Checking the grasp phase here therefore
+    rejects an approach that merely looks aligned in the rendered image.
+    """
+    import humanoid_mujoco_scenes.door_open.scene as S
+
+    rng = op.rng
+    op.pause(0.3, 0.8)
+    start = op.follower_tcp()
+    handle_id = model.geom("cabinet_handle").id
+    door_id = model.body("cabinet_door").id
+
+    def handle_pos():
+        return data.geom_xpos[handle_id].copy()
+
+    def door_yaw():
+        R = data.xmat[door_id].reshape(3, 3)
+        return math.atan2(R[1, 0], R[0, 0])
+
+    # Approach along the panel normal with the jaws open. Aim at the middle of
+    # the vertical bar; the gripper closes sideways across its square section,
+    # leaving the fingers clear of both standoffs.
+    for attempt in range(3):
+        h = handle_pos() + rng.normal(0.0, 0.35 * op.style.see, 3)
+        yaw = door_yaw()
+        outward = np.array([-math.cos(yaw), -math.sin(yaw), 0.0])
+        pre = h + outward * rng.uniform(0.07, 0.09)
+        pre[2] += rng.normal(0.0, 0.002)
+        op.arc(pre, max(start[2], h[2] + 0.08), R=op.down(yaw), grip=0.0,
+               tol=0.005, axes=(1, 1, 0), land=0.7)
+        op.move(h, R=op.down(yaw), grip=0.0, tol=0.0025, speed=0.65)
+        op.set_grip(1.0)
+        op.pause(0.15, 0.35)
+        if int(data.userdata[2]) == S.GRASP_PINCH:
+            break
+        notes.append("regrasp handle")
+        op.set_grip(0.0)
+        op.move(pre, tol=0.01, corrections=0, via=True)
+    else:
+        raise TaskFailed("pinch handle")
+
+    # Move the hand around the actual hinge rather than pulling in a straight
+    # line. This keeps both pads on the handle and teaches the policy the curved
+    # motion required by an articulated door.
+    for target_deg in (25, 50, 80):
+        if S.is_open(model, data):
+            break
+        current = S.door_angle(model, data)
+        target = -math.radians(target_deg)
+        delta = min(0.0, target - current)
+        hinge = data.xpos[door_id].copy()
+        tcp = op.follower_tcp()
+        c, s = math.cos(delta), math.sin(delta)
+        rotate = np.array([[c, -s, 0.0], [s, c, 0.0], [0.0, 0.0, 1.0]])
+        goal = hinge + rotate @ (tcp - hinge)
+        op.move(goal, R=op.down(door_yaw() + delta), grip=1.0, tol=0.008,
+                corrections=1, speed=0.55, bow=0.02)
+        op.settle(limit=0.4)
+
+    # Completion is latched by the scene: the door can spring back a little
+    # after the operator releases it without turning a valid opening into a
+    # failed demonstration.
+    if not bool(data.userdata[0]):
+        raise TaskFailed(f"door only opened {math.degrees(-S.door_angle(model, data)):.0f} deg")
+    op.pause(0.2, 0.4)
+    op.set_grip(0.0)
+    tcp = op.follower_tcp()
+    op.move(tcp + np.array([-0.04, 0.0, 0.05]), tol=0.02, via=True)
+    _finish(op, rest=start + rng.normal(0, 0.02, 3))
+
+
 # ----------------------------------------------------------------------------- drawer_stow
 def drawer_plan(op, model, data, notes) -> None:
     import humanoid_mujoco_scenes.drawer_stow.scene as S
@@ -585,6 +660,7 @@ def matcha_plan(op, model, data, notes) -> None:
 
 
 TASKS: dict[str, Task] = {
+    "door_open": Task(door_plan, "open the cabinet door", grasp_pitch_deg=20.0, limit_avoid=0.03),
     "drawer_stow": Task(drawer_plan, "put the blocks in the drawer", grasp_pitch_deg=30.0),
     "peg_insert": Task(peg_plan, "insert the peg into the hole", limit_avoid=0.0),   # null space hurt the insert
     "zip_tie": Task(zip_plan, "pull the zip tie tight"),
