@@ -23,8 +23,9 @@ from humanoid_robot_learning.rlt.env import VecEnv
 from humanoid_robot_learning.rlt.train import FPS, query, run_episodes, summarize
 
 
-def full_task(base, token, td3, venv, seeds, C, d, max_s, use_rl, video_seeds=(), video_dir=None, tag=""):
-    """-> {seed: {"success", "time_s", "handoff_s"}}; writes an mp4 for each seed in video_seeds."""
+def full_task(base, token, act, venv, seeds, C, d, max_s, use_rl, video_seeds=(), video_dir=None, tag=""):
+    """-> {seed: {"success", "time_s", "handoff_s"}}; writes an mp4 for each seed in video_seeds. ``act``(z, s, ref)
+    -> the actor's flattened chunk."""
     max_frames = int(max_s * FPS)
     out = {}
     for k in range(0, len(seeds), venv.n):
@@ -45,7 +46,7 @@ def full_task(base, token, td3, venv, seeds, C, d, max_s, use_rl, video_seeds=()
                 a = chunk[:, :c]
                 if phase:
                     z = token.encode(context.float(), mask)
-                    a = td3.act(z, s, a.reshape(len(grp), -1)).view(len(grp), c, -1)
+                    a = act(z, s, a.reshape(len(grp), -1)).view(len(grp), c, -1)
                 res = venv.call("step", list(base.unnormalize(a)), grp)
                 for j, (i, (o, info)) in enumerate(zip(grp, res)):
                     obs[i], plans[i] = o, chunk[j]
@@ -90,6 +91,8 @@ def main():
     ap.add_argument("--videos", type=int, default=6, help="record the first N seeds of each mode")
     ap.add_argument("--envs", type=int, default=8)
     ap.add_argument("--skip_critical", action="store_true", help="only the full task")
+    ap.add_argument("--noise", type=float, default=0.0,
+                    help="keep the training exploration on at run time (TD3.act_wiggle); results go to a _n<std> dir")
     args = ap.parse_args()
     rlt = Path(args.rlt)
     run = json.loads((rlt / "args.json").read_text())
@@ -111,6 +114,9 @@ def main():
     venv = VecEnv(args.envs, base.cameras, FPS)
     clearance_mm = round(peg_scene.CLEARANCE * 1000, 1)      # PEG_CLEARANCE env var; the workers inherit it
     out_dir = rlt / ("full_task" if clearance_mm == round(run["clearance_m"] * 1000, 1) else f"full_task_{clearance_mm:g}mm")
+    if args.noise:
+        out_dir = out_dir.with_name(f"{out_dir.name}_n{args.noise:g}")
+    act = (lambda z, s, ref: td3.act_wiggle(z, s, ref, args.noise, C)) if args.noise else td3.act
     out_dir.mkdir(exist_ok=True)
     report = {"args": vars(args), "chunk": C, "prefix": d, "clearance_mm": clearance_mm,
               "trained_clearance_mm": round(run["clearance_m"] * 1000, 1)}
@@ -119,7 +125,7 @@ def main():
         vids = set(seeds[:args.videos])
         res = {}
         for tag, use_rl in (("base", False), ("rlt", True)):
-            res[tag] = full_task(base, token, td3, venv, seeds, C, d, args.max_s, use_rl, vids, out_dir / "videos", tag)
+            res[tag] = full_task(base, token, act, venv, seeds, C, d, args.max_s, use_rl, vids, out_dir / "videos", tag)
             ok = [res[tag][s]["success"] for s in seeds]
             report[f"full_{tag}"] = summarize([(o, res[tag][s]["time_s"]) for o, s in zip(ok, seeds)])
             report[f"full_{tag}"]["reached_handoff"] = sum(res[tag][s]["handoff_s"] is not None for s in seeds)
@@ -132,7 +138,7 @@ def main():
             _, eval_starts = pickle.loads((rlt / "starts.pkl").read_bytes())
             max_frames = int(run["episode_s"] * FPS)
             b = run_episodes(base, token, venv, eval_starts, lambda z, s, ref: ref, C, max_frames, d)
-            r = run_episodes(base, token, venv, eval_starts, lambda z, s, ref: td3.act(z, s, ref), C, max_frames, d)
+            r = run_episodes(base, token, venv, eval_starts, act, C, max_frames, d)
             report["critical_base"], report["critical_rlt"] = summarize(b), summarize(r)
             report["critical_paired"] = paired([x for x, _ in b], [x for x, _ in r])
             for k in ("critical_base", "critical_rlt", "critical_paired"):

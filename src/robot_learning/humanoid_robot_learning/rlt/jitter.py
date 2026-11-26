@@ -22,11 +22,12 @@ from humanoid_robot_learning.rlt.env import VecEnv
 from humanoid_robot_learning.rlt.train import FPS, query, summarize
 
 
-def rollouts(base, token, td3, venv, starts, C, d, max_frames, use_rl, ema=0.0, residual=False):
+def rollouts(base, token, td3, venv, starts, C, d, max_frames, use_rl, ema=0.0, residual=False, noise=0.0):
     """-> per start (success, seconds), per start (T, A) commanded actions. ``ema``: each executed command is
     ema * previous command + (1 - ema) * the policy's (the arm joints only; the gripper passes through).
     ``residual``: filter only the actor's correction (its action minus the base's), so the base's own motion is
-    not delayed."""
+    not delayed. ``noise``: the training exploration (one Gaussian offset per chunk, normalized units) kept on at run
+    time, a deliberate wiggle in place of the one an unpenalized actor learns."""
     results, cmds = [], []
     for k in range(0, len(starts), venv.n):
         group = starts[k:k + venv.n]
@@ -41,7 +42,8 @@ def rollouts(base, token, td3, venv, starts, C, d, max_frames, use_rl, ema=0.0, 
             ref_acts = base.unnormalize(a)
             if use_rl:
                 z = token.encode(context.float(), mask)
-                a = td3.act(z, s, a.reshape(len(active), -1)).view(len(active), C, -1)
+                ref = a.reshape(len(active), -1)
+                a = (td3.act_wiggle(z, s, ref, noise, C) if noise else td3.act(z, s, ref)).view(len(active), C, -1)
             acts = base.unnormalize(a)
             for j, i in enumerate(active):
                 plans[i] = chunk[j]
@@ -85,7 +87,8 @@ def main():
     ap.add_argument("--actor", default="td3_final.pt")
     ap.add_argument("--envs", type=int, default=8)
     ap.add_argument("--variants", default="base:16:6,base:5:2,rl:5:2,rl:5:2:0.5,rl:5:2:0.75,rl:5:5",
-                    help="mode:C:prefix[:ema], comma separated")
+                    help="mode:C:prefix[:ema[:res]][:n<std>], comma separated; n<std> keeps exploration noise on")
+    ap.add_argument("--report", default="jitter.json", help="file name in --rlt")
     args = ap.parse_args()
     rlt = Path(args.rlt)
     run = json.loads((rlt / "args.json").read_text())
@@ -106,16 +109,21 @@ def main():
     report = {}
     try:
         for spec in args.variants.split(","):
-            mode, c, p, *rest = spec.split(":")          # mode:C:prefix[:ema[:res]]
+            mode, c, p, *rest = spec.split(":")          # mode:C:prefix[:ema[:res]][:n<std>]
+            noise = [float(r[1:]) for r in rest if r.startswith("n")]
+            rest = [r for r in rest if not r.startswith("n")]
             c, p, ema = int(c), int(p), float(rest[0]) if rest else 0.0
             residual = len(rest) > 1 and rest[1] == "res"
+            if noise and mode != "rl":
+                raise SystemExit(f"{spec}: noise is on the actor's output")
             if mode == "rl" and c != C0:
                 raise SystemExit(f"{spec}: the actor was trained on chunks of {C0}")
-            res, cmds = rollouts(base, token, td3, venv, starts, c, p, max_frames, mode == "rl", ema, residual)
+            res, cmds = rollouts(base, token, td3, venv, starts, c, p, max_frames, mode == "rl", ema, residual,
+                                 noise[0] if noise else 0.0)
             report[spec] = {**summarize(res), **jitter(cmds)}
             print(json.dumps({"variant": spec, **report[spec]}), flush=True)
     finally:
-        (rlt / "jitter.json").write_text(json.dumps(report, indent=1))
+        (rlt / args.report).write_text(json.dumps(report, indent=1))
         venv.close()
 
 
