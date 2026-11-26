@@ -11,7 +11,8 @@ offline, with no ROS imports. The ROS side (launch files, `elevation_mapping_cup
 | Preprocessing: depth to points, crop, voxel downsample, into `odom` | TR-4 | Done, tested on TUM RGB-D |
 | Self-filtering (remove arms and legs) | TR-5 | Next |
 | Traversability layers: slope, step, roughness | TR-7 | Done offline; synthetic and noisy-map tested |
-| Elevation grid, combined policy layer, ROS node | TR-2/3, TR-8, TR-14 | In progress / not wired to our node |
+| Combined traversability decision | TR-8 | Available offline. Human review on course bags pending. |
+| Elevation grid, ROS node | TR-2/3, TR-14 | In progress / not wired to our node |
 
 ## Layout
 
@@ -31,10 +32,27 @@ src/terrain_mapping/terrain_core/
 
 ## Setup
 
-```bash
-cd src/terrain_mapping/terrain_core
-python3.10 -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]" -e ../../perception/slam/slam_core
+From a checkout of this repository, use Python 3.10 (the version used in CI) and enter
+`src/terrain_mapping/terrain_core`. Create and activate a virtual environment once.
+
+**macOS or Linux**
+
+```sh
+python3.10 -m venv .venv
+source .venv/bin/activate
+```
+
+**Windows (Command Prompt)**
+
+```bat
+py -3.10 -m venv .venv
+.venv\Scripts\activate.bat
+```
+
+**All platforms**, in the activated environment:
+
+```sh
+python -m pip install -e ".[dev]" -e ../../perception/slam/slam_core
 python -m pytest
 ```
 
@@ -81,15 +99,65 @@ The suite uses clean ramps, steps, boxes, holes, and 1–2 cm seeded noise at bo
 particular it requires noisy flat floor and a 5 degree ramp to remain traversable, while a noisy 10 degree ramp and
 10 cm step remain blocked.
 
-To inspect a recorded map such as Johnson's Nov. 6 `elevation.npy` (the file is intentionally gitignored), run:
+### Generate the diagrams and check the numbers
 
-```bash
-python terrain_tools/eval_traversability_npy.py /path/to/elevation.npy --resolution 0.04 \
-  --out /tmp/nov6_traversability.png
+From this directory after setup, run:
+
+```sh
+python prototype/simulate_tr8.py --report outputs/tr8-report.pdf
 ```
 
-The command prints the configured limits, estimated map noise, fraction traversable, and the fraction over each
-metric's limit. Its PNG has elevation, slope, step, roughness, score, and final boolean traversability panels.
+Open `outputs/tr8-report.pdf` in any PDF viewer. The simulator generates the input on your CPU.
+Each page shows one scene's elevation, slope, step height, roughness, score, and final decision.
+The counts at the top apply to the sampled surface named on that line. For example, the 14 cm
+vertical edge should be blocked, and the 5° ramp up to a 14 cm landing should be walkable.
+Gray cells have insufficient data. To repeat the experiment with 10 mm of simulated depth noise:
+
+```sh
+python prototype/simulate_tr8.py --noise-mm 10 --report outputs/tr8-noise-10mm.pdf
+```
+
+## TR-8 course review
+
+The decision applies the configured limits to each cell. Smooth ground must pass the slope limit (7°).
+At a discontinuity, the plane fit can cut across two levels, so the classifier uses the local height jump
+to judge the edge. Step (8 cm) and roughness (3 cm, provisional) apply everywhere with sufficient data.
+The exported grid uses 1 for traversable, 0 for blocked and NaN for unknown. A level box top can pass
+even when its edge is blocked. The layer judges local terrain, not whether a route to the top exists.
+
+### Check a recorded course
+
+1. Export `elevation.npy` using [Score a run](../README.md#score-a-run). Keep each bag's grid and labels together.
+2. Before looking at the prediction, identify recognizable floor, step and box edges, and ramp interiors
+   from the recording and the elevation image. For the Nov 6 course the measured 14 cm step, 39 cm box edge,
+   and roughly 9° ramp all exceed the configured limits. Include clear floor cells as positive examples.
+3. Save your judgments on the same grid. To read coordinates, display the array with
+   `plt.imshow(z, origin="lower", interpolation="nearest")` and `plt.show()`. The horizontal axis is the
+   column and the vertical axis is the row. Replace the example indices below with cells you reviewed.
+
+   ```python
+   import numpy as np
+   import matplotlib.pyplot as plt
+
+   z = np.load("elevation.npy")
+   plt.imshow(z, origin="lower", interpolation="nearest")
+   plt.show()
+   labels = np.full(z.shape, np.nan)
+   labels[20, 30] = 1  # example floor cell
+   labels[40, 50] = 0  # example step edge
+   np.save("labels.npy", labels)
+   ```
+
+4. Run from the terrain_core package directory, substituting the recorded map's cell size if different.
+
+   ```bash
+   python terrain_tools/eval_traversability_npy.py elevation.npy --resolution 0.04 \
+     --labels labels.npy --decisions-out decisions.npy --out review.png
+   ```
+
+The report counts agreement across **all reviewed cells**, including unknown predictions in the denominator.
+It lists missed obstacles and incorrectly blocked cells separately. Check the color-coded decision panel
+against the elevation panel for each disagreement. Record the bag, labels, and counts together for sign-off.
 
 ## Results on TUM RGB-D `freiburg1_desk`
 
@@ -110,8 +178,7 @@ tar -xzf rgbd_dataset_freiburg1_desk.tgz && cd ..
 python prototype/try_world.py                   # or: --data /somewhere/else/rgbd_dataset_freiburg1_desk
 ```
 
-The TUM test in `tests/test_tum.py` runs when the sequence is in `data/` (or `TUM_DATA=/path` is set),
-and is skipped otherwise.
+The TUM test in `tests/test_tum.py` runs when the sequence is in `data/` (or `TUM_DATA=/path` is set), tand is skipped otherwise.
 
 ## Not done yet
 

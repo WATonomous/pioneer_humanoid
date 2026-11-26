@@ -296,3 +296,14 @@ def test_traversability_config_loads_committed_metres_and_limits():
     assert config.limits == RobotLimits(max_slope_deg=7.0, max_step_m=0.08, max_roughness_m=0.03)
     assert config.params.plane_window_m == pytest.approx(0.40)
     assert config.params.step_radius_m == pytest.approx(0.05)
+
+
+def test_missing_step_measurement_is_unknown_even_with_valid_plane_fit():
+    z = flat()
+    z[39:42, 39:42] = np.nan
+    z[40, 40] = 0.0
+    out = compute_traversability(z, RES)
+    assert np.isfinite(out["slope"][40, 40])
+    assert np.isnan(out["step"][40, 40])
+    assert np.isnan(out["traversability"][40, 40])
+    assert not out["traversable"][40, 40]

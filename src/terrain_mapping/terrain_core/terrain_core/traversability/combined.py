@@ -81,17 +81,16 @@ def compute_traversability(
 
     step = compute_step(elevation, resolution, params.step_radius_m, slope, planar)
 
-    known = np.isfinite(elevation) & np.isfinite(slope)
+    known = np.isfinite(slope) & np.isfinite(step) & np.isfinite(rough)
     if variance is not None and limits.max_variance is not None:
         known &= np.asarray(variance, dtype=float) <= limits.max_variance
 
     slope_checked = np.where(planar, slope, 0.0)          # off planar cells the step limit applies instead
 
     max_slope = np.deg2rad(limits.max_slope_deg)
-    step0 = np.nan_to_num(step, nan=0.0)
     with np.errstate(invalid="ignore"):
         c_slope = np.clip(slope_checked / max_slope, 0.0, 1.0)
-        c_step = np.clip(step0 / limits.max_step_m, 0.0, 1.0)
+        c_step = np.clip(step / limits.max_step_m, 0.0, 1.0)
         c_rough = np.clip(rough / limits.max_roughness_m, 0.0, 1.0)
     cost = np.maximum(np.maximum(c_slope, c_step), c_rough)
 
@@ -99,7 +98,7 @@ def compute_traversability(
     score[~known] = np.nan
 
     with np.errstate(invalid="ignore"):
-        traversable = known & (slope_checked <= max_slope) & (step0 <= limits.max_step_m) \
+        traversable = known & (slope_checked <= max_slope) & (step <= limits.max_step_m) \
             & (rough <= limits.max_roughness_m)
 
     return {
