@@ -174,32 +174,33 @@ def main():
     p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     p.add_argument("--policy", required=True, help="Pioneer-1 pretrained_model directory (frozen base)")
     p.add_argument("--out", default="rlt_out")
-    p.add_argument("--envs", type=int, default=6)
+    p.add_argument("--envs", type=int, default=8)
     p.add_argument("--train_starts", type=int, default=240, help="layouts tried for training start states")
-    p.add_argument("--eval_starts", type=int, default=48, help="layouts tried for eval start states")
+    p.add_argument("--eval_starts", type=int, default=130, help="layouts tried for eval start states")
     p.add_argument("--token_steps", type=int, default=2000)
     p.add_argument("--chunk", type=int, default=5, help="C: frames per RL action (0.2 s at 25 fps)")
-    p.add_argument("--prefix", type=int, default=5, help="RTC prefix: actions of the base's last plan kept at the start"
+    p.add_argument("--prefix", type=int, default=2, help="RTC prefix: actions of the base's last plan kept at the start"
                    " of each new chunk (Pioneer-1 is trained with up to 6; 0 = none, which breaks its motion)")
-    p.add_argument("--baselines", default="5:0,5:2,5:5,16:6",
+    p.add_argument("--baselines", default="5:2,16:6",
                    help="base-only evals before RL, as C:prefix pairs (16:6 = how Pioneer-1 runs natively)")
     p.add_argument("--baseline_only", action="store_true", help="stop after the baselines")
     p.add_argument("--episode_s", type=float, default=10.0)
     p.add_argument("--warmup", type=int, default=2000, help="base-rollout transitions before RL updates")
-    p.add_argument("--utd", type=int, default=5)
+    p.add_argument("--utd", type=int, default=2, help="updates per transition; 5 overestimated Q")
     p.add_argument("--beta", type=float, default=10.0, help="penalty on ||a - a_ref||^2 (mean over values); 1 let the "
                    "actor drift cm away and knock the peg loose")
     p.add_argument("--free_gripper", action="store_true", help="let the actor change the gripper command (default: "
                    "pinned to the base's, insertion never needs it)")
     p.add_argument("--gamma", type=float, default=0.98)
-    p.add_argument("--noise", type=float, default=0.01, help="exploration std, normalized action units (~2-3 mm)")
+    p.add_argument("--noise", type=float, default=0.02, help="exploration std, normalized action units (0.01 ~ 2-3 mm); "
+                   "0.01 explored 5-15x less than the actor moved")
     p.add_argument("--ref_dropout", type=float, default=0.5)
-    p.add_argument("--minutes", type=float, default=60.0, help="RL wall-clock budget")
-    p.add_argument("--eval_every", type=int, default=3000, help="transitions between evals")
+    p.add_argument("--minutes", type=float, default=150.0, help="RL wall-clock budget")
+    p.add_argument("--eval_every", type=int, default=10000, help="transitions between evals")
     p.add_argument("--seed", type=int, default=0)
     args = p.parse_args()
     import humanoid_mujoco_scenes.peg_insert.scene as peg_scene
-    args.clearance_m = peg_scene.CLEARANCE
+    args.clearance_m = peg_scene.CLEARANCE           # PEG_CLEARANCE env var; the workers inherit it
     torch.manual_seed(args.seed)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
