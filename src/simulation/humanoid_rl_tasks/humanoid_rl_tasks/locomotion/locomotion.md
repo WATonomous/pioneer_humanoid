@@ -23,6 +23,8 @@ baseline notes:
 | `Isaac-Locomotion-RoughNoStairsSelectiveKneeShape-PioneerHumanoid-Play-v0` | Matching rough-no-stairs recipe | Play |
 | `Isaac-Locomotion-StairsStraightFoothold-PioneerHumanoid-v0` | Onshape straight course, foothold-conditioned perception ("Watch Your Step"), arms swing on the gait clock | Train |
 | `Isaac-Locomotion-StairsStraightFoothold-PioneerHumanoid-Play-v0` | Matching foothold play config (loads `models/pioneer_humanoid_stairs_foothold/`) | Play |
+| `Isaac-Locomotion-StairsSpiralFoothold-PioneerHumanoid-v0` | Onshape spiral course, foothold-conditioned perception, arms swing on the gait clock | Train |
+| `Isaac-Locomotion-StairsSpiralFoothold-PioneerHumanoid-Play-v0` | Matching spiral foothold play config | Play |
 
 Legacy aliases `Isaac-Velocity-*` register the same configs.
 
@@ -177,8 +179,8 @@ base frame) and a 7 x 7 patch of terrain heights around it (the policy input is
 cannot be loaded into the other. The predictor trains
 alongside the policy and is saved as `foot_model_*.pt` next to the checkpoints;
 Play configs load it from `models/<task>/`.
-The course-rebuild tooling (STEP -> terrain USD) is not part of this tree; the committed
-`*_terrain.usd` and profile JSONs are all that runtime needs.
+`tools/onshape_course/` rebuilds a course from its STEP export (`build_course.py`, then `spiral_profile.py` and
+`spiral_spawn_slots.py` for the spiral); the committed `*_terrain.usd` and profile JSONs are all that runtime needs.
 The straight foothold task keeps the arms scripted (see "Arm swing" above).
 A trained straight policy and its predictor are in
 `models/pioneer_humanoid_stairs_foothold/` (`model_599.pt`, `foot_model_2505.pt`).

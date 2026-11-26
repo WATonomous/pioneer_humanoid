@@ -45,7 +45,7 @@ class ArmSwingAction(ActionTerm):
         speed = self._env.command_manager.get_command("base_velocity")[:, 0].abs()
         amplitude = self.cfg.amplitude * torch.clamp(speed / self.cfg.full_speed, 0.0, 1.0)
         # left arm furthest forward while the right leg is mid-swing: at phase stance / 2 of the left leg's clock
-        phase = gait.leg_phase(self._env)[:, 0]
+        phase = gait.leg_phase(self._env, self.cfg.period)[:, 0]
         swing = amplitude * torch.sin(2 * math.pi * (phase - gait.STANCE / 2 + 0.25))
         self._robot.set_joint_position_target(torch.stack([-swing, swing], dim=1), joint_ids=self._shoulders)
         self._robot.set_joint_position_target(torch.full_like(torch.stack([swing, swing], dim=1), -self.cfg.elbow_bend),
@@ -58,4 +58,5 @@ class ArmSwingActionCfg(ActionTermCfg):
     asset_name: str = "robot"
     amplitude: float = 0.35  # rad of shoulder pitch at full speed
     full_speed: float = 0.8  # m/s
+    period: float = gait.PERIOD  # s, the stride cycle the swing rides on
     elbow_bend: float = 0.3  # rad

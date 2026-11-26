@@ -53,3 +53,20 @@ for _suffix, _env_class in (
                 "rsl_rl_cfg_entry_point": f"{agents.__name__}.onshape_foothold_ppo_cfg:PioneerHumanoidStairsFootholdPPORunnerCfg",
             },
         )
+
+# Spiral staircase with foothold-conditioned perception: same perception and
+# action layout as the straight foothold task, on the helicoid course.
+for _suffix, _env_class in (
+    ("", "PioneerHumanoidSpiralFootholdEnvCfg"),
+    ("-Play", "PioneerHumanoidSpiralFootholdEnvCfg_PLAY"),
+):
+    for _prefix in ("Isaac-Locomotion", "Isaac-Velocity"):
+        gym.register(
+            id=f"{_prefix}-StairsSpiralFoothold-PioneerHumanoid{_suffix}-v0",
+            entry_point="isaaclab.envs:ManagerBasedRLEnv",
+            disable_env_checker=True,
+            kwargs={
+                "env_cfg_entry_point": f"{__name__}.onshape_spiral_foothold_env_cfg:{_env_class}",
+                "rsl_rl_cfg_entry_point": f"{agents.__name__}.onshape_spiral_foothold_ppo_cfg:PioneerHumanoidSpiralFootholdPPORunnerCfg",
+            },
+        )

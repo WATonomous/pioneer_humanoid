@@ -12,4 +12,5 @@ from .knee_shaping import *  # noqa: F401, F403
 from .noise import *  # noqa: F401, F403
 from .observations import *  # noqa: F401, F403
 from .rewards import *  # noqa: F401, F403
+from .spiral_course import *  # noqa: F401, F403
 from .terminations import *  # noqa: F401, F403
