@@ -18,6 +18,7 @@ src/simulation/
 │   └── humanoid_mujoco_scenes/ #   bare/  peg_insert/
 ├── so101_vial_task/        # SO101 imitation-learning task
 └── badminton/              # mjlab (MuJoCo Warp) badminton receive RL — see badminton/README.md
+└── agent_control/          # an LLM agent (Claude, Codex, ...) drives the 8dof arm command by command — Tower of Hanoi
 └── whole_body_motion_tracking/  # Links to whole body motion tracking pipeline
 ```
 
