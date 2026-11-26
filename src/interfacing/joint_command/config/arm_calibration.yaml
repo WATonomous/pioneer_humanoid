@@ -91,7 +91,7 @@ left:
       zero_offset: -6.900000095367432
       limit_range: true
   wrist:
-    pitch:
+    pitch: # dummy
       can_id: 1
       lower_limit: -85.31846761703491
       upper_limit: 81.86507415771484

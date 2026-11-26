@@ -90,7 +90,7 @@ That only works with:
   id 0 with only their id's last hex digit, so every GL40 needs a different last hex digit, and no
   AK may end in the same hex digit as a GL40 (`can_node` drops that AK's profile). Set the GL40
   master id to 0 and keep the drives' MIT ranges as in `mit_profiles.yaml`.
-- Every motor listed in `config/mit_profiles.yaml`.
+- Every motor listed in `config/mit_profiles.yaml`, under its bus's section (`upper` or `lower`).
 
 **AK bring-up, per joint** (arm supported, hardware E-stop in reach):
 1. `candump can0`: extended frames on `0000080<id>`, KP first, no `FF..FC` to the AK.

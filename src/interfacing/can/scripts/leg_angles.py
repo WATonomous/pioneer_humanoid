@@ -59,7 +59,7 @@ def load_ak_profiles(ids) -> dict[int, dict]:
     path = jc._first_existing(jc.MIT_PROFILES)
     if path is None:
         raise SystemExit(f"could not find mit_profiles.yaml (looked in: {', '.join(jc.MIT_PROFILES)})")
-    motors = (yaml.safe_load(path.read_text(encoding="utf-8")) or {}).get("motors", {}) or {}
+    motors = jc.load_mit_profiles(path)
     out = {}
     for motor_id in ids:
         prof = motors.get(str(motor_id))

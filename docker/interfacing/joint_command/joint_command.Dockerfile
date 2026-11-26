@@ -15,10 +15,10 @@ FROM ${BASE_IMAGE} AS dependencies
 
 COPY --from=source /tmp/colcon_install_list /tmp/colcon_install_list
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      build-essential \
-      cmake \
-      libyaml-cpp-dev \
-      $(cat /tmp/colcon_install_list) && \
+    build-essential \
+    cmake \
+    libyaml-cpp-dev \
+    $(cat /tmp/colcon_install_list) && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR ${AMENT_WS}
@@ -30,11 +30,10 @@ FROM dependencies AS build
 WORKDIR ${AMENT_WS}
 RUN . /opt/ros/$ROS_DISTRO/setup.sh && \
     colcon build \
-        --cmake-args -DCMAKE_BUILD_TYPE=Release \
-        --install-base ${WATONOMOUS_INSTALL}
+    --cmake-args -DCMAKE_BUILD_TYPE=Release \
+    --install-base ${WATONOMOUS_INSTALL}
 
 RUN rm -rf src build log
-RUN pip install onnxruntime
 
 COPY docker/wato_ros_entrypoint.sh ${AMENT_WS}/wato_ros_entrypoint.sh
 ENTRYPOINT ["./wato_ros_entrypoint.sh"]
@@ -50,13 +49,13 @@ ARG USER_GID=1000
 ARG USERNAME=dev
 RUN old=$(getent passwd "${USER_UID}" | cut -d: -f1 || true); \
     if [ -n "$old" ] && [ "$old" != "${USERNAME}" ]; then \
-        groupmod -n "${USERNAME}" "$(getent group "${USER_GID}" | cut -d: -f1)" 2>/dev/null || true; \
-        usermod  -l "${USERNAME}" -d "/home/${USERNAME}" "$old"; \
-        mkdir -p "/home/${USERNAME}" && cp -rT /etc/skel "/home/${USERNAME}"; \
+    groupmod -n "${USERNAME}" "$(getent group "${USER_GID}" | cut -d: -f1)" 2>/dev/null || true; \
+    usermod  -l "${USERNAME}" -d "/home/${USERNAME}" "$old"; \
+    mkdir -p "/home/${USERNAME}" && cp -rT /etc/skel "/home/${USERNAME}"; \
     fi; \
     id -u "${USERNAME}" >/dev/null 2>&1 || { \
-        getent group "${USER_GID}" >/dev/null || groupadd --gid "${USER_GID}" "${USERNAME}"; \
-        useradd --uid "${USER_UID}" --gid "${USER_GID}" -m "${USERNAME}" --shell /bin/bash; }; \
+    getent group "${USER_GID}" >/dev/null || groupadd --gid "${USER_GID}" "${USERNAME}"; \
+    useradd --uid "${USER_UID}" --gid "${USER_GID}" -m "${USERNAME}" --shell /bin/bash; }; \
     apt-get update && apt-get install -y --no-install-recommends sudo; \
     echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > "/etc/sudoers.d/${USERNAME}"; \
     chmod 0440 "/etc/sudoers.d/${USERNAME}"; \

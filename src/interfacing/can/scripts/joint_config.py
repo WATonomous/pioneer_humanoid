@@ -110,13 +110,18 @@ def find_actuators(explicit: Optional[str], limb: str = "arm") -> Optional[Path]
     return _first_existing([explicit] if explicit else actuator_configs(limb))
 
 
+def load_mit_profiles(path: Path) -> dict:
+    """{"<id>": profile} from mit_profiles.yaml's upper and lower bus sections."""
+    root = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    return {**(root.get("upper") or {}), **(root.get("lower") or {})}
+
+
 def drive_family(motor_id: int) -> Optional[str]:
     """mit_profiles.yaml family for this id (gl2 / akv2 / akv3), or None if unknown."""
     path = _first_existing(MIT_PROFILES)
     if path is None:
         return None
-    motors = (yaml.safe_load(path.read_text(encoding="utf-8")) or {}).get("motors", {}) or {}
-    return (motors.get(str(motor_id)) or {}).get("family")
+    return (load_mit_profiles(path).get(str(motor_id)) or {}).get("family")
 
 
 def installed_joint_command_config() -> Optional[Path]:
