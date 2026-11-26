@@ -144,7 +144,8 @@ MitAkFeedback decodeAkFeedback(const uint8_t* data, const MitProfile& profile) {
   fb.position = unpackMitValue(pos_i, profile.p_min, profile.p_max, 16);
   fb.velocity = unpackMitValue(vel_i, profile.v_min, profile.v_max, 12);
   fb.torque = unpackMitValue(t_i, profile.t_min, profile.t_max, 12);
-  fb.motor_temp = static_cast<int8_t>(data[6]);
+  profile.family == MitFamily::Akv3 ? fb.motor_temp = static_cast<int>(data[6])
+                                    : fb.motor_temp = static_cast<int>(data[6]) - 40;
   fb.error = data[7];
   return fb;
 }
