@@ -189,22 +189,6 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         runner.load(args_cli.warm_start_checkpoint, load_optimizer=False)
         runner.current_learning_iteration = 0
 
-    # Optional: pin the action-noise std after loading. The spiral fine-tune
-    # inherited 0.84 rad from the straight deliverable and let it grow to
-    # 2.01 rad -- with entropy_coef = 0 the std has no restoring force, so the
-    # surrogate gradient is free to inflate it, and 2.4x the deliverable's
-    # exploration scale means every sampled target lands on a clip rail. The
-    # deterministic policy is unaffected (play uses the mean); this only
-    # controls what the fine-tune explores with.
-    std_clamp = os.environ.get("SPIRAL_STD_CLAMP")
-    if std_clamp:
-        target = float(std_clamp)
-        log_std = runner.alg.policy.log_std
-        before = float(log_std.exp().mean())
-        with torch.no_grad():
-            log_std.fill_(float(torch.log(torch.tensor(target))))
-        print(f"[TRAIN] policy action std clamped {before:.2f} -> {target:.2f}", flush=True)
-
     # dump the configuration into log-directory
     dump_yaml(os.path.join(log_dir, "params", "env.yaml"), env_cfg)
     dump_yaml(os.path.join(log_dir, "params", "agent.yaml"), agent_cfg)

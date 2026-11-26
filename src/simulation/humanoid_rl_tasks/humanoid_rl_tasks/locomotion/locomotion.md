@@ -23,8 +23,6 @@ baseline notes:
 | `Isaac-Locomotion-RoughNoStairsSelectiveKneeShape-PioneerHumanoid-Play-v0` | Matching rough-no-stairs recipe | Play |
 | `Isaac-Locomotion-StairsStraightFoothold-PioneerHumanoid-v0` | Onshape straight course, foothold-conditioned perception ("Watch Your Step"), arms swing on the gait clock | Train |
 | `Isaac-Locomotion-StairsStraightFoothold-PioneerHumanoid-Play-v0` | Matching foothold play config (loads `models/pioneer_humanoid_stairs_foothold/`) | Play |
-| `Isaac-Locomotion-StairsSpiralFoothold-PioneerHumanoid-v0` | Onshape spiral course, foothold-conditioned perception, arms swing on the gait clock | Train |
-| `Isaac-Locomotion-StairsSpiralFoothold-PioneerHumanoid-Play-v0` | Matching spiral foothold play config | Play |
 
 Legacy aliases `Isaac-Velocity-*` register the same configs.
 

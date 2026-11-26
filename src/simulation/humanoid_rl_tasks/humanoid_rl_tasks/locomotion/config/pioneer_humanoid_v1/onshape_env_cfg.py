@@ -194,9 +194,7 @@ class PioneerHumanoidOnshapeCourseEnvCfg(PioneerHumanoidRoughNoStairsSelectiveKn
         # dropout (see mdp/noise.py). This replaces the shared +/-10 cm uniform
         # term inherited from locomotion_env_cfg.py. Rates ramp in over the
         # first ~500 iterations so a warm-started checkpoint adapts instead of
-        # meeting full corruption on its first rollout. The straight course and
-        # the spiral (plus both arm-swing variants) inherit from here; the
-        # _PLAY configs strip the term by disabling observation corruption.
+        # meeting full corruption on its first rollout. The _PLAY configs strip the term by disabling observation corruption.
         self.observations.policy.height_scan.noise = LidarNoiseCfg()
 
         # Termination: goal is the flat exit past the final descent

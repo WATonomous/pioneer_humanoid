@@ -143,22 +143,6 @@ def _band_from_profile(
     return band0 + frac * (band1 - band0)
 
 
-def _path_forward_offset(env, centre, positions, batch, swing_idx, stance_idx):
-    """How far ahead of the stance foot the swing foot is, along the path.
-
-    On a spiral staircase the forward direction rotates, so the offset is
-    measured against the staircase's tangent at the robot's current angle
-    about ``centre`` (the staircase winds counter-clockwise upward).
-    """
-    root = env.scene["robot"].data.root_pos_w
-    angle = torch.atan2(root[:, 1] - centre[1], root[:, 0] - centre[0])
-    tx = -torch.sin(angle)
-    ty = torch.cos(angle)
-    dx = positions[batch, swing_idx, 0] - positions[batch, stance_idx, 0]
-    dy = positions[batch, swing_idx, 1] - positions[batch, stance_idx, 1]
-    return dx * tx + dy * ty
-
-
 def foot_swing_clearance(
     env,
     left_sensor_cfg,
@@ -172,7 +156,6 @@ def foot_swing_clearance(
     band: float | None = None,
     band_profile: list | None = None,
     band_profile_axis: int | None = None,
-    path_centre: tuple | None = None,
     excess_coef: float = 0.0,
     back_allow: float | None = None,
     phase_ramp: float = 0.06,
@@ -188,8 +171,7 @@ def foot_swing_clearance(
     reward so standing-reserve environments stay neutral.
 
     ``min_command_norm`` is that gate's threshold. It is a strict ``>`` on the
-    commanded speed, so a task that *commands* exactly 0.1 m/s (the spiral's
-    slow gait) reads zero on every step and the term silently disappears --
+    commanded speed, so a task that *commands* exactly 0.1 m/s (a slow gait) reads zero on every step and the term silently disappears --
     which is what happened here: the lift shaping was dead for a whole run.
     Such a task must lower the threshold below its command, not raise its
     command.
@@ -217,9 +199,7 @@ def foot_swing_clearance(
     pays only for the riser that is actually coming, which is what a person
     does. The table is interpolated linearly between samples, so the band
     moves smoothly with the robot. ``band_profile_axis`` says which coordinate
-    the table is indexed by (the default is the forward axis; a spiral
-    staircase indexes it by height, because height is the path coordinate
-    there).
+    the table is indexed by (the default is the forward axis).
 
     With ``back_allow``/``phase_ramp`` set, the payout is gated to the *forward*
     phase of the swing: it ramps in only once the swing foot is at or ahead of
@@ -228,11 +208,6 @@ def foot_swing_clearance(
     "butt-kick" swing, so the gate removes that credit; a genuine forward
     knee-led step is unaffected.
 
-    ``path_centre`` makes that gate path-relative: on a spiral staircase the
-    forward direction rotates, so the swing foot is measured against the
-    staircase's tangent at the robot's current angle about ``path_centre``
-    instead of against a fixed world axis. The default (None) keeps the
-    straight-course behaviour.
     """
     asset = env.scene[feet_cfg.name]
     positions = asset.data.body_pos_w[:, feet_cfg.body_ids, :]
@@ -261,10 +236,7 @@ def foot_swing_clearance(
     reward = torch.where(single_stance, reward, torch.zeros_like(reward))
     reward = reward * (env.command_manager.get_command(command_name)[:, :2].norm(dim=1) > min_command_norm)
     if back_allow is not None:
-        if path_centre is not None:
-            d_fwd = _path_forward_offset(env, path_centre, positions, batch, swing_idx, stance_idx)
-        else:
-            d_fwd = forward[batch, swing_idx] - forward[batch, stance_idx]
+        d_fwd = forward[batch, swing_idx] - forward[batch, stance_idx]
         reward = reward * ((d_fwd - back_allow) / phase_ramp).clamp(0.0, 1.0)
     if min_forward_speed > 0.0:
         fwd = env.scene[feet_cfg.name].data.root_lin_vel_w[:, forward_axis]
@@ -280,7 +252,6 @@ def foot_backswing_cost(
     asset_name: str = "robot",
     forward_axis: int = 0,
     deadband: float = 0.20,
-    path_centre: tuple | None = None,
 ) -> torch.Tensor:
     """Cost lifting the swing foot *behind* the body (the rear "butt-kick").
 
@@ -289,23 +260,13 @@ def foot_backswing_cost(
     the foot a little behind the body, so the deadband must clear that; only
     the exaggerated rear-lift that precedes an inefficient step pays. Returns a
     non-negative magnitude (the term's weight carries the sign).
-
-    ``path_centre`` makes the measurement path-relative: on a spiral staircase
-    "behind" is behind *along the staircase*, so the excursion is measured
-    against the tangent at the robot's current angle about that centre.
     """
     if deadband < 0.0:
         raise ValueError("Backswing deadband cannot be negative.")
     asset = env.scene[feet_cfg.name]
     foot_pos = asset.data.body_pos_w[:, feet_cfg.body_ids, :]
     root = env.scene[asset_name].data.root_pos_w
-    if path_centre is not None:
-        angle = torch.atan2(root[:, 1] - path_centre[1], root[:, 0] - path_centre[0])
-        tx = -torch.sin(angle).unsqueeze(-1)
-        ty = torch.cos(angle).unsqueeze(-1)
-        offset = (foot_pos[..., 0] - root[:, 0:1]) * tx + (foot_pos[..., 1] - root[:, 1:2]) * ty
-    else:
-        offset = foot_pos[..., forward_axis] - root[:, forward_axis].unsqueeze(-1)
+    offset = foot_pos[..., forward_axis] - root[:, forward_axis].unsqueeze(-1)
     behind = (-offset - deadband).clamp_min(0.0)
     sensors = [env.scene.sensors[cfg.name] for cfg in (left_sensor_cfg, right_sensor_cfg)]
     contact_time = torch.cat([sensor.data.current_contact_time for sensor in sensors], dim=1)

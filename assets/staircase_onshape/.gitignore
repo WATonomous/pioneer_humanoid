@@ -5,7 +5,6 @@
 # Committed (what the tasks actually load):
 #   *_terrain.usd        merged single-mesh course
 #   *_profile.json       height/clearance table
-#   spiral_geometry.json spiral parameters
 *.step
 *.usd
 !*_terrain.usd
