@@ -40,8 +40,7 @@ def _mirror_foothold_scan(x: torch.Tensor, term_cfg) -> torch.Tensor:
     for i, src in enumerate((x[:, stride:], x[:, :stride])):
         o = i * stride
         out[:, o], out[:, o + 1] = src[:, 0], -src[:, 1]
-        # Flip the lateral (column) axis of every row; the extra behind-heel rows
-        # are just more rows of the same grid, so they mirror the same way.
+        # mirror the lateral (column) axis of every row, including the behind-heel rows
         out[:, o + 2 : o + stride] = src[:, 2:].reshape(-1, rows, k).flip(dims=[2]).reshape(-1, rows * k)
     return out
 

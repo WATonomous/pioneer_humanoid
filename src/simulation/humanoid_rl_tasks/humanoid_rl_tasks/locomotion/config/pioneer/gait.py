@@ -11,21 +11,15 @@ SWING_HEIGHT = 0.10  # sole above the ground mid-swing, m
 SOLE_BELOW_FOOT = 0.059  # foot body origin above the sole, standing
 
 
-def leg_phase(env, period: float = PERIOD) -> torch.Tensor:
-    """(num_envs, 2) phase in [0, 1) of the left and the right leg.
-
-    ``period`` is the stride cycle in seconds. The default 1 s suits a 0.26 m/s
-    walk on the straight course's 0.29 m treads; a staircase with 0.55 m of
-    going per tread needs a much slower cycle at the same speed, and the phase
-    is also what the scripted arms and the contact-matching reward ride on.
-    """
-    phase = (env.episode_length_buf * env.step_dt) % period / period
+def leg_phase(env) -> torch.Tensor:
+    """(num_envs, 2) phase in [0, 1) of the left and the right leg."""
+    phase = (env.episode_length_buf * env.step_dt) % PERIOD / PERIOD
     return torch.stack([phase, (phase + 0.5) % 1.0], dim=-1)
 
 
-def gait_clock(env, period: float = PERIOD) -> torch.Tensor:
+def gait_clock(env) -> torch.Tensor:
     """Observation: sin and cos of the left leg's phase."""
-    phase = leg_phase(env, period)[:, 0]
+    phase = leg_phase(env)[:, 0]
     return torch.stack([torch.sin(2 * math.pi * phase), torch.cos(2 * math.pi * phase)], dim=-1)
 
 
@@ -33,9 +27,9 @@ def _in_contact(env, sensor_cfg: SceneEntityCfg) -> torch.Tensor:
     return env.scene.sensors[sensor_cfg.name].data.net_forces_w[:, sensor_cfg.body_ids, 2] > 1.0
 
 
-def contact_matches_phase(env, sensor_cfg: SceneEntityCfg, period: float = PERIOD) -> torch.Tensor:
+def contact_matches_phase(env, sensor_cfg: SceneEntityCfg) -> torch.Tensor:
     """Number of feet (0-2) whose ground contact matches the clock's stance or swing."""
-    return (_in_contact(env, sensor_cfg) == (leg_phase(env, period) < STANCE)).float().sum(dim=1)
+    return (_in_contact(env, sensor_cfg) == (leg_phase(env) < STANCE)).float().sum(dim=1)
 
 
 def feet_swing_height(env, sensor_cfg: SceneEntityCfg, asset_cfg: SceneEntityCfg) -> torch.Tensor:
@@ -45,18 +39,12 @@ def feet_swing_height(env, sensor_cfg: SceneEntityCfg, asset_cfg: SceneEntityCfg
     return ((sole_z - SWING_HEIGHT).square() * airborne).sum(dim=1)
 
 
-def feet_swing_height_relative(env, sensor_cfg: SceneEntityCfg, asset_cfg: SceneEntityCfg,
-                               target: float = SWING_HEIGHT) -> torch.Tensor:
-    """feet_swing_height for uneven ground: the airborne foot's height above the lower foot, not above z = 0.
-
-    ``target`` is the mid-swing height above the *stance* foot. A staircase
-    taller than the flat course's 0.10 m has to raise it to its own clearance
-    band, or the term pays the policy to under-lift and stub the risers.
-    """
+def feet_swing_height_relative(env, sensor_cfg: SceneEntityCfg, asset_cfg: SceneEntityCfg) -> torch.Tensor:
+    """feet_swing_height for uneven ground: the airborne foot's height above the lower foot, not above z = 0."""
     foot_z = env.scene[asset_cfg.name].data.body_pos_w[:, asset_cfg.body_ids, 2]
     above = foot_z - foot_z.min(dim=1, keepdim=True).values
     airborne = ~_in_contact(env, sensor_cfg)
-    return ((above - target).square() * airborne).sum(dim=1)
+    return ((above - SWING_HEIGHT).square() * airborne).sum(dim=1)
 
 
 def stance_foot_velocity(env, sensor_cfg: SceneEntityCfg, asset_cfg: SceneEntityCfg) -> torch.Tensor:
@@ -120,17 +108,4 @@ def _finite_rewards() -> None:
 
 
 _finite_rewards()
-
-
-def _joint_action_idx(env, names) -> torch.Tensor:
-    """Indices of ``names`` in the joint-position action vector (cached on the env)."""
-    key = "_gait_idx_" + "_".join(names)
-    cached = getattr(env, key, None)
-    if cached is None:
-        term = env.action_manager.get_term("joint_pos")
-        order = list(term._joint_names)
-        cached = torch.tensor([order.index(n) for n in names], device=env.device)
-        setattr(env, key, cached)
-    return cached
-
 

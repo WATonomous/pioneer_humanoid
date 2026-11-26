@@ -101,15 +101,8 @@ def feet_air_time_positive_biped_terrain(
 ) -> torch.Tensor:
     """Apply the existing biped air-time reward using terrain-only stance.
 
-    With ``min_forward_speed`` set, the payout additionally ramps with measured
-    forward speed along ``forward_axis`` (capped at 1.0), so a continuously
-    held-up foot while standing still earns nothing while real stepping during
-    forward motion pays fully. Default 0.0 preserves the ungated behavior for
-    every other task using this function.
-
-    ``min_command_norm`` is the strict ``>`` gate on the commanded speed; a
-    task that commands exactly the default 0.1 m/s must lower it, or every step
-    reads zero (see ``foot_swing_clearance``).
+    ``min_forward_speed`` > 0 ramps the payout with forward speed, so a held-up foot while standing pays
+    nothing. ``min_command_norm`` is a strict ``>`` gate on commanded speed (see ``foot_swing_clearance``).
     """
     sensors = [env.scene.sensors[cfg.name] for cfg in (left_sensor_cfg, right_sensor_cfg)]
     air_time = torch.cat([sensor.data.current_air_time for sensor in sensors], dim=1)

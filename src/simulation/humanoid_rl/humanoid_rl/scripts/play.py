@@ -101,19 +101,15 @@ def main():
             log_root_path, agent_cfg.load_run, agent_cfg.load_checkpoint)
 
     log_dir = os.path.dirname(resume_path)
-    # Foothold-conditioned tasks resolve their foot predictor through
-    # env_cfg.log_dir. Only point that at the checkpoint's run directory when a
-    # predictor actually sits there: otherwise the supervisor silently falls
-    # back to bootstrapped (fixed) footholds and the visual shows a policy fed
-    # inputs it was not trained on. Their PLAY configs default to models/<task>.
+    # foothold tasks load their foot predictor from env_cfg.log_dir; only use the checkpoint's run
+    # directory if a predictor is there, else the supervisor silently falls back to fixed footholds
     run_has_predictor = os.path.isdir(log_dir) and any(
         n.startswith("foot_model_") and n.endswith(".pt") for n in os.listdir(log_dir)
     )
     if run_has_predictor or not hasattr(env_cfg, "log_dir"):
         env_cfg.log_dir = log_dir
 
-    # Where a recording lands. PLAY_VIDEO_DIR / PLAY_VIDEO_PREFIX let a second
-    # angle be recorded next to the first instead of overwriting it.
+    # PLAY_VIDEO_DIR / PLAY_VIDEO_PREFIX record a second clip without overwriting the first
     video_dir = os.environ.get("PLAY_VIDEO_DIR") or os.path.join(log_dir, "videos", "play")
     video_prefix = os.environ.get("PLAY_VIDEO_PREFIX", "rl-video")
     if args_cli.video:
@@ -123,11 +119,8 @@ def main():
     env = gym.make(args_cli.task, cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None)
 
     if args_cli.video:
-        # The RTX renderer returns an empty (all-black) buffer for its first
-        # frames while it warms up. RecordVideo captures on the first step, so
-        # without this the clip opens on one or more black frames. Spend the
-        # warm-up here, before the recorder exists. `unwrapped` skips the gym
-        # OrderEnforcer, which refuses render() before the first reset().
+        # the RTX renderer returns black frames while it warms up; spend them before the recorder exists
+        # (`unwrapped` skips the gym OrderEnforcer, which refuses render() before the first reset)
         for _ in range(30):
             frame = env.unwrapped.render()
             simulation_app.update()
@@ -192,8 +185,7 @@ def main():
     obs = env.get_observations()
     timestep = 0
     step_index = 0
-    # Hard step cap for headless probes (PLAY_MAX_STEPS=N): exits cleanly
-    # without the --video recorder (which is otherwise the only bound on the loop).
+    # PLAY_MAX_STEPS=N: step cap for headless runs (otherwise only --video bounds the loop)
     max_steps = int(os.environ.get("PLAY_MAX_STEPS", "0") or 0)
     # simulate environment
     while simulation_app.is_running():

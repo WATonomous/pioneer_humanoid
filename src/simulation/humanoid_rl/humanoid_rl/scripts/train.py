@@ -29,10 +29,8 @@ parser.add_argument("--seed", type=int, default=None, help="Seed used for the en
 parser.add_argument("--max_iterations", type=int, default=None,
                     help="RL Policy training iterations.")
 parser.add_argument("--warm_start_checkpoint", type=str, default=None,
-                    help="Policy checkpoint to warm-start from (e.g. a walker "
-                         "donor for an Onshape course curriculum). Loads policy weights "
-                         "only -- optimizer and iteration counter start fresh, "
-                         "unlike --resume which continues the same run.")
+                    help="Policy checkpoint to warm-start from. Loads policy weights only; optimizer "
+                         "and iteration counter start fresh (unlike --resume).")
 parser.add_argument(
     "--fail_on_nonfinite_grad", action="store_true", default=False,
     help="Abort before an optimizer step if gradient clipping detects a non-finite norm.",
@@ -132,11 +130,8 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     env = gym.make(args_cli.task, cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None)
 
     if args_cli.video:
-        # The RTX renderer returns an empty (all-black) buffer for its first
-        # frames while it warms up; RecordVideo would write them as black
-        # opening frames. Spend the warm-up before the recorder exists.
-        # `unwrapped` skips the gym OrderEnforcer, which refuses render()
-        # before the first reset().
+        # the RTX renderer returns black frames while it warms up; spend them before the recorder exists
+        # (`unwrapped` skips the gym OrderEnforcer, which refuses render() before the first reset)
         for _ in range(30):
             frame = env.unwrapped.render()
             simulation_app.update()
@@ -178,9 +173,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         print(f"[INFO]: Loading model checkpoint from: {resume_path}")
         # load previously trained model
         runner.load(resume_path)
-    # warm-start: policy weights only (actor/critic/normalizers), fresh
-    # optimizer and iteration counter. For cross-task transfer (e.g. walker
-    # donor -> Onshape course curriculum), NOT a continuation of the donor run.
+    # warm-start: weights and normalizers only; fresh optimizer and iteration counter
     if args_cli.warm_start_checkpoint:
         if not os.path.isfile(args_cli.warm_start_checkpoint):
             raise FileNotFoundError(

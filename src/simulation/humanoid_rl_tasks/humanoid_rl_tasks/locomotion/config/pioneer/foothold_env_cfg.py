@@ -178,11 +178,7 @@ class PioneerWholeBodyFootholdEnvCfg_DEMO(PioneerWholeBodyFootholdEnvCfg_PLAY):
 def foothold_observation_groups(cfg, patch_rows_behind: int = 0) -> None:
     """Point ``cfg``'s actor at predicted footholds + patches, keep the full map on the critic.
 
-    This is the observation half of the foothold recipe, factored out so another
-    course can reuse the exact same layout as the straight stairs.
-    Keeping the layout identical is what makes an asymmetric actor/critic
-    checkpoint portable between courses: the actor input is
-    ``base terms + gait clock + 2 x (2 xy + heights)`` in that order.
+    Actor input is ``base terms + gait clock + 2 x (2 xy + heights)``, in that order.
     """
     scan = {**_SCAN, "patch_rows_behind": patch_rows_behind}
     policy = cfg.observations.policy

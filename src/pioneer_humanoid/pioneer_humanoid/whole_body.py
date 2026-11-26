@@ -15,9 +15,7 @@ FIST = {
 } | {f"{side}_th_{joint}": angle for side in ("l", "r") for joint, angle in (("c", 0.6), ("f", 0.9), ("mcp", 0.8), ("ip", 0.9))}
 
 
-# Names as they appear in the whole-body URDF (the leg-only model reuses the
-# same leg links, so these are also valid for it). The upper body is merged
-# into the root when ``legs_only=True``, so only the leg links remain.
+# Leg links and joints as named in the whole-body URDF (the upper body merges into the root when ``legs_only``).
 WHOLE_BODY_FOOT_BODIES = ["l_foot", "r_foot"]
 WHOLE_BODY_CALF_BODIES = ["l_shank_foot", "r_shank_foot"]
 WHOLE_BODY_LEG_JOINTS = [
@@ -40,13 +38,8 @@ WHOLE_BODY_WALKER_CFG = LEG_ONLY_HUMANOID_CFG.replace(
 
 # The same with shoulder pitch and elbows free, for a scripted arm swing (humanoid_rl_tasks ... config/pioneer/arm_swing.py).
 #
-# Arm pose: the URDF's zero pose *is* arms hanging at the sides (every arm link
-# origin steps along -Z from the shoulder). Shoulder-pitch and elbow both rotate
-# about the robot's lateral (+X) axis with the same sign on each side, and a
-# negative angle swings the arm forward -- so 0.0 is the by-the-side default and
-# -1.57 would hold the arms straight out in front. Keep the arm default at 0.0:
-# the JointPositionAction's default offset is the default joint position, so a
-# zero policy action then means "arms down" instead of "arms forward".
+# Arm pose: the URDF's zero pose is arms at the sides; a negative shoulder/elbow angle swings the arm
+# forward. Keep the arm default at 0.0 so a zero action means "arms down".
 ARM_SWING_JOINTS = ("l_shoulder_pitch", "r_shoulder_pitch", "l_elbow", "r_elbow")
 _ARM_SWING_INIT = WHOLE_BODY_WALKER_CFG.init_state
 WHOLE_BODY_ARM_SWING_CFG = WHOLE_BODY_WALKER_CFG.replace(
@@ -65,9 +58,7 @@ WHOLE_BODY_ARM_SWING_CFG = WHOLE_BODY_WALKER_CFG.replace(
         "arms": ImplicitActuatorCfg(
             joint_names_expr=list(ARM_SWING_JOINTS),
             effort_limit_sim={".*_shoulder_pitch": 53.0, ".*_elbow": 22.0},
-            # The arm motors' PD gains (same 40 / 2 as the scripted arm swing and
-            # the MuJoCo sim2sim check), strong enough to track a swing against
-            # gravity instead of letting the arm flop passively.
+            # PD gains (40 / 2, as in the MuJoCo sim2sim check) strong enough to track a swing against gravity
             stiffness=40.0,
             damping=2.0,
             armature=0.01,

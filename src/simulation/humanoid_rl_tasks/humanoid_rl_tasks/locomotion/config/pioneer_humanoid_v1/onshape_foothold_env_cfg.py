@@ -1,25 +1,10 @@
 """Onshape straight staircase with foothold-conditioned perception ("Watch Your Step").
 
-This is the rough-terrain foothold task (``config/pioneer/foothold_env_cfg.py``, the
-ETH Zurich foothold-prediction port) moved onto the Onshape straight course:
-
-* the **policy** sees, per foot, the *predicted* next foothold (x, y in the base
-  frame) and a height patch (5 cm cells) around it -- perception is centred where
-  the feet are going. The patch is 7 x 7 with one extra row behind the heel
-  (8 x 7), because on a descent the step-off edge a heel can clip sits at the
-  7 x 7 patch's rear boundary;
-* the **critic** (training only) still sees the whole height map, which is what
-  makes this an asymmetric actor-critic;
-* the foot predictor is refit every 500 iterations (``FootPredictionSupervisor``)
-  against whatever terrain this task runs on, writing into ``log_dir``;
-* the action space is the **12 leg joints**; the arms are swung on the gait clock
-  by ``ArmSwingAction`` (0 action dims), so this policy is warm-startable from any
-  other leg-only foothold walker.
-
-The course overrides below (USD terrain, marker spawn, +Y heading command, course
-terminations, progress rewards, no terrain curriculum) are the same ones
-``PioneerHumanoidOnshapeCourseEnvCfg`` uses, so this task differs from the plain
-height-scan course only in how the policy perceives the terrain.
+The rough foothold task (``config/pioneer/foothold_env_cfg.py``) on the Onshape straight course:
+* the policy sees, per foot, the predicted next foothold plus an 8 x 7 height patch (5 cm cells; one
+  extra row behind the heel for descents); the critic sees the whole height map;
+* the foot predictor is refit every 500 iterations (``FootPredictionSupervisor``), writing into ``log_dir``;
+* the action space is the 12 leg joints; the arms swing on the gait clock (``ArmSwingAction``, 0 action dims).
 """
 
 import math
@@ -53,25 +38,17 @@ class PioneerHumanoidStairsFootholdEnvCfg(PioneerWholeBodyFootholdEnvCfg):
     def __post_init__(self):
         super().__post_init__()
 
-        # --- terrain: the user's straight staircase USD (a single mesh) ------
         self.scene.terrain.terrain_type = "usd"
         self.scene.terrain.terrain_generator = None
         self.scene.terrain.usd_path = _COURSE_USD
         self.scene.env_spacing = 0.0
-        # The base scan is already 5 cm (the foothold patches are 5 cm cells);
-        # only the collider path changes, the course is one merged mesh.
         self.scene.height_scanner.mesh_prim_paths = ["/World/ground/terrain"]
 
-        # --- one extra patch row behind the heel (the step-off edge sits at the 7x7 patch's rear
-        # boundary; critic sees the same layout)
+        # one extra patch row behind the heel (the critic sees the same layout)
         for group in (self.observations.policy, self.observations.critic):
             group.foothold_scan.params["patch_rows_behind"] = 1
 
-        # --- spawn on the Part Studio marker, facing +Y ----------------------
-        # (replaced below by the multi-slot course spawn; kept as the slot list's
-        # first entry so the original spawn is still one of the draws)
-
-        # --- spawn at the foot of any part (centres of the 0.4 m ground gaps in the centreline table)
+        # spawn at the foot of any part (centres of the 0.4 m ground gaps)
         self.events.reset_base.func = course_mdp.reset_root_state_course_spawn
         self.events.reset_base.params = {
             "asset_cfg": SceneEntityCfg("robot"),
@@ -83,7 +60,6 @@ class PioneerHumanoidStairsFootholdEnvCfg(PioneerWholeBodyFootholdEnvCfg):
             "velocity_range": {k: (0.0, 0.0) for k in ("x", "y", "z", "roll", "pitch", "yaw")},
         }
 
-        # --- command: walk the course, no standing reserves ------------------
         command = self.commands.base_velocity
         command.heading_command = True
         command.rel_heading_envs = 1.0
@@ -93,15 +69,14 @@ class PioneerHumanoidStairsFootholdEnvCfg(PioneerWholeBodyFootholdEnvCfg):
         command.ranges.ang_vel_z = (-0.5, 0.5)
         command.ranges.heading = (_YAW_90, _YAW_90)
 
-        # 20.5 m of course at ~0.4 m/s, with room for the slower parts.
         self.episode_length_s = 75.0
 
-        # --- a fixed course has nothing to curriculum ------------------------
+        # fixed course: no curriculum
         self.curriculum.terrain_levels = None
         self.curriculum.gravity_offset_level = None
         self.events.gravity_assist = None
 
-        # --- course terminations (axis 1 = the course's +Y) ------------------
+        # course terminations (axis 1 = the course's +Y)
         self.terminations.course_complete = DoneTerm(
             func=course_mdp.course_complete,
             params={
@@ -117,14 +92,12 @@ class PioneerHumanoidStairsFootholdEnvCfg(PioneerWholeBodyFootholdEnvCfg):
             func=course_mdp.course_out_of_bounds,
             params={"lateral_limit": 8.0, "backward_limit": -8.0, "axis": 1},
         )
-        # A ray miss resets: the foothold patches sample the scan at specific
-        # cells, so a mesh hole must not silently become a foothold height.
+        # a ray miss resets: a mesh hole must not become a foothold height
         self.terminations.invalid_height_scan = DoneTerm(
             func=v1_terminations.height_scan_invalid,
             params={"sensor_cfg": SceneEntityCfg("height_scanner")},
         )
 
-        # --- pay for climbing, not just for tracking velocity ----------------
         self.rewards.course_forward_progress = RewTerm(
             func=course_mdp.course_forward_progress,
             weight=5.0,
@@ -136,7 +109,7 @@ class PioneerHumanoidStairsFootholdEnvCfg(PioneerWholeBodyFootholdEnvCfg):
             params={"axis": 1},
         )
 
-        # --- soft landings: -5.0 is ~9 % of progress income; -0.5 was inert on model_3549
+        # soft landings
         self.rewards.feet_impact = RewTerm(
             func=course_mdp.feet_impact_contact,
             weight=-5.0,
@@ -146,15 +119,15 @@ class PioneerHumanoidStairsFootholdEnvCfg(PioneerWholeBodyFootholdEnvCfg):
             },
         )
 
-        # --- ramp the push magnitude 0.35 -> 1.0 over ~250 iterations so the gait settles first
+        # ramp the push magnitude 0.35 -> 1.0 over ~250 iterations
         self.curriculum.push_speed = CurrTerm(
             func=course_mdp.push_speed_schedule,
             params={"term_name": "push_robot", "start_scale": 0.35, "final_scale": 1.0, "ramp_steps": 6000},
         )
 
-        # --- torso stability, slightly: price roll/pitch oscillation (not mean lean) a bit harder
-        self.rewards.ang_vel_xy_l2.weight = -0.10       # was -0.05
-        self.rewards.flat_orientation_l2.weight = -1.5  # was -1.0
+        # torso stability
+        self.rewards.ang_vel_xy_l2.weight = -0.10
+        self.rewards.flat_orientation_l2.weight = -1.5
 
 
 @configclass
@@ -169,24 +142,19 @@ class PioneerHumanoidStairsFootholdEnvCfg_PLAY(PioneerHumanoidStairsFootholdEnvC
         self.scene.num_envs = 3
         self.scene.env_spacing = 2.0
         self.episode_length_s = 1200.0
-        # Side camera riding on the robot, the same framing the other PLAY
-        # configs use, so a recorded clip shows the gait instead of the whole
-        # course from the default aerial view.
+        # side camera riding on the robot
         self.viewer = ViewerCfg(
             eye=(1.4, -3.0, 0.1), lookat=(0.3, 0.0, -0.15), origin_type="asset_root", asset_name="robot"
         )
         self.observations.policy.enable_corruption = False
         self.events.push_robot = None
         self.curriculum.push_speed = None
-        # Disabled for the visual so a partial scan miss at a mesh edge does not
-        # end the clip; the bounding term below covers real escapes.
         self.terminations.invalid_height_scan = None
-        # Pin the multi-slot course spawn to the Part Studio marker for a
-        # repeatable visual.
+        # spawn on the marker
         self.events.reset_base.params["spawn_y"] = (_SPAWN_Y,)
         self.events.reset_base.params["x_jitter"] = 0.0
         self.events.reset_base.params["y_jitter"] = 0.0
-        # Use the trained predictor as-is and never refit it in a visual run.
+        # use the trained predictor as-is, never refit
         for group in (self.observations.policy, self.observations.critic):
             group.foothold_scan.params.update(train_fpm=False, force_model=True)
         self.observations.policy.foothold_scan.params["show_patches"] = (

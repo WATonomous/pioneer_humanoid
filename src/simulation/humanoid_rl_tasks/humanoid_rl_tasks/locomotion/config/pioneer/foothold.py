@@ -125,12 +125,9 @@ def foothold_scan(
     num_y = int(scan_size[1] / scan_resolution) + 1
     origin_x, origin_y = -scan_size[0] / 2.0, -scan_size[1] / 2.0
     half = patch_size // 2
-    # The patch is square by default. ``patch_rows_behind`` adds rows on the
-    # -x side (behind the predicted foothold in the base frame), which is where
-    # the step-off edge a descending heel can clip sits: the sole is 24.3 cm
-    # long and the ankle is 8.0 cm from the heel, so a 7-cell patch at 5 cm
-    # (15 cm) reaches only ~7 cm past the heel. The extra rows are flattened
-    # *first*, so the original 7 x 7 block keeps its entries and its order.
+    # ``patch_rows_behind`` adds rows behind the predicted foothold (-x): a 7-cell patch reaches only
+    # ~7 cm past the heel, short of the step-off edge a descending heel can clip. Extra rows are
+    # flattened first, so the original 7 x 7 block keeps its order.
     rows = torch.arange(-half - patch_rows_behind, half + (patch_size % 2), device=device)
     cols = torch.arange(-half, half + (patch_size % 2), device=device)
     off_x, off_y = torch.meshgrid(rows, cols, indexing="ij")
