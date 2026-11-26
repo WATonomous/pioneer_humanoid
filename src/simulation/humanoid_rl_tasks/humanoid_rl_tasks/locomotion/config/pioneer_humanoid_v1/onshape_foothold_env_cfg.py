@@ -48,6 +48,9 @@ class PioneerHumanoidStairsFootholdEnvCfg(PioneerWholeBodyFootholdEnvCfg):
         for group in (self.observations.policy, self.observations.critic):
             group.foothold_scan.params["patch_rows_behind"] = 1
 
+        # corrupt the policy's rays like a real lidar (range noise, per-beam bias, dropout); the critic stays clean
+        self.observations.policy.foothold_scan.params["ray_noise"] = {"range_std": 0.02}
+
         # spawn at the foot of any part (centres of the 0.4 m ground gaps)
         self.events.reset_base.func = course_mdp.reset_root_state_course_spawn
         self.events.reset_base.params = {
@@ -147,6 +150,7 @@ class PioneerHumanoidStairsFootholdEnvCfg_PLAY(PioneerHumanoidStairsFootholdEnvC
             eye=(1.4, -3.0, 0.1), lookat=(0.3, 0.0, -0.15), origin_type="asset_root", asset_name="robot"
         )
         self.observations.policy.enable_corruption = False
+        self.observations.policy.foothold_scan.params["ray_noise"] = None
         self.events.push_robot = None
         self.curriculum.push_speed = None
         self.terminations.invalid_height_scan = None

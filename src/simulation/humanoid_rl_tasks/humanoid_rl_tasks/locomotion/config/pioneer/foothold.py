@@ -17,6 +17,7 @@ from isaaclab.managers import SceneEntityCfg
 from isaaclab.markers import VisualizationMarkers, VisualizationMarkersCfg
 from isaaclab.sensors import ContactSensor, RayCaster
 
+from ...mdp.noise import LidarNoiseCfg
 from .foot_pred import FootPredictionSupervisor
 
 if TYPE_CHECKING:
@@ -30,6 +31,7 @@ class _FootholdState:
     model_mtime: float = 0.0
     xy_drift: torch.Tensor | None = None
     z_drift: torch.Tensor | None = None
+    ray_noise: object | None = None
     markers: VisualizationMarkers | None = None
 
 
@@ -85,6 +87,7 @@ def foothold_scan(
     scan_size: tuple[float, float] = (1.6, 1.0),
     patch_size: int = 7,
     patch_rows_behind: int = 0,
+    ray_noise: dict | None = None,
     xy_drift_range: tuple[float, float] = (0.0, 0.0),
     z_drift_range: tuple[float, float] = (0.0, 0.0),
     bootstrap_footholds: tuple = ((0.0, 0.1), (0.0, -0.1)),
@@ -120,6 +123,13 @@ def foothold_scan(
 
     hit_z = torch.nan_to_num(sensor.data.ray_hits_w[..., 2], nan=0.0, posinf=0.0, neginf=0.0)
     height_map = sensor.data.pos_w[:, 2].unsqueeze(1) - hit_z - 0.5
+    if ray_noise is not None:  # LidarNoiseCfg fields: range noise, per-beam bias, dropout (policy copy only)
+        if _STATE.ray_noise is None:
+            cfg = LidarNoiseCfg(**ray_noise)
+            _STATE.ray_noise = cfg.class_type(cfg, num_envs, device)
+        if len(reset_ids) > 0:
+            _STATE.ray_noise.reset(reset_ids)
+        height_map = _STATE.ray_noise(height_map)
 
     num_x = int(scan_size[0] / scan_resolution) + 1
     num_y = int(scan_size[1] / scan_resolution) + 1
