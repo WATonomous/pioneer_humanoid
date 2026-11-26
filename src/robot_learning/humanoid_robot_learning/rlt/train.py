@@ -2,6 +2,11 @@
 
     MUJOCO_GL=egl python -m humanoid_robot_learning.rlt.train --policy <run>/checkpoints/last/pretrained_model --out rlt_out
 
+The defaults are the settled peg_insert run (trained at the scene's 4 mm hole; TD target clipped to [0, 1];
+smoothness penalties on): critical phase 2% (base) -> 38%, full task at 8 mm 14% -> 76% (paired, 100 layouts), with
+a quarter of the unpenalized actor's jerk. 150 min on one RTX 3090; PEG_CLEARANCE=0.008 widens the hole. To reuse
+another run's start states and RL token for comparable numbers, copy its starts.pkl and rl_token.pt into --out first.
+
 1. Start states: the base runs from fresh layouts (held-out seeds) until the handoff (peg held above the block top,
    within 3 cm of the hole; env.py) and the MuJoCo state is saved. Train and eval start states use disjoint seeds.
    The base's context tokens seen along the way are kept for step 2.
@@ -195,6 +200,9 @@ def main():
     p.add_argument("--noise", type=float, default=0.02, help="exploration std, normalized action units (0.01 ~ 2-3 mm); "
                    "0.01 explored 5-15x less than the actor moved")
     p.add_argument("--ref_dropout", type=float, default=0.5)
+    p.add_argument("--smooth_t", type=float, default=10.0, help="CAPS-style penalty on the change of the actor's "
+                   "correction between consecutive decisions (actor_critic.TD3); 0 = off, 40 stopped learning")
+    p.add_argument("--smooth_c", type=float, default=10.0, help="penalty on the correction's wiggle within a chunk")
     p.add_argument("--minutes", type=float, default=150.0, help="RL wall-clock budget")
     p.add_argument("--eval_every", type=int, default=10000, help="transitions between evals")
     p.add_argument("--seed", type=int, default=0)
@@ -268,7 +276,8 @@ def main():
             fixed[:, -1] = True
             fixed = fixed.reshape(-1)
         td3 = TD3(zd, sd, ad, dev, beta=args.beta, gamma=args.gamma, ref_dropout=args.ref_dropout,
-                  policy_noise=args.noise, noise_clip=2 * args.noise, fixed=fixed)
+                  policy_noise=args.noise, noise_clip=2 * args.noise, fixed=fixed,
+                  smooth_t=args.smooth_t, smooth_c=args.smooth_c, chunk=(C, A))
         rb = Replay(200_000, {"z": zd, "s": sd, "ref": ad, "a": ad, "r": 0, "d": 0, "z2": zd, "s2": sd, "ref2": ad}, dev)
         rng = np.random.default_rng(args.seed)
         n = venv.n
