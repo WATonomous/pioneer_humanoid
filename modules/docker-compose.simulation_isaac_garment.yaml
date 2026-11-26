@@ -27,6 +27,7 @@ x-simulation_isaac_garment_env: &simulation_isaac_garment_env
   - NVIDIA_DRIVER_CAPABILITIES=all
   - DISPLAY=${DISPLAY}
   - QT_X11_NO_MITSHM=1
+  - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
   - ISAACLAB=/workspace/isaaclab
   - HUMANOID_ROOT=/workspace/humanoid
   - TASK_ROOT=/workspace/humanoid/src/simulation/garment_fold_task
