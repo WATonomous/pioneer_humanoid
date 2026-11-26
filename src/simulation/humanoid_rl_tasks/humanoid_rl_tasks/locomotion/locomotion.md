@@ -196,6 +196,23 @@ $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/play.py \
 
 The clip lands in `<checkpoint dir>/videos/play/` (`PLAY_VIDEO_DIR` / `PLAY_VIDEO_PREFIX` override).
 
+**Gait probe**
+
+Add `--diagnostics` to `play.py` for the per-swing, lead-foot, camera and reward instrumentation (`[PLAYARC]`,
+`[PLAYLEAD]`, `[PLAYDBG]`, ...). The `PLAY_INIT_OVERRIDE`, `PLAY_SPAWN_DY`, `PLAY_MARKER`,
+`PLAY_FOLLOW_ROBOT` / `PLAY_REAR_CAM` / `PLAY_CAM_MODE` (`side`, `rear`, `full`, `front`) and `PLAY_MAX_STEPS`
+environment variables are read in that mode:
+
+```bash
+PLAY_FOLLOW_ROBOT=1 PLAY_CAM_MODE=full $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/play.py \
+  --task=Isaac-Locomotion-StairsSpiralFoothold-PioneerHumanoid-Play-v0 \
+  --checkpoint <model.pt> --diagnostics --video --video_length 1500 --headless
+```
+
+Other tools: `eval_course.py` (completion / falls / risers over many envs), `view_course.py`, `record_follow.py`,
+`tools/onshape_course/` (course rebuild, `step_probe.py` for sole tilt, `widen_foothold_obs.py` for the 8-row patch),
+`tools/rl_sessions/expand_walker_checkpoint.py` and the scratch probes in `tools/rl_probes/`.
+
 **Spawn / joint smoke checks**
 
 ```bash
