@@ -2,7 +2,7 @@ import gymnasium as gym
 
 from . import agents
 
-# Register the final walking recipe and stairs scaffold alongside legacy tasks.
+# Register the final walking recipe and Onshape stair courses alongside legacy tasks.
 _ENVS = (
     ("Rough", "rough_env_cfg:PioneerHumanoidRoughEnvCfg", "PioneerHumanoidRoughPPORunnerCfg", ""),
     ("Rough", "rough_env_cfg:PioneerHumanoidRoughEnvCfg_PLAY", "PioneerHumanoidRoughPPORunnerCfg", "-Play"),
@@ -35,18 +35,21 @@ for _terrain, _env_cfg, _agent_cfg, _suffix in _ENVS:
             kwargs=_kwargs,
         )
 
-# A separate runner module keeps the stairs scaffold isolated from walking logs.
+# Straight staircase with foothold-conditioned perception (the "Watch Your Step"
+# port): the policy sees predicted next footholds + 7x7 patches, the critic sees
+# the full height map, and the arms are swung on the gait clock (12 leg actions).
+# Warm-startable from the rough foothold walker without surgery.
 for _suffix, _env_class in (
-    ("", "PioneerHumanoidStairsEnvCfg"),
-    ("-Play", "PioneerHumanoidStairsEnvCfg_PLAY"),
+    ("", "PioneerHumanoidStairsFootholdEnvCfg"),
+    ("-Play", "PioneerHumanoidStairsFootholdEnvCfg_PLAY"),
 ):
     for _prefix in ("Isaac-Locomotion", "Isaac-Velocity"):
         gym.register(
-            id=f"{_prefix}-Stairs-PioneerHumanoid{_suffix}-v0",
+            id=f"{_prefix}-StairsStraightFoothold-PioneerHumanoid{_suffix}-v0",
             entry_point="isaaclab.envs:ManagerBasedRLEnv",
             disable_env_checker=True,
             kwargs={
-                "env_cfg_entry_point": f"{__name__}.stairs_env_cfg:{_env_class}",
-                "rsl_rl_cfg_entry_point": f"{agents.__name__}.stairs_ppo_cfg:PioneerHumanoidStairsPPORunnerCfg",
+                "env_cfg_entry_point": f"{__name__}.onshape_foothold_env_cfg:{_env_class}",
+                "rsl_rl_cfg_entry_point": f"{agents.__name__}.onshape_foothold_ppo_cfg:PioneerHumanoidStairsFootholdPPORunnerCfg",
             },
         )

@@ -28,6 +28,9 @@ parser.add_argument("--task", type=str, default=None, help="Name of the task.")
 parser.add_argument("--seed", type=int, default=None, help="Seed used for the environment")
 parser.add_argument("--max_iterations", type=int, default=None,
                     help="RL Policy training iterations.")
+parser.add_argument("--warm_start_checkpoint", type=str, default=None,
+                    help="Policy checkpoint to warm-start from. Loads policy weights only; optimizer "
+                         "and iteration counter start fresh (unlike --resume).")
 parser.add_argument(
     "--fail_on_nonfinite_grad", action="store_true", default=False,
     help="Abort before an optimizer step if gradient clipping detects a non-finite norm.",
@@ -126,6 +129,17 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     # create isaac environment
     env = gym.make(args_cli.task, cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None)
 
+    if args_cli.video:
+        # the RTX renderer returns black frames while it warms up; spend them before the recorder exists
+        # (`unwrapped` skips the gym OrderEnforcer, which refuses render() before the first reset)
+        for _ in range(30):
+            frame = env.unwrapped.render()
+            simulation_app.update()
+            if frame is not None and frame.max() > 0:
+                break
+        else:
+            print("[TRAIN] renderer still black after 30 warm-up frames", flush=True)
+
     # convert to single-agent instance if required by the RL algorithm
     if isinstance(env.unwrapped, DirectMARLEnv):
         env = multi_agent_to_single_agent(env)
@@ -148,7 +162,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         env = gym.wrappers.RecordVideo(env, **video_kwargs)
 
     # wrap around environment for rsl-rl
-    env = RslRlVecEnvWrapper(env)
+    env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
 
     # create runner from rsl-rl
     runner = OnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
@@ -159,6 +173,14 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         print(f"[INFO]: Loading model checkpoint from: {resume_path}")
         # load previously trained model
         runner.load(resume_path)
+    # warm-start: weights and normalizers only; fresh optimizer and iteration counter
+    if args_cli.warm_start_checkpoint:
+        if not os.path.isfile(args_cli.warm_start_checkpoint):
+            raise FileNotFoundError(
+                f"--warm_start_checkpoint not found: {args_cli.warm_start_checkpoint}")
+        print(f"[INFO]: Warm-starting policy from: {args_cli.warm_start_checkpoint}")
+        runner.load(args_cli.warm_start_checkpoint, load_optimizer=False)
+        runner.current_learning_iteration = 0
 
     # dump the configuration into log-directory
     dump_yaml(os.path.join(log_dir, "params", "env.yaml"), env_cfg)

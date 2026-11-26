@@ -14,9 +14,9 @@ from isaaclab.app import AppLauncher
 import cli_args  # isort: skip
 
 # add argparse arguments
-parser = argparse.ArgumentParser(description="Train an RL agent with RSL-RL.")
+parser = argparse.ArgumentParser(description="Play an RSL-RL checkpoint.")
 parser.add_argument("--video", action="store_true", default=False,
-                    help="Record videos during training.")
+                    help="Record a video during playback.")
 parser.add_argument("--video_length", type=int, default=200,
                     help="Length of the recorded video (in steps).")
 parser.add_argument(
@@ -101,10 +101,33 @@ def main():
             log_root_path, agent_cfg.load_run, agent_cfg.load_checkpoint)
 
     log_dir = os.path.dirname(resume_path)
-    env_cfg.log_dir = log_dir
+    # foothold tasks load their foot predictor from env_cfg.log_dir; only use the checkpoint's run
+    # directory if a predictor is there, else the supervisor silently falls back to fixed footholds
+    run_has_predictor = os.path.isdir(log_dir) and any(
+        n.startswith("foot_model_") and n.endswith(".pt") for n in os.listdir(log_dir)
+    )
+    if run_has_predictor or not hasattr(env_cfg, "log_dir"):
+        env_cfg.log_dir = log_dir
+
+    # PLAY_VIDEO_DIR / PLAY_VIDEO_PREFIX record a second clip without overwriting the first
+    video_dir = os.environ.get("PLAY_VIDEO_DIR") or os.path.join(log_dir, "videos", "play")
+    video_prefix = os.environ.get("PLAY_VIDEO_PREFIX", "rl-video")
+    if args_cli.video:
+        print(f"[PLAY] video -> {video_dir} (prefix {video_prefix})", flush=True)
 
     # create isaac environment
     env = gym.make(args_cli.task, cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None)
+
+    if args_cli.video:
+        # the RTX renderer returns black frames while it warms up; spend them before the recorder exists
+        # (`unwrapped` skips the gym OrderEnforcer, which refuses render() before the first reset)
+        for _ in range(30):
+            frame = env.unwrapped.render()
+            simulation_app.update()
+            if frame is not None and frame.max() > 0:
+                break
+        else:
+            print("[PLAY] renderer still black after 30 warm-up frames", flush=True)
 
     # convert to single-agent instance if required by the RL algorithm
     if isinstance(env.unwrapped, DirectMARLEnv):
@@ -113,17 +136,18 @@ def main():
     # wrap for video recording
     if args_cli.video:
         video_kwargs = {
-            "video_folder": os.path.join(log_dir, "videos", "play"),
+            "video_folder": video_dir,
+            "name_prefix": video_prefix,
             "step_trigger": lambda step: step == 0,
             "video_length": args_cli.video_length,
             "disable_logger": True,
         }
-        print("[INFO] Recording videos during training.")
+        print("[INFO] Recording a video during playback.")
         print_dict(video_kwargs, nesting=4)
         env = gym.wrappers.RecordVideo(env, **video_kwargs)
 
     # wrap around environment for rsl-rl
-    env = RslRlVecEnvWrapper(env)
+    env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
 
     print(f"[INFO]: Loading model checkpoint from: {resume_path}")
     # load previously trained model
@@ -160,6 +184,9 @@ def main():
     # reset environment
     obs = env.get_observations()
     timestep = 0
+    step_index = 0
+    # PLAY_MAX_STEPS=N: step cap for headless runs (otherwise only --video bounds the loop)
+    max_steps = int(os.environ.get("PLAY_MAX_STEPS", "0") or 0)
     # simulate environment
     while simulation_app.is_running():
         start_time = time.time()
@@ -169,6 +196,7 @@ def main():
             actions = policy(obs)
             # env stepping
             obs, _, dones, _ = env.step(actions)
+            step_index += 1
             if version.parse(installed_rsl_rl_version) >= version.parse("4.0.0"):
                 policy.reset(dones)
             elif policy_nn is not None:
@@ -178,6 +206,9 @@ def main():
             # Exit the play loop after recording one video
             if timestep == args_cli.video_length:
                 break
+        if max_steps and step_index >= max_steps:
+            print(f"[PLAY] step cap reached ({max_steps}) -- exiting", flush=True)
+            break
 
         # time delay for real-time evaluation
         sleep_time = dt - (time.time() - start_time)

@@ -2,6 +2,7 @@
 import os
 
 from isaaclab.actuators import ImplicitActuatorCfg
+from isaaclab.assets.articulation import ArticulationCfg
 
 from .leg_only import _OUT_DIR, LEG_ONLY_HUMANOID_CFG, _isaac_urdf
 
@@ -14,6 +15,19 @@ FIST = {
 } | {f"{side}_th_{joint}": angle for side in ("l", "r") for joint, angle in (("c", 0.6), ("f", 0.9), ("mcp", 0.8), ("ip", 0.9))}
 
 
+# Leg links and joints as named in the whole-body URDF (the upper body merges into the root when ``legs_only``).
+WHOLE_BODY_FOOT_BODIES = ["l_foot", "r_foot"]
+WHOLE_BODY_CALF_BODIES = ["l_shank_foot", "r_shank_foot"]
+WHOLE_BODY_LEG_JOINTS = [
+    "Hip_F_.*",
+    "Hip_A_.*",
+    "Hip_R_.*",
+    "Knee_.*",
+    "Ankle_P_.*",
+    "Ankle_R_.*",
+]
+WHOLE_BODY_ANKLE_JOINTS = ["Ankle_P_.*", "Ankle_R_.*"]
+
 # The whole-body humanoid (arms and hands, 44.7 kg) walking on the same 12 leg joints, everything above the hips held rigid.
 WHOLE_BODY_WALKER_CFG = LEG_ONLY_HUMANOID_CFG.replace(
     spawn=LEG_ONLY_HUMANOID_CFG.spawn.replace(
@@ -23,18 +37,28 @@ WHOLE_BODY_WALKER_CFG = LEG_ONLY_HUMANOID_CFG.replace(
 )
 
 # The same with shoulder pitch and elbows free, for a scripted arm swing (humanoid_rl_tasks ... config/pioneer/arm_swing.py).
+#
+# Arm pose: the URDF's zero pose is arms at the sides; a negative shoulder/elbow angle swings the arm
+# forward. Keep the arm default at 0.0 so a zero action means "arms down".
 ARM_SWING_JOINTS = ("l_shoulder_pitch", "r_shoulder_pitch", "l_elbow", "r_elbow")
+_ARM_SWING_INIT = WHOLE_BODY_WALKER_CFG.init_state
 WHOLE_BODY_ARM_SWING_CFG = WHOLE_BODY_WALKER_CFG.replace(
     spawn=WHOLE_BODY_WALKER_CFG.spawn.replace(
         asset_path=_isaac_urdf("pioneer_whole_body_humanoid", "pioneer_whole_body_humanoid.urdf", legs_only=True, keep=ARM_SWING_JOINTS,
                                name="pioneer_whole_body_humanoid_arm_swing", pose=FIST),
         usd_dir=os.path.join(_OUT_DIR, "..", "pioneer_whole_body_humanoid", "usd_arm_swing"),
     ),
+    init_state=ArticulationCfg.InitialStateCfg(
+        pos=_ARM_SWING_INIT.pos,
+        joint_pos={**_ARM_SWING_INIT.joint_pos, **dict.fromkeys(ARM_SWING_JOINTS, 0.0)},
+        joint_vel=dict(_ARM_SWING_INIT.joint_vel),
+    ),
     actuators={
         **WHOLE_BODY_WALKER_CFG.actuators,
         "arms": ImplicitActuatorCfg(
             joint_names_expr=list(ARM_SWING_JOINTS),
             effort_limit_sim={".*_shoulder_pitch": 53.0, ".*_elbow": 22.0},
+            # PD gains (40 / 2, as in the MuJoCo sim2sim check) strong enough to track a swing against gravity
             stiffness=40.0,
             damping=2.0,
             armature=0.01,

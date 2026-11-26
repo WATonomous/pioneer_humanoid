@@ -1,0 +1,6 @@
+*.step
+*.usd
+!*_terrain.usd
+*_bounds.json
+*.log
+hoops_config.json
