@@ -48,7 +48,7 @@ class TestStep(unittest.TestCase):
         obs, reward, terminated, truncated, info = env.step(ACTION)
         self.assertIsInstance(reward, float)
         self.assertFalse(terminated or truncated)
-        self.assertEqual(len(info["reward_terms"]), 11)
+        self.assertEqual(len(info["reward_terms"]), 14)
         self.assertAlmostEqual(reward, sum(info["reward_terms"].values()))
         self.assertGreater(info["rho"], 0)
         self.assertTrue(0.1 <= info["beta"] <= 1.0)

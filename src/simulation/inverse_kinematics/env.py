@@ -15,7 +15,7 @@ import pose_math as pm
 from arm_model import LeftArm
 from arm_sim import EPISODE_STEPS, Sim
 from reward import PoseReward
-from sampling import sample_goal, sample_start
+from sampling import collision_free, sample_goal, sample_start
 
 
 @dataclass
@@ -32,13 +32,23 @@ class EnvConfig:
     resample_goals: bool = False
     goal_every: int = 120            # steps between goals (4 s at 30 Hz)
 
-    # Error-dependent action gain beta (paper Eq. 6 and Appendix A; A3 recommends these values).
-    # beta is 1 once either error is above its upper threshold u, and beta_min once both are below their lower l.
+    # Near-goal starts (the paper's "reverse curriculum", Appendix H): with probability near_goal_prob, an episode starts
+    # close to its goal (the goal's joint angles plus a random offset of up to near_goal_noise rad per joint) instead of at a
+    # random pose. Most of a normal episode is spent on the approach, so the policy gets little practice at the final
+    # correction and at holding still. Off by default: evaluation always starts at a random pose.
+    near_goal_prob: float = 0.0
+    near_goal_noise: float = 0.08    # rad, the largest offset per joint
+
+    # Error-dependent action gain beta (paper Eq. 6). beta is 1 once either error is above its upper threshold u, and
+    # beta_min once both are below their lower l. The lower thresholds are the paper's (Appendix A). The UPPER ones are
+    # about 3x wider than the paper's (9.31 mm, 2.328 deg): on this arm a full step at beta = 1 moves the tool 10-30 mm,
+    # so at 1 cm of error the policy overshot every step and thrashed (tool speed 11.7 mm per step at the end of an
+    # episode). Shrinking the step from 30 mm / 7.5 deg on gives it room to approach calmly.
     beta_min: float = 0.1
     l_pos: float = 0.5e-3                # m
-    u_pos: float = 9.31e-3               # m
+    u_pos: float = 30e-3                 # m
     l_rot: float = np.radians(0.415)     # rad
-    u_rot: float = np.radians(2.328)     # rad
+    u_rot: float = np.radians(7.5)       # rad
 
 
 def gain(e, l, u, beta_min):
@@ -84,8 +94,12 @@ class PolicyIKEnv:
         self.t = 0 # reset steps
         self.best_so_far = None # reset best
         self.a_prev = np.zeros(7) # no previous action at the start of an episode
-        q_goal, self.p_goal, self.R_goal = sample_goal(self.goal_arm, self.rng)
+        self.q_goal, self.p_goal, self.R_goal = sample_goal(self.goal_arm, self.rng)
         start_q = sample_start(self.goal_arm, self.rng) # Random angle positions for joints
+        # With near_goal_prob the draw above is replaced by a start near the goal (the random numbers are only drawn
+        # when the option is on, so with it off the goals and starts are the same as before it existed)
+        if self.cfg.near_goal_prob > 0 and self.rng.random() < self.cfg.near_goal_prob:
+            start_q = self._near_start(self.q_goal)
         self.z = start_q.copy()
 
         # Puts the left arm at start_q, points the motors at it, zeroes the velocities and runs forward kinematics
@@ -120,7 +134,8 @@ class PolicyIKEnv:
         qd = self.data.qvel[self.arm.qadr]
         p_t, R_t = self._tool_pose()
 
-        reward, terms = self.reward.step(p_t, R_t, self.p_goal, self.R_goal, q, qd, action, self.lo, self.hi)
+        reward, terms = self.reward.step(p_t, R_t, self.p_goal, self.R_goal, q, qd, action, self.lo, self.hi,
+                                         q_rest=self.arm.rest)
 
         self.t += 1
 
@@ -136,6 +151,16 @@ class PolicyIKEnv:
             self._resample_goal(p_t, R_t)
 
         return self._observation(), reward, terminated, truncated, terms
+
+    def _near_start(self, q_goal):
+        """A start pose close to the goal: the goal's joint angles plus a random offset. The size of the offset is itself
+        random (from 5 mrad up to near_goal_noise), so the starts range from millimeters to a few centimeters away."""
+        scale = self.rng.uniform(0.005, self.cfg.near_goal_noise)
+        for _ in range(10):
+            q = np.clip(q_goal + self.rng.uniform(-scale, scale, q_goal.shape), self.lo, self.hi)
+            if collision_free(self.goal_arm, q):
+                return q
+        return q_goal.copy()               # the goal's own joint angles are collision-free by construction
 
     def _resample_goal(self, p_t, R_t):
         """Pick a new goal for the arm's current pose (p_t, R_t) and restart the per-goal memory."""

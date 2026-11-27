@@ -1,0 +1,3 @@
+# trained models, observation stats and training logs: keep local, never commit
+runs/
+*_vecnorm.pkl

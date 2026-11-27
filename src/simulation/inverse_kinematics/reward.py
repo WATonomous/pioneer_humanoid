@@ -12,8 +12,25 @@ class RewardConfig:
     gamma: float = 0.99;         phi_cap: float = 50.0
     w_back: float = 0.2;         back_cap: float = 3.0
     w_dwell: float = 1.0
-    w_action_rate: float = 5e-4; w_joint_vel: float = 5e-4
-    w_limit: float = 1.0;        limit_margin: float = 0.05;  limit_gate_rho: float = 10.0
+    # The paper's values were 5e-4 for both. With them a policy that swings every action between +1 and -1 paid only
+    # about 0.01 per step (against about +1.3 from the keypoint terms), so nothing discouraged jitter: raised 40x / 10x.
+    w_action_rate: float = 2e-2; w_joint_vel: float = 5e-3
+    # w_limit was 1.0; 3.0 since v6 failures all ended pinned at joint limits 300-400 mm from the goal (wrong IK branch)
+    w_limit: float = 3.0;        limit_margin: float = 0.05;  limit_gate_rho: float = 10.0
+    # Not in the paper. Within rho <= near_rho (about 1 cm of the goal) the arm should be still, but joints kept moving at
+    # about 0.2-0.3 rad/s there, so the joint-velocity cost is much heavier near the goal (w_joint_vel_near, vs w_joint_vel
+    # elsewhere, so that moving fast to get there is still cheap).
+    w_joint_vel_near: float = 0.2;  near_rho: float = 10.0
+    # Not in the paper. The arm has 7 joints for a 6-number pose, so one joint motion moves the arm without moving the tool
+    # (26% of the motion in the last 3 s of a trained policy), and nothing stopped it drifting. A small pull toward the rest
+    # posture (joint offsets as a fraction of each joint's range) keeps that motion in check.
+    w_posture: float = 0.05
+    # Not in the paper. At the end of an episode the trained policy still flipped the sign of its actions on about half the
+    # steps (tool moving ~1.2 mm per step, never settling). Within near_rho the action-rate cost is heavier
+    # (w_action_rate_near, vs w_action_rate elsewhere) and the action itself is penalized (w_action_near), so doing nothing is
+    # the best move once there. And w_time is a small cost per step while not yet within tolerance (rho > 1), so arriving
+    # sooner is worth more (episodes only end by time-out, so a cost that never stopped would be a constant and teach nothing).
+    w_action_rate_near: float = 0.2;  w_action_near: float = 0.05;  w_time: float = 0.05
 
 # Helper functions below ------------------------------------------------
 def U(rho):
@@ -49,8 +66,9 @@ class PoseReward:
         self.a_prev = np.zeros(n_actions) if a_prev is None else np.asarray(a_prev, float)
         self.fresh = True
 
-    def step(self, p_t, R_t, p_g, R_g, q, qd, a, lo, hi):
-        """Reward for the state reached after applying action `a`. Returns (total, terms)."""
+    def step(self, p_t, R_t, p_g, R_g, q, qd, a, lo, hi, q_rest=None):
+        """Reward for the state reached after applying action `a`. Returns (total, terms).
+        q_rest: the rest posture (7,) for the posture term; without it that term is 0."""
         e_pos, e_rot = pm.pose_errors(p_t, R_t, p_g, R_g)
         e_p = np.linalg.norm(e_pos)
         epsilon = keypoint_error_centered(p_t, R_t, p_g, R_g, RewardConfig.kp_scale)
@@ -75,7 +93,13 @@ class PoseReward:
         action_rate_reward = -float(np.sum((a - self.a_prev) ** 2))
         joint_vel_reward = -float(np.sum(np.asarray(qd) ** 2))
         limit_reward = -limit_penalty(q, lo, hi, RewardConfig.limit_margin) if rho > RewardConfig.limit_gate_rho else 0.0
+        w_vel = RewardConfig.w_joint_vel_near if rho <= RewardConfig.near_rho else RewardConfig.w_joint_vel
+        posture_reward = 0.0 if q_rest is None else -float(np.sum(((np.asarray(q) - q_rest) / (hi - lo)) ** 2))
 
+        near = rho <= RewardConfig.near_rho
+        w_rate = RewardConfig.w_action_rate_near if near else RewardConfig.w_action_rate
+        action_size_reward = -float(np.sum(np.asarray(a) ** 2)) if near else 0.0
+        time_reward = -1.0 if rho > 1.0 else 0.0
 
         weights = {
             "linear position": linear_position_reward * RewardConfig.w_pos_linear,
@@ -86,9 +110,12 @@ class PoseReward:
             "shaping": shaping_reward * RewardConfig.w_shaping,
             "backslide": backslide_reward * RewardConfig.w_back,
             "dwell": dwell_reward * RewardConfig.w_dwell,
-            "action rate": action_rate_reward * RewardConfig.w_action_rate,
-            "joint velocity": joint_vel_reward * RewardConfig.w_joint_vel,
-            "joint limits": limit_reward * RewardConfig.w_limit
+            "action rate": action_rate_reward * w_rate,
+            "joint velocity": joint_vel_reward * w_vel,
+            "joint limits": limit_reward * RewardConfig.w_limit,
+            "posture": posture_reward * RewardConfig.w_posture,
+            "action size": action_size_reward * RewardConfig.w_action_near,
+            "time": time_reward * RewardConfig.w_time,
         }
 
         # update new values

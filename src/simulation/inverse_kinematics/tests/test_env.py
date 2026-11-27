@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import pose_math as pm
 from arm_sim import EPISODE_STEPS, PHYSICS_DT, SUBSTEPS
 from env import EnvConfig, PolicyIKEnv, gain
+from sampling import collision_free
 
 # Where each block sits in the 54-number observation (the order of Eq. 3 of the paper)
 JOINTS, VEL, GOAL = slice(0, 7), slice(7, 14), slice(14, 17)
@@ -21,7 +22,7 @@ KEYPOINTS, COARSE, FINE = slice(17, 26), slice(26, 32), slice(32, 38)
 BEST, COMMAND, PREV_ACTION = slice(38, 40), slice(40, 47), slice(47, 54)
 
 TERM_NAMES = {"linear position", "fine position", "keypoint wide", "keypoint sharp", "improvement", "shaping",
-              "backslide", "dwell", "action rate", "joint velocity", "joint limits"}
+              "backslide", "dwell", "action rate", "joint velocity", "joint limits", "posture", "action size", "time"}
 
 
 def rho_now(env):
@@ -54,9 +55,12 @@ class TestGain(unittest.TestCase):
         def beta(mm, deg):
             return max(gain(mm / 1000, c.l_pos, c.u_pos, c.beta_min),
                        gain(np.radians(deg), c.l_rot, c.u_rot, c.beta_min))
-        self.assertAlmostEqual(beta(1, 0.1), 0.151, places=3)       # the position error sets it
-        self.assertAlmostEqual(beta(5, 0.2), 0.560, places=3)
-        self.assertAlmostEqual(beta(0.3, 2.328), 1.0)               # the rotation error alone is enough for a full step
+        # thresholds: position 0.5 mm .. 30 mm, rotation 0.415 deg .. 7.5 deg, beta_min 0.1 (worked out by hand below)
+        self.assertAlmostEqual(beta(1, 0.1), 0.1 + 0.9 * (0.5 / 29.5), places=4)          # 0.1153: the position error sets it
+        self.assertAlmostEqual(beta(5, 0.2), 0.1 + 0.9 * (4.5 / 29.5), places=4)          # 0.2373
+        self.assertAlmostEqual(beta(0.3, 2.328), 0.1 + 0.9 * (1.913 / 7.085), places=3)   # 0.343: the rotation error sets it
+        self.assertAlmostEqual(beta(0.3, 7.5), 1.0)                 # rotation at its upper threshold alone: a full step
+        self.assertAlmostEqual(beta(30, 0.0), 1.0)                  # position at its upper threshold alone: a full step
         self.assertAlmostEqual(beta(0.1, 0.05), c.beta_min)         # both small: the floor
 
 
@@ -321,6 +325,51 @@ class TestObservationNoise(unittest.TestCase):
         env = PolicyIKEnv(EnvConfig(obs_noise=self.NOISE), seed=3)
         env.reset()
         self.assertFalse(np.array_equal(env._observation()[JOINTS], env._observation()[JOINTS]))   # new draw each call
+
+
+class TestNearGoalStarts(unittest.TestCase):
+    """cfg.near_goal_prob: some episodes start close to their goal (the paper's reverse curriculum)."""
+
+    def distances(self, prob, n=20, seed=5):
+        env = PolicyIKEnv(EnvConfig(near_goal_prob=prob), seed=seed)
+        out = []
+        for _ in range(n):
+            env.reset()
+            p, _ = env._tool_pose()
+            out.append(1000 * np.linalg.norm(p - env.p_goal))      # mm
+        return env, np.array(out)
+
+    def test_off_by_default_starts_are_far(self):
+        _, d = self.distances(0.0)
+        self.assertGreater(d.min(), 100.0)
+
+    def test_when_always_on_every_start_is_close(self):
+        env, d = self.distances(1.0)
+        self.assertLess(d.max(), 100.0)
+        self.assertTrue(np.all(np.abs(env.z - env.q_goal) <= env.cfg.near_goal_noise + 1e-12))   # last episode's joints
+
+    def test_a_mix_gives_roughly_the_chosen_share(self):
+        _, d = self.distances(0.5, n=60)
+        self.assertTrue(0.25 < np.mean(d < 100.0) < 0.75)
+
+    def test_near_starts_are_collision_free_and_inside_the_limits(self):
+        env = PolicyIKEnv(EnvConfig(near_goal_prob=1.0), seed=2)
+        for _ in range(25):
+            env.reset()
+            self.assertTrue(collision_free(env.goal_arm, env.z))
+            self.assertTrue(np.all(env.z >= env.lo) and np.all(env.z <= env.hi))
+
+    def test_the_goal_itself_does_not_depend_on_the_option(self):
+        on, off = PolicyIKEnv(EnvConfig(near_goal_prob=1.0), seed=8), PolicyIKEnv(EnvConfig(near_goal_prob=0.0), seed=8)
+        on.reset(); off.reset()
+        self.assertTrue(np.array_equal(on.p_goal, off.p_goal))
+
+    def test_the_arm_starts_at_rest_and_the_reward_is_fresh(self):
+        env = PolicyIKEnv(EnvConfig(near_goal_prob=1.0), seed=3)
+        obs = env.reset()
+        self.assertTrue(np.allclose(obs[VEL], 0.0))
+        self.assertTrue(env.reward.fresh)
+        self.assertLess(env.reward.best, 200.0)                  # a small starting error, in tolerance units
 
 
 class TestEpisodeEnd(unittest.TestCase):

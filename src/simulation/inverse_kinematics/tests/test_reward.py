@@ -24,14 +24,14 @@ def make(rho0=10.0):
     return r
 
 
-def step_full(r, rho_val, a=None, q=None, qd=None):
+def step_full(r, rho_val, a=None, q=None, qd=None, q_rest=None):
     """One step with the goal straight ahead, rho_val tolerance units (rho_val mm) away, same orientation.
     Returns (total, terms)."""
     p_goal = np.array([rho_val * TOL_POS, 0.0, 0.0])
     a = np.zeros(7) if a is None else a
     q = np.zeros(7) if q is None else q
     qd = np.zeros(7) if qd is None else qd
-    return r.step(np.zeros(3), EYE, p_goal, EYE, q, qd, a, LO, HI)
+    return r.step(np.zeros(3), EYE, p_goal, EYE, q, qd, a, LO, HI, q_rest=q_rest)
 
 
 def step_at(r, rho_val, **kw):
@@ -163,26 +163,55 @@ class TestCostTerms(unittest.TestCase):
     def test_action_rate_is_measured_against_the_previous_action(self):
         r = make(10.0)
         a = np.array([0.1, 0, 0, 0, 0, 0, 0])
-        self.assertAlmostEqual(step_at(r, 10.0, a=a)["action rate"], -C.w_action_rate * 0.01)  # vs the reset zeros
+        self.assertAlmostEqual(step_at(r, 10.0, a=a)["action rate"], -C.w_action_rate_near * 0.01)  # vs the reset zeros (rho 10 counts as near)
         self.assertEqual(step_at(r, 10.0, a=a)["action rate"], 0.0)                            # same action again
 
     def test_action_rate_sums_over_joints(self):
         r = make(10.0)
         self.assertAlmostEqual(step_at(r, 10.0, a=np.array([3.0, 4.0, 0, 0, 0, 0, 0]))["action rate"],
-                               -C.w_action_rate * 25.0)
+                               -C.w_action_rate_near * 25.0)
 
     def test_previous_action_is_a_copy(self):
         r = make(10.0)
         a = np.zeros(7)
         step_at(r, 10.0, a=a)
         a[0] = 5.0                                             # the caller changes its array afterwards
-        self.assertAlmostEqual(step_at(r, 10.0, a=a)["action rate"], -C.w_action_rate * 25.0)
+        self.assertAlmostEqual(step_at(r, 10.0, a=a)["action rate"], -C.w_action_rate_near * 25.0)
+
+    def test_action_rate_is_lighter_far_from_the_goal(self):
+        a = np.array([3.0, 4.0, 0, 0, 0, 0, 0])
+        self.assertAlmostEqual(step_at(make(20.0), 20.0, a=a)["action rate"], -C.w_action_rate * 25.0)
+
+    def test_action_size_is_only_penalized_near_the_goal(self):
+        a = np.array([3.0, 4.0, 0, 0, 0, 0, 0])
+        self.assertAlmostEqual(step_at(make(5.0), 5.0, a=a)["action size"], -C.w_action_near * 25.0)
+        self.assertEqual(step_at(make(20.0), 20.0, a=a)["action size"], 0.0)
+        self.assertEqual(step_at(make(5.0), 5.0)["action size"], 0.0)
+
+    def test_time_cost_stops_once_within_tolerance(self):
+        self.assertAlmostEqual(step_at(make(20.0), 20.0)["time"], -C.w_time)
+        self.assertAlmostEqual(step_at(make(2.0), 2.0)["time"], -C.w_time)
+        self.assertEqual(step_at(make(0.5), 0.5)["time"], 0.0)
+        self.assertEqual(step_at(make(1.0), 1.0)["time"], 0.0)
 
     def test_joint_velocity(self):
-        r = make(10.0)
         qd = np.array([1.0, 2.0, 0, 0, 0, 0, 0])
-        self.assertAlmostEqual(step_at(r, 10.0, qd=qd)["joint velocity"], -C.w_joint_vel * 5.0)
-        self.assertEqual(step_at(r, 10.0)["joint velocity"], 0.0)
+        # far from the goal: the light cost. Within near_rho of it: the heavy one.
+        self.assertAlmostEqual(step_at(make(20.0), 20.0, qd=qd)["joint velocity"], -C.w_joint_vel * 5.0)
+        self.assertAlmostEqual(step_at(make(5.0), 5.0, qd=qd)["joint velocity"], -C.w_joint_vel_near * 5.0)
+        self.assertEqual(step_at(make(10.0), 10.0)["joint velocity"], 0.0)
+
+    def test_posture_cost_is_a_fraction_of_each_joints_range(self):
+        q = np.zeros(7); q[0] = 1.0                      # joint 0 is 1 rad from rest; the range is 2, so 0.5 of it
+        rest = np.zeros(7)
+        self.assertAlmostEqual(step_at(make(20.0), 20.0, q=q, q_rest=rest)["posture"], -C.w_posture * 0.25)
+        q[1] = -1.0                                      # two joints: the squares add
+        self.assertAlmostEqual(step_at(make(20.0), 20.0, q=q, q_rest=rest)["posture"], -C.w_posture * 0.5)
+
+    def test_no_posture_cost_at_rest_or_without_a_rest_pose(self):
+        q = np.full(7, 0.3)
+        self.assertEqual(step_at(make(20.0), 20.0, q=q, q_rest=q)["posture"], 0.0)
+        self.assertEqual(step_at(make(20.0), 20.0, q=q)["posture"], 0.0)
 
     def test_joint_limit_penalty_only_applies_far_from_the_goal(self):
         q = np.zeros(7)
@@ -222,7 +251,7 @@ class TestStepOverall(unittest.TestCase):
         step_full(r, 10.0)
         total, terms = step_full(r, 7.0, a=np.ones(7) * 0.1, qd=np.ones(7))
         self.assertAlmostEqual(total, sum(terms.values()))
-        self.assertEqual(len(terms), 11)
+        self.assertEqual(len(terms), 14)
 
     def test_holding_at_the_goal_pays_a_fixed_amount_per_step(self):
         # linear 0 + fine 0.1 + wide 1 + sharp 1 + dwell 1; progress terms are 0 when nothing changes

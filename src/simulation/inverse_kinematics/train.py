@@ -18,6 +18,8 @@ defaults the policy updates were far too big (approx_kl 0.2-1 instead of about 0
 import argparse
 from pathlib import Path
 
+import numpy as np
+
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.monitor import Monitor
@@ -61,18 +63,25 @@ def main():
     ap.add_argument("--n-steps", type=int, default=8192, help="steps collected before each update (SB3: 2048)")
     ap.add_argument("--batch-size", type=int, default=1024, help="minibatch size (SB3: 64)")
     ap.add_argument("--n-epochs", type=int, default=4, help="passes over each batch (SB3: 10)")
-    ap.add_argument("--ent-coef", type=float, default=0.01, help="exploration bonus (SB3: 0)")
+    ap.add_argument("--ent-coef", type=float, default=0.0,
+                    help="exploration bonus (SB3: 0). The paper uses 0.01, but with actions clipped to +-1 it made the "
+                         "action noise GROW to std 2 (every sampled action saturated), so it is off by default")
+    ap.add_argument("--std-init", type=float, default=0.4,
+                    help="starting std of the action noise (SB3: 1.0, which already saturates the +-1 clipping)")
+    ap.add_argument("--reset-std", action="store_true", help="with --resume: set the std back to --std-init first")
     ap.add_argument("--target-kl", type=float, default=0.03, help="early-stop an update beyond 1.5x this; 0 = off")
     ap.add_argument("--normalize", action=argparse.BooleanOptionalAction, default=True,
                     help="normalize the observations (on by default; --no-normalize to turn off)")
     ap.add_argument("--normalize-reward", action="store_true", help="also scale the rewards (off by default)")
+    ap.add_argument("--near-goal-prob", type=float, default=0.5,
+                    help="fraction of episodes that start close to their goal, to practice the final correction and holding")
     ap.add_argument("--save-every", type=int, default=500_000, help="save to --out every this many steps (0 = only at the end)")
     args = ap.parse_args()
 
     if args.resume and stats_path(args.resume) == stats_path(args.out):
         raise SystemExit("--out is the model you are resuming from: pick a new name so it isn't overwritten")
 
-    cfg = EnvConfig(obs_noise=0.01, resample_goals=True, max_steps=360)
+    cfg = EnvConfig(obs_noise=0.01, resample_goals=True, max_steps=360, near_goal_prob=args.near_goal_prob)
     venv = DummyVecEnv([lambda: Monitor(PolicyIKGymEnv(cfg, seed=args.seed))])    # Monitor gives the episode reward log
 
     normalize = args.normalize
@@ -94,8 +103,11 @@ def main():
         # and the settings above replace the ones the model was saved with.
         model = PPO.load(args.resume, env=venv, device="cpu", **hp)
         print(f"resuming from {args.resume} at step {model.num_timesteps}")
+        if args.reset_std:
+            model.policy.log_std.data.fill_(float(np.log(args.std_init)))
     else:
-        model = PPO("MlpPolicy", venv, seed=args.seed, device="cpu", verbose=1, **hp)    # 2 hidden layers of 64
+        model = PPO("MlpPolicy", venv, seed=args.seed, device="cpu", verbose=1,    # 2 hidden layers of 64
+                    policy_kwargs=dict(log_std_init=float(np.log(args.std_init))), **hp)
     saver = SaveLatest(args.out, args.save_every, venv if normalize else None) if args.save_every else None
     model.learn(total_timesteps=args.steps, reset_num_timesteps=not args.resume, callback=saver)   # a resumed run keeps counting
     model.save(args.out)
