@@ -336,7 +336,8 @@ class StereoDepthNode(Node):
         # Map config to parameters
         if 'left_camera' in config:
             self.set_parameters([
-                rclpy.parameter.Parameter('left_image_topic',
+                rclpy.parameter.Parameter(
+                    'left_image_topic',
                     rclpy.Parameter.Type.STRING,
                     config['left_camera'].get('image_topic', '/wrist_left/image_raw')),
             ])

@@ -118,7 +118,9 @@ class IntrinsicCalibrator(Node):
 
         self.get_logger().info(f'ChArUco Intrinsic Calibrator started')
         self.get_logger().info(f'  Camera topic: {self.camera_topic}')
-        self.get_logger().info(f'  Board: {self.squares_x}x{self.squares_y}, square={self.square_length*1000:.0f}mm, marker={self.marker_length*1000:.0f}mm')
+        self.get_logger().info(
+            f'  Board: {self.squares_x}x{self.squares_y}, '
+            f'square={self.square_length*1000:.0f}mm, marker={self.marker_length*1000:.0f}mm')
         self.get_logger().info(f'  Output: {self.output_file}')
         self.get_logger().info('Press SPACE to capture, C to calibrate, S to save, Q to quit')
 
