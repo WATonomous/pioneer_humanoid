@@ -39,6 +39,20 @@ class EnvConfig:
     near_goal_prob: float = 0.0
     near_goal_noise: float = 0.08    # rad, the largest offset per joint
 
+    # Hard cases (not in the paper). The trained policy fails on about 1 episode in 8, always with the arm pinned at one or
+    # more joint limits, and goals within 5% of a joint limit fail about twice as often as the rest. So, with these
+    # probabilities (off by default; evaluation is unchanged), training practices them more:
+    #   edge_goal_prob: the goal is drawn again (up to 30 tries) until one of its joints is within 5% of a limit
+    #   hard_start_prob: the start has 1-3 random joints pinned at a limit (a far-from-goal start, never combined with near-goal)
+    edge_goal_prob: float = 0.0
+    hard_start_prob: float = 0.0
+
+    # Goal bands (off by default). With band_goals, every goal is drawn in one of two bands of "how far the goal's closest joint
+    # is from a joint limit, as a fraction of its range": with probability center_goal_prob it is 20% or more (rare: 2% of random
+    # goals, so it is redrawn until it fits), otherwise 5% to 20%. Goals within 5% of a limit are left out.
+    band_goals: bool = False
+    center_goal_prob: float = 0.5
+
     # Error-dependent action gain beta (paper Eq. 6). beta is 1 once either error is above its upper threshold u, and
     # beta_min once both are below their lower l. The lower thresholds are the paper's (Appendix A). The UPPER ones are
     # about 3x wider than the paper's (9.31 mm, 2.328 deg): on this arm a full step at beta = 1 moves the tool 10-30 mm,
@@ -94,12 +108,17 @@ class PolicyIKEnv:
         self.t = 0 # reset steps
         self.best_so_far = None # reset best
         self.a_prev = np.zeros(7) # no previous action at the start of an episode
-        self.q_goal, self.p_goal, self.R_goal = sample_goal(self.goal_arm, self.rng)
+        self.q_goal, self.p_goal, self.R_goal = self._draw_goal()
         start_q = sample_start(self.goal_arm, self.rng) # Random angle positions for joints
         # With near_goal_prob the draw above is replaced by a start near the goal (the random numbers are only drawn
         # when the option is on, so with it off the goals and starts are the same as before it existed)
-        if self.cfg.near_goal_prob > 0 and self.rng.random() < self.cfg.near_goal_prob:
+        near = self.cfg.near_goal_prob > 0 and self.rng.random() < self.cfg.near_goal_prob
+        if near:
             start_q = self._near_start(self.q_goal)
+        if self.cfg.edge_goal_prob > 0 and self.rng.random() < self.cfg.edge_goal_prob:
+            self._edge_goal()
+        if not near and self.cfg.hard_start_prob > 0 and self.rng.random() < self.cfg.hard_start_prob:
+            start_q = self._pinned_start(start_q)
         self.z = start_q.copy()
 
         # Puts the left arm at start_q, points the motors at it, zeroes the velocities and runs forward kinematics
@@ -162,9 +181,43 @@ class PolicyIKEnv:
                 return q
         return q_goal.copy()               # the goal's own joint angles are collision-free by construction
 
+    def _draw_goal(self):
+        """A new goal (q, p, R). With cfg.band_goals only one from the 20%+ band or the 5-20% band (see EnvConfig)."""
+        if not self.cfg.band_goals:
+            return sample_goal(self.goal_arm, self.rng)
+        lo_frac, hi_frac = (0.20, np.inf) if self.rng.random() < self.cfg.center_goal_prob else (0.05, 0.20)
+        for _ in range(500):
+            q, p, R = sample_goal(self.goal_arm, self.rng)
+            if lo_frac <= self._edge_fraction(q) < hi_frac:
+                return q, p, R
+        return q, p, R               # (no goal in the band after 500 draws: practically never)
+
+    def _edge_fraction(self, q):
+        """How close the closest joint of q is to one of its limits, as a fraction of that joint's range."""
+        return float(np.min(np.minimum(q - self.lo, self.hi - q) / (self.hi - self.lo)))
+
+    def _edge_goal(self):
+        """Replace the goal by one with a joint within 5% of a limit (the last draw is kept if none is found)."""
+        for _ in range(30):
+            self.q_goal, self.p_goal, self.R_goal = sample_goal(self.goal_arm, self.rng)
+            if self._edge_fraction(self.q_goal) < 0.05:
+                return
+
+    def _pinned_start(self, q):
+        """q with 1-3 random joints moved onto a joint limit (just inside it); q itself if every try collides."""
+        for _ in range(10):
+            out = q.copy()
+            joints = self.rng.choice(len(q), size=self.rng.integers(1, 4), replace=False)
+            for j in joints:
+                out[j] = self.lo[j] + 0.005 * (self.hi[j] - self.lo[j]) if self.rng.random() < 0.5 \
+                    else self.hi[j] - 0.005 * (self.hi[j] - self.lo[j])
+            if collision_free(self.goal_arm, out):
+                return out
+        return q
+
     def _resample_goal(self, p_t, R_t):
         """Pick a new goal for the arm's current pose (p_t, R_t) and restart the per-goal memory."""
-        _, self.p_goal, self.R_goal = sample_goal(self.goal_arm, self.rng)
+        self.q_goal, self.p_goal, self.R_goal = self._draw_goal()
         self.best_so_far = None        # the running best starts again at the new goal's rho (set in _observation)
         e_pos, e_rot = pm.pose_errors(p_t, R_t, self.p_goal, self.R_goal)
         # a_prev is kept: the arm keeps moving, so the action-rate cost continues from the last action

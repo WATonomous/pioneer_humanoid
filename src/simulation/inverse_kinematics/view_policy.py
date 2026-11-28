@@ -2,6 +2,7 @@
 
     ~/mj-venv/bin/mjpython view_policy.py                              # the newest model in runs/
     ~/mj-venv/bin/mjpython view_policy.py runs/ppo_1m.zip --episodes 5
+    ~/mj-venv/bin/mjpython view_policy.py runs/ppo_10m_v8.zip --min-limit-frac 0.10   # only goals well away from joint limits
 
 Runs the evaluation setup (no noise, one goal per episode, 160 steps) in real time with the deterministic policy.
 Red sphere + axes = the goal, cyan sphere + axes = where the tool point is. After each episode it prints whether the
@@ -31,12 +32,20 @@ def newest_model():
     return str(models[-1])
 
 
+def limit_fraction(env):
+    """How close the goal's closest joint is to one of its limits, as a fraction of that joint's range."""
+    return float(np.min(np.minimum(env.q_goal - env.lo, env.hi - env.q_goal) / (env.hi - env.lo)))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("model", nargs="?", help="a .zip saved by train.py (default: the newest in runs/)")
     ap.add_argument("--episodes", type=int, default=0, help="stop after this many (0 = until the window closes)")
     ap.add_argument("--seed", type=int, default=2000)
     ap.add_argument("--pause", type=float, default=1.5, help="seconds to wait between episodes")
+    ap.add_argument("--min-limit-frac", type=float, default=0.0,
+                    help="only show goals whose joints are all at least this fraction of their range from the limits "
+                         "(0.10 = 10%%); the trained policy is much more reliable on those. 0 = any goal")
     args = ap.parse_args()
 
     path = args.model or newest_model()
@@ -57,6 +66,8 @@ def main():
         n = 0
         while viewer.is_running() and (args.episodes == 0 or n < args.episodes):
             obs, _ = genv.reset()
+            while args.min_limit_frac > 0 and limit_fraction(env) < args.min_limit_frac:
+                obs, _ = genv.reset()                  # draw again until the goal is far enough from every joint limit
             n += 1
             done, info = False, {}
             while viewer.is_running() and not done:

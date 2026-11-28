@@ -390,5 +390,82 @@ class TestEpisodeEnd(unittest.TestCase):
         self.assertTrue(truncated)
 
 
+class TestHardCases(unittest.TestCase):
+    """cfg.edge_goal_prob / cfg.hard_start_prob: goals near a joint limit, and starts with joints pinned at limits."""
+
+    def frac(self, env, q):
+        return np.min(np.minimum(q - env.lo, env.hi - q) / (env.hi - env.lo))
+
+    def test_edge_goals_have_a_joint_near_a_limit(self):
+        env = PolicyIKEnv(EnvConfig(edge_goal_prob=1.0), seed=4)
+        n = 0
+        for _ in range(20):
+            env.reset()
+            n += self.frac(env, env.q_goal) < 0.05
+        self.assertGreaterEqual(n, 18)          # (a draw that never finds one keeps its last goal; that is rare)
+
+    def test_edge_goal_matches_its_joint_angles(self):
+        env = PolicyIKEnv(EnvConfig(edge_goal_prob=1.0), seed=6)
+        env.reset()
+        p, R = env.goal_arm.tcp_pose(env.q_goal)
+        self.assertTrue(np.allclose(p, env.p_goal) and np.allclose(R, env.R_goal))
+
+    def test_pinned_starts_have_a_joint_at_a_limit_and_are_valid(self):
+        env = PolicyIKEnv(EnvConfig(hard_start_prob=1.0), seed=3)
+        n = 0
+        for _ in range(20):
+            env.reset()
+            self.assertTrue(collision_free(env.goal_arm, env.z))
+            self.assertTrue(np.all(env.z >= env.lo) and np.all(env.z <= env.hi))
+            n += self.frac(env, env.z) < 0.01
+        self.assertGreaterEqual(n, 15)
+
+    def test_hard_starts_do_not_replace_near_goal_starts(self):
+        env = PolicyIKEnv(EnvConfig(near_goal_prob=1.0, hard_start_prob=1.0), seed=2)
+        for _ in range(10):
+            env.reset()
+            self.assertTrue(np.all(np.abs(env.z - env.q_goal) <= env.cfg.near_goal_noise + 1e-12))
+
+    def test_off_by_default_changes_nothing(self):
+        a, b = PolicyIKEnv(EnvConfig(), seed=9), PolicyIKEnv(EnvConfig(edge_goal_prob=0.0, hard_start_prob=0.0), seed=9)
+        self.assertTrue(np.array_equal(a.reset(), b.reset()))
+
+
+class TestGoalBands(unittest.TestCase):
+    """cfg.band_goals: goals only from the 20%+ band or the 5-20% band of distance to the joint limits."""
+
+    def fracs(self, n, **cfg):
+        env = PolicyIKEnv(EnvConfig(band_goals=True, **cfg), seed=4)
+        out = []
+        for _ in range(n):
+            env.reset()
+            out.append(np.min(np.minimum(env.q_goal - env.lo, env.hi - env.q_goal) / (env.hi - env.lo)))
+        return np.array(out)
+
+    def test_no_goal_is_within_5_percent_of_a_limit(self):
+        self.assertTrue(np.all(self.fracs(30) >= 0.05))
+
+    def test_the_two_bands_are_mixed_as_chosen(self):
+        f = self.fracs(40)
+        self.assertTrue(0.3 < np.mean(f >= 0.20) < 0.7)
+
+    def test_all_centered_or_none(self):
+        self.assertTrue(np.all(self.fracs(8, center_goal_prob=1.0) >= 0.20))
+        f = self.fracs(20, center_goal_prob=0.0)
+        self.assertTrue(np.all((f >= 0.05) & (f < 0.20)))
+
+    def test_resampled_goals_use_the_bands_too(self):
+        env = PolicyIKEnv(EnvConfig(band_goals=True, resample_goals=True, goal_every=3), seed=1)
+        env.reset()
+        for _ in range(12):
+            env.step(np.zeros(7))
+            f = np.min(np.minimum(env.q_goal - env.lo, env.hi - env.q_goal) / (env.hi - env.lo))
+            self.assertGreaterEqual(f, 0.05)
+
+    def test_off_by_default_changes_nothing(self):
+        a, b = PolicyIKEnv(EnvConfig(), seed=9), PolicyIKEnv(EnvConfig(band_goals=False), seed=9)
+        self.assertTrue(np.array_equal(a.reset(), b.reset()))
+
+
 if __name__ == "__main__":
     unittest.main()

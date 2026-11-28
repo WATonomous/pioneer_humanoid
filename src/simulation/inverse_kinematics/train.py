@@ -75,13 +75,22 @@ def main():
     ap.add_argument("--normalize-reward", action="store_true", help="also scale the rewards (off by default)")
     ap.add_argument("--near-goal-prob", type=float, default=0.5,
                     help="fraction of episodes that start close to their goal, to practice the final correction and holding")
+    ap.add_argument("--edge-goal-prob", type=float, default=0.25,
+                    help="fraction of goals redrawn to have a joint within 5%% of a limit (the hardest goals for the policy)")
+    ap.add_argument("--hard-start-prob", type=float, default=0.25,
+                    help="fraction of (non-near-goal) starts with 1-3 joints pinned at a limit, to practice getting out")
+    ap.add_argument("--band-goals", action="store_true",
+                    help="goals only from two bands of distance to the joint limits: --center-goal-prob of them 20%%+ away, the rest 5-20%%")
+    ap.add_argument("--center-goal-prob", type=float, default=0.5, help="with --band-goals: share of goals 20%%+ from every limit")
     ap.add_argument("--save-every", type=int, default=500_000, help="save to --out every this many steps (0 = only at the end)")
     args = ap.parse_args()
 
     if args.resume and stats_path(args.resume) == stats_path(args.out):
         raise SystemExit("--out is the model you are resuming from: pick a new name so it isn't overwritten")
 
-    cfg = EnvConfig(obs_noise=0.01, resample_goals=True, max_steps=360, near_goal_prob=args.near_goal_prob)
+    cfg = EnvConfig(obs_noise=0.01, resample_goals=True, max_steps=360, near_goal_prob=args.near_goal_prob,
+                    edge_goal_prob=args.edge_goal_prob, hard_start_prob=args.hard_start_prob,
+                    band_goals=args.band_goals, center_goal_prob=args.center_goal_prob)
     venv = DummyVecEnv([lambda: Monitor(PolicyIKGymEnv(cfg, seed=args.seed))])    # Monitor gives the episode reward log
 
     normalize = args.normalize
