@@ -20,6 +20,7 @@ log/
 
 datasets/
 outputs/
+MUJOCO_LOG.TXT
 
 # Recorded RealSense bags for terrain_mapping (GBs; mounted read-only into the container)
 Terrain Mapping Bags/
