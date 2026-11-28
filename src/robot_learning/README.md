@@ -112,6 +112,8 @@ python -m humanoid_robot_learning.sim.evaluate --scene peg_insert --policy <run>
   --episodes 40 --seed 1000 --video_dir eval_videos
 ```
 
+`--set key=value` (repeatable) changes a policy config field before loading, e.g. `--set n_action_steps=16` to try inference options without editing the checkpoint.
+
 Sim rollout for a flow-matching policy (pi0 / pi0.5 / SmolVLA) on the push-block scene, driven with Real-Time Chunking (`humanoid_robot_learning/deploy/rtc_driver.py`): [`scripts/pioneer_push_eval_rtc.py`](scripts/pioneer_push_eval_rtc.py). It drives the 8dof left arm and expects a checkpoint trained on `config/pioneer_8dof_dataset_schema.yaml` (8 values: 7 joints + gripper; an old 6-DoF arm checkpoint is refused); `--dry_run` runs it without one. **The VLA is not hooked up yet**: no real checkpoint has been run through it, and its schema, camera keys and action space (absolute vs delta) still need matching. See the `TODO(VLA)` block in the script.
 
 ```bash

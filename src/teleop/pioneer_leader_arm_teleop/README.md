@@ -149,7 +149,7 @@ python synthetic/synthetic_teleop.py --scene peg_insert --num_episodes 3 --previ
 MUJOCO_GL=egl python synthetic/synthetic_teleop.py --scene duplo --record --num_episodes 100  # CPU only: MUJOCO_GL=osmesa
 ```
 
-Scenes: `drawer_stow`, `peg_insert`, `zip_tie`, `duplo`, `matcha`.
+Scenes: `drawer_stow`, `peg_insert`, `zip_tie`, `duplo`, `matcha`, `tabletop_pick` (`TABLETOP_PICK_FLIP_TARGET=1` asks for the other object on the same layout, for paired demos).
 
 ### How it works
 
