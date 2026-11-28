@@ -88,9 +88,10 @@ Each move has its own settings (`--duck.depth`, `--pivot.angle`,
 ## Boxing arena (two fighters)
 
 `humanoid_boxing/` sets up red vs blue in a ring for fighting RL: scene, rewards,
-round endings and opponent perception. Skill actions are not in yet.
+round endings and opponent perception. The fight task on top of it is described
+under "Fight training" below.
 
-- **Fighters**: the tracking robot recoloured, in the orthodox stance from
+- **Fighters**: the tracking robot (tinted red / blue with `TEAM_COLOURS`), in the orthodox stance from
   `generate_moves.py`, 1.45 m apart facing each other (`distance`): lead
   gloves 23 cm apart, the lead glove 65 cm from the opponent's head.
 - **Gloves and hitboxes**: a glove sphere (7 cm) round each fist; head, torso, pelvis
@@ -190,3 +191,62 @@ humanoid_boxing/     fighters.py (gloves, hitboxes, stance, sensor sites), ring.
 scripts/         generate_moves.py, csv_to_npz.py, train.py, play.py
 data/            generated motions and NPZs (gitignored)
 ```
+
+## Fight training (self-play)
+
+Red's fight policy picks 1 of 19 moves (a new one starts only in guard), plus
+arm-joint offsets and a speed with each punch. Both fighters carry moves out with
+frozen skills (`PUNCH_CHECKPOINT`, `FOOTWORK_CHECKPOINT` in
+`humanoid_boxing/fight_env_cfg.py`). Blue is the opponent: still in guard,
+scripted, or red's own policy (self-play against a pool of its last 8 snapshots).
+
+Train in two phases (each task's opponent schedule restarts with the run):
+
+| Task | Opponent | Use |
+|---|---|---|
+| `Mjlab-Boxing-Fight-Pioneer-Still` | still, 1500 its | learn to land and mix punches |
+| `Mjlab-Boxing-Fight-Pioneer-SelfPlay` | 10% scripted warm-up, then 25% still / 15% scripted / 60% self-play | resume from a still checkpoint |
+| `Mjlab-Boxing-Fight-Pioneer-SelfPlayContinue` | the same mix, no warm-up | resume a self-play run after a change |
+| `Mjlab-Boxing-Fight-Pioneer` | one run: still, scripted, then self-play | the original single-run schedule |
+
+```bash
+uv run scripts/train.py Mjlab-Boxing-Fight-Pioneer-Still --env.scene.num-envs 4096 \
+    --agent.logger tensorboard --agent.run-name fight_mix_v1 --agent.max-iterations 1500
+uv run scripts/train.py Mjlab-Boxing-Fight-Pioneer-SelfPlay --env.scene.num-envs 4096 \
+    --agent.logger tensorboard --agent.run-name fight_selfplay_v1 \
+    --agent.resume True --agent.load-run <still run> --agent.load-checkpoint model_<n>.pt
+uv run scripts/fight_report.py --run logs/rsl_rl/pioneer_fight/<run> --behaviour-check [--opponent selfplay]
+```
+
+Watch both fighters run the checkpoint (play puts blue in self-play every round and
+samples moves as in training), or record a round:
+
+```bash
+uv run scripts/play.py Mjlab-Boxing-Fight-Pioneer-SelfPlay --num-envs 1 --checkpoint-file <ckpt>
+MUJOCO_GL=egl uv run scripts/play.py Mjlab-Boxing-Fight-Pioneer-SelfPlay --num-envs 1 --checkpoint-file <ckpt> \
+    --video True --video-length 1000 --video-width 1280 --video-height 720
+uv run scripts/fight_teleop.py --opponent ai --viewer viser --checkpoint-file <ckpt>   # box against it
+```
+
+`fight_teleop.py` plays a 5-minute match (`--match-minutes`) with a live scoreboard at the top
+of the viser panel. A clean punch scores where it lands (head 10, torso 5) x the punch (jab 1,
+cross 1.2, lead hook 1.3, rear hook 1.4, lead uppercut 1.4, rear uppercut 1.5) x its power
+(peak glove force / 100 N, 0.5-1.5); punches on the arms or gloves are blocked (0). Highest
+score at full time wins; `n` starts a new match.
+
+**Scoring** (`humanoid_boxing/impact.py`): a clean punch (a punch move's glove on
+the head or torso at >= 0.4 m/s, once per punch) is worth 15 x where it lands
+(head 3.5; torso 1.5-2.5, rising towards the head) x mix-up (from the last 4 clean
+punches: 1 + 2 x the share of another punch type + 1.5 x the share at another level,
+head / chest / body) x speed x force. A punch that only hits the guard costs 0.25
+(ramped in during the still phase). In self-play a clean punch taken costs 7.5 x its
+value, so trading into a worse spot loses points. TensorBoard logs
+`Curriculum/punches/*`, split by opponent under `vs_still/`, `vs_scripted/` and
+`vs_selfplay/` (clean, taken, points, defence rate, blocks, evasions, guard share).
+
+`fighters.TEAM_COLOURS = False` keeps both robots in the model's own colours; set it
+to `True` for red / blue tints.
+
+Measured with `power_v2` and footwork `model_11500` against a still opponent: jab
+lands clean from 0.6-0.95 m, cross from 0.6-0.85 m, lead hook from 0.6-0.75 m and
+0.9-1.05 m. Rear hook and both uppercuts rarely land clean from any distance.
