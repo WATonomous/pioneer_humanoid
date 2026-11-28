@@ -33,6 +33,12 @@ PIONEER_URDF = ASSET_DIR / "pioneer_whole_body_humanoid.urdf"
 FEET = ("l_foot", "r_foot")
 WRISTS = ("l_hand_H", "r_hand_H")  # left, right: the hands (fists)
 SOLE_THICKNESS = 0.02
+# Boxing-glove props in place of the hand meshes (visual only: no mass, no contact), centred on the
+# forearm's line, with a site "<hand>_glove" at the centre: where the glove hitbox goes and what the move
+# generator aims. The hand meshes stay in the model, hidden in HIDDEN_GROUP.
+GLOVE_PROP_RGBA = (0.70, 0.06, 0.06, 1.0)
+GLOVE_PAD = 1.1  # the glove's half-axes over the fist's
+HIDDEN_GROUP = 5
 
 # The fist the hands are closed into [deg]; positive curls both hands the same way (URDF README).
 FIST = {
@@ -166,6 +172,55 @@ def _reroot(spec: mujoco.MjSpec, base: mujoco.MjsBody) -> None:
   move(base, "ipos", "iquat")
 
 
+# DESIGN TARGETS, not the robot as built: joint ranges [deg] wide enough for a Wato-size boxing stance
+# and moves (knee, ankles, hips past the URDF's) and a tight guard (elbows). Mechanical blockers (part
+# collisions, the ankle linkage, cables) are ignored for now. USE_DESIGN_RANGES = False puts back the
+# URDF's ranges.
+USE_DESIGN_RANGES = True
+DESIGN_RANGES = {
+  "Knee_.": (-110.0, 0.0),  # URDF -140..0; the skills were trained with -110
+  "Hip_F_.": (-20.0, 115.0),  # URDF -20..90
+  "Hip_R_.": (-50.0, 90.0),  # URDF -30..90
+  "Ankle_P_.": (-50.0, 50.0),  # URDF -30..50
+  "Ankle_R_.": (-30.0, 30.0),  # URDF -15..15 (it was -30..30 before #403)
+  "Hip_A_.": (-25.0, 60.0),  # URDF -10..60 (the pivots swing the lead leg in)
+  "[lr]_elbow": (-135.0, 0.0),  # URDF -125..90 (a tight guard folds the arm past 90 deg; no hyperextension)
+}
+
+
+def _glove_props(spec: mujoco.MjSpec) -> None:
+  """Hide each hand's meshes and put a boxing glove on the fist: a padded ellipsoid the fist's size,
+  centred on the forearm's line (the hand frame's z axis; the fist's box sits off it towards the thumb),
+  its long axis along the forearm, and a cuff round the wrist."""
+  model = spec.copy().compile()
+  data = mujoco.MjData(model)
+  mujoco.mj_kinematics(model, data)
+  for hand in WRISTS:
+    b = model.body(hand).id
+    pts = []
+    for g in range(model.ngeom):
+      if model.geom_bodyid[g] == b and model.geom_type[g] == mujoco.mjtGeom.mjGEOM_MESH:
+        mid = model.geom_dataid[g]
+        v = model.mesh_vert[model.mesh_vertadr[mid] : model.mesh_vertadr[mid] + model.mesh_vertnum[mid]]
+        pts.append(data.geom_xpos[g] + v @ data.geom_xmat[g].reshape(3, 3).T)
+    local = (np.vstack(pts) - data.xpos[b]) @ data.xmat[b].reshape(3, 3)
+    lo, hi = local.min(0), local.max(0)
+    centre, half = (lo + hi) / 2, (hi - lo) / 2
+    centre[0] = 0.0  # on the forearm's line
+    body = spec.body(hand)
+    for g in body.find_all(mujoco.mjtObj.mjOBJ_GEOM):  # the palm and the finger links under it
+      if g.type == mujoco.mjtGeom.mjGEOM_MESH:
+        g.group, g.material, g.rgba = HIDDEN_GROUP, "", (0, 0, 0, 0)
+    common = dict(group=2, rgba=GLOVE_PROP_RGBA, contype=0, conaffinity=0, mass=0.0, density=0.0)
+    body.add_geom(name=f"{hand}_glove", type=mujoco.mjtGeom.mjGEOM_ELLIPSOID, size=GLOVE_PAD * half, pos=centre, **common)
+    body.add_site(name=f"{hand}_glove", pos=centre, size=(0.01, 0.01, 0.01))
+    # the cuff: a short cylinder round the wrist end of the fist (+z in the hand frame, along the forearm)
+    body.add_geom(
+      name=f"{hand}_glove_cuff", type=mujoco.mjtGeom.mjGEOM_CYLINDER, size=(0.8 * min(half[:2]), 0.035),
+      pos=(centre[0], centre[1], hi[2] + 0.01), **common,
+    )  # fmt: skip
+
+
 def _urdf_text() -> str:
   text = PIONEER_URDF.read_text()
   free = ('<link name="world"/><joint name="floating_base" type="floating">'
@@ -206,10 +261,15 @@ def get_spec() -> mujoco.MjSpec:
   # URDF effort -> MuJoCo actuatorfrcrange: a hidden clamp at the URDF value; the actuators carry the limits
   for joint in spec.joints:
     joint.actfrclimited = mujoco.mjtLimited.mjLIMITED_FALSE
+    if USE_DESIGN_RANGES:
+      for pattern, deg in DESIGN_RANGES.items():
+        if re.fullmatch(pattern, joint.name):
+          joint.range = np.radians(deg)
   for geom in spec.geoms:
     geom.contype = 0
     geom.conaffinity = 0
     geom.group = 2
+  _glove_props(spec)
 
   for foot in FEET:
     half, centre = _sole_box(spec, foot)
