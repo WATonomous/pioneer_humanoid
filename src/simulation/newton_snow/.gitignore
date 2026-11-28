@@ -1,0 +1,5 @@
+.venv/
+assets/
+out/
+robot/assets/
+robot/pioneer_whole_body_humanoid/

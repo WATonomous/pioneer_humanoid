@@ -19,6 +19,7 @@ src/simulation/
 ├── so101_vial_task/        # SO101 imitation-learning task
 └── badminton/              # mjlab (MuJoCo Warp) badminton receive RL — see badminton/README.md
 └── whole_body_motion_tracking/  # Links to whole body motion tracking pipeline
+└── newton_snow/            # Newton MPM snow/sand/water walking renders of the whole-body Pioneer
 ```
 
 Robot URDF/USD/meshes and scene props live at the repo-root **`assets/`** (backend-neutral —
