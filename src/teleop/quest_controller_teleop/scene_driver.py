@@ -92,7 +92,8 @@ class ControllerSceneDriver:
         self.calibration = Path(calibration)
         self.pivots = load_pivots(self.calibration)
         for side, pivot in self.pivots.items():
-            self.targets[side].pivot = pivot
+            if side in self.targets:
+                self.targets[side].pivot = pivot
         self.samples = {s: [] for s in joint_names}
         self.history = {s: [] for s in joint_names}   # the two newest raw poses per arm: [(Quest time s, Input)]
         self.calibrating = {s: False for s in joint_names}
